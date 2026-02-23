@@ -20,7 +20,7 @@ storage/*.key
 Homestead.yaml
 Homestead.json
 /.vagrant
-.phpunit.result.cache
+/.phpunit.cache
 
 /public/build
 /storage/pail
@@ -28,3 +28,8 @@ Homestead.json
 .env.production
 .phpactor.json
 auth.json
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed

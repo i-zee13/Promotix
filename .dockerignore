@@ -1,0 +1,36 @@
+# Dependencies (reinstalled in container)
+/vendor/
+node_modules/
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+
+# Laravel
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*
+public/hot
+public/build
+.phpunit.result.cache
+.phpunit.cache
+
+# IDE and OS
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Docs (optional, reduce context)
+*.md
+!README.md
