@@ -8,7 +8,4 @@ export default defineConfig({
             refresh: true,
         }),
     ],
-    server: process.env.VITE_DOCKER
-        ? { host: '0.0.0.0', hmr: { host: 'localhost', port: 8000 } }
-        : {},
 });

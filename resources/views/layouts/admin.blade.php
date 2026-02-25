@@ -9,7 +9,8 @@
 </head>
 <body class="min-h-screen bg-dark text-gray-100 antialiased">
     <div class="flex min-h-screen">
-        {{-- Sidebar --}}
+        {{-- Sidebar (only for admin users) --}}
+        @if(auth()->check() && auth()->user()->is_admin)
         <aside
             id="sidebar"
             class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 -translate-x-full transform border-r border-dark-border bg-dark transition-transform duration-200 lg:relative lg:translate-x-0"
@@ -37,26 +38,27 @@
                     </div>
                 </div>
                 <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4" aria-label="Sidebar">
-                    <a href="{{ route('dashboard') }}" class="flex items-center gap-3 rounded-[20px] bg-accent px-4 py-3 text-sm font-medium text-white">
+                    <a href="{{ route('dashboard') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('dashboard') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">
                         <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
                         Dashboard
                     </a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Users &amp; Teams</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">SaaS Products</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Plans &amp; Pricing</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Subscriptions</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Payments</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Domains &amp; Trackers</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Traffic &amp; Bot Logs</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Automation</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Integrations</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Support System</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Analytics</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">Security &amp; Logs</a>
-                    <a href="#" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-dark-card hover:text-white">System Settings</a>
+                    <a href="{{ route('users') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('users') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Users &amp; Teams</a>
+                    <a href="{{ route('saas-products') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('saas-products') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">SaaS Products</a>
+                    <a href="{{ route('plans') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('plans') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Plans &amp; Pricing</a>
+                    <a href="{{ route('subscriptions') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('subscriptions') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Subscriptions</a>
+                    <a href="{{ route('payments') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('payments') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Payments</a>
+                    <a href="{{ route('domains-trackers') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('domains-trackers') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Domains &amp; Trackers</a>
+                    <a href="{{ route('traffic-bot-logs') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('traffic-bot-logs') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Traffic &amp; Bot Logs</a>
+                    <a href="{{ route('automation') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('automation') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Automation</a>
+                    <a href="{{ route('integrations') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('integrations') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Integrations</a>
+                    <a href="{{ route('support-system') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('support-system') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Support System</a>
+                    <a href="{{ route('analytics') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('analytics') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Analytics</a>
+                    <a href="{{ route('security-logs') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('security-logs') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">Security &amp; Logs</a>
+                    <a href="{{ route('system-settings') }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs('system-settings') ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">System Settings</a>
                 </nav>
             </div>
         </aside>
+        @endif
 
         {{-- Overlay for mobile --}}
         <div
