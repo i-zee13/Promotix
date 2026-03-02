@@ -13,8 +13,12 @@ use App\Http\Controllers\Admin\SubscriptionsController;
 use App\Http\Controllers\Admin\SupportSystemController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\TrafficBotLogsController;
+use App\Http\Controllers\Admin\IpLogsController;
+use App\Http\Controllers\IpFilterController;
 use App\Http\Controllers\Admin\UsersController;
 use Illuminate\Support\Facades\Route;
+
+Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'check'])->name('ip-check');
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -36,6 +40,9 @@ Route::middleware(['auth', 'admin'])
         Route::get('/payments', [PaymentsController::class, 'index'])->name('payments');
         Route::get('/domains-trackers', [DomainsTrackersController::class, 'index'])->name('domains-trackers');
         Route::get('/traffic-bot-logs', [TrafficBotLogsController::class, 'index'])->name('traffic-bot-logs');
+        Route::get('/ip-logs', [IpLogsController::class, 'index'])->name('ip-logs');
+        Route::post('/ip-logs/{ipLog}/toggle-block', [IpLogsController::class, 'toggleBlock'])->name('ip-logs.toggle-block');
+        Route::delete('/ip-logs/{ipLog}', [IpLogsController::class, 'destroy'])->name('ip-logs.destroy');
         Route::get('/automation', [AutomationController::class, 'index'])->name('automation');
         Route::get('/integrations', [IntegrationsController::class, 'index'])->name('integrations');
         Route::get('/support-system', [SupportSystemController::class, 'index'])->name('support-system');
