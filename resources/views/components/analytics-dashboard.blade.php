@@ -117,7 +117,7 @@
             </h3>
             <div class="mt-4 max-h-48 overflow-y-auto rounded-lg border border-white/10">
                 <table class="w-full min-w-[200px] text-left text-sm">
-                    <thead class="sticky top-0 bg-accent/80">
+                    <thead class="sticky top-0 bg-accent">
                         <tr>
                             <th scope="col" class="px-3 py-2 text-xs font-medium uppercase tracking-wider text-white">Date</th>
                             <th scope="col" class="px-3 py-2 text-xs font-medium uppercase tracking-wider text-white">Active Users</th>
@@ -139,7 +139,7 @@
     </div>
 
     {{-- Pagination strip --}}
-    <div class="flex flex-col gap-4 rounded-xl border border-dark-border bg-accent/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex flex-col gap-4 rounded-xl border border-dark-border bg-accent p-4 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-sm text-gray-300">
             Showing <span class="font-medium text-white">1</span>-<span class="font-medium text-white">5</span> of <span class="font-medium text-white">213</span>
         </p>
