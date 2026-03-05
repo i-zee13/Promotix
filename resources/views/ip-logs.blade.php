@@ -60,7 +60,7 @@
             <div class="mt-4 overflow-x-auto">
                 <table class="w-full min-w-[900px] text-left text-sm">
                     <thead>
-                    <tr class="border-b border-dark-border bg-accent/20">
+                    <tr class="border-b border-dark-border bg-accent">
                         <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">IP Address</th>
                         <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Status</th>
                         <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Hits</th>
@@ -149,7 +149,7 @@
             </div>
 
             @if ($logs->hasPages())
-                <div class="mt-6 flex flex-col gap-4 rounded-xl border border-dark-border bg-accent/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="mt-6 flex flex-col gap-4 rounded-xl border border-dark-border bg-accent p-4 sm:flex-row sm:items-center sm:justify-between">
                     <p class="text-sm text-gray-300">
                         Showing
                         <span class="font-medium text-white">{{ $logs->firstItem() }}</span>–

@@ -4,7 +4,7 @@
     <div class="overflow-x-auto">
         <table class="w-full min-w-[900px] text-left text-sm">
             <thead>
-                <tr class="border-b border-dark-border bg-accent/20">
+                <tr class="border-b border-dark-border bg-accent">
                     <th scope="col" class="px-4 py-3">
                         <span class="sr-only">Select</span>
                         <input type="checkbox" class="h-4 w-4 rounded border-dark-border bg-dark text-accent focus:ring-accent" aria-label="Select all">
@@ -66,7 +66,7 @@
     </div>
 
     {{-- Pagination strip --}}
-    <div class="mt-6 flex flex-col gap-4 rounded-xl border border-dark-border bg-accent/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mt-6 flex flex-col gap-4 rounded-xl border border-dark-border bg-accent p-4 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-sm text-gray-300">
             Showing <span class="font-medium text-white">{{ $from }}</span>-<span class="font-medium text-white">{{ $to }}</span> of <span class="font-medium text-white">{{ $total }}</span>
         </p>

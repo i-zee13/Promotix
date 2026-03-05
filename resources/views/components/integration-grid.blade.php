@@ -179,7 +179,7 @@
     </div>
 
     {{-- Pagination strip --}}
-    <div class="mt-6 flex flex-col gap-4 rounded-xl border border-dark-border bg-accent/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mt-6 flex flex-col gap-4 rounded-xl border border-dark-border bg-accent p-4 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-sm text-gray-300">
             Showing <span class="font-medium text-white">{{ $from }}</span>-<span class="font-medium text-white">{{ $to }}</span> of <span class="font-medium text-white">{{ $total }}</span>
         </p>
