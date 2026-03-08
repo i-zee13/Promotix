@@ -29,13 +29,10 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::middleware('auth')->prefix('admin')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-});
-
 Route::middleware(['auth', 'admin'])
     ->prefix('admin')
     ->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/users', [UsersController::class, 'index'])->name('users');
         Route::get('/saas-products', [SaaSProductsController::class, 'index'])->name('saas-products');
         Route::get('/plans', [PlansController::class, 'index'])->name('plans');
