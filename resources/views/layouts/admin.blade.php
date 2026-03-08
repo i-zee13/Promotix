@@ -9,19 +9,24 @@
 </head>
 <body class="min-h-screen bg-dark text-gray-100 antialiased">
     <div class="flex min-h-screen">
-        {{-- Sidebar (only for admin users) --}}
-        @if(auth()->check() && auth()->user()->is_admin)
+        {{-- Sidebar: shown for all authenticated users; admin sees full nav, others see Dashboard only. Collapsible on all screens. --}}
+        @auth
         <aside
             id="sidebar"
-            class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 -translate-x-full transform border-r border-dark-border bg-dark transition-transform duration-200 lg:relative lg:translate-x-0"
+            class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 -translate-x-full border-r border-dark-border bg-dark transition-transform duration-200 ease-out"
             aria-label="Main navigation"
         >
             <div class="flex h-full flex-col">
-                <div class="flex h-16 items-center gap-2 border-b border-dark-border px-4">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent">
-                        <span class="text-lg font-bold text-white">P</span>
+                <div class="flex h-16 items-center justify-between gap-2 border-b border-dark-border px-4">
+                    <div class="flex min-w-0 items-center gap-2">
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent">
+                            <span class="text-lg font-bold text-white">P</span>
+                        </div>
+                        <span class="truncate font-semibold text-white">Digital Promotix</span>
                     </div>
-                    <span class="font-semibold text-white">Digital Promotix</span>
+                    <button type="button" id="sidebar-close" class="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-dark-card hover:text-white lg:block" aria-label="Collapse sidebar">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+                    </button>
                 </div>
                 <div class="p-4">
                     <label for="sidebar-search" class="sr-only">Search</label>
@@ -59,24 +64,24 @@
                 </nav>
             </div>
         </aside>
-        @endif
+        @endauth
 
-        {{-- Overlay for mobile --}}
+        {{-- Overlay for mobile (when sidebar is open) --}}
         <div
             id="sidebar-overlay"
-            class="fixed inset-0 z-30 bg-black/50 opacity-0 transition-opacity duration-200 lg:hidden"
+            class="fixed inset-0 z-30 bg-black/50 opacity-0 transition-opacity duration-200 pointer-events-none"
             aria-hidden="true"
         ></div>
 
-        {{-- Main content --}}
-        <div class="flex min-w-0 flex-1 flex-col">
+        {{-- Main content (margin when sidebar is open on desktop) --}}
+        <div id="main-content-wrap" class="flex min-w-0 flex-1 flex-col transition-[margin] duration-200">
             {{-- Top header --}}
             <header class="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-dark-border bg-dark px-4 lg:px-8">
                 <div class="flex items-center gap-4">
                     <button
                         type="button"
                         id="sidebar-toggle"
-                        class="rounded-lg p-2 text-gray-400 hover:bg-dark-card hover:text-white lg:hidden"
+                        class="rounded-lg p-2 text-gray-400 hover:bg-dark-card hover:text-white"
                         aria-label="Toggle sidebar"
                         aria-expanded="false"
                         aria-controls="sidebar"
@@ -85,13 +90,27 @@
                     </button>
                     <h1 class="text-xl font-bold text-white">@yield('title', 'Dashboard')</h1>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="relative flex items-center gap-2" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
                     <a href="#" class="rounded-lg p-2 text-gray-400 hover:bg-dark-card hover:text-white" aria-label="Help">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </a>
-                    <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white" aria-label="User menu">
-                        <span class="text-sm font-medium">U</span>
+                    <button type="button" @click="userMenuOpen = ! userMenuOpen" class="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white transition hover:opacity-90" aria-label="User menu" :aria-expanded="userMenuOpen">
+                        <span class="text-sm font-medium">{{ auth()->user() ? strtoupper(mb_substr(auth()->user()->name, 0, 1)) : 'U' }}</span>
                     </button>
+                    {{-- User dropdown --}}
+                    <div x-show="userMenuOpen" x-cloak x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-dark-border bg-dark-card py-1 shadow-lg" role="menu">
+                        <div class="border-b border-dark-border px-4 py-2">
+                            <p class="text-xs text-gray-400">Email</p>
+                            <p class="truncate text-sm font-medium text-white">{{ auth()->user()?->email }}</p>
+                        </div>
+                        <a href="{{ route('profile.edit') }}" class="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-300 transition hover:bg-dark-border hover:text-white" role="menuitem">Change Photo</a>
+                        <div class="border-t border-dark-border">
+                            <form method="POST" action="{{ route('logout') }}" class="block">
+                                @csrf
+                                <button type="submit" class="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-300 transition hover:bg-dark-border hover:text-white" role="menuitem">Logout</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -103,47 +122,101 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const SIDEBAR_STORAGE_KEY = 'promotix-sidebar-collapsed';
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
             const toggle = document.getElementById('sidebar-toggle');
+            const sidebarClose = document.getElementById('sidebar-close');
+            const mainWrap = document.getElementById('main-content-wrap');
 
-            function openSidebar() {
-                sidebar.classList.remove('-translate-x-full');
-                overlay.classList.remove('opacity-0', 'pointer-events-none');
-                overlay.classList.add('opacity-100');
-                toggle.setAttribute('aria-expanded', 'true');
+            if (!sidebar || !mainWrap) return;
+
+            const isLg = () => window.matchMedia('(min-width: 1024px)').matches;
+
+            function isSidebarOpen() {
+                return !sidebar.classList.contains('-translate-x-full');
             }
 
-            function closeSidebar() {
-                sidebar.classList.add('-translate-x-full');
-                overlay.classList.add('opacity-0', 'pointer-events-none');
-                overlay.classList.remove('opacity-100');
-                toggle.setAttribute('aria-expanded', 'false');
-            }
-
-            toggle.addEventListener('click', function () {
-                if (sidebar.classList.contains('-translate-x-full')) {
-                    openSidebar();
-                } else {
-                    closeSidebar();
-                }
-            });
-
-            overlay.addEventListener('click', closeSidebar);
-
-            if (window.matchMedia('(max-width: 1023px)').matches) {
-                sidebar.classList.add('-translate-x-full');
-                overlay.classList.add('pointer-events-none');
-            } else {
-                sidebar.classList.remove('-translate-x-full');
-            }
-
-            window.matchMedia('(min-width: 1024px)').addEventListener('change', function (e) {
-                if (e.matches) {
+            function setSidebarOpen(open) {
+                if (open) {
                     sidebar.classList.remove('-translate-x-full');
+                    overlay.classList.remove('opacity-0', 'pointer-events-none');
+                    overlay.classList.add('opacity-100');
+                    if (isLg()) mainWrap.classList.add('lg:ml-64');
+                    if (toggle) toggle.setAttribute('aria-expanded', 'true');
+                } else {
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('opacity-0', 'pointer-events-none');
+                    overlay.classList.remove('opacity-100');
+                    mainWrap.classList.remove('lg:ml-64');
+                    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+
+            function setCollapsed(collapsed) {
+                try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0'); } catch (e) {}
+            }
+
+            function initSidebar() {
+                const collapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
+                if (isLg()) {
+                    if (collapsed) {
+                        sidebar.classList.add('-translate-x-full');
+                        mainWrap.classList.remove('lg:ml-64');
+                        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+                    } else {
+                        sidebar.classList.remove('-translate-x-full');
+                        mainWrap.classList.add('lg:ml-64');
+                        if (toggle) toggle.setAttribute('aria-expanded', 'true');
+                    }
                     overlay.classList.add('opacity-0', 'pointer-events-none');
                 } else {
                     sidebar.classList.add('-translate-x-full');
+                    mainWrap.classList.remove('lg:ml-64');
+                    overlay.classList.add('opacity-0', 'pointer-events-none');
+                    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+
+            initSidebar();
+
+            if (toggle) {
+                toggle.addEventListener('click', function () {
+                    if (isSidebarOpen()) {
+                        setSidebarOpen(false);
+                        if (isLg()) setCollapsed(true);
+                    } else {
+                        setSidebarOpen(true);
+                        if (isLg()) setCollapsed(false);
+                    }
+                });
+            }
+
+            if (sidebarClose) {
+                sidebarClose.addEventListener('click', function () {
+                    setSidebarOpen(false);
+                    if (isLg()) setCollapsed(true);
+                });
+            }
+
+            overlay.addEventListener('click', function () {
+                setSidebarOpen(false);
+            });
+
+            window.matchMedia('(min-width: 1024px)').addEventListener('change', function (e) {
+                if (e.matches) {
+                    const collapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
+                    if (collapsed) {
+                        sidebar.classList.add('-translate-x-full');
+                        mainWrap.classList.remove('lg:ml-64');
+                    } else {
+                        sidebar.classList.remove('-translate-x-full');
+                        mainWrap.classList.add('lg:ml-64');
+                    }
+                    overlay.classList.add('opacity-0', 'pointer-events-none');
+                } else {
+                    sidebar.classList.add('-translate-x-full');
+                    mainWrap.classList.remove('lg:ml-64');
                 }
             });
         });
