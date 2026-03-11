@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -22,7 +23,39 @@ class User extends Authenticatable
         'email',
         'password',
         'is_admin',
+        'role_id',
     ];
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * Check if user can access a given permission (by slug) or route name.
+     * Super admins (is_admin) have access to everything.
+     */
+    public function canAccess(string $permissionSlugOrRouteName): bool
+    {
+        if ($this->is_admin) {
+            return true;
+        }
+
+        $role = $this->role;
+        if (! $role) {
+            return false;
+        }
+
+        $permission = Permission::where('slug', $permissionSlugOrRouteName)
+            ->orWhere('route_name', $permissionSlugOrRouteName)
+            ->first();
+
+        if (! $permission) {
+            return false;
+        }
+
+        return $role->permissions()->where('permissions.id', $permission->id)->exists();
+    }
 
     /**
      * The attributes that should be hidden for serialization.

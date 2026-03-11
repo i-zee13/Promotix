@@ -22,9 +22,14 @@ Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'chec
 
 Route::get('/', function () {
     if (auth()->check()) {
-        return auth()->user()->is_admin
-            ? redirect()->route('dashboard')
-            : view('welcome');
+        $user = auth()->user();
+        if ($user->is_admin) {
+            return redirect()->route('dashboard');
+        }
+        if ($user->role_id && $user->role?->permissions()->exists()) {
+            return redirect()->route('admin');
+        }
+        return view('welcome');
     }
     return view('welcome');
 })->name('home');
@@ -32,8 +37,19 @@ Route::get('/', function () {
 Route::middleware(['auth', 'admin'])
     ->prefix('admin')
     ->group(function () {
+        Route::get('/', function () {
+            $menu = config('admin.menu', []);
+            foreach ($menu as $slug => $item) {
+                if (auth()->user()->canAccess($slug)) {
+                    return redirect()->route($item['route']);
+                }
+            }
+            abort(403, 'Your role has no menu permissions.');
+        })->name('admin');
+        Route::middleware('permission')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/users', [UsersController::class, 'index'])->name('users');
+        Route::patch('/users/{user}/role', [UsersController::class, 'updateRole'])->name('users.update-role');
         Route::get('/saas-products', [SaaSProductsController::class, 'index'])->name('saas-products');
         Route::get('/plans', [PlansController::class, 'index'])->name('plans');
         Route::get('/subscriptions', [SubscriptionsController::class, 'index'])->name('subscriptions');
@@ -49,6 +65,8 @@ Route::middleware(['auth', 'admin'])
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/security-logs', [SecurityLogsController::class, 'index'])->name('security-logs');
         Route::get('/system-settings', [SystemSettingsController::class, 'index'])->name('system-settings');
+        Route::resource('roles', \App\Http\Controllers\Admin\RolesController::class)->except(['show']);
+        });
     });
 
 Route::middleware('auth')->group(function () {
