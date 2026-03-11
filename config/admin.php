@@ -16,7 +16,7 @@ return [
         'payments'        => ['route' => 'payments',        'label' => 'Payments'],
         'domains-trackers' => ['route' => 'domains-trackers', 'label' => 'Domains & Trackers'],
         'traffic-bot-logs'=> ['route' => 'traffic-bot-logs', 'label' => 'Traffic & Bot Logs'],
-        'ip-logs'         => ['route' => 'ip-logs',         'label' => 'IP Logs'],
+        'ip-logs'         => ['route' => 'ip-logs',         'label' => 'IP Logs'], // view list, toggle block, delete IPs
         'automation'      => ['route' => 'automation',      'label' => 'Automation'],
         'integrations'    => ['route' => 'integrations',    'label' => 'Integrations'],
         'support-system'  => ['route' => 'support-system',  'label' => 'Support System'],
@@ -41,6 +41,7 @@ return [
         'payments'         => 'payments',
         'domains-trackers' => 'domains-trackers',
         'traffic-bot-logs' => 'traffic-bot-logs',
+        // IP management (list, block/unblock, delete)
         'ip-logs'          => 'ip-logs',
         'ip-logs.toggle-block' => 'ip-logs',
         'ip-logs.destroy'  => 'ip-logs',
