@@ -21,15 +21,15 @@ use Illuminate\Support\Facades\Route;
 Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'check'])->name('ip-check');
 
 Route::get('/', function () {
-    if (auth()->check()) {
-        $user = auth()->user();
-        if ($user->is_admin) {
-            return redirect()->route('dashboard');
-        }
-        if ($user->role_id && $user->role?->permissions()->exists()) {
-            return redirect()->route('admin');
-        }
-        return view('welcome');
+    if (! auth()->check()) {
+        return redirect()->route('login');
+    }
+    $user = auth()->user();
+    if ($user->is_admin) {
+        return redirect()->route('dashboard');
+    }
+    if ($user->role_id && $user->role?->permissions()->exists()) {
+        return redirect()->route('admin');
     }
     return view('welcome');
 })->name('home');
