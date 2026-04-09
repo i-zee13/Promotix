@@ -17,7 +17,7 @@ class IpFilterController extends Controller
     {
         // Handle CORS preflight
         if ($request->isMethod('options')) {
-            return $this->cors(response()->noContent());
+            return $this->cors($request, response()->noContent());
         }
 
         $ip = $request->ip();
@@ -41,6 +41,7 @@ class IpFilterController extends Controller
         $allowed = ! $log->is_blocked;
 
         return $this->cors(
+            $request,
             response()->json([
                 'allowed' => $allowed,
             ])
@@ -50,12 +51,18 @@ class IpFilterController extends Controller
     /**
      * Attach permissive CORS headers so this can be called from any domain.
      */
-    protected function cors($response)
+    protected function cors(Request $request, $response)
     {
+        $origin = $request->headers->get('Origin');
+        $allowOrigin = $origin ?: '*';
+
         return $response
-            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Origin', $allowOrigin)
+            ->header('Vary', 'Origin')
+            ->header('Access-Control-Allow-Credentials', $origin ? 'true' : 'false')
             ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type');
+            ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, Accept, Origin')
+            ->header('Access-Control-Max-Age', '86400');
     }
 }
 

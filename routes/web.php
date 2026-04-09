@@ -16,9 +16,16 @@ use App\Http\Controllers\Admin\TrafficBotLogsController;
 use App\Http\Controllers\Admin\IpLogsController;
 use App\Http\Controllers\IpFilterController;
 use App\Http\Controllers\Admin\UsersController;
+use App\Http\Controllers\Admin\PaidMarketingController;
+use App\Http\Controllers\Admin\DomainManagementController;
+use App\Http\Controllers\TagController;
+use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 
 Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'check'])->name('ip-check');
+Route::match(['post', 'options'], '/t/collect', [TrackingController::class, 'collect'])->name('t.collect');
+Route::get('/tag/{domainKey}.js', [TagController::class, 'js'])->name('tag.js');
+Route::get('/tag/{domainKey}.html', [TagController::class, 'noscript'])->name('tag.noscript');
 
 Route::get('/', function () {
     if (! auth()->check()) {
@@ -48,6 +55,11 @@ Route::middleware(['auth', 'admin'])
         })->name('admin');
         Route::middleware('permission')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/paid-marketing/detailed-view', [PaidMarketingController::class, 'detailedView'])->name('paid-marketing.detailed');
+        Route::get('/domains', [DomainManagementController::class, 'index'])->name('domains.index');
+        Route::post('/domains', [DomainManagementController::class, 'store'])->name('domains.store');
+        Route::get('/domains/{domain}/setup', [DomainManagementController::class, 'setup'])->name('domains.setup');
+        Route::get('/domains/{domain}/wordpress-plugin.zip', [DomainManagementController::class, 'downloadWpPlugin'])->name('domains.wp-plugin');
         Route::get('/users', [UsersController::class, 'index'])->name('users');
         Route::patch('/users/{user}/role', [UsersController::class, 'updateRole'])->name('users.update-role');
         Route::get('/saas-products', [SaaSProductsController::class, 'index'])->name('saas-products');

@@ -39,16 +39,22 @@
             @endphp
             <div>
                 <p class="block text-sm font-medium text-gray-300 mb-2">Permissions</p>
-                <div class="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-dark-border bg-dark p-4">
+                <p class="mb-2 text-xs text-gray-500">Select multiple permissions (Ctrl/Shift).</p>
+                <select
+                    name="permissions[]"
+                    multiple
+                    size="10"
+                    class="w-full rounded-xl border border-dark-border bg-dark py-2.5 px-4 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                >
                     @foreach ($permissions as $p)
-                        <label class="flex items-center gap-2 cursor-pointer text-gray-300 hover:text-white">
-                            <input type="checkbox" name="permissions[]" value="{{ $p->id }}" {{ in_array($p->id, $checkedIds) ? 'checked' : '' }}
-                                class="h-4 w-4 rounded border-dark-border bg-dark text-accent focus:ring-accent">
-                            <span>{{ $p->name }}</span>
-                            <span class="text-xs text-gray-500">({{ $p->slug }})</span>
-                        </label>
+                        <option
+                            value="{{ $p->id }}"
+                            @selected(in_array($p->id, $checkedIds))
+                        >
+                            {{ $p->name }} ({{ $p->slug }})
+                        </option>
                     @endforeach
-                </div>
+                </select>
             </div>
 
             <div class="flex gap-3">

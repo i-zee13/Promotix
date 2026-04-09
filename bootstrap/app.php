@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Exclude the public tracking endpoint from CSRF validation so it can be called from any site.
         $middleware->validateCsrfTokens(except: [
             '/ip-check',
+            '/t/collect',
         ]);
 
         $middleware->alias([

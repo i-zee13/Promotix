@@ -26,5 +26,17 @@ class RolesAndPermissionsSeeder extends Seeder
         );
 
         $superAdmin->permissions()->sync(Permission::pluck('id'));
+
+        // Default role for newly registered users:
+        // grant only the dashboard permission so they land in the dashboard after registration.
+        $defaultRole = Role::updateOrCreate(
+            ['slug' => 'default-user'],
+            ['name' => 'Default User', 'description' => 'Access to basic admin dashboard']
+        );
+
+        $dashboardPermission = Permission::where('slug', 'dashboard')->first();
+        if ($dashboardPermission) {
+            $defaultRole->permissions()->sync([$dashboardPermission->id]);
+        }
     }
 }
