@@ -6,6 +6,7 @@ use App\Models\Domain;
 use App\Models\IpLog;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
+use App\Jobs\EnrichIpIntelJob;
 use Illuminate\Http\Request;
 
 class TrackingController extends Controller
@@ -32,7 +33,7 @@ class TrackingController extends Controller
 
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
 
-        $ip = $request->ip();
+        $ip = $this->clientIp($request);
         $ua = $request->userAgent() ?? '';
 
         // Mark domain as connected/seen
@@ -51,6 +52,9 @@ class TrackingController extends Controller
         $ipLog->last_path = $data['path'] ?? null;
         $ipLog->last_referrer = $data['referrer'] ?? null;
         $ipLog->save();
+
+        // Enrich IP intel asynchronously (VPN/Proxy + abuse score)
+        EnrichIpIntelJob::dispatch($ipLog->id);
 
         // Paid marketing visit row (1 row per domain+ip)
         $visit = PaidMarketingVisit::firstOrNew([
@@ -86,6 +90,48 @@ class TrackingController extends Controller
         ]);
 
         return $this->cors($request, response()->json(['ok' => true]));
+    }
+
+    private function clientIp(Request $request): string
+    {
+        $candidates = [
+            $request->headers->get('CF-Connecting-IP'),
+            $request->headers->get('True-Client-IP'),
+            $request->headers->get('X-Real-IP'),
+            $request->headers->get('X-Forwarded-For'),
+        ];
+
+        $ips = [];
+        foreach ($candidates as $value) {
+            if (! $value) {
+                continue;
+            }
+            foreach (preg_split('/\s*,\s*/', $value) as $ip) {
+                $ip = trim($ip);
+                if ($ip !== '') {
+                    $ips[] = $ip;
+                }
+            }
+        }
+
+        // Prefer a valid non-loopback IP if available.
+        foreach ($ips as $ip) {
+            if ($this->isValidIp($ip) && ! $this->isLoopbackIp($ip)) {
+                return $ip;
+            }
+        }
+
+        return $request->ip() ?? '0.0.0.0';
+    }
+
+    private function isValidIp(string $ip): bool
+    {
+        return filter_var($ip, FILTER_VALIDATE_IP) !== false;
+    }
+
+    private function isLoopbackIp(string $ip): bool
+    {
+        return $ip === '127.0.0.1' || $ip === '::1';
     }
 
     protected function cors(Request $request, $response)

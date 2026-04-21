@@ -63,6 +63,7 @@
                     <tr class="border-b border-dark-border bg-accent">
                         <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">IP Address</th>
                         <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Status</th>
+                        <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Intel</th>
                         <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Hits</th>
                         <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Last Seen</th>
                         <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Last Path</th>
@@ -89,6 +90,33 @@
                                     <span class="inline-flex rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white">
                                         Allowed
                                     </span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                @if ($log->intel_checked_at)
+                                    <div class="flex flex-col gap-1">
+                                        <div class="flex flex-wrap gap-1">
+                                            @if (is_numeric($log->ipdetails_abuser_score))
+                                                @php
+                                                    $s = (float) $log->ipdetails_abuser_score;
+                                                    $label = $s >= 0.7 ? 'High' : ($s >= 0.2 ? 'Medium' : 'Low');
+                                                    $cls = $s >= 0.7 ? 'bg-red-500/20 text-red-300' : ($s >= 0.2 ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300');
+                                                @endphp
+                                                <span class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {{ $cls }}">Abuser {{ $label }} ({{ $log->ipdetails_abuser_score }})</span>
+                                            @endif
+                                            @if ($log->abuse_is_tor ?? false)
+                                                <span class="inline-flex rounded-md bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300">Tor</span>
+                                            @endif
+                                            @if (is_int($log->abuse_confidence_score) && $log->abuse_confidence_score >= 50)
+                                                <span class="inline-flex rounded-md bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-300">Abuse {{ $log->abuse_confidence_score }}</span>
+                                            @elseif (is_int($log->abuse_confidence_score))
+                                                <span class="inline-flex rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-300">Score {{ $log->abuse_confidence_score }}</span>
+                                            @endif
+                                        </div>
+                                        <span class="text-[11px] text-gray-500">Checked {{ $log->intel_checked_at->diffForHumans() }}</span>
+                                    </div>
+                                @else
+                                    <span class="text-xs text-gray-500">Pending</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3">
@@ -139,7 +167,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-400">
+                            <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-400">
                                 No IP logs found yet. Once your tracking script starts receiving traffic, IPs will appear here.
                             </td>
                         </tr>

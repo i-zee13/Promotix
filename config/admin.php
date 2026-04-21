@@ -19,7 +19,7 @@ return [
         // 'payments'        => ['route' => 'payments',        'label' => 'Payments'],
         // 'domains-trackers' => ['route' => 'domains-trackers', 'label' => 'Domains & Trackers'],
         // 'traffic-bot-logs'=> ['route' => 'traffic-bot-logs', 'label' => 'Traffic & Bot Logs'],
-        'ip-logs'         => ['route' => 'ip-logs',         'label' => 'IP Logs'], // view list, toggle block, delete IPs
+        'ip-logs'         => ['route' => 'ip-logs',         'label' => 'Bot Mitigation'], // view list, toggle block, delete IPs
         // 'automation'      => ['route' => 'automation',      'label' => 'Automation'],
         // 'integrations'    => ['route' => 'integrations',    'label' => 'Integrations'],
         // 'support-system'  => ['route' => 'support-system',  'label' => 'Support System'],

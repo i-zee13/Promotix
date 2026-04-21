@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    // IP intelligence providers (free tiers)
+    'iphub' => [
+        'key' => env('IPHUB_KEY'),
+        'base_url' => env('IPHUB_BASE_URL', 'https://v2.api.iphub.info'),
+    ],
+    'abuseipdb' => [
+        'key' => env('ABUSEIPDB_KEY'),
+        'base_url' => env('ABUSEIPDB_BASE_URL', 'https://api.abuseipdb.com'),
+    ],
+
+    'ipdetails' => [
+        'base_url' => env('IPDETAILS_BASE_URL', 'https://api.ipdetails.io'),
+    ],
+
 ];

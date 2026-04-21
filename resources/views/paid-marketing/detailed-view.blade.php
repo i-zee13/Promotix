@@ -57,34 +57,51 @@
                     <thead>
                         <tr class="border-b border-dark-border bg-accent">
                             <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">IP Address</th>
-                            <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Visits</th>
-                            <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Campaign</th>
-                            <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Last Click</th>
+                            <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Last Seen</th>
                             <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Threat Group</th>
                             <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Threat Type</th>
+                            <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Action Taken</th>
                             <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Country</th>
+                            <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Domain</th>
+                            <th class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">URL</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-dark-border">
                         @forelse ($visits as $visit)
-                            <tr class="transition hover:bg-gray-800/50">
-                                <td class="px-4 py-3 font-semibold text-white">{{ $visit->ip }}</td>
-                                <td class="px-4 py-3">
-                                    <button type="button"
-                                            class="rounded-lg bg-dark px-2.5 py-1 text-sm text-white hover:bg-dark-border"
-                                            @click="openClicks(@js($visit))">
-                                        {{ $visit->visits }}
-                                    </button>
+                            <tr class="cursor-pointer transition hover:bg-gray-800/50" @click="openClicks(@js($visit))">
+                                <td class="px-4 py-3 font-semibold text-white">
+                                    <div class="flex flex-col gap-1">
+                                        <span>{{ $visit->ip }}</span>
+                                        <span class="text-xs text-gray-400">Clicks: {{ $visit->clicks?->count() ?? 0 }}</span>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3 text-gray-300">{{ $visit->campaign ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-gray-300">{{ $visit->last_click_at?->format('m/d/y H:i:s') ?? '—' }}</td>
                                 <td class="px-4 py-3 text-gray-300">{{ $visit->threat_group ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-gray-300">{{ $visit->threat_type ?? 'N/A' }}</td>
-                                <td class="px-4 py-3 text-gray-300">{{ $visit->country ?? '—' }}</td>
+                                <td class="px-4 py-3">
+                                    @php
+                                        $hasThreat = filled($visit->threat_group) || filled($visit->threat_type);
+                                        $blocked = (bool) ($visit->ip_is_blocked ?? false);
+                                        $action = $blocked ? 'Blocked' : ($hasThreat ? 'Detected' : '—');
+                                        $cls = $blocked ? 'bg-red-500/20 text-red-300' : ($hasThreat ? 'bg-amber-500/20 text-amber-300' : 'bg-gray-500/20 text-gray-300');
+                                    @endphp
+                                    <span class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {{ $cls }}">{{ $action }}</span>
+                                </td>
+                                <td class="px-4 py-3 text-gray-300">
+                                    <span class="inline-flex items-center gap-2">
+                                        @if ($visit->country)
+                                            <span>{{ $visit->country }}</span>
+                                        @else
+                                            <span>—</span>
+                                        @endif
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-gray-300">{{ $visit->domain?->hostname ?? '—' }}</td>
+                                <td class="px-4 py-3 text-gray-300">{{ $visit->last_path ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-10 text-center text-gray-400">No rows yet.</td>
+                                <td colspan="8" class="px-4 py-10 text-center text-gray-400">No rows yet.</td>
                             </tr>
                         @endforelse
                     </tbody>

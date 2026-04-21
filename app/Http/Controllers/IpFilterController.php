@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\IpLog;
+use App\Jobs\EnrichIpIntelJob;
 use Illuminate\Http\Request;
 
 class IpFilterController extends Controller
@@ -20,7 +21,7 @@ class IpFilterController extends Controller
             return $this->cors($request, response()->noContent());
         }
 
-        $ip = $request->ip();
+        $ip = $this->clientIp($request);
         $userAgent = $request->userAgent() ?? '';
 
         $log = IpLog::firstOrNew(['ip' => $ip]);
@@ -36,6 +37,8 @@ class IpFilterController extends Controller
         $log->last_referrer = $request->input('referrer');
         $log->save();
 
+        EnrichIpIntelJob::dispatch($log->id);
+
         // For now, "fake" detection = IPs you manually mark as blocked in the database.
         // If is_blocked is true, the script should bounce this visitor.
         $allowed = ! $log->is_blocked;
@@ -46,6 +49,47 @@ class IpFilterController extends Controller
                 'allowed' => $allowed,
             ])
         );
+    }
+
+    private function clientIp(Request $request): string
+    {
+        $candidates = [
+            $request->headers->get('CF-Connecting-IP'),
+            $request->headers->get('True-Client-IP'),
+            $request->headers->get('X-Real-IP'),
+            $request->headers->get('X-Forwarded-For'),
+        ];
+
+        $ips = [];
+        foreach ($candidates as $value) {
+            if (! $value) {
+                continue;
+            }
+            foreach (preg_split('/\s*,\s*/', $value) as $ip) {
+                $ip = trim($ip);
+                if ($ip !== '') {
+                    $ips[] = $ip;
+                }
+            }
+        }
+
+        foreach ($ips as $ip) {
+            if ($this->isValidIp($ip) && ! $this->isLoopbackIp($ip)) {
+                return $ip;
+            }
+        }
+
+        return $request->ip() ?? '0.0.0.0';
+    }
+
+    private function isValidIp(string $ip): bool
+    {
+        return filter_var($ip, FILTER_VALIDATE_IP) !== false;
+    }
+
+    private function isLoopbackIp(string $ip): bool
+    {
+        return $ip === '127.0.0.1' || $ip === '::1';
     }
 
     /**
