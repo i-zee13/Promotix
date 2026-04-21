@@ -20,18 +20,47 @@ class TagController extends Controller
   var domainKey = {$this->json($domainKey)};
   var collectUrl = {$this->json($collectUrl)};
 
+  function qp(obj){
+    try{
+      var p = new URLSearchParams();
+      for (var k in obj){
+        if (!Object.prototype.hasOwnProperty.call(obj,k)) continue;
+        var v = obj[k];
+        if (v === undefined || v === null || v === '') continue;
+        p.set(k, String(v));
+      }
+      p.set('_', String(Date.now()));
+      return p.toString();
+    }catch(e){ return ''; }
+  }
+
+  function pixel(payload){
+    try{
+      var img = new Image();
+      img.referrerPolicy = 'no-referrer-when-downgrade';
+      img.src = collectUrl + (collectUrl.indexOf('?') === -1 ? '?' : '&') + qp(payload);
+    }catch(e){}
+  }
+
   function send(payload){
     try {
-      navigator.sendBeacon
-        ? navigator.sendBeacon(collectUrl, new Blob([JSON.stringify(payload)], {type: 'application/json'}))
-        : fetch(collectUrl, {
+      if (navigator.sendBeacon){
+        var ok = navigator.sendBeacon(collectUrl, new Blob([JSON.stringify(payload)], {type: 'application/json'}));
+        if (!ok) pixel(payload);
+        return;
+      }
+      if (window.fetch){
+        fetch(collectUrl, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify(payload),
             mode: 'cors',
             credentials: 'omit',
             keepalive: true
-          });
+          }).catch(function(){ pixel(payload); });
+        return;
+      }
+      pixel(payload);
     } catch (e) {}
   }
 

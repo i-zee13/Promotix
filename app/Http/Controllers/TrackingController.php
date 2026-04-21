@@ -8,6 +8,7 @@ use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Jobs\EnrichIpIntelJob;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class TrackingController extends Controller
 {
@@ -18,7 +19,7 @@ class TrackingController extends Controller
             return $this->cors($request, response()->noContent());
         }
 
-        $data = $request->validate([
+        $data = Validator::make($request->all(), [
             'domainKey' => ['required', 'string'],
             'type' => ['nullable', 'string'],
             'url' => ['nullable', 'string'],
@@ -29,7 +30,7 @@ class TrackingController extends Controller
             'utm_medium' => ['nullable', 'string'],
             'utm_campaign' => ['nullable', 'string'],
             'keyword' => ['nullable', 'string'],
-        ]);
+        ])->validate();
 
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
 
@@ -143,7 +144,7 @@ class TrackingController extends Controller
             ->header('Access-Control-Allow-Origin', $allowOrigin)
             ->header('Vary', 'Origin')
             ->header('Access-Control-Allow-Credentials', $origin ? 'true' : 'false')
-            ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
             ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, Accept, Origin')
             ->header('Access-Control-Max-Age', '86400');
     }

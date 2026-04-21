@@ -23,7 +23,7 @@ use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 
 Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'check'])->name('ip-check');
-Route::match(['post', 'options'], '/t/collect', [TrackingController::class, 'collect'])->name('t.collect');
+Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::class, 'collect'])->name('t.collect');
 Route::get('/tag/{domainKey}.js', [TagController::class, 'js'])->name('tag.js');
 Route::get('/tag/{domainKey}.html', [TagController::class, 'noscript'])->name('tag.noscript');
 
