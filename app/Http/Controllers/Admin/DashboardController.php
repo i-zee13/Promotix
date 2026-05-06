@@ -163,6 +163,11 @@ class DashboardController extends Controller
         ]);
 
         $request->session()->put('preferences.dark_mode', $data['dark_mode']);
+        $user = $request->user();
+        $prefs = (array) ($user->ui_preferences ?? []);
+        $prefs['dark_mode'] = (bool) $data['dark_mode'];
+        $user->ui_preferences = $prefs;
+        $user->save();
 
         return response()->json([
             'ok' => true,

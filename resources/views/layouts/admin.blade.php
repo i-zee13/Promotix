@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="initial-theme" content="{{ (auth()->user()?->ui_preferences['dark_mode'] ?? true) ? 'dark' : 'light' }}">
     <title>@yield('title', 'Dashboard') — {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
@@ -234,7 +235,8 @@
                 try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) {}
             }
 
-            const cachedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
+            const serverTheme = document.querySelector('meta[name="initial-theme"]')?.getAttribute('content') || 'dark';
+            const cachedTheme = localStorage.getItem(THEME_STORAGE_KEY) || serverTheme;
             setTheme(cachedTheme);
 
             if (themeToggle) {
@@ -242,7 +244,7 @@
                     const nextTheme = document.documentElement.classList.contains('light-mode') ? 'dark' : 'light';
                     setTheme(nextTheme);
                     try {
-                        await fetch('/api/user/preferences', {
+                        await fetch('/user/preferences', {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',

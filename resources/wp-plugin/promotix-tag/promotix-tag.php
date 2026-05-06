@@ -134,3 +134,33 @@ function promotix_tag_inject_head() {
 }
 add_action('wp_head', 'promotix_tag_inject_head', 1);
 
+function promotix_tag_register_rest_routes() {
+    register_rest_route('promotix/v1', '/verify', array(
+        'methods' => 'GET',
+        'permission_callback' => '__return_true',
+        'callback' => 'promotix_tag_verify_callback',
+    ));
+}
+add_action('rest_api_init', 'promotix_tag_register_rest_routes');
+
+function promotix_tag_verify_callback($request) {
+    $s = promotix_tag_get_settings();
+    $domainKey = (string) $request->get_param('domain_key');
+    $secretKey = (string) $request->get_param('secret_key');
+
+    $verified = (
+        !empty($s['enabled']) &&
+        !empty($s['domain_key']) &&
+        !empty($s['secret_key']) &&
+        hash_equals((string) $s['domain_key'], $domainKey) &&
+        hash_equals((string) $s['secret_key'], $secretKey)
+    );
+
+    return array(
+        'verified' => $verified,
+        'message' => $verified
+            ? 'Promotix plugin is configured and verified.'
+            : 'Plugin is installed but keys do not match or plugin is disabled.',
+    );
+}
+

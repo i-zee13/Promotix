@@ -25,6 +25,7 @@ class User extends Authenticatable
         'password',
         'is_admin',
         'role_id',
+        'ui_preferences',
     ];
 
     public function role(): BelongsTo
@@ -89,6 +90,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'ui_preferences' => 'array',
         ];
     }
 }

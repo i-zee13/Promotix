@@ -133,7 +133,7 @@
             };
 
             const loadSummary = async () => {
-                const res = await fetch('/api/overview/summary');
+                const res = await fetch('/overview/summary');
                 const data = await res.json();
                 document.getElementById('paid-visits').textContent = fmt(data.paidAdvertising.visits);
                 document.getElementById('paid-campaigns').textContent = `${fmt(data.paidAdvertising.campaigns)} campaigns`;
@@ -142,7 +142,7 @@
             };
 
             const loadInsights = async () => {
-                const res = await fetch('/api/insights');
+                const res = await fetch('/insights');
                 const d = await res.json();
                 document.getElementById('insight-clicks').textContent = fmt(d.totalClicks);
                 document.getElementById('insight-suspicious').textContent = fmt(d.suspiciousVisits);
@@ -150,7 +150,7 @@
             };
 
             const loadCampaigns = async () => {
-                const res = await fetch('/api/campaigns');
+                const res = await fetch('/campaigns');
                 const list = await res.json();
                 list.forEach((c) => {
                     const opt = document.createElement('option');
@@ -161,7 +161,7 @@
             };
 
             const loadDomainTable = async () => {
-                const res = await fetch('/api/domains/performance');
+                const res = await fetch('/domains/performance');
                 const rows = await res.json();
                 const body = document.getElementById('domain-performance-body');
                 body.innerHTML = '';
@@ -178,7 +178,7 @@
             };
 
             const loadNotifications = async () => {
-                const res = await fetch('/api/notifications');
+                const res = await fetch('/notifications');
                 const items = await res.json();
                 const wrap = document.getElementById('notification-cards');
                 wrap.innerHTML = '';
@@ -194,13 +194,13 @@
                 const params = new URLSearchParams();
                 if (campaignFilter.value) params.set('campaign', campaignFilter.value);
                 if (pathFilter.value) params.set('path', pathFilter.value);
-                const res = await fetch(`/api/analytics/trends?${params.toString()}`);
+                const res = await fetch(`/analytics/trends?${params.toString()}`);
                 const d = await res.json();
                 drawBars('trends-chart', d.labels || [], d.values || [], '#8B5CF6');
             };
 
             const loadThreats = async () => {
-                const res = await fetch('/api/analytics/threats');
+                const res = await fetch('/analytics/threats');
                 const d = await res.json();
                 drawBars('threats-chart', d.labels || [], d.values || [], '#EF4444');
             };

@@ -36,9 +36,9 @@
                         <p class="font-medium text-white">Direct installation</p>
                         <p class="mt-1 text-xs text-gray-500">Paste into site</p>
                     </button>
-                    <button type="button" class="rounded-xl border border-dark-border bg-dark p-4 text-left opacity-60">
+                    <button type="button" @click="tab='email'" class="rounded-xl border border-dark-border bg-dark p-4 text-left hover:bg-dark-border" :class="tab==='email' ? 'ring-1 ring-accent' : ''">
                         <p class="font-medium text-white">Email my developer</p>
-                        <p class="mt-1 text-xs text-gray-500">Coming soon</p>
+                        <p class="mt-1 text-xs text-gray-500">Send installation instructions</p>
                     </button>
                 </div>
             </div>
@@ -181,6 +181,12 @@
             @endphp
 
             <div class="mt-4">
+                <label class="mb-2 block text-xs text-gray-500">GTM container ID</label>
+                <div class="mb-4 flex gap-2">
+                    <input id="gtm-container-id" type="text" value="{{ $domain->gtm_container_id }}" placeholder="GTM-XXXXXXX" class="w-full rounded-xl border border-dark-border bg-dark p-3 text-sm text-white focus:outline-none">
+                    <button type="button" class="rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-hover"
+                            @click="saveGtm('{{ $domain->id }}')">Save</button>
+                </div>
                 <p class="mb-2 text-xs text-gray-500">Invocation tag</p>
                 <div class="flex gap-2">
                     <textarea readonly rows="5" class="w-full rounded-xl border border-dark-border bg-dark p-3 font-mono text-xs text-white focus:outline-none">{{ $gtmSnippet }}</textarea>
@@ -189,6 +195,34 @@
                         Copy
                     </button>
                 </div>
+            </div>
+        </section>
+
+        {{-- Tracking params --}}
+        <section class="rounded-xl border border-dark-border bg-dark-card p-6">
+            <h2 class="text-lg font-semibold text-white">Tracking parameters setup</h2>
+            <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                @foreach (['utm_source', 'utm_medium', 'utm_campaign', 'utm_term'] as $param)
+                    <label class="flex items-center gap-2 rounded-lg border border-dark-border bg-dark px-3 py-2 text-sm text-gray-300">
+                        <input type="checkbox" class="utm-toggle rounded border-dark-border bg-dark text-accent focus:ring-accent"
+                               data-param="{{ $param }}"
+                               @checked(($domain->tracking_params[$param] ?? true) === true)>
+                        {{ $param }}
+                    </label>
+                @endforeach
+            </div>
+            <button type="button" class="mt-4 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-hover"
+                    @click="saveTrackingParams('{{ $domain->id }}')">Save tracking params</button>
+        </section>
+
+        {{-- Email developer --}}
+        <section class="rounded-xl border border-dark-border bg-dark-card p-6" x-show="tab==='email'" x-cloak>
+            <h2 class="text-lg font-semibold text-white">Email developer</h2>
+            <p class="mt-1 text-sm text-gray-400">Send install instructions for this domain.</p>
+            <div class="mt-4 flex gap-2">
+                <input id="developer-email" type="email" placeholder="developer@company.com" class="w-full rounded-xl border border-dark-border bg-dark p-3 text-sm text-white focus:outline-none">
+                <button type="button" class="rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-hover"
+                        @click="sendDeveloperEmail('{{ $domain->id }}')">Send</button>
             </div>
         </section>
     </div>
@@ -238,6 +272,35 @@
                         this.showToast('Copy manually');
                     } catch (e) {}
                 },
+                async saveGtm(domainId) {
+                    const value = document.getElementById('gtm-container-id')?.value || '';
+                    const res = await fetch(`/domains/${domainId}/gtm`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json'},
+                        body: JSON.stringify({gtm_container_id: value})
+                    });
+                    if (res.ok) this.showToast('GTM ID saved');
+                },
+                async saveTrackingParams(domainId) {
+                    const toggles = Array.from(document.querySelectorAll('.utm-toggle'));
+                    const tracking_params = {};
+                    toggles.forEach((el) => tracking_params[el.dataset.param] = !!el.checked);
+                    const res = await fetch(`/domains/${domainId}/tracking-params`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json'},
+                        body: JSON.stringify({tracking_params})
+                    });
+                    if (res.ok) this.showToast('Tracking params saved');
+                },
+                async sendDeveloperEmail(domainId) {
+                    const email = document.getElementById('developer-email')?.value || '';
+                    const res = await fetch(`/domains/${domainId}/email-developer`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json'},
+                        body: JSON.stringify({email})
+                    });
+                    if (res.ok) this.showToast('Instructions emailed');
+                }
             };
         }
     </script>

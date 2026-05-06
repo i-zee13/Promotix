@@ -16,9 +16,12 @@ class Domain extends Model
     protected $fillable = [
         'user_id',
         'hostname',
+        'status',
         'domain_key',
         'secret_key',
         'authentication_key',
+        'gtm_container_id',
+        'tracking_params',
         'tag_connected',
         'paid_marketing_connected',
         'bot_mitigation_connected',
@@ -33,6 +36,7 @@ class Domain extends Model
             'paid_marketing_connected' => 'boolean',
             'bot_mitigation_connected' => 'boolean',
             'monitoring_only_mode' => 'boolean',
+            'tracking_params' => 'array',
             'last_seen_at' => 'datetime',
         ];
     }

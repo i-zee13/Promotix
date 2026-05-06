@@ -97,7 +97,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::middleware('auth')->prefix('api')->group(function () {
+Route::middleware('auth')->group(function () {
     Route::get('/overview/summary', [DashboardController::class, 'summary']);
     Route::get('/insights', [DashboardController::class, 'insights']);
     Route::get('/analytics/trends', [DashboardController::class, 'trends']);
@@ -106,6 +106,19 @@ Route::middleware('auth')->prefix('api')->group(function () {
     Route::get('/domains/performance', [DashboardController::class, 'domainPerformance']);
     Route::get('/campaigns', [DashboardController::class, 'campaigns']);
     Route::put('/user/preferences', [DashboardController::class, 'preferences']);
+
+    Route::get('/domains', [DomainManagementController::class, 'list']);
+    Route::post('/domains', [DomainManagementController::class, 'store']);
+    Route::post('/domains/validate', [DomainManagementController::class, 'validateDomain']);
+    Route::post('/domains/bulk-add', [DomainManagementController::class, 'bulkAdd']);
+    Route::put('/domains/{domain}/status', [DomainManagementController::class, 'updateStatus']);
+    Route::get('/domains/{domain}/tracking-script', [DomainManagementController::class, 'trackingScript']);
+    Route::get('/domains/{domain}/api-key', [DomainManagementController::class, 'apiKey']);
+    Route::put('/domains/{domain}/gtm', [DomainManagementController::class, 'updateGtm']);
+    Route::put('/domains/{domain}/tracking-params', [DomainManagementController::class, 'updateTrackingParams']);
+    Route::post('/domains/{domain}/email-developer', [DomainManagementController::class, 'emailDeveloper']);
+    Route::post('/domains/{domain}/verify-wordpress', [DomainManagementController::class, 'verifyWordpress']);
+    Route::get('/tracking/wordpress-plugin', [DomainManagementController::class, 'wordpressPlugin']);
 });
 
 require __DIR__.'/auth.php';
