@@ -37,6 +37,11 @@ class User extends Authenticatable
         return $this->hasMany(Domain::class);
     }
 
+    public function googleConnections(): HasMany
+    {
+        return $this->hasMany(GoogleConnection::class);
+    }
+
     /**
      * Check if user can access a given permission (by slug) or route name.
      * Super admins (is_admin) have access to everything.

@@ -41,6 +41,9 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
+Route::get('/admin/integrations/google/redirect', [IntegrationsController::class, 'googleRedirect'])->name('integrations.google.redirect');
+Route::get('/admin/integrations/google/callback', [IntegrationsController::class, 'googleCallback'])->name('integrations.google.callback');
+
 Route::middleware(['auth', 'admin'])
     ->prefix('admin')
     ->group(function () {
@@ -73,6 +76,13 @@ Route::middleware(['auth', 'admin'])
         Route::delete('/ip-logs/{ipLog}', [IpLogsController::class, 'destroy'])->name('ip-logs.destroy');
         Route::get('/automation', [AutomationController::class, 'index'])->name('automation');
         Route::get('/integrations', [IntegrationsController::class, 'index'])->name('integrations');
+        Route::post('/integrations/google/{connection}/sync-accounts', [IntegrationsController::class, 'syncAccounts'])->name('integrations.google.sync-accounts');
+        Route::delete('/integrations/google/{connection}', [IntegrationsController::class, 'disconnect'])->name('integrations.google.disconnect');
+        Route::post('/integrations/accounts', [IntegrationsController::class, 'storeAccount'])->name('integrations.store-account');
+        Route::post('/integrations/mappings', [IntegrationsController::class, 'storeMapping'])->name('integrations.store-mapping');
+        Route::delete('/integrations/mappings/{mapping}', [IntegrationsController::class, 'destroyMapping'])->name('integrations.destroy-mapping');
+        Route::get('/paid-marketing/detection-settings', [PaidMarketingController::class, 'detectionSettings'])->name('paid-marketing.detection-settings');
+        Route::post('/paid-marketing/detection-settings/{domain}', [PaidMarketingController::class, 'updateDetectionSettings'])->name('paid-marketing.detection-settings.update');
         Route::get('/support-system', [SupportSystemController::class, 'index'])->name('support-system');
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/security-logs', [SecurityLogsController::class, 'index'])->name('security-logs');
@@ -85,6 +95,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+Route::middleware('auth')->prefix('api')->group(function () {
+    Route::get('/overview/summary', [DashboardController::class, 'summary']);
+    Route::get('/insights', [DashboardController::class, 'insights']);
+    Route::get('/analytics/trends', [DashboardController::class, 'trends']);
+    Route::get('/analytics/threats', [DashboardController::class, 'threats']);
+    Route::get('/notifications', [DashboardController::class, 'notifications']);
+    Route::get('/domains/performance', [DashboardController::class, 'domainPerformance']);
+    Route::get('/campaigns', [DashboardController::class, 'campaigns']);
+    Route::put('/user/preferences', [DashboardController::class, 'preferences']);
 });
 
 require __DIR__.'/auth.php';

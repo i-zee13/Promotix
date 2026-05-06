@@ -10,6 +10,8 @@ return [
     'menu' => [
         'dashboard'       => ['route' => 'dashboard',       'label' => 'Dashboard'],
         'paid-marketing-detailed' => ['route' => 'paid-marketing.detailed', 'label' => 'Paid Marketing'],
+        'paid-marketing-platform-connections' => ['route' => 'integrations', 'label' => 'Platform Connections'],
+        'paid-marketing-detection-settings' => ['route' => 'paid-marketing.detection-settings', 'label' => 'Detection Settings'],
         'domain-management' => ['route' => 'domains.index', 'label' => 'Domain Management'],
         'users'           => ['route' => 'users',           'label' => 'Users & Teams'],
         // Extra modules (kept in routes, hidden from sidebar until enabled)
@@ -37,6 +39,8 @@ return [
     'route_permission' => [
         'dashboard'        => 'dashboard',
         'paid-marketing.detailed' => 'paid-marketing-detailed',
+        'paid-marketing.detection-settings' => 'paid-marketing-detection-settings',
+        'paid-marketing.detection-settings.update' => 'paid-marketing-detection-settings',
         'domains.index'     => 'domain-management',
         'domains.store'     => 'domain-management',
         'domains.setup'     => 'domain-management',
@@ -55,7 +59,14 @@ return [
         'ip-logs.toggle-block' => 'ip-logs',
         'ip-logs.destroy'  => 'ip-logs',
         // 'automation'       => 'automation',
-        // 'integrations'     => 'integrations',
+        'integrations'     => 'paid-marketing-platform-connections',
+        'integrations.google.redirect' => 'paid-marketing-platform-connections',
+        'integrations.google.callback' => 'paid-marketing-platform-connections',
+        'integrations.google.sync-accounts' => 'paid-marketing-platform-connections',
+        'integrations.google.disconnect' => 'paid-marketing-platform-connections',
+        'integrations.store-account' => 'paid-marketing-platform-connections',
+        'integrations.store-mapping' => 'paid-marketing-platform-connections',
+        'integrations.destroy-mapping' => 'paid-marketing-platform-connections',
         // 'support-system'   => 'support-system',
         // 'analytics'        => 'analytics',
         // 'security-logs'    => 'security-logs',

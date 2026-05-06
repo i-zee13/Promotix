@@ -4,6 +4,12 @@
 
 @section('content')
     <div class="space-y-6" x-data="paidMarketingDetailed()">
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{{ route('paid-marketing.detailed') }}" class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white">Detailed View</a>
+            <a href="{{ route('integrations') }}" class="rounded-lg border border-dark-border bg-dark-card px-4 py-2 text-sm text-gray-300 hover:bg-dark-border">Platform Connections</a>
+            <a href="{{ route('paid-marketing.detection-settings') }}" class="rounded-lg border border-dark-border bg-dark-card px-4 py-2 text-sm text-gray-300 hover:bg-dark-border">Detection Settings</a>
+        </div>
+
         <section class="flex flex-col gap-4 rounded-xl border border-dark-border bg-dark-card p-6">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -49,4 +49,12 @@ return [
         'base_url' => env('IPDETAILS_BASE_URL', 'https://api.ipdetails.io'),
     ],
 
+    'google_ads' => [
+        'client_id' => env('GOOGLE_ADS_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_ADS_CLIENT_SECRET'),
+        'redirect_uri' => env('GOOGLE_ADS_REDIRECT_URI'),
+        'developer_token' => env('GOOGLE_ADS_DEVELOPER_TOKEN'),
+        'login_customer_id' => env('GOOGLE_ADS_LOGIN_CUSTOMER_ID'),
+    ],
+
 ];

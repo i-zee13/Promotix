@@ -6,6 +6,18 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') — {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        .light-mode body { background: #f3f4f6; color: #111827; }
+        .light-mode #sidebar,
+        .light-mode header,
+        .light-mode .bg-dark-card,
+        .light-mode .bg-dark { background: #ffffff !important; color: #111827 !important; }
+        .light-mode .border-dark-border { border-color: #e5e7eb !important; }
+        .light-mode .text-white { color: #111827 !important; }
+        .light-mode .text-gray-400,
+        .light-mode .text-gray-300,
+        .light-mode .text-gray-500 { color: #6b7280 !important; }
+    </style>
 </head>
 <body class="min-h-screen bg-dark text-gray-100 antialiased">
     <div class="flex min-h-screen">
@@ -82,6 +94,9 @@
                     <h1 class="text-xl font-bold text-white">@yield('title', 'Dashboard')</h1>
                 </div>
                 <div class="relative flex items-center gap-2" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
+                    <button id="theme-toggle" type="button" class="rounded-lg p-2 text-gray-400 hover:bg-dark-card hover:text-white" aria-label="Dark mode toggle">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-10h-1M4.34 12h-1m15.02 6.36-.7-.7M6.02 6.02l-.7-.7m12.72 0-.7.7M6.02 17.98l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z"/></svg>
+                    </button>
                     <a href="#" class="rounded-lg p-2 text-gray-400 hover:bg-dark-card hover:text-white" aria-label="Help">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </a>
@@ -114,11 +129,14 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const SIDEBAR_STORAGE_KEY = 'promotix-sidebar-collapsed';
+            const THEME_STORAGE_KEY = 'promotix-theme';
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
             const toggle = document.getElementById('sidebar-toggle');
             const sidebarClose = document.getElementById('sidebar-close');
             const mainWrap = document.getElementById('main-content-wrap');
+            const themeToggle = document.getElementById('theme-toggle');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
             if (!sidebar || !mainWrap) return;
 
@@ -210,6 +228,34 @@
                     mainWrap.classList.remove('lg:ml-64');
                 }
             });
+
+            function setTheme(theme) {
+                document.documentElement.classList.toggle('light-mode', theme === 'light');
+                try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) {}
+            }
+
+            const cachedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
+            setTheme(cachedTheme);
+
+            if (themeToggle) {
+                themeToggle.addEventListener('click', async function () {
+                    const nextTheme = document.documentElement.classList.contains('light-mode') ? 'dark' : 'light';
+                    setTheme(nextTheme);
+                    try {
+                        await fetch('/api/user/preferences', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({ dark_mode: nextTheme === 'dark' }),
+                        });
+                    } catch (e) {
+                        // Local storage fallback still preserves refresh behavior.
+                    }
+                });
+            }
         });
     </script>
 </body>

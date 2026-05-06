@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\PaidMarketingVisit;
 
 class Domain extends Model
@@ -44,6 +45,16 @@ class Domain extends Model
     public function paidMarketingVisits(): HasMany
     {
         return $this->hasMany(PaidMarketingVisit::class);
+    }
+
+    public function googleAdsMappings(): HasMany
+    {
+        return $this->hasMany(DomainGoogleAdsMapping::class);
+    }
+
+    public function detectionSetting(): HasOne
+    {
+        return $this->hasOne(DomainDetectionSetting::class);
     }
 }
 
