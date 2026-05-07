@@ -215,8 +215,8 @@ class BotProtectionController extends Controller
         }
 
         $rows = Domain::query()
-            ->where('user_id', $request->user()->id)
-            ->whereIn('id', $domainIds)
+            ->where('domains.user_id', $request->user()->id)
+            ->whereIn('domains.id', $domainIds)
             ->leftJoin('visits', function ($join) use ($from, $to): void {
                 $join->on('domains.id', '=', 'visits.domain_id')
                     ->whereBetween('visits.visited_at', [$from, $to]);

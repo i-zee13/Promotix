@@ -58,6 +58,7 @@
                 <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4" aria-label="Sidebar">
                     @php $menu = config('admin.menu', []); @endphp
                     @foreach ($menu as $slug => $item)
+                        @continue (! empty($item['hidden']))
                         @if (auth()->user()->canAccess($slug))
                             <a href="{{ route($item['route']) }}" class="flex items-center gap-3 rounded-[20px] px-4 py-3 text-sm font-medium transition {{ request()->routeIs($item['route']) ? 'bg-accent text-white' : 'text-gray-300 hover:bg-dark-card hover:text-white' }}">
                                 <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>

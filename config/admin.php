@@ -10,7 +10,7 @@ return [
     'menu' => [
         'dashboard'       => ['route' => 'dashboard',       'label' => 'Dashboard'],
         'paid-marketing-detailed' => ['route' => 'paid-marketing.detailed', 'label' => 'Paid Marketing'],
-        'paid-marketing-platform-connections' => ['route' => 'integrations', 'label' => 'Platform Connections'],
+        'paid-marketing-platform-connections' => ['route' => 'integrations', 'label' => 'Platform Connections', 'hidden' => true],
         'paid-marketing-detection-settings' => ['route' => 'paid-marketing.detection-settings', 'label' => 'Detection Settings'],
         'bot-protection' => ['route' => 'bot-protection.dashboard', 'label' => 'Bot Protection'],
         'domain-management' => ['route' => 'domains.index', 'label' => 'Domain Management'],
