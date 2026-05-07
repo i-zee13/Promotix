@@ -17,7 +17,9 @@ use App\Http\Controllers\Admin\IpLogsController;
 use App\Http\Controllers\IpFilterController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\PaidMarketingController;
+use App\Http\Controllers\Admin\BotProtectionController;
 use App\Http\Controllers\Admin\DomainManagementController;
+use App\Http\Controllers\CronController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +29,9 @@ Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::clas
 Route::match(['post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->name('ingest.visit');
 Route::get('/tag/{domainKey}.js', [TagController::class, 'js'])->name('tag.js');
 Route::get('/tag/{domainKey}.html', [TagController::class, 'noscript'])->name('tag.noscript');
+
+Route::get('/cron/run/{token}', [CronController::class, 'run'])->name('cron.run');
+Route::get('/cron/aggregate/{token}', [CronController::class, 'aggregate'])->name('cron.aggregate');
 
 Route::get('/', function () {
     if (! auth()->check()) {
@@ -84,6 +89,8 @@ Route::middleware(['auth', 'admin'])
         Route::delete('/integrations/mappings/{mapping}', [IntegrationsController::class, 'destroyMapping'])->name('integrations.destroy-mapping');
         Route::get('/paid-marketing/detection-settings', [PaidMarketingController::class, 'detectionSettings'])->name('paid-marketing.detection-settings');
         Route::post('/paid-marketing/detection-settings/{domain}', [PaidMarketingController::class, 'updateDetectionSettings'])->name('paid-marketing.detection-settings.update');
+        Route::get('/bot-protection', [BotProtectionController::class, 'dashboard'])->name('bot-protection.dashboard');
+        Route::get('/bot-protection/advanced', [BotProtectionController::class, 'advancedView'])->name('bot-protection.advanced');
         Route::get('/support-system', [SupportSystemController::class, 'index'])->name('support-system');
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/security-logs', [SecurityLogsController::class, 'index'])->name('security-logs');
@@ -127,6 +134,15 @@ Route::middleware('auth')->group(function () {
     Route::put('/detection/{domain}/rules', [PaidMarketingController::class, 'updateRulesApi']);
     Route::put('/detection/{domain}/exclusions', [PaidMarketingController::class, 'updateExclusionsApi']);
     Route::put('/detection/{domain}/marketing-rules', [PaidMarketingController::class, 'updateMarketingRulesApi']);
+
+    Route::get('/bot-protection/summary', [BotProtectionController::class, 'summary']);
+    Route::get('/bot-protection/traffic-breakdown', [BotProtectionController::class, 'trafficBreakdown']);
+    Route::get('/bot-protection/threat-groups', [BotProtectionController::class, 'threatGroups']);
+    Route::get('/bot-protection/invalid-breakdown', [BotProtectionController::class, 'invalidBreakdown']);
+    Route::get('/bot-protection/countries', [BotProtectionController::class, 'countries']);
+    Route::get('/bot-protection/domains-summary', [BotProtectionController::class, 'domainsSummary']);
+    Route::get('/bot-protection/visits', [BotProtectionController::class, 'visits']);
+    Route::get('/bot-protection/export.csv', [BotProtectionController::class, 'exportCsv'])->name('bot-protection.export');
 });
 
 require __DIR__.'/auth.php';

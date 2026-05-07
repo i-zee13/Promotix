@@ -12,6 +12,7 @@ return [
         'paid-marketing-detailed' => ['route' => 'paid-marketing.detailed', 'label' => 'Paid Marketing'],
         'paid-marketing-platform-connections' => ['route' => 'integrations', 'label' => 'Platform Connections'],
         'paid-marketing-detection-settings' => ['route' => 'paid-marketing.detection-settings', 'label' => 'Detection Settings'],
+        'bot-protection' => ['route' => 'bot-protection.dashboard', 'label' => 'Bot Protection'],
         'domain-management' => ['route' => 'domains.index', 'label' => 'Domain Management'],
         'users'           => ['route' => 'users',           'label' => 'Users & Teams'],
         // Extra modules (kept in routes, hidden from sidebar until enabled)
@@ -41,6 +42,9 @@ return [
         'paid-marketing.detailed' => 'paid-marketing-detailed',
         'paid-marketing.detection-settings' => 'paid-marketing-detection-settings',
         'paid-marketing.detection-settings.update' => 'paid-marketing-detection-settings',
+        'bot-protection.dashboard' => 'bot-protection',
+        'bot-protection.advanced' => 'bot-protection',
+        'bot-protection.export' => 'bot-protection',
         'domains.index'     => 'domain-management',
         'domains.store'     => 'domain-management',
         'domains.setup'     => 'domain-management',

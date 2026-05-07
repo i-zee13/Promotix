@@ -48,6 +48,7 @@ class TrackingController extends Controller
         $os = $this->osFromUa($ua);
         $country = $request->headers->get('CF-IPCountry') ?: null;
         $device = $this->platformFromUa($ua);
+        $isCrawler = $this->isCrawlerUa($ua);
         $isPaidTraffic = ! empty($data['gclid'] ?? null) || ! empty($data['utm_campaign'] ?? null);
         $visitedAt = now();
         $sessionId = (string) ($request->input('session_id') ?: $request->cookie(config('session.cookie', 'laravel_session')) ?: $request->session()->getId());
@@ -151,6 +152,13 @@ class TrackingController extends Controller
                 $visitPayload['threat_group'] = $detection['threat_group'];
                 $visitPayload['action_taken'] = $detection['action_taken'];
                 $visitPayload['detection_reasons'] = json_encode($detection['reasons']);
+            }
+
+            if (Schema::hasColumn('visits', 'user_agent')) {
+                $visitPayload['user_agent'] = $ua;
+            }
+            if (Schema::hasColumn('visits', 'is_crawler')) {
+                $visitPayload['is_crawler'] = $isCrawler;
             }
 
             $visitId = DB::table('visits')->insertGetId($visitPayload);
@@ -303,6 +311,27 @@ class TrackingController extends Controller
         if (str_contains($uaLower, 'iphone') || str_contains($uaLower, 'ipad') || str_contains($uaLower, 'ios')) return 'iOS';
         if (str_contains($uaLower, 'linux')) return 'Linux';
         return null;
+    }
+
+    private function isCrawlerUa(string $ua): bool
+    {
+        if ($ua === '') {
+            return false;
+        }
+
+        $needles = [
+            'Googlebot', 'bingbot', 'Slurp', 'DuckDuckBot', 'YandexBot', 'Baiduspider',
+            'facebookexternalhit', 'Twitterbot', 'LinkedInBot', 'Applebot', 'AhrefsBot',
+            'SemrushBot', 'MJ12bot', 'PetalBot', 'Bytespider', 'GPTBot', 'ClaudeBot',
+        ];
+
+        foreach ($needles as $needle) {
+            if (stripos($ua, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return preg_match('/(crawler|spider|bot)\\b/i', $ua) === 1;
     }
 
     private function browserFromUa(string $ua): array
