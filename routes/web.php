@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'check'])->name('ip-check');
 Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::class, 'collect'])->name('t.collect');
+Route::match(['post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->name('ingest.visit');
 Route::get('/tag/{domainKey}.js', [TagController::class, 'js'])->name('tag.js');
 Route::get('/tag/{domainKey}.html', [TagController::class, 'noscript'])->name('tag.noscript');
 
@@ -103,6 +104,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/analytics/trends', [DashboardController::class, 'trends']);
     Route::get('/analytics/threats', [DashboardController::class, 'threats']);
     Route::get('/notifications', [DashboardController::class, 'notifications']);
+    Route::get('/dashboard/live-snapshot', [DashboardController::class, 'liveSnapshot']);
+    Route::get('/dashboard/live-stream', [DashboardController::class, 'liveStream']);
     Route::get('/domains/performance', [DashboardController::class, 'domainPerformance']);
     Route::get('/campaigns', [DashboardController::class, 'campaigns']);
     Route::put('/user/preferences', [DashboardController::class, 'preferences']);
@@ -119,6 +122,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/domains/{domain}/email-developer', [DomainManagementController::class, 'emailDeveloper']);
     Route::post('/domains/{domain}/verify-wordpress', [DomainManagementController::class, 'verifyWordpress']);
     Route::get('/tracking/wordpress-plugin', [DomainManagementController::class, 'wordpressPlugin']);
+
+    Route::get('/detection/{domain}/rules', [PaidMarketingController::class, 'getRulesApi']);
+    Route::put('/detection/{domain}/rules', [PaidMarketingController::class, 'updateRulesApi']);
+    Route::put('/detection/{domain}/exclusions', [PaidMarketingController::class, 'updateExclusionsApi']);
+    Route::put('/detection/{domain}/marketing-rules', [PaidMarketingController::class, 'updateMarketingRulesApi']);
 });
 
 require __DIR__.'/auth.php';

@@ -114,6 +114,10 @@
                        class="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover">
                         Install plugin
                     </a>
+                    <button type="button" class="rounded-xl border border-dark-border bg-dark px-4 py-2 text-sm font-medium text-gray-200 hover:bg-dark-border"
+                            @click="verifyWordpress('{{ $domain->id }}')">
+                        Verify plugin
+                    </button>
                 </div>
             </div>
 
@@ -300,6 +304,19 @@
                         body: JSON.stringify({email})
                     });
                     if (res.ok) this.showToast('Instructions emailed');
+                },
+                async verifyWordpress(domainId) {
+                    const res = await fetch(`/domains/${domainId}/verify-wordpress`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({}),
+                    });
+                    const data = await res.json();
+                    this.showToast(data.message || (data.verified ? 'Verified' : 'Not verified'));
                 }
             };
         }

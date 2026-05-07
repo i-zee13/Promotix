@@ -46,6 +46,16 @@ class DomainManagementController extends Controller
             }
             return back()->withErrors(['hostname' => 'Please enter a valid domain hostname (e.g. example.com).']);
         }
+        $alreadyExists = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->where('hostname', $hostname)
+            ->exists();
+        if ($alreadyExists) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Domain already exists.'], 409);
+            }
+            return back()->withErrors(['hostname' => 'Domain already exists.']);
+        }
         if (! $this->canAddMoreDomains($request)) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Domain limit reached. Remove an existing domain first.'], 422);
@@ -53,15 +63,20 @@ class DomainManagementController extends Controller
             return back()->withErrors(['hostname' => 'Domain limit reached. Remove an existing domain first.']);
         }
 
-        $domain = Domain::updateOrCreate(
-            ['user_id' => $request->user()->id, 'hostname' => $hostname],
-            [
-                'domain_key' => Str::uuid()->toString(),
-                'secret_key' => Str::uuid()->toString(),
-                'authentication_key' => Str::uuid()->toString(),
-                'status' => 'pending',
-            ]
-        );
+        $domain = Domain::create([
+            'user_id' => $request->user()->id,
+            'hostname' => $hostname,
+            'domain_key' => Str::uuid()->toString(),
+            'secret_key' => Str::uuid()->toString(),
+            'authentication_key' => Str::uuid()->toString(),
+            'status' => 'pending',
+            'tracking_params' => [
+                'utm_source' => true,
+                'utm_medium' => true,
+                'utm_campaign' => true,
+                'utm_term' => true,
+            ],
+        ]);
 
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'domain' => $domain]);
@@ -154,6 +169,11 @@ class DomainManagementController extends Controller
         ]);
 
         $domain->status = $data['status'];
+        if ($data['status'] === 'connected') {
+            $domain->tag_connected = true;
+        } elseif ($data['status'] === 'disabled') {
+            $domain->tag_connected = false;
+        }
         $domain->save();
 
         return response()->json(['ok' => true, 'status' => $domain->status]);

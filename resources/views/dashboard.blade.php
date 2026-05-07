@@ -181,12 +181,21 @@
                 const res = await fetch('/notifications');
                 const items = await res.json();
                 const wrap = document.getElementById('notification-cards');
+                const dismissed = JSON.parse(localStorage.getItem('promotix-dismissed-notifications') || '[]');
                 wrap.innerHTML = '';
-                items.forEach((n) => {
+                items.filter((n) => !dismissed.includes(n.title)).forEach((n) => {
                     const el = document.createElement('article');
                     el.className = 'rounded-lg border border-dark-border bg-dark px-4 py-3';
-                    el.innerHTML = `<h3 class="text-sm font-semibold text-white">${n.title}</h3><p class="mt-1 text-xs text-gray-400">${n.body}</p>`;
+                    el.innerHTML = `<div class="flex items-start justify-between gap-2"><h3 class="text-sm font-semibold text-white">${n.title}</h3><button class="text-xs text-gray-500 hover:text-white" data-dismiss="${n.title}">Dismiss</button></div><p class="mt-1 text-xs text-gray-400">${n.body}</p>`;
                     wrap.appendChild(el);
+                });
+                wrap.querySelectorAll('[data-dismiss]').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const key = btn.getAttribute('data-dismiss');
+                        const next = Array.from(new Set([...dismissed, key]));
+                        localStorage.setItem('promotix-dismissed-notifications', JSON.stringify(next));
+                        loadNotifications();
+                    });
                 });
             };
 
@@ -214,6 +223,58 @@
                 }
             };
 
+            const wireLiveStream = () => {
+                if (!window.EventSource) return;
+                let es = null;
+                let reconnectTimer = null;
+
+                const connect = () => {
+                    if (es) es.close();
+                    es = new EventSource('/dashboard/live-stream');
+
+                    es.addEventListener('snapshot', (evt) => {
+                        try {
+                            const data = JSON.parse(evt.data || '{}');
+                            if (data?.paidAdvertising && data?.botProtection) {
+                                document.getElementById('paid-visits').textContent = fmt(data.paidAdvertising.visits);
+                                document.getElementById('paid-campaigns').textContent = `${fmt(data.paidAdvertising.campaigns)} campaigns`;
+                                document.getElementById('bot-blocked').textContent = fmt(data.botProtection.blockedHits);
+                                document.getElementById('bot-domains').textContent = `${fmt(data.botProtection.domainsProtected)} domains protected`;
+                            }
+                            if (Array.isArray(data?.notifications)) {
+                                const wrap = document.getElementById('notification-cards');
+                                const dismissed = JSON.parse(localStorage.getItem('promotix-dismissed-notifications') || '[]');
+                                wrap.innerHTML = '';
+                                data.notifications.filter((n) => !dismissed.includes(n.title)).forEach((n) => {
+                                    const el = document.createElement('article');
+                                    el.className = 'rounded-lg border border-dark-border bg-dark px-4 py-3';
+                                    el.innerHTML = `<div class="flex items-start justify-between gap-2"><h3 class="text-sm font-semibold text-white">${n.title}</h3><button class="text-xs text-gray-500 hover:text-white" data-dismiss="${n.title}">Dismiss</button></div><p class="mt-1 text-xs text-gray-400">${n.body}</p>`;
+                                    wrap.appendChild(el);
+                                });
+                                wrap.querySelectorAll('[data-dismiss]').forEach((btn) => {
+                                    btn.addEventListener('click', () => {
+                                        const key = btn.getAttribute('data-dismiss');
+                                        const next = Array.from(new Set([...dismissed, key]));
+                                        localStorage.setItem('promotix-dismissed-notifications', JSON.stringify(next));
+                                        loadNotifications();
+                                    });
+                                });
+                            }
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    });
+
+                    es.onerror = () => {
+                        es?.close();
+                        clearTimeout(reconnectTimer);
+                        reconnectTimer = setTimeout(connect, 2000);
+                    };
+                };
+
+                connect();
+            };
+
             campaignFilter.addEventListener('change', loadTrends);
             pathFilter.addEventListener('input', () => {
                 clearTimeout(window.__pathFilterTimer);
@@ -226,6 +287,7 @@
             });
 
             loadAll();
+            wireLiveStream();
         });
     </script>
 @endsection

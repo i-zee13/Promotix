@@ -3,7 +3,7 @@
 @section('title', 'Domain Management')
 
 @section('content')
-    <div class="space-y-6" x-data="{ addOpen: false }">
+    <div class="space-y-6" x-data="domainsIndex()">
         @if (session('status'))
             <div class="rounded-xl border border-emerald-500 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{{ session('status') }}</div>
         @endif
@@ -66,6 +66,14 @@
                                     <span class="inline-flex rounded-md px-2 py-1 text-xs font-medium {{ $statusMap[$status] ?? 'bg-gray-700 text-gray-200' }}">
                                         {{ ucfirst($status) }}
                                     </span>
+                                    <div class="mt-2">
+                                        <select class="rounded-lg border border-dark-border bg-dark px-2 py-1 text-xs text-gray-200" @change="updateStatus('{{ $d->id }}', $event.target.value)">
+                                            <option value="">Change...</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="connected">Connected</option>
+                                            <option value="disabled">Disabled</option>
+                                        </select>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3">
                                     @if ($d->tag_connected)
@@ -156,5 +164,25 @@
             </div>
         </div>
     </div>
+    <script>
+        function domainsIndex() {
+            return {
+                addOpen: false,
+                async updateStatus(domainId, status) {
+                    if (!status) return;
+                    const res = await fetch(`/domains/${domainId}/status`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({ status }),
+                    });
+                    if (res.ok) window.location.reload();
+                },
+            };
+        }
+    </script>
 @endsection
 

@@ -38,6 +38,7 @@
                         <p class="mt-1 text-sm text-gray-400">Choose how invalid bot activity is handled.</p>
                         <select name="invalid_bot_action" class="mt-3 rounded-xl border border-dark-border bg-dark px-3 py-2 text-sm text-white focus:border-accent focus:outline-none">
                             <option value="block" @selected($settings->invalid_bot_action === 'block')>Block</option>
+                            <option value="flag" @selected($settings->invalid_bot_action === 'flag')>Flag</option>
                             <option value="allow" @selected($settings->invalid_bot_action === 'allow')>Allow</option>
                         </select>
                     </div>
@@ -47,6 +48,7 @@
                         <p class="mt-1 text-sm text-gray-400">Choose how invalid malicious traffic is handled.</p>
                         <select name="invalid_malicious_action" class="mt-3 rounded-xl border border-dark-border bg-dark px-3 py-2 text-sm text-white focus:border-accent focus:outline-none">
                             <option value="block" @selected($settings->invalid_malicious_action === 'block')>Block</option>
+                            <option value="flag" @selected($settings->invalid_malicious_action === 'flag')>Flag</option>
                             <option value="allow" @selected($settings->invalid_malicious_action === 'allow')>Allow</option>
                         </select>
                     </div>
@@ -63,6 +65,7 @@
                                 <label class="mb-1 block text-xs text-gray-400">VPN</label>
                                 <select name="suspicious_vpn" class="w-full rounded-xl border border-dark-border bg-dark px-3 py-2 text-sm text-white">
                                     <option value="allow" @selected(($matrix['vpn'] ?? 'allow') === 'allow')>Allow</option>
+                                    <option value="flag" @selected(($matrix['vpn'] ?? '') === 'flag')>Flag</option>
                                     <option value="block" @selected(($matrix['vpn'] ?? '') === 'block')>Block</option>
                                 </select>
                             </div>
@@ -70,6 +73,7 @@
                                 <label class="mb-1 block text-xs text-gray-400">Proxy</label>
                                 <select name="suspicious_proxy" class="w-full rounded-xl border border-dark-border bg-dark px-3 py-2 text-sm text-white">
                                     <option value="allow" @selected(($matrix['proxy'] ?? '') === 'allow')>Allow</option>
+                                    <option value="flag" @selected(($matrix['proxy'] ?? '') === 'flag')>Flag</option>
                                     <option value="block" @selected(($matrix['proxy'] ?? 'block') === 'block')>Block</option>
                                 </select>
                             </div>
@@ -77,6 +81,7 @@
                                 <label class="mb-1 block text-xs text-gray-400">Data Center</label>
                                 <select name="suspicious_data_center" class="w-full rounded-xl border border-dark-border bg-dark px-3 py-2 text-sm text-white">
                                     <option value="allow" @selected(($matrix['data_center'] ?? '') === 'allow')>Allow</option>
+                                    <option value="flag" @selected(($matrix['data_center'] ?? '') === 'flag')>Flag</option>
                                     <option value="block" @selected(($matrix['data_center'] ?? 'block') === 'block')>Block</option>
                                 </select>
                             </div>
@@ -84,6 +89,7 @@
                                 <label class="mb-1 block text-xs text-gray-400">Abnormal Rate Limit</label>
                                 <select name="suspicious_abnormal_rate_limit" class="w-full rounded-xl border border-dark-border bg-dark px-3 py-2 text-sm text-white">
                                     <option value="allow" @selected(($matrix['abnormal_rate_limit'] ?? 'allow') === 'allow')>Allow</option>
+                                    <option value="flag" @selected(($matrix['abnormal_rate_limit'] ?? '') === 'flag')>Flag</option>
                                     <option value="block" @selected(($matrix['abnormal_rate_limit'] ?? '') === 'block')>Block</option>
                                 </select>
                             </div>
@@ -141,8 +147,10 @@
                     </select>
                 </section>
 
-                <div>
-                    <button class="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-hover">Save</button>
+                <div class="flex justify-end">
+                    <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-dark min-w-[120px]">
+                        Save
+                    </button>
                 </div>
             </form>
         @else

@@ -11,14 +11,35 @@ class TagController extends Controller
     public function js(Request $request, string $domainKey): Response
     {
         $domain = Domain::where('domain_key', $domainKey)->firstOrFail();
+        if (($domain->status ?? 'pending') === 'disabled') {
+            return response('// Domain tracking is disabled.', 200, [
+                'Content-Type' => 'application/javascript; charset=UTF-8',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            ]);
+        }
 
-        $collectUrl = url('/t/collect');
+        $collectUrl = url('/ingest/visit');
 
         // Minimal tag: sends pageview data. Browser IP is captured server-side.
+        $trackingParams = (array) ($domain->tracking_params ?? [
+            'utm_source' => true,
+            'utm_medium' => true,
+            'utm_campaign' => true,
+            'utm_term' => true,
+        ]);
+        $trackSource = ($trackingParams['utm_source'] ?? true) ? 'true' : 'false';
+        $trackMedium = ($trackingParams['utm_medium'] ?? true) ? 'true' : 'false';
+        $trackCampaign = ($trackingParams['utm_campaign'] ?? true) ? 'true' : 'false';
+        $trackTerm = ($trackingParams['utm_term'] ?? true) ? 'true' : 'false';
+
         $js = <<<JS
 (function(){
   var domainKey = {$this->json($domainKey)};
   var collectUrl = {$this->json($collectUrl)};
+  var trackSource = {$trackSource};
+  var trackMedium = {$trackMedium};
+  var trackCampaign = {$trackCampaign};
+  var trackTerm = {$trackTerm};
 
   function qp(obj){
     try{
@@ -77,10 +98,10 @@ class TagController extends Controller
     try {
       var u = new URL(location.href);
       payload.gclid = u.searchParams.get('gclid') || null;
-      payload.utm_source = u.searchParams.get('utm_source') || null;
-      payload.utm_medium = u.searchParams.get('utm_medium') || null;
-      payload.utm_campaign = u.searchParams.get('utm_campaign') || null;
-      payload.keyword = u.searchParams.get('utm_term') || null;
+      payload.utm_source = trackSource ? (u.searchParams.get('utm_source') || null) : null;
+      payload.utm_medium = trackMedium ? (u.searchParams.get('utm_medium') || null) : null;
+      payload.utm_campaign = trackCampaign ? (u.searchParams.get('utm_campaign') || null) : null;
+      payload.utm_term = trackTerm ? (u.searchParams.get('utm_term') || null) : null;
     } catch (e) {}
     send(payload);
   }
