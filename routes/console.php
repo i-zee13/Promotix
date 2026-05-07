@@ -10,4 +10,6 @@ Artisan::command('inspire', function () {
 
 // Hourly analytics roll-up aggregation. Recomputes the last 2 hours each run
 // to backfill any racing visits and keep dashboard live numbers consistent.
-Schedule::command('analytics:aggregate-hourly --hours=2')->everyMinute();
+Schedule::command('analytics:aggregate-hourly --hours=2')
+    ->everyMinute()
+    ->appendOutputTo(storage_path('logs/cron.log'));
