@@ -9,6 +9,7 @@ return [
     */
     'menu' => [
         'dashboard'       => ['route' => 'dashboard',       'label' => 'Dashboard'],
+        'paid-marketing-dashboard' => ['route' => 'paid-marketing.dashboard', 'label' => 'Paid Advertising'],
         'paid-marketing-detailed' => ['route' => 'paid-marketing.detailed', 'label' => 'Paid Marketing'],
         'paid-marketing-platform-connections' => ['route' => 'integrations', 'label' => 'Platform Connections', 'hidden' => true],
         'paid-marketing-detection-settings' => ['route' => 'paid-marketing.detection-settings', 'label' => 'Detection Settings'],
@@ -40,6 +41,7 @@ return [
     'route_permission' => [
         'dashboard'        => 'dashboard',
         'paid-marketing.detailed' => 'paid-marketing-detailed',
+        'paid-marketing.dashboard' => 'paid-marketing-dashboard',
         'paid-marketing.detection-settings' => 'paid-marketing-detection-settings',
         'paid-marketing.detection-settings.update' => 'paid-marketing-detection-settings',
         'bot-protection.dashboard' => 'bot-protection',

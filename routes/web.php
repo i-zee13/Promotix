@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\IpLogsController;
 use App\Http\Controllers\IpFilterController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\PaidMarketingController;
+use App\Http\Controllers\Admin\PaidAdvertisingDashboardController;
 use App\Http\Controllers\Admin\BotProtectionController;
 use App\Http\Controllers\Admin\DomainManagementController;
 use App\Http\Controllers\CronController;
@@ -87,6 +88,7 @@ Route::middleware(['auth', 'admin'])
         Route::post('/integrations/accounts', [IntegrationsController::class, 'storeAccount'])->name('integrations.store-account');
         Route::post('/integrations/mappings', [IntegrationsController::class, 'storeMapping'])->name('integrations.store-mapping');
         Route::delete('/integrations/mappings/{mapping}', [IntegrationsController::class, 'destroyMapping'])->name('integrations.destroy-mapping');
+        Route::get('/paid-marketing/dashboard', [PaidAdvertisingDashboardController::class, 'index'])->name('paid-marketing.dashboard');
         Route::get('/paid-marketing/detection-settings', [PaidMarketingController::class, 'detectionSettings'])->name('paid-marketing.detection-settings');
         Route::post('/paid-marketing/detection-settings/{domain}', [PaidMarketingController::class, 'updateDetectionSettings'])->name('paid-marketing.detection-settings.update');
         Route::get('/bot-protection', [BotProtectionController::class, 'dashboard'])->name('bot-protection.dashboard');
@@ -143,6 +145,26 @@ Route::middleware('auth')->group(function () {
     Route::get('/bot-protection/domains-summary', [BotProtectionController::class, 'domainsSummary']);
     Route::get('/bot-protection/visits', [BotProtectionController::class, 'visits']);
     Route::get('/bot-protection/export.csv', [BotProtectionController::class, 'exportCsv'])->name('bot-protection.export');
+
+    Route::get('/paid-marketing/summary', [PaidAdvertisingDashboardController::class, 'summary']);
+    Route::get('/paid-marketing/trends', [PaidAdvertisingDashboardController::class, 'trends']);
+    Route::get('/paid-marketing/blocking-activity', [PaidAdvertisingDashboardController::class, 'blockingActivity']);
+    Route::get('/paid-marketing/campaigns', [PaidAdvertisingDashboardController::class, 'campaigns']);
+    Route::get('/paid-marketing/keywords', [PaidAdvertisingDashboardController::class, 'keywords']);
+    Route::get('/paid-marketing/countries', [PaidAdvertisingDashboardController::class, 'countries']);
+    Route::get('/paid-marketing/ips', [PaidAdvertisingDashboardController::class, 'ips']);
+    Route::get('/paid-marketing/heatmap', [PaidAdvertisingDashboardController::class, 'heatmap']);
+
+    Route::get('/integrations/connected', [IntegrationsController::class, 'connectedJson']);
+    Route::get('/integrations/status', [IntegrationsController::class, 'statusJson']);
+    Route::get('/integrations/all', [IntegrationsController::class, 'allJson']);
+    Route::get('/integrations/google/oauth-url', [IntegrationsController::class, 'googleOauthUrl']);
+    Route::get('/integrations/google/pixel-guard', [IntegrationsController::class, 'pixelGuardGet']);
+    Route::put('/integrations/google/pixel-guard', [IntegrationsController::class, 'pixelGuardSave']);
+    Route::post('/integrations/google/audience-exclusion', [IntegrationsController::class, 'audienceExclusionSave']);
+    Route::get('/integrations/direct-ads', [IntegrationsController::class, 'directAdsList']);
+    Route::post('/integrations/direct-ads', [IntegrationsController::class, 'directAdsStore']);
+    Route::delete('/integrations/direct-ads/{integration}', [IntegrationsController::class, 'directAdsDestroy']);
 });
 
 require __DIR__.'/auth.php';

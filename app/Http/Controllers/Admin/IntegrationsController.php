@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\DirectAdsIntegration;
 use App\Models\Domain;
 use App\Models\DomainGoogleAdsMapping;
 use App\Models\GoogleAdsAccount;
 use App\Models\GoogleConnection;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -46,7 +48,12 @@ class IntegrationsController extends Controller
             ->latest('id')
             ->paginate(15);
 
-        return view('integrations', compact('connections', 'domains', 'accounts', 'mappings'));
+        $directAds = DirectAdsIntegration::query()
+            ->where('user_id', $user->id)
+            ->orderBy('platform')
+            ->get();
+
+        return view('integrations', compact('connections', 'domains', 'accounts', 'mappings', 'directAds'));
     }
 
     public function googleRedirect(Request $request): RedirectResponse
@@ -504,5 +511,231 @@ class IntegrationsController extends Controller
         }
 
         return redirect()->route('integrations')->with('status', $message);
+    }
+
+    public function connectedJson(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        $google = GoogleConnection::query()
+            ->where('user_id', $userId)
+            ->with(['adsAccounts'])
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'platform' => 'google',
+                'email' => $c->google_email,
+                'connected_at' => optional($c->connected_at)->toIso8601String(),
+                'accounts' => $c->adsAccounts->map(fn ($a) => [
+                    'id' => $a->id,
+                    'customer_id' => $a->customer_id,
+                    'display_customer_id' => $a->display_customer_id,
+                    'account_name' => $a->account_name,
+                    'google_tag_id' => $a->google_tag_id,
+                    'is_manager' => (bool) $a->is_manager,
+                    'is_active' => (bool) $a->is_active,
+                ])->values(),
+            ])->values();
+
+        $direct = DirectAdsIntegration::query()
+            ->where('user_id', $userId)
+            ->where('is_active', true)
+            ->get()
+            ->map(fn ($d) => [
+                'id' => $d->id,
+                'platform' => $d->platform,
+                'account_label' => $d->account_label,
+                'account_id' => $d->account_id,
+                'tag_id' => $d->tag_id,
+                'connected_at' => optional($d->connected_at)->toIso8601String(),
+            ])->values();
+
+        return response()->json([
+            'google' => $google,
+            'direct' => $direct,
+        ]);
+    }
+
+    public function statusJson(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+        $googleConnected = GoogleConnection::where('user_id', $userId)->exists();
+        $googleAccountsCount = GoogleAdsAccount::query()
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $userId))
+            ->count();
+        $directCount = DirectAdsIntegration::query()
+            ->where('user_id', $userId)
+            ->where('is_active', true)
+            ->count();
+        $mappingsCount = DomainGoogleAdsMapping::query()
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
+            ->count();
+
+        $devTokenConfigured = (string) config('services.google_ads.developer_token') !== '';
+        $oauthConfigured = (string) config('services.google_ads.client_id') !== ''
+            && (string) config('services.google_ads.client_secret') !== '';
+
+        return response()->json([
+            'google' => [
+                'connected' => $googleConnected,
+                'accounts' => $googleAccountsCount,
+                'oauth_configured' => $oauthConfigured,
+                'developer_token_configured' => $devTokenConfigured,
+            ],
+            'direct' => [
+                'connected' => $directCount > 0,
+                'count' => $directCount,
+            ],
+            'domain_mappings' => $mappingsCount,
+        ]);
+    }
+
+    public function allJson(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        return response()->json([
+            'google_connections' => GoogleConnection::where('user_id', $userId)->count(),
+            'google_ads_accounts' => GoogleAdsAccount::query()
+                ->whereHas('connection', fn ($q) => $q->where('user_id', $userId))
+                ->get(['id', 'customer_id', 'display_customer_id', 'account_name', 'google_tag_id', 'is_manager', 'is_active']),
+            'direct_ads' => DirectAdsIntegration::where('user_id', $userId)
+                ->get(['id', 'platform', 'account_label', 'account_id', 'tag_id', 'is_active']),
+            'domain_mappings' => DomainGoogleAdsMapping::query()
+                ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
+                ->with('domain:id,hostname', 'account:id,customer_id,display_customer_id,google_tag_id')
+                ->get(),
+        ]);
+    }
+
+    public function googleOauthUrl(Request $request): JsonResponse
+    {
+        $clientId = (string) config('services.google_ads.client_id');
+        $redirectUri = (string) config('services.google_ads.redirect_uri');
+
+        if ($clientId === '' || $redirectUri === '') {
+            return response()->json([
+                'configured' => false,
+                'message' => 'Set GOOGLE_ADS_CLIENT_ID and GOOGLE_ADS_REDIRECT_URI in .env.',
+            ], 200);
+        }
+
+        return response()->json([
+            'configured' => true,
+            'url' => route('integrations.google.redirect'),
+        ]);
+    }
+
+    public function pixelGuardGet(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        $accounts = GoogleAdsAccount::query()
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $userId))
+            ->get(['id', 'customer_id', 'display_customer_id', 'account_name', 'google_tag_id', 'is_active']);
+
+        $mappings = DomainGoogleAdsMapping::query()
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
+            ->where('protection_type', 'pixel_guard')
+            ->with(['domain:id,hostname', 'account:id,customer_id,display_customer_id,google_tag_id'])
+            ->get();
+
+        return response()->json([
+            'accounts' => $accounts,
+            'mappings' => $mappings,
+        ]);
+    }
+
+    public function pixelGuardSave(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'account_id' => ['required', 'integer'],
+            'google_tag_id' => ['required', 'string', 'max:120'],
+        ]);
+
+        $account = GoogleAdsAccount::query()
+            ->where('id', $data['account_id'])
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->firstOrFail();
+
+        $account->google_tag_id = trim($data['google_tag_id']);
+        $account->save();
+
+        return response()->json([
+            'ok' => true,
+            'account' => [
+                'id' => $account->id,
+                'customer_id' => $account->customer_id,
+                'google_tag_id' => $account->google_tag_id,
+            ],
+        ]);
+    }
+
+    public function audienceExclusionSave(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'mapping_id' => ['required', 'integer'],
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $mapping = DomainGoogleAdsMapping::query()
+            ->where('id', $data['mapping_id'])
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->firstOrFail();
+
+        $mapping->audience_exclusion_enabled = (bool) $data['enabled'];
+        $settings = (array) ($mapping->settings ?? []);
+        $settings['audience_exclusion_updated_at'] = now()->toIso8601String();
+        $mapping->settings = $settings;
+        $mapping->save();
+
+        return response()->json([
+            'ok' => true,
+            'mapping_id' => $mapping->id,
+            'enabled' => (bool) $mapping->audience_exclusion_enabled,
+        ]);
+    }
+
+    public function directAdsList(Request $request): JsonResponse
+    {
+        $items = DirectAdsIntegration::query()
+            ->where('user_id', $request->user()->id)
+            ->orderBy('platform')
+            ->get(['id', 'platform', 'account_label', 'account_id', 'tag_id', 'is_active', 'connected_at']);
+
+        return response()->json($items);
+    }
+
+    public function directAdsStore(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'platform' => ['required', 'string', 'max:40'],
+            'account_label' => ['nullable', 'string', 'max:255'],
+            'account_id' => ['nullable', 'string', 'max:120'],
+            'tag_id' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $integration = DirectAdsIntegration::create([
+            'user_id' => $request->user()->id,
+            'platform' => strtolower(trim($data['platform'])),
+            'account_label' => $data['account_label'] ?? null,
+            'account_id' => $data['account_id'] ?? null,
+            'tag_id' => $data['tag_id'] ?? null,
+            'is_active' => true,
+            'connected_at' => now(),
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'integration' => $integration,
+        ]);
+    }
+
+    public function directAdsDestroy(Request $request, DirectAdsIntegration $integration): JsonResponse
+    {
+        abort_unless($integration->user_id === $request->user()->id, 403);
+        $integration->delete();
+
+        return response()->json(['ok' => true, 'id' => $integration->id]);
     }
 }
