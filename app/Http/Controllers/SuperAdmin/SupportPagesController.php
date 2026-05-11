@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\Domain;
 use App\Models\FeatureFlag;
 use Illuminate\Http\RedirectResponse;
@@ -41,9 +42,29 @@ class SupportPagesController extends Controller
 
     public function settings(): View
     {
+        $settings = AppSetting::query()->orderBy('group')->orderBy('key')->get();
+        $grouped = $settings->groupBy('group');
+
         return view('super-admin.simple.settings', [
             'featureFlags' => FeatureFlag::orderBy('name')->get(),
+            'settingsByGroup' => $grouped,
+            'plans' => \App\Models\Plan::where('is_active', true)->orderBy('price_cents')->get(['id', 'slug', 'name']),
         ]);
+    }
+
+    public function saveSettings(Request $request): RedirectResponse
+    {
+        $payload = $request->input('settings', []);
+        if (! is_array($payload)) {
+            return back()->withErrors(['settings' => 'Invalid payload.']);
+        }
+
+        foreach ($payload as $key => $value) {
+            AppSetting::set($key, $value);
+        }
+        AppSetting::flushCache();
+
+        return back()->with('status', 'Settings saved.');
     }
 
     public function storeFeatureFlag(Request $request): RedirectResponse

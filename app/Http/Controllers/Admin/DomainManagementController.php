@@ -56,11 +56,23 @@ class DomainManagementController extends Controller
             }
             return back()->withErrors(['hostname' => 'Domain already exists.']);
         }
-        if (! $this->canAddMoreDomains($request)) {
+        $user = $request->user();
+        if (! $user->canAddDomain()) {
+            $limit = $user->domainLimit();
+            $message = sprintf(
+                'Your current plan allows %s domain%s. Upgrade your plan to connect more.',
+                $limit === INF ? 'unlimited' : (int) $limit,
+                $limit === 1 ? '' : 's'
+            );
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Domain limit reached. Remove an existing domain first.'], 422);
+                return response()->json([
+                    'message' => $message,
+                    'upgrade_url' => route('upgrade-plan'),
+                ], 422);
             }
-            return back()->withErrors(['hostname' => 'Domain limit reached. Remove an existing domain first.']);
+            return redirect()
+                ->route('upgrade-plan')
+                ->with('status', $message);
         }
 
         $domain = Domain::create([
@@ -365,11 +377,5 @@ class DomainManagementController extends Controller
         return filter_var($hostname, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
     }
 
-    private function canAddMoreDomains(Request $request): bool
-    {
-        $domainLimit = (int) env('DOMAIN_LIMIT', 50);
-        $count = Domain::query()->where('user_id', $request->user()->id)->count();
-        return $count < $domainLimit;
-    }
 }
 

@@ -27,6 +27,8 @@ class Plan extends Model
         'feature_flags',
     ];
 
+    protected $appends = ['formatted_price'];
+
     protected function casts(): array
     {
         return [

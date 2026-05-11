@@ -133,6 +133,18 @@
 
         {{-- Main wrap --}}
         <div id="main-content-wrap" class="flex min-w-0 flex-1 flex-col transition-[margin] duration-200">
+            @if (session('impersonator_id'))
+                <div class="border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs text-amber-100 lg:px-8">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span>You are impersonating <strong>{{ auth()->user()->email }}</strong>. Actions you take are logged against this tenant.</span>
+                        <form method="POST" action="{{ route('impersonate.stop') }}">
+                            @csrf
+                            <button type="submit" class="rounded-md bg-amber-500/30 px-3 py-1 font-semibold text-amber-50 hover:bg-amber-500/50">Stop impersonating</button>
+                        </form>
+                    </div>
+                </div>
+            @endif
+
             {{-- Header --}}
             <header class="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-night-700/60 bg-night-950/95 px-4 backdrop-blur lg:px-8">
                 <div class="flex min-w-0 items-center gap-3">
@@ -158,6 +170,8 @@
                     @hasSection('header-actions')
                         <div class="mr-2 hidden items-center gap-2 sm:flex">@yield('header-actions')</div>
                     @endif
+
+                    <a href="{{ route('upgrade-plan') }}" class="hidden md:inline-flex rounded-xl bg-brand-500 px-3 py-2 text-xs font-semibold text-white shadow-card transition hover:bg-brand-400">Upgrade</a>
 
                     @if (auth()->user()?->is_super_admin)
                         <a href="{{ route('super-admin.dashboard') }}" class="inline-flex rounded-xl border border-night-700 px-3 py-2 text-xs font-medium text-night-200 transition hover:border-brand-400 hover:text-white">Super Admin</a>

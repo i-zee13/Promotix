@@ -56,6 +56,72 @@ class User extends Authenticatable
     }
 
     /**
+     * Currently-active subscription (active or trialing), most recent first.
+     */
+    public function activeSubscription(): ?Subscription
+    {
+        return $this->subscriptions()
+            ->whereIn('status', ['active', 'trialing'])
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * The plan attached to the user's active subscription, or null when on no plan.
+     */
+    public function currentPlan(): ?Plan
+    {
+        return $this->activeSubscription()?->plan;
+    }
+
+    /**
+     * Resolve a numeric feature limit for the user's current plan.
+     * Returns `INF` when the plan grants unlimited usage.
+     */
+    public function planLimit(string $key, int|float $default = 0): int|float
+    {
+        $plan = $this->currentPlan();
+
+        $featureRow = $plan?->planFeatures
+            ->firstWhere('feature_key', $key);
+
+        if ($featureRow) {
+            if ($featureRow->is_unlimited) {
+                return INF;
+            }
+            return (int) $featureRow->limit_value;
+        }
+
+        $limits = $plan?->feature_limits ?? [];
+        if (array_key_exists($key, $limits)) {
+            $value = $limits[$key];
+            return $value === -1 || $value === 'unlimited' ? INF : (int) $value;
+        }
+
+        return $default;
+    }
+
+    public function domainLimit(): int|float
+    {
+        return $this->planLimit('domain_limit', 1);
+    }
+
+    public function domainsUsed(): int
+    {
+        return $this->domains()->count();
+    }
+
+    public function canAddDomain(): bool
+    {
+        $limit = $this->domainLimit();
+        if ($limit === INF) {
+            return true;
+        }
+
+        return $this->domainsUsed() < $limit;
+    }
+
+    /**
      * Check if user can access a given permission (by slug) or route name.
      * Super admins (is_admin) have access to everything.
      */

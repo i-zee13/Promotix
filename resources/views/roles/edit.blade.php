@@ -39,17 +39,41 @@
 
                 @php
                     $checkedIds = old('permissions', $role->permissions->pluck('id')->toArray());
+                    $grouped = $permissions->groupBy(fn ($p) => \Illuminate\Support\Str::of($p->slug)->before('.')->before('-')->title()->value() ?: 'General');
                 @endphp
-                <div>
-                    <label class="brand-label mb-1.5">Permissions</label>
-                    <p class="mb-2 text-xs text-night-400">Select multiple permissions (Ctrl/Shift+click).</p>
-                    <select name="permissions[]" multiple size="10" class="brand-select">
-                        @foreach ($permissions as $p)
-                            <option value="{{ $p->id }}" @selected(in_array($p->id, $checkedIds))>
-                                {{ $p->name }} ({{ $p->slug }})
-                            </option>
+                <div x-data="{ filter: '' }">
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                        <label class="brand-label">Permissions</label>
+                        <input type="text" x-model="filter" placeholder="Filter permissions..." class="brand-input w-56">
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        @foreach ($grouped as $groupLabel => $items)
+                            <div class="rounded-xl2 border border-night-700/60 bg-night-900/40 p-3"
+                                x-data="{
+                                    toggleAll(state) {
+                                        this.$root.querySelectorAll('input[type=checkbox][data-perm]').forEach(el => el.checked = state);
+                                    }
+                                }">
+                                <div class="mb-2 flex items-center justify-between">
+                                    <p class="text-xs font-semibold uppercase tracking-widest text-brand-300">{{ $groupLabel }}</p>
+                                    <div class="flex gap-2 text-[10px] uppercase">
+                                        <button type="button" class="text-night-300 hover:text-brand-300" @click="toggleAll(true)">All</button>
+                                        <button type="button" class="text-night-300 hover:text-rose-300" @click="toggleAll(false)">None</button>
+                                    </div>
+                                </div>
+                                <div class="space-y-1.5">
+                                    @foreach ($items as $p)
+                                        <label class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-night-800/60 cursor-pointer"
+                                            x-show="filter === '' || '{{ strtolower(addslashes($p->name.' '.$p->slug)) }}'.includes(filter.toLowerCase())">
+                                            <input type="checkbox" data-perm name="permissions[]" value="{{ $p->id }}" @checked(in_array($p->id, $checkedIds)) class="brand-checkbox">
+                                            <span class="text-sm text-night-100">{{ $p->name }}</span>
+                                            <span class="ml-auto text-[10px] text-night-400 font-mono">{{ $p->slug }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
                         @endforeach
-                    </select>
+                    </div>
                 </div>
 
                 <div class="flex gap-3 pt-2">

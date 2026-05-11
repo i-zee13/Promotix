@@ -13,13 +13,22 @@ class Payment extends Model
     protected $fillable = [
         'user_id',
         'subscription_id',
+        'plan_id',
         'invoice_number',
         'amount_cents',
         'currency',
         'status',
         'payment_method',
         'masked_payment',
+        'receipt_path',
+        'receipt_original_name',
+        'bank_reference',
+        'notes',
         'paid_at',
+        'verified_at',
+        'verified_by_id',
+        'rejected_at',
+        'rejection_reason',
         'metadata',
     ];
 
@@ -27,6 +36,8 @@ class Payment extends Model
     {
         return [
             'paid_at' => 'datetime',
+            'verified_at' => 'datetime',
+            'rejected_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
@@ -39,5 +50,15 @@ class Payment extends Model
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class);
+    }
+
+    public function verifiedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_by_id');
     }
 }

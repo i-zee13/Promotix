@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\SubscriptionsController;
 use App\Http\Controllers\Admin\SupportSystemController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\TrafficBotLogsController;
+use App\Http\Controllers\Admin\UpgradePlanController;
 use App\Http\Controllers\Admin\IpLogsController;
 use App\Http\Controllers\IpFilterController;
 use App\Http\Controllers\Admin\UsersController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\SuperAdmin\PlansController as SuperAdminPlansController
 use App\Http\Controllers\SuperAdmin\ProductsController as SuperAdminProductsController;
 use App\Http\Controllers\SuperAdmin\SubscriptionsController as SuperAdminSubscriptionsController;
 use App\Http\Controllers\SuperAdmin\SupportPagesController as SuperAdminSupportPagesController;
+use App\Http\Controllers\SuperAdmin\TicketsController as SuperAdminTicketsController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\TagController;
@@ -71,15 +73,24 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/users', [SuperAdminUsersController::class, 'index'])->name('users.index');
         Route::put('/users/{user}', [SuperAdminUsersController::class, 'update'])->name('users.update');
         Route::patch('/users/{user}/status', [SuperAdminUsersController::class, 'status'])->name('users.status');
+        Route::post('/users/{user}/reset-password', [SuperAdminUsersController::class, 'resetPassword'])->name('users.reset-password');
+        Route::delete('/users/{user}', [SuperAdminUsersController::class, 'destroy'])->name('users.destroy');
+        Route::post('/users/{user}/impersonate', [SuperAdminUsersController::class, 'impersonate'])->name('users.impersonate');
         Route::resource('products', SuperAdminProductsController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::resource('plans', SuperAdminPlansController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::get('/subscriptions', [SuperAdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
         Route::put('/subscriptions/{subscription}', [SuperAdminSubscriptionsController::class, 'update'])->name('subscriptions.update');
         Route::get('/payments', [SuperAdminPaymentsController::class, 'index'])->name('payments.index');
+        Route::post('/payments/{payment}/verify', [SuperAdminPaymentsController::class, 'verify'])->name('payments.verify');
+        Route::post('/payments/{payment}/reject', [SuperAdminPaymentsController::class, 'reject'])->name('payments.reject');
         Route::get('/domains', [SuperAdminSupportPagesController::class, 'domains'])->name('domains.index');
         Route::get('/analytics', [SuperAdminSupportPagesController::class, 'analytics'])->name('analytics.index');
         Route::get('/security', [SuperAdminSupportPagesController::class, 'security'])->name('security.index');
         Route::get('/settings', [SuperAdminSupportPagesController::class, 'settings'])->name('settings.index');
+        Route::post('/settings', [SuperAdminSupportPagesController::class, 'saveSettings'])->name('settings.save');
+        Route::get('/tickets', [SuperAdminTicketsController::class, 'index'])->name('tickets.index');
+        Route::get('/tickets/{ticket}', [SuperAdminTicketsController::class, 'show'])->name('tickets.show');
+        Route::post('/tickets/{ticket}/assign', [SuperAdminTicketsController::class, 'assign'])->name('tickets.assign');
         Route::post('/feature-flags', [SuperAdminSupportPagesController::class, 'storeFeatureFlag'])->name('feature-flags.store');
         Route::patch('/feature-flags/{featureFlag}/toggle', [SuperAdminSupportPagesController::class, 'toggleFeatureFlag'])->name('feature-flags.toggle');
     });
@@ -136,12 +147,16 @@ Route::middleware(['auth', 'admin'])
         Route::get('/system-settings', [SystemSettingsController::class, 'index'])->name('system-settings');
         Route::resource('roles', \App\Http\Controllers\Admin\RolesController::class)->except(['show']);
         });
+
+        Route::get('/upgrade-plan', [UpgradePlanController::class, 'index'])->name('upgrade-plan');
+        Route::post('/upgrade-plan', [UpgradePlanController::class, 'submit'])->name('upgrade-plan.submit');
     });
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::post('/impersonate/stop', [SuperAdminUsersController::class, 'stopImpersonating'])->name('impersonate.stop');
 });
 
 Route::middleware('auth')->group(function () {

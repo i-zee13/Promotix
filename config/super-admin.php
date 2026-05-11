@@ -11,6 +11,7 @@ return [
         'domains'       => ['route' => 'super-admin.domains.index',       'label' => 'Domains & Trackers','icon' => 'globe'],
         'analytics'     => ['route' => 'super-admin.analytics.index',     'label' => 'Analytics',         'icon' => 'chart'],
         'security'      => ['route' => 'super-admin.security.index',      'label' => 'Security & Logs',   'icon' => 'shield'],
+        'tickets'       => ['route' => 'super-admin.tickets.index',       'label' => 'Support Tickets',   'icon' => 'support'],
         'settings'      => ['route' => 'super-admin.settings.index',      'label' => 'System Settings',   'icon' => 'settings'],
     ],
 ];
