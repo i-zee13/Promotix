@@ -21,8 +21,7 @@ Homestead.yaml
 Homestead.json
 /.vagrant
 /.phpunit.cache
-
-/public/build
+ 
 /storage/pail
 .env.backup
 .env.production
