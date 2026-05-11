@@ -1,58 +1,64 @@
 @extends('layouts.admin')
 
 @section('title', 'Users & Teams')
+@section('subtitle', 'Manage team access and roles')
 
 @section('content')
     <div class="space-y-6">
+        <x-ui.page-header title="Users & Teams" subtitle="Manage team access and roles" />
+
         @if (session('status'))
-            <div class="rounded-xl border border-emerald-500 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{{ session('status') }}</div>
+            <div class="brand-pill brand-pill-success">{{ session('status') }}</div>
         @endif
 
-        <section class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        {{-- Search --}}
+        <x-ui.card variant="flat">
             <form method="GET" action="{{ route('users') }}" class="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-                <label for="users-search" class="sr-only">Search users</label>
-                <div class="relative min-w-0 flex-1 sm:max-w-xs">
-                    <input id="users-search" name="search" type="search" value="{{ request('search') }}" placeholder="Search by name or email"
-                        class="w-full rounded-xl border border-dark-border bg-dark-card py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
+                <div class="relative min-w-0 flex-1">
+                    <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-night-400">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </span>
+                    <input id="users-search" name="search" type="search" value="{{ request('search') }}"
+                           placeholder="Search by name or email" class="brand-input pl-9">
                 </div>
-                <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-hover">Search</button>
+                <x-ui.button type="submit" variant="primary">Search</x-ui.button>
             </form>
-        </section>
+        </x-ui.card>
 
-        <section class="rounded-xl border border-dark-border bg-dark-card overflow-hidden">
+        {{-- Users table --}}
+        <x-ui.card variant="flat">
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[700px] text-left text-sm">
+                <table class="brand-table min-w-[700px]">
                     <thead>
-                        <tr class="border-b border-dark-border bg-accent">
-                            <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">User</th>
-                            <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Role</th>
-                            <th scope="col" class="px-4 py-3 text-xs font-medium uppercase tracking-wider text-white">Created</th>
-                            <th scope="col" class="px-4 py-3"><span class="sr-only">Actions</span></th>
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                            <th><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-dark-border">
+                    <tbody>
                         @forelse ($users as $user)
-                            <tr class="transition hover:bg-gray-800/50">
-                                <td class="px-4 py-3">
+                            <tr>
+                                <td>
                                     <div class="flex items-center gap-3">
-                                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-dark-border text-sm font-medium text-gray-400">
+                                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500/15 text-sm font-semibold text-brand-200">
                                             {{ strtoupper(mb_substr($user->name, 0, 1)) }}
                                         </span>
                                         <div>
                                             <p class="font-semibold text-white">{{ $user->name }}</p>
-                                            <p class="text-xs text-gray-500">{{ $user->email }}</p>
+                                            <p class="text-xs text-night-400">{{ $user->email }}</p>
                                             @if ($user->is_admin)
-                                                <span class="inline-flex rounded px-1.5 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-400">Super Admin</span>
+                                                <x-ui.pill tone="warning" class="mt-1">Super Admin</x-ui.pill>
                                             @endif
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <form method="POST" action="{{ route('users.update-role', $user) }}" class="inline" x-data="{ submitted: false }">
+                                <td>
+                                    <form method="POST" action="{{ route('users.update-role', $user) }}" class="inline">
                                         @csrf
                                         @method('PATCH')
-                                        <select name="role_id" onchange="this.form.submit()"
-                                            class="rounded-lg border border-dark-border bg-dark py-1.5 pl-2 pr-8 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
+                                        <select name="role_id" onchange="this.form.submit()" class="brand-select max-w-[180px] py-1.5 text-sm">
                                             <option value="">— No role —</option>
                                             @foreach ($roles as $role)
                                                 <option value="{{ $role->id }}" @selected($user->role_id === $role->id)>{{ $role->name }}</option>
@@ -60,22 +66,22 @@
                                         </select>
                                     </form>
                                 </td>
-                                <td class="px-4 py-3 text-gray-400">{{ $user->created_at?->format('M j, Y') }}</td>
-                                <td class="px-4 py-3">—</td>
+                                <td class="text-night-300">{{ $user->created_at?->format('M j, Y') }}</td>
+                                <td class="text-night-400">—</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="px-4 py-8 text-center text-gray-400">No users found.</td>
+                                <td colspan="4" class="py-8 text-center text-night-300">No users found.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if ($users->hasPages())
-                <div class="border-t border-dark-border px-4 py-3">
+                <div class="mt-4 border-t border-night-700/60 pt-4">
                     {{ $users->links() }}
                 </div>
             @endif
-        </section>
+        </x-ui.card>
     </div>
 @endsection

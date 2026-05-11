@@ -55,9 +55,9 @@
                             </span>
                         </td>
                         <td class="px-4 py-3">
-                            <button type="button" class="rounded-lg bg-gray-700 p-2 text-gray-400 hover:bg-dark-border hover:text-white" aria-label="Actions for ticket #{{ $row['id'] }}">
+                            <a href="{{ $row['href'] ?? '#' }}" class="inline-flex rounded-lg bg-gray-700 p-2 text-gray-400 hover:bg-dark-border hover:text-white" aria-label="Actions for ticket #{{ $row['id'] }}">
                                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
-                            </button>
+                            </a>
                         </td>
                     </tr>
                 @endforeach

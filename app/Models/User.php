@@ -24,6 +24,8 @@ class User extends Authenticatable
         'email',
         'password',
         'is_admin',
+        'is_super_admin',
+        'status',
         'role_id',
         'ui_preferences',
     ];
@@ -41,6 +43,16 @@ class User extends Authenticatable
     public function googleConnections(): HasMany
     {
         return $this->hasMany(GoogleConnection::class);
+    }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 
     /**
@@ -90,6 +102,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'is_super_admin' => 'boolean',
             'ui_preferences' => 'array',
         ];
     }

@@ -1,136 +1,161 @@
 @extends('layouts.admin')
 
 @section('title', 'Bot Protection')
+@section('subtitle', 'Visit volume, threat groups, and crawler detection')
 
 @section('content')
     <div class="space-y-6" x-data="botProtectionDashboard()" x-init="init()">
-        <section class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-border bg-dark-card p-4">
-            <div class="flex flex-wrap items-center gap-3">
-                <label class="text-sm text-gray-400" for="bp-domain">Domain</label>
-                <select id="bp-domain" x-model="filters.domain_id" @change="reload()"
-                        class="rounded-xl border border-dark-border bg-dark px-3 py-2 text-sm text-white">
-                    <option value="">All domains</option>
-                    @foreach ($domains as $d)
-                        <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                    @endforeach
-                </select>
-                <label class="text-sm text-gray-400" for="bp-from">From</label>
-                <input id="bp-from" type="date" x-model="filters.from" @change="reload()"
-                       class="rounded-xl border border-dark-border bg-dark px-3 py-2 text-sm text-white">
-                <label class="text-sm text-gray-400" for="bp-to">To</label>
-                <input id="bp-to" type="date" x-model="filters.to" @change="reload()"
-                       class="rounded-xl border border-dark-border bg-dark px-3 py-2 text-sm text-white">
+        <x-ui.page-header title="Bot Protection" subtitle="Visit volume, threat groups, and crawler detection">
+            <x-slot:actions>
+                <x-ui.button variant="outline" size="sm" href="{{ route('bot-protection.advanced') }}">Advanced View</x-ui.button>
+                <x-ui.button variant="primary" size="sm" href="{{ route('domains.index') }}">Get Protected</x-ui.button>
+            </x-slot:actions>
+        </x-ui.page-header>
+
+        <x-ui.tab-bar
+            :tabs="[
+                ['label' => 'Dashboard',     'value' => route('bot-protection.dashboard')],
+                ['label' => 'Advanced View', 'value' => route('bot-protection.advanced')],
+            ]"
+            :active="route('bot-protection.dashboard')"
+            as="link"
+            param="_tab"
+            base="{{ url()->current() }}"
+        />
+
+        {{-- Filters --}}
+        <x-ui.card title="Filters" subtitle="Scope to domain and time window">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                    <label class="brand-label mb-1.5" for="bp-domain">Domain</label>
+                    <select id="bp-domain" x-model="filters.domain_id" @change="reload()" class="brand-select">
+                        <option value="">All domains</option>
+                        @foreach ($domains as $d)
+                            <option value="{{ $d->id }}">{{ $d->hostname }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="brand-label mb-1.5" for="bp-from">From</label>
+                    <input id="bp-from" type="date" x-model="filters.from" @change="reload()" class="brand-input">
+                </div>
+                <div>
+                    <label class="brand-label mb-1.5" for="bp-to">To</label>
+                    <input id="bp-to" type="date" x-model="filters.to" @change="reload()" class="brand-input">
+                </div>
             </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('bot-protection.advanced') }}"
-                   class="rounded-xl border border-dark-border bg-dark px-4 py-2 text-sm text-gray-200 hover:bg-dark-border">
-                    Advanced View
-                </a>
-                <a href="{{ route('domains.index') }}"
-                   class="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover">
-                    Get Protected
-                </a>
-            </div>
+        </x-ui.card>
+
+        {{-- KPIs --}}
+        <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Summary">
+            <article class="brand-kpi">
+                <div class="flex items-start justify-between gap-3">
+                    <p class="brand-kpi-label">Total Visits</p>
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500/15 text-brand-200">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3" stroke-width="1.8"/></svg>
+                    </div>
+                </div>
+                <p class="brand-kpi-value" x-text="fmt(summary.total_visits)">—</p>
+            </article>
+
+            <article class="brand-kpi">
+                <div class="flex items-start justify-between gap-3">
+                    <p class="brand-kpi-label">Valid Visits</p>
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                </div>
+                <p class="brand-kpi-value text-emerald-300" x-text="fmt(summary.valid_visits)">—</p>
+            </article>
+
+            <article class="brand-kpi">
+                <div class="flex items-start justify-between gap-3">
+                    <p class="brand-kpi-label">Invalid Bot Visits</p>
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6l8-3z"/></svg>
+                    </div>
+                </div>
+                <p class="brand-kpi-value text-amber-300" x-text="fmt(summary.invalid_bot_visits)">—</p>
+            </article>
+
+            <article class="brand-kpi">
+                <div class="flex items-start justify-between gap-3">
+                    <p class="brand-kpi-label">Known Crawlers</p>
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/15 text-sky-300">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12a9 9 0 1018 0 9 9 0 00-18 0zm9-9v18m9-9H3"/></svg>
+                    </div>
+                </div>
+                <p class="brand-kpi-value text-sky-300" x-text="fmt(summary.known_crawlers)">—</p>
+            </article>
         </section>
 
-        <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <article class="rounded-xl border border-dark-border bg-dark-card p-5">
-                <p class="text-xs uppercase tracking-wider text-gray-500">Total Visits</p>
-                <p class="mt-2 text-3xl font-bold text-white" x-text="fmt(summary.total_visits)">—</p>
-            </article>
-            <article class="rounded-xl border border-dark-border bg-dark-card p-5">
-                <p class="text-xs uppercase tracking-wider text-gray-500">Valid Visits</p>
-                <p class="mt-2 text-3xl font-bold text-emerald-400" x-text="fmt(summary.valid_visits)">—</p>
-            </article>
-            <article class="rounded-xl border border-dark-border bg-dark-card p-5">
-                <p class="text-xs uppercase tracking-wider text-gray-500">Invalid Bot Visits</p>
-                <p class="mt-2 text-3xl font-bold text-amber-400" x-text="fmt(summary.invalid_bot_visits)">—</p>
-            </article>
-            <article class="rounded-xl border border-dark-border bg-dark-card p-5">
-                <p class="text-xs uppercase tracking-wider text-gray-500">Known Crawlers</p>
-                <p class="mt-2 text-3xl font-bold text-sky-400" x-text="fmt(summary.known_crawlers)">—</p>
-            </article>
+        {{-- Charts --}}
+        <section class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <x-ui.card title="Total Visits Breakdown" subtitle="Total / Valid / Invalid per day">
+                <canvas id="bp-traffic-chart" class="mt-2 h-56 w-full"></canvas>
+            </x-ui.card>
+            <x-ui.card title="Threat Groups" subtitle="Distribution of detected groups">
+                <canvas id="bp-threats-chart" class="mt-2 h-56 w-full"></canvas>
+            </x-ui.card>
         </section>
 
         <section class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <article class="rounded-xl border border-dark-border bg-dark-card p-6">
-                <h2 class="text-lg font-semibold text-white">Total Visits Breakdown</h2>
-                <p class="mt-1 text-xs text-gray-400">Total / Valid / Invalid per day</p>
-                <canvas id="bp-traffic-chart" class="mt-4 h-56 w-full"></canvas>
-            </article>
-            <article class="rounded-xl border border-dark-border bg-dark-card p-6">
-                <h2 class="text-lg font-semibold text-white">Threat Groups</h2>
-                <p class="mt-1 text-xs text-gray-400">Distribution of detected groups</p>
-                <canvas id="bp-threats-chart" class="mt-4 h-56 w-full"></canvas>
-            </article>
+            <x-ui.card title="Invalid Bot Activity Breakdown">
+                <canvas id="bp-bot-chart" class="mt-2 h-48 w-full"></canvas>
+            </x-ui.card>
+            <x-ui.card title="Invalid Malicious Breakdown">
+                <canvas id="bp-malicious-chart" class="mt-2 h-48 w-full"></canvas>
+            </x-ui.card>
         </section>
 
+        {{-- Country / domain tables --}}
         <section class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <article class="rounded-xl border border-dark-border bg-dark-card p-6">
-                <h2 class="text-lg font-semibold text-white">Invalid Bot Activity Breakdown</h2>
-                <canvas id="bp-bot-chart" class="mt-4 h-48 w-full"></canvas>
-            </article>
-            <article class="rounded-xl border border-dark-border bg-dark-card p-6">
-                <h2 class="text-lg font-semibold text-white">Invalid Malicious Breakdown</h2>
-                <canvas id="bp-malicious-chart" class="mt-4 h-48 w-full"></canvas>
-            </article>
-        </section>
-
-        <section class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <article class="rounded-xl border border-dark-border bg-dark-card p-6">
-                <h2 class="text-lg font-semibold text-white">Country traffic</h2>
-                <div class="mt-4 overflow-x-auto">
-                    <table class="min-w-full text-sm">
+            <x-ui.card title="Country traffic" subtitle="Top traffic sources">
+                <div class="overflow-x-auto">
+                    <table class="brand-table">
                         <thead>
-                        <tr class="border-b border-dark-border text-left text-gray-400">
-                            <th class="py-2 pr-4">Country</th>
-                            <th class="py-2 pr-4">Total</th>
-                            <th class="py-2 pr-4">Invalid</th>
-                        </tr>
+                            <tr><th>Country</th><th>Total</th><th>Invalid</th></tr>
                         </thead>
-                        <tbody class="text-white">
-                        <template x-for="row in countries" :key="row.country">
-                            <tr class="border-b border-dark-border">
-                                <td class="py-2 pr-4" x-text="row.country"></td>
-                                <td class="py-2 pr-4" x-text="fmt(row.total)"></td>
-                                <td class="py-2 pr-4 text-amber-300" x-text="fmt(row.invalid)"></td>
+                        <tbody>
+                            <template x-for="row in countries" :key="row.country">
+                                <tr>
+                                    <td class="font-medium" x-text="row.country"></td>
+                                    <td x-text="fmt(row.total)"></td>
+                                    <td><span class="brand-pill brand-pill-warning" x-text="fmt(row.invalid)"></span></td>
+                                </tr>
+                            </template>
+                            <tr x-show="countries.length === 0">
+                                <td colspan="3" class="py-4 text-center text-night-300">No data in this window.</td>
                             </tr>
-                        </template>
-                        <tr x-show="countries.length === 0">
-                            <td class="py-3 pr-4 text-gray-400" colspan="3">No data in this window.</td>
-                        </tr>
                         </tbody>
                     </table>
                 </div>
-            </article>
-            <article class="rounded-xl border border-dark-border bg-dark-card p-6">
-                <h2 class="text-lg font-semibold text-white">Domain summary</h2>
-                <div class="mt-4 overflow-x-auto">
-                    <table class="min-w-full text-sm">
+            </x-ui.card>
+
+            <x-ui.card title="Domain summary" subtitle="Per-domain ingestion summary">
+                <div class="overflow-x-auto">
+                    <table class="brand-table">
                         <thead>
-                        <tr class="border-b border-dark-border text-left text-gray-400">
-                            <th class="py-2 pr-4">Domain</th>
-                            <th class="py-2 pr-4">Status</th>
-                            <th class="py-2 pr-4">Total</th>
-                            <th class="py-2 pr-4">Invalid</th>
-                        </tr>
+                            <tr><th>Domain</th><th>Status</th><th>Total</th><th>Invalid</th></tr>
                         </thead>
-                        <tbody class="text-white">
-                        <template x-for="row in domainsList" :key="row.id">
-                            <tr class="border-b border-dark-border">
-                                <td class="py-2 pr-4" x-text="row.hostname"></td>
-                                <td class="py-2 pr-4 text-gray-300" x-text="row.status"></td>
-                                <td class="py-2 pr-4" x-text="fmt(row.total_visits)"></td>
-                                <td class="py-2 pr-4 text-amber-300" x-text="fmt(row.invalid_visits)"></td>
+                        <tbody>
+                            <template x-for="row in domainsList" :key="row.id">
+                                <tr>
+                                    <td class="font-medium" x-text="row.hostname"></td>
+                                    <td>
+                                        <span class="brand-pill" :class="row.status === 'verified' ? 'brand-pill-success' : 'brand-pill-neutral'" x-text="row.status"></span>
+                                    </td>
+                                    <td x-text="fmt(row.total_visits)"></td>
+                                    <td><span class="brand-pill brand-pill-warning" x-text="fmt(row.invalid_visits)"></span></td>
+                                </tr>
+                            </template>
+                            <tr x-show="domainsList.length === 0">
+                                <td colspan="4" class="py-4 text-center text-night-300">No domains with traffic in this window.</td>
                             </tr>
-                        </template>
-                        <tr x-show="domainsList.length === 0">
-                            <td class="py-3 pr-4 text-gray-400" colspan="4">No domains with traffic in this window.</td>
-                        </tr>
                         </tbody>
                     </table>
                 </div>
-            </article>
+            </x-ui.card>
         </section>
     </div>
 
@@ -140,13 +165,13 @@
                 const canvas = document.getElementById(id);
                 if (!canvas) return;
                 const dpr = window.devicePixelRatio || 1;
-                const w = canvas.width = canvas.clientWidth * dpr;
-                const h = canvas.height = canvas.clientHeight * dpr;
+                canvas.width = canvas.clientWidth * dpr;
+                canvas.height = canvas.clientHeight * dpr;
                 const ctx = canvas.getContext('2d');
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.scale(dpr, dpr);
                 ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-                const colors = ['#8B5CF6', '#10B981', '#F59E0B'];
+                const colors = ['#7C3AED', '#10B981', '#F59E0B'];
                 const all = datasets.flatMap(d => d.values);
                 const max = Math.max(...all, 1);
                 const groups = labels.length;
@@ -157,12 +182,25 @@
                         const x = 12 + i * slot + di * (barW + 2);
                         const bh = (v / max) * (canvas.clientHeight - 36);
                         const y = canvas.clientHeight - 22 - bh;
-                        ctx.fillStyle = colors[di % colors.length];
-                        ctx.fillRect(x, y, barW, bh);
+                        const grad = ctx.createLinearGradient(0, y, 0, y + bh);
+                        grad.addColorStop(0, colors[di % colors.length]);
+                        grad.addColorStop(1, colors[di % colors.length] + '55');
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        const r = 4;
+                        ctx.moveTo(x + r, y);
+                        ctx.lineTo(x + barW - r, y);
+                        ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+                        ctx.lineTo(x + barW, y + bh);
+                        ctx.lineTo(x, y + bh);
+                        ctx.lineTo(x, y + r);
+                        ctx.quadraticCurveTo(x, y, x + r, y);
+                        ctx.closePath();
+                        ctx.fill();
                     });
                 });
-                ctx.fillStyle = '#9CA3AF';
-                ctx.font = '10px sans-serif';
+                ctx.fillStyle = '#9FA1C2';
+                ctx.font = '10px Inter, sans-serif';
                 labels.forEach((l, i) => {
                     ctx.fillText(String(l), 12 + i * slot, canvas.clientHeight - 8);
                 });
@@ -172,8 +210,8 @@
                 const canvas = document.getElementById(id);
                 if (!canvas) return;
                 const dpr = window.devicePixelRatio || 1;
-                const w = canvas.width = canvas.clientWidth * dpr;
-                const h = canvas.height = canvas.clientHeight * dpr;
+                canvas.width = canvas.clientWidth * dpr;
+                canvas.height = canvas.clientHeight * dpr;
                 const ctx = canvas.getContext('2d');
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.scale(dpr, dpr);
@@ -182,7 +220,7 @@
                 const cx = canvas.clientWidth / 2;
                 const cy = canvas.clientHeight / 2;
                 const r = Math.min(cx, cy) - 16;
-                const colors = ['#EF4444', '#8B5CF6', '#F59E0B', '#10B981', '#06B6D4', '#EC4899'];
+                const colors = ['#F43F5E', '#7C3AED', '#F59E0B', '#10B981', '#06B6D4', '#EC4899'];
                 let start = -Math.PI / 2;
                 values.forEach((v, i) => {
                     const slice = (v / total) * Math.PI * 2;
@@ -194,12 +232,12 @@
                     ctx.fill();
                     start += slice;
                 });
-                ctx.fillStyle = '#111827';
+                ctx.fillStyle = '#10142A';
                 ctx.beginPath();
                 ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = 'bold 14px sans-serif';
+                ctx.font = 'bold 14px Inter, sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText(total.toLocaleString(), cx, cy + 4);
                 ctx.textAlign = 'start';
@@ -210,6 +248,7 @@
                 summary: { total_visits: 0, valid_visits: 0, invalid_bot_visits: 0, invalid_malicious_visits: 0, known_crawlers: 0 },
                 countries: [],
                 domainsList: [],
+                lastTraffic: null, lastThreats: null, lastBot: null, lastMalicious: null,
                 fmt(n) { return new Intl.NumberFormat().format(Number(n || 0)); },
                 qs() {
                     const p = new URLSearchParams();
@@ -224,7 +263,11 @@
                     this.filters.from = start.toISOString().slice(0, 10);
                     this.filters.to = today.toISOString().slice(0, 10);
                     await this.reload();
-                    window.addEventListener('resize', () => this.renderCharts(this.lastTraffic, this.lastThreats, this.lastBot, this.lastMalicious));
+                    let t = null;
+                    window.addEventListener('resize', () => {
+                        clearTimeout(t);
+                        t = setTimeout(() => this.renderCharts(this.lastTraffic, this.lastThreats, this.lastBot, this.lastMalicious), 200);
+                    });
                 },
                 async reload() {
                     const qs = this.qs();

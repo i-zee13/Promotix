@@ -3,115 +3,320 @@
 @section('title', 'Traffic & Bot Logs')
 
 @section('content')
-    <div class="space-y-6">
-        {{-- Date row + Add Tracker --}}
-        <section class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <label for="traffic-date" class="sr-only">Date</label>
-            <div class="relative w-full sm:w-40">
-                <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-500" aria-hidden="true">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                </span>
-                <input
-                    id="traffic-date"
-                    type="text"
-                    value="27/8/2025"
-                    class="w-full rounded-xl border border-dark-border bg-dark-card py-2 pl-10 pr-4 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                >
-            </div>
-            <a
-                href="#"
-                class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-hover sm:w-auto"
-            >
-                <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Add Tracker
-            </a>
-        </section>
+<div class="space-y-6"
+    x-data="trafficLogs({
+        urls: {
+            traffic: '{{ url('api/admin/traffic') }}',
+            stats:   '{{ url('api/admin/traffic/stats') }}',
+            block:   '{{ url('api/admin/traffic/block-ip') }}',
+            blocklist: '{{ url('api/admin/traffic/blocklist') }}',
+        },
+        csrf: '{{ csrf_token() }}',
+        initialStats: @js([
+            'total_requests' => $stats['total_requests'] ?? 0,
+            'threat_groups' => $stats['threat_groups'] ?? 0,
+            'blocked_traffic' => $stats['blocked_traffic'] ?? 0,
+            'allow_lists' => $stats['allow_lists'] ?? 0,
+        ]),
+    })"
+    x-init="loadStats(); loadTraffic();">
+    <x-ui.page-header
+        title="Traffic & bot logs"
+        subtitle="Inspect every request hitting your domains, drill into threat groups, and block IPs in one click.">
+    </x-ui.page-header>
 
-        {{-- Stat cards --}}
-        <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-labelledby="traffic-stats-heading">
-            <h2 id="traffic-stats-heading" class="sr-only">Traffic & bot summary</h2>
-            <div class="rounded-xl bg-gradient-to-br from-accent to-accent-hover p-6 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
-                    </span>
-                    <div>
-                        <p class="text-sm font-medium text-white/90">Total Requests</p>
-                        <p class="text-2xl font-bold text-white">18,472</p>
-                    </div>
-                </div>
-            </div>
-            <div class="rounded-xl bg-gradient-to-br from-accent to-accent-hover p-6 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    </span>
-                    <div>
-                        <p class="text-sm font-medium text-white/90">Threat Groups</p>
-                        <p class="text-2xl font-bold text-white">32</p>
-                    </div>
-                </div>
-            </div>
-            <div class="rounded-xl bg-gradient-to-br from-accent to-accent-hover p-6 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                    </span>
-                    <div>
-                        <p class="text-sm font-medium text-white/90">Blocked Traffic</p>
-                        <p class="text-2xl font-bold text-white">675</p>
-                    </div>
-                </div>
-            </div>
-            <div class="rounded-xl bg-gradient-to-br from-accent to-accent-hover p-6 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                    </span>
-                    <div>
-                        <p class="text-sm font-medium text-white/90">Allow Lists</p>
-                        <p class="text-2xl font-bold text-white">8</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        {{-- Filter row --}}
-        <section class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-            <label for="traffic-search" class="sr-only">Search domains</label>
-            <div class="relative min-w-0 flex-1 sm:max-w-xs">
-                <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-500" aria-hidden="true">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                </span>
-                <input
-                    id="traffic-search"
-                    type="search"
-                    placeholder="Search domains"
-                    class="w-full rounded-xl border border-dark-border bg-dark-card py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                >
-            </div>
-            <label for="traffic-trackers" class="sr-only">Trackers</label>
-            <select id="traffic-trackers" class="rounded-xl border border-dark-border bg-dark-card py-2 pl-4 pr-10 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-                <option value="">All Trackers</option>
-            </select>
-            <label for="traffic-statuses" class="sr-only">Statuses</label>
-            <select id="traffic-statuses" class="rounded-xl border border-dark-border bg-dark-card py-2 pl-4 pr-10 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-                <option value="">All Statuses</option>
-            </select>
-            <label for="traffic-country" class="sr-only">Country / Geo</label>
-            <select id="traffic-country" class="rounded-xl border border-dark-border bg-dark-card py-2 pl-4 pr-10 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-                <option value="">Country / Geo Filter</option>
-            </select>
-            <label for="traffic-source" class="sr-only">Source</label>
-            <select id="traffic-source" class="rounded-xl border border-dark-border bg-dark-card py-2 pl-4 pr-10 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-                <option value="">Source Filter</option>
-            </select>
-            <label for="traffic-advanced" class="sr-only">Advanced filters</label>
-            <select id="traffic-advanced" class="rounded-xl border border-dark-border bg-dark-card py-2 pl-4 pr-10 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-                <option value="">Advanced Filters</option>
-            </select>
-        </section>
-
-        <x-traffic-log-table :rows="$rows" :total="$total" :from="$from" :to="$to" :status-classes="$statusClasses" />
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <x-ui.kpi-card label="Total Requests" :value="number_format($stats['total_requests'] ?? 0)">
+            <x-slot:icon>@include('partials.sidebar-icon', ['name' => 'globe', 'class' => 'h-4 w-4'])</x-slot:icon>
+        </x-ui.kpi-card>
+        <x-ui.kpi-card label="Threat Groups" :value="number_format($stats['threat_groups'] ?? 0)">
+            <x-slot:icon>@include('partials.sidebar-icon', ['name' => 'shield', 'class' => 'h-4 w-4'])</x-slot:icon>
+        </x-ui.kpi-card>
+        <x-ui.kpi-card label="Blocked Traffic" :value="number_format($stats['blocked_traffic'] ?? 0)">
+            <x-slot:icon>@include('partials.sidebar-icon', ['name' => 'shield-x', 'class' => 'h-4 w-4'])</x-slot:icon>
+        </x-ui.kpi-card>
+        <x-ui.kpi-card label="Allow Lists" :value="number_format($stats['allow_lists'] ?? 0)">
+            <x-slot:icon>@include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-4 w-4'])</x-slot:icon>
+        </x-ui.kpi-card>
     </div>
+
+    <div class="brand-tab-bar inline-flex gap-2 rounded-full bg-night-900/60 p-1 text-xs uppercase tracking-wide">
+        <button type="button"
+            @click="tab = 'logs'"
+            :class="tab === 'logs' ? 'bg-brand-500 text-white shadow-card' : 'text-slate-400 hover:text-white'"
+            class="rounded-full px-4 py-2 font-semibold transition">Request log</button>
+        <button type="button"
+            @click="tab = 'blocklist'; loadBlocklist();"
+            :class="tab === 'blocklist' ? 'bg-brand-500 text-white shadow-card' : 'text-slate-400 hover:text-white'"
+            class="rounded-full px-4 py-2 font-semibold transition">Blocklist</button>
+    </div>
+
+    <template x-if="toast.message">
+        <div class="rounded-xl2 border px-4 py-3 text-sm"
+            :class="toast.type === 'error' ? 'border-rose-500/40 bg-rose-500/10 text-rose-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'">
+            <span x-text="toast.message"></span>
+        </div>
+    </template>
+
+    {{-- LOGS TAB --}}
+    <div x-show="tab === 'logs'" class="space-y-4">
+        <x-ui.card class="p-4">
+            <div class="grid gap-3 md:grid-cols-5">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">Search</label>
+                    <input type="search" class="brand-input mt-1 w-full" placeholder="IP, URL, campaign..." x-model.debounce.400ms="filters.search" @input="loadTraffic()">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">Threat group</label>
+                    <select class="brand-select mt-1 w-full" x-model="filters.threat_group" @change="loadTraffic()">
+                        <option value="">All groups</option>
+                        <option value="datacenter">Datacenter</option>
+                        <option value="proxy">Proxy / VPN</option>
+                        <option value="bot">Known bot</option>
+                        <option value="scraper">Scraper</option>
+                        <option value="manual">Manual block</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">Action</label>
+                    <select class="brand-select mt-1 w-full" x-model="filters.action_taken" @change="loadTraffic()">
+                        <option value="">Any action</option>
+                        <option value="allow">Allowed</option>
+                        <option value="flag">Flagged</option>
+                        <option value="block">Blocked</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">Country (ISO)</label>
+                    <input type="text" maxlength="3" class="brand-input mt-1 w-full uppercase" placeholder="US" x-model.debounce.400ms="filters.country" @input="loadTraffic()">
+                </div>
+            </div>
+            <div class="mt-3 flex items-center gap-3">
+                <label class="inline-flex items-center gap-2 text-xs text-slate-300">
+                    <input type="checkbox" class="brand-checkbox" x-model="filters.blocked_only" @change="loadTraffic()">
+                    Blocked only
+                </label>
+                <button type="button" class="brand-btn-secondary" @click="resetFilters(); loadTraffic();">Reset filters</button>
+            </div>
+        </x-ui.card>
+
+        <x-ui.card class="p-0">
+            <div class="overflow-x-auto">
+                <table class="brand-table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-3 text-left">IP</th>
+                            <th class="px-4 py-3 text-left">URL</th>
+                            <th class="px-4 py-3 text-left">Country</th>
+                            <th class="px-4 py-3 text-left">Bot score</th>
+                            <th class="px-4 py-3 text-left">Threat group</th>
+                            <th class="px-4 py-3 text-left">Action</th>
+                            <th class="px-4 py-3 text-left">Time</th>
+                            <th class="px-4 py-3 text-right">Manage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="row in traffic" :key="row.id">
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-xs text-white" x-text="row.ip"></td>
+                                <td class="px-4 py-3 max-w-xs truncate text-slate-300" :title="row.url" x-text="row.url"></td>
+                                <td class="px-4 py-3 text-slate-300" x-text="row.country || '—'"></td>
+                                <td class="px-4 py-3">
+                                    <span class="brand-pill"
+                                        :class="row.bot_score >= 70 ? 'brand-pill-danger' : (row.bot_score >= 40 ? 'brand-pill-warning' : 'brand-pill-success')"
+                                        x-text="row.bot_score"></span>
+                                </td>
+                                <td class="px-4 py-3 text-slate-300" x-text="row.threat_group || '—'"></td>
+                                <td class="px-4 py-3">
+                                    <span class="brand-pill"
+                                        :class="row.action_taken === 'block' ? 'brand-pill-danger' : (row.action_taken === 'flag' ? 'brand-pill-warning' : 'brand-pill-success')"
+                                        x-text="row.action_taken || 'allow'"></span>
+                                </td>
+                                <td class="px-4 py-3 text-xs text-slate-400" x-text="row.visited_at"></td>
+                                <td class="px-4 py-3 text-right">
+                                    <button type="button" class="brand-btn-secondary" @click="blockIp(row.ip, true)">Block IP</button>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="!loading.traffic && traffic.length === 0">
+                            <td colspan="8" class="px-4 py-6 text-center text-sm text-slate-400">No requests match these filters yet.</td>
+                        </tr>
+                        <tr x-show="loading.traffic">
+                            <td colspan="8" class="px-4 py-6 text-center text-sm text-slate-400">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex items-center justify-between border-t border-night-800 px-4 py-3 text-xs text-slate-400">
+                <span>Showing <span x-text="meta.from || 0"></span>–<span x-text="meta.to || 0"></span> of <span x-text="meta.total || 0"></span></span>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="brand-btn-secondary" :disabled="meta.current_page <= 1" @click="goToPage(meta.current_page - 1)">Prev</button>
+                    <span x-text="`Page ${meta.current_page || 1} of ${meta.last_page || 1}`"></span>
+                    <button type="button" class="brand-btn-secondary" :disabled="meta.current_page >= meta.last_page" @click="goToPage(meta.current_page + 1)">Next</button>
+                </div>
+            </div>
+        </x-ui.card>
+    </div>
+
+    {{-- BLOCKLIST TAB --}}
+    <div x-show="tab === 'blocklist'" class="space-y-4" style="display: none;">
+        <x-ui.card class="p-4">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-300">Add IP to blocklist</h3>
+            <form class="mt-3 grid gap-3 md:grid-cols-3" @submit.prevent="manualBlock()">
+                <input type="text" class="brand-input md:col-span-1" placeholder="IPv4 / IPv6" x-model="manual.ip" required>
+                <input type="text" class="brand-input md:col-span-1" placeholder="Reason (optional)" x-model="manual.reason">
+                <button type="submit" class="brand-btn-primary md:col-span-1">Block IP</button>
+            </form>
+        </x-ui.card>
+
+        <x-ui.card class="p-0">
+            <div class="overflow-x-auto">
+                <table class="brand-table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-3 text-left">IP</th>
+                            <th class="px-4 py-3 text-left">Hits</th>
+                            <th class="px-4 py-3 text-left">Reason</th>
+                            <th class="px-4 py-3 text-left">Last seen</th>
+                            <th class="px-4 py-3 text-right">Manage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="row in blocklist" :key="row.id">
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-xs text-white" x-text="row.ip"></td>
+                                <td class="px-4 py-3 text-slate-300" x-text="row.hits || 0"></td>
+                                <td class="px-4 py-3 text-slate-300" x-text="row.intel_status || '—'"></td>
+                                <td class="px-4 py-3 text-xs text-slate-400" x-text="row.last_seen_at || '—'"></td>
+                                <td class="px-4 py-3 text-right">
+                                    <button type="button" class="brand-btn-secondary" @click="blockIp(row.ip, false)">Unblock</button>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="!loading.blocklist && blocklist.length === 0">
+                            <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-400">No IPs are currently blocked.</td>
+                        </tr>
+                        <tr x-show="loading.blocklist">
+                            <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-400">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </x-ui.card>
+    </div>
+</div>
+
+<script>
+function trafficLogs(initial) {
+    return {
+        urls: initial.urls,
+        csrf: initial.csrf,
+        tab: 'logs',
+        toast: { message: '', type: 'success' },
+        loading: { traffic: false, blocklist: false },
+        filters: {
+            search: '',
+            threat_group: '',
+            action_taken: '',
+            country: '',
+            blocked_only: false,
+        },
+        manual: { ip: '', reason: '' },
+        traffic: [],
+        meta: { current_page: 1, last_page: 1, total: 0, from: 0, to: 0 },
+        blocklist: [],
+        notify(message, type = 'success') {
+            this.toast = { message, type };
+            setTimeout(() => (this.toast.message = ''), 4000);
+        },
+        async request(url, method = 'GET', body = null) {
+            const opts = {
+                method,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': this.csrf,
+                },
+            };
+            if (body) {
+                opts.headers['Content-Type'] = 'application/json';
+                opts.body = JSON.stringify(body);
+            }
+            const res = await fetch(url, opts);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Request failed');
+            return data;
+        },
+        resetFilters() {
+            this.filters = { search: '', threat_group: '', action_taken: '', country: '', blocked_only: false };
+        },
+        async loadStats() {
+            try {
+                const data = await this.request(this.urls.stats);
+                // Update KPI cards inline if needed (server-rendered first paint already shown).
+                this.statsLive = data;
+            } catch (e) { /* silent */ }
+        },
+        async loadTraffic(page = 1) {
+            this.loading.traffic = true;
+            try {
+                const params = new URLSearchParams();
+                Object.entries(this.filters).forEach(([k, v]) => {
+                    if (v === '' || v === false || v === null || v === undefined) return;
+                    params.append(k, v === true ? '1' : v);
+                });
+                params.append('page', page);
+                const data = await this.request(`${this.urls.traffic}?${params.toString()}`);
+                this.traffic = data.data || [];
+                this.meta = {
+                    current_page: data.current_page || 1,
+                    last_page: data.last_page || 1,
+                    total: data.total || 0,
+                    from: data.from || 0,
+                    to: data.to || 0,
+                };
+            } catch (e) {
+                this.notify(e.message, 'error');
+            } finally {
+                this.loading.traffic = false;
+            }
+        },
+        goToPage(page) {
+            if (page < 1 || page > (this.meta.last_page || 1)) return;
+            this.loadTraffic(page);
+        },
+        async loadBlocklist() {
+            this.loading.blocklist = true;
+            try {
+                const data = await this.request(this.urls.blocklist);
+                this.blocklist = data.data || [];
+            } catch (e) {
+                this.notify(e.message, 'error');
+            } finally {
+                this.loading.blocklist = false;
+            }
+        },
+        async blockIp(ip, blocked) {
+            try {
+                const data = await this.request(this.urls.block, 'POST', { ip, blocked, reason: blocked ? 'manual_block_from_logs' : 'manual_unblock' });
+                this.notify(data.message || (blocked ? 'IP blocked.' : 'IP unblocked.'));
+                this.loadTraffic(this.meta.current_page);
+                if (this.tab === 'blocklist') this.loadBlocklist();
+            } catch (e) {
+                this.notify(e.message, 'error');
+            }
+        },
+        async manualBlock() {
+            if (!this.manual.ip) return;
+            try {
+                await this.request(this.urls.block, 'POST', { ip: this.manual.ip, blocked: true, reason: this.manual.reason || 'manual_block' });
+                this.manual = { ip: '', reason: '' };
+                this.notify('IP added to blocklist.');
+                this.loadBlocklist();
+            } catch (e) {
+                this.notify(e.message, 'error');
+            }
+        },
+    };
+}
+</script>
 @endsection

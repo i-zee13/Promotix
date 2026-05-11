@@ -16,10 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
             '/ip-check',
             '/t/collect',
             '/ingest/visit',
+            '/api/admin/*',
         ]);
 
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'super-admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
             'permission' => \App\Http\Middleware\EnsureUserHasPermission::class,
         ]);
     })

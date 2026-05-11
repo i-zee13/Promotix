@@ -93,9 +93,9 @@
                                 </div>
                             @endif
                         </div>
-                        <button type="button" class="rounded-lg bg-gray-700 p-1.5 text-white hover:bg-gray-600" aria-label="Actions">
+                        <a href="{{ $item['href'] ?? '#' }}" class="rounded-lg bg-gray-700 p-1.5 text-white hover:bg-gray-600" aria-label="Actions">
                             <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>

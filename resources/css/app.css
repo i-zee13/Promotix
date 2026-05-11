@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,3 +7,275 @@
 [x-cloak] {
     display: none !important;
 }
+
+/* ---------------------------------------------------------------------------
+ | Brand component layer (Batch A)
+ | These classes are the single source of truth for the new look.
+ | Pages can use them directly OR via the <x-ui.* /> Blade components.
+ |-------------------------------------------------------------------------- */
+@layer components {
+    /* Page surfaces */
+    .brand-page {
+        @apply min-h-screen bg-night-950 text-night-100 antialiased;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    }
+
+    /* Cards */
+    .brand-card {
+        @apply rounded-2xl border border-night-700/80 bg-night-900 p-6 shadow-card;
+    }
+    .brand-card-flat {
+        @apply rounded-xl border border-night-700/80 bg-night-900 p-4;
+    }
+    .brand-card-elevated {
+        @apply rounded-2xl border border-night-700/60 bg-night-800 p-6 shadow-card-lg;
+    }
+
+    /* KPI tile */
+    .brand-kpi {
+        @apply rounded-2xl border border-night-700/80 bg-night-900 p-5 shadow-card;
+    }
+    .brand-kpi-label {
+        @apply text-xs font-medium uppercase tracking-wider text-night-300;
+    }
+    .brand-kpi-value {
+        @apply mt-2 text-3xl font-bold text-white;
+    }
+    .brand-kpi-delta-up   { @apply text-emerald-400; }
+    .brand-kpi-delta-down { @apply text-rose-400; }
+
+    /* Pills */
+    .brand-pill {
+        @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold;
+    }
+    .brand-pill-neutral { @apply bg-night-700 text-night-100; }
+    .brand-pill-purple  { @apply bg-brand-500/15 text-brand-200 ring-1 ring-inset ring-brand-500/30; }
+    .brand-pill-success { @apply bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/30; }
+    .brand-pill-warning { @apply bg-amber-500/15  text-amber-300  ring-1 ring-inset ring-amber-500/30; }
+    .brand-pill-danger  { @apply bg-rose-500/15   text-rose-300   ring-1 ring-inset ring-rose-500/30; }
+
+    /* Buttons */
+    .brand-btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+               transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-night-950
+               disabled:cursor-not-allowed disabled:opacity-50;
+    }
+    .brand-btn-primary { @apply brand-btn bg-brand-500 text-white hover:bg-brand-600 focus:ring-brand-400; }
+    .brand-btn-soft    { @apply brand-btn bg-brand-500/15 text-brand-200 hover:bg-brand-500/25 focus:ring-brand-400; }
+    .brand-btn-ghost   { @apply brand-btn bg-transparent text-night-100 hover:bg-night-800 focus:ring-night-300; }
+    .brand-btn-outline { @apply brand-btn border border-night-700 bg-transparent text-night-100 hover:border-brand-400 hover:text-white focus:ring-brand-400; }
+    .brand-btn-danger  { @apply brand-btn bg-rose-500 text-white hover:bg-rose-600 focus:ring-rose-400; }
+
+    /* Form inputs */
+    .brand-input {
+        @apply w-full rounded-xl border border-night-700 bg-night-900 px-3 py-2.5 text-sm text-white
+               placeholder-night-400 transition
+               focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
+    }
+    .brand-select { @apply brand-input pr-10; }
+    .brand-label  { @apply block text-sm font-medium text-night-200; }
+
+    /* Tab bar */
+    .brand-tabs {
+        @apply inline-flex items-center gap-1 rounded-xl border border-night-700 bg-night-900 p-1;
+    }
+    .brand-tab {
+        @apply rounded-lg px-3 py-1.5 text-sm font-medium text-night-200 transition
+               hover:text-white;
+    }
+    .brand-tab-active {
+        @apply bg-brand-500 text-white shadow;
+    }
+
+    /* Tables */
+    .brand-table {
+        @apply min-w-full text-sm;
+    }
+    .brand-table thead th {
+        @apply border-b border-night-700 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-night-300;
+    }
+    .brand-table tbody td {
+        @apply border-b border-night-700/60 px-4 py-3 text-night-100;
+    }
+    .brand-table tbody tr:hover td { @apply bg-night-800/60; }
+
+    /* Modal */
+    .brand-modal-overlay {
+        @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4;
+    }
+    .brand-modal {
+        @apply w-full max-w-lg rounded-2xl border border-night-700 bg-night-900 p-6 shadow-card-lg;
+    }
+    .brand-modal-title { @apply text-lg font-semibold text-white; }
+    .brand-modal-body  { @apply mt-3 text-sm text-night-200; }
+
+    /* Page header */
+    .brand-page-title    { @apply text-2xl font-bold text-white sm:text-3xl; }
+    .brand-page-subtitle { @apply mt-1 text-sm text-night-300; }
+
+    /* Checkbox & radio */
+    .brand-checkbox {
+        @apply h-4 w-4 shrink-0 cursor-pointer rounded border-night-600 bg-night-900
+               text-brand-500 transition
+               focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-0;
+        accent-color: theme('colors.brand.500');
+    }
+    .brand-radio {
+        @apply h-4 w-4 shrink-0 cursor-pointer border-night-600 bg-night-900
+               text-brand-500 transition
+               focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-0;
+        accent-color: theme('colors.brand.500');
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ | Light-mode overrides (existing toggle support)
+ | When <html class="light-mode">, surfaces invert to a light palette while
+ | keeping brand purple intact.
+ |-------------------------------------------------------------------------- */
+.light-mode body { background: #ffffff; color: #0F1126; }
+.light-mode .brand-page { background: #ffffff !important; color: #0F1126; }
+.light-mode .brand-card,
+.light-mode .brand-card-flat,
+.light-mode .brand-card-elevated,
+.light-mode .brand-kpi { background:#ffffff; border-color:#E5E6F2; color:#0F1126; }
+.light-mode .brand-kpi-value,
+.light-mode .brand-page-title,
+.light-mode .brand-modal-title { color:#0F1126; }
+.light-mode .brand-kpi-label,
+.light-mode .brand-page-subtitle,
+.light-mode .brand-modal-body { color:#52557E; }
+.light-mode .brand-input,
+.light-mode .brand-select { background:#ffffff; border-color:#E5E6F2; color:#0F1126; }
+.light-mode .brand-input::placeholder { color:#9FA1C2; }
+.light-mode .brand-tabs { background:#ffffff; border-color:#E5E6F2; }
+.light-mode .brand-tab { color:#52557E; }
+.light-mode .brand-tab:hover { color:#0F1126; }
+.light-mode .brand-table thead th { color:#52557E; border-color:#E5E6F2; }
+.light-mode .brand-table tbody td { color:#0F1126; border-color:#EEF0F7; }
+.light-mode .brand-table tbody tr:hover td { background:#F4F5FB; }
+.light-mode .brand-modal { background:#ffffff; border-color:#E5E6F2; }
+.light-mode .brand-btn-ghost { color:#0F1126; }
+.light-mode .brand-btn-ghost:hover { background:#F4F5FB; }
+.light-mode .brand-btn-outline { border-color:#E5E6F2; color:#0F1126; }
+.light-mode .brand-btn-primary,
+.light-mode .brand-btn-danger,
+.light-mode .bg-brand-500,
+.light-mode .bg-brand-600,
+.light-mode .hover\:bg-brand-600:hover {
+    color: #ffffff !important;
+}
+.light-mode .brand-btn-primary *,
+.light-mode .brand-btn-danger *,
+.light-mode .bg-brand-500 *,
+.light-mode .bg-brand-600 * {
+    color: #ffffff !important;
+}
+
+/* Legacy compatibility: existing pages still using bg-dark / bg-dark-card flip too. */
+.light-mode #sidebar,
+.light-mode header,
+.light-mode .bg-dark-card,
+.light-mode .bg-dark { background: #ffffff !important; color: #0F1126 !important; }
+.light-mode .border-dark-border { border-color: #E5E6F2 !important; }
+.light-mode .text-white { color: #0F1126 !important; }
+.light-mode .text-gray-400,
+.light-mode .text-gray-300,
+.light-mode .text-gray-500 { color: #52557E !important; }
+
+/* ---------------------------------------------------------------------------
+ | Light mode — comprehensive surface flip
+ | The user requirement: in light mode, NO dark elements whatsoever.
+ | Tables, cards, selects, inputs, hover states — all white-on-dark-text.
+ |-------------------------------------------------------------------------- */
+
+/* Surfaces (night palette) */
+.light-mode .bg-night-950,
+.light-mode .bg-night-900,
+.light-mode .bg-night-900\/60,
+.light-mode .bg-night-900\/80,
+.light-mode .bg-night-800,
+.light-mode .bg-night-800\/60,
+.light-mode .bg-night-800\/95,
+.light-mode .bg-night-950\/95 { background-color: #ffffff !important; }
+
+.light-mode .bg-night-700,
+.light-mode .bg-night-700\/60 { background-color: #F4F5FB !important; }
+
+/* Borders */
+.light-mode .border-night-950,
+.light-mode .border-night-900,
+.light-mode .border-night-800,
+.light-mode .border-night-700,
+.light-mode .border-night-700\/60,
+.light-mode .border-night-700\/80,
+.light-mode .border-night-600 { border-color: #E5E6F2 !important; }
+
+/* Text */
+.light-mode .text-night-100,
+.light-mode .text-night-200 { color: #0F1126 !important; }
+.light-mode .text-night-300,
+.light-mode .text-night-400 { color: #52557E !important; }
+.light-mode .text-night-500 { color: #6B6E91 !important; }
+
+/* Placeholders */
+.light-mode .placeholder-night-400::placeholder,
+.light-mode .placeholder-night-500::placeholder { color: #9FA1C2 !important; }
+
+/* Hover states */
+.light-mode .hover\:bg-night-800:hover,
+.light-mode .hover\:bg-night-800\/60:hover,
+.light-mode .hover\:bg-night-700:hover { background-color: #F4F5FB !important; }
+.light-mode .hover\:text-white:hover { color: #0F1126 !important; }
+
+/* Brand pill backgrounds (keep accent color but lighten background) */
+.light-mode .brand-pill-neutral { background-color: #EEF0F7 !important; color: #0F1126 !important; }
+
+/* Slate palette compat (older super-admin pages we haven't touched yet) */
+.light-mode .bg-slate-950,
+.light-mode .bg-slate-900,
+.light-mode .bg-slate-900\/60,
+.light-mode .bg-slate-800,
+.light-mode .bg-slate-800\/40,
+.light-mode .bg-slate-800\/60 { background-color: #ffffff !important; }
+.light-mode .border-slate-950,
+.light-mode .border-slate-900,
+.light-mode .border-slate-800,
+.light-mode .border-slate-800\/60,
+.light-mode .border-slate-700,
+.light-mode .border-slate-600 { border-color: #E5E6F2 !important; }
+.light-mode .text-slate-100,
+.light-mode .text-slate-200 { color: #0F1126 !important; }
+.light-mode .text-slate-300,
+.light-mode .text-slate-400,
+.light-mode .text-slate-500 { color: #52557E !important; }
+.light-mode .divide-slate-800 > * + *,
+.light-mode .divide-slate-700 > * + * { border-color: #E5E6F2 !important; }
+
+/* Arbitrary hex backgrounds used in older super-admin pages */
+.light-mode .bg-\[\#0f1b2e\],
+.light-mode .bg-\[\#07111f\],
+.light-mode .bg-\[\#0b1424\],
+.light-mode .bg-\[\#111f35\] { background-color: #ffffff !important; }
+
+/* Checkbox in light mode (unchecked state) */
+.light-mode .brand-checkbox,
+.light-mode .brand-radio { background-color: #ffffff; border-color: #C8CADB; }
+
+/* Checkbox/radio CHECKED state — must beat the light-mode bg-night-900 override.
+   Tailwind Forms plugin paints checked = currentColor on background. We force
+   the brand purple here so it shows in both light and dark modes. */
+.brand-checkbox[type='checkbox']:checked,
+.light-mode .brand-checkbox[type='checkbox']:checked {
+    background-color: #7C3AED !important;
+    border-color: #7C3AED !important;
+}
+.brand-radio[type='radio']:checked,
+.light-mode .brand-radio[type='radio']:checked {
+    background-color: #7C3AED !important;
+    border-color: #7C3AED !important;
+}
+
+/* Dropdown option color — fixes white-on-white in select menus on dark UI. */
+select option, .brand-select option { background:#ffffff; color:#111827; }

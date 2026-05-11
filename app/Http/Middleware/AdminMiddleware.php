@@ -23,6 +23,10 @@ class AdminMiddleware
         }
 
         $user = $request->user();
+        if (in_array((string) ($user->status ?? 'active'), ['suspended', 'banned'], true)) {
+            abort(403, 'Your account is not active.');
+        }
+
         if ($user->is_admin) {
             return $next($request);
         }

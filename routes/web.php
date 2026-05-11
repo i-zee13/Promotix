@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\AdminOperationsApiController;
 use App\Http\Controllers\Admin\AutomationController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DomainsTrackersController;
@@ -20,6 +21,13 @@ use App\Http\Controllers\Admin\PaidMarketingController;
 use App\Http\Controllers\Admin\PaidAdvertisingDashboardController;
 use App\Http\Controllers\Admin\BotProtectionController;
 use App\Http\Controllers\Admin\DomainManagementController;
+use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\PaymentsController as SuperAdminPaymentsController;
+use App\Http\Controllers\SuperAdmin\PlansController as SuperAdminPlansController;
+use App\Http\Controllers\SuperAdmin\ProductsController as SuperAdminProductsController;
+use App\Http\Controllers\SuperAdmin\SubscriptionsController as SuperAdminSubscriptionsController;
+use App\Http\Controllers\SuperAdmin\SupportPagesController as SuperAdminSupportPagesController;
+use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TrackingController;
@@ -39,6 +47,9 @@ Route::get('/', function () {
         return redirect()->route('login');
     }
     $user = auth()->user();
+    if ($user->is_super_admin ?? false) {
+        return redirect()->route('super-admin.dashboard');
+    }
     if ($user->is_admin) {
         return redirect()->route('dashboard');
     }
@@ -50,6 +61,28 @@ Route::get('/', function () {
 
 Route::get('/admin/integrations/google/redirect', [IntegrationsController::class, 'googleRedirect'])->name('integrations.google.redirect');
 Route::get('/admin/integrations/google/callback', [IntegrationsController::class, 'googleCallback'])->name('integrations.google.callback');
+
+Route::middleware(['auth', 'super-admin'])
+    ->prefix('super-admin')
+    ->name('super-admin.')
+    ->group(function () {
+        Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/', fn () => redirect()->route('super-admin.dashboard'))->name('home');
+        Route::get('/users', [SuperAdminUsersController::class, 'index'])->name('users.index');
+        Route::put('/users/{user}', [SuperAdminUsersController::class, 'update'])->name('users.update');
+        Route::patch('/users/{user}/status', [SuperAdminUsersController::class, 'status'])->name('users.status');
+        Route::resource('products', SuperAdminProductsController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('plans', SuperAdminPlansController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::get('/subscriptions', [SuperAdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
+        Route::put('/subscriptions/{subscription}', [SuperAdminSubscriptionsController::class, 'update'])->name('subscriptions.update');
+        Route::get('/payments', [SuperAdminPaymentsController::class, 'index'])->name('payments.index');
+        Route::get('/domains', [SuperAdminSupportPagesController::class, 'domains'])->name('domains.index');
+        Route::get('/analytics', [SuperAdminSupportPagesController::class, 'analytics'])->name('analytics.index');
+        Route::get('/security', [SuperAdminSupportPagesController::class, 'security'])->name('security.index');
+        Route::get('/settings', [SuperAdminSupportPagesController::class, 'settings'])->name('settings.index');
+        Route::post('/feature-flags', [SuperAdminSupportPagesController::class, 'storeFeatureFlag'])->name('feature-flags.store');
+        Route::patch('/feature-flags/{featureFlag}/toggle', [SuperAdminSupportPagesController::class, 'toggleFeatureFlag'])->name('feature-flags.toggle');
+    });
 
 Route::middleware(['auth', 'admin'])
     ->prefix('admin')
@@ -82,6 +115,7 @@ Route::middleware(['auth', 'admin'])
         Route::post('/ip-logs/{ipLog}/toggle-block', [IpLogsController::class, 'toggleBlock'])->name('ip-logs.toggle-block');
         Route::delete('/ip-logs/{ipLog}', [IpLogsController::class, 'destroy'])->name('ip-logs.destroy');
         Route::get('/automation', [AutomationController::class, 'index'])->name('automation');
+        Route::get('/automation/{job}', [AutomationController::class, 'show'])->name('automation.show');
         Route::get('/integrations', [IntegrationsController::class, 'index'])->name('integrations');
         Route::post('/integrations/google/{connection}/sync-accounts', [IntegrationsController::class, 'syncAccounts'])->name('integrations.google.sync-accounts');
         Route::delete('/integrations/google/{connection}', [IntegrationsController::class, 'disconnect'])->name('integrations.google.disconnect');
@@ -94,6 +128,9 @@ Route::middleware(['auth', 'admin'])
         Route::get('/bot-protection', [BotProtectionController::class, 'dashboard'])->name('bot-protection.dashboard');
         Route::get('/bot-protection/advanced', [BotProtectionController::class, 'advancedView'])->name('bot-protection.advanced');
         Route::get('/support-system', [SupportSystemController::class, 'index'])->name('support-system');
+        Route::get('/support-system/create', [SupportSystemController::class, 'create'])->name('support-system.create');
+        Route::post('/support-system', [SupportSystemController::class, 'store'])->name('support-system.store');
+        Route::get('/support-system/{ticket}', [SupportSystemController::class, 'show'])->name('support-system.show');
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/security-logs', [SecurityLogsController::class, 'index'])->name('security-logs');
         Route::get('/system-settings', [SystemSettingsController::class, 'index'])->name('system-settings');
@@ -166,5 +203,36 @@ Route::middleware('auth')->group(function () {
     Route::post('/integrations/direct-ads', [IntegrationsController::class, 'directAdsStore']);
     Route::delete('/integrations/direct-ads/{integration}', [IntegrationsController::class, 'directAdsDestroy']);
 });
+
+Route::middleware(['auth', 'admin'])
+    ->prefix('api/admin')
+    ->name('api.admin.')
+    ->group(function () {
+        Route::get('/traffic', [AdminOperationsApiController::class, 'traffic'])->name('traffic.index');
+        Route::get('/traffic/stats', [AdminOperationsApiController::class, 'trafficStats'])->name('traffic.stats');
+        Route::post('/traffic/block-ip', [AdminOperationsApiController::class, 'blockIp'])->name('traffic.block-ip');
+        Route::get('/traffic/blocklist', [AdminOperationsApiController::class, 'blocklist'])->name('traffic.blocklist');
+
+        Route::get('/jobs', [AdminOperationsApiController::class, 'jobs'])->name('jobs.index');
+        Route::post('/jobs/{id}/run', [AdminOperationsApiController::class, 'runJob'])->name('jobs.run');
+        Route::patch('/jobs/{id}/schedule', [AdminOperationsApiController::class, 'scheduleJob'])->name('jobs.schedule');
+        Route::get('/jobs/{id}/history', [AdminOperationsApiController::class, 'jobHistory'])->name('jobs.history');
+        Route::post('/jobs/retry-failed', [AdminOperationsApiController::class, 'retryFailedJobs'])->name('jobs.retry-failed');
+
+        Route::get('/integrations', [AdminOperationsApiController::class, 'integrations'])->name('integrations.index');
+        Route::put('/integrations/{name}', [AdminOperationsApiController::class, 'updateIntegration'])->name('integrations.update');
+        Route::post('/integrations/{name}/rotate', [AdminOperationsApiController::class, 'rotateIntegration'])->name('integrations.rotate');
+        Route::post('/integrations/{name}/test', [AdminOperationsApiController::class, 'testIntegration'])->name('integrations.test');
+
+        Route::get('/webhooks', [AdminOperationsApiController::class, 'webhooks'])->name('webhooks.index');
+        Route::post('/webhooks', [AdminOperationsApiController::class, 'storeWebhook'])->name('webhooks.store');
+
+        Route::get('/tickets', [AdminOperationsApiController::class, 'tickets'])->name('tickets.index');
+        Route::get('/tickets/{id}', [AdminOperationsApiController::class, 'ticket'])->name('tickets.show');
+        Route::post('/tickets/{id}/reply', [AdminOperationsApiController::class, 'replyTicket'])->name('tickets.reply');
+        Route::patch('/tickets/{id}/assign', [AdminOperationsApiController::class, 'assignTicket'])->name('tickets.assign');
+        Route::post('/tickets/{id}/escalate', [AdminOperationsApiController::class, 'escalateTicket'])->name('tickets.escalate');
+        Route::post('/tickets/{id}/close', [AdminOperationsApiController::class, 'closeTicket'])->name('tickets.close');
+    });
 
 require __DIR__.'/auth.php';

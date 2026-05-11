@@ -28,6 +28,18 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        if (in_array((string) ($request->user()->status ?? 'active'), ['suspended', 'banned'], true)) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors(['email' => 'This account is not active.']);
+        }
+
+        if ($request->user()->is_super_admin ?? false) {
+            return redirect()->intended(route('super-admin.dashboard', [], false));
+        }
+
         if ($request->user()->is_admin) {
             return redirect()->intended(route('dashboard', [], false));
         }
