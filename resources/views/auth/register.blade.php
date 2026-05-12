@@ -2,6 +2,10 @@
 
 @section('content')
 <x-auth.card innerWidth="max-w-lg" minHeight="min-h-[640px]">
+    <div class="mb-5 flex justify-center">
+        <x-brand variant="purple" :height="40" />
+    </div>
+
     <div class="text-center">
         <h1 class="text-2xl font-bold text-white">Create your account</h1>
         <p class="mt-1 text-sm text-white/80">

@@ -15,6 +15,11 @@
                 return '$' + monthly.toFixed(0) + '/m';
             }
         }">
+        {{-- Brand --}}
+        <div class="mb-10 flex justify-center">
+            <x-brand variant="dark" :height="44" />
+        </div>
+
         {{-- Header --}}
         <div class="text-center">
             <h1 class="text-3xl font-bold text-white sm:text-4xl">

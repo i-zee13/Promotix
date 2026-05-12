@@ -2,6 +2,10 @@
 
 @section('content')
 <x-auth.card innerWidth="max-w-md" minHeight="min-h-[520px]">
+    <div class="mb-6 flex justify-center">
+        <x-brand variant="purple" :height="44" />
+    </div>
+
     <form method="POST" action="{{ route('login') }}" class="space-y-5" x-data="{ showPwd: false }">
         @csrf
 

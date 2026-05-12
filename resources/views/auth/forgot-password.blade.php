@@ -2,6 +2,10 @@
 
 @section('content')
 <x-auth.card innerWidth="max-w-md" minHeight="min-h-[520px]">
+    <div class="mb-6 flex justify-center">
+        <x-brand variant="purple" :height="40" />
+    </div>
+
     <div class="flex flex-col items-center text-center">
         {{-- Lock badge --}}
         <div class="flex h-16 w-16 items-center justify-center rounded-full bg-white/25">

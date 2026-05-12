@@ -2,6 +2,10 @@
 
 @section('content')
 <x-auth.card innerWidth="max-w-md" minHeight="min-h-[520px]">
+    <div class="mb-6 flex justify-center">
+        <x-brand variant="purple" :height="40" />
+    </div>
+
     <div class="flex flex-col items-center text-center">
         <div class="flex h-16 w-16 items-center justify-center rounded-full bg-white/25">
             <svg class="h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
