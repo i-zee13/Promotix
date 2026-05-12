@@ -31,6 +31,7 @@ use App\Http\Controllers\SuperAdmin\SupportPagesController as SuperAdminSupportP
 use App\Http\Controllers\SuperAdmin\TicketsController as SuperAdminTicketsController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
 use App\Http\Controllers\CronController;
+use App\Http\Controllers\Onboarding\OnboardingController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
@@ -157,6 +158,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::post('/impersonate/stop', [SuperAdminUsersController::class, 'stopImpersonating'])->name('impersonate.stop');
+
+    // Onboarding (post email verification, pre dashboard)
+    Route::get('/onboarding/plan', [OnboardingController::class, 'plans'])->name('onboarding.plan');
+    Route::post('/onboarding/plan/start-trial', [OnboardingController::class, 'startTrial'])->name('onboarding.start-trial');
 });
 
 Route::middleware('auth')->group(function () {

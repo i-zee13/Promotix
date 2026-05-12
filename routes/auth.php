@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
+use App\Http\Controllers\Auth\EmailVerificationCodeController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
@@ -36,9 +37,19 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get('verify-email', EmailVerificationPromptController::class)
+    // New OTP-based verification (primary flow shown to the user).
+    Route::get('verify-email', [EmailVerificationCodeController::class, 'show'])
         ->name('verification.notice');
 
+    Route::post('verify-email/code', [EmailVerificationCodeController::class, 'verify'])
+        ->middleware('throttle:30,1')
+        ->name('verification.verify-code');
+
+    Route::post('verify-email/resend', [EmailVerificationCodeController::class, 'send'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send-code');
+
+    // Legacy link-based verification kept for any existing signed URLs in the wild.
     Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
         ->middleware(['signed', 'throttle:6,1'])
         ->name('verification.verify');

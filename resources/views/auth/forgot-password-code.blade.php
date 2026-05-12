@@ -2,17 +2,17 @@
 
 @section('content')
 <x-auth.card innerWidth="max-w-md" minHeight="min-h-[520px]">
-    <div class="flex flex-col items-center text-center">
-        {{-- Mail badge --}}
-        <div class="flex h-16 w-16 items-center justify-center rounded-full bg-white/25">
+    <div class="text-center">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/25">
             <svg class="h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
             </svg>
         </div>
-
         <h1 class="mt-4 text-2xl font-bold text-white">Check your email</h1>
-        <p class="mt-2 text-sm text-white/85">Enter the code sent to</p>
-        <p class="mt-0.5 text-sm font-semibold text-white">{{ $email ?? auth()->user()?->email }}</p>
+        <p class="mt-2 text-sm text-white/80">
+            Enter the code sent to
+            <span class="font-semibold text-white">{{ $email ?? '—' }}</span>
+        </p>
     </div>
 
     @if ($errors->any())
@@ -27,10 +27,11 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('verification.verify-code') }}" class="mt-6 space-y-5"
+    <form id="codeForm" method="POST" action="{{ route('password.code.verify') }}" class="mt-6 space-y-5"
         x-data="{ digits: ['','','','','',''] }"
         x-init="$nextTick(() => $refs.d0 && $refs.d0.focus())">
         @csrf
+        <input type="hidden" name="email" value="{{ $email ?? old('email') }}">
         <input type="hidden" name="code" :value="digits.join('')">
 
         <div class="flex justify-center gap-2 sm:gap-3">
@@ -56,7 +57,8 @@
                     maxlength="1"
                     autocomplete="one-time-code"
                     aria-label="Digit {{ $i + 1 }}"
-                    class="h-12 w-10 sm:h-14 sm:w-12 rounded-[10px] border border-white/30 bg-[#4D008E]/60 text-center text-xl font-bold text-white outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
+                    class="h-12 w-10 sm:h-14 sm:w-12 rounded-[10px] border border-white/30 bg-[#4D008E]/60 text-center text-xl font-bold text-white outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
+                >
             @endfor
         </div>
 
@@ -67,13 +69,14 @@
             </button>
         </div>
 
-        <p class="text-center text-xs text-white/85">
+        <p class="text-center text-xs text-white/80">
             Didn't get the code? Check your spam folder.
         </p>
     </form>
 
-    <form method="POST" action="{{ route('verification.send-code') }}" class="mt-2 text-center">
+    <form method="POST" action="{{ route('password.email') }}" class="mt-2 text-center">
         @csrf
+        <input type="hidden" name="email" value="{{ $email ?? '' }}">
         <button type="submit" class="text-sm font-semibold text-white underline-offset-4 hover:underline">
             Resend code
         </button>
@@ -85,12 +88,5 @@
             <span class="font-mono text-base font-bold tracking-widest text-white">{{ session('dev_code') }}</span>
         </div>
     @endif
-
-    <form method="POST" action="{{ route('logout') }}" class="mt-6 text-center">
-        @csrf
-        <button type="submit" class="text-xs text-white/70 underline-offset-4 hover:underline">
-            Log out and use a different account
-        </button>
-    </form>
 </x-auth.card>
 @endsection

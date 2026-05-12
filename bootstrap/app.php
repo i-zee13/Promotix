@@ -23,6 +23,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'super-admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
             'permission' => \App\Http\Middleware\EnsureUserHasPermission::class,
+            'onboarded' => \App\Http\Middleware\EnsureOnboardingComplete::class,
+        ]);
+
+        // Onboarding gate: forces unverified / no-plan users through the funnel.
+        $middleware->web(append: [
+            \App\Http\Middleware\EnsureOnboardingComplete::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

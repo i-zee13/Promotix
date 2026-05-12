@@ -14,6 +14,7 @@ class Subscription extends Model
         'user_id',
         'plan_id',
         'status',
+        'is_trial',
         'amount_cents',
         'currency',
         'billing_interval',
@@ -22,11 +23,13 @@ class Subscription extends Model
         'current_period_ends_at',
         'cancelled_at',
         'metadata',
+        'last_payment_id',
     ];
 
     protected function casts(): array
     {
         return [
+            'is_trial' => 'boolean',
             'started_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'current_period_ends_at' => 'datetime',

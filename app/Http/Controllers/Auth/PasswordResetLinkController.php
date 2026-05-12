@@ -3,9 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class PasswordResetLinkController extends Controller
@@ -19,9 +24,9 @@ class PasswordResetLinkController extends Controller
     }
 
     /**
-     * Handle an incoming password reset link request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
+     * Handle an incoming password reset request — generates a 6-digit code,
+     * stores its hash in password_reset_tokens, emails it, and redirects to
+     * the code-entry screen.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -29,16 +34,60 @@ class PasswordResetLinkController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
-            $request->only('email')
+        $email = strtolower($request->input('email'));
+
+        $code = (string) random_int(100000, 999999);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $email],
+            [
+                'email' => $email,
+                'token' => Hash::make($code),
+                'created_at' => now(),
+            ]
         );
 
-        return $status == Password::RESET_LINK_SENT
-                    ? back()->with('status', __($status))
-                    : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+        $user = User::query()->where('email', $email)->first();
+
+        if ($user) {
+            $this->sendCodeEmail($user, $code);
+        }
+
+        $request->session()->put('password.reset.email', $email);
+
+        $next = redirect()->route('password.code')
+            ->with('status', "We've sent a 6-digit code to {$email}.");
+
+        // For dev / non-mail environments — expose code in the next response
+        // so QA can complete the flow without inbox access.
+        if (! $this->mailIsConfigured()) {
+            $next->with('dev_code', $code);
+        }
+
+        return $next;
+    }
+
+    private function sendCodeEmail(User $user, string $code): void
+    {
+        try {
+            Mail::raw(
+                "Hi {$user->name},\n\nYour Promotix password reset code is: {$code}\n\nThis code expires in 60 minutes. If you did not request a reset, you can safely ignore this email.\n\n— Promotix",
+                function ($message) use ($user) {
+                    $message->to($user->email)->subject('Your Promotix password reset code');
+                }
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Password reset code email failed', [
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function mailIsConfigured(): bool
+    {
+        $mailer = config('mail.default', 'log');
+
+        return ! in_array($mailer, ['log', 'array', 'null'], true);
     }
 }
