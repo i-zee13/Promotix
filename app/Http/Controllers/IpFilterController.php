@@ -58,6 +58,7 @@ class IpFilterController extends Controller
             $request->headers->get('True-Client-IP'),
             $request->headers->get('X-Real-IP'),
             $request->headers->get('X-Forwarded-For'),
+            $request->headers->get('X-Cluster-Client-IP'),
         ];
 
         $ips = [];

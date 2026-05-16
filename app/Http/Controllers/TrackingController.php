@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Validator;
 
 class TrackingController extends Controller
 {
+    /** 1×1 transparent GIF for GET pixel fallback (see TagController::pixel). */
+    private const TRACKING_PIXEL_GIF = "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b";
+
     public function collect(Request $request)
     {
         // Handle CORS preflight
@@ -236,6 +239,16 @@ class TrackingController extends Controller
             ]);
         }
 
+        if ($request->isMethod('get')) {
+            return $this->cors(
+                $request,
+                response(self::TRACKING_PIXEL_GIF, 200, [
+                    'Content-Type' => 'image/gif',
+                    'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+                ])
+            );
+        }
+
         return $this->cors($request, response()->json(['ok' => true]));
     }
 
@@ -246,6 +259,8 @@ class TrackingController extends Controller
             $request->headers->get('True-Client-IP'),
             $request->headers->get('X-Real-IP'),
             $request->headers->get('X-Forwarded-For'),
+            // Some stacks (e.g. behind Apache/LiteSpeed) use this non-standard header.
+            $request->headers->get('X-Cluster-Client-IP'),
         ];
 
         $ips = [];

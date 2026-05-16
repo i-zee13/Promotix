@@ -8,6 +8,7 @@ return [
         'plans'         => ['route' => 'super-admin.plans.index',         'label' => 'Plans & Pricing',   'icon' => 'tag'],
         'subscriptions' => ['route' => 'super-admin.subscriptions.index', 'label' => 'Subscriptions',     'icon' => 'repeat'],
         'payments'      => ['route' => 'super-admin.payments.index',      'label' => 'Payments',          'icon' => 'card'],
+        'billing-automation' => ['route' => 'super-admin.billing-automation.index', 'label' => 'Billing Automation', 'icon' => 'repeat'],
         'domains'       => ['route' => 'super-admin.domains.index',       'label' => 'Domains & Trackers','icon' => 'globe'],
         'analytics'     => ['route' => 'super-admin.analytics.index',     'label' => 'Analytics',         'icon' => 'chart'],
         'security'      => ['route' => 'super-admin.security.index',      'label' => 'Security & Logs',   'icon' => 'shield'],

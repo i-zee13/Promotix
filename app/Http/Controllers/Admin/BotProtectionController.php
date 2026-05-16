@@ -77,10 +77,14 @@ class BotProtectionController extends Controller
             return response()->json(['labels' => [], 'datasets' => []]);
         }
 
+        $crawlerSql = Schema::hasColumn('visits', 'is_crawler')
+            ? 'SUM(CASE WHEN is_crawler = 1 THEN 1 ELSE 0 END) as crawlers'
+            : '0 as crawlers';
+
         $rows = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('visited_at', [$from, $to])
-            ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
+            ->selectRaw("DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid, SUM(CASE WHEN is_invalid_traffic = 1 AND threat_group IN ('data_center','vpn','abnormal_rate_limit') THEN 1 ELSE 0 END) as bad_bots, {$crawlerSql}")
             ->groupBy('day')
             ->orderBy('day')
             ->get();
@@ -89,6 +93,8 @@ class BotProtectionController extends Controller
         $totalSeries = [];
         $validSeries = [];
         $invalidSeries = [];
+        $badBotSeries = [];
+        $crawlerSeries = [];
 
         $period = Carbon::parse($from)->copy();
         while ($period->lt($to)) {
@@ -97,8 +103,12 @@ class BotProtectionController extends Controller
             $labels[] = $period->format('M d');
             $total = (int) ($row->total ?? 0);
             $invalid = (int) ($row->invalid ?? 0);
+            $badBots = (int) ($row->bad_bots ?? 0);
+            $crawlers = (int) ($row->crawlers ?? 0);
             $totalSeries[] = $total;
             $invalidSeries[] = $invalid;
+            $badBotSeries[] = $badBots;
+            $crawlerSeries[] = $crawlers;
             $validSeries[] = max(0, $total - $invalid);
             $period->addDay();
         }
@@ -106,9 +116,76 @@ class BotProtectionController extends Controller
         return response()->json([
             'labels' => $labels,
             'datasets' => [
-                ['name' => 'Total', 'values' => $totalSeries],
-                ['name' => 'Valid', 'values' => $validSeries],
-                ['name' => 'Invalid', 'values' => $invalidSeries],
+                ['name' => 'Valid Visits', 'values' => $validSeries, 'color' => '#FFFFFF'],
+                ['name' => 'Bad Bots', 'values' => $badBotSeries, 'color' => '#B893D8'],
+                ['name' => 'Crawler', 'values' => $crawlerSeries, 'color' => '#6625F8'],
+                ['name' => 'Invalid', 'values' => $invalidSeries, 'color' => '#FF4BC1'],
+                ['name' => 'Total Visits', 'values' => $totalSeries, 'color' => '#D9D9D9', 'line' => true],
+            ],
+        ]);
+    }
+
+    public function invalidTrafficTrends(Request $request): JsonResponse
+    {
+        $domainIds = $this->scopedDomainIds($request);
+        [$from, $to] = $this->dateRange($request);
+
+        if (! Schema::hasTable('visits')) {
+            return response()->json(['labels' => [], 'datasets' => [], 'stats' => ['pageloads' => 0, 'interactions' => 0]]);
+        }
+
+        $days = max(1, $from->diffInDays($to) + 1);
+        $prevFrom = $from->copy()->subDays($days);
+        $prevTo = $from->copy()->subSecond();
+
+        $fetch = function (Carbon $start, Carbon $end) use ($domainIds) {
+            $rows = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$start, $end])
+                ->selectRaw('DATE(visited_at) as day, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid, COUNT(*) as total')
+                ->groupBy('day')
+                ->orderBy('day')
+                ->get();
+
+            $values = [];
+            $period = $start->copy();
+            while ($period->lte($end)) {
+                $key = $period->toDateString();
+                $row = $rows->firstWhere('day', $key);
+                $values[] = (int) ($row->invalid ?? 0);
+                $period->addDay();
+            }
+
+            return $values;
+        };
+
+        $thisWeek = $fetch($from, $to);
+        $lastWeek = $fetch($prevFrom, $prevTo);
+
+        $labels = [];
+        $period = $from->copy();
+        while ($period->lte($to)) {
+            $labels[] = $period->format('D');
+            $period->addDay();
+        }
+
+        $pageloads = array_sum($thisWeek);
+        $interactions = (int) DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('visited_at', [$from, $to])
+            ->where('is_invalid_traffic', true)
+            ->where('threat_group', 'malicious')
+            ->count();
+
+        return response()->json([
+            'labels' => $labels,
+            'datasets' => [
+                ['name' => 'Invalid Pageloads', 'values' => $thisWeek, 'color' => '#FFFFFF'],
+                ['name' => 'Invalid Site Interaction', 'values' => $lastWeek, 'color' => '#FF4BC1', 'dashed' => true],
+            ],
+            'stats' => [
+                'pageloads' => $pageloads,
+                'interactions' => $interactions,
             ],
         ]);
     }
@@ -198,10 +275,17 @@ class BotProtectionController extends Controller
             ->limit(20)
             ->get();
 
-        return response()->json($rows->map(fn ($r) => [
+        $mapped = $rows->map(fn ($r) => [
             'country' => $r->country,
             'total' => (int) $r->total,
             'invalid' => (int) $r->invalid,
+        ])->values();
+
+        $invalidSum = $mapped->sum('invalid') ?: 1;
+
+        return response()->json($mapped->map(fn ($r) => [
+            ...$r,
+            'percent' => round(($r['invalid'] / $invalidSum) * 100, 1),
         ])->values());
     }
 
@@ -213,6 +297,10 @@ class BotProtectionController extends Controller
         if (! Schema::hasTable('visits')) {
             return response()->json([]);
         }
+
+        $crawlerExpr = Schema::hasColumn('visits', 'is_crawler')
+            ? 'SUM(CASE WHEN visits.is_crawler = 1 THEN 1 ELSE 0 END)'
+            : '0';
 
         $rows = Domain::query()
             ->where('domains.user_id', $request->user()->id)
@@ -226,7 +314,9 @@ class BotProtectionController extends Controller
                 'domains.hostname',
                 'domains.status',
                 DB::raw('COUNT(visits.id) as total_visits'),
-                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid_visits')
+                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid_visits'),
+                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 0 OR visits.is_invalid_traffic IS NULL THEN 1 ELSE 0 END) as valid_visits'),
+                DB::raw("{$crawlerExpr} as known_crawlers")
             )
             ->groupBy('domains.id', 'domains.hostname', 'domains.status')
             ->orderByDesc('total_visits')
@@ -237,7 +327,9 @@ class BotProtectionController extends Controller
                 'hostname' => $d->hostname,
                 'status' => $d->status,
                 'total_visits' => (int) $d->total_visits,
+                'valid_visits' => (int) $d->valid_visits,
                 'invalid_visits' => (int) $d->invalid_visits,
+                'known_crawlers' => (int) $d->known_crawlers,
             ]);
 
         return response()->json($rows);
@@ -252,6 +344,44 @@ class BotProtectionController extends Controller
 
         return view('bot-protection.advanced', [
             'domains' => $domains,
+        ]);
+    }
+
+    public function botStats(Request $request): JsonResponse
+    {
+        $domainIds = $this->scopedDomainIds($request);
+        [$from, $to] = $this->dateRange($request);
+
+        if (! Schema::hasTable('visits')) {
+            return response()->json([
+                'blocked' => 0,
+                'invalid_traffic' => 0,
+                'paid_traffic' => 0,
+                'bot_detection' => 0,
+                'country' => 0,
+                'overall' => 0,
+            ]);
+        }
+
+        $base = DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('visited_at', [$from, $to]);
+
+        $total = max(1, (clone $base)->count());
+        $blocked = (clone $base)->where('action_taken', 'block')->count();
+        $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
+        $paid = (clone $base)->where('is_paid_traffic', true)->count();
+        $bot = (clone $base)->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit'])->count();
+        $withCountry = (clone $base)->whereNotNull('country')->where('country', '!=', '')->count();
+        $valid = max(0, (clone $base)->count() - $invalid);
+
+        return response()->json([
+            'blocked' => (int) round(($blocked / $total) * 100),
+            'invalid_traffic' => (int) round(($invalid / $total) * 100),
+            'paid_traffic' => (int) round(($paid / $total) * 100),
+            'bot_detection' => (int) round(($bot / $total) * 100),
+            'country' => (int) round(($withCountry / $total) * 100),
+            'overall' => (int) round(($valid / $total) * 100),
         ]);
     }
 
@@ -377,31 +507,82 @@ class BotProtectionController extends Controller
         if ($request->boolean('only_paid')) {
             $query->where('visits.is_paid_traffic', true);
         }
+        if ($path = trim((string) $request->query('path', ''))) {
+            $query->where('visits.url', 'like', '%' . $path . '%');
+        }
 
         return $query;
     }
 
     private function formatVisit(object $v): array
     {
+        $visitedAt = $v->visited_at ? Carbon::parse($v->visited_at)->format('m/d/Y H:i') : '';
+
         return [
             'id' => (int) $v->id,
             'hostname' => $v->hostname,
             'ip' => $v->ip,
             'country' => $v->country,
+            'country_label' => $this->countryLabel($v->country),
             'browser' => $v->browser,
             'os' => $v->os,
             'url' => $v->url,
+            'domain_url' => $v->url ?: ($v->hostname ?? ''),
             'referrer' => $v->referrer,
             'utm_source' => $v->utm_source,
             'utm_medium' => $v->utm_medium,
             'utm_campaign' => $v->utm_campaign,
             'action_taken' => $v->action_taken ?? 'allow',
             'threat_group' => $v->threat_group,
+            'threat_group_label' => $this->threatGroupLabel($v->threat_group, (bool) $v->is_invalid_traffic),
+            'threat_type_label' => $this->threatTypeLabel($v->threat_group),
             'threat_score' => (int) ($v->threat_score ?? 0),
             'is_invalid_traffic' => (bool) $v->is_invalid_traffic,
             'is_paid_traffic' => (bool) $v->is_paid_traffic,
-            'visited_at' => (string) ($v->visited_at ?? ''),
+            'visited_at' => $visitedAt,
         ];
+    }
+
+    private function threatGroupLabel(?string $group, bool $invalid): string
+    {
+        if ($invalid) {
+            return match ($group) {
+                'malicious' => 'Invalid Malicious',
+                'data_center', 'vpn', 'abnormal_rate_limit' => 'Invalid Bot',
+                default => 'Invalid Suspicious',
+            };
+        }
+
+        return 'Valid';
+    }
+
+    private function threatTypeLabel(?string $group): string
+    {
+        return match ($group) {
+            'data_center' => 'Data Center',
+            'vpn' => 'VPN',
+            'malicious' => 'Malicious',
+            'abnormal_rate_limit' => 'Abnormal Rate Limit',
+            'out_of_geo' => 'Out of Geo',
+            default => $group ? ucwords(str_replace('_', ' ', $group)) : '—',
+        };
+    }
+
+    private function countryLabel(?string $code): string
+    {
+        $map = [
+            'US' => 'United States',
+            'GB' => 'United Kingdom',
+            'DE' => 'Germany',
+            'PK' => 'Pakistan',
+            'AE' => 'United Arab Emirates',
+            'CA' => 'Canada',
+            'IN' => 'India',
+        ];
+
+        $code = strtoupper((string) $code);
+
+        return $map[$code] ?? ($code ?: '—');
     }
 
     private function scopedDomainIds(Request $request)

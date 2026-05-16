@@ -6,13 +6,19 @@
         x-data="{
             interval: 'monthly',
             yearlyDiscount: 0.15,
-            priceLabel(cents) {
-                const monthly = cents / 100;
+            priceLabel(row) {
+                const monthlyCents = row.monthlyCents;
+                const yearlyCents = row.yearlyCents;
                 if (this.interval === 'yearly') {
+                    if (yearlyCents > 0) {
+                        const perMonth = yearlyCents / 12 / 100;
+                        return '$' + perMonth.toFixed(0) + '/m';
+                    }
+                    const monthly = monthlyCents / 100;
                     const discounted = monthly * (1 - this.yearlyDiscount);
-                    return '$' + (discounted).toFixed(0) + '/m';
+                    return '$' + discounted.toFixed(0) + '/m';
                 }
-                return '$' + monthly.toFixed(0) + '/m';
+                return '$' + (monthlyCents / 100).toFixed(0) + '/m';
             }
         }">
         {{-- Brand --}}
@@ -62,6 +68,16 @@
                     $domainLimit = $limits['domain_limit'] ?? null;
                     $visits = $limits['visits_limit'] ?? null;
 
+                    $yearlyCents = (int) ($plan->price_yearly_cents ?? 0);
+                    $desc = $plan->short_description;
+                    if (! $desc) {
+                        $desc = match ($plan->slug) {
+                            'starter' => 'Perfect for small websites starting with ad and bot protection.',
+                            'pro' => 'Best for growing businesses managing multiple websites.',
+                            'advanced' => 'For high-traffic businesses needing premium support.',
+                            default => '',
+                        };
+                    }
                     $featureList = collect([
                         'Ad protection for Google, Meta &amp; Microsoft' => $flags['ad_protection'] ?? false,
                         'Bot protection for WordPress' => $flags['bot_protection'] ?? false,
@@ -79,24 +95,22 @@
                 <div class="relative">
                     {{-- Floating badge --}}
                     <div class="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2">
-                        <div class="flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-[#B79CCB]/85 text-base font-semibold text-[#3A0D63] shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]">
+                        <div @class([
+                            'flex h-24 w-24 items-center justify-center rounded-full border text-base font-semibold shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]',
+                            'border-white/20 bg-[#B79CCB]/85 text-[#3A0D63]' => ! $plan->is_highlighted,
+                            'border-amber-300/50 bg-amber-400/90 text-[#3A0D63]' => $plan->is_highlighted,
+                        ])>
                             {{ $plan->name }}
                         </div>
                     </div>
 
                     {{-- Card --}}
                     <div class="relative h-full rounded-[15px] border border-white/35 bg-[#6400B3] px-6 pb-8 pt-16 shadow-[0_25px_60px_-20px_rgba(100,0,179,0.55)]">
-                        <p class="mt-2 text-center text-sm text-white/85">
-                            @if ($plan->slug === 'starter')
-                                Perfect for small websites starting with ad and bot protection.
-                            @elseif ($plan->slug === 'pro')
-                                Best for growing businesses managing multiple websites.
-                            @else
-                                For high-traffic businesses needing premium support.
-                            @endif
-                        </p>
+                        @if ($desc)
+                            <p class="mt-2 text-center text-sm text-white/85">{{ $desc }}</p>
+                        @endif
 
-                        <p class="mt-5 text-center text-3xl font-bold text-white" x-text="priceLabel({{ (int) $plan->price_cents }})"></p>
+                        <p class="mt-5 text-center text-3xl font-bold text-white" x-text="priceLabel({ monthlyCents: {{ (int) $plan->price_cents }}, yearlyCents: {{ $yearlyCents }} })"></p>
 
                         <form method="POST" action="{{ route('onboarding.start-trial') }}" class="mt-5">
                             @csrf
@@ -104,7 +118,7 @@
                             <input type="hidden" name="billing_interval" :value="interval">
                             <button type="submit"
                                 class="block w-full rounded-[10px] bg-white py-2.5 text-center text-sm font-semibold text-[#6400B3] transition hover:bg-white/90">
-                                Start free trial
+                                {{ $plan->cta_label ?: 'Start free trial' }}
                             </button>
                         </form>
 

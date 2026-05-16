@@ -1,12 +1,11 @@
 @extends('layouts.super-admin')
 
 @section('title', 'Domains & Trackers')
-@section('subtitle', 'All client domains using the shared platform')
-
 @section('content')
-    <x-ui.card class="!p-0 overflow-hidden">
+<x-super-admin.page title="Domains & Trackers">
+    <x-super-admin.card class="!p-0 overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="brand-table min-w-[850px]">
+            <table class="figma-sa-table min-w-[850px]">
                 <thead>
                     <tr>
                         <th>Domain</th>
@@ -25,29 +24,30 @@
                                 @php
                                     $s = strtolower($domain->status ?? '');
                                     $cls = match (true) {
-                                        in_array($s, ['active','live','enabled']) => 'brand-pill-success',
-                                        in_array($s, ['paused','disabled']) => 'brand-pill-warning',
-                                        in_array($s, ['blocked','suspended']) => 'brand-pill-danger',
-                                        default => 'brand-pill-neutral',
+                                        in_array($s, ['active','live','enabled']) => 'figma-sa-pill-success',
+                                        in_array($s, ['paused','disabled']) => 'figma-sa-pill-warning',
+                                        in_array($s, ['blocked','suspended']) => 'figma-sa-pill-danger',
+                                        default => 'figma-sa-pill-neutral',
                                     };
                                 @endphp
-                                <span class="brand-pill {{ $cls }}">{{ ucfirst($domain->status) }}</span>
+                                <span class="figma-sa-pill {{ $cls }}">{{ ucfirst($domain->status) }}</span>
                             </td>
                             <td>{{ $domain->last_seen_at?->diffForHumans() ?? '—' }}</td>
                             <td>
                                 @if ($domain->tag_connected)
-                                    <span class="brand-pill brand-pill-success">Tracking</span>
+                                    <span class="figma-sa-pill figma-sa-pill-success">Tracking</span>
                                 @else
-                                    <span class="brand-pill brand-pill-warning">Pending</span>
+                                    <span class="figma-sa-pill figma-sa-pill-warning">Pending</span>
                                 @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-4 py-12 text-center text-night-300">No domains yet.</td></tr>
+                        <tr><td colspan="5" class="px-4 py-12 text-center text-[#a9a9a9]">No domains yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        <div class="border-t border-night-700/60 px-4 py-3">{{ $domains->links() }}</div>
-    </x-ui.card>
+        <div class="figma-sa-pagination px-4 py-3">{{ $domains->links() }}</div>
+    </x-super-admin.card>
+</x-super-admin.page>
 @endsection

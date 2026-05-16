@@ -1,379 +1,318 @@
 @extends('layouts.admin')
 
 @section('title', 'Platform Integrate')
-@section('subtitle', 'Connect Google Ads, direct ad platforms, and per-domain protection')
+
+@php
+    $googleConnected = $connections->isNotEmpty();
+    $directConnected = $directAds->isNotEmpty();
+    $requirementSteps = [
+        ['label' => 'Step 1', 'done' => $googleConnected],
+        ['label' => 'Step 2', 'done' => $accounts->isNotEmpty()],
+        ['label' => 'Step 3', 'done' => $mappings->count() > 0],
+        ['label' => 'Step 4', 'done' => $directConnected],
+    ];
+@endphp
+
+@section('rightbar')
+    <div class="mb-[22px] flex items-center justify-between">
+        <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
+        <button class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white">
+            <svg class="h-[13px] w-[13px]" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 11.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 17a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
+        </button>
+    </div>
+
+    <div class="mb-[24px] grid grid-cols-4 gap-[9px]">
+        @foreach (['bell-notification', 'chat', 'share', 'more'] as $icon)
+            <a href="{{ route('integrations') }}" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white" aria-label="{{ $icon }}">
+                @if ($icon === 'bell-notification')
+                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 01-6 0"/></svg>
+                @elseif ($icon === 'chat')
+                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M4 5h16v11H8l-4 4V5z"/></svg>
+                @elseif ($icon === 'share')
+                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M8 12h8M16 12l-4-4m4 4l-4 4"/></svg>
+                @else
+                    <svg class="h-[13px] w-[13px]" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 11.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 17a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
+                @endif
+            </a>
+        @endforeach
+    </div>
+
+    <div class="space-y-[13px] border-b-2 border-[#5a2a99] pb-[18px] text-[10px] text-[#a9a9a9]">
+        @foreach (['1 m paid traffic reached', '20 k block detections', 'Countries IP reviewed', 'Account is connected', 'Campaigns is live'] as $notice)
+            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px] last:border-b-0">
+                <svg class="h-[14px] w-[14px] shrink-0 text-white/85" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M4 6h16v12H4z"/><path stroke-width="1.7" d="M4 7l8 6 8-6"/></svg>
+                <span>{{ $notice }}</span>
+            </div>
+        @endforeach
+    </div>
+@endsection
 
 @section('content')
-    <div class="space-y-6" x-data="integrationsPage()">
-        <x-ui.page-header title="Platform Integrate" subtitle="Connect Google Ads, direct ad platforms, and per-domain protection">
-            <x-slot:actions>
-                <x-ui.button variant="outline" size="sm" href="{{ route('paid-marketing.dashboard') }}">Dashboard</x-ui.button>
-                <x-ui.button variant="outline" size="sm" href="{{ route('paid-marketing.detection-settings') }}">Detection Panel</x-ui.button>
-            </x-slot:actions>
-        </x-ui.page-header>
+<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="platformIntegrations(@js([
+    'csrf' => csrf_token(),
+    'directStoreUrl' => url('/admin/integrations/direct-ads'),
+    'directInitial' => $directAds->map(fn ($row) => [
+        'id' => $row->id,
+        'platform' => $row->platform,
+        'account_label' => $row->account_label,
+        'account_id' => $row->account_id,
+        'tag_id' => $row->tag_id,
+    ])->values(),
+]))">
+    <section class="mx-auto w-full max-w-[1180px] px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[19px] xl:pt-[68px]">
+        <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-wrap items-center gap-[12px]">
+                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
+                <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
+                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Platform</span>
+            </div>
+
+            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
+                <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Campaigns</span>
+                    <select class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0">
+                        <option>All campaigns</option>
+                    </select>
+                </label>
+                <label class="flex w-[178px] flex-col justify-center px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
+                    <input placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                </label>
+                <button type="button" class="figma-filter-action flex w-[34px] items-center justify-center bg-[#6400B2] text-white" aria-label="Filter">
+                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7h8M8 12h8M8 17h8"/></svg>
+                </button>
+            </div>
+        </div>
 
         @if (session('status'))
-            <div class="brand-pill brand-pill-success">{{ session('status') }}</div>
+            <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[#6400B2]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
         @endif
 
-        {{-- Top: Google + Direct Ads --}}
-        <section class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {{-- Google card --}}
-            <x-ui.card>
-                <header class="flex items-start justify-between gap-3">
-                    <div>
-                        <h2 class="text-lg font-semibold text-white">Google Ads</h2>
-                        <p class="mt-1 text-sm text-night-300">Connect via OAuth and sync ad accounts (AW).</p>
-                    </div>
-                    <span class="brand-pill"
-                          :class="status?.google?.connected ? 'brand-pill-success' : 'brand-pill-neutral'"
-                          x-text="status?.google?.connected ? `${status.google.accounts} accounts` : 'Not connected'"></span>
-                </header>
-                <div class="mt-4 flex flex-wrap items-center gap-2">
-                    <x-ui.button variant="primary" href="{{ route('integrations.google.redirect') }}">Connect with Google</x-ui.button>
-                    <x-ui.button type="button" variant="outline" @click="openPixelGuard()">Pixel Guard</x-ui.button>
-                </div>
-                <p class="mt-2 text-xs text-amber-300"
-                   x-show="status && status.google && (!status.google.oauth_configured || !status.google.developer_token_configured)">
-                    <span x-show="!status?.google?.oauth_configured">Missing GOOGLE_ADS_CLIENT_ID/SECRET. </span>
-                    <span x-show="!status?.google?.developer_token_configured">GOOGLE_ADS_DEVELOPER_TOKEN not configured (live spend disabled).</span>
-                </p>
-            </x-ui.card>
+        <div class="grid gap-[12px] xl:grid-cols-[minmax(0,720px)_minmax(320px,1fr)]">
+            <section class="rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
+                <h2 class="mb-[16px] text-[24px] font-medium text-white">Connect Your Platforms</h2>
 
-            {{-- Direct ads card --}}
-            <x-ui.card>
-                <header class="flex items-start justify-between gap-3">
-                    <div>
-                        <h2 class="text-lg font-semibold text-white">Direct Ads</h2>
-                        <p class="mt-1 text-sm text-night-300">Add manual integrations (Meta, Microsoft, custom).</p>
-                    </div>
-                    <span class="brand-pill"
-                          :class="status?.direct?.connected ? 'brand-pill-success' : 'brand-pill-neutral'"
-                          x-text="status?.direct?.connected ? `${status.direct.count} active` : 'Not connected'"></span>
-                </header>
-
-                <form @submit.prevent="addDirectAds()" class="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <select x-model="directForm.platform" required class="brand-select">
-                        <option value="">Platform</option>
-                        <option value="meta">Meta (Facebook / Instagram)</option>
-                        <option value="microsoft">Microsoft Ads</option>
-                        <option value="tiktok">TikTok Ads</option>
-                        <option value="linkedin">LinkedIn Ads</option>
-                        <option value="x">X / Twitter Ads</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                    <input type="text" x-model="directForm.account_label" placeholder="Account label (optional)" class="brand-input">
-                    <input type="text" x-model="directForm.account_id"    placeholder="Account ID (optional)" class="brand-input">
-                    <input type="text" x-model="directForm.tag_id"        placeholder="Tag / Pixel ID (optional)" class="brand-input">
-                    <button class="brand-btn-primary md:col-span-2">Add integration</button>
-                </form>
-
-                <div class="mt-4 space-y-2" x-show="directList.length > 0">
-                    <template x-for="row in directList" :key="row.id">
-                        <div class="flex items-center justify-between rounded-xl border border-night-700 bg-night-900/60 px-3 py-2.5">
-                            <div>
-                                <p class="text-sm font-semibold text-white" x-text="row.platform"></p>
-                                <p class="text-xs text-night-400">
-                                    <span x-text="row.account_label || row.account_id || '—'"></span>
-                                    <span x-show="row.tag_id"> · Tag: <span x-text="row.tag_id"></span></span>
-                                </p>
-                            </div>
-                            <button type="button" class="brand-btn-soft px-3 py-1.5 text-xs"
-                                    @click="removeDirectAds(row.id)"
-                                    style="background: rgba(244, 63, 94, 0.15); color: #fda4af;">
-                                Remove
-                            </button>
-                        </div>
-                    </template>
-                </div>
-            </x-ui.card>
-        </section>
-
-        {{-- Connect / accounts --}}
-        <x-ui.card title="Connect Your Platforms" subtitle="Connect Google via OAuth, then sync accessible Ads accounts and map domains">
-            <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                {{-- Google account column --}}
-                <div class="space-y-3 rounded-xl border border-night-700 bg-night-900/60 p-4 lg:col-span-1">
-                    <p class="text-sm font-semibold text-white">Google Account</p>
-                    <a href="{{ route('integrations.google.redirect') }}" class="brand-btn-primary w-full">Connect with Google</a>
-                    <p class="text-xs text-night-400">Requires Google OAuth credentials and Ads API developer token in <code>.env</code>.</p>
-
-                    @if ($connections->isNotEmpty())
-                        <div class="mt-3 space-y-2">
-                            @foreach ($connections as $connection)
-                                <div class="rounded-xl border border-night-700 bg-night-900 p-3">
-                                    <p class="text-sm text-white">{{ $connection->google_email }}</p>
-                                    <p class="text-xs text-night-400">Connected {{ $connection->connected_at?->diffForHumans() ?? '—' }}</p>
-                                    <div class="mt-2 flex gap-2">
-                                        <form method="POST" action="{{ route('integrations.google.sync-accounts', $connection) }}">
-                                            @csrf
-                                            <button class="brand-btn-soft px-3 py-1.5 text-xs">Sync accounts</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('integrations.google.disconnect', $connection) }}">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="brand-btn-outline px-3 py-1.5 text-xs"
-                                                    style="border-color: rgba(244, 63, 94, 0.3); color: #fda4af;">
-                                                Disconnect
-                                            </button>
-                                        </form>
+                <div class="grid gap-[16px] lg:grid-cols-2">
+                    <article class="min-h-[232px] rounded-[10px] border border-[#d9d9d9]/60 p-[18px]">
+                        <div class="flex items-start justify-between">
+                            <div class="flex gap-[18px]">
+                                <div class="w-[90px] shrink-0">
+                                    <div class="mb-[12px] flex h-[79px] w-[90px] items-center justify-center rounded bg-white">
+                                        <svg class="h-[55px] w-[55px]" viewBox="0 0 48 48" aria-hidden="true">
+                                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c10 0 19-7.3 19-20 0-1.3-.1-2.3-.4-3.5z"/>
+                                            <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                                            <path fill="#4CAF50" d="M24 44c5.1 0 9.8-1.9 13.3-5.2l-6.2-5.2C29.1 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/>
+                                        </svg>
                                     </div>
+                                    <p class="text-center text-[20px] font-medium leading-none text-white">Google</p>
+                                    <div class="mx-auto mt-[8px] h-[15px] w-[72px] rounded-sm bg-black/55"></div>
+                                </div>
+
+                                <div class="space-y-[16px] pt-[8px]">
+                                    <a href="{{ route('integrations.google.redirect') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[12px] font-normal text-white">
+                                        @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[15px] w-[15px]'])
+                                        Pixel Guard
+                                    </a>
+                                    <a href="{{ route('paid-marketing.detection-settings') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[12px] font-normal text-white">
+                                        @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[15px] w-[15px]'])
+                                        Audience Exclusion
+                                    </a>
+                                    <a href="{{ route('integrations.google.redirect') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[12px] font-normal text-[#6706B3]">
+                                        <span class="flex h-[17px] w-[17px] items-center justify-center rounded-full border border-[#6706B3] text-[12px]">+</span>
+                                        Acc Account
+                                    </a>
+                                </div>
+                            </div>
+                            <span class="text-[24px] leading-none text-white">...</span>
+                        </div>
+                    </article>
+
+                    <article class="min-h-[232px] rounded-[10px] border border-[#d9d9d9]/60 p-[18px]">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-[24px] pt-[34px]">
+                                <svg class="h-[96px] w-[96px] shrink-0" viewBox="0 0 96 96" aria-hidden="true">
+                                    <path fill="#4285F4" d="M52 14c5.2-3 11.9-1.2 14.9 4l22 38.1c3 5.2 1.2 11.9-4 14.9s-11.9 1.2-14.9-4L48 28.9c-3-5.2-1.2-11.9 4-14.9z"/>
+                                    <path fill="#34A853" d="M8.4 67.4 30.5 29c3-5.2 9.7-7 14.9-4s7 9.7 4 14.9L27.3 78.2c-3 5.2-9.7 7-14.9 4s-7-9.6-4-14.8z"/>
+                                    <circle cx="18" cy="73" r="13" fill="#FBBC04"/>
+                                </svg>
+                                <p class="text-[20px] font-medium leading-none text-white">Direct Ads</p>
+                            </div>
+                            <span class="text-[24px] leading-none text-white">...</span>
+                        </div>
+
+                        <form class="mt-[12px] grid gap-[9px] sm:grid-cols-[1fr_auto]" @submit.prevent="addDirectAds()">
+                            <input x-model="directForm.account_id" placeholder="ID Tracking" class="h-[26px] rounded border border-white bg-white px-[8px] text-[12px] text-[#6706B3] placeholder:text-[#6706B3] focus:ring-[#6400B2]">
+                            <button class="h-[26px] rounded border border-white bg-white px-[10px] text-[12px] text-[#6706B3]">Add</button>
+                            <input x-model="directForm.tag_id" placeholder="sadsadsadsadsad" class="h-[26px] rounded border border-white bg-white px-[8px] text-[12px] text-[#6706B3] placeholder:text-[#6706B3] focus:ring-[#6400B2] sm:col-span-2">
+                        </form>
+                    </article>
+                </div>
+            </section>
+
+            <div class="grid gap-[12px] sm:grid-cols-2 xl:grid-cols-1">
+                <section class="rounded-[10px] bg-[#6706B3] p-[10px]">
+                    <p class="mb-[12px] text-center text-[8px] uppercase text-white">Connection Status</p>
+                    <div class="grid grid-cols-2 gap-[6px]">
+                        <div class="rounded border border-white bg-[#606060]/55 p-[8px] text-center">
+                            <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center rounded bg-white">
+                                <svg class="h-[32px] w-[32px]" viewBox="0 0 48 48" aria-hidden="true">
+                                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c10 0 19-7.3 19-20 0-1.3-.1-2.3-.4-3.5z"/>
+                                    <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                                    <path fill="#4CAF50" d="M24 44c5.1 0 9.8-1.9 13.3-5.2l-6.2-5.2C29.1 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/>
+                                </svg>
+                            </div>
+                            <div class="bg-white px-[4px] py-[2px] text-[8px] text-[#6706B3]">{{ $googleConnected ? 'Connected' : 'Not Connected' }}</div>
+                        </div>
+                        <div class="rounded border border-white bg-white/50 p-[8px] text-center">
+                            <svg class="mx-auto mb-[8px] h-[50px] w-[50px]" viewBox="0 0 96 96" aria-hidden="true">
+                                <path fill="#4285F4" d="M52 14c5.2-3 11.9-1.2 14.9 4l22 38.1c3 5.2 1.2 11.9-4 14.9s-11.9 1.2-14.9-4L48 28.9c-3-5.2-1.2-11.9 4-14.9z"/>
+                                <path fill="#34A853" d="M8.4 67.4 30.5 29c3-5.2 9.7-7 14.9-4s7 9.7 4 14.9L27.3 78.2c-3 5.2-9.7 7-14.9 4s-7-9.6-4-14.8z"/>
+                                <circle cx="18" cy="73" r="13" fill="#FBBC04"/>
+                            </svg>
+                            <div class="bg-white px-[4px] py-[2px] text-[8px] text-[#101010]">{{ $directConnected ? 'Connected' : 'Not Connected' }}</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rounded-[10px] bg-[#3c3c3c] p-[16px]">
+                    <h2 class="mb-[20px] text-[16px] font-medium text-[#d9d9d9]">Connection Requirement</h2>
+                    <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
+                        <div class="relative h-[84px] w-[84px] rounded-full border-[14px] border-[#d9d9d9] border-l-[#7a56a9] border-t-[#7a56a9]"></div>
+                        <div class="space-y-[8px]">
+                            @foreach ($requirementSteps as $step)
+                                <div class="relative h-[15px] overflow-hidden rounded-full bg-[#d9d9d9]">
+                                    <div class="absolute inset-y-[2px] left-[2px] rounded-full {{ $step['done'] ? 'w-[calc(100%-4px)] bg-[#7a56a9]' : 'w-[calc(62%-4px)] bg-[#838284]' }}"></div>
+                                    <span class="absolute inset-0 flex items-center justify-center text-[8px] text-white/70">{{ $step['label'] }}</span>
                                 </div>
                             @endforeach
                         </div>
-                    @endif
-                </div>
-
-                {{-- Manual fallback form --}}
-                <form method="POST" action="{{ route('integrations.store-account') }}"
-                      class="space-y-3 rounded-xl border border-night-700 bg-night-900/60 p-4 lg:col-span-2">
-                    @csrf
-                    <p class="text-sm font-semibold text-white">Google Ads Account (AW) — manual fallback</p>
-                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <select name="google_connection_id" required class="brand-select">
-                            <option value="">Select connected Google user</option>
-                            @foreach ($connections as $connection)
-                                <option value="{{ $connection->id }}">{{ $connection->google_email }}</option>
-                            @endforeach
-                        </select>
-                        <input name="customer_id" type="text" required placeholder="Customer ID (1234567890)" class="brand-input">
-                        <input name="display_customer_id" type="text" placeholder="Display ID (AW-1234567890)" class="brand-input">
-                        <input name="google_tag_id" type="text" placeholder="Google Tag ID (AW-…)" class="brand-input">
-                        <input name="account_name" type="text" placeholder="Account name" class="brand-input">
-                        <input name="manager_customer_id" type="text" placeholder="Manager ID (optional)" class="brand-input">
                     </div>
-                    <label class="inline-flex items-center gap-2 text-sm text-night-100">
-                        <input type="checkbox" name="is_manager" value="1" class="rounded border-night-700 bg-night-900 text-brand-500 focus:ring-brand-400">
-                        Manager account (MCC)
-                    </label>
-                    <button class="brand-btn-primary">Save Ads Account</button>
-                </form>
+                </section>
             </div>
-        </x-ui.card>
+        </div>
 
-        {{-- Link domain --}}
-        <x-ui.card title="Link Domain to Connected ID" subtitle="Creates the domain-specific rule target">
-            <form method="POST" action="{{ route('integrations.store-mapping') }}" class="grid grid-cols-1 gap-3 lg:grid-cols-5">
+        <section class="mt-[20px] rounded-[10px] border border-[#6706B3] p-[16px]">
+            <div class="mb-[26px]">
+                <h2 class="text-[24px] font-medium text-white">Connected Platforms</h2>
+                <p class="mt-[5px] text-[14px] font-medium text-white">All Accounts</p>
+            </div>
+
+            <form method="POST" action="{{ route('integrations.store-mapping') }}" class="mb-[14px] grid gap-[8px] rounded-[8px] border border-white/20 bg-[#6400B2]/35 p-[10px] lg:grid-cols-[1fr_1fr_150px_130px]">
                 @csrf
-                <select name="domain_id" required class="brand-select lg:col-span-2">
+                <select name="domain_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
                     <option value="">Select domain</option>
                     @foreach ($domains as $domain)
                         <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
                     @endforeach
                 </select>
-                <select name="google_ads_account_id" required class="brand-select lg:col-span-2">
+                <select name="google_ads_account_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
                     <option value="">Select connected account</option>
                     @foreach ($accounts as $account)
-                        <option value="{{ $account->id }}">
-                            {{ $account->display_customer_id ?: $account->customer_id }} — {{ $account->google_tag_id ?: 'No tag ID' }}
-                        </option>
+                        <option value="{{ $account->id }}">{{ $account->display_customer_id ?: $account->customer_id }} - {{ $account->google_tag_id ?: 'No tag ID' }}</option>
                     @endforeach
                 </select>
-                <select name="protection_type" class="brand-select">
+                <select name="protection_type" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
                     <option value="ip_blocking">IP Blocking</option>
                     <option value="pixel_guard">Pixel Guard</option>
                 </select>
-                <label class="inline-flex items-center gap-2 text-sm text-night-100 lg:col-span-2">
-                    <input type="checkbox" name="audience_exclusion_enabled" value="1" checked
-                           class="rounded border-night-700 bg-night-900 text-brand-500 focus:ring-brand-400">
-                    Audience exclusion enabled
-                </label>
-                <button class="brand-btn-primary lg:col-span-1">Link domain</button>
+                <button class="rounded-[5px] bg-[#6706B3] px-[12px] text-[12px] font-semibold text-white">Link domain</button>
             </form>
-        </x-ui.card>
 
-        {{-- Existing mappings --}}
-        <x-ui.card variant="flat">
             <div class="overflow-x-auto">
-                <table class="brand-table min-w-[980px]">
+                <table class="min-w-[1040px] w-full border-separate border-spacing-y-[5px] text-left">
                     <thead>
-                        <tr>
-                            <th>Platform</th>
-                            <th>Protection</th>
-                            <th>Connected ID</th>
-                            <th>Tag</th>
-                            <th>Domain</th>
-                            <th>Settings</th>
-                            <th></th>
+                        <tr class="text-[14px] font-medium text-white">
+                            <th class="px-[22px] py-[8px]">Platform</th>
+                            <th class="px-[22px] py-[8px]">Protection Type</th>
+                            <th class="px-[22px] py-[8px]">Connected Entity ID</th>
+                            <th class="px-[22px] py-[8px]">Tag</th>
+                            <th class="px-[22px] py-[8px]">Settings</th>
+                            <th class="px-[22px] py-[8px]"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($mappings as $mapping)
-                            <tr>
-                                <td class="font-medium">Google</td>
-                                <td>
-                                    <x-ui.pill :tone="$mapping->protection_type === 'pixel_guard' ? 'purple' : 'neutral'">
-                                        {{ $mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'IP Blocking' }}
-                                    </x-ui.pill>
+                            <tr class="rounded-[5px] bg-[#d9d9d9] text-[#121212]">
+                                <td class="rounded-l-[5px] px-[22px] py-[10px] text-[16px] font-medium">
+                                    <span class="inline-flex items-center gap-[10px]">
+                                        <svg class="h-[22px] w-[22px]" viewBox="0 0 48 48" aria-hidden="true">
+                                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c10 0 19-7.3 19-20 0-1.3-.1-2.3-.4-3.5z"/>
+                                            <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                                            <path fill="#4CAF50" d="M24 44c5.1 0 9.8-1.9 13.3-5.2l-6.2-5.2C29.1 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/>
+                                        </svg>
+                                        Google
+                                    </span>
                                 </td>
-                                <td class="text-night-200">{{ $mapping->account->display_customer_id ?: $mapping->account->customer_id }}</td>
-                                <td class="text-night-200">{{ $mapping->account->google_tag_id ?: '—' }}</td>
-                                <td class="text-night-200">{{ $mapping->domain->hostname }}</td>
-                                <td>
-                                    <a href="{{ route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]) }}"
-                                       class="text-sm font-medium text-brand-200 hover:text-white">Campaign Settings</a>
+                                <td class="px-[22px] py-[10px] text-[12px]">{{ $mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion' }}</td>
+                                <td class="px-[22px] py-[10px] text-[12px]">{{ $mapping->account->display_customer_id ?: $mapping->account->customer_id }}</td>
+                                <td class="px-[22px] py-[10px] text-[12px]">{{ $mapping->domain->hostname }}</td>
+                                <td class="px-[22px] py-[10px] text-[12px] font-medium text-[#6706B3]">
+                                    <a href="{{ route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]) }}" class="inline-flex items-center gap-[6px] hover:underline">
+                                        @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[18px] w-[18px]'])
+                                        Campaign Settings
+                                    </a>
                                 </td>
-                                <td class="text-right">
+                                <td class="rounded-r-[5px] px-[22px] py-[10px] text-right">
                                     <form method="POST" action="{{ route('integrations.destroy-mapping', $mapping) }}">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="brand-btn-outline px-3 py-1.5 text-xs"
-                                                style="border-color: rgba(244, 63, 94, 0.3); color: #fda4af;">Remove</button>
+                                        <button class="text-[#121212]/70 hover:text-[#6706B3]" aria-label="Remove">
+                                            @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'h-[20px] w-[20px]'])
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="py-10 text-center text-night-300">No platform mappings yet.</td></tr>
+                            <tr>
+                                <td colspan="6" class="rounded-[5px] bg-[#d9d9d9] px-[22px] py-[20px] text-center text-[13px] text-[#121212]">No platform mappings yet.</td>
+                            </tr>
                         @endforelse
+
+                        <template x-for="row in directList" :key="`direct-${row.id}`">
+                            <tr class="rounded-[5px] bg-[#d9d9d9] text-[#121212]">
+                                <td class="rounded-l-[5px] px-[22px] py-[10px] text-[16px] font-medium">Direct Ads</td>
+                                <td class="px-[22px] py-[10px] text-[12px]">ID Tracking</td>
+                                <td class="px-[22px] py-[10px] text-[12px]" x-text="row.account_id || 'N/A'"></td>
+                                <td class="px-[22px] py-[10px] text-[12px]" x-text="row.tag_id || 'N/A'"></td>
+                                <td class="px-[22px] py-[10px] text-[12px] font-medium text-[#6706B3]">Campaign Settings</td>
+                                <td class="rounded-r-[5px] px-[22px] py-[10px] text-right"></td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>
 
             @if ($mappings->hasPages())
-                <div class="mt-4 border-t border-night-700/60 pt-4">{{ $mappings->links() }}</div>
+                <div class="mt-[12px] border-t border-white/20 pt-[10px]">{{ $mappings->links() }}</div>
             @endif
-        </x-ui.card>
+        </section>
+    </section>
+</div>
 
-        {{-- Pixel Guard modal --}}
-        <div class="brand-modal-overlay" x-show="pixelGuard.open" x-cloak x-transition
-             @keydown.escape.window="closePixelGuard()" @click.self="closePixelGuard()">
-            <div class="brand-modal max-w-3xl">
-                <header class="mb-4 flex items-start justify-between gap-3">
-                    <div>
-                        <h3 class="brand-modal-title">Pixel Guard</h3>
-                        <p class="mt-1 text-xs text-night-300">Save Google Tag IDs and toggle audience exclusion per domain.</p>
-                    </div>
-                    <button type="button" class="rounded-lg p-1.5 text-night-300 hover:bg-night-800 hover:text-white" @click="closePixelGuard()">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </header>
-
-                <div class="space-y-6">
-                    <div>
-                        <h4 class="text-sm font-semibold text-white">Google Tag IDs</h4>
-                        <p class="mt-1 text-xs text-night-400">Update the Google Tag ID (AW-…) per connected ads account.</p>
-                        <div class="mt-3 space-y-2">
-                            <template x-for="acc in pixelGuard.accounts" :key="acc.id">
-                                <div class="flex flex-col gap-2 rounded-xl border border-night-700 bg-night-900/60 p-3 md:flex-row md:items-center">
-                                    <div class="md:w-1/3">
-                                        <p class="text-sm font-semibold text-white" x-text="acc.account_name || acc.display_customer_id || acc.customer_id"></p>
-                                        <p class="text-xs text-night-400" x-text="acc.display_customer_id || acc.customer_id"></p>
-                                    </div>
-                                    <input type="text" x-model="acc.google_tag_id" placeholder="AW-1234567890" class="brand-input flex-1">
-                                    <button type="button" @click="saveTagId(acc)" class="brand-btn-primary px-3 py-2 text-xs">Save tag</button>
-                                </div>
-                            </template>
-                            <p class="text-xs text-night-400" x-show="pixelGuard.accounts.length === 0">
-                                No Google Ads accounts synced yet. Connect Google and click Sync Accounts first.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h4 class="text-sm font-semibold text-white">Audience Exclusion</h4>
-                        <p class="mt-1 text-xs text-night-400">Auto-push detected fraudulent IPs into Google Customer Match audiences.</p>
-                        <div class="mt-3 space-y-2">
-                            <template x-for="m in pixelGuard.mappings" :key="m.id">
-                                <div class="flex items-center justify-between rounded-xl border border-night-700 bg-night-900/60 p-3">
-                                    <div>
-                                        <p class="text-sm font-semibold text-white" x-text="m.domain?.hostname || '—'"></p>
-                                        <p class="text-xs text-night-400" x-text="m.account?.display_customer_id || m.account?.customer_id"></p>
-                                    </div>
-                                    <label class="inline-flex items-center gap-2 text-xs text-night-200">
-                                        <input type="checkbox" :checked="m.audience_exclusion_enabled"
-                                               class="rounded border-night-700 bg-night-900 text-brand-500 focus:ring-brand-400"
-                                               @change="toggleAudienceExclusion(m, $event.target.checked)">
-                                        Enabled
-                                    </label>
-                                </div>
-                            </template>
-                            <p class="text-xs text-night-400" x-show="pixelGuard.mappings.length === 0">
-                                No Pixel Guard mappings yet. Use the "Link Domain" form above with Protection Type = Pixel Guard.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        function integrationsPage() {
-            return {
-                status: null,
-                directForm: { platform: '', account_label: '', account_id: '', tag_id: '' },
-                directList: [],
-                pixelGuard: { open: false, accounts: [], mappings: [] },
-                async init() { await Promise.all([this.loadStatus(), this.loadDirect()]); },
-                async loadStatus() {
-                    try { this.status = await fetch('/integrations/status').then(r => r.json()); }
-                    catch (e) { this.status = null; }
+<script>
+function platformIntegrations(config) {
+    return {
+        directList: config.directInitial || [],
+        directForm: { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' },
+        async addDirectAds() {
+            const response = await fetch(config.directStoreUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': config.csrf,
                 },
-                async loadDirect() {
-                    try { this.directList = await fetch('/integrations/direct-ads').then(r => r.json()); }
-                    catch (e) { this.directList = []; }
-                },
-                async addDirectAds() {
-                    if (!this.directForm.platform) return;
-                    const res = await fetch('/integrations/direct-ads', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                        },
-                        body: JSON.stringify(this.directForm),
-                    }).then(r => r.json());
-                    if (res?.ok) {
-                        this.directForm = { platform: '', account_label: '', account_id: '', tag_id: '' };
-                        await this.loadDirect();
-                        await this.loadStatus();
-                    }
-                },
-                async removeDirectAds(id) {
-                    if (! confirm('Remove this integration?')) return;
-                    await fetch(`/integrations/direct-ads/${id}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                        },
-                    });
-                    await this.loadDirect();
-                    await this.loadStatus();
-                },
-                async openPixelGuard() {
-                    this.pixelGuard.open = true;
-                    const data = await fetch('/integrations/google/pixel-guard').then(r => r.json());
-                    this.pixelGuard.accounts = data.accounts || [];
-                    this.pixelGuard.mappings = data.mappings || [];
-                },
-                closePixelGuard() { this.pixelGuard.open = false; },
-                async saveTagId(acc) {
-                    const res = await fetch('/integrations/google/pixel-guard', {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                        },
-                        body: JSON.stringify({ account_id: acc.id, google_tag_id: acc.google_tag_id || '' }),
-                    }).then(r => r.json()).catch(() => null);
-                    if (res?.ok) acc.google_tag_id = res.account.google_tag_id;
-                },
-                async toggleAudienceExclusion(mapping, enabled) {
-                    const res = await fetch('/integrations/google/audience-exclusion', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                        },
-                        body: JSON.stringify({ mapping_id: mapping.id, enabled }),
-                    }).then(r => r.json()).catch(() => null);
-                    if (res?.ok) mapping.audience_exclusion_enabled = res.enabled;
-                },
-            };
-        }
-    </script>
+                body: JSON.stringify(this.directForm),
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (data.integration) this.directList.unshift(data.integration);
+            this.directForm = { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' };
+        },
+    };
+}
+</script>
 @endsection

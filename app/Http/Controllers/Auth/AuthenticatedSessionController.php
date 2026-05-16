@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\LoginHistoryLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +36,10 @@ class AuthenticatedSessionController extends Controller
 
             return back()->withErrors(['email' => 'This account is not active.']);
         }
+
+        $user = $request->user();
+        $user->forceFill(['last_login_at' => now()])->save();
+        LoginHistoryLogger::record($user, $request);
 
         if ($request->user()->is_super_admin ?? false) {
             return redirect()->intended(route('super-admin.dashboard', [], false));

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
+use App\Models\Plan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,11 +26,20 @@ class DomainManagementController extends Controller
             ->orderBy('hostname')
             ->paginate(25);
 
+        $user = $request->user();
+        $domainCount = Domain::query()->where('user_id', $user->id)->count();
+        $limit = $user->domainLimit();
+        $limitDisplay = $limit === INF ? '∞' : (string) (int) $limit;
+
         return view('domains.index', [
             'domains' => $domains,
             'search' => $search,
             'domainLimit' => $domainLimit,
-            'domainCount' => Domain::query()->where('user_id', $request->user()->id)->count(),
+            'domainCount' => $domainCount,
+            'domainLimitDisplay' => $limitDisplay,
+            'canAddDomain' => $user->canAddDomain(),
+            'currentPlan' => $user->currentPlan(),
+            'planTiers' => Plan::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name', 'slug']),
         ]);
     }
 
@@ -171,6 +181,49 @@ class DomainManagementController extends Controller
         }
 
         return response()->json(compact('added', 'skipped'));
+    }
+
+    public function update(Request $request, Domain $domain): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        $data = $request->validate([
+            'hostname' => ['sometimes', 'string', 'max:255'],
+            'paid_marketing_connected' => ['sometimes', 'boolean'],
+            'bot_mitigation_connected' => ['sometimes', 'boolean'],
+            'monitoring_only_mode' => ['sometimes', 'boolean'],
+            'tag_connected' => ['sometimes', 'boolean'],
+        ]);
+
+        if (isset($data['hostname'])) {
+            $hostname = $this->normalizeHostname($data['hostname']);
+            if (! $this->isValidHostname($hostname)) {
+                return response()->json(['message' => 'Invalid domain hostname.'], 422);
+            }
+            $duplicate = Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->where('hostname', $hostname)
+                ->where('id', '!=', $domain->id)
+                ->exists();
+            if ($duplicate) {
+                return response()->json(['message' => 'Domain already exists.'], 409);
+            }
+            $domain->hostname = $hostname;
+            unset($data['hostname']);
+        }
+
+        $domain->fill($data);
+        $domain->save();
+
+        return response()->json(['ok' => true, 'domain' => $domain->fresh()]);
+    }
+
+    public function destroy(Request $request, Domain $domain): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+        $domain->delete();
+
+        return response()->json(['ok' => true]);
     }
 
     public function updateStatus(Request $request, Domain $domain): JsonResponse

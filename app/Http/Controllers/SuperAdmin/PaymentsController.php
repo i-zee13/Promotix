@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Subscription;
+use App\Services\BillingAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,18 +57,17 @@ class PaymentsController extends Controller
 
             $subscription = $payment->subscription ?: Subscription::query()->where('user_id', $payment->user_id)->latest('id')->first();
             if ($subscription) {
-                $endsAt = now()->addMonth();
-                if ($subscription->billing_interval === 'yearly') {
-                    $endsAt = now()->addYear();
-                }
+                BillingAccess::markPaymentRecovered($payment->user, $subscription);
                 $subscription->forceFill([
-                    'status' => 'active',
                     'is_trial' => false,
                     'plan_id' => $payment->plan_id ?? $subscription->plan_id,
                     'started_at' => $subscription->started_at ?: now(),
-                    'current_period_ends_at' => $endsAt,
                     'last_payment_id' => $payment->id,
                 ])->save();
+            }
+
+            if (in_array($payment->user->status, ['suspended'], true)) {
+                $payment->user->forceFill(['status' => 'active'])->save();
             }
         });
 
@@ -92,5 +92,27 @@ class PaymentsController extends Controller
         }
 
         return back()->with('status', "Payment {$payment->invoice_number} rejected.");
+    }
+
+    public function markFailed(Request $request, Payment $payment): RedirectResponse
+    {
+        if (! in_array($payment->status, ['pending', 'paid'], true)) {
+            return back()->withErrors(['payment' => 'This payment cannot be marked failed.']);
+        }
+
+        $payment->forceFill([
+            'status' => 'failed',
+            'rejected_at' => now(),
+            'rejection_reason' => $request->input('reason', 'Payment failed.'),
+        ])->save();
+
+        $subscription = $payment->subscription
+            ?: Subscription::query()->where('user_id', $payment->user_id)->latest('id')->first();
+
+        if ($subscription && $payment->user) {
+            BillingAccess::markPastDue($payment->user, $subscription);
+        }
+
+        return back()->with('status', "Payment {$payment->invoice_number} marked failed; grace period started.");
     }
 }

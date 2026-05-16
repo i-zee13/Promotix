@@ -14,7 +14,9 @@ use App\Http\Controllers\Admin\SubscriptionsController;
 use App\Http\Controllers\Admin\SupportSystemController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\TrafficBotLogsController;
+use App\Http\Controllers\Admin\BillingController;
 use App\Http\Controllers\Admin\UpgradePlanController;
+use App\Http\Controllers\SuperAdmin\BillingAutomationController;
 use App\Http\Controllers\Admin\IpLogsController;
 use App\Http\Controllers\IpFilterController;
 use App\Http\Controllers\Admin\UsersController;
@@ -32,18 +34,22 @@ use App\Http\Controllers\SuperAdmin\TicketsController as SuperAdminTicketsContro
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\Onboarding\OnboardingController;
+use App\Http\Controllers\PricingController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 
 Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'check'])->name('ip-check');
 Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::class, 'collect'])->name('t.collect');
-Route::match(['post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->name('ingest.visit');
+// GET must be allowed: the embedded tag falls back to an <img> pixel (query string) when sendBeacon/fetch fail.
+Route::match(['get', 'post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->name('ingest.visit');
 Route::get('/tag/{domainKey}.js', [TagController::class, 'js'])->name('tag.js');
 Route::get('/tag/{domainKey}.html', [TagController::class, 'noscript'])->name('tag.noscript');
 
 Route::get('/cron/run/{token}', [CronController::class, 'run'])->name('cron.run');
 Route::get('/cron/aggregate/{token}', [CronController::class, 'aggregate'])->name('cron.aggregate');
+
+Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');
 
 Route::get('/', function () {
     if (! auth()->check()) {
@@ -72,6 +78,8 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/', fn () => redirect()->route('super-admin.dashboard'))->name('home');
         Route::get('/users', [SuperAdminUsersController::class, 'index'])->name('users.index');
+        Route::get('/users/{user}', [SuperAdminUsersController::class, 'show'])->name('users.show');
+        Route::post('/users/{user}/assign-plan', [SuperAdminUsersController::class, 'assignPlan'])->name('users.assign-plan');
         Route::put('/users/{user}', [SuperAdminUsersController::class, 'update'])->name('users.update');
         Route::patch('/users/{user}/status', [SuperAdminUsersController::class, 'status'])->name('users.status');
         Route::post('/users/{user}/reset-password', [SuperAdminUsersController::class, 'resetPassword'])->name('users.reset-password');
@@ -84,6 +92,10 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/payments', [SuperAdminPaymentsController::class, 'index'])->name('payments.index');
         Route::post('/payments/{payment}/verify', [SuperAdminPaymentsController::class, 'verify'])->name('payments.verify');
         Route::post('/payments/{payment}/reject', [SuperAdminPaymentsController::class, 'reject'])->name('payments.reject');
+        Route::post('/payments/{payment}/mark-failed', [SuperAdminPaymentsController::class, 'markFailed'])->name('payments.mark-failed');
+        Route::get('/billing-automation', [BillingAutomationController::class, 'index'])->name('billing-automation.index');
+        Route::post('/billing-automation', [BillingAutomationController::class, 'update'])->name('billing-automation.update');
+        Route::post('/users/invite', [SuperAdminUsersController::class, 'invite'])->name('users.invite');
         Route::get('/domains', [SuperAdminSupportPagesController::class, 'domains'])->name('domains.index');
         Route::get('/analytics', [SuperAdminSupportPagesController::class, 'analytics'])->name('analytics.index');
         Route::get('/security', [SuperAdminSupportPagesController::class, 'security'])->name('security.index');
@@ -113,6 +125,8 @@ Route::middleware(['auth', 'admin'])
         Route::get('/paid-marketing/detailed-view', [PaidMarketingController::class, 'detailedView'])->name('paid-marketing.detailed');
         Route::get('/domains', [DomainManagementController::class, 'index'])->name('domains.index');
         Route::post('/domains', [DomainManagementController::class, 'store'])->name('domains.store');
+        Route::put('/domains/{domain}', [DomainManagementController::class, 'update'])->name('domains.update');
+        Route::delete('/domains/{domain}', [DomainManagementController::class, 'destroy'])->name('domains.destroy');
         Route::get('/domains/{domain}/setup', [DomainManagementController::class, 'setup'])->name('domains.setup');
         Route::get('/domains/{domain}/wordpress-plugin.zip', [DomainManagementController::class, 'downloadWpPlugin'])->name('domains.wp-plugin');
         Route::get('/users', [UsersController::class, 'index'])->name('users');
@@ -149,8 +163,12 @@ Route::middleware(['auth', 'admin'])
         Route::resource('roles', \App\Http\Controllers\Admin\RolesController::class)->except(['show']);
         });
 
-        Route::get('/upgrade-plan', [UpgradePlanController::class, 'index'])->name('upgrade-plan');
-        Route::post('/upgrade-plan', [UpgradePlanController::class, 'submit'])->name('upgrade-plan.submit');
+        Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
+        Route::post('/billing', [BillingController::class, 'submit'])->name('billing.submit');
+        Route::post('/billing/payment-methods', [BillingController::class, 'storePaymentMethod'])->name('billing.payment-methods.store');
+        Route::delete('/billing/payment-methods/{paymentMethod}', [BillingController::class, 'destroyPaymentMethod'])->name('billing.payment-methods.destroy');
+        Route::get('/upgrade-plan', fn () => redirect()->route('billing.index'))->name('upgrade-plan');
+        Route::post('/upgrade-plan', [BillingController::class, 'submit'])->name('upgrade-plan.submit');
     });
 
 Route::middleware('auth')->group(function () {
@@ -180,6 +198,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/domains', [DomainManagementController::class, 'store']);
     Route::post('/domains/validate', [DomainManagementController::class, 'validateDomain']);
     Route::post('/domains/bulk-add', [DomainManagementController::class, 'bulkAdd']);
+    Route::put('/domains/{domain}', [DomainManagementController::class, 'update']);
+    Route::delete('/domains/{domain}', [DomainManagementController::class, 'destroy']);
     Route::put('/domains/{domain}/status', [DomainManagementController::class, 'updateStatus']);
     Route::get('/domains/{domain}/tracking-script', [DomainManagementController::class, 'trackingScript']);
     Route::get('/domains/{domain}/api-key', [DomainManagementController::class, 'apiKey']);
@@ -196,10 +216,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/bot-protection/summary', [BotProtectionController::class, 'summary']);
     Route::get('/bot-protection/traffic-breakdown', [BotProtectionController::class, 'trafficBreakdown']);
+    Route::get('/bot-protection/invalid-traffic-trends', [BotProtectionController::class, 'invalidTrafficTrends']);
     Route::get('/bot-protection/threat-groups', [BotProtectionController::class, 'threatGroups']);
     Route::get('/bot-protection/invalid-breakdown', [BotProtectionController::class, 'invalidBreakdown']);
     Route::get('/bot-protection/countries', [BotProtectionController::class, 'countries']);
     Route::get('/bot-protection/domains-summary', [BotProtectionController::class, 'domainsSummary']);
+    Route::get('/bot-protection/bot-stats', [BotProtectionController::class, 'botStats']);
     Route::get('/bot-protection/visits', [BotProtectionController::class, 'visits']);
     Route::get('/bot-protection/export.csv', [BotProtectionController::class, 'exportCsv'])->name('bot-protection.export');
 

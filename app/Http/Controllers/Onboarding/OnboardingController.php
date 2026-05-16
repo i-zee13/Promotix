@@ -33,6 +33,7 @@ class OnboardingController extends Controller
         $plans = Plan::query()
             ->where('is_active', true)
             ->whereIn('slug', ['starter', 'pro', 'advanced'])
+            ->orderBy('sort_order')
             ->orderByRaw("FIELD(slug,'starter','pro','advanced')")
             ->get();
 
@@ -70,12 +71,19 @@ class OnboardingController extends Controller
         $days = (int) app_setting('trial.days', 7);
         $interval = $data['billing_interval'] ?? $plan->billing_interval ?? 'monthly';
 
+        $amountCents = match ($interval) {
+            'yearly' => $plan->price_yearly_cents
+                ? (int) round($plan->price_yearly_cents / 12)
+                : (int) round($plan->price_cents * (1 - 0.15)),
+            default => $plan->price_cents,
+        };
+
         Subscription::query()->create([
             'user_id' => $user->id,
             'plan_id' => $plan->id,
             'status' => 'trialing',
             'is_trial' => true,
-            'amount_cents' => $plan->price_cents,
+            'amount_cents' => $amountCents,
             'currency' => $plan->currency,
             'billing_interval' => $interval,
             'started_at' => now(),

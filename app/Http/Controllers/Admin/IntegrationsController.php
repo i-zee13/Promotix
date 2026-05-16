@@ -557,7 +557,7 @@ class IntegrationsController extends Controller
     }
 
     public function statusJson(Request $request): JsonResponse
-    {
+    { 
         $userId = $request->user()->id;
         $googleConnected = GoogleConnection::where('user_id', $userId)->exists();
         $googleAccountsCount = GoogleAdsAccount::query()

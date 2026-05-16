@@ -18,7 +18,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        return view('dashboard');
+        return view('dashboard-figma');
     }
 
     public function summary(Request $request): JsonResponse

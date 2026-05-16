@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,6 +6,913 @@
 
 [x-cloak] {
     display: none !important;
+}
+
+/* Super admin: full-width main (no right panel) */
+.figma-shell-super {
+    --figma-right: 0px;
+    padding-right: 0;
+}
+
+.figma-shell-super .figma-header {
+    right: 0;
+}
+
+.figma-sa-main {
+    min-height: 100vh;
+    padding-top: 49px;
+}
+
+/* Super admin UI tokens */
+.figma-sa-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #a9a9a9;
+}
+
+.figma-sa-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 6px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.figma-sa-btn-primary {
+    background: #6400b2;
+    color: #ffffff;
+}
+
+.figma-sa-btn-primary:hover {
+    background: #7a1acc;
+}
+
+.figma-sa-btn-outline {
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    background: transparent;
+}
+
+.figma-sa-btn-outline:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.figma-sa-btn-danger {
+    border: 1px solid rgba(244, 63, 94, 0.5);
+    background: rgba(244, 63, 94, 0.15);
+    color: #fecdd3;
+}
+
+.figma-sa-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 6px;
+    font-size: 13px;
+}
+
+.figma-sa-table thead th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #a9a9a9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.figma-sa-table tbody tr {
+    background: #101010;
+}
+
+.figma-sa-table tbody td {
+    padding: 12px 14px;
+    color: #d9d9d9;
+    vertical-align: middle;
+}
+
+.figma-sa-table tbody tr td:first-child {
+    border-radius: 8px 0 0 8px;
+}
+
+.figma-sa-table tbody tr td:last-child {
+    border-radius: 0 8px 8px 0;
+}
+
+.figma-sa-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.figma-sa-pill-neutral {
+    background: rgba(255, 255, 255, 0.1);
+    color: #d9d9d9;
+}
+
+.figma-sa-pill-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+}
+
+.figma-sa-pill-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+}
+
+.figma-sa-pill-danger {
+    background: rgba(244, 63, 94, 0.15);
+    color: #fda4af;
+}
+
+.figma-sa-pill-purple {
+    background: rgba(100, 0, 178, 0.2);
+    color: #d8b4fe;
+}
+
+.figma-sa-page-wrap {
+    background: #0d0d0d;
+}
+
+.figma-sa-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 4px;
+}
+
+.figma-sa-tab {
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #a9a9a9;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.figma-sa-tab:hover {
+    color: #ffffff;
+}
+
+.figma-sa-tab.is-active {
+    background: #6400b2;
+    color: #ffffff;
+    box-shadow: 0 0 0 1px rgba(100, 0, 178, 0.55);
+}
+
+.figma-sa-row {
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #101010;
+}
+
+.figma-sa-msg {
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #101010;
+    padding: 16px;
+}
+
+.figma-sa-msg-admin {
+    background: rgba(100, 0, 178, 0.12);
+    border-color: rgba(100, 0, 178, 0.35);
+}
+
+.figma-sa-checkbox {
+    border-radius: 4px;
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #6400b2;
+}
+
+.figma-sa-checkbox:focus {
+    --tw-ring-color: rgba(100, 0, 178, 0.45);
+}
+
+.figma-sa-pagination {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.figma-sa-actions-menu {
+    border-radius: 10px;
+    border: 1px solid rgba(100, 0, 178, 0.45);
+    background: #111111;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.figma-sa-actions-menu a,
+.figma-sa-actions-menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 16px;
+    text-align: left;
+    font-size: 13px;
+    color: #d9d9d9;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.figma-sa-actions-menu a:hover,
+.figma-sa-actions-menu button:hover:not(:disabled) {
+    background: rgba(100, 0, 178, 0.35);
+    color: #ffffff;
+}
+
+.light-mode .figma-sa-page-wrap {
+    background: #f0ecf5;
+}
+
+.light-mode .figma-sa-tabs {
+    background: #e8e0f0;
+}
+
+.light-mode .figma-sa-tab {
+    color: #5c5470;
+}
+
+.light-mode .figma-sa-tab.is-active {
+    color: #ffffff;
+}
+
+.light-mode .figma-sa-row,
+.light-mode .figma-sa-msg {
+    background: #f7f4fb;
+    border-color: #d4c4e8;
+}
+
+.light-mode .figma-sa-msg-admin {
+    background: rgba(100, 0, 178, 0.08);
+    border-color: #c4b5fd;
+}
+
+.light-mode .figma-sa-actions-menu {
+    background: #ffffff;
+    border-color: #d4c4e8;
+}
+
+.light-mode .figma-sa-main .figma-sa-card {
+    background: #ffffff !important;
+    border-color: #d4c4e8 !important;
+}
+
+.light-mode .figma-sa-main .figma-sa-card h2,
+.light-mode .figma-sa-main .figma-sa-card h3 {
+    color: #2d2d3a !important;
+}
+
+.light-mode .figma-sa-label,
+.light-mode .figma-sa-main .text-\[\#a9a9a9\] {
+    color: #5c5470 !important;
+}
+
+.light-mode .figma-sa-table thead th {
+    color: #6400b2 !important;
+    background: #f0ecf5;
+    border-color: #d4c4e8;
+}
+
+.light-mode .figma-sa-table tbody tr {
+    background: #f7f4fb !important;
+}
+
+.light-mode .figma-sa-table tbody td {
+    color: #3d3848 !important;
+}
+
+/* Figma customer shell used by the whole customer/admin panel. */
+.figma-shell {
+    --figma-left: 261px;
+    --figma-right: 207px;
+    min-height: 100vh;
+    padding-left: var(--figma-left);
+    padding-right: var(--figma-right);
+    background:
+        radial-gradient(circle at 50% 45%, rgba(217, 217, 217, .035) 0 22%, transparent 23%),
+        radial-gradient(circle at 50% 45%, rgba(217, 217, 217, .025) 0 38%, transparent 39%),
+        #0d0d0d;
+    color: #ffffff;
+    overflow-x: hidden;
+}
+
+.figma-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: var(--figma-left);
+    overflow: hidden;
+    border-right: 2px solid #5a2a99;
+    background: #0e0e0e;
+    display: flex;
+    flex-direction: column;
+}
+
+.figma-sidebar-inner {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+}
+
+.figma-sidebar-footer {
+    margin-top: auto;
+}
+
+.figma-header {
+    position: fixed;
+    top: 0;
+    left: var(--figma-left);
+    right: var(--figma-right);
+    z-index: 30;
+    height: 49px;
+    border-bottom: 2px solid #5a2a99;
+    background: #0e0e0e;
+}
+
+.figma-main {
+    min-height: 100vh;
+    padding-top: 49px;
+}
+
+.figma-rightbar {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 20;
+    width: var(--figma-right);
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-left: 2px solid #5a2a99;
+    background: #0e0e0e;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.figma-rightbar::-webkit-scrollbar {
+    display: none;
+}
+
+.figma-sidebar-collapsed {
+    --figma-left: 0px;
+}
+
+.figma-sidebar-collapsed .figma-sidebar {
+    transform: translateX(-100%);
+}
+
+.figma-sidebar-overlay {
+    display: none;
+}
+
+.figma-nav-scrollless {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.figma-nav-scrollless::-webkit-scrollbar {
+    display: none;
+}
+
+@media (max-width: 1279px) {
+    .figma-shell {
+        --figma-right: 0px;
+        padding-right: 0;
+    }
+
+    .figma-rightbar {
+        position: static;
+        width: auto;
+        margin: 14px;
+        border: 2px solid #5a2a99;
+        border-radius: 12px;
+    }
+}
+
+@media (max-height: 900px) {
+    .figma-rightbar-extra {
+        display: none;
+    }
+
+    .figma-rightbar-default .figma-rightbar-add-card {
+        min-height: 96px;
+    }
+}
+
+.figma-rightbar-default .figma-rightbar-notify > div {
+    padding-bottom: 6px;
+}
+
+@media (max-height: 780px) and (min-width: 1024px) {
+    .figma-sidebar {
+        font-size: .92rem;
+    }
+}
+
+@media (max-width: 1023px) {
+    .figma-shell {
+        --figma-left: 0px;
+        padding-left: 0;
+    }
+
+    .figma-sidebar {
+        width: 261px;
+        transform: translateX(-100%);
+        transition: transform .2s ease;
+    }
+
+    .figma-sidebar-open .figma-sidebar {
+        transform: translateX(0);
+    }
+
+    .figma-sidebar-open .figma-sidebar-overlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 35;
+        background: rgba(0, 0, 0, .62);
+    }
+}
+
+/* Sidebar semantic tokens */
+.figma-body {
+    background: #0d0d0d;
+    color: #ffffff;
+}
+
+.figma-sidebar-brand-text,
+.figma-nav-label,
+.figma-sidebar-theme-label {
+    color: #a9a9a9;
+}
+
+.figma-nav-link:not(.is-active) {
+    color: #a9a9a9;
+}
+
+.figma-sidebar-search {
+    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+}
+
+.figma-sidebar-search::placeholder {
+    color: #d9d9d9;
+}
+
+.figma-sidebar-search-icon {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.figma-add-domain-btn {
+    border-color: #ffffff;
+    color: #d9d9d9;
+    background: transparent;
+}
+
+/* legacy single-logo class — prefer figma-sidebar-logo-dark / -light */
+.figma-sidebar-logo:not(.figma-sidebar-logo-dark):not(.figma-sidebar-logo-light) {
+    filter: brightness(0) invert(1);
+}
+
+.figma-sidebar-settings {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+@media (max-height: 820px) and (min-width: 1024px) {
+    .figma-sidebar {
+        font-size: 0.94rem;
+    }
+
+    .figma-sidebar-logo {
+        height: 42px;
+        width: 104px;
+    }
+}
+
+/* Light mode — Figma shell */
+.light-mode .figma-body {
+    background: #f4f2f7 !important;
+    color: #1a1a1a !important;
+}
+
+.light-mode .figma-shell {
+    background: #f4f2f7;
+    color: #1a1a1a;
+}
+
+.light-mode .figma-sidebar,
+.light-mode .figma-header,
+.light-mode .figma-rightbar {
+    background: #ffffff !important;
+    border-color: #d4c4e8 !important;
+    color: #1a1a1a !important;
+}
+
+.light-mode .figma-sidebar-brand-text,
+.light-mode .figma-nav-label,
+.light-mode .figma-sidebar-theme-label {
+    color: #6b6280 !important;
+}
+
+.light-mode .figma-nav-link:not(.is-active) {
+    color: #5c5470 !important;
+}
+
+.light-mode .figma-nav-link.is-active,
+.light-mode .figma-nav-link.is-active:hover {
+    color: #ffffff !important;
+}
+
+.light-mode .figma-sidebar-search {
+    background: #f0ecf5 !important;
+    border-color: #c9b8dc !important;
+    color: #2d2d2d !important;
+}
+
+.light-mode .figma-sidebar-search::placeholder {
+    color: #8a8299 !important;
+}
+
+.light-mode .figma-sidebar-search-icon {
+    color: #6b6280 !important;
+}
+
+.light-mode .figma-add-domain-btn {
+    border-color: #6400b2 !important;
+    color: #6400b2 !important;
+    background: #ffffff !important;
+}
+
+.light-mode .figma-add-domain-btn:hover {
+    background: #6400b2 !important;
+    color: #ffffff !important;
+}
+
+/* Logo: dark = white (inverted), light = original blue/purple brand */
+.figma-sidebar-logo-dark {
+    display: block;
+    filter: brightness(0) invert(1);
+    opacity: 0.95;
+}
+
+.figma-sidebar-logo-light {
+    display: none;
+    filter: none;
+    opacity: 1;
+}
+
+.light-mode .figma-sidebar-logo-dark {
+    display: none !important;
+}
+
+.light-mode .figma-sidebar-logo-light {
+    display: block !important;
+}
+
+.light-mode .figma-sidebar-settings {
+    color: #5c5470 !important;
+}
+
+.light-mode .figma-sidebar-settings:hover {
+    color: #6400b2 !important;
+    background: rgba(100, 0, 178, 0.1) !important;
+}
+
+.light-mode .figma-sidebar-footer {
+    border-color: #e5ddf0 !important;
+}
+
+.light-mode .figma-header .text-white\/85,
+.light-mode .figma-header button,
+.light-mode .figma-header a {
+    color: #4a4458 !important;
+}
+
+.light-mode .figma-header button:hover,
+.light-mode .figma-header a:hover {
+    background: rgba(100, 0, 178, 0.08) !important;
+}
+
+.light-mode .figma-header .bg-\[\#0D0D0D\],
+.light-mode .figma-header .border-\[\#6400B2\] {
+    background: #f0ecf5 !important;
+    border-color: #c9b8dc !important;
+    color: #2d2d2d !important;
+}
+
+.light-mode .figma-rightbar .text-\[\#a9a9a9\],
+.light-mode .figma-rightbar-default p {
+    color: #6b6280 !important;
+}
+
+.light-mode .figma-rightbar .text-white\/45,
+.light-mode .figma-rightbar .text-white\/85 {
+    color: #5c5470 !important;
+}
+
+.light-mode .figma-rightbar .border-\[\#5a2a99\],
+.light-mode .figma-rightbar .border-\[\#a9a9a9\] {
+    border-color: #e5ddf0 !important;
+}
+
+.light-mode .figma-main [class*='bg-[#0d0d0d]'],
+.light-mode .figma-main [class*='bg-[#0D0D0D]'],
+.light-mode .figma-main [class*='bg-[#151515]'],
+.light-mode .figma-main [class*='bg-[#101010]'],
+.light-mode .figma-main [class*='bg-[#1a1a1a]'] {
+    background-color: #ffffff !important;
+}
+
+.light-mode .figma-main [class*='text-[#a9a9a9]']:not(.is-active *):not([class*='bg-[#6400B2]'] *) {
+    color: #5c5470 !important;
+}
+
+.light-mode .figma-main h1[class*='text-[#a9a9a9]'],
+.light-mode .figma-main h2[class*='text-[#a9a9a9]'] {
+    color: #3d3848 !important;
+}
+
+/* Keep white text on purple surfaces in light mode */
+.light-mode .bg-\[\#6400B2\] .text-white,
+.light-mode .bg-\[\#6400B2\].text-white,
+.light-mode [class*='bg-[#6400B2]'] .text-white,
+.light-mode .is-active,
+.light-mode .is-active span {
+    color: #ffffff !important;
+}
+
+/* ---------- Figma form controls (customer portal) ---------- */
+.figma-input,
+.figma-select,
+.figma-textarea {
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background-color: #101010;
+    padding: 9px 12px;
+    font-size: 13px;
+    line-height: 1.35;
+    color: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.figma-input::placeholder,
+.figma-textarea::placeholder {
+    color: #8c8787;
+}
+
+.figma-input:focus,
+.figma-select:focus,
+.figma-textarea:focus {
+    border-color: #9a1aff;
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(154, 26, 255, 0.4);
+}
+
+.light-mode .figma-input,
+.light-mode .figma-select,
+.light-mode .figma-textarea {
+    background-color: #ffffff !important;
+    border-color: #c9b8dc !important;
+    color: #2d2d3a !important;
+}
+
+.light-mode .figma-input::placeholder,
+.light-mode .figma-textarea::placeholder {
+    color: #8a8299 !important;
+}
+
+/* Top filter bar (campaigns / path) */
+.figma-filter-bar {
+    border-color: rgba(100, 0, 178, 0.22) !important;
+}
+
+.figma-filter-control {
+    background-color: #101010 !important;
+    color: #c8c4d0 !important;
+}
+
+.figma-filter-control::placeholder {
+    color: #8c8787 !important;
+}
+
+.figma-filter-action {
+    background-color: #6400b2 !important;
+    color: #ffffff !important;
+}
+
+.light-mode .figma-filter-bar {
+    background-color: #ebe6f2 !important;
+    border-color: #c9b8dc !important;
+}
+
+.light-mode .figma-filter-label {
+    color: #5c5470 !important;
+}
+
+.light-mode .figma-filter-control {
+    background-color: #ffffff !important;
+    color: #2d2d3a !important;
+    border: 1px solid #c9b8dc !important;
+    box-shadow: inset 0 1px 2px rgba(100, 0, 178, 0.06);
+}
+
+.light-mode .figma-filter-control::placeholder {
+    color: #8a8299 !important;
+}
+
+.light-mode .figma-filter-action {
+    background-color: #6400b2 !important;
+    color: #ffffff !important;
+}
+
+/* User dropdown */
+.figma-user-menu a,
+.figma-user-menu button {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.light-mode .figma-user-menu {
+    background: #ffffff !important;
+    border-color: #c9b8dc !important;
+    box-shadow: 0 8px 24px rgba(61, 56, 72, 0.12);
+}
+
+.light-mode .figma-user-menu a,
+.light-mode .figma-user-menu button {
+    color: #4a4458 !important;
+}
+
+.light-mode .figma-user-menu a:hover,
+.light-mode .figma-user-menu button:hover {
+    background: rgba(100, 0, 178, 0.1) !important;
+    color: #6400b2 !important;
+}
+
+/* Inputs/selects with hardcoded dark classes inside main content */
+.light-mode .figma-main input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+.light-mode .figma-main select,
+.light-mode .figma-main textarea {
+    color: #2d2d3a;
+}
+
+.light-mode .figma-main input.text-white,
+.light-mode .figma-main select.text-white,
+.light-mode .figma-main textarea.text-white {
+    color: #2d2d3a !important;
+}
+
+.light-mode .figma-main [class*='bg-[#101010]']:not(.bg-\[\#6400B2\] *):not(.is-active *) {
+    background-color: #ffffff !important;
+    border-color: #c9b8dc !important;
+}
+
+.light-mode .figma-main [class*='bg-[#0e0e0e]'],
+.light-mode .figma-main [class*='bg-[#0f0e0e]'],
+.light-mode .figma-main [class*='bg-black'] {
+    background-color: #6400b2 !important;
+    color: #ffffff !important;
+}
+
+/* Purple surfaces: inner panels & controls */
+.light-mode .figma-main .bg-\[\#6400B2\] [class*='bg-[#101010]'],
+.light-mode .figma-main [class*='bg-[#6400B2]'] [class*='bg-[#101010]'] {
+    background-color: #f4eefb !important;
+    border: 1px solid #e0d4f0 !important;
+}
+
+.light-mode .figma-main .bg-\[\#6400B2\] [class*='text-\[\#d9d9d9\]'],
+.light-mode .figma-main [class*='bg-[#6400B2]'] [class*='text-\[\#d9d9d9\]'] {
+    color: #4a4458 !important;
+}
+
+.light-mode .figma-main .bg-\[\#6400B2\] select.text-white,
+.light-mode .figma-main .bg-\[\#6400B2\] input.text-white,
+.light-mode .figma-main .bg-\[\#6400B2\] textarea.text-white,
+.light-mode .figma-main [class*='bg-[#6400B2]'] select.text-white,
+.light-mode .figma-main [class*='bg-[#6400B2]'] input.text-white,
+.light-mode .figma-main [class*='bg-[#6400B2]'] textarea.text-white {
+    background-color: #ffffff !important;
+    color: #2d2d3a !important;
+    border-color: #c9b8dc !important;
+}
+
+.light-mode .figma-main .bg-\[\#6400B2\] select.bg-black,
+.light-mode .figma-main .bg-\[\#6400B2\] [class*='bg-black'] {
+    background-color: #ffffff !important;
+    color: #6400b2 !important;
+}
+
+.light-mode .figma-main .bg-\[\#6400B2\] [class*='bg-[#0f0e0e]'],
+.light-mode .figma-main .bg-\[\#6400B2\] [class*='bg-[#0e0e0e]'],
+.light-mode .figma-main [class*='bg-[#6400B2]'] [class*='bg-[#0f0e0e]'],
+.light-mode .figma-main [class*='bg-[#6400B2]'] [class*='bg-[#0e0e0e]'] {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border-color: #d4c4e8 !important;
+}
+
+.light-mode .figma-main .bg-\[\#6400B2\] [class*='bg-[#0f0e0e]'] input,
+.light-mode .figma-main .bg-\[\#6400B2\] [class*='bg-[#0f0e0e]'] input {
+    color: #5c5470 !important;
+}
+
+.light-mode .figma-main .bg-\[\#6400B2\] select.border-black,
+.light-mode .figma-main .bg-\[\#6400B2\] select.bg-\[\#121212\] {
+    background-color: #ffffff !important;
+    color: #6400b2 !important;
+    border-color: #d4c4e8 !important;
+}
+
+/* Detection settings left column */
+.light-mode .figma-main section.bg-\[\#d9d9d9\] {
+    background-color: #ebe6f2 !important;
+    color: #1f1c28 !important;
+}
+
+.light-mode .figma-main section.bg-\[\#d9d9d9\] [class*='bg-[#101010]'] {
+    background-color: #ffffff !important;
+    border: 1px solid #d4c4e8 !important;
+}
+
+.light-mode .figma-main section.bg-\[\#d9d9d9\] [class*='text-\[\#d9d9d9\]'] {
+    color: #5c5470 !important;
+}
+
+.light-mode .figma-main section.bg-\[\#d9d9d9\] .text-white {
+    color: #2d2d3a !important;
+}
+
+.light-mode .figma-main section.bg-\[\#d9d9d9\] select.bg-black {
+    background-color: #f0ecf5 !important;
+    color: #6400b2 !important;
+    border-color: #c9b8dc !important;
+}
+
+/* Data grids / tables */
+.figma-data-grid-header {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.figma-data-row {
+    color: #a9a9a9;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.light-mode .figma-data-grid-header {
+    color: #6400b2 !important;
+    border-color: #d4c4e8 !important;
+    background: #f0ecf5;
+}
+
+.light-mode .figma-data-row {
+    color: #3d3848 !important;
+    border-color: #d4c4e8 !important;
+    background: #faf8fc;
+}
+
+.light-mode .figma-data-row:hover {
+    border-color: #6400b2 !important;
+    background: #f4eefb !important;
+}
+
+.light-mode .figma-main .border-white.px-\[14px\].py-\[9px\].text-white {
+    color: #6400b2 !important;
+    border-color: #d4c4e8 !important;
+    background: #f0ecf5;
+}
+
+/* Integrations mapping table */
+.light-mode .figma-main table thead.text-white th {
+    color: #6400b2 !important;
+    background: #f0ecf5;
+}
+
+.light-mode .figma-main table tr.bg-\[\#d9d9d9\] {
+    background-color: #f7f4fb !important;
+    color: #2d2d3a !important;
+}
+
+/* Solid dark buttons on light pages */
+.light-mode .figma-main a.bg-\[\#0d0d0d\].text-white,
+.light-mode .figma-main .bg-\[\#0d0d0d\].text-white {
+    background-color: #6400b2 !important;
+    color: #ffffff !important;
+    border-color: #6400b2 !important;
+}
+
+/* Domain select on purple bar */
+.light-mode .figma-main select.bg-\[\#f4eefb\].text-\[\#6400B2\] {
+    background-color: #ffffff !important;
+    border: 1px solid #d4c4e8 !important;
 }
 
 /* ---------------------------------------------------------------------------
@@ -185,9 +1092,9 @@
 .light-mode .text-gray-500 { color: #52557E !important; }
 
 /* ---------------------------------------------------------------------------
- | Light mode — comprehensive surface flip
+ | Light mode - comprehensive surface flip
  | The user requirement: in light mode, NO dark elements whatsoever.
- | Tables, cards, selects, inputs, hover states — all white-on-dark-text.
+ | Tables, cards, selects, inputs, hover states - all white-on-dark-text.
  |-------------------------------------------------------------------------- */
 
 /* Surfaces (night palette) */
@@ -263,7 +1170,7 @@
 .light-mode .brand-checkbox,
 .light-mode .brand-radio { background-color: #ffffff; border-color: #C8CADB; }
 
-/* Checkbox/radio CHECKED state — must beat the light-mode bg-night-900 override.
+/* Checkbox/radio CHECKED state - must beat the light-mode bg-night-900 override.
    Tailwind Forms plugin paints checked = currentColor on background. We force
    the brand purple here so it shows in both light and dark modes. */
 .brand-checkbox[type='checkbox']:checked,
@@ -277,5 +1184,5 @@
     border-color: #7C3AED !important;
 }
 
-/* Dropdown option color — fixes white-on-white in select menus on dark UI. */
+/* Dropdown option color - fixes white-on-white in select menus on dark UI. */
 select option, .brand-select option { background:#ffffff; color:#111827; }

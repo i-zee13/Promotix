@@ -20,8 +20,8 @@ export default {
                 dark: '#0D0D0D',
                 'dark-card': '#1A1A1A',
                 'dark-border': '#2D2D2D',
-                accent: '#7C3AED',
-                'accent-hover': '#6D28D9',
+                accent: '#6400B2',
+                'accent-hover': '#56009C',
 
                 // New "night" palette (dark UI surfaces).
                 night: {
@@ -38,18 +38,18 @@ export default {
                     950: '#0B0E1F',
                 },
 
-                // Brand purple ramp.
+                // Brand purple ramp (Figma primary #6400B2).
                 brand: {
-                    50:  '#F3EEFF',
-                    100: '#E5DAFF',
-                    200: '#C9B3FF',
-                    300: '#AC8DFB',
-                    400: '#9061F4',
-                    500: '#7C3AED',
-                    600: '#6D28D9',
-                    700: '#5B21B6',
-                    800: '#4C1D95',
-                    900: '#2E1065',
+                    50:  '#F5F0FF',
+                    100: '#E8DCFF',
+                    200: '#D1B8FF',
+                    300: '#B894F0',
+                    400: '#8B4DDB',
+                    500: '#6400B2',
+                    600: '#56009C',
+                    700: '#45007E',
+                    800: '#3A0D63',
+                    900: '#240040',
                 },
             },
             boxShadow: {

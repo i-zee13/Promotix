@@ -4,6 +4,15 @@
 @section('subtitle', $domain->hostname)
 
 @section('content')
+<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]">
+    <section class="mx-auto w-full px-[12px] pb-[32px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
+        <div class="mb-[20px] flex flex-wrap items-center justify-between gap-[12px]">
+            <div>
+                <h1 class="text-[28px] font-semibold text-[#a9a9a9] sm:text-[36px]">Tracking setup</h1>
+                <p class="mt-[6px] text-[13px] text-[#a9a9a9]">{{ $domain->hostname }}</p>
+            </div>
+            <a href="{{ route('domains.index') }}" class="rounded-[6px] border border-white/30 bg-[#6400B2] px-[16px] py-[8px] text-[12px] font-semibold text-white">← Domains</a>
+        </div>
     <div class="space-y-6" x-data="domainSetup()">
         {{-- Toast --}}
         <div class="fixed bottom-4 right-4 z-[60] rounded-xl border border-night-700 bg-night-900 px-4 py-3 text-sm text-white shadow-card-lg"
@@ -11,14 +20,10 @@
             <span x-text="toast.message"></span>
         </div>
 
-        <x-ui.page-header title="Tracking installation" subtitle="Domain: {{ $domain->hostname }}">
-            <x-slot:actions>
-                <x-ui.button variant="outline" size="sm" href="{{ route('domains.index') }}">Back to domains</x-ui.button>
-            </x-slot:actions>
-        </x-ui.page-header>
-
         {{-- Method picker --}}
-        <x-ui.card title="Choose setup method" subtitle="Pick the path that fits your stack">
+        <div class="rounded-[10px] border border-white/25 bg-[#6400B2] p-[18px] text-white shadow-[0_0_18px_rgba(100,0,179,.25)]">
+            <h2 class="text-[18px] font-semibold">Choose setup method</h2>
+            <p class="mt-[4px] text-[12px] text-white/80">Pick the path that fits your stack</p>
             <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
                 @php
                     $methods = [
@@ -37,15 +42,17 @@
                     </button>
                 @endforeach
             </div>
-        </x-ui.card>
+        </div>
 
         {{-- Manual --}}
         @php
             $scriptUrl = url('/tag/' . $domain->domain_key . '.js');
             $noscriptUrl = url('/tag/' . $domain->domain_key . '.html');
         @endphp
-        <x-ui.card title="Direct installation" subtitle="Paste at the start of the <head>" x-show="tab==='manual'" x-cloak>
-            <div class="space-y-4">
+        <div class="rounded-[10px] border border-white/15 bg-[#151515] p-[18px] text-white" x-show="tab==='manual'" x-cloak>
+            <h3 class="text-[16px] font-semibold">Direct installation</h3>
+            <p class="mt-[4px] text-[12px] text-[#a9a9a9]">Paste at the start of the &lt;head&gt;</p>
+            <div class="mt-[14px] space-y-4">
                 <div>
                     <p class="brand-label mb-1.5">Head script</p>
                     <div class="flex gap-2">
@@ -66,9 +73,10 @@
                             Copy
                         </x-ui.button>
                     </div>
+                
                 </div>
             </div>
-        </x-ui.card>
+        </div>
 
         {{-- WP plugin --}}
         @php
@@ -174,6 +182,8 @@
             </div>
         </x-ui.card>
     </div>
+    </section>
+</div>
 
     <script>
         function domainSetup() {

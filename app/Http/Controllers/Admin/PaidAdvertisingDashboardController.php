@@ -34,10 +34,7 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $base = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_paid_traffic', true);
+        $base = $this->scopedVisitsQuery($request, $domainIds, $from, $to);
 
         $paid = (clone $base)->count();
         $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
@@ -71,10 +68,7 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_paid_traffic', true)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
             ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
             ->groupBy('day')
             ->orderBy('day')
@@ -112,10 +106,7 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_paid_traffic', true)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
             ->whereIn('action_taken', ['block', 'flag'])
             ->selectRaw('DATE(visited_at) as day, action_taken, COUNT(*) as total')
             ->groupBy('day', 'action_taken')
@@ -152,10 +143,7 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_paid_traffic', true)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
             ->whereNotNull('utm_campaign')
             ->select(
                 'utm_campaign',
@@ -184,10 +172,7 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_paid_traffic', true)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
             ->whereNotNull('utm_term')
             ->select(
                 'utm_term',
@@ -215,10 +200,7 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_paid_traffic', true)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
             ->whereNotNull('country')
             ->select(
                 'country',
@@ -246,10 +228,7 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_paid_traffic', true)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
             ->select(
                 'ip',
                 DB::raw('COUNT(*) as total'),
@@ -280,10 +259,7 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_paid_traffic', true)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
             ->selectRaw('DAYOFWEEK(visited_at) as dow, HOUR(visited_at) as hr, COUNT(*) as total')
             ->groupBy('dow', 'hr')
             ->get();
@@ -322,6 +298,21 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         return $userDomainIds;
+    }
+
+    private function scopedVisitsQuery(Request $request, $domainIds, Carbon $from, Carbon $to)
+    {
+        $query = DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('visited_at', [$from, $to])
+            ->where('is_paid_traffic', true);
+
+        $path = trim((string) $request->query('path', ''));
+        if ($path !== '') {
+            $query->where('url', 'like', '%' . $path . '%');
+        }
+
+        return $query;
     }
 
     private function dateRange(Request $request): array

@@ -21,6 +21,8 @@ class Subscription extends Model
         'started_at',
         'trial_ends_at',
         'current_period_ends_at',
+        'grace_period_ends_at',
+        'protection_paused_at',
         'cancelled_at',
         'metadata',
         'last_payment_id',
@@ -33,6 +35,8 @@ class Subscription extends Model
             'started_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'current_period_ends_at' => 'datetime',
+            'grace_period_ends_at' => 'datetime',
+            'protection_paused_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'metadata' => 'array',
         ];

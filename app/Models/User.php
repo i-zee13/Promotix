@@ -31,6 +31,7 @@ class User extends Authenticatable
         'status',
         'role_id',
         'ui_preferences',
+        'last_login_at',
     ];
 
     public function role(): BelongsTo
@@ -56,6 +57,26 @@ class User extends Authenticatable
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function roleChanges(): HasMany
+    {
+        return $this->hasMany(RoleChange::class)->orderByDesc('created_at');
+    }
+
+    public function paymentMethods(): HasMany
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+
+    public function loginHistories(): HasMany
+    {
+        return $this->hasMany(LoginHistory::class)->orderByDesc('created_at');
+    }
+
+    public function invites(): HasMany
+    {
+        return $this->hasMany(UserInvite::class, 'invited_by_id');
     }
 
     /**
@@ -169,6 +190,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'is_super_admin' => 'boolean',

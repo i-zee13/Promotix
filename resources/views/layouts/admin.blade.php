@@ -5,342 +5,289 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="initial-theme" content="{{ (auth()->user()?->ui_preferences['dark_mode'] ?? true) ? 'dark' : 'light' }}">
-    <title>@yield('title', 'Dashboard') — {{ config('app.name') }}</title>
+    <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="brand-page">
-    <div class="flex min-h-screen">
-        @auth
-        @php
-            $groups = config('admin.groups');
-            $flatMenu = config('admin.menu', []);
-            $user = auth()->user();
-        @endphp
+<body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
+@php
+    $user = auth()->user();
+    $navGroups = [
+        'HOME' => [
+            ['label' => 'Overview', 'route' => 'dashboard', 'icon' => 'home', 'permission' => 'dashboard'],
+        ],
+        'PAID ADVERTISING' => [
+            ['label' => 'Dashboard', 'route' => 'paid-marketing.dashboard', 'icon' => 'chart', 'permission' => 'paid-marketing-dashboard'],
+            ['label' => 'Advanced View', 'route' => 'paid-marketing.detailed', 'icon' => 'eye', 'permission' => 'paid-marketing-detailed'],
+            ['label' => 'Platform Integrate', 'route' => 'integrations', 'icon' => 'plug', 'permission' => 'paid-marketing-platform-connections'],
+            ['label' => 'Detection Panel', 'route' => 'paid-marketing.detection-settings', 'icon' => 'shield-check', 'permission' => 'paid-marketing-detection-settings'],
+        ],
+        'BOT PROTECTION' => [
+            ['label' => 'Dashboard', 'route' => 'bot-protection.dashboard', 'icon' => 'home', 'permission' => 'bot-protection'],
+            ['label' => 'Advanced View', 'route' => 'bot-protection.advanced', 'icon' => 'eye', 'permission' => 'bot-protection'],
+        ],
+    ];
+    $toolLinks = [
+        ['route' => 'paid-marketing.detection-settings', 'icon' => 'shield-check', 'label' => 'Detection'],
+        ['route' => 'paid-marketing.detailed', 'icon' => 'repeat', 'label' => 'Advanced'],
+        ['route' => 'domains.index', 'icon' => 'tag', 'label' => 'Domains'],
+        ['route' => 'integrations', 'icon' => 'plug', 'label' => 'Integrations'],
+        ['route' => 'paid-marketing.dashboard', 'icon' => 'chart', 'label' => 'Paid Ads'],
+        ['route' => 'bot-protection.dashboard', 'icon' => 'chart', 'label' => 'Bots'],
+        ['route' => 'domains.index', 'icon' => 'globe', 'label' => 'Sites'],
+        ['route' => 'billing.index', 'icon' => 'card', 'label' => 'Billing'],
+        ['route' => 'profile.edit', 'icon' => 'settings', 'label' => 'Settings'],
+    ];
+@endphp
 
-        {{-- Sidebar --}}
-        <aside
-            id="sidebar"
-            class="fixed inset-y-0 left-0 z-40 w-72 shrink-0 -translate-x-full border-r border-night-700/60 bg-night-950 transition-transform duration-200 ease-out"
-            aria-label="Main navigation"
-        >
-            <div class="flex h-full flex-col">
-                {{-- Brand --}}
-                <div class="flex h-16 items-center justify-between gap-2 border-b border-night-700/60 px-5">
-                    <div class="flex min-w-0 items-center gap-2.5">
-                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500 shadow-card">
-                            <span class="text-lg font-bold text-white">P</span>
-                        </div>
-                        <span class="truncate text-base font-semibold text-white">Promotix</span>
-                    </div>
-                    <button type="button" id="sidebar-close" class="shrink-0 rounded-lg p-1.5 text-night-300 hover:bg-night-800 hover:text-white" aria-label="Collapse sidebar">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
-                    </button>
-                </div>
+<div id="figma-shell" class="figma-shell">
+    @if (session('impersonator_id'))
+        <div class="fixed left-0 right-0 top-0 z-50 border-b border-amber-500/40 bg-amber-500/20 px-4 py-2 text-xs text-amber-100">
+            <form method="POST" action="{{ route('impersonate.stop') }}" class="flex flex-wrap items-center justify-between gap-2">
+                @csrf
+                <span>You are impersonating <strong>{{ $user?->email }}</strong>.</span>
+                <button type="submit" class="rounded-md bg-amber-500/30 px-3 py-1 font-semibold hover:bg-amber-500/50">Stop impersonating</button>
+            </form>
+        </div>
+    @endif
 
-                {{-- Search --}}
-                <div class="px-4 pt-4">
-                    <label for="sidebar-search" class="sr-only">Search</label>
-                    <div class="relative">
-                        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-night-400" aria-hidden="true">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        </span>
-                        <input
-                            id="sidebar-search"
-                            type="search"
-                            placeholder="Search"
-                            class="w-full rounded-xl border border-night-700 bg-night-900 py-2 pl-9 pr-3 text-sm text-white placeholder-night-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-                        >
-                    </div>
-                </div>
+    <aside class="figma-sidebar px-[16px] pt-[12px] pb-[6px] xl:px-[20px] xl:pt-[14px] xl:pb-[8px]">
+        <div class="figma-sidebar-inner flex min-h-[100dvh] flex-col">
+            <a href="{{ route('dashboard') }}" class="figma-sidebar-brand mb-[8px] mt-[2px] flex shrink-0 items-center gap-[8px]">
+                <span class="h-[26px] w-[26px] shrink-0 rounded-[6px] bg-[#6400B2] shadow-[0_0_18px_rgba(100,0,179,.7)]"></span>
+                <span class="figma-sidebar-brand-text truncate text-[16px] font-bold leading-none">Digital Promotix</span>
+            </a>
 
-                {{-- Nav --}}
-                <nav class="flex-1 overflow-y-auto px-3 pb-6 pt-4" aria-label="Sidebar">
-                    @if (is_array($groups) && count($groups))
-                        @foreach ($groups as $group)
-                            @php
-                                $visibleItems = collect($group['items'] ?? [])
-                                    ->filter(function ($item, $slug) use ($user) {
-                                        if (! empty($item['hidden'])) return false;
-                                        $perm = $item['permission'] ?? $slug;
-                                        return $user->canAccess($perm);
-                                    });
-                            @endphp
-                            @if ($visibleItems->isNotEmpty())
-                                <div class="mt-4 first:mt-0">
-                                    <p class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-night-400">
-                                        {{ $group['label'] }}
-                                    </p>
-                                    <div class="space-y-0.5">
-                                        @foreach ($visibleItems as $slug => $item)
-                                            @php
-                                                $isActive = request()->routeIs($item['route']);
-                                                $itemClasses = $isActive
-                                                    ? 'bg-brand-500 text-white shadow-card'
-                                                    : 'text-night-200 hover:bg-night-800 hover:text-white';
-                                            @endphp
-                                            <a href="{{ route($item['route']) }}"
-                                               class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition {{ $itemClasses }}">
-                                                @include('partials.sidebar-icon', ['name' => $item['icon'] ?? 'home'])
-                                                <span class="truncate">{{ $item['label'] }}</span>
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endif
-                        @endforeach
-                    @else
-                        {{-- Backward-compat flat menu --}}
-                        <div class="space-y-0.5">
-                            @foreach ($flatMenu as $slug => $item)
-                                @continue (! empty($item['hidden']))
-                                @if ($user->canAccess($slug))
-                                    @php
-                                        $isActive = request()->routeIs($item['route']);
-                                        $itemClasses = $isActive
-                                            ? 'bg-brand-500 text-white shadow-card'
-                                            : 'text-night-200 hover:bg-night-800 hover:text-white';
-                                    @endphp
-                                    <a href="{{ route($item['route']) }}"
-                                       class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition {{ $itemClasses }}">
-                                        @include('partials.sidebar-icon', ['name' => $item['icon'] ?? 'home'])
-                                        <span class="truncate">{{ $item['label'] }}</span>
-                                    </a>
-                                @endif
+            <div class="relative mb-[10px] shrink-0">
+                <span class="figma-sidebar-search-icon absolute left-[11px] top-1/2 -translate-y-1/2 text-white/70">
+                    <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </span>
+                <input type="search" placeholder="Search" class="figma-sidebar-search h-[32px] w-full max-w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none shadow-[inset_0_1px_1.8px_4px_rgba(0,0,0,.25)] focus:border-[#6400B2] focus:ring-[#6400B2]/30">
+            </div>
+
+            <nav class="figma-nav-scrollless shrink-0 overflow-hidden overflow-x-hidden pr-[2px]" aria-label="Main navigation">
+                @foreach ($navGroups as $group => $items)
+                    <div class="mb-[8px]">
+                        <p class="figma-nav-label mb-[3px] text-[11px] font-bold uppercase leading-none">{{ $group }}</p>
+                        <div class="space-y-[2px]">
+                            @foreach ($items as $item)
+                                @continue($user && ! $user->canAccess($item['permission']))
+                                @php $active = request()->routeIs($item['route']); @endphp
+                                <a href="{{ route($item['route']) }}" @class([
+                                    'figma-nav-link group relative flex h-[30px] items-center gap-[9px] rounded-[7px] px-[7px] text-[14px] leading-none transition',
+                                    'is-active bg-[#6400B2] text-white shadow-[0_0_0_1px_rgba(100,0,179,.55)]' => $active,
+                                    'hover:bg-[#6400B2]/55 hover:text-white' => ! $active,
+                                ])>
+                                    @include('partials.sidebar-icon', ['name' => $item['icon'], 'class' => 'h-[17px] w-[17px] shrink-0'])
+                                    <span>{{ $item['label'] }}</span>
+                                </a>
                             @endforeach
                         </div>
-                    @endif
-                </nav>
+                    </div>
+                @endforeach
 
-                {{-- Sidebar CTA --}}
-                @if ($user->canAccess('domain-management'))
-                    <div class="border-t border-night-700/60 p-4">
-                        <a href="{{ route('domains.index') }}" class="brand-btn-primary w-full">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
-                            Add Domain
+                <div class="mb-[6px]">
+                    <p class="figma-nav-label mb-[3px] text-[11px] font-bold uppercase leading-none">SITE MANAGEMENT</p>
+                    @if ($user && $user->canAccess('domain-management'))
+                        <a href="{{ route('domains.index') }}" @class([
+                            'mb-[6px] flex h-[30px] items-center gap-[9px] rounded-[7px] px-[7px] text-[14px] leading-none transition',
+                            'is-active bg-[#6400B2] text-white shadow-[0_0_0_1px_rgba(100,0,179,.55)]' => request()->routeIs('domains.*'),
+                            'hover:bg-[#6400B2]/55 hover:text-white' => ! request()->routeIs('domains.*'),
+                        ])>
+                            @include('partials.sidebar-icon', ['name' => 'globe', 'class' => 'h-[17px] w-[17px] shrink-0'])
+                            <span>Domains</span>
                         </a>
-                    </div>
-                @endif
-            </div>
-        </aside>
-        @endauth
-
-        {{-- Mobile overlay --}}
-        <div
-            id="sidebar-overlay"
-            class="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm opacity-0 transition-opacity duration-200 pointer-events-none"
-            aria-hidden="true"
-        ></div>
-
-        {{-- Main wrap --}}
-        <div id="main-content-wrap" class="flex min-w-0 flex-1 flex-col transition-[margin] duration-200">
-            @if (session('impersonator_id'))
-                <div class="border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs text-amber-100 lg:px-8">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <span>You are impersonating <strong>{{ auth()->user()->email }}</strong>. Actions you take are logged against this tenant.</span>
-                        <form method="POST" action="{{ route('impersonate.stop') }}">
-                            @csrf
-                            <button type="submit" class="rounded-md bg-amber-500/30 px-3 py-1 font-semibold text-amber-50 hover:bg-amber-500/50">Stop impersonating</button>
-                        </form>
-                    </div>
+                    @endif
+                    <a href="{{ route('domains.index') }}" class="figma-add-domain-btn flex h-[32px] w-full max-w-[188px] items-center justify-center gap-[6px] rounded-[8px] border-2 text-[13px] font-bold uppercase shadow-[inset_0_1px_1.8px_4px_rgba(0,0,0,.2)] transition hover:bg-[#6400B2] hover:text-white">
+                        <span class="flex h-[16px] w-[16px] items-center justify-center rounded-full border text-[11px] leading-none">+</span>
+                        ADD DOMAIN
+                    </a>
                 </div>
+            </nav>
+
+            <footer class="figma-sidebar-footer mt-auto shrink-0 border-t border-white/10 pt-[10px] pb-[2px]">
+                <div class="figma-sidebar-controls mb-[6px] flex items-center justify-between gap-[8px]">
+                    <div>
+                        <span id="theme-toggle-label" class="figma-sidebar-theme-label mb-[3px] block text-[9px] leading-none">Dark Mode</span>
+                        <button id="theme-toggle" type="button" class="relative h-[22px] w-[46px] rounded-full bg-[#d9d9d9] p-[2px]" aria-label="Theme toggle">
+                            <span id="theme-toggle-knob" class="block h-[18px] w-[18px] rounded-full bg-[#6625F8] transition-transform duration-200"></span>
+                        </button>
+                    </div>
+                    <a href="{{ route('profile.edit') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" aria-label="Settings">
+                        @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
+                    </a>
+                </div>
+                <img src="{{ asset('images/logo.png') }}" alt="Digital Promotix" class="figma-sidebar-logo figma-sidebar-logo-dark mx-auto h-[48px] w-[118px] object-contain">
+                <img src="{{ asset('images/logo.png') }}" alt="" aria-hidden="true" class="figma-sidebar-logo figma-sidebar-logo-light mx-auto hidden h-[48px] w-[118px] object-contain">
+            </footer>
+        </div>
+    </aside>
+
+    <div id="figma-sidebar-overlay" class="figma-sidebar-overlay"></div>
+
+    <header class="figma-header flex items-center justify-between px-[10px] sm:px-[14px]">
+        <div class="flex min-w-0 items-center gap-[13px] text-white/85">
+            <button id="figma-sidebar-toggle" type="button" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10" aria-label="Toggle sidebar">
+                <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg>
+            </button>
+            <span class="hidden h-[18px] w-px bg-[#5a2a99] sm:block"></span>
+            <a href="{{ route('integrations') }}" class="hidden h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
+                <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L11 4.93"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 11a5 5 0 00-7.07 0L4.8 13.12a5 5 0 007.07 7.07L13 19.07"/></svg>
+            </a>
+        </div>
+
+        <div class="relative flex items-center gap-[8px]" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
+            @hasSection('header-actions')
+                <div class="hidden items-center gap-2 md:flex">@yield('header-actions')</div>
             @endif
 
-            {{-- Header --}}
-            <header class="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-night-700/60 bg-night-950/95 px-4 backdrop-blur lg:px-8">
-                <div class="flex min-w-0 items-center gap-3">
-                    <button
-                        type="button"
-                        id="sidebar-toggle"
-                        class="rounded-lg p-2 text-night-300 hover:bg-night-800 hover:text-white"
-                        aria-label="Toggle sidebar"
-                        aria-expanded="false"
-                        aria-controls="sidebar"
-                    >
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                    </button>
-                    <div class="min-w-0">
-                        <h1 class="truncate text-base font-semibold text-white sm:text-lg">@yield('title', 'Dashboard')</h1>
-                        @hasSection('subtitle')
-                            <p class="truncate text-xs text-night-300">@yield('subtitle')</p>
-                        @endif
-                    </div>
-                </div>
+            <div class="flex h-[27px] max-w-[60vw] items-center overflow-hidden rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] text-white sm:max-w-none">
+                <span class="flex h-full w-[30px] items-center justify-center border-r border-[#6400B2] bg-white/10">
+                    <svg class="h-[15px] w-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 1115 0"/></svg>
+                </span>
+                <button type="button" @click="userMenuOpen = ! userMenuOpen" class="truncate px-[9px] text-left sm:px-[14px]">{{ $user?->email ?? 'example@gmail.com' }}</button>
+            </div>
 
-                <div class="relative flex items-center gap-1.5" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
-                    @hasSection('header-actions')
-                        <div class="mr-2 hidden items-center gap-2 sm:flex">@yield('header-actions')</div>
-                    @endif
-
-                    <a href="{{ route('upgrade-plan') }}" class="hidden md:inline-flex rounded-xl bg-brand-500 px-3 py-2 text-xs font-semibold text-white shadow-card transition hover:bg-brand-400">Upgrade</a>
-
-                    @if (auth()->user()?->is_super_admin)
-                        <a href="{{ route('super-admin.dashboard') }}" class="inline-flex rounded-xl border border-night-700 px-3 py-2 text-xs font-medium text-night-200 transition hover:border-brand-400 hover:text-white">Super Admin</a>
-                    @endif
-
-                    <button id="theme-toggle" type="button" class="rounded-lg p-2 text-night-300 hover:bg-night-800 hover:text-white" aria-label="Theme toggle">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v1m0 16v1m8.66-10h-1M4.34 12h-1m15.02 6.36-.7-.7M6.02 6.02l-.7-.7m12.72 0-.7.7M6.02 17.98l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z"/></svg>
-                    </button>
-                    <a href="#" class="rounded-lg p-2 text-night-300 hover:bg-night-800 hover:text-white" aria-label="Help">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </a>
-                    <button type="button" @click="userMenuOpen = ! userMenuOpen" class="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-white transition hover:bg-brand-600" aria-label="User menu" :aria-expanded="userMenuOpen">
-                        <span class="text-sm font-semibold">{{ auth()->user() ? strtoupper(mb_substr(auth()->user()->name, 0, 1)) : 'U' }}</span>
-                    </button>
-                    <div x-show="userMenuOpen" x-cloak x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-night-700 bg-night-900 py-1 shadow-card-lg" role="menu">
-                        <div class="border-b border-night-700/60 px-4 py-3">
-                            <p class="text-xs uppercase tracking-wider text-night-400">Signed in as</p>
-                            <p class="truncate text-sm font-semibold text-white">{{ auth()->user()?->email }}</p>
-                        </div>
-                        <a href="{{ route('profile.edit') }}" class="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-night-200 transition hover:bg-night-800 hover:text-white" role="menuitem">Account settings</a>
-                        @if (auth()->user()?->is_super_admin)
-                            <a href="{{ route('super-admin.dashboard') }}" class="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-night-200 transition hover:bg-night-800 hover:text-white" role="menuitem">Switch to Super Admin</a>
-                        @endif
-                        <div class="border-t border-night-700/60">
-                            <form method="POST" action="{{ route('logout') }}" class="block">
-                                @csrf
-                                <button type="submit" class="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-night-200 transition hover:bg-night-800 hover:text-white" role="menuitem">Logout</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <main class="flex-1 p-4 lg:p-8">
-                @yield('content')
-            </main>
+            <div x-show="userMenuOpen" x-cloak class="figma-user-menu absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#6400B2]/60 bg-[#111111] py-1 shadow-card-lg">
+                <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Account settings</a>
+                @if ($user?->is_super_admin)
+                    <a href="{{ route('super-admin.dashboard') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Super Admin</a>
+                @endif
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="block w-full px-4 py-2 text-left text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Logout</button>
+                </form>
+            </div>
         </div>
-    </div>
+    </header>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const SIDEBAR_STORAGE_KEY = 'promotix-sidebar-collapsed';
-            const THEME_STORAGE_KEY = 'promotix-theme';
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            const toggle = document.getElementById('sidebar-toggle');
-            const sidebarClose = document.getElementById('sidebar-close');
-            const mainWrap = document.getElementById('main-content-wrap');
-            const themeToggle = document.getElementById('theme-toggle');
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    <main class="figma-main">
+        @yield('content')
+    </main>
 
-            if (!sidebar || !mainWrap) return;
+    <aside class="figma-rightbar px-[16px] pb-[16px] pt-[20px]">
+        @hasSection('rightbar')
+            @yield('rightbar')
+        @else
+        <div class="figma-rightbar-default">
+        <div class="mb-[16px] flex items-center justify-between">
+            <div>
+                <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
+                <p class="mt-[4px] text-[9px] text-white/45">Account panel</p>
+            </div>
+            <button class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white">
+                <svg class="h-[13px] w-[13px]" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 11.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 17a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
+            </button>
+        </div>
 
-            const isLg = () => window.matchMedia('(min-width: 1024px)').matches;
+        <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]">
+            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px]"><span class="text-white/85">mail</span><span>1 m paid traffic reached</span></div>
+            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px]"><span class="text-white/85">mail</span><span>20 k block detections</span></div>
+            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px]"><span class="text-white/85">mail</span><span>Countries IP reviewed</span></div>
+            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px]"><span class="text-white/85">mail</span><span>Account is connected</span></div>
+            <div class="flex items-center gap-[10px]"><span class="text-white/85">mail</span><span>Campaigns is live</span></div>
+        </div>
 
-            function isSidebarOpen() {
-                return !sidebar.classList.contains('-translate-x-full');
-            }
+        <div class="mt-[16px]">
+            <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Add Account</h2>
+            <a href="{{ route('integrations') }}" class="figma-rightbar-add-card block rounded-[3px] bg-[#6400B2] p-[6px]">
+                <div class="flex h-[96px] items-center justify-center bg-[#6400B2]">
+                    <svg class="h-[44px] w-[44px]" viewBox="0 0 48 48" aria-hidden="true">
+                        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/>
+                        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16.1 18.9 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/>
+                        <path fill="#4CAF50" d="M24 44c5.4 0 10.3-2.1 14-5.5l-6.5-5.3C29.3 35.1 26.8 36 24 36c-5.2 0-9.6-3.4-11.2-8.1l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/>
+                        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.1 4.3-3.9 5.9l.1.1 6.5 5.3C39.8 35.8 44 30.5 44 24c0-1.3-.1-2.7-.4-3.5z"/>
+                    </svg>
+                </div>
+                <div class="mt-[2px] flex h-[24px] items-center justify-between border border-white px-[8px] text-[11px] text-white">
+                    <span>Google Account</span>
+                    <span class="flex h-[11px] w-[11px] items-center justify-center rounded-full border border-white text-[8px]">+</span>
+                </div>
+            </a>
+        </div>
 
-            function setSidebarOpen(open) {
-                if (open) {
-                    sidebar.classList.remove('-translate-x-full');
-                    overlay.classList.remove('opacity-0', 'pointer-events-none');
-                    overlay.classList.add('opacity-100');
-                    if (isLg()) mainWrap.classList.add('lg:ml-72');
-                    if (toggle) toggle.setAttribute('aria-expanded', 'true');
-                } else {
-                    sidebar.classList.add('-translate-x-full');
-                    overlay.classList.add('opacity-0', 'pointer-events-none');
-                    overlay.classList.remove('opacity-100');
-                    mainWrap.classList.remove('lg:ml-72');
-                    if (toggle) toggle.setAttribute('aria-expanded', 'false');
-                }
-            }
+        <div class="mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
+            <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
+            <div class="grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
+                @foreach ($toolLinks as $tool)
+                    <a href="{{ route($tool['route']) }}" title="{{ $tool['label'] }}" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+                        @include('partials.sidebar-icon', ['name' => $tool['icon'], 'class' => 'h-[18px] w-[18px]'])
+                    </a>
+                @endforeach
+            </div>
+            <a href="{{ route('billing.index') }}" class="figma-rightbar-extra mt-[16px] block rounded-[5px] bg-[#6603B3] p-[8px] text-white">
+                <div class="flex items-center justify-between text-[7px] text-[#a9a9a9]">
+                    <span>Invalid Blocked user</span>
+                    <span>Return Rate</span>
+                </div>
+                <div class="mt-[6px] flex items-center justify-around text-[10px]">
+                    <span>0</span>
+                    <span class="text-[#d9d9d9]">+</span>
+                    <span>2.4</span>
+                </div>
+                <div class="mt-[8px] rounded-[5px] bg-[#171515] px-[8px] py-[6px] text-center text-[7px] leading-tight">
+                    Reallocated Budget Simulator
+                </div>
+            </a>
+        </div>
+        </div>
+        @endif
+    </aside>
+</div>
 
-            function setCollapsed(collapsed) {
-                try { localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0'); } catch (e) {}
-            }
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const shell = document.getElementById('figma-shell');
+    const sidebarToggle = document.getElementById('figma-sidebar-toggle');
+    const overlay = document.getElementById('figma-sidebar-overlay');
+    const themeToggle = document.getElementById('theme-toggle');
+    const knob = document.getElementById('theme-toggle-knob');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const sidebarKey = 'promotix-figma-sidebar-collapsed';
+    const themeKey = 'promotix-theme';
+    const isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
 
-            function initSidebar() {
-                const collapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
-                if (isLg()) {
-                    if (collapsed) {
-                        sidebar.classList.add('-translate-x-full');
-                        mainWrap.classList.remove('lg:ml-72');
-                        if (toggle) toggle.setAttribute('aria-expanded', 'false');
-                    } else {
-                        sidebar.classList.remove('-translate-x-full');
-                        mainWrap.classList.add('lg:ml-72');
-                        if (toggle) toggle.setAttribute('aria-expanded', 'true');
-                    }
-                    overlay.classList.add('opacity-0', 'pointer-events-none');
-                } else {
-                    sidebar.classList.add('-translate-x-full');
-                    mainWrap.classList.remove('lg:ml-72');
-                    overlay.classList.add('opacity-0', 'pointer-events-none');
-                    if (toggle) toggle.setAttribute('aria-expanded', 'false');
-                }
-            }
+    function syncSidebar() {
+        const collapsed = localStorage.getItem(sidebarKey) === '1';
+        shell?.classList.toggle('figma-sidebar-collapsed', isDesktop() && collapsed);
+        if (!isDesktop()) shell?.classList.remove('figma-sidebar-open');
+    }
 
-            initSidebar();
+    sidebarToggle?.addEventListener('click', () => {
+        if (isDesktop()) {
+            const next = !(localStorage.getItem(sidebarKey) === '1');
+            localStorage.setItem(sidebarKey, next ? '1' : '0');
+            syncSidebar();
+        } else {
+            shell?.classList.toggle('figma-sidebar-open');
+        }
+    });
 
-            if (toggle) {
-                toggle.addEventListener('click', function () {
-                    if (isSidebarOpen()) {
-                        setSidebarOpen(false);
-                        if (isLg()) setCollapsed(true);
-                    } else {
-                        setSidebarOpen(true);
-                        if (isLg()) setCollapsed(false);
-                    }
-                });
-            }
+    overlay?.addEventListener('click', () => shell?.classList.remove('figma-sidebar-open'));
+    window.matchMedia('(min-width: 1024px)').addEventListener('change', syncSidebar);
+    syncSidebar();
 
-            if (sidebarClose) {
-                sidebarClose.addEventListener('click', function () {
-                    setSidebarOpen(false);
-                    if (isLg()) setCollapsed(true);
-                });
-            }
+    function setTheme(theme) {
+        document.documentElement.classList.toggle('light-mode', theme === 'light');
+        knob?.classList.toggle('translate-x-[24px]', theme === 'dark');
+        const label = document.getElementById('theme-toggle-label');
+        if (label) label.textContent = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
+        localStorage.setItem(themeKey, theme);
+    }
 
-            overlay.addEventListener('click', function () {
-                setSidebarOpen(false);
+    setTheme(localStorage.getItem(themeKey) || document.querySelector('meta[name="initial-theme"]')?.content || 'dark');
+
+    themeToggle?.addEventListener('click', async () => {
+        const nextTheme = document.documentElement.classList.contains('light-mode') ? 'dark' : 'light';
+        setTheme(nextTheme);
+        try {
+            await fetch('/user/preferences', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
+                body: JSON.stringify({dark_mode: nextTheme === 'dark'}),
             });
-
-            window.matchMedia('(min-width: 1024px)').addEventListener('change', function (e) {
-                if (e.matches) {
-                    const collapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
-                    if (collapsed) {
-                        sidebar.classList.add('-translate-x-full');
-                        mainWrap.classList.remove('lg:ml-72');
-                    } else {
-                        sidebar.classList.remove('-translate-x-full');
-                        mainWrap.classList.add('lg:ml-72');
-                    }
-                    overlay.classList.add('opacity-0', 'pointer-events-none');
-                } else {
-                    sidebar.classList.add('-translate-x-full');
-                    mainWrap.classList.remove('lg:ml-72');
-                }
-            });
-
-            function setTheme(theme) {
-                document.documentElement.classList.toggle('light-mode', theme === 'light');
-                try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) {}
-            }
-
-            const serverTheme = document.querySelector('meta[name="initial-theme"]')?.getAttribute('content') || 'dark';
-            const cachedTheme = localStorage.getItem(THEME_STORAGE_KEY) || serverTheme;
-            setTheme(cachedTheme);
-
-            if (themeToggle) {
-                themeToggle.addEventListener('click', async function () {
-                    const nextTheme = document.documentElement.classList.contains('light-mode') ? 'dark' : 'light';
-                    setTheme(nextTheme);
-                    try {
-                        await fetch('/user/preferences', {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': csrfToken,
-                                'Accept': 'application/json',
-                            },
-                            body: JSON.stringify({ dark_mode: nextTheme === 'dark' }),
-                        });
-                    } catch (e) {}
-                });
-            }
-        });
-    </script>
+        } catch (e) {}
+    });
+});
+</script>
 </body>
 </html>

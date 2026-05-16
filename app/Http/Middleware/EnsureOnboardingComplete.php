@@ -35,6 +35,7 @@ class EnsureOnboardingComplete
         'verification.send-code',
         'onboarding.plan',
         'onboarding.start-trial',
+        'pricing',
         'impersonate.stop',
     ];
 

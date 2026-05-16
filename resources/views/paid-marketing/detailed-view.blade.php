@@ -1,125 +1,143 @@
 @extends('layouts.admin')
 
-@section('title', 'Paid Advertising — Advanced View')
-@section('subtitle', 'Detailed visit and click data with threat metadata')
+@section('title', 'Paid Advertising | Advanced View')
 
 @section('content')
-    <div class="space-y-6" x-data="paidMarketingDetailed()">
-        <x-ui.page-header
-            title="Advanced View"
-            subtitle="Detailed visit and click data with threat metadata">
-            <x-slot:actions>
-                <x-ui.button variant="outline" size="sm" href="{{ route('paid-marketing.dashboard') }}">Dashboard</x-ui.button>
-                <x-ui.button variant="outline" size="sm" href="{{ route('paid-marketing.detection-settings') }}">Detection Panel</x-ui.button>
-            </x-slot:actions>
-        </x-ui.page-header>
+@php
+    $pageRows = $visits->getCollection();
+    $rowCount = max($pageRows->count(), 1);
+    $blockedCount = $pageRows->filter(fn ($visit) => (bool) ($visit->ip_is_blocked ?? false))->count();
+    $threatCount = $pageRows->filter(fn ($visit) => filled($visit->threat_group) || filled($visit->threat_type))->count();
+    $botCount = $pageRows->filter(fn ($visit) => str_contains(strtolower((string) $visit->threat_type), 'bot') || str_contains(strtolower((string) $visit->threat_group), 'bot'))->count();
+    $countryCount = $pageRows->pluck('country')->filter()->unique()->count();
+    $paidVisits = max((int) $pageRows->sum(fn ($visit) => (int) ($visit->visits ?? 1)), 1);
 
-        <x-ui.tab-bar
-            :tabs="[
-                ['label' => 'Dashboard',     'value' => route('paid-marketing.dashboard')],
-                ['label' => 'Advanced View', 'value' => route('paid-marketing.detailed')],
-            ]"
-            :active="route('paid-marketing.detailed')"
-            as="link"
-            param="_tab"
-            base="{{ url()->current() }}"
-        />
+    $statCards = [
+        ['label' => 'Blocked', 'value' => $pageRows->isEmpty() ? 84 : (int) round(($blockedCount / $rowCount) * 100), 'fillClass' => 'h-[80%]', 'toneClass' => 'bg-[#9A1AFF]'],
+        ['label' => 'Invalid Traffic', 'value' => $pageRows->isEmpty() ? 34 : (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[32%]', 'toneClass' => 'bg-white/55'],
+        ['label' => 'PaidTraffic', 'value' => $pageRows->isEmpty() ? 92 : min(100, (int) round(($paidVisits / max($paidVisits + $threatCount, 1)) * 100)), 'fillClass' => 'h-[92%]', 'toneClass' => 'bg-white/55'],
+        ['label' => 'Bot Detection', 'value' => $pageRows->isEmpty() ? 0 : (int) round(($botCount / $rowCount) * 100), 'fillClass' => 'h-0', 'toneClass' => 'bg-white/55'],
+        ['label' => 'Countries', 'value' => $pageRows->isEmpty() ? 0 : min(100, $countryCount * 10), 'fillClass' => 'h-0', 'toneClass' => 'bg-white/55'],
+        ['label' => 'Overall', 'value' => $pageRows->isEmpty() ? 68 : (int) round((($blockedCount + $threatCount + $botCount) / max($rowCount * 3, 1)) * 100), 'fillClass' => 'h-[68%]', 'toneClass' => 'bg-white/55'],
+    ];
+@endphp
 
-        {{-- Filters --}}
-        <x-ui.card title="Filters" subtitle="Drill into specific IPs, paths, and platforms">
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <div>
-                    <label class="brand-label mb-1.5" for="filter-ip">IP</label>
-                    <input id="filter-ip" type="search" placeholder="1.2.3.4" x-model="filters.ip" class="brand-input">
-                </div>
-                <div>
-                    <label class="brand-label mb-1.5" for="filter-path">Path</label>
-                    <input id="filter-path" type="search" placeholder="/pricing" x-model="filters.path" class="brand-input">
-                </div>
-                <div>
-                    <label class="brand-label mb-1.5" for="filter-platform">Platform</label>
-                    <select id="filter-platform" x-model="filters.platform" class="brand-select">
-                        <option value="">All platforms</option>
-                        @foreach ($platforms as $p)
-                            <option value="{{ $p }}">{{ $p }}</option>
+<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidMarketingDetailed()">
+    <form id="advanced-filters-form" method="GET" action="{{ route('paid-marketing.detailed') }}"></form>
+
+    <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[19px] xl:pt-[68px]">
+        <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-wrap items-center gap-[12px]">
+                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
+                <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
+                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
+            </div>
+
+            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
+                <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Campaigns</span>
+                    <select name="platform" form="advanced-filters-form" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0">
+                        <option value="">All campaigns</option>
+                        @foreach ($platforms as $platform)
+                            <option value="{{ $platform }}" @selected(request('platform') === $platform)>{{ $platform }}</option>
                         @endforeach
                     </select>
-                </div>
-                <div>
-                    <label class="brand-label mb-1.5" for="filter-from">From</label>
-                    <input id="filter-from" type="date" x-model="filters.from" class="brand-input">
-                </div>
-                <div>
-                    <label class="brand-label mb-1.5" for="filter-to">To</label>
-                    <input id="filter-to" type="date" x-model="filters.to" class="brand-input">
-                </div>
+                </label>
+                <label class="flex w-[178px] flex-col justify-center px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
+                    <input name="path" form="advanced-filters-form" value="{{ request('path') }}" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                </label>
+                <button type="submit" form="advanced-filters-form" class="figma-filter-action flex w-[34px] items-center justify-center bg-[#6400B2] text-white" aria-label="Apply filters">
+                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7h8M8 12h8M8 17h8"/></svg>
+                </button>
             </div>
-            <div class="mt-4 flex justify-end">
-                <x-ui.button type="button" variant="primary" size="sm" @click="applyFilters()">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-1.447.894l-4-2A1 1 0 018 17v-3.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
-                    Apply filters
-                </x-ui.button>
-            </div>
-        </x-ui.card>
+        </div>
 
-        {{-- Visits table --}}
-        <x-ui.card variant="flat">
+        <div class="rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
+            <div class="grid gap-[16px] lg:grid-cols-[1fr_244px]">
+                <div class="flex min-h-[91px] flex-col justify-between">
+                    <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trends</h2>
+                    <button type="button" @click="window.print()" class="flex w-fit items-center gap-[5px] text-[15px] text-white hover:underline">
+                        <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
+                        Download
+                    </button>
+                </div>
+
+                <div class="space-y-[12px]">
+                    <label class="flex h-[26px] items-center rounded-[5px] border border-white/30 bg-[#0f0e0e] px-[10px]">
+                        <svg class="mr-[9px] h-[15px] w-[15px] text-[#9d9898]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input name="ip" form="advanced-filters-form" value="{{ request('ip') }}" placeholder="Filter by IP" class="h-full flex-1 border-0 bg-transparent p-0 text-[14px] font-light text-[#9d9898] placeholder:text-[#9d9898] focus:ring-0">
+                    </label>
+                    <button type="button" @click="filtersOpen = ! filtersOpen" class="flex h-[49px] w-full items-center rounded-[5px] border border-white/30 bg-[#0f0e0e] px-[13px] text-left text-[14px] text-[#9d9898]">
+                        <svg class="mr-[12px] h-[22px] w-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="1.7" d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
+                        <span>Advanced<br>Filters</span>
+                    </button>
+                </div>
+            </div>
+
+            <div x-show="filtersOpen" x-cloak class="mt-[14px] grid gap-[10px] rounded-[8px] bg-black/20 p-[10px] sm:grid-cols-2">
+                <label class="text-[11px] text-white/70">From
+                    <input type="date" name="from" form="advanced-filters-form" value="{{ request('from') }}" class="mt-[4px] h-[32px] w-full rounded-[4px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
+                </label>
+                <label class="text-[11px] text-white/70">To
+                    <input type="date" name="to" form="advanced-filters-form" value="{{ request('to') }}" class="mt-[4px] h-[32px] w-full rounded-[4px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
+                </label>
+                <div class="flex gap-[8px] sm:col-span-2 sm:justify-end">
+                    <a href="{{ route('paid-marketing.detailed') }}" class="rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] text-white/80">Clear</a>
+                    <button type="submit" form="advanced-filters-form" class="rounded-[4px] bg-white px-[12px] py-[7px] text-[12px] font-semibold text-[#6400B2]">Apply filters</button>
+                </div>
+            </div>
+        </div>
+
+        <section class="mt-[8px] overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="brand-table min-w-[1000px]">
-                    <thead>
-                        <tr>
-                            <th>IP Address</th>
-                            <th>Last Seen</th>
-                            <th>Threat Group</th>
-                            <th>Threat Type</th>
-                            <th>Action</th>
-                            <th>Country</th>
-                            <th>Domain</th>
-                            <th>URL</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($visits as $visit)
-                            <tr class="cursor-pointer" @click="openClicks(@js($visit))">
-                                <td>
-                                    <div class="flex flex-col gap-0.5">
-                                        <span class="font-semibold text-white">{{ $visit->ip }}</span>
-                                        <span class="text-xs text-night-400">Clicks: {{ $visit->clicks?->count() ?? 0 }}</span>
-                                    </div>
-                                </td>
-                                <td class="text-night-200">{{ $visit->last_click_at?->format('m/d/y H:i:s') ?? '—' }}</td>
-                                <td class="text-night-200">{{ $visit->threat_group ?? 'N/A' }}</td>
-                                <td class="text-night-200">{{ $visit->threat_type ?? 'N/A' }}</td>
-                                <td>
-                                    @php
-                                        $hasThreat = filled($visit->threat_group) || filled($visit->threat_type);
-                                        $blocked = (bool) ($visit->ip_is_blocked ?? false);
-                                        $action = $blocked ? 'Blocked' : ($hasThreat ? 'Detected' : '—');
-                                        $tone = $blocked ? 'danger' : ($hasThreat ? 'warning' : 'neutral');
-                                    @endphp
-                                    <x-ui.pill :tone="$tone">{{ $action }}</x-ui.pill>
-                                </td>
-                                <td class="text-night-200">{{ $visit->country ?? '—' }}</td>
-                                <td class="text-night-200">{{ $visit->domain?->hostname ?? '—' }}</td>
-                                <td class="text-night-200">{{ $visit->last_path ?? '—' }}</td>
-                            </tr>
+                <div class="min-w-[895px]">
+                    <div class="figma-data-grid-header grid grid-cols-[22px_115px_70px_135px_112px_120px_118px_1fr] items-center border-b border-white px-[14px] py-[9px] text-[13px] text-white">
+                        <span></span>
+                        <span>IP Address v</span>
+                        <span>Visits v</span>
+                        <span>Campaigns v</span>
+                        <span>Last Click v</span>
+                        <span>Threat Group v</span>
+                        <span>Threat Type v</span>
+                        <span>Country ^</span>
+                    </div>
+
+                    <div class="max-h-[318px] overflow-y-auto pr-[6px]">
+                        @forelse ($pageRows as $visit)
+                            <button type="button" class="figma-data-row mt-[6px] grid h-[47px] w-full grid-cols-[22px_115px_70px_135px_112px_120px_118px_1fr] items-center rounded-[10px] border-[3px] border-white/40 bg-[#151515] px-[11px] text-left text-[15px] text-[#a9a9a9] transition hover:border-white/70" @click="openClicks(@js($visit))">
+                                <span class="text-white/90">&gt;</span>
+                                <span>{{ $visit->ip }}</span>
+                                <span>{{ $visit->visits ?? ($visit->clicks?->count() ?: 1) }}</span>
+                                <span>{{ $visit->campaign ?? 'N/A' }}</span>
+                                <span class="text-[#8d8d8d]">{{ $visit->last_click_at?->format('m/d/y') ?? '-' }}</span>
+                                <span class="text-[#8d8d8d]">{{ $visit->threat_group ?? 'Known Bots' }}</span>
+                                <span class="text-[#8d8d8d]">{{ $visit->threat_type ?? 'Good Bot' }}</span>
+                                <span class="text-[#8d8d8d]">{{ $visit->country ?? 'United States' }}</span>
+                            </button>
                         @empty
-                            <tr>
-                                <td colspan="8" class="py-10 text-center text-night-300">No rows yet.</td>
-                            </tr>
+                            <div class="mt-[6px] rounded-[10px] border-[3px] border-white/40 px-[14px] py-[28px] text-center text-[15px] text-[#a9a9a9]">No rows yet.</div>
                         @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            @if ($visits->hasPages())
-                <div class="mt-4 border-t border-night-700/60 pt-4">
-                    {{ $visits->links() }}
+                    </div>
                 </div>
-            @endif
-        </x-ui.card>
+            </div>
+        </section>
 
-        {{-- Click details modal --}}
+        <section class="mt-[20px]">
+            <h2 class="mx-auto mb-[18px] flex h-[36px] w-[184px] items-center justify-center rounded-[4px] bg-[#6706B3] text-[24px] font-semibold text-[#a9a9a9]">Paid Stats</h2>
+            <div class="grid grid-cols-2 gap-[14px] sm:grid-cols-3 xl:grid-cols-6">
+                @foreach ($statCards as $card)
+                    <article class="relative h-[228px] overflow-hidden rounded-[10px] border border-white/40 bg-[#6400B2]">
+                        <div class="absolute inset-x-0 bottom-0 rounded-t-[10px] {{ $card['fillClass'] }} {{ $card['toneClass'] }}"></div>
+                        <div class="relative z-10 pt-[31px] text-center">
+                            <p class="mb-[26px] text-[14px] text-[#a9a9a9]">{{ $card['label'] }}</p>
+                            <p class="text-[36px] font-medium leading-none text-white">{{ $card['value'] }}%</p>
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+
         <div class="brand-modal-overlay"
              x-show="modal.open" x-cloak x-transition
              @keydown.escape.window="closeModal()" @click.self="closeModal()">
@@ -151,22 +169,22 @@
                         <template x-if="activeClick">
                             <div class="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
                                 @php
-                                    $rows = [
-                                        ['IP',              'activeClick.ip || modal.visit.ip'],
-                                        ['Browser',         "activeClick.browser_name || '—'"],
-                                        ['Country',         "activeClick.country || modal.visit.country || '—'"],
-                                        ['Browser version', "activeClick.browser_version || '—'"],
-                                        ['Last Click',      'formatDateTime(activeClick.last_click_at || modal.visit.last_click_at)'],
-                                        ['OS',              "activeClick.os || '—'"],
-                                        ['Threat Group',    "activeClick.threat_group || modal.visit.threat_group || 'N/A'"],
-                                        ['Paid ID',         "activeClick.paid_id || '—'"],
-                                        ['Campaign',        "activeClick.campaign || modal.visit.campaign || 'N/A'"],
-                                        ['Path',            "activeClick.path || modal.visit.last_path || '—'"],
-                                        ['Campaignr',       "activeClick.campaignr || 'N/A'"],
-                                        ['Keyword',         "activeClick.keyword || 'N/A'"],
+                                    $modalRows = [
+                                        ['IP', 'activeClick.ip || modal.visit.ip || "-"'],
+                                        ['Browser', 'activeClick.browser_name || "-"'],
+                                        ['Country', 'activeClick.country || modal.visit.country || "-"'],
+                                        ['Browser version', 'activeClick.browser_version || "-"'],
+                                        ['Last Click', 'formatDateTime(activeClick.last_click_at || modal.visit.last_click_at)'],
+                                        ['OS', 'activeClick.os || "-"'],
+                                        ['Threat Group', 'activeClick.threat_group || modal.visit.threat_group || "N/A"'],
+                                        ['Paid ID', 'activeClick.paid_id || "-"'],
+                                        ['Campaign', 'activeClick.campaign || modal.visit.campaign || "N/A"'],
+                                        ['Path', 'activeClick.path || modal.visit.last_path || "-"'],
+                                        ['Campaignr', 'activeClick.campaignr || "N/A"'],
+                                        ['Keyword', 'activeClick.keyword || "N/A"'],
                                     ];
                                 @endphp
-                                @foreach ($rows as [$label, $expr])
+                                @foreach ($modalRows as [$label, $expr])
                                     <div>
                                         <p class="text-xs uppercase tracking-wider text-night-400">{{ $label }}</p>
                                         <p class="mt-1 break-words text-sm text-white" x-text="{{ $expr }}"></p>
@@ -178,51 +196,34 @@
                 </div>
             </div>
         </div>
-    </div>
+    </section>
+</div>
 
-    <script>
-        function paidMarketingDetailed() {
-            const params = new URLSearchParams(window.location.search);
-            return {
-                filters: {
-                    ip: params.get('ip') || '',
-                    path: params.get('path') || '',
-                    platform: params.get('platform') || '',
-                    from: params.get('from') || '',
-                    to: params.get('to') || '',
-                },
-                modal: { open: false, visit: null, clicks: [], activeIndex: 0 },
-                get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
-                applyFilters() {
-                    const p = new URLSearchParams(window.location.search);
-                    const setOrDelete = (k, v) => v ? p.set(k, v) : p.delete(k);
-                    setOrDelete('ip', this.filters.ip);
-                    setOrDelete('path', this.filters.path);
-                    setOrDelete('platform', this.filters.platform);
-                    setOrDelete('from', this.filters.from);
-                    setOrDelete('to', this.filters.to);
-                    p.delete('page');
-                    window.location.search = p.toString();
-                },
-                openClicks(visit) {
-                    this.modal.visit = visit;
-                    this.modal.clicks = (visit.clicks || []).slice();
-                    this.modal.activeIndex = 0;
-                    this.modal.open = true;
-                },
-                closeModal() {
-                    this.modal.open = false;
-                    this.modal.visit = null;
-                    this.modal.clicks = [];
-                    this.modal.activeIndex = 0;
-                },
-                formatDateTime(v) {
-                    if (!v) return '—';
-                    const d = new Date(v);
-                    if (Number.isNaN(d.getTime())) return String(v);
-                    return d.toLocaleString();
-                },
-            };
-        }
-    </script>
+<script>
+    function paidMarketingDetailed() {
+        return {
+            filtersOpen: false,
+            modal: { open: false, visit: null, clicks: [], activeIndex: 0 },
+            get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
+            openClicks(visit) {
+                this.modal.visit = visit;
+                this.modal.clicks = (visit.clicks || []).slice();
+                this.modal.activeIndex = 0;
+                this.modal.open = true;
+            },
+            closeModal() {
+                this.modal.open = false;
+                this.modal.visit = null;
+                this.modal.clicks = [];
+                this.modal.activeIndex = 0;
+            },
+            formatDateTime(value) {
+                if (!value) return '-';
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) return String(value);
+                return date.toLocaleString();
+            },
+        };
+    }
+</script>
 @endsection
