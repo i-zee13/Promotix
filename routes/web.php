@@ -182,6 +182,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/onboarding/plan/start-trial', [OnboardingController::class, 'startTrial'])->name('onboarding.start-trial');
 });
 
+
 Route::middleware('auth')->group(function () {
     Route::get('/overview/summary', [DashboardController::class, 'summary']);
     Route::get('/insights', [DashboardController::class, 'insights']);
