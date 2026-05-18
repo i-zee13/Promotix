@@ -77,7 +77,7 @@
                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg>
             </button>
             @if ($isDashboard)
-                <span class="hidden text-[14px] font-semibold text-[#a9a9a9] sm:inline">Dashboard</span>
+                <span class="hidden text-[32px] font-semibold leading-none text-[#d9d9d9] sm:inline">Dashboard</span>
             @endif
         </div>
 
