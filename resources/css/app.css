@@ -690,6 +690,56 @@
     color: #8a8299 !important;
 }
 
+/* Detection panel selects (dark inner cards) */
+.figma-panel-select,
+.figma-matrix-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 100%;
+    min-height: 32px;
+    padding: 7px 34px 7px 10px;
+    line-height: 1.35;
+    font-size: 11px;
+    font-weight: 500;
+    color: #ffffff;
+    background-color: #101010;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23d9d9d9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 4px;
+    color-scheme: dark;
+    cursor: pointer;
+}
+
+.figma-panel-select-lg {
+    min-height: 36px;
+    font-size: 12px;
+    padding: 8px 36px 8px 12px;
+}
+
+.figma-matrix-select {
+    min-height: 28px;
+    max-width: 140px;
+    padding: 5px 30px 5px 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.figma-panel-select:focus,
+.figma-matrix-select:focus {
+    border-color: #9a1aff;
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(154, 26, 255, 0.45);
+}
+
+.figma-panel-select option,
+.figma-matrix-select option {
+    background-color: #101010;
+    color: #ffffff;
+}
+
 /* Top filter bar (campaigns / path) */
 .figma-filter-bar {
     border-color: rgba(100, 0, 178, 0.22) !important;

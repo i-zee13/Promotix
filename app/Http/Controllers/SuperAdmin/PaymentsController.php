@@ -9,7 +9,9 @@ use App\Services\BillingAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PaymentsController extends Controller
 {
@@ -39,6 +41,18 @@ class PaymentsController extends Controller
             'statuses' => ['paid', 'pending', 'failed', 'refunded', 'rejected'],
             'stats' => $stats,
         ]);
+    }
+
+    public function downloadReceipt(Payment $payment): StreamedResponse
+    {
+        abort_unless($payment->receipt_path, 404);
+
+        $disk = Storage::disk('public');
+        abort_unless($disk->exists($payment->receipt_path), 404, 'Receipt file is missing from storage.');
+
+        $filename = $payment->receipt_original_name ?: basename($payment->receipt_path);
+
+        return $disk->download($payment->receipt_path, $filename);
     }
 
     public function verify(Request $request, Payment $payment): RedirectResponse

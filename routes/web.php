@@ -90,6 +90,7 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/subscriptions', [SuperAdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
         Route::put('/subscriptions/{subscription}', [SuperAdminSubscriptionsController::class, 'update'])->name('subscriptions.update');
         Route::get('/payments', [SuperAdminPaymentsController::class, 'index'])->name('payments.index');
+        Route::get('/payments/{payment}/receipt', [SuperAdminPaymentsController::class, 'downloadReceipt'])->name('payments.receipt');
         Route::post('/payments/{payment}/verify', [SuperAdminPaymentsController::class, 'verify'])->name('payments.verify');
         Route::post('/payments/{payment}/reject', [SuperAdminPaymentsController::class, 'reject'])->name('payments.reject');
         Route::post('/payments/{payment}/mark-failed', [SuperAdminPaymentsController::class, 'markFailed'])->name('payments.mark-failed');
@@ -164,6 +165,7 @@ Route::middleware(['auth', 'admin'])
         });
 
         Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
+        Route::get('/billing/receipts/{payment}', [BillingController::class, 'downloadReceipt'])->name('billing.receipt.download');
         Route::post('/billing', [BillingController::class, 'submit'])->name('billing.submit');
         Route::post('/billing/payment-methods', [BillingController::class, 'storePaymentMethod'])->name('billing.payment-methods.store');
         Route::delete('/billing/payment-methods/{paymentMethod}', [BillingController::class, 'destroyPaymentMethod'])->name('billing.payment-methods.destroy');

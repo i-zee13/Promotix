@@ -137,7 +137,7 @@
                                     @if ($inv->status === 'pending')
                                         <span class="text-[#a9a9a9]">Awaiting verification</span>
                                     @elseif ($inv->receipt_path)
-                                        <a href="{{ asset('storage/'.$inv->receipt_path) }}" target="_blank" class="text-[#9a1aff] hover:underline">Download</a>
+                                        <a href="{{ route('billing.receipt.download', $inv) }}" class="text-[#9a1aff] hover:underline">Download receipt</a>
                                     @else
                                         —
                                     @endif

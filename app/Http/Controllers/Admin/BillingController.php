@@ -11,7 +11,9 @@ use App\Services\BillingAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BillingController extends Controller
 {
@@ -60,6 +62,19 @@ class BillingController extends Controller
             'domains_used' => $user->domainsUsed(),
             'domain_limit' => $user->domainLimit(),
         ]);
+    }
+
+    public function downloadReceipt(Request $request, Payment $payment): StreamedResponse
+    {
+        abort_unless($payment->user_id === $request->user()->id, 403);
+        abort_unless($payment->receipt_path, 404);
+
+        $disk = Storage::disk('public');
+        abort_unless($disk->exists($payment->receipt_path), 404, 'Receipt file is missing from storage. Please re-upload.');
+
+        $filename = $payment->receipt_original_name ?: basename($payment->receipt_path);
+
+        return $disk->download($payment->receipt_path, $filename);
     }
 
     public function submit(Request $request): RedirectResponse

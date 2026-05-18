@@ -74,8 +74,8 @@
                             </td>
                             <td>
                                 @if ($payment->receipt_path)
-                                    <a href="{{ asset('storage/'.$payment->receipt_path) }}" target="_blank" class="text-[#c4b5fd] hover:underline text-sm">
-                                        View ({{ $payment->receipt_original_name ?? 'receipt' }})
+                                    <a href="{{ route('super-admin.payments.receipt', $payment) }}" class="text-[#c4b5fd] hover:underline text-sm">
+                                        Download ({{ $payment->receipt_original_name ?? 'receipt' }})
                                     </a>
                                 @else
                                     <span class="text-xs text-[#8c8787]">No file</span>

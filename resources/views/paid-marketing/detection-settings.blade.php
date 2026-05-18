@@ -65,7 +65,7 @@
                                 <h2 class="mb-[8px] text-center text-[13px] font-bold">Invalid Bot Activity</h2>
                                 <div class="rounded-[6px] bg-[#101010] px-[14px] py-[12px] text-[11px] leading-[1.25] text-[#d9d9d9]">
                                     <p class="mb-[10px]">Block non-Human tools that can be for malicious purpose such as false-clicks or other type of fraud or fake</p>
-                                    <select name="invalid_bot_action" class="h-[26px] w-full rounded-[3px] border border-white/20 bg-black px-[8px] text-[11px] text-white focus:ring-[#6400B2]">
+                                    <select name="invalid_bot_action" class="figma-panel-select">
                                         <option value="block" @selected($settings->invalid_bot_action === 'block')>Block</option>
                                         <option value="flag" @selected($settings->invalid_bot_action === 'flag')>Flag</option>
                                         <option value="allow" @selected($settings->invalid_bot_action === 'allow')>Allow</option>
@@ -77,7 +77,7 @@
                                 <h2 class="mb-[8px] text-center text-[13px] font-bold">Invalid Malicious Activity</h2>
                                 <div class="rounded-[6px] bg-[#101010] px-[14px] py-[12px] text-[11px] leading-[1.25] text-[#d9d9d9]">
                                     <p class="mb-[10px]">Block action performed by users with malicious intent Actions can include a set of excessive, non standard or under false identity</p>
-                                    <select name="invalid_malicious_action" class="h-[26px] w-full rounded-[3px] border border-white/20 bg-black px-[8px] text-[11px] text-white focus:ring-[#6400B2]">
+                                    <select name="invalid_malicious_action" class="figma-panel-select">
                                         <option value="block" @selected($settings->invalid_malicious_action === 'block')>Block</option>
                                         <option value="flag" @selected($settings->invalid_malicious_action === 'flag')>Flag</option>
                                         <option value="allow" @selected($settings->invalid_malicious_action === 'allow')>Allow</option>
@@ -104,10 +104,10 @@
                                         @foreach ($matrixRows as [$key, $label, $current])
                                             <div class="grid grid-cols-[1fr_1fr_58px] items-center px-[10px] py-[6px] text-[12px]">
                                                 <span class="font-semibold text-white">{{ $label }}</span>
-                                                <select name="suspicious_{{ $key }}" class="h-[24px] rounded border-0 bg-transparent p-0 text-[12px] font-semibold text-[#d9d9d9] focus:ring-0">
-                                                    <option class="text-black" value="allow" @selected($current === 'allow')>Allow</option>
-                                                    <option class="text-black" value="flag" @selected($current === 'flag')>Flag</option>
-                                                    <option class="text-black" value="block" @selected($current === 'block')>Block</option>
+                                                <select name="suspicious_{{ $key }}" class="figma-matrix-select">
+                                                    <option value="allow" @selected($current === 'allow')>Allow</option>
+                                                    <option value="flag" @selected($current === 'flag')>Flag</option>
+                                                    <option value="block" @selected($current === 'block')>Block</option>
                                                 </select>
                                                 <span class="text-right text-white/80">Edit</span>
                                             </div>
@@ -163,7 +163,7 @@
 
                             <div>
                                 <h2 class="mb-[12px] text-center text-[13px] font-medium">Audience Exclusion Event Settings</h2>
-                                <select name="audience_exclusion_event" class="h-[34px] w-full rounded-[5px] border border-white/25 bg-[#101010] px-[10px] text-[12px] text-white focus:ring-white/40">
+                                <select name="audience_exclusion_event" class="figma-panel-select figma-panel-select-lg">
                                     <option value="exclude_all_threat_groups_auto" @selected($settings->audience_exclusion_event === 'exclude_all_threat_groups_auto')>Exclude all Threat Groups automatically</option>
                                     <option value="exclude_bot_malicious_only" @selected($settings->audience_exclusion_event === 'exclude_bot_malicious_only')>Exclude only Bot and Malicious Threat Groups</option>
                                     <option value="disable_auto_exclusions" @selected($settings->audience_exclusion_event === 'disable_auto_exclusions')>Disable automatic exclusions</option>
