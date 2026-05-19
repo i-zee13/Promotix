@@ -1,20 +1,45 @@
 @props(['align' => 'right'])
 
-<div class="figma-sa-dash-dropdown relative inline-block" x-data="{ open: false }" @click.outside="open = false">
-    <div @click.stop>
+<div
+    class="figma-sa-dash-dropdown inline-block"
+    x-data="{
+        open: false,
+        align: @js($align),
+        menuStyle: '',
+        positionMenu() {
+            const btn = this.$refs.trigger?.querySelector('button, [type=button], summary');
+            if (! btn) return;
+            const r = btn.getBoundingClientRect();
+            const top = Math.round(r.bottom + 6);
+            if (this.align === 'right') {
+                const left = Math.round(r.right);
+                this.menuStyle = `top:${top}px;left:${left}px;transform:translateX(-100%);`;
+            } else {
+                this.menuStyle = `top:${top}px;left:${Math.round(r.left)}px;`;
+            }
+        },
+    }"
+    x-effect="if (open) { $nextTick(() => positionMenu()); }"
+    @keydown.escape.window="open = false"
+    @click.outside="if (!$refs.trigger.contains($event.target)) open = false"
+>
+    <div class="figma-sa-dash-dropdown-trigger" x-ref="trigger" @click.stop>
         {{ $trigger }}
     </div>
-    <div
-        x-show="open"
-        x-cloak
-        @class([
-            'figma-sa-dash-dropdown-menu',
-            'right-0' => $align === 'right',
-            'left-0' => $align === 'left',
-        ])
-    >
-        <div class="py-1" @click="open = false">
-            {{ $slot }}
+
+    <template x-teleport="body">
+        <div
+            x-show="open"
+            x-cloak
+            :style="menuStyle"
+            class="figma-sa-dash-dropdown-menu figma-sa-dash-dropdown-menu--portal"
+            :class="{ 'figma-sa-dash-dropdown-menu--align-left': align === 'left' }"
+            @scroll.window.passive="if (open) positionMenu()"
+            @resize.window="if (open) positionMenu()"
+        >
+            <div class="py-1" @click="open = false">
+                {{ $slot }}
+            </div>
         </div>
-    </div>
+    </template>
 </div>

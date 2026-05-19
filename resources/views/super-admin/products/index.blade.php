@@ -1,88 +1,310 @@
 @extends('layouts.super-admin')
 
 @section('title', 'SaaS Products')
-@section('content')
-<x-super-admin.page title="SaaS Products">
-    <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <x-super-admin.card>
-            <h2 class="text-base font-semibold text-white">Create Product</h2>
-            <form method="POST" action="{{ route('super-admin.products.store') }}" class="mt-4 space-y-3">
-                @csrf
-                <div>
-                    <label class="figma-sa-label">Name</label>
-                    <input name="name" required placeholder="Product name" class="figma-input mt-1">
-                </div>
-                <div>
-                    <label class="figma-sa-label">Description</label>
-                    <textarea name="description" rows="3" placeholder="Description" class="figma-input mt-1"></textarea>
-                </div>
-                <label class="inline-flex items-center gap-2 cursor-pointer">
-                    <input type="hidden" name="is_active" value="0">
-                    <input type="checkbox" name="is_active" value="1" checked class="figma-sa-checkbox rounded">
-                    <span class="text-sm text-[#d9d9d9]">Active</span>
-                </label>
-                <button class="figma-sa-btn figma-sa-btn-primary w-full">Create</button>
-            </form>
-        </x-super-admin.card>
 
-        {{-- Forms outside the table --}}
+@section('content')
+@php
+    $query = request()->except(['page']);
+    $statusLabel = match (request('status')) {
+        'active' => 'Active',
+        'inactive' => 'Deactivate',
+        default => 'All Products',
+    };
+    $typeLabel = request('type') ? ucfirst(request('type')) : 'All Types';
+    $productsMap = $products->getCollection()->mapWithKeys(fn ($p) => [
+        $p->id => [
+            'id' => $p->id,
+            'name' => $p->name,
+            'description' => $p->description,
+            'type' => $p->settings['type'] ?? 'tracking',
+            'is_active' => (bool) $p->is_active,
+            'usage_limits' => $p->settings['usage_limits'] ?? '',
+        ],
+    ]);
+@endphp
+
+<x-super-admin.page title="SaaS Products">
+    <div
+        class="figma-sa-products"
+        x-data="{
+            createOpen: false,
+            editOpen: false,
+            limitsOpen: false,
+            editingId: null,
+            products: @js($productsMap),
+            get editing() { return this.editingId ? this.products[this.editingId] : null; },
+            openEdit(id) { this.editingId = id; this.editOpen = true; },
+            openLimits(id) { this.editingId = id; this.limitsOpen = true; },
+        }"
+        @edit-product.window="openEdit($event.detail.id)"
+        @limits-product.window="openLimits($event.detail.id)"
+    >
+        <form method="GET" action="{{ route('super-admin.products.index') }}" class="figma-sa-users-toolbar figma-sa-products-toolbar" id="products-filter-form">
+            <input type="hidden" name="status" id="filter-product-status" value="{{ request('status') }}">
+            <input type="hidden" name="type" id="filter-product-type" value="{{ request('type') }}">
+
+            <div class="figma-sa-users-search-wrap">
+                <svg class="figma-sa-users-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="search" name="search" value="{{ request('search') }}" placeholder="Search product" class="figma-sa-users-search-input" autocomplete="off">
+            </div>
+
+            <x-super-admin.dashboard-dropdown align="left">
+                <x-slot:trigger>
+                    <button type="button" @click="open = !open" class="figma-sa-users-filter-btn">
+                        <span>{{ $statusLabel }}</span>
+                        <svg class="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                </x-slot:trigger>
+                <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value=''; document.getElementById('products-filter-form').submit();">All Products</button>
+                <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value='active'; document.getElementById('products-filter-form').submit();">Active</button>
+                <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value='inactive'; document.getElementById('products-filter-form').submit();">Desactivate</button>
+            </x-super-admin.dashboard-dropdown>
+
+            <x-super-admin.dashboard-dropdown align="left">
+                <x-slot:trigger>
+                    <button type="button" @click="open = !open" class="figma-sa-users-filter-btn">
+                        <span>{{ $typeLabel }}</span>
+                        <svg class="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                </x-slot:trigger>
+                <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-type').value=''; document.getElementById('products-filter-form').submit();">All Types</button>
+                @foreach ($productTypes as $type)
+                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-type').value='{{ $type }}'; document.getElementById('products-filter-form').submit();">{{ ucfirst($type) }}</button>
+                @endforeach
+            </x-super-admin.dashboard-dropdown>
+
+            <button type="button" @click="createOpen = true" class="figma-sa-users-invite-btn">
+                <span class="figma-sa-users-invite-icon" aria-hidden="true">+</span>
+                New Product
+            </button>
+        </form>
+
         @foreach ($products as $product)
-            <form id="product-form-{{ $product->id }}" method="POST" action="{{ route('super-admin.products.update', $product) }}" class="hidden">
+            <form id="product-toggle-{{ $product->id }}" method="POST" action="{{ route('super-admin.products.update', $product) }}" class="hidden">
                 @csrf
                 @method('PUT')
-            </form>
-            <form id="product-archive-{{ $product->id }}" method="POST" action="{{ route('super-admin.products.destroy', $product) }}" class="hidden" onsubmit="return confirm('Archive this product?')">
-                @csrf
-                @method('DELETE')
+                <input type="hidden" name="name" value="{{ $product->name }}">
+                <input type="hidden" name="description" value="{{ $product->description }}">
+                <input type="hidden" name="type" value="{{ $product->settings['type'] ?? 'tracking' }}">
+                <input type="hidden" name="is_active" value="0">
             </form>
         @endforeach
 
-        <x-super-admin.card class="!p-0 overflow-hidden xl:col-span-2">
-            <div class="overflow-x-auto">
-                <table class="figma-sa-table min-w-full">
+        <div class="figma-sa-products-table-shell">
+            <div class="figma-sa-table-scroll">
+                <table class="figma-sa-products-table">
                     <thead>
                         <tr>
-                            <th>Product</th>
-                            <th>Plans</th>
-                            <th>Visible</th>
-                            <th>Actions</th>
+                            <th class="w-10"><input type="checkbox" class="figma-sa-users-checkbox" aria-label="Select all"></th>
+                            <th>User</th>
+                            <th>Plan Rulers</th>
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($products as $product)
-                            @php $fid = 'product-form-'.$product->id; $aid = 'product-archive-'.$product->id; @endphp
+                            @php
+                                $active = (bool) $product->is_active;
+                                $subtitle = $product->description ?: $product->slug;
+                                $planLines = $product->plans->isNotEmpty()
+                                    ? $product->plans->pluck('name')->take(3)
+                                    : collect([$product->plans_count.' plan(s)']);
+                            @endphp
                             <tr>
-                                <td class="align-middle">
-                                    <div class="space-y-2">
-                                        <input form="{{ $fid }}" name="name" value="{{ $product->name }}" class="figma-input">
-                                        <input form="{{ $fid }}" name="description" value="{{ $product->description }}" class="figma-input">
+                                <td><input type="checkbox" class="figma-sa-users-checkbox border-[#1a1a1a]" aria-label="Select {{ $product->name }}"></td>
+                                <td>
+                                    <div class="figma-sa-products-usercell">
+                                        <x-super-admin.product-icon />
+                                        <span>
+                                            <span class="figma-sa-products-name">{{ $product->name }}</span>
+                                            <span class="figma-sa-products-sub">{{ $subtitle }}</span>
+                                            <span class="figma-sa-products-sub">{{ $product->slug }}</span>
+                                        </span>
                                     </div>
                                 </td>
-                                <td class="align-middle">
-                                    <span class="figma-sa-pill figma-sa-pill-neutral">{{ $product->plans_count }}</span>
+                                <td class="figma-sa-products-plans">
+                                    @foreach ($planLines as $line)
+                                        <span>{{ $line }}</span>
+                                    @endforeach
                                 </td>
-                                <td class="align-middle">
-                                    <input form="{{ $fid }}" type="hidden" name="is_active" value="0">
-                                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                                        <input form="{{ $fid }}" type="checkbox" name="is_active" value="1" @checked($product->is_active) class="figma-sa-checkbox rounded">
-                                        <span class="text-sm text-[#d9d9d9]">Active</span>
-                                    </label>
-                                </td>
-                                <td class="align-middle">
-                                    <div class="flex items-center gap-2">
-                                        <button form="{{ $fid }}" type="submit" class="figma-sa-btn figma-sa-btn-primary !px-3 !py-2 text-xs">Save</button>
-                                        <button form="{{ $aid }}" type="submit" class="figma-sa-btn figma-sa-btn-danger !px-3 !py-2 text-xs">Archive</button>
+                                <td>
+                                    <div class="figma-sa-products-status-cell">
+                                        <span @class(['figma-sa-products-status-badge', 'figma-sa-products-status-badge--active' => $active, 'figma-sa-products-status-badge--off' => ! $active])>
+                                            @if ($active)
+                                                <span class="figma-sa-products-status-dot" aria-hidden="true"></span>
+                                            @endif
+                                            {{ $active ? 'Active' : 'Deactivate' }}
+                                        </span>
+                                        <form method="POST" action="{{ route('super-admin.products.update', $product) }}" class="inline-flex">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="name" value="{{ $product->name }}">
+                                            <input type="hidden" name="description" value="{{ $product->description }}">
+                                            <input type="hidden" name="type" value="{{ $product->settings['type'] ?? 'tracking' }}">
+                                            <input type="hidden" name="is_active" value="{{ $active ? '1' : '0' }}">
+                                            <x-figma-toggle
+                                                :checked="$active"
+                                                label-on="Active"
+                                                label-off="Off"
+                                                onchange="const f=this.closest('form'); const h=f.querySelector('[name=is_active]'); h.value=this.checked?'1':'0'; f.submit();"
+                                            />
+                                        </form>
                                     </div>
+                                </td>
+                                <td class="text-right">
+                                    <x-super-admin.product-action-menu :product="$product" />
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="px-4 py-12 text-center text-[#a9a9a9]">No products yet.</td></tr>
+                            <tr>
+                                <td colspan="5" class="figma-sa-products-empty">No products yet. Click <strong>New Product</strong> to add one.</td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            <div class="figma-sa-pagination px-4 py-3">{{ $products->links() }}</div>
-        </x-super-admin.card>
+
+            <div class="figma-sa-users-pagination figma-sa-products-pagination">
+                <p class="figma-sa-users-pagination-meta">
+                    @if ($products->total())
+                        Showing {{ $products->firstItem() }}–{{ $products->lastItem() }} of {{ $products->total() }}
+                    @else
+                        Showing 0 of 0
+                    @endif
+                </p>
+                <div class="figma-sa-users-pagination-controls">
+                    <form method="GET" class="flex items-center gap-2">
+                        @foreach (request()->except(['per_page', 'page']) as $key => $val)
+                            <input type="hidden" name="{{ $key }}" value="{{ $val }}">
+                        @endforeach
+                        <select name="per_page" class="figma-sa-users-perpage-select" onchange="this.form.submit()">
+                            @foreach ([10, 25, 50] as $n)
+                                <option value="{{ $n }}" @selected($perPage === $n)>{{ $n }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                    @if ($products->hasPages())
+                        <div class="figma-sa-users-page-btns">
+                            @if ($products->onFirstPage())
+                                <span class="figma-sa-users-page-btn figma-sa-users-page-btn--disabled">&lt;</span>
+                            @else
+                                <a href="{{ $products->previousPageUrl() }}" class="figma-sa-users-page-btn">&lt;</a>
+                            @endif
+                            <span class="figma-sa-users-page-btn figma-sa-users-page-btn--current">{{ $products->currentPage() }}</span>
+                            @if ($products->hasMorePages())
+                                <a href="{{ $products->nextPageUrl() }}" class="figma-sa-users-page-btn">&gt;</a>
+                            @else
+                                <span class="figma-sa-users-page-btn figma-sa-users-page-btn--disabled">&gt;</span>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        {{-- New product modal --}}
+        <div x-show="createOpen" x-cloak class="figma-sa-users-modal-backdrop" @keydown.escape.window="createOpen = false">
+            <div class="figma-sa-users-modal" @click.outside="createOpen = false" role="dialog">
+                <button type="button" class="figma-sa-users-modal-close" @click="createOpen = false">&times;</button>
+                <h2 class="figma-sa-users-modal-title">New Product</h2>
+                <p class="figma-sa-users-modal-sub">Add a SaaS product module (tracking, automation, or analytics).</p>
+                <form method="POST" action="{{ route('super-admin.products.store') }}" class="mt-5 space-y-4">
+                    @csrf
+                    <div>
+                        <label class="figma-sa-label">Name</label>
+                        <input name="name" required class="figma-input mt-1 w-full" placeholder="Product name">
+                    </div>
+                    <div>
+                        <label class="figma-sa-label">Description</label>
+                        <textarea name="description" rows="2" class="figma-input mt-1 w-full" placeholder="Short description"></textarea>
+                    </div>
+                    <div>
+                        <label class="figma-sa-label">Type</label>
+                        <select name="type" class="figma-select mt-1 w-full">
+                            @foreach ($productTypes as $type)
+                                <option value="{{ $type }}">{{ ucfirst($type) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="hidden" name="is_active" value="0">
+                        <input type="checkbox" name="is_active" value="1" checked class="figma-sa-checkbox rounded">
+                        <span class="text-sm text-[#d9d9d9]">Active on create</span>
+                    </label>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="createOpen = false">Cancel</button>
+                        <button type="submit" class="figma-sa-btn figma-sa-btn-primary">Create product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {{-- Edit product modal --}}
+        <div x-show="editOpen" x-cloak class="figma-sa-users-modal-backdrop">
+            <div class="figma-sa-users-modal" @click.outside="editOpen = false" role="dialog">
+                <button type="button" class="figma-sa-users-modal-close" @click="editOpen = false">&times;</button>
+                <h2 class="figma-sa-users-modal-title">View / Edit Product</h2>
+                <template x-if="editing">
+                    <form :action="`{{ url('super-admin/products') }}/${editing.id}`" method="POST" class="mt-5 space-y-4">
+                        @csrf
+                        @method('PUT')
+                        <div>
+                            <label class="figma-sa-label">Name</label>
+                            <input name="name" required class="figma-input mt-1 w-full" x-model="editing.name">
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Description</label>
+                            <textarea name="description" rows="2" class="figma-input mt-1 w-full" x-model="editing.description"></textarea>
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Type</label>
+                            <select name="type" class="figma-select mt-1 w-full" x-model="editing.type">
+                                @foreach ($productTypes as $type)
+                                    <option value="{{ $type }}">{{ ucfirst($type) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <label class="inline-flex items-center gap-2">
+                            <input type="hidden" name="is_active" value="0">
+                            <input type="checkbox" name="is_active" value="1" class="figma-sa-checkbox rounded" x-model="editing.is_active">
+                            <span class="text-sm text-[#d9d9d9]">Active</span>
+                        </label>
+                        <div class="flex justify-end gap-3 pt-2">
+                            <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="editOpen = false">Cancel</button>
+                            <button type="submit" class="figma-sa-btn figma-sa-btn-primary">Save changes</button>
+                        </div>
+                    </form>
+                </template>
+            </div>
+        </div>
+
+        {{-- Usage limits modal --}}
+        <div x-show="limitsOpen" x-cloak class="figma-sa-users-modal-backdrop">
+            <div class="figma-sa-users-modal" @click.outside="limitsOpen = false" role="dialog">
+                <button type="button" class="figma-sa-users-modal-close" @click="limitsOpen = false">&times;</button>
+                <h2 class="figma-sa-users-modal-title">Edit Usage Limits</h2>
+                <p class="figma-sa-users-modal-sub">Define limits for events, domains, or API calls (stored in product settings).</p>
+                <template x-if="editing">
+                    <form :action="`{{ url('super-admin/products') }}/${editing.id}`" method="POST" class="mt-5 space-y-4">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="name" x-bind:value="editing.name">
+                        <input type="hidden" name="description" x-bind:value="editing.description">
+                        <input type="hidden" name="type" x-bind:value="editing.type">
+                        <input type="hidden" name="is_active" x-bind:value="editing.is_active ? 1 : 0">
+                        <div>
+                            <label class="figma-sa-label">Usage limits (JSON or notes)</label>
+                            <textarea name="usage_limits" rows="5" class="figma-input mt-1 w-full font-mono text-xs" x-model="editing.usage_limits" placeholder='{"events_per_month": 10000}'></textarea>
+                        </div>
+                        <div class="flex justify-end gap-3 pt-2">
+                            <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="limitsOpen = false">Cancel</button>
+                            <button type="submit" class="figma-sa-btn figma-sa-btn-primary">Save limits</button>
+                        </div>
+                    </form>
+                </template>
+            </div>
+        </div>
     </div>
 </x-super-admin.page>
 @endsection

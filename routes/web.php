@@ -86,6 +86,7 @@ Route::middleware(['auth', 'super-admin'])
         Route::delete('/users/{user}', [SuperAdminUsersController::class, 'destroy'])->name('users.destroy');
         Route::post('/users/{user}/impersonate', [SuperAdminUsersController::class, 'impersonate'])->name('users.impersonate');
         Route::resource('products', SuperAdminProductsController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::post('/products/{product}/duplicate', [SuperAdminProductsController::class, 'duplicate'])->name('products.duplicate');
         Route::resource('plans', SuperAdminPlansController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::get('/subscriptions', [SuperAdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
         Route::put('/subscriptions/{subscription}', [SuperAdminSubscriptionsController::class, 'update'])->name('subscriptions.update');

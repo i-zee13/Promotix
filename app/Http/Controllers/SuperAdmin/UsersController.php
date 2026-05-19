@@ -19,16 +19,34 @@ use Illuminate\View\View;
 
 class UsersController extends Controller
 {
+    /** @var list<string> */
+    private const TEAM_COLUMNS = [
+        'Chat Support',
+        'Support',
+        'Sales Team',
+        'Marketing',
+        'Development',
+        'Design Team',
+    ];
+
     public function index(Request $request): View
     {
-        $users = User::query()
+        $perPage = in_array((int) $request->input('per_page'), [10, 25, 50], true)
+            ? (int) $request->input('per_page')
+            : 10;
+
+        $tab = $request->string('tab')->toString() === 'teams' ? 'teams' : 'users';
+
+        $baseQuery = User::query()
             ->with(['role', 'domains'])
             ->when($request->string('search')->toString(), function ($query, string $search): void {
                 $query->where(function ($q) use ($search): void {
                     $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->when($request->string('status')->toString(), fn ($query, string $status) => $query->where('status', $status))
+            ->when($request->string('status')->toString(), function ($query, string $status): void {
+                $query->where('status', $this->resolveStatusFilter($status));
+            })
             ->when($request->filled('verified'), function ($query) use ($request): void {
                 if ($request->boolean('verified')) {
                     $query->whereNotNull('email_verified_at');
@@ -42,8 +60,24 @@ class UsersController extends Controller
                         ->whereHas('plan', fn ($pq) => $pq->where('slug', $planSlug));
                 });
             })
+            ->when($request->string('role')->toString(), function ($query, string $role): void {
+                if ($role === 'admin') {
+                    $query->where('is_admin', true);
+
+                    return;
+                }
+                if ($role === 'super-admin') {
+                    $query->where('is_super_admin', true);
+
+                    return;
+                }
+                $query->whereHas('role', fn ($rq) => $rq->where('slug', $role)->orWhere('id', $role));
+            })
+            ->when($request->filled('date'), fn ($query) => $query->whereDate('created_at', $request->date('date')));
+
+        $users = (clone $baseQuery)
             ->latest('id')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         $userIds = $users->pluck('id')->all();
@@ -66,12 +100,58 @@ class UsersController extends Controller
             return $user;
         });
 
+        $teamUsers = (clone $baseQuery)->latest('id')->limit(120)->get();
+        $teamsBoard = collect(self::TEAM_COLUMNS)->mapWithKeys(function (string $column) use ($teamUsers) {
+            return [
+                $column => $teamUsers->filter(fn (User $user) => $this->resolveTeamColumn($user) === $column)->values(),
+            ];
+        });
+
+        $filterStatuses = [
+            ['value' => '', 'label' => 'All Statuses', 'tone' => 'all'],
+            ['value' => 'active', 'label' => 'Active', 'tone' => 'active'],
+            ['value' => 'suspended', 'label' => 'Suspended', 'tone' => 'suspended'],
+            ['value' => 'blocked', 'label' => 'Block', 'tone' => 'blocked'],
+            ['value' => 'deactivated', 'label' => 'Deactivate', 'tone' => 'deactivated'],
+            ['value' => 'expiry', 'label' => 'Expiry', 'tone' => 'expiry'],
+            ['value' => 'banned', 'label' => 'Ban', 'tone' => 'ban'],
+        ];
+
         return view('super-admin.users.index', [
             'users' => $users,
             'roles' => Role::orderBy('name')->get(),
             'statuses' => ['active', 'suspended', 'pending', 'banned'],
+            'filterStatuses' => $filterStatuses,
             'plans' => Plan::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'slug']),
+            'tab' => $tab,
+            'teamsBoard' => $teamsBoard,
+            'teamColumns' => self::TEAM_COLUMNS,
+            'perPage' => $perPage,
         ]);
+    }
+
+    private function resolveStatusFilter(string $status): string
+    {
+        return match ($status) {
+            'blocked' => 'banned',
+            'deactivated' => 'suspended',
+            'expiry' => 'pending',
+            default => $status,
+        };
+    }
+
+    private function resolveTeamColumn(User $user): string
+    {
+        $roleName = strtolower((string) ($user->role?->name ?? ''));
+
+        foreach (self::TEAM_COLUMNS as $column) {
+            $needle = strtolower(str_replace(' ', '', $column));
+            if ($roleName !== '' && str_contains(str_replace(' ', '', $roleName), $needle)) {
+                return $column;
+            }
+        }
+
+        return self::TEAM_COLUMNS[$user->id % count(self::TEAM_COLUMNS)];
     }
 
     public function show(User $user): View
