@@ -118,10 +118,24 @@
                                         @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[15px] w-[15px]'])
                                         Audience Exclusion
                                     </a>
-                                    <a href="{{ route('integrations.google.redirect') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[12px] font-normal text-[#6706B3]">
-                                        <span class="flex h-[17px] w-[17px] items-center justify-center rounded-full border border-[#6706B3] text-[12px]">+</span>
-                                        Acc Account
-                                    </a>
+                                    @if ($googleConnected && ($primaryConnection = $connections->first()))
+                                        <form method="POST" action="{{ route('integrations.google.sync-accounts', $primaryConnection) }}">
+                                            @csrf
+                                            <button type="submit" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[12px] font-normal text-[#6706B3] hover:bg-white/90">
+                                                <svg class="h-[14px] w-[14px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                                Sync Ads
+                                            </button>
+                                        </form>
+                                        <a href="{{ route('integrations.google.redirect') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white/60 bg-transparent px-[9px] text-[11px] font-normal text-white/90 hover:border-white">
+                                            <span class="text-[12px]">+</span>
+                                            Add Google login
+                                        </a>
+                                    @else
+                                        <a href="{{ route('integrations.google.redirect') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[12px] font-normal text-[#6706B3]">
+                                            <span class="flex h-[17px] w-[17px] items-center justify-center rounded-full border border-[#6706B3] text-[12px]">+</span>
+                                            Connect Google
+                                        </a>
+                                    @endif
                                 </div>
                             </div>
                             <span class="text-[24px] leading-none text-white">...</span>
@@ -193,6 +207,26 @@
             </div>
         </div>
 
+        @if ($googleConnected && $accounts->isEmpty())
+            <div class="mt-[14px] rounded-[8px] border border-amber-300/40 bg-amber-500/15 px-[14px] py-[10px] text-[13px] text-amber-100">
+                Google is connected. Click <strong class="text-white">Sync Ads</strong> on the Google card above to pull your Google Ads accounts into the list below.
+            </div>
+        @endif
+
+        @if ($accounts->isNotEmpty())
+            <section class="mt-[14px] rounded-[10px] border border-white/25 bg-[#6400B2]/40 p-[12px]">
+                <p class="mb-[8px] text-[13px] font-semibold text-white">Synced Google Ads accounts ({{ $accounts->count() }})</p>
+                <ul class="flex flex-wrap gap-[8px]">
+                    @foreach ($accounts as $account)
+                        <li class="rounded-[5px] bg-white/15 px-[10px] py-[6px] text-[12px] text-white">
+                            {{ $account->account_name ?: $account->display_customer_id ?: $account->customer_id }}
+                            <span class="text-white/60">({{ $account->display_customer_id ?: $account->customer_id }})</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
         <section class="mt-[20px] rounded-[10px] border border-[#6706B3] p-[16px]">
             <div class="mb-[26px]">
                 <h2 class="text-[24px] font-medium text-white">Connected Platforms</h2>
@@ -246,7 +280,7 @@
                                         Google
                                     </span>
                                 </td>
-                                <td class="px-[22px] py-[10px] text-[12px]">{{ $mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion' }}</td>
+                                <td class="px-[22px] py-[10px] text-[10px]">{{ $mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion' }}</td>
                                 <td class="px-[22px] py-[10px] text-[12px]">{{ $mapping->account->display_customer_id ?: $mapping->account->customer_id }}</td>
                                 <td class="px-[22px] py-[10px] text-[12px]">{{ $mapping->domain->hostname }}</td>
                                 <td class="px-[22px] py-[10px] text-[12px] font-medium text-[#6706B3]">

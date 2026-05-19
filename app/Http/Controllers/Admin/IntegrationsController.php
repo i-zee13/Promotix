@@ -206,25 +206,25 @@ class IntegrationsController extends Controller
         $headers = [
             'Authorization' => 'Bearer ' . $accessToken,
             'developer-token' => $developerToken,
+            'Accept' => 'application/json',
         ];
 
-        $loginCustomerId = (string) config('services.google_ads.login_customer_id');
-        if ($loginCustomerId !== '') {
-            $headers['login-customer-id'] = preg_replace('/\D+/', '', $loginCustomerId);
-        }
+        // login-customer-id is used for per-customer calls below, not listAccessibleCustomers.
+        $loginCustomerId = preg_replace('/\D+/', '', (string) config('services.google_ads.login_customer_id'));
 
         $versions = $this->googleAdsApiVersions();
         $usedVersion = null;
         $listRes = null;
+        $attemptedVersions = [];
 
         foreach ($versions as $version) {
             $usedVersion = $version;
-            // REST spec: GET https://googleads.googleapis.com/v{VERSION}/customers:listAccessibleCustomers
+            $attemptedVersions[] = $version;
+            // REST: GET https://googleads.googleapis.com/v{VERSION}/customers:listAccessibleCustomers
             $listRes = Http::timeout(20)
                 ->withHeaders($headers)
                 ->get($this->googleAdsUrl($version, 'customers:listAccessibleCustomers'));
 
-            // Keep trying other versions only if endpoint itself is not found.
             if ($listRes->status() !== 404) {
                 break;
             }
@@ -242,15 +242,29 @@ class IntegrationsController extends Controller
 
         if (! $listRes || ! $listRes->successful()) {
             $reason = $this->extractApiError($listRes);
+            $all404 = $listRes && $listRes->status() === 404;
             Log::warning('Google Ads listAccessibleCustomers failed', [
                 'user_id' => $request->user()->id,
                 'connection_id' => $connection->id,
                 'status' => $listRes?->status(),
                 'version_tried' => $usedVersion,
-                'versions' => $versions,
+                'versions_configured' => $versions,
+                'versions_attempted' => $attemptedVersions,
                 'body' => $listRes ? Str::limit($listRes->body(), 2000) : null,
             ]);
+
+            if ($all404) {
+                return back()->with('status', 'Google Ads API version not found. Set GOOGLE_ADS_API_VERSIONS=v24,v23,v22,v21,v20 in .env, run php artisan config:clear, then sync again.');
+            }
+
             return back()->with('status', 'Google Ads account listing failed: ' . str($reason)->limit(220));
+        }
+
+        $detailHeaders = array_merge($headers, [
+            'Content-Type' => 'application/json',
+        ]);
+        if ($loginCustomerId !== '') {
+            $detailHeaders['login-customer-id'] = $loginCustomerId;
         }
 
         $resources = (array) ($listRes->json('resourceNames') ?? []);
@@ -269,7 +283,7 @@ class IntegrationsController extends Controller
             $isManager = false;
 
             $detailRes = Http::timeout(20)
-                ->withHeaders($headers)
+                ->withHeaders($detailHeaders)
                 ->post($this->googleAdsUrl((string) $usedVersion, "customers/{$customerId}/googleAds:searchStream"), [
                     'query' => 'SELECT customer.id, customer.descriptive_name, customer.manager FROM customer LIMIT 1',
                 ]);
@@ -448,14 +462,16 @@ class IntegrationsController extends Controller
 
     private function googleAdsApiVersions(): array
     {
-        $configured = trim((string) env('GOOGLE_ADS_API_VERSIONS', 'v19,v18'));
+        $configured = trim((string) config('services.google_ads.api_versions', 'v24,v23,v22,v21,v20'));
         $versions = collect(explode(',', $configured))
             ->map(fn ($v) => trim($v))
             ->filter()
             ->values()
             ->all();
 
-        return ! empty($versions) ? $versions : ['v19', 'v18'];
+        $fallback = ['v24', 'v23', 'v22', 'v21', 'v20'];
+
+        return ! empty($versions) ? $versions : $fallback;
     }
 
     private function googleAdsUrl(string $version, string $path): string

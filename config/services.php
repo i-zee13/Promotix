@@ -55,6 +55,8 @@ return [
         'redirect_uri' => env('GOOGLE_ADS_REDIRECT_URI'),
         'developer_token' => env('GOOGLE_ADS_DEVELOPER_TOKEN'),
         'login_customer_id' => env('GOOGLE_ADS_LOGIN_CUSTOMER_ID'),
+        // Comma-separated; newest first. v18/v19 return HTTP 404 (retired).
+        'api_versions' => env('GOOGLE_ADS_API_VERSIONS', 'v24,v23,v22,v21,v20'),
     ],
 
 ];
