@@ -282,4 +282,24 @@ Route::middleware(['auth', 'admin'])
         Route::post('/tickets/{id}/close', [AdminOperationsApiController::class, 'closeTicket'])->name('tickets.close');
     });
 
+/*
+| Fallback for branding assets when the web server does not map /public correctly.
+*/
+Route::get('/images/{filename}', function (string $filename) {
+    $safe = basename($filename);
+    $path = public_path('images/' . $safe);
+    abort_unless(is_file($path), 404);
+
+    return response()->file($path, [
+        'Content-Type' => match (strtolower(pathinfo($safe, PATHINFO_EXTENSION))) {
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'svg' => 'image/svg+xml',
+            'webp' => 'image/webp',
+            default => 'application/octet-stream',
+        },
+        'Cache-Control' => 'public, max-age=604800',
+    ]);
+})->where('filename', '[a-zA-Z0-9._-]+');
+
 require __DIR__.'/auth.php';

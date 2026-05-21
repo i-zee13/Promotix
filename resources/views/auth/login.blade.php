@@ -3,7 +3,7 @@
 @section('content')
 <x-auth.card innerWidth="max-w-md" minHeight="min-h-[520px]">
     <div class="mb-6 flex justify-center">
-        <x-brand variant="purple" :height="44" />
+        <x-brand :height="44" />
     </div>
 
     <form method="POST" action="{{ route('login') }}" class="space-y-5" x-data="{ showPwd: false }">
@@ -18,7 +18,7 @@
                     </svg>
                 </div>
                 <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="E-mail"
-                    class="w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
+                    class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
             </div>
             @error('email')
                 <p class="mt-1.5 text-sm text-red-200">{{ $message }}</p>
@@ -34,7 +34,7 @@
                     </svg>
                 </div>
                 <input id="password" name="password" :type="showPwd ? 'text' : 'password'" required autocomplete="current-password" placeholder="password"
-                    class="w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-12 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
+                    class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-12 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
                 <button type="button" @click="showPwd = !showPwd"
                     class="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-md text-white/85 hover:text-white"
                     :aria-label="showPwd ? 'Hide password' : 'Show password'">

@@ -117,8 +117,7 @@
                         @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
                     </a>
                 </div>
-                <img src="{{ asset('images/logo.png') }}" alt="Digital Promotix" class="figma-sidebar-logo figma-sidebar-logo-dark mx-auto h-[48px] w-[118px] object-contain">
-                <img src="{{ asset('images/logo.png') }}" alt="" aria-hidden="true" class="figma-sidebar-logo figma-sidebar-logo-light mx-auto hidden h-[48px] w-[118px] object-contain">
+                @include('partials.sidebar-logo')
             </footer>
         </div>
     </aside>

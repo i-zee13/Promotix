@@ -1145,11 +1145,6 @@
     background: transparent;
 }
 
-/* legacy single-logo class — prefer figma-sidebar-logo-dark / -light */
-.figma-sidebar-logo:not(.figma-sidebar-logo-dark):not(.figma-sidebar-logo-light) {
-    filter: brightness(0) invert(1);
-}
-
 .figma-sidebar-settings {
     color: rgba(255, 255, 255, 0.75);
 }
@@ -1225,24 +1220,13 @@
 }
 
 /* Logo: dark = white (inverted), light = original blue/purple brand */
-.figma-sidebar-logo-dark {
+.figma-sidebar-logo {
     display: block;
-    filter: brightness(0) invert(1);
-    opacity: 0.95;
-}
-
-.figma-sidebar-logo-light {
-    display: none;
-    filter: none;
+    max-width: 100%;
+    height: auto;
     opacity: 1;
-}
-
-.light-mode .figma-sidebar-logo-dark {
-    display: none !important;
-}
-
-.light-mode .figma-sidebar-logo-light {
-    display: block !important;
+    /* Logo PNG already has black canvas + brand colors — do not invert */
+    filter: none;
 }
 
 .light-mode .figma-sidebar-settings {
@@ -1314,6 +1298,86 @@
 .light-mode [class*='bg-[#6400B2]'] .text-white,
 .light-mode .is-active,
 .light-mode .is-active span {
+    color: #ffffff !important;
+}
+
+/* ---------- Browser autofill: keep designed field colors (all inputs) ---------- */
+.figma-body,
+.brand-page,
+body {
+    --promotix-autofill-bg: #101010;
+    --promotix-autofill-text: #ffffff;
+}
+
+html.light-mode,
+html.light-mode .figma-body {
+    --promotix-autofill-bg: #ffffff;
+    --promotix-autofill-text: #2d2d3a;
+}
+
+.auth-card-panel {
+    --promotix-autofill-bg: rgba(77, 0, 142, 0.6);
+    --promotix-autofill-text: #ffffff;
+}
+
+.figma-detection-right,
+.figma-detection-card {
+    --promotix-autofill-bg: #101010;
+    --promotix-autofill-text: #ffffff;
+}
+
+.figma-filter-control {
+    --promotix-autofill-bg: #101010;
+    --promotix-autofill-text: #8c8787;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--promotix-autofill-bg) inset !important;
+    box-shadow: 0 0 0 1000px var(--promotix-autofill-bg) inset !important;
+    -webkit-text-fill-color: var(--promotix-autofill-text) !important;
+    color: var(--promotix-autofill-text) !important;
+    caret-color: var(--promotix-autofill-text);
+    border-radius: inherit;
+    transition: background-color 99999s ease-in-out 0s, color 99999s ease-in-out 0s;
+}
+
+input:autofill,
+textarea:autofill,
+select:autofill {
+    box-shadow: 0 0 0 1000px var(--promotix-autofill-bg) inset !important;
+    -webkit-text-fill-color: var(--promotix-autofill-text) !important;
+    color: var(--promotix-autofill-text) !important;
+    caret-color: var(--promotix-autofill-text);
+}
+
+.auth-card-panel input:-webkit-autofill,
+.auth-card-panel input:-webkit-autofill:hover,
+.auth-card-panel input:-webkit-autofill:focus,
+.auth-card-panel textarea:-webkit-autofill,
+.auth-card-panel select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px rgba(77, 0, 142, 0.6) inset !important;
+    box-shadow: 0 0 0 1000px rgba(77, 0, 142, 0.6) inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    color: #ffffff !important;
+    caret-color: #ffffff;
+}
+
+.light-mode .figma-detection-right input:-webkit-autofill,
+.light-mode .figma-detection-card input:-webkit-autofill,
+.light-mode .figma-detection-right textarea:-webkit-autofill,
+.light-mode .figma-detection-card textarea:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px #101010 inset !important;
+    box-shadow: 0 0 0 1000px #101010 inset !important;
+    -webkit-text-fill-color: #ffffff !important;
     color: #ffffff !important;
 }
 

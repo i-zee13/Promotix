@@ -9,15 +9,18 @@
 ])
 
 @php
-    $filterClass = $variant === 'purple' ? 'brightness-0 invert' : '';
+    $logoPath = public_path('images/logo.png');
+    $logoUrl = url('/images/logo.png') . (is_file($logoPath) ? '?v=' . filemtime($logoPath) : '');
+    // Logo file includes its own black canvas — never invert on auth/purple backgrounds.
+    $filterClass = '';
 @endphp
 
 <a href="{{ url('/') }}" {{ $attributes->class(['inline-flex items-center gap-2']) }} aria-label="{{ config('app.name', 'Promotix') }}">
     <img
-        src="{{ asset('images/logo.png') }}"
+        src="{{ $logoUrl }}"
         alt="{{ config('app.name', 'Promotix') }}"
         class="block w-auto {{ $filterClass }}"
-        style="height: 100px;"
+        style="height: {{ (int) $height }}px;"
         loading="eager"
         decoding="async"
     >

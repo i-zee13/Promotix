@@ -11,6 +11,7 @@
 --}}
 <div class="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-[#0D0D0D]">
     <div {{ $attributes->class([
+        'auth-card-panel',
         'w-full',
         $maxWidth,
         $minHeight,

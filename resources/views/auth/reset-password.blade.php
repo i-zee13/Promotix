@@ -3,7 +3,7 @@
 @section('content')
 <x-auth.card innerWidth="max-w-md" minHeight="min-h-[520px]">
     <div class="mb-6 flex justify-center">
-        <x-brand variant="purple" :height="40" />
+        <x-brand :height="40" />
     </div>
 
     <div class="flex flex-col items-center text-center">
@@ -43,7 +43,7 @@
                 required
                 autocomplete="username"
                 placeholder="E-mail"
-                class="w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
+                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
             >
         </div>
 
@@ -61,7 +61,7 @@
                 required
                 autocomplete="new-password"
                 placeholder="New password"
-                class="w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-12 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
+                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-12 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
             >
             <button type="button" @click="p1 = !p1" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/85 hover:text-white" aria-label="Toggle password visibility">
                 <svg x-show="!p1" class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
@@ -83,7 +83,7 @@
                 required
                 autocomplete="new-password"
                 placeholder="Confirm password"
-                class="w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-12 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
+                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-12 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
             >
             <button type="button" @click="p2 = !p2" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/85 hover:text-white" aria-label="Toggle password visibility">
                 <svg x-show="!p2" class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>

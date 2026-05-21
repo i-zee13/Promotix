@@ -3,7 +3,7 @@
 @section('content')
 <x-auth.card innerWidth="max-w-md" minHeight="min-h-[520px]">
     <div class="mb-6 flex justify-center">
-        <x-brand variant="purple" :height="40" />
+        <x-brand :height="40" />
     </div>
 
     <div class="flex flex-col items-center text-center">
@@ -49,7 +49,7 @@
                 required
                 autofocus
                 placeholder="E-mail"
-                class="w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
+                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
             >
         </div>
 

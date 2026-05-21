@@ -3,7 +3,7 @@
 @section('content')
 <x-auth.card innerWidth="max-w-md" minHeight="min-h-[520px]">
     <div class="mb-6 flex justify-center">
-        <x-brand variant="purple" :height="40" />
+        <x-brand :height="40" />
     </div>
 
     <div class="text-center">
@@ -61,7 +61,7 @@
                     maxlength="1"
                     autocomplete="one-time-code"
                     aria-label="Digit {{ $i + 1 }}"
-                    class="h-12 w-10 sm:h-14 sm:w-12 rounded-[10px] border border-white/30 bg-[#4D008E]/60 text-center text-xl font-bold text-white outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
+                    class="auth-field h-12 w-10 sm:h-14 sm:w-12 rounded-[10px] border border-white/30 bg-[#4D008E]/60 text-center text-xl font-bold text-white outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
                 >
             @endfor
         </div>
