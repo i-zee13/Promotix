@@ -21,6 +21,7 @@ class DomainManagementController extends Controller
         $search = trim((string) $request->query('q', ''));
         $domainLimit = (int) env('DOMAIN_LIMIT', 50);
         $domainsQuery = Domain::query()
+            ->select('domains.*')
             ->where('user_id', $request->user()->id)
             ->when($search !== '', fn ($q) => $q->where('hostname', 'like', '%' . $search . '%'))
             ->orderBy('hostname');

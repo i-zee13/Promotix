@@ -72,12 +72,12 @@
                                     @if ($d->tag_connected)
                                         <span class="inline-flex items-center gap-[6px] rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">
                                             Connected
-                                            <a href="{{ route('domains.setup', $d) }}" class="text-[#6400B2] hover:text-[#4a0088]" aria-label="Edit tag setup">
+                                            <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="text-[#6400B2] hover:text-[#4a0088]" aria-label="Edit tag setup">
                                                 <svg class="h-[12px] w-[12px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 16"/></svg>
                                             </a>
                                         </span>
                                     @else
-                                        <a href="{{ route('domains.setup', $d) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
+                                        <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
                                     @endif
                                 </td>
                                 <td class="px-[12px] py-[14px]">
@@ -95,7 +95,7 @@
                                         @if ($d->bot_mitigation_connected)
                                             <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
                                         @else
-                                            <a href="{{ route('domains.setup', $d) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
+                                            <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
                                         @endif
                                         <label class="inline-flex cursor-pointer items-center gap-[6px] text-[10px] text-[#d9d9d9]">
                                             <input type="checkbox" class="peer sr-only" @change="toggleMode({{ $d->id }}, $event.target.checked)" {{ $d->monitoring_only_mode ? 'checked' : '' }}>
