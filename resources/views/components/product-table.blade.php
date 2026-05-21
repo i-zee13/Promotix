@@ -44,9 +44,8 @@
                                     @endif
                                     {{ $product['status'] }}
                                 </span>
-                                {{-- Toggle switch (UI only) --}}
-                                <span class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full {{ $product['status'] === 'Active' ? 'bg-accent' : 'bg-gray-600' }}" role="presentation">
-                                    <span class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition {{ $product['status'] === 'Active' ? 'translate-x-5' : 'translate-x-1' }}"></span>
+                                <span class="figma-theme-toggle {{ $product['status'] === 'Active' ? 'figma-theme-toggle--on' : '' }} shrink-0" role="presentation" aria-hidden="true">
+                                    <span class="figma-toggle-track"><span class="figma-toggle-thumb"></span></span>
                                 </span>
                             </div>
                         </td>

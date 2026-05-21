@@ -109,8 +109,8 @@
                 <div class="figma-sidebar-controls mb-[6px] flex items-center justify-between gap-[8px]">
                     <div>
                         <span id="theme-toggle-label" class="figma-sidebar-theme-label mb-[3px] block text-[9px] leading-none">Dark Mode</span>
-                        <button id="theme-toggle" type="button" class="relative h-[22px] w-[46px] rounded-full bg-[#d9d9d9] p-[2px]" aria-label="Theme toggle">
-                            <span id="theme-toggle-knob" class="block h-[18px] w-[18px] rounded-full bg-[#6625F8] transition-transform duration-200"></span>
+                        <button id="theme-toggle" type="button" class="figma-theme-toggle" aria-label="Theme toggle">
+                            <span class="figma-toggle-track"><span class="figma-toggle-thumb"></span></span>
                         </button>
                     </div>
                     <a href="{{ route('profile.edit') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" aria-label="Settings">
@@ -284,7 +284,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarToggle = document.getElementById('figma-sidebar-toggle');
     const overlay = document.getElementById('figma-sidebar-overlay');
     const themeToggle = document.getElementById('theme-toggle');
-    const knob = document.getElementById('theme-toggle-knob');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     const sidebarKey = 'promotix-figma-sidebar-collapsed';
     const themeKey = 'promotix-theme';
@@ -312,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setTheme(theme) {
         document.documentElement.classList.toggle('light-mode', theme === 'light');
-        knob?.classList.toggle('translate-x-[24px]', theme === 'dark');
+        themeToggle?.classList.toggle('figma-theme-toggle--on', theme === 'dark');
         const label = document.getElementById('theme-toggle-label');
         if (label) label.textContent = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
         localStorage.setItem(themeKey, theme);

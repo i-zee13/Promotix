@@ -59,12 +59,12 @@
                 </div>
                 <label class="inline-flex items-center gap-2 self-end pb-1 cursor-pointer">
                     <input type="hidden" name="is_active" value="0">
-                    <input type="checkbox" name="is_active" value="1" checked class="figma-sa-checkbox rounded">
+                    <x-figma-toggle name="is_active" value="1" checked :show-labels="false" />
                     <span class="text-sm text-[#d9d9d9]">Active</span>
                 </label>
                 <label class="inline-flex items-center gap-2 self-end pb-1 cursor-pointer">
                     <input type="hidden" name="is_highlighted" value="0">
-                    <input type="checkbox" name="is_highlighted" value="1" class="figma-sa-checkbox rounded">
+                    <x-figma-toggle name="is_highlighted" value="1" :show-labels="false" />
                     <span class="text-sm text-[#d9d9d9]">Highlight</span>
                 </label>
                 <div class="lg:col-span-4">
@@ -149,7 +149,7 @@
                                         <input form="{{ $fid }}" name="cta_label" value="{{ $plan->cta_label }}" class="figma-input text-xs" placeholder="CTA">
                                         <input form="{{ $fid }}" type="hidden" name="is_highlighted" value="0">
                                         <label class="inline-flex items-center gap-2 cursor-pointer">
-                                            <input form="{{ $fid }}" type="checkbox" name="is_highlighted" value="1" @checked($plan->is_highlighted) class="figma-sa-checkbox rounded">
+                                            <x-figma-toggle form="{{ $fid }}" name="is_highlighted" value="1" :checked="$plan->is_highlighted" :show-labels="false" />
                                             <span class="text-xs text-[#d9d9d9]">Highlight card</span>
                                         </label>
                                     </div>
@@ -166,11 +166,11 @@
                                     <input form="{{ $fid }}" type="hidden" name="is_custom" value="0">
                                     <div class="space-y-2">
                                         <label class="inline-flex items-center gap-2 cursor-pointer">
-                                            <input form="{{ $fid }}" type="checkbox" name="is_active" value="1" @checked($plan->is_active) class="figma-sa-checkbox rounded">
+                                            <x-figma-toggle form="{{ $fid }}" name="is_active" value="1" :checked="$plan->is_active" :show-labels="false" />
                                             <span class="text-sm text-[#d9d9d9]">Active</span>
                                         </label>
                                         <label class="inline-flex items-center gap-2 cursor-pointer">
-                                            <input form="{{ $fid }}" type="checkbox" name="is_custom" value="1" @checked($plan->is_custom) class="figma-sa-checkbox rounded">
+                                            <x-figma-toggle form="{{ $fid }}" name="is_custom" value="1" :checked="$plan->is_custom" :show-labels="false" />
                                             <span class="text-sm text-[#d9d9d9]">Custom</span>
                                         </label>
                                     </div>

@@ -133,11 +133,11 @@
                 </label>
                 <div class="flex flex-col justify-end gap-[6px]">
                     <label class="inline-flex items-center gap-[8px] text-white">
-                        <input type="checkbox" x-model="filters.only_invalid" @change="reload(true)" class="rounded border-white/30 bg-[#101010] text-[#6400B2]">
+                        <x-figma-toggle x-model="filters.only_invalid" @change="reload(true)" :show-labels="false" />
                         Only invalid
                     </label>
                     <label class="inline-flex items-center gap-[8px] text-white">
-                        <input type="checkbox" x-model="filters.only_paid" @change="reload(true)" class="rounded border-white/30 bg-[#101010] text-[#6400B2]">
+                        <x-figma-toggle x-model="filters.only_paid" @change="reload(true)" :show-labels="false" />
                         Only paid
                     </label>
                 </div>

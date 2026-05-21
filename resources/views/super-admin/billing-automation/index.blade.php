@@ -20,7 +20,13 @@
                             <div class="flex items-center gap-4">
                                 <label class="flex items-center gap-2 text-sm text-[#d9d9d9]">
                                     <input type="hidden" name="settings[{{ $key }}][enabled]" value="0">
-                                    <input type="checkbox" name="settings[{{ $key }}][enabled]" value="1" class="rounded border-white/30 text-[#6400B2] focus:ring-[#6400B2]" @checked($row?->is_enabled ?? false)>
+                                    <x-figma-toggle
+                                        name="settings[{{ $key }}][enabled]"
+                                        value="1"
+                                        :checked="$row?->is_enabled ?? false"
+                                        label-on="On"
+                                        label-off="Off"
+                                    />
                                     Enabled
                                 </label>
                                 <input type="text" name="settings[{{ $key }}][value]" value="{{ old("settings.{$key}.value", $row?->setting_value) }}" placeholder="Value" class="figma-input w-28 text-sm">

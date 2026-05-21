@@ -35,7 +35,7 @@
                         @elseif ($setting->type === 'boolean')
                             <label class="mt-2 inline-flex items-center gap-2">
                                 <input type="hidden" name="settings[{{ $setting->key }}]" value="0">
-                                <input type="checkbox" name="settings[{{ $setting->key }}]" value="1" @checked($setting->value === '1') class="figma-sa-checkbox rounded">
+                                <x-figma-toggle name="settings[{{ $setting->key }}]" value="1" :checked="$setting->value === '1'" :show-labels="false" />
                                 <span class="text-sm text-[#d9d9d9]">Enabled</span>
                             </label>
                         @elseif ($setting->type === 'integer')
@@ -115,7 +115,7 @@
                 </div>
                 <label class="inline-flex items-center gap-2 cursor-pointer">
                     <input type="hidden" name="enabled" value="0">
-                    <input type="checkbox" name="enabled" value="1" checked class="figma-sa-checkbox rounded">
+                    <x-figma-toggle name="enabled" value="1" checked :show-labels="false" />
                     <span class="text-sm text-[#d9d9d9]">Enabled</span>
                 </label>
                 <button type="submit" class="figma-sa-btn figma-sa-btn-primary w-full">Create</button>
@@ -133,9 +133,12 @@
                         <form method="POST" action="{{ route('super-admin.feature-flags.toggle', $flag) }}" class="shrink-0">
                             @csrf
                             @method('PATCH')
-                            <button type="submit" class="figma-sa-pill {{ $flag->enabled ? 'figma-sa-pill-success' : 'figma-sa-pill-neutral' }} cursor-pointer hover:opacity-90">
-                                {{ $flag->enabled ? 'Enabled' : 'Disabled' }}
-                            </button>
+                            <x-figma-toggle
+                                :checked="$flag->enabled"
+                                label-on="On"
+                                label-off="Off"
+                                onchange="this.closest('form').submit()"
+                            />
                         </form>
                     </div>
                 @empty

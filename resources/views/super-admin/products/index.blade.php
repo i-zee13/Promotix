@@ -229,7 +229,7 @@
                     </div>
                     <label class="inline-flex items-center gap-2">
                         <input type="hidden" name="is_active" value="0">
-                        <input type="checkbox" name="is_active" value="1" checked class="figma-sa-checkbox rounded">
+                        <x-figma-toggle name="is_active" value="1" checked :show-labels="false" />
                         <span class="text-sm text-[#d9d9d9]">Active on create</span>
                     </label>
                     <div class="flex justify-end gap-3 pt-2">
@@ -267,7 +267,7 @@
                         </div>
                         <label class="inline-flex items-center gap-2">
                             <input type="hidden" name="is_active" value="0">
-                            <input type="checkbox" name="is_active" value="1" class="figma-sa-checkbox rounded" x-model="editing.is_active">
+                            <x-figma-toggle name="is_active" value="1" x-model="editing.is_active" :show-labels="false" />
                             <span class="text-sm text-[#d9d9d9]">Active</span>
                         </label>
                         <div class="flex justify-end gap-3 pt-2">

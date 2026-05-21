@@ -97,11 +97,15 @@
                                         @else
                                             <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
                                         @endif
-                                        <label class="inline-flex cursor-pointer items-center gap-[6px] text-[10px] text-[#d9d9d9]">
-                                            <input type="checkbox" class="peer sr-only" @change="toggleMode({{ $d->id }}, $event.target.checked)" {{ $d->monitoring_only_mode ? 'checked' : '' }}>
-                                            <span class="relative h-[14px] w-[28px] rounded-full bg-[#3a3a3a] after:absolute after:left-[2px] after:top-[2px] after:h-[10px] after:w-[10px] after:rounded-full after:bg-white after:transition peer-checked:bg-[#9a1aff] peer-checked:after:translate-x-[14px]"></span>
+                                        <span class="inline-flex items-center gap-[6px] text-[10px] text-[#d9d9d9]">
+                                            <x-figma-toggle
+                                                size="sm"
+                                                :show-labels="false"
+                                                :checked="$d->monitoring_only_mode"
+                                                @change="toggleMode({{ $d->id }}, $event.target.checked)"
+                                            />
                                             Mode on
-                                        </label>
+                                        </span>
                                     </div>
                                 </td>
                                 <td class="relative px-[12px] py-[14px]">
@@ -217,14 +221,14 @@
                     <span class="mb-[6px] block text-[12px] font-medium">Domain url</span>
                     <input type="text" x-model="editForm.hostname" class="h-[36px] w-full rounded-[4px] border border-black/20 bg-white px-[12px] text-[13px] focus:border-[#6400B2] focus:ring-[#6400B2]/30">
                 </label>
-                <label class="flex items-center gap-[10px] text-[13px]">
-                    <input type="checkbox" x-model="editForm.paid_marketing_connected" class="rounded border-black/30 text-[#6400B2] focus:ring-[#6400B2]">
-                    Paid Marketing Protection
-                </label>
-                <label class="flex items-center gap-[10px] text-[13px]">
-                    <input type="checkbox" x-model="editForm.bot_mitigation_connected" class="rounded border-black/30 text-[#6400B2] focus:ring-[#6400B2]">
-                    Bot Protection
-                </label>
+                <div class="flex items-center gap-[10px] text-[13px]">
+                    <x-figma-toggle variant="on-light" x-model="editForm.paid_marketing_connected" :show-labels="false" />
+                    <span>Paid Marketing Protection</span>
+                </div>
+                <div class="flex items-center gap-[10px] text-[13px]">
+                    <x-figma-toggle variant="on-light" x-model="editForm.bot_mitigation_connected" :show-labels="false" />
+                    <span>Bot Protection</span>
+                </div>
             </div>
             <footer class="flex justify-end gap-[12px] border-t border-black/10 px-[22px] py-[14px]">
                 <button type="button" @click="modal = null" class="text-[13px] font-medium text-[#6400B2]">Cancel</button>

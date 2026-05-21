@@ -5,17 +5,22 @@
     'labelOn' => 'Active',
     'labelOff' => 'Off',
     'disabled' => false,
-    'variant' => 'dark',
+    'variant' => 'default',
+    'showLabels' => true,
+    'size' => 'default',
 ])
 
 @php
     $id = $attributes->get('id', 'figma-toggle-' . uniqid());
+    $hasLabels = $showLabels && ($labelOn !== '' || $labelOff !== '');
 @endphp
 
 <label @class([
     'figma-toggle',
     'figma-toggle--on-light' => $variant === 'on-light',
     'figma-toggle--disabled' => $disabled,
+    'figma-toggle--sm' => $size === 'sm',
+    'figma-toggle--no-labels' => ! $hasLabels,
 ]) for="{{ $id }}">
     <input
         type="checkbox"
@@ -29,6 +34,8 @@
     <span class="figma-toggle-track pointer-events-none" aria-hidden="true">
         <span class="figma-toggle-thumb"></span>
     </span>
-    <span class="figma-toggle-label figma-toggle-label--on">{{ $labelOn }}</span>
-    <span class="figma-toggle-label figma-toggle-label--off">{{ $labelOff }}</span>
+    @if ($hasLabels)
+        <span class="figma-toggle-label figma-toggle-label--on">{{ $labelOn }}</span>
+        <span class="figma-toggle-label figma-toggle-label--off">{{ $labelOff }}</span>
+    @endif
 </label>

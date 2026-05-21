@@ -62,8 +62,8 @@
                 <div class="flex flex-wrap items-center gap-[16px] text-[12px] text-[#d9d9d9]">
                     <label class="flex items-center gap-[6px]"><input type="radio" name="card_role" value="primary" checked class="text-[#6400B2]"> Primary card (required for billing)</label>
                     <label class="flex items-center gap-[6px]"><input type="radio" name="card_role" value="optional" class="text-[#6400B2]"> Optional backup card</label>
-                    <label class="flex items-center gap-[6px]"><input type="checkbox" name="auto_charge" value="1" class="rounded border-white/30 text-[#6400B2]"> Auto-charge on renewal</label>
-                    <label class="flex items-center gap-[6px]"><input type="checkbox" name="is_temporary" value="1" class="rounded border-white/30"> Temporary only</label>
+                    <label class="flex items-center gap-[8px]"><x-figma-toggle name="auto_charge" value="1" :show-labels="false" /> Auto-charge on renewal</label>
+                    <label class="flex items-center gap-[8px]"><x-figma-toggle name="is_temporary" value="1" :show-labels="false" /> Temporary only</label>
                 </div>
                 <button type="submit" class="rounded-[6px] bg-[#6400B2] px-[12px] py-[8px] text-[12px] font-semibold text-white">Add card</button>
             </form>

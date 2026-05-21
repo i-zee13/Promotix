@@ -43,9 +43,10 @@
             <div class="mt-6 flex items-center justify-center gap-3 text-sm font-medium text-white">
                 <span :class="interval === 'monthly' ? 'text-white' : 'text-white/55'">Monthly</span>
                 <button type="button" @click="interval = (interval === 'monthly' ? 'yearly' : 'monthly')"
-                    class="relative inline-flex h-7 w-12 items-center rounded-full bg-[#6400B3] transition focus:outline-none focus:ring-2 focus:ring-white/40">
-                    <span class="inline-block h-5 w-5 transform rounded-full bg-white transition"
-                        :class="interval === 'yearly' ? 'translate-x-6' : 'translate-x-1'"></span>
+                    class="figma-theme-toggle focus:outline-none focus:ring-2 focus:ring-white/40"
+                    :class="interval === 'yearly' ? 'figma-theme-toggle--on' : ''"
+                    aria-label="Billing interval">
+                    <span class="figma-toggle-track"><span class="figma-toggle-thumb"></span></span>
                 </button>
                 <span :class="interval === 'yearly' ? 'text-white' : 'text-white/55'">Yearly</span>
                 <span class="ml-2 rounded-full border border-white/30 bg-[#6400B3]/60 px-3 py-0.5 text-xs font-semibold text-white">Save 15%</span>

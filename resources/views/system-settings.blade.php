@@ -71,7 +71,7 @@
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                         <label class="inline-flex items-center gap-2 text-xs text-slate-300">
-                            <input type="checkbox" class="brand-checkbox" x-model="integration.enabled">
+                            <x-figma-toggle x-model="integration.enabled" :show-labels="false" />
                             Enabled
                         </label>
                         <button type="button" class="brand-btn-secondary" @click="testIntegration(integration)">Test</button>
@@ -138,7 +138,7 @@
                 </div>
                 <div class="md:col-span-2 flex items-center justify-between">
                     <label class="inline-flex items-center gap-2 text-xs text-slate-300">
-                        <input type="checkbox" class="brand-checkbox" x-model="newWebhook.is_active">
+                        <x-figma-toggle x-model="newWebhook.is_active" :show-labels="false" />
                         Active
                     </label>
                     <button type="submit" class="brand-btn-primary">Create webhook</button>

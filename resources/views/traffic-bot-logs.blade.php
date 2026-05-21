@@ -93,7 +93,7 @@
             </div>
             <div class="mt-3 flex items-center gap-3">
                 <label class="inline-flex items-center gap-2 text-xs text-slate-300">
-                    <input type="checkbox" class="brand-checkbox" x-model="filters.blocked_only" @change="loadTraffic()">
+                    <x-figma-toggle x-model="filters.blocked_only" @change="loadTraffic()" :show-labels="false" />
                     Blocked only
                 </label>
                 <button type="button" class="brand-btn-secondary" @click="resetFilters(); loadTraffic();">Reset filters</button>

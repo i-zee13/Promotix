@@ -168,9 +168,12 @@
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 @foreach (['utm_source', 'utm_medium', 'utm_campaign', 'utm_term'] as $param)
                     <label class="flex items-center gap-2 rounded-xl border border-night-700 bg-night-900/60 px-3 py-2 text-sm text-night-100">
-                        <input type="checkbox" class="utm-toggle rounded border-night-700 bg-night-900 text-brand-500 focus:ring-brand-400"
-                               data-param="{{ $param }}"
-                               @checked(($domain->tracking_params[$param] ?? true) === true)>
+                        <x-figma-toggle
+                            class="utm-toggle"
+                            data-param="{{ $param }}"
+                            :checked="($domain->tracking_params[$param] ?? true) === true"
+                            :show-labels="false"
+                        />
                         {{ $param }}
                     </label>
                 @endforeach
@@ -237,7 +240,7 @@
                     if (res.ok) this.showToast('GTM ID saved');
                 },
                 async saveTrackingParams(domainId) {
-                    const toggles = Array.from(document.querySelectorAll('.utm-toggle'));
+                    const toggles = Array.from(document.querySelectorAll('input.utm-toggle'));
                     const tracking_params = {};
                     toggles.forEach((el) => tracking_params[el.dataset.param] = !!el.checked);
                     const res = await fetch(`/domains/${domainId}/tracking-params`, {
