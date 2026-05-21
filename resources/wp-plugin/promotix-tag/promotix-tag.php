@@ -18,6 +18,49 @@ if (!defined('ABSPATH')) {
 
 define('PROMOTIX_TAG_OPTION_KEY', 'promotix_tag_settings');
 
+/**
+ * Apply keys bundled in promotix-tag-config.json (per-domain download from portal).
+ */
+function promotix_tag_apply_bundled_config() {
+    $configFile = plugin_dir_path(__FILE__) . 'promotix-tag-config.json';
+    if (! is_readable($configFile)) {
+        return;
+    }
+
+    $decoded = json_decode((string) file_get_contents($configFile), true);
+    if (! is_array($decoded)) {
+        return;
+    }
+
+    $existing = get_option(PROMOTIX_TAG_OPTION_KEY, array());
+    if (! is_array($existing)) {
+        $existing = array();
+    }
+
+    // Do not overwrite if the site owner already saved keys manually.
+    if (! empty($existing['domain_key']) && ! empty($existing['server_url'])) {
+        return;
+    }
+
+    $merged = array_merge(promotix_tag_default_settings(), $existing, $decoded);
+    update_option(PROMOTIX_TAG_OPTION_KEY, $merged);
+}
+
+function promotix_tag_activate() {
+    promotix_tag_apply_bundled_config();
+}
+register_activation_hook(__FILE__, 'promotix_tag_activate');
+
+function promotix_tag_bootstrap_config() {
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    promotix_tag_apply_bundled_config();
+}
+add_action('plugins_loaded', 'promotix_tag_bootstrap_config', 5);
+
 function promotix_tag_default_settings() {
     return array(
         'server_url' => '',

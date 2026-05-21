@@ -125,6 +125,7 @@ Route::middleware(['auth', 'admin'])
         Route::middleware('permission')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/paid-marketing/detailed-view', [PaidMarketingController::class, 'detailedView'])->name('paid-marketing.detailed');
+        Route::get('/paid-marketing/detailed-visits', [PaidMarketingController::class, 'detailedVisits'])->name('paid-marketing.detailed-visits');
         Route::get('/domains', [DomainManagementController::class, 'index'])->name('domains.index');
         Route::post('/domains', [DomainManagementController::class, 'store'])->name('domains.store');
         Route::put('/domains/{domain}', [DomainManagementController::class, 'update'])->name('domains.update');

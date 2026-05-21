@@ -3,7 +3,7 @@
 @section('title', 'Site Management')
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="siteManagementFigma()" @keydown.escape.window="closeAll()">
+<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="siteManagementFigma()" x-init="initPage()" @keydown.escape.window="closeAll()">
     <section class="mx-auto w-full px-[12px] pb-[32px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         <div class="mb-[20px] flex flex-col gap-[14px] lg:flex-row lg:items-center lg:justify-between">
             <h1 class="text-[28px] font-semibold leading-none text-[#a9a9a9] sm:text-[36px]">Site Management</h1>
@@ -17,7 +17,7 @@
                 </label>
                 <label class="flex w-[178px] flex-col justify-center px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
-                    <input type="search" x-model="tableSearch" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    <input type="search" x-model="tableSearch" @input="applyTableSearch()" placeholder="Filter by path" autocomplete="off" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                 </label>
             </div>
         </div>
@@ -28,12 +28,12 @@
 
         {{-- Purple action bar --}}
         <div class="mb-[14px] flex flex-col gap-[12px] rounded-[10px] border border-white/25 bg-[#6400B2] px-[16px] py-[14px] sm:flex-row sm:items-center sm:justify-between sm:px-[22px] sm:py-[16px]">
-            <form method="GET" action="{{ route('domains.index') }}" class="flex min-w-0 flex-1 items-center gap-[10px]">
+            <div class="flex min-w-0 flex-1 items-center gap-[10px]">
                 <span class="hidden shrink-0 text-white sm:inline">
                     <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </span>
-                <input type="search" name="q" value="{{ $search }}" placeholder="Search for IP Address" class="h-[34px] min-w-0 flex-1 rounded-[6px] border border-white/30 bg-white px-[12px] text-[13px] text-[#101010] placeholder:text-[#8c8787] focus:border-white focus:ring-0">
-            </form>
+                <input type="search" x-model="ipSearch" @input="scheduleIpSearch()" placeholder="Search for IP Address" autocomplete="off" class="h-[34px] min-w-0 flex-1 rounded-[6px] border border-white/30 bg-white px-[12px] text-[13px] text-[#101010] placeholder:text-[#8c8787] focus:border-white focus:ring-0">
+            </div>
             <div class="flex shrink-0 flex-wrap items-center gap-[10px]">
                 <a href="{{ route('billing.index') }}" class="rounded-[6px] border border-white bg-[#0d0d0d] px-[16px] py-[8px] text-[12px] font-semibold text-white hover:bg-black">Upgrade plan</a>
                 <button type="button" @click="openAdd()" :disabled="!canAdd" class="inline-flex items-center gap-[6px] rounded-[6px] bg-white px-[16px] py-[8px] text-[12px] font-semibold text-[#6400B2] disabled:cursor-not-allowed disabled:opacity-50">
@@ -83,8 +83,11 @@
                                 <td class="px-[12px] py-[14px]">
                                     @if ($d->paid_marketing_connected)
                                         <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
+                                        @if (isset($d->valid_visits_count) || isset($d->invalid_visits_count))
+                                            <p class="mt-[4px] text-[10px] text-[#a9a9a9]">Valid {{ (int) ($d->valid_visits_count ?? 0) }} · Invalid {{ (int) ($d->invalid_visits_count ?? 0) }}</p>
+                                        @endif
                                     @else
-                                        <span class="text-[11px] text-[#a9a9a9]">—</span>
+                                        <a href="{{ route('integrations') }}" class="text-[11px] text-[#9a1aff] hover:underline">Connect ads</a>
                                     @endif
                                 </td>
                                 <td class="px-[12px] py-[14px]">
@@ -252,9 +255,14 @@
                         </button>
                     </div>
                 </template>
-                <a :href="keysSetupUrl" class="inline-block text-[12px] text-white underline">Open full tracking setup →</a>
+                <div class="flex flex-wrap gap-[10px] pt-[4px]">
+                    <a :href="keysSetupUrl" class="inline-block text-[12px] text-white underline">Full tracking setup →</a>
+                    <a :href="wpAdminUrl" target="_blank" rel="noopener noreferrer" class="inline-block text-[12px] text-white/90 underline">Open WordPress</a>
+                    <a :href="wpPluginSettingsUrl" target="_blank" rel="noopener noreferrer" class="inline-block text-[12px] text-white/90 underline">Promotix plugin settings</a>
+                </div>
             </div>
-            <footer class="flex justify-end border-t border-white/25 px-[24px] py-[14px]">
+            <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[24px] py-[14px]">
+                <button type="button" @click="verifyWordpressFromKeys()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Verify plugin</button>
                 <button type="button" @click="modal = null" class="rounded-[6px] bg-white px-[22px] py-[8px] text-[13px] font-semibold text-[#6400B2]">Done</button>
             </footer>
         </div>
@@ -269,6 +277,12 @@ function siteManagementFigma() {
         modal: null,
         openMenuId: null,
         tableSearch: '',
+        tableSearchApplied: '',
+        ipSearch: @json($search),
+        ipSearchApplied: @json($search),
+        tableSearchTimer: null,
+        ipSearchTimer: null,
+        debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         toast: '',
         canAdd: @json($canAddDomain),
         addBusy: false,
@@ -278,11 +292,35 @@ function siteManagementFigma() {
         keysForm: { id: null, hostname: '' },
         keyRows: [],
         keysSetupUrl: '#',
+        wpAdminUrl: '#',
+        wpPluginSettingsUrl: '#',
         csrf: document.querySelector('meta[name=csrf-token]')?.content || '',
+        applyTableSearch() {
+            clearTimeout(this.tableSearchTimer);
+            this.tableSearchTimer = setTimeout(() => {
+                this.tableSearchApplied = (this.tableSearch || '').trim().toLowerCase();
+            }, this.debounceMs);
+        },
+        scheduleIpSearch() {
+            clearTimeout(this.ipSearchTimer);
+            this.ipSearchTimer = setTimeout(() => {
+                this.ipSearchApplied = (this.ipSearch || '').trim().toLowerCase();
+            }, this.debounceMs);
+        },
         rowVisible(hostname) {
-            const q = (this.tableSearch || '').trim().toLowerCase();
-            if (!q) return true;
-            return (hostname || '').toLowerCase().includes(q);
+            const host = (hostname || '').toLowerCase();
+            const pathQ = this.tableSearchApplied;
+            const ipQ = this.ipSearchApplied;
+            if (pathQ && !host.includes(pathQ)) return false;
+            if (ipQ && !host.includes(ipQ.toLowerCase())) return false;
+            return true;
+        },
+        initPage() {
+            this.tableSearchApplied = (this.tableSearch || '').trim().toLowerCase();
+            this.ipSearchApplied = (this.ipSearch || '').trim().toLowerCase();
+            if (new URLSearchParams(window.location.search).get('add') === '1') {
+                this.openAdd();
+            }
         },
         closeAll() {
             this.modal = null;
@@ -301,12 +339,24 @@ function siteManagementFigma() {
             this.modal = 'edit';
             this.openMenuId = null;
         },
+        wpUrls(hostname) {
+            const host = String(hostname || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+            const base = 'https://' + host;
+            return {
+                admin: base + '/wp-login.php?redirect_to=' + encodeURIComponent(base + '/wp-admin/'),
+                settings: base + '/wp-login.php?redirect_to=' + encodeURIComponent(base + '/wp-admin/options-general.php?page=promotix-tag'),
+            };
+        },
         async openKeys(row) {
             this.keysForm = row;
             this.keysSetupUrl = `/domains/${row.id}/setup`;
+            const wp = this.wpUrls(row.hostname);
+            this.wpAdminUrl = wp.admin;
+            this.wpPluginSettingsUrl = wp.settings;
             this.modal = 'keys';
             this.openMenuId = null;
             this.keyRows = [
+                { label: 'Server URL', value: '…' },
                 { label: 'Domain Key', value: '…' },
                 { label: 'Secret key', value: '…' },
                 { label: 'Authentication Key', value: '…' },
@@ -315,11 +365,33 @@ function siteManagementFigma() {
                 const res = await fetch(`/domains/${row.id}/api-key`, { headers: { Accept: 'application/json' } });
                 const data = await res.json();
                 this.keyRows = [
+                    { label: 'Server URL', value: data.server_url },
                     { label: 'Domain Key', value: data.domain_key },
                     { label: 'Secret key', value: data.secret_key },
                     { label: 'Authentication Key', value: data.authentication_key },
                 ];
             } catch (_) {}
+        },
+        async verifyWordpressFromKeys() {
+            if (!this.keysForm?.id) return;
+            try {
+                const res = await fetch(`/domains/${this.keysForm.id}/verify-wordpress`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify({}),
+                });
+                const data = await res.json();
+                this.showToast(data.verified ? 'Plugin verified — reload page' : (data.message || 'Not verified'));
+                if (data.verified) {
+                    setTimeout(() => window.location.reload(), 1200);
+                }
+            } catch (_) {
+                this.showToast('Verify request failed');
+            }
         },
         showToast(msg) {
             this.toast = msg;

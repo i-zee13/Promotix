@@ -7,19 +7,49 @@ use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
 use App\Models\PaidMarketingVisit;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class PaidMarketingController extends Controller
 {
     public function detailedView(Request $request): View
     {
+        $platforms = PaidMarketingVisit::query()
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->select('platform')
+            ->whereNotNull('platform')
+            ->distinct()
+            ->orderBy('platform')
+            ->pluck('platform');
+
+        return view('paid-marketing.detailed-view', [
+            'platforms' => $platforms,
+        ]);
+    }
+
+    public function detailedVisits(Request $request): JsonResponse
+    {
+        $rows = $this->detailedVisitQuery($request)
+            ->orderByDesc('last_click_at')
+            ->limit(100)
+            ->get();
+
+        return response()->json([
+            'rows' => $rows->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit($visit))->values(),
+            'stats' => $this->computeDetailedStats($rows),
+            'total' => $rows->count(),
+        ]);
+    }
+
+    private function detailedVisitQuery(Request $request): Builder
+    {
         $query = PaidMarketingVisit::query()
-            ->with(['domain', 'clicks' => function ($q) {
-            $q->orderBy('clicked_at');
-        }])
+            ->with(['domain', 'clicks' => fn ($q) => $q->orderBy('clicked_at')])
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id))
             ->select('paid_marketing_visits.*')
             ->selectSub(
                 IpLog::query()
@@ -29,38 +59,81 @@ class PaidMarketingController extends Controller
                 'ip_is_blocked'
             );
 
-        if ($ip = $request->string('ip')->toString()) {
+        if ($ip = trim((string) $request->query('ip', ''))) {
             $query->where('ip', 'like', '%' . $ip . '%');
         }
 
-        if ($path = $request->string('path')->toString()) {
+        if ($path = trim((string) $request->query('path', ''))) {
             $query->where('last_path', 'like', '%' . $path . '%');
         }
 
-        if ($platform = $request->string('platform')->toString()) {
+        if ($platform = trim((string) $request->query('platform', ''))) {
             $query->where('platform', $platform);
         }
 
-        if ($from = $request->date('from')) {
+        if ($from = $request->query('from')) {
             $query->whereDate('last_click_at', '>=', $from);
         }
-        if ($to = $request->date('to')) {
+        if ($to = $request->query('to')) {
             $query->whereDate('last_click_at', '<=', $to);
         }
 
-        $visits = $query->orderByDesc('last_click_at')->paginate(25)->withQueryString();
+        return $query;
+    }
 
-        $platforms = PaidMarketingVisit::query()
-            ->select('platform')
-            ->whereNotNull('platform')
-            ->distinct()
-            ->orderBy('platform')
-            ->pluck('platform');
+    private function formatDetailedVisit(PaidMarketingVisit $visit): array
+    {
+        return [
+            'id' => $visit->id,
+            'ip' => $visit->ip,
+            'visits' => (int) ($visit->visits ?? $visit->clicks->count() ?: 1),
+            'campaign' => $visit->campaign,
+            'last_click_at' => $visit->last_click_at?->toIso8601String(),
+            'last_click_label' => $visit->last_click_at?->format('m/d/y') ?? '-',
+            'threat_group' => $visit->threat_group,
+            'threat_type' => $visit->threat_type,
+            'country' => $visit->country,
+            'last_path' => $visit->last_path,
+            'ip_is_blocked' => (bool) $visit->ip_is_blocked,
+            'clicks' => $visit->clicks->map(fn ($c) => [
+                'id' => $c->id,
+                'clicked_at' => $c->clicked_at?->toIso8601String(),
+                'last_click_at' => $c->last_click_at?->toIso8601String(),
+                'ip' => $c->ip,
+                'country' => $c->country,
+                'threat_group' => $c->threat_group,
+                'campaign' => $c->campaign,
+                'paid_id' => $c->paid_id,
+                'path' => $c->path,
+                'keyword' => $c->keyword,
+                'browser_name' => $c->browser_name,
+                'browser_version' => $c->browser_version,
+                'os' => $c->os,
+            ])->values()->all(),
+        ];
+    }
 
-        return view('paid-marketing.detailed-view', [
-            'visits' => $visits,
-            'platforms' => $platforms,
-        ]);
+    /** @param Collection<int, PaidMarketingVisit> $rows */
+    private function computeDetailedStats(Collection $rows): array
+    {
+        $rowCount = max($rows->count(), 1);
+        $blockedCount = $rows->filter(fn ($visit) => (bool) ($visit->ip_is_blocked ?? false))->count();
+        $threatCount = $rows->filter(fn ($visit) => filled($visit->threat_group) || filled($visit->threat_type))->count();
+        $botCount = $rows->filter(fn ($visit) => str_contains(strtolower((string) $visit->threat_type), 'bot')
+            || str_contains(strtolower((string) $visit->threat_group), 'bot'))->count();
+        $countryCount = $rows->pluck('country')->filter()->unique()->count();
+        $paidVisits = max((int) $rows->sum(fn ($visit) => (int) ($visit->visits ?? 1)), 1);
+
+        return [
+            'cards' => [
+                ['label' => 'Blocked', 'value' => (int) round(($blockedCount / $rowCount) * 100), 'fillClass' => 'h-[80%]', 'toneClass' => 'bg-[#9A1AFF]'],
+                ['label' => 'Invalid Traffic', 'value' => (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[32%]', 'toneClass' => 'bg-white/55'],
+                ['label' => 'PaidTraffic', 'value' => min(100, (int) round(($paidVisits / max($paidVisits + $threatCount, 1)) * 100)), 'fillClass' => 'h-[92%]', 'toneClass' => 'bg-white/55'],
+                ['label' => 'Bot Detection', 'value' => (int) round(($botCount / $rowCount) * 100), 'fillClass' => 'h-0', 'toneClass' => 'bg-white/55'],
+                ['label' => 'Countries', 'value' => min(100, $countryCount * 10), 'fillClass' => 'h-0', 'toneClass' => 'bg-white/55'],
+                ['label' => 'Overall', 'value' => (int) round((($blockedCount + $threatCount + $botCount) / max($rowCount * 3, 1)) * 100), 'fillClass' => 'h-[68%]', 'toneClass' => 'bg-white/55'],
+            ],
+        ];
     }
 
     public function detectionSettings(Request $request): View

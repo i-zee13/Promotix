@@ -7,6 +7,7 @@ use App\Models\Domain;
 use App\Models\IpLog;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
+use App\Support\DashboardNotifications;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,12 +31,13 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $domainIds = Domain::query()->where('user_id', $user->id)->pluck('id');
+        [$from, $to] = $this->dateRange($request);
 
         if (Schema::hasTable('visits')) {
-            $totalClicks = DB::table('visits')->whereIn('domain_id', $domainIds)->count();
-            $suspiciousVisits = DB::table('visits')->whereIn('domain_id', $domainIds)->where('is_invalid_traffic', true)->count();
-            $topCampaign = DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
+            $base = DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]);
+            $totalClicks = (clone $base)->count();
+            $suspiciousVisits = (clone $base)->where('is_invalid_traffic', true)->count();
+            $topCampaign = (clone $base)
                 ->whereNotNull('utm_campaign')
                 ->select('utm_campaign as campaign', DB::raw('COUNT(*) as total'))
                 ->groupBy('utm_campaign')
@@ -44,13 +46,16 @@ class DashboardController extends Controller
         } else {
             $totalClicks = PaidMarketingClick::query()
                 ->whereHas('visit', fn ($q) => $q->whereIn('domain_id', $domainIds))
+                ->whereBetween('clicked_at', [$from, $to])
                 ->count();
             $suspiciousVisits = PaidMarketingVisit::query()
                 ->whereIn('domain_id', $domainIds)
                 ->whereNotNull('threat_group')
+                ->whereBetween('last_click_at', [$from, $to])
                 ->count();
             $topCampaign = PaidMarketingClick::query()
                 ->whereHas('visit', fn ($q) => $q->whereIn('domain_id', $domainIds))
+                ->whereBetween('clicked_at', [$from, $to])
                 ->whereNotNull('campaign')
                 ->select('campaign', DB::raw('COUNT(*) as total'))
                 ->groupBy('campaign')
@@ -71,9 +76,12 @@ class DashboardController extends Controller
         $user = $request->user();
         $campaign = trim((string) $request->query('campaign', ''));
         $path = trim((string) $request->query('path', ''));
+        [$from, $to] = $this->dateRange($request);
 
         if (Schema::hasTable('visits')) {
-            $query = DB::table('visits')->whereIn('domain_id', Domain::query()->where('user_id', $user->id)->pluck('id'));
+            $query = DB::table('visits')
+                ->whereIn('domain_id', Domain::query()->where('user_id', $user->id)->pluck('id'))
+                ->whereBetween('visited_at', [$from, $to]);
 
             if ($campaign !== '') {
                 $query->where('utm_campaign', $campaign);
@@ -85,13 +93,13 @@ class DashboardController extends Controller
             $rows = $query
                 ->selectRaw('DATE(visited_at) as day, COUNT(*) as total')
                 ->where('is_invalid_traffic', true)
-                ->where('visited_at', '>=', Carbon::now()->subDays(6)->startOfDay())
                 ->groupBy('day')
                 ->orderBy('day')
                 ->get();
         } else {
             $query = PaidMarketingClick::query()
-                ->whereHas('visit.domain', fn ($q) => $q->where('user_id', $user->id));
+                ->whereHas('visit.domain', fn ($q) => $q->where('user_id', $user->id))
+                ->whereBetween('clicked_at', [$from, $to]);
 
             if ($campaign !== '') {
                 $query->where('campaign', $campaign);
@@ -103,7 +111,6 @@ class DashboardController extends Controller
             $rows = $query
                 ->selectRaw('DATE(clicked_at) as day, COUNT(*) as total')
                 ->whereNotNull('clicked_at')
-                ->where('clicked_at', '>=', Carbon::now()->subDays(6)->startOfDay())
                 ->groupBy('day')
                 ->orderBy('day')
                 ->get();
@@ -112,11 +119,13 @@ class DashboardController extends Controller
         $indexed = $rows->pluck('total', 'day')->all();
         $labels = [];
         $values = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $day = Carbon::now()->subDays($i);
-            $dateKey = $day->toDateString();
-            $labels[] = $day->format('M d');
+        $cursor = $from->copy()->startOfDay();
+        $end = $to->copy()->startOfDay();
+        while ($cursor->lte($end)) {
+            $dateKey = $cursor->toDateString();
+            $labels[] = $cursor->format('M d');
             $values[] = (int) ($indexed[$dateKey] ?? 0);
+            $cursor->addDay();
         }
 
         return response()->json([
@@ -128,18 +137,33 @@ class DashboardController extends Controller
     public function threats(Request $request): JsonResponse
     {
         $user = $request->user();
+        [$from, $to] = $this->dateRange($request);
+
         if (Schema::hasTable('detection_logs')) {
             $domainIds = Domain::query()->where('user_id', $user->id)->pluck('id');
             $rows = DB::table('detection_logs')
                 ->whereIn('domain_id', $domainIds)
+                ->whereBetween('detected_at', [$from, $to])
                 ->select('threat_group', DB::raw('COUNT(*) as total'))
                 ->whereNotNull('threat_group')
+                ->groupBy('threat_group')
+                ->orderByDesc('total')
+                ->get();
+        } elseif (Schema::hasTable('visits')) {
+            $domainIds = Domain::query()->where('user_id', $user->id)->pluck('id');
+            $rows = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$from, $to])
+                ->where('is_invalid_traffic', true)
+                ->whereNotNull('threat_group')
+                ->select('threat_group', DB::raw('COUNT(*) as total'))
                 ->groupBy('threat_group')
                 ->orderByDesc('total')
                 ->get();
         } else {
             $rows = PaidMarketingVisit::query()
                 ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id))
+                ->whereBetween('last_click_at', [$from, $to])
                 ->select('threat_group', DB::raw('COUNT(*) as total'))
                 ->whereNotNull('threat_group')
                 ->groupBy('threat_group')
@@ -155,29 +179,7 @@ class DashboardController extends Controller
 
     public function notifications(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        $blockedToday = IpLog::query()
-            ->where('is_blocked', true)
-            ->whereDate('updated_at', Carbon::today())
-            ->sum('hits');
-        $newDomains = Domain::query()
-            ->where('user_id', $user->id)
-            ->whereDate('created_at', Carbon::today())
-            ->count();
-        $newThreats = Schema::hasTable('detection_logs')
-            ? DB::table('detection_logs')->whereIn('domain_id', Domain::query()->where('user_id', $user->id)->pluck('id'))->whereDate('detected_at', Carbon::today())->count()
-            : PaidMarketingVisit::query()
-                ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id))
-                ->whereNotNull('threat_group')
-                ->whereDate('updated_at', Carbon::today())
-                ->count();
-
-        return response()->json([
-            ['type' => 'security', 'title' => 'Blocked hits today', 'body' => $blockedToday . ' suspicious hits blocked.'],
-            ['type' => 'domains', 'title' => 'New domains', 'body' => $newDomains . ' domain(s) added today.'],
-            ['type' => 'threats', 'title' => 'Threat signals', 'body' => $newThreats . ' threat-tagged visit(s) detected today.'],
-        ]);
+        return response()->json(DashboardNotifications::forUser($request->user()->id));
     }
 
     public function preferences(Request $request): JsonResponse
@@ -202,34 +204,50 @@ class DashboardController extends Controller
     public function domainPerformance(Request $request): JsonResponse
     {
         $user = $request->user();
+        [$from, $to] = $this->dateRange($request);
+        $search = trim((string) $request->query('search', ''));
+
         if (Schema::hasTable('visits')) {
             $rows = Domain::query()
                 ->where('user_id', $user->id)
-                ->leftJoin('visits', 'domains.id', '=', 'visits.domain_id')
-                ->select('domains.hostname', DB::raw('COUNT(visits.id) as visits_count'), DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as threat_visits_count'))
-                ->groupBy('domains.id', 'domains.hostname')
+                ->when($search !== '', fn ($q) => $q->where('hostname', 'like', '%' . $search . '%'))
+                ->leftJoin('visits', function ($join) use ($from, $to): void {
+                    $join->on('domains.id', '=', 'visits.domain_id')
+                        ->whereBetween('visits.visited_at', [$from, $to]);
+                })
+                ->select(
+                    'domains.hostname',
+                    'domains.tag_connected',
+                    'domains.status',
+                    DB::raw('COUNT(visits.id) as visits_count'),
+                    DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as threat_visits_count')
+                )
+                ->groupBy('domains.id', 'domains.hostname', 'domains.tag_connected', 'domains.status')
                 ->orderByDesc('visits_count')
-                ->limit(10)
+                ->limit(50)
                 ->get()
                 ->map(fn ($d) => [
                     'domain' => $d->hostname,
                     'visits' => (int) $d->visits_count,
                     'threats' => (int) $d->threat_visits_count,
+                    'pending' => ! $d->tag_connected || ($d->status ?? 'pending') === 'pending',
                 ]);
         } else {
             $rows = Domain::query()
                 ->where('user_id', $user->id)
+                ->when($search !== '', fn ($q) => $q->where('hostname', 'like', '%' . $search . '%'))
                 ->withCount([
-                    'paidMarketingVisits as visits_count',
-                    'paidMarketingVisits as threat_visits_count' => fn ($q) => $q->whereNotNull('threat_group'),
+                    'paidMarketingVisits as visits_count' => fn ($q) => $q->whereBetween('last_click_at', [$from, $to]),
+                    'paidMarketingVisits as threat_visits_count' => fn ($q) => $q->whereNotNull('threat_group')->whereBetween('last_click_at', [$from, $to]),
                 ])
                 ->orderByDesc('visits_count')
-                ->limit(10)
+                ->limit(50)
                 ->get()
                 ->map(fn ($d) => [
                     'domain' => $d->hostname,
                     'visits' => (int) $d->visits_count,
                     'threats' => (int) $d->threat_visits_count,
+                    'pending' => ! $d->tag_connected || ($d->status ?? 'pending') === 'pending',
                 ]);
         }
 
@@ -296,51 +314,78 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $domainIds = Domain::query()->where('user_id', $user->id)->pluck('id');
+        [$from, $to] = $this->dateRange($request);
 
-        $paidVisits = Schema::hasTable('visits')
-            ? DB::table('visits')->whereIn('domain_id', $domainIds)->count()
-            : PaidMarketingVisit::query()->whereIn('domain_id', $domainIds)->sum('visits');
-        $protectedHits = IpLog::query()->where('is_blocked', true)->sum('hits');
-        $activeDomains = $domainIds->count();
-        $campaignCount = Schema::hasTable('visits')
-            ? DB::table('visits')->whereIn('domain_id', $domainIds)->whereNotNull('utm_campaign')->distinct()->count('utm_campaign')
+        $visitBase = Schema::hasTable('visits')
+            ? DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to])
+            : null;
+
+        $paidVisits = $visitBase ? (clone $visitBase)->where('is_paid_traffic', true)->count()
+            : (int) PaidMarketingVisit::query()->whereIn('domain_id', $domainIds)->whereBetween('last_click_at', [$from, $to])->sum('visits');
+        $protectedHits = IpLog::query()
+            ->where('is_blocked', true)
+            ->whereBetween('updated_at', [$from, $to])
+            ->sum('hits');
+        $connectedDomains = Domain::query()
+            ->where('user_id', $user->id)
+            ->where('tag_connected', true)
+            ->count();
+        $campaignCount = $visitBase
+            ? (clone $visitBase)->whereNotNull('utm_campaign')->distinct()->count('utm_campaign')
             : PaidMarketingClick::query()
                 ->whereHas('visit.domain', fn ($q) => $q->where('user_id', $user->id))
+                ->whereBetween('clicked_at', [$from, $to])
                 ->whereNotNull('campaign')
                 ->distinct()
                 ->count('campaign');
 
-        $blockedToday = IpLog::query()
-            ->where('is_blocked', true)
-            ->whereDate('updated_at', Carbon::today())
-            ->sum('hits');
-        $newDomains = Domain::query()
-            ->where('user_id', $user->id)
-            ->whereDate('created_at', Carbon::today())
-            ->count();
-        $newThreats = Schema::hasTable('detection_logs')
-            ? DB::table('detection_logs')->whereIn('domain_id', $domainIds)->whereDate('detected_at', Carbon::today())->count()
-            : PaidMarketingVisit::query()
-                ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id))
-                ->whereNotNull('threat_group')
-                ->whereDate('updated_at', Carbon::today())
-                ->count();
+        $invalidVisits = $visitBase
+            ? (int) (clone $visitBase)->where('is_invalid_traffic', true)->count()
+            : (int) PaidMarketingVisit::query()->whereIn('domain_id', $domainIds)->whereNotNull('threat_group')->whereBetween('last_click_at', [$from, $to])->count();
+        $totalVisits = $visitBase
+            ? (int) (clone $visitBase)->count()
+            : (int) PaidMarketingVisit::query()->whereIn('domain_id', $domainIds)->whereBetween('last_click_at', [$from, $to])->sum('visits');
+
+        $tagHealthy = $connectedDomains > 0;
 
         return [
             'paidAdvertising' => [
                 'visits' => (int) $paidVisits,
                 'campaigns' => (int) $campaignCount,
+                'invalidVisits' => $invalidVisits,
+                'invalidRate' => $totalVisits > 0 ? round(($invalidVisits / $totalVisits) * 100, 2) : 0,
             ],
             'botProtection' => [
                 'blockedHits' => (int) $protectedHits,
-                'domainsProtected' => (int) $activeDomains,
+                'domainsProtected' => (int) $connectedDomains,
+                'invalidRate' => $totalVisits > 0 ? round(($invalidVisits / $totalVisits) * 100, 2) : 0,
             ],
-            'notifications' => [
-                ['type' => 'security', 'title' => 'Blocked hits today', 'body' => $blockedToday . ' suspicious hits blocked.'],
-                ['type' => 'domains', 'title' => 'New domains', 'body' => $newDomains . ' domain(s) added today.'],
-                ['type' => 'threats', 'title' => 'Threat signals', 'body' => $newThreats . ' threat-tagged visit(s) detected today.'],
+            'connectionStatus' => [
+                'tracking' => $tagHealthy ? 'Healthy' : 'Pending setup',
+                'ingestion' => $totalVisits > 0 ? 'Online' : 'Waiting for traffic',
+                'protection' => $invalidVisits > 0 || $protectedHits > 0 ? 'Active' : 'Monitoring',
             ],
+            'notifications' => DashboardNotifications::forUser($user->id),
+            'dateRange' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'ts' => now()->toIso8601String(),
         ];
+    }
+
+    /** @return array{0: Carbon, 1: Carbon} */
+    private function dateRange(Request $request): array
+    {
+        $from = $request->query('from')
+            ? Carbon::parse($request->query('from'))->startOfDay()
+            : Carbon::now()->subDays(6)->startOfDay();
+
+        $to = $request->query('to')
+            ? Carbon::parse($request->query('to'))->endOfDay()
+            : Carbon::now()->endOfDay();
+
+        if ($from->gt($to)) {
+            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        }
+
+        return [$from, $to];
     }
 }

@@ -146,25 +146,37 @@ class BillingController extends Controller
             'exp_year' => ['required', 'string', 'min:2', 'max:4'],
             'label' => ['nullable', 'string', 'max:80'],
             'is_temporary' => ['nullable', 'boolean'],
+            'card_role' => ['nullable', 'in:primary,optional'],
+            'auto_charge' => ['nullable', 'boolean'],
         ]);
 
         $user = $request->user();
         $digits = preg_replace('/\D/', '', $data['card_number']);
         $lastFour = substr($digits, -4);
 
-        if (! $data['is_temporary']) {
+        $isTemporary = (bool) ($data['is_temporary'] ?? false);
+        $makePrimary = ! $isTemporary && ($data['card_role'] ?? 'primary') === 'primary';
+
+        if ($makePrimary) {
             PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
+        }
+
+        if ($request->boolean('auto_charge')) {
+            $prefs = (array) ($user->ui_preferences ?? []);
+            $prefs['auto_charge'] = true;
+            $user->ui_preferences = $prefs;
+            $user->save();
         }
 
         PaymentMethod::query()->create([
             'user_id' => $user->id,
-            'label' => $data['label'] ?? 'Card',
+            'label' => $data['label'] ?? ($makePrimary ? 'Primary card' : 'Backup card'),
             'brand' => str_starts_with($digits, '4') ? 'Visa' : (str_starts_with($digits, '5') ? 'Mastercard' : 'Card'),
             'last_four' => $lastFour,
             'exp_month' => $data['exp_month'],
             'exp_year' => $data['exp_year'],
-            'is_primary' => ! $data['is_temporary'],
-            'is_temporary' => (bool) ($data['is_temporary'] ?? false),
+            'is_primary' => $makePrimary,
+            'is_temporary' => $isTemporary,
         ]);
 
         return back()->with('status', 'Payment method saved.');

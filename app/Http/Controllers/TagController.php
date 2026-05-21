@@ -85,6 +85,19 @@ class TagController extends Controller
     } catch (e) {}
   }
 
+  function sessionId(){
+    var key = 'pm_sid_' + domainKey;
+    try {
+      var existing = localStorage.getItem(key);
+      if (existing) return existing;
+      var id = 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem(key, id);
+      return id;
+    } catch (e) {
+      return 's_' + Date.now();
+    }
+  }
+
   function pageview(){
     var payload = {
       domainKey: domainKey,
@@ -92,6 +105,7 @@ class TagController extends Controller
       url: String(location.href || ''),
       path: String(location.pathname || ''),
       referrer: String(document.referrer || ''),
+      session_id: sessionId(),
       ts: Date.now()
     };
     // Basic paid params

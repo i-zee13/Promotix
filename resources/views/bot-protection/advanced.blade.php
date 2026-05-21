@@ -24,7 +24,7 @@
                 </label>
                 <label class="flex w-[178px] flex-col justify-center px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
-                    <input x-model.debounce.350ms="filters.path" @input="reload(true)" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    <input x-model="filters.path" @input="scheduleReload(true)" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                 </label>
                 <button type="button" @click="openDatePicker()" class="figma-filter-action flex w-[34px] shrink-0 items-center justify-center bg-[#6400B2] text-white" aria-label="Date range">
                     <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
@@ -41,7 +41,7 @@
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
                     <label class="relative flex h-[28px] min-w-[200px] max-w-[280px] flex-1 items-center rounded-[6px] bg-white px-[10px]">
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input type="search" placeholder="Search for IP Address" x-model="filters.ip" @keydown.enter="reload(true)" @input.debounce.400ms="reload(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
+                        <input type="search" placeholder="Search for IP Address" x-model="filters.ip" @input="scheduleReload(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
                     </label>
                     <a :href="csvHref()" class="inline-flex items-center gap-[6px] text-[12px] font-medium text-white hover:underline">
                         <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
@@ -109,7 +109,7 @@
             <div class="mt-[12px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-4">
                 <label class="block">
                     <span class="mb-[4px] block text-[10px] uppercase">Country</span>
-                    <input type="text" maxlength="2" placeholder="US" x-model="filters.country" @keydown.enter="reload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white uppercase">
+                    <input type="text" maxlength="2" placeholder="US" x-model="filters.country" @input="scheduleReload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white uppercase">
                 </label>
                 <label class="block">
                     <span class="mb-[4px] block text-[10px] uppercase">Action</span>
@@ -186,11 +186,31 @@ function botProtectionAdvancedFigma() {
         openDatePicker() {
             this.$refs.fromPicker?.showPicker?.() || this.$refs.fromPicker?.click();
         },
+        reloadTimer: null,
+        debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
+        scheduleReload(resetPage = false) {
+            clearTimeout(this.reloadTimer);
+            this.reloadTimer = setTimeout(() => this.reload(resetPage), this.debounceMs);
+        },
+        syncHeaderDates() {
+            try {
+                const r = JSON.parse(localStorage.getItem('promotix-date-range') || '{}');
+                if (r.from) this.filters.from = r.from;
+                if (r.to) this.filters.to = r.to;
+            } catch (e) {}
+        },
         async init() {
-            const today = new Date();
-            const start = new Date(today.getTime() - 6 * 86400000);
-            this.filters.from = start.toISOString().slice(0, 10);
-            this.filters.to = today.toISOString().slice(0, 10);
+            this.syncHeaderDates();
+            if (!this.filters.from || !this.filters.to) {
+                const today = new Date();
+                const start = new Date(today.getTime() - 6 * 86400000);
+                this.filters.from = start.toISOString().slice(0, 10);
+                this.filters.to = today.toISOString().slice(0, 10);
+            }
+            window.addEventListener('promotix:date-range', () => {
+                this.syncHeaderDates();
+                this.scheduleReload(true);
+            });
             await this.reload(true);
         },
         async reload(resetPage = false) {

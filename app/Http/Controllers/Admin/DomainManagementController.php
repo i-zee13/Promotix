@@ -20,11 +20,31 @@ class DomainManagementController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
         $domainLimit = (int) env('DOMAIN_LIMIT', 50);
-        $domains = Domain::query()
+        $domainsQuery = Domain::query()
             ->where('user_id', $request->user()->id)
             ->when($search !== '', fn ($q) => $q->where('hostname', 'like', '%' . $search . '%'))
-            ->orderBy('hostname')
-            ->paginate(25);
+            ->orderBy('hostname');
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('visits')) {
+            $domainsQuery
+                ->selectSub(
+                    \Illuminate\Support\Facades\DB::table('visits')
+                        ->selectRaw('COUNT(*)')
+                        ->whereColumn('visits.domain_id', 'domains.id')
+                        ->where('is_paid_traffic', true)
+                        ->where('is_invalid_traffic', false),
+                    'valid_visits_count'
+                )
+                ->selectSub(
+                    \Illuminate\Support\Facades\DB::table('visits')
+                        ->selectRaw('COUNT(*)')
+                        ->whereColumn('visits.domain_id', 'domains.id')
+                        ->where('is_invalid_traffic', true),
+                    'invalid_visits_count'
+                );
+        }
+
+        $domains = $domainsQuery->paginate(25);
 
         $user = $request->user();
         $domainCount = Domain::query()->where('user_id', $user->id)->count();
@@ -259,10 +279,13 @@ class DomainManagementController extends Controller
     public function apiKey(Request $request, Domain $domain): JsonResponse
     {
         abort_unless($domain->user_id === $request->user()->id, 403);
+
         return response()->json([
+            'server_url' => rtrim((string) config('app.url'), '/'),
             'domain_key' => $domain->domain_key,
             'secret_key' => $domain->secret_key,
             'authentication_key' => $domain->authentication_key,
+            'hostname' => $domain->hostname,
         ]);
     }
 
@@ -315,23 +338,31 @@ class DomainManagementController extends Controller
     public function verifyWordpress(Request $request, Domain $domain): JsonResponse
     {
         abort_unless($domain->user_id === $request->user()->id, 403);
-        $endpoint = 'https://' . $domain->hostname . '/wp-json/promotix/v1/verify';
         $verified = false;
-        $message = 'No WordPress verification endpoint response.';
+        $message = 'Could not reach WordPress verification endpoint.';
+        $hosts = array_values(array_unique(array_filter([
+            $domain->hostname,
+            str_starts_with($domain->hostname, 'www.') ? substr($domain->hostname, 4) : 'www.' . $domain->hostname,
+        ])));
 
-        try {
-            $response = Http::timeout(10)->get($endpoint, [
-                'domain_key' => $domain->domain_key,
-                'secret_key' => $domain->secret_key,
-            ]);
-            if ($response->successful()) {
-                $verified = (bool) $response->json('verified');
-                $message = (string) ($response->json('message') ?? 'Verification response received.');
-            } else {
-                $message = 'WordPress endpoint returned status ' . $response->status() . '.';
+        foreach (['https', 'http'] as $scheme) {
+            foreach ($hosts as $host) {
+                $endpoint = $scheme . '://' . $host . '/wp-json/promotix/v1/verify';
+                try {
+                    $response = Http::timeout(12)->get($endpoint, [
+                        'domain_key' => $domain->domain_key,
+                        'secret_key' => $domain->secret_key,
+                    ]);
+                    if ($response->successful()) {
+                        $verified = (bool) $response->json('verified');
+                        $message = (string) ($response->json('message') ?? 'Verification response received.');
+                        break 2;
+                    }
+                    $message = 'WordPress returned HTTP ' . $response->status() . ' on ' . $host . '.';
+                } catch (\Throwable $e) {
+                    $message = 'Could not reach ' . $scheme . '://' . $host . ' (check SSL, firewall, or REST API).';
+                }
             }
-        } catch (\Throwable $e) {
-            $message = 'Could not reach WordPress verification endpoint.';
         }
 
         if ($verified) {
@@ -366,14 +397,14 @@ class DomainManagementController extends Controller
     public function downloadWpPlugin(Request $request, Domain $domain): BinaryFileResponse
     {
         abort_unless($domain->user_id === $request->user()->id, 403);
-        $zipPath = $this->buildWordpressPluginZip();
+        $zipPath = $this->buildWordpressPluginZip($domain);
 
-        return response()->download($zipPath, 'promotix-tag.zip', [
+        return response()->download($zipPath, 'promotix-tag-' . $domain->domain_key . '.zip', [
             'Content-Type' => 'application/zip',
         ]);
     }
 
-    private function buildWordpressPluginZip(): string
+    private function buildWordpressPluginZip(?Domain $domain = null): string
     {
         $slug = 'promotix-tag';
         $baseDir = base_path('resources/wp-plugin/' . $slug);
@@ -383,7 +414,8 @@ class DomainManagementController extends Controller
             abort(404, 'Plugin source not found.');
         }
 
-        $zipPath = storage_path('app/' . $slug . '.zip');
+        $zipName = $domain ? $slug . '-' . $domain->domain_key : $slug;
+        $zipPath = storage_path('app/' . $zipName . '.zip');
         if (file_exists($zipPath)) {
             @unlink($zipPath);
         }
@@ -407,6 +439,17 @@ class DomainManagementController extends Controller
             }
             $relative = str_replace($baseDir . DIRECTORY_SEPARATOR, '', $file->getPathname());
             $zip->addFile($file->getPathname(), $slug . '/' . str_replace('\\', '/', $relative));
+        }
+
+        if ($domain) {
+            $config = json_encode([
+                'server_url' => rtrim((string) config('app.url'), '/'),
+                'domain_key' => $domain->domain_key,
+                'secret_key' => $domain->secret_key,
+                'authentication_key' => $domain->authentication_key,
+                'enabled' => '1',
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $zip->addFromString($slug . '/promotix-tag-config.json', $config);
         }
 
         $zip->close();

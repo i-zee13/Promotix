@@ -8,6 +8,7 @@ use App\Models\IpLog;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Jobs\EnrichIpIntelJob;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,7 @@ class TrackingController extends Controller
             'utm_term' => ['nullable', 'string'],
             'keyword' => ['nullable', 'string'],
             'session_id' => ['nullable', 'string', 'max:128'],
+            'ts' => ['nullable', 'numeric'],
         ])->validate();
 
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
@@ -53,15 +55,11 @@ class TrackingController extends Controller
         $device = $this->platformFromUa($ua);
         $isCrawler = $this->isCrawlerUa($ua);
         $isPaidTraffic = ! empty($data['gclid'] ?? null) || ! empty($data['utm_campaign'] ?? null);
-        $visitedAt = now();
+        $visitedAt = isset($data['ts']) && is_numeric($data['ts'])
+            ? Carbon::createFromTimestampMs((int) $data['ts'])
+            : now();
         $sessionId = (string) ($request->input('session_id') ?: $request->cookie(config('session.cookie', 'laravel_session')) ?: $request->session()->getId());
         $sessionId = $sessionId !== '' ? $sessionId : null;
-
-        // Mark domain as connected/seen
-        $domain->last_seen_at = now();
-        $domain->tag_connected = true;
-        $domain->status = 'connected';
-        $domain->save();
 
         // Log IP into existing ip_logs table
         $ipLog = IpLog::firstOrNew(['ip' => $ip]);
@@ -91,6 +89,17 @@ class TrackingController extends Controller
             $ipLog->is_blocked = true;
             $ipLog->save();
         }
+
+        $domain->last_seen_at = now();
+        $domain->tag_connected = true;
+        $domain->status = 'connected';
+        if ($isPaidTraffic) {
+            $domain->paid_marketing_connected = true;
+        }
+        if ($detection['action_taken'] !== 'allow' || $isCrawler) {
+            $domain->bot_mitigation_connected = true;
+        }
+        $domain->save();
 
         // Paid marketing visit row (1 row per domain+ip)
         $visit = PaidMarketingVisit::firstOrNew([

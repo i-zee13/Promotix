@@ -24,17 +24,17 @@
 
             <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
                 <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Campaigns</span>
-                    <select class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/70">Campaigns</span>
+                    <select class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0" disabled aria-label="Campaigns">
                         <option>All campaigns</option>
                     </select>
                 </label>
                 <label class="flex w-[178px] flex-col justify-center px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
-                    <input placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/70">Filter by path</span>
+                    <input type="search" placeholder="Filter by path" disabled class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0" aria-label="Filter by path">
                 </label>
-                <button type="button" class="figma-filter-action flex w-[34px] items-center justify-center bg-[#6400B2] text-white" aria-label="Filter">
-                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7h8M8 12h8M8 17h8"/></svg>
+                <button type="button" class="figma-filter-action flex w-[34px] shrink-0 items-center justify-center text-white" aria-hidden="true" tabindex="-1">
+                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </button>
             </div>
         </div>
@@ -43,29 +43,35 @@
             <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[#6400B2]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
         @endif
 
-        <form method="GET" action="{{ route('paid-marketing.detection-settings') }}" class="mb-[12px] rounded-[10px] border border-white/25 bg-[#6400B2] px-[28px] py-[23px]">
-            <label class="flex flex-col gap-[10px] text-[15px] font-semibold text-white sm:flex-row sm:items-center">
-                <span>Domain</span>
-                <select name="domain_id" onchange="this.form.submit()" class="figma-select h-[32px] w-full max-w-[278px] appearance-none rounded-[4px] border border-white/20 bg-[#f4eefb] px-[14px] py-[5px] text-[14px] font-normal leading-normal text-[#6400B2] focus:ring-[#9a1aff]/40">
-                    @foreach ($domains as $d)
-                        <option value="{{ $d->id }}" @selected($domain && $domain->id === $d->id)>{{ $d->hostname }}</option>
-                    @endforeach
-                </select>
-            </label>
-        </form>
+        @if ($domains->isEmpty())
+            <div class="rounded-[10px] border border-[#6400B2] p-[28px] text-center text-[#a9a9a9]">No domain found. Add a domain first.</div>
+        @else
+            <form method="GET" action="{{ route('paid-marketing.detection-settings') }}" class="figma-detection-domain-bar">
+                <label class="flex flex-wrap items-center gap-[12px]">
+                    <span>Domain</span>
+                    <select name="domain_id" onchange="this.form.submit()" class="figma-detection-domain-select">
+                        @foreach ($domains as $d)
+                            <option value="{{ $d->id }}" @selected($domain && $domain->id === $d->id)>{{ $d->hostname }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                @if ($domain)
+                    <span class="figma-detection-domain-host">{{ $domain->hostname }}</span>
+                @endif
+            </form>
 
-        @if ($domain && $settings)
-            <form method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
-                @csrf
+            @if ($domain && $settings)
+                <form method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
+                    @csrf
 
-                <div class="grid gap-[10px] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                    <section class="max-h-[590px] overflow-y-auto rounded-[8px] bg-[#d9d9d9] p-[36px] pr-[26px] text-[#101010]">
-                        <div class="mx-auto max-w-[390px] space-y-[16px]">
-                            <div>
-                                <h2 class="mb-[8px] text-center text-[13px] font-bold">Invalid Bot Activity</h2>
-                                <div class="rounded-[6px] bg-[#101010] px-[14px] py-[12px] text-[11px] leading-[1.25] text-[#d9d9d9]">
-                                    <p class="mb-[10px]">Block non-Human tools that can be for malicious purpose such as false-clicks or other type of fraud or fake</p>
-                                    <select name="invalid_bot_action" class="figma-panel-select">
+                    <div class="figma-detection-layout grid gap-[10px] xl:grid-cols-[minmax(0,465px)_minmax(0,1fr)]">
+                        {{-- Left: threat groups (Figma gray panel) --}}
+                        <div class="figma-detection-left">
+                            <div class="figma-detection-section">
+                                <h2 class="figma-detection-section-title">Invalid Bot Activity</h2>
+                                <div class="figma-detection-card figma-detection-card--row">
+                                    <p class="figma-detection-card-text">Block non-Human tools that can be for malicious purpose such as false-clicks or other type of fraud or fake</p>
+                                    <select name="invalid_bot_action" class="figma-detection-inline-select" aria-label="Invalid Bot Activity action">
                                         <option value="block" @selected($settings->invalid_bot_action === 'block')>Block</option>
                                         <option value="flag" @selected($settings->invalid_bot_action === 'flag')>Flag</option>
                                         <option value="allow" @selected($settings->invalid_bot_action === 'allow')>Allow</option>
@@ -73,11 +79,11 @@
                                 </div>
                             </div>
 
-                            <div>
-                                <h2 class="mb-[8px] text-center text-[13px] font-bold">Invalid Malicious Activity</h2>
-                                <div class="rounded-[6px] bg-[#101010] px-[14px] py-[12px] text-[11px] leading-[1.25] text-[#d9d9d9]">
-                                    <p class="mb-[10px]">Block action performed by users with malicious intent Actions can include a set of excessive, non standard or under false identity</p>
-                                    <select name="invalid_malicious_action" class="figma-panel-select">
+                            <div class="figma-detection-section">
+                                <h2 class="figma-detection-section-title">Invalid Malicious Activity</h2>
+                                <div class="figma-detection-card figma-detection-card--row figma-detection-card--row-tall">
+                                    <p class="figma-detection-card-text">Block action performed by users with malicious intent Actions can include a set of excessive, non standard or under false identity</p>
+                                    <select name="invalid_malicious_action" class="figma-detection-inline-select" aria-label="Invalid Malicious Activity action">
                                         <option value="block" @selected($settings->invalid_malicious_action === 'block')>Block</option>
                                         <option value="flag" @selected($settings->invalid_malicious_action === 'flag')>Flag</option>
                                         <option value="allow" @selected($settings->invalid_malicious_action === 'allow')>Allow</option>
@@ -85,100 +91,122 @@
                                 </div>
                             </div>
 
-                            <div>
-                                <h2 class="mb-[8px] text-center text-[13px] font-bold">Suspicious Activity</h2>
-                                <div class="rounded-[6px] bg-[#101010] text-[11px] leading-[1.25] text-[#d9d9d9]">
-                                    <div class="px-[14px] py-[10px]">
+                            <div class="figma-detection-section">
+                                <h2 class="figma-detection-section-title">Suspicious Activity</h2>
+                                <div class="figma-detection-card figma-detection-card--suspicious">
+                                    <div class="figma-detection-suspicious-intro">
                                         <p>Block Activity From User with Abnormal repetition or an activity which originates from suspicious source or routes such as visits generated by data center or user with VPN-based location spoofing</p>
-                                        <label class="mt-[8px] flex items-center justify-between">
-                                            <span>Suspicious Activity enabled</span>
-                                            <input type="checkbox" name="suspicious_enabled" value="1" @checked($settings->suspicious_enabled) class="rounded border-white/30 bg-black text-[#6400B2] focus:ring-[#6400B2]">
-                                        </label>
+                                        <x-figma-toggle
+                                            variant="on-light"
+                                            name="suspicious_enabled"
+                                            value="1"
+                                            :checked="$settings->suspicious_enabled"
+                                            label-on="On"
+                                            label-off="Off"
+                                        />
                                     </div>
-                                    <div class="border-t border-white/20">
-                                        <div class="grid grid-cols-[1fr_1fr_58px] px-[10px] py-[6px] text-[12px] text-white">
-                                            <span>Activity</span>
-                                            <span>Audience Exclusion</span>
-                                            <span>Edit</span>
+                                    <div class="figma-detection-matrix-divider" aria-hidden="true"></div>
+                                    <div class="figma-detection-matrix-head">
+                                        <span>Activity</span>
+                                        <span>Audience Exclusion</span>
+                                        <span>Edit</span>
+                                    </div>
+                                    @foreach ($matrixRows as [$key, $label, $current])
+                                        <div class="figma-detection-matrix-row">
+                                            <span>{{ $label }}</span>
+                                            <select name="suspicious_{{ $key }}" class="figma-detection-inline-select w-full max-w-[140px]" aria-label="{{ $label }} exclusion">
+                                                <option value="allow" @selected($current === 'allow')>Allow</option>
+                                                <option value="flag" @selected($current === 'flag')>Flag</option>
+                                                <option value="block" @selected($current === 'block')>Block</option>
+                                            </select>
+                                            <span class="figma-detection-matrix-edit">Edit</span>
                                         </div>
-                                        @foreach ($matrixRows as [$key, $label, $current])
-                                            <div class="grid grid-cols-[1fr_1fr_58px] items-center px-[10px] py-[6px] text-[12px]">
-                                                <span class="font-semibold text-white">{{ $label }}</span>
-                                                <select name="suspicious_{{ $key }}" class="figma-matrix-select">
-                                                    <option value="allow" @selected($current === 'allow')>Allow</option>
-                                                    <option value="flag" @selected($current === 'flag')>Flag</option>
-                                                    <option value="block" @selected($current === 'block')>Block</option>
-                                                </select>
-                                                <span class="text-right text-white/80">Edit</span>
-                                            </div>
-                                        @endforeach
-                                    </div>
+                                    @endforeach
                                 </div>
                             </div>
 
-                            <div>
-                                <h2 class="mb-[8px] text-center text-[13px] font-bold">Session recordings</h2>
-                                <label class="flex items-center justify-between rounded-[6px] bg-[#101010] px-[14px] py-[12px] text-[11px] leading-[1.25] text-[#d9d9d9]">
-                                    <span>Allow session recordings to capture and review mouse movements for detailed analysis and observation. Currently available for Invalid Malicious Activity Threat Group only</span>
-                                    <input type="checkbox" name="session_recordings" value="1" @checked($settings->session_recordings) class="ml-[8px] rounded border-white/30 bg-black text-[#6400B2] focus:ring-[#6400B2]">
-                                </label>
+                            <div class="figma-detection-section">
+                                <h2 class="figma-detection-section-title">Session recordings</h2>
+                                <div class="figma-detection-card figma-detection-session">
+                                    <p class="figma-detection-card-text">Allow session recordings to capture and review mouse movements for detailed analysis and observation. Currently available for Invalid Malicious Activity Threat Group only</p>
+                                    <x-figma-toggle
+                                        name="session_recordings"
+                                        value="1"
+                                        :checked="$settings->session_recordings"
+                                        label-on="On"
+                                        label-off="Off"
+                                    />
+                                </div>
                             </div>
 
-                            <div>
-                                <h2 class="mb-[8px] text-center text-[13px] font-bold">Frequency capping</h2>
-                                <label class="flex items-center justify-between rounded-[6px] bg-[#101010] px-[14px] py-[12px] text-[11px] leading-[1.25] text-[#d9d9d9]">
-                                    <span>Control repeated exposure to suspicious visitors across your campaigns.</span>
-                                    <input type="checkbox" name="frequency_capping" value="1" @checked($settings->frequency_capping) class="ml-[8px] rounded border-white/30 bg-black text-[#6400B2] focus:ring-[#6400B2]">
-                                </label>
-                            </div>
+                            <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-detection-add-domain">ADD DOMAIN</a>
                         </div>
-                    </section>
 
-                    <section class="rounded-[8px] border border-white/25 bg-[#6400B2] p-[42px] text-white">
-                        <div class="mx-auto max-w-[392px] space-y-[48px] pt-[6px]">
-                            <div>
-                                <h2 class="mb-[12px] text-center text-[13px] font-medium">Marketing Optimization Rules</h2>
-                                <label class="flex items-center justify-between rounded-[8px] bg-[#101010] px-[14px] py-[12px] text-[11px] leading-[1.25] text-[#d9d9d9]">
-                                    <span>Ad fatigue occurs when your audience sees your ads too often which causes your campaigns to become less effective and prevents users from moving down the sales funnel. Using Frequency capping you can limit the number of times your ads appear to the same user</span>
-                                    <span class="ml-[10px] flex h-[12px] w-[30px] items-center rounded-full bg-[#d9d9d9] p-[2px]"><span class="h-[8px] w-[8px] rounded-full bg-[#101010] {{ $settings->frequency_capping ? 'translate-x-[18px]' : '' }}"></span></span>
-                                </label>
-                            </div>
+                        {{-- Right: marketing optimization (Figma purple panel) --}}
+                        <section class="figma-detection-right">
+                            <div class="figma-detection-right-inner space-y-[40px]">
+                                <div>
+                                    <h2 class="figma-detection-right-title">Marketing Optimization Rules</h2>
+                                    <div class="figma-detection-right-card">
+                                        <p class="mb-[10px]">Ad fatigue occurs when your audience sees your ads too often which causes your campaigns to become less effective and prevents users from moving down the sales funnel. Using Frequency capping you can limit the number of times your ads appear to the same user</p>
+                                        <div class="flex justify-end">
+                                            <x-figma-toggle
+                                                name="frequency_capping"
+                                                value="1"
+                                                :checked="$settings->frequency_capping"
+                                                label-on="On"
+                                                label-off="Off"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <div>
-                                <h2 class="mb-[12px] text-center text-[13px] font-medium">Marketing Optimization Rules</h2>
-                                <label class="flex items-center justify-between rounded-[8px] bg-[#101010] px-[14px] py-[10px] text-[11px] leading-[1.25] text-[#d9d9d9]">
-                                    <span>Only allow click coming from the following Countries</span>
-                                    <input type="checkbox" name="out_of_geo_enabled" value="1" @checked($settings->out_of_geo_enabled) class="ml-[10px] rounded border-white/30 bg-black text-white focus:ring-white">
-                                </label>
-                                <input name="out_of_geo_countries" value="{{ implode(', ', $settings->out_of_geo_countries ?? []) }}" placeholder="US, UK, AE" class="mt-[8px] h-[28px] w-full rounded-[5px] border border-white/25 bg-[#101010] px-[10px] text-[11px] text-white placeholder:text-white/40 focus:ring-white/40">
-                            </div>
+                                <div>
+                                    <h2 class="figma-detection-right-title">Marketing Optimization Rules</h2>
+                                    <div class="figma-detection-right-row">
+                                        <span>Only allow click coming from the following Countries</span>
+                                        <x-figma-toggle
+                                            name="out_of_geo_enabled"
+                                            value="1"
+                                            :checked="$settings->out_of_geo_enabled"
+                                            label-on="On"
+                                            label-off="Off"
+                                        />
+                                    </div>
+                                    <input name="out_of_geo_countries" value="{{ implode(', ', $settings->out_of_geo_countries ?? []) }}" placeholder="US, UK, AE" class="figma-input mt-[8px] h-[28px] text-[11px]">
+                                </div>
 
-                            <div>
-                                <label class="flex items-center justify-between rounded-[8px] bg-[#101010] px-[14px] py-[12px] text-[11px] leading-[1.25] text-[#d9d9d9]">
-                                    <span>Ensure predefined IPs will always be able to see your ads</span>
-                                    <input type="checkbox" name="allow_list_enabled" value="1" @checked($settings->allow_list_enabled) class="ml-[10px] rounded border-white/30 bg-black text-white focus:ring-white">
-                                </label>
-                                <textarea name="allow_list_ips" rows="3" placeholder="Add IPs or ranges" class="mt-[8px] w-full rounded-[5px] border border-white/25 bg-[#101010] px-[10px] py-[8px] text-[11px] text-white placeholder:text-white/40 focus:ring-white/40">{{ $settings->allow_list_ips }}</textarea>
-                            </div>
+                                <div>
+                                    <div class="figma-detection-right-row">
+                                        <span>Ensure predefined IPs will always be able to see your ads</span>
+                                        <x-figma-toggle
+                                            name="allow_list_enabled"
+                                            value="1"
+                                            :checked="$settings->allow_list_enabled"
+                                            label-on="On"
+                                            label-off="Off"
+                                        />
+                                    </div>
+                                    <textarea name="allow_list_ips" rows="3" placeholder="Add IPs or ranges" class="figma-textarea mt-[8px] text-[11px]">{{ $settings->allow_list_ips }}</textarea>
+                                </div>
 
-                            <div>
-                                <h2 class="mb-[12px] text-center text-[13px] font-medium">Audience Exclusion Event Settings</h2>
-                                <select name="audience_exclusion_event" class="figma-panel-select figma-panel-select-lg">
-                                    <option value="exclude_all_threat_groups_auto" @selected($settings->audience_exclusion_event === 'exclude_all_threat_groups_auto')>Exclude all Threat Groups automatically</option>
-                                    <option value="exclude_bot_malicious_only" @selected($settings->audience_exclusion_event === 'exclude_bot_malicious_only')>Exclude only Bot and Malicious Threat Groups</option>
-                                    <option value="disable_auto_exclusions" @selected($settings->audience_exclusion_event === 'disable_auto_exclusions')>Disable automatic exclusions</option>
-                                </select>
-                            </div>
+                                <div>
+                                    <h2 class="figma-detection-right-title">Audience Exclusion Event Settings</h2>
+                                    <select name="audience_exclusion_event" class="figma-panel-select figma-panel-select-lg w-full">
+                                        <option value="exclude_all_threat_groups_auto" @selected($settings->audience_exclusion_event === 'exclude_all_threat_groups_auto')>Exclude all Threat Groups automatically</option>
+                                        <option value="exclude_bot_malicious_only" @selected($settings->audience_exclusion_event === 'exclude_bot_malicious_only')>Exclude only Bot and Malicious Threat Groups</option>
+                                        <option value="disable_auto_exclusions" @selected($settings->audience_exclusion_event === 'disable_auto_exclusions')>Disable automatic exclusions</option>
+                                    </select>
+                                </div>
 
-                            <div class="flex justify-end">
-                                <button type="submit" class="rounded-[6px] bg-white px-[22px] py-[9px] text-[13px] font-semibold text-[#6400B2] shadow-[0_8px_20px_rgba(0,0,0,.25)]">Save changes</button>
+                                <div class="figma-detection-save-row flex justify-end pt-[4px]">
+                                    <button type="submit" class="rounded-[6px] bg-white px-[22px] py-[9px] text-[13px] font-semibold text-[#6400B2] shadow-[0_8px_20px_rgba(0,0,0,.25)]">Save changes</button>
+                                </div>
                             </div>
-                        </div>
-                    </section>
-                </div>
-            </form>
-        @else
-            <div class="rounded-[10px] border border-[#6400B2] p-[28px] text-center text-[#a9a9a9]">No domain found. Add a domain first.</div>
+                        </section>
+                    </div>
+                </form>
+            @endif
         @endif
     </section>
 </div>

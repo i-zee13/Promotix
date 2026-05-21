@@ -93,11 +93,7 @@
                     <canvas id="threats-chart" class="h-[150px] w-[150px]"></canvas>
                 </div>
             </div>
-            <div class="mt-[6px] flex flex-wrap justify-center gap-x-[42px] gap-y-[5px] text-[10px] text-white/85">
-                <span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px] bg-[#B893D8]"></i>Invalid Visits 3</span>
-                <span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px] bg-white"></i>Invalid Visits 3</span>
-                <span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px] bg-[#D9D9D9]"></i>Invalid Suspicious Activity</span>
-            </div>
+            <div id="chart-legend" class="mt-[6px] flex flex-wrap justify-center gap-x-[42px] gap-y-[5px] text-[10px] text-white/85"></div>
         </section>
 
         <section class="mt-[15px] rounded-[8px] border border-[#6400B2] bg-[#6400B2] p-[13px]">
@@ -105,15 +101,16 @@
                 <div>
                     <h2 class="text-[13px] font-normal text-white">Overall Domain Performance</h2>
                     <div class="mt-[5px] flex gap-[16px] border-b border-white/60 pb-[4px] text-[10px] text-white/85">
-                        <span>Invalid Domains</span>
-                        <span>Pending</span>
+                        <button type="button" id="domain-tab-all" class="border-b-2 border-white pb-[2px] text-white">All</button>
+                        <button type="button" id="domain-tab-invalid" class="pb-[2px] text-white/60 hover:text-white">Invalid</button>
+                        <button type="button" id="domain-tab-pending" class="pb-[2px] text-white/60 hover:text-white">Pending</button>
                     </div>
                 </div>
                 <div class="relative w-full sm:w-[126px]">
                     <span class="absolute left-[7px] top-1/2 -translate-y-1/2 text-white/70">
                         <svg class="h-[9px] w-[9px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </span>
-                    <input placeholder="Search" class="h-[24px] w-full rounded-[3px] border border-black/40 bg-[#0B0B0B] pl-[22px] pr-[6px] text-[10px] text-white focus:border-white/60 focus:ring-0">
+                    <input id="domain-search" type="search" placeholder="Search domain" autocomplete="off" class="h-[24px] w-full rounded-[3px] border border-black/40 bg-[#0B0B0B] pl-[22px] pr-[6px] text-[10px] text-white focus:border-white/60 focus:ring-0">
                 </div>
             </div>
             <div class="overflow-x-auto rounded-[4px] border border-white/15">
@@ -158,13 +155,13 @@
                 <h2 class="text-[13px] font-normal text-white">Connection Status</h2>
                 <div class="mt-[12px] space-y-[8px] text-[11px] text-white/85">
                     <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
-                        <span>Tracking script</span><span class="text-emerald-200">Healthy</span>
+                        <span>Tracking script</span><span id="conn-tracking" class="text-emerald-200">—</span>
                     </div>
                     <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
-                        <span>Ingestion</span><span class="text-emerald-200">Online</span>
+                        <span>Ingestion</span><span id="conn-ingestion" class="text-emerald-200">—</span>
                     </div>
                     <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
-                        <span>Protection</span><span class="text-amber-100">Monitoring</span>
+                        <span>Protection</span><span id="conn-protection" class="text-amber-100">—</span>
                     </div>
                 </div>
             </section>
@@ -256,18 +253,81 @@ document.addEventListener('DOMContentLoaded', () => {
         return res.json();
     }
 
+    function dateParams() {
+        try {
+            const r = JSON.parse(localStorage.getItem('promotix-date-range') || '{}');
+            const p = new URLSearchParams();
+            if (r.from) p.set('from', r.from);
+            if (r.to) p.set('to', r.to);
+            return p;
+        } catch (e) {
+            return new URLSearchParams();
+        }
+    }
+
+    function apiUrl(path) {
+        const qs = dateParams().toString();
+        return qs ? `${path}?${qs}` : path;
+    }
+
     async function loadSummary() {
-        const data = await json('/overview/summary');
-        document.getElementById('suite-paid-visits').textContent = fmt(data.paidAdvertising?.visits);
+        const data = await json(apiUrl('/overview/summary'));
+        document.getElementById('suite-paid-visits').textContent = fmt(data.paidAdvertising?.invalidVisits ?? data.paidAdvertising?.visits);
         document.getElementById('suite-bot-blocked').textContent = fmt(data.botProtection?.blockedHits);
-        const paidRate = Math.min(99, Number(data.paidAdvertising?.campaigns || 0) * 2.3).toFixed(2);
-        const botRate = Math.min(99, Number(data.botProtection?.domainsProtected || 0) * 2.8).toFixed(2);
+        const paidRate = Number(data.paidAdvertising?.invalidRate ?? 0).toFixed(2);
+        const botRate = Number(data.botProtection?.invalidRate ?? 0).toFixed(2);
         document.getElementById('suite-paid-rate').textContent = `${paidRate}%`;
         document.getElementById('suite-bot-rate').textContent = `${botRate}%`;
+        const conn = data.connectionStatus || {};
+        const setConn = (id, text) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text || '—';
+            el.className = /healthy|online|active/i.test(text || '') ? 'text-emerald-200' : 'text-amber-100';
+        };
+        setConn('conn-tracking', conn.tracking);
+        setConn('conn-ingestion', conn.ingestion);
+        setConn('conn-protection', conn.protection);
+    }
+
+    let domainRows = [];
+    let domainFilter = 'all';
+    let domainSearch = '';
+
+    function renderDomainTable() {
+        const body = document.getElementById('domain-performance-body');
+        const q = domainSearch.trim().toLowerCase();
+        const filtered = domainRows.filter((row) => {
+            if (q && !(row.domain || '').toLowerCase().includes(q)) return false;
+            if (domainFilter === 'invalid') return row.threats > 0;
+            if (domainFilter === 'pending') return row.pending;
+            return true;
+        });
+        body.innerHTML = filtered.length ? filtered.map((row) => `
+            <tr>
+                <td class="px-[8px] py-[6px]">${row.domain}${row.pending ? ' <span class="text-[9px] text-amber-200">(pending)</span>' : ''}</td>
+                <td class="px-[8px] py-[6px]">${fmt(row.visits)}</td>
+                <td class="px-[8px] py-[6px]">${fmt(row.threats)}</td>
+            </tr>
+        `).join('') : '<tr><td colspan="3" class="px-[8px] py-[8px] text-center text-white/75">No domains match this filter.</td></tr>';
+    }
+
+    function setDomainTab(tab) {
+        domainFilter = tab;
+        ['all', 'invalid', 'pending'].forEach((name) => {
+            const btn = document.getElementById(`domain-tab-${name}`);
+            if (!btn) return;
+            const active = name === tab;
+            btn.classList.toggle('border-b-2', active);
+            btn.classList.toggle('border-white', active);
+            btn.classList.toggle('text-white', active);
+            btn.classList.toggle('text-white/60', !active);
+        });
+        renderDomainTable();
     }
 
     async function loadInsights() {
-        const d = await json('/insights');
+        const d = await json(apiUrl('/insights'));
         const today = new Date();
         const rows = [
             ['Paid Advertising: detection on example domain', d.totalClicks],
@@ -299,49 +359,73 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadDomainTable() {
-        const rows = await json('/domains/performance');
-        const body = document.getElementById('domain-performance-body');
-        body.innerHTML = rows.length ? rows.map((row) => `
-            <tr>
-                <td class="px-[8px] py-[6px]">${row.domain}</td>
-                <td class="px-[8px] py-[6px]">${fmt(row.visits)}</td>
-                <td class="px-[8px] py-[6px]">${fmt(row.threats)}</td>
-            </tr>
-        `).join('') : '<tr><td colspan="3" class="px-[8px] py-[8px] text-center text-white/75">No domain data yet.</td></tr>';
-    }
-
-    async function loadNotifications() {
-        const rows = await json('/notifications');
-        document.getElementById('right-notifications').innerHTML = rows.map((row) => `
-            <div class="flex items-center gap-[7px]"><span class="text-white/85">mail</span><span>${row.body}</span></div>
-        `).join('');
+        const params = dateParams();
+        const q = domainSearch.trim();
+        if (q) params.set('search', q);
+        const qs = params.toString();
+        domainRows = await json(qs ? `/domains/performance?${qs}` : '/domains/performance');
+        renderDomainTable();
     }
 
     async function loadCharts() {
-        const params = new URLSearchParams();
+        const params = dateParams();
         const campaign = document.getElementById('campaign-filter').value;
         const path = document.getElementById('path-filter').value;
         if (campaign) params.set('campaign', campaign);
         if (path) params.set('path', path);
-        const trends = await json(`/analytics/trends?${params.toString()}`);
-        const threats = await json('/analytics/threats');
+        const qs = params.toString();
+        const trends = await json(qs ? `/analytics/trends?${qs}` : '/analytics/trends');
+        const threats = await json(qs ? `/analytics/threats?${qs}` : '/analytics/threats');
         drawTrend(trends.labels || [], trends.values || []);
         drawDonut(threats.labels || [], threats.values || []);
+        const legend = document.getElementById('chart-legend');
+        if (legend && (threats.labels || []).length) {
+            const colors = ['#B893D8', '#FFFFFF', '#D9D9D9', '#8C8C8C'];
+            legend.innerHTML = (threats.labels || []).map((label, i) =>
+                `<span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px]" style="background:${colors[i % colors.length]}"></i>${label} (${fmt((threats.values || [])[i])})</span>`
+            ).join('');
+        } else if (legend) {
+            legend.innerHTML = '<span class="text-white/60">No threat groups in range yet.</span>';
+        }
+    }
+
+    function syncHeaderDatesFromStorage() {
+        try {
+            const r = JSON.parse(localStorage.getItem('promotix-date-range') || '{}');
+            const fromEl = document.querySelector('[x-ref="fromDate"]');
+            const toEl = document.querySelector('[x-ref="toDate"]');
+            if (r.from && fromEl) fromEl.value = r.from;
+            if (r.to && toEl) toEl.value = r.to;
+        } catch (e) {}
     }
 
     async function loadAll() {
+        syncHeaderDatesFromStorage();
         try {
-            await Promise.all([loadSummary(), loadInsights(), loadCampaigns(), loadDomainTable(), loadNotifications()]);
+            await Promise.all([loadSummary(), loadInsights(), loadCampaigns(), loadDomainTable()]);
             await loadCharts();
         } catch (error) {
             console.error(error);
         }
     }
 
+    document.getElementById('domain-tab-all')?.addEventListener('click', () => setDomainTab('all'));
+    document.getElementById('domain-tab-invalid')?.addEventListener('click', () => setDomainTab('invalid'));
+    document.getElementById('domain-tab-pending')?.addEventListener('click', () => setDomainTab('pending'));
+    const FILTER_DEBOUNCE_MS = window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500;
+
+    document.getElementById('domain-search')?.addEventListener('input', (e) => {
+        domainSearch = e.target.value;
+        renderDomainTable();
+        clearTimeout(window.__domainSearchTimer);
+        window.__domainSearchTimer = setTimeout(() => loadDomainTable(), FILTER_DEBOUNCE_MS);
+    });
+    window.addEventListener('promotix:date-range', loadAll);
+
     document.getElementById('campaign-filter').addEventListener('change', loadCharts);
     document.getElementById('path-filter').addEventListener('input', () => {
         clearTimeout(window.__figmaPathTimer);
-        window.__figmaPathTimer = setTimeout(loadCharts, 250);
+        window.__figmaPathTimer = setTimeout(loadCharts, FILTER_DEBOUNCE_MS);
     });
     window.addEventListener('resize', loadCharts);
     loadAll();

@@ -25,8 +25,11 @@
                 </label>
                 <label class="flex w-[178px] flex-col justify-center px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
-                    <input x-model.debounce.350ms="filters.path" @input="reload()" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    <input x-model="filters.path" @input="scheduleReload()" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                 </label>
+                <button type="button" @click="syncHeaderDates()" class="figma-filter-action flex w-[34px] shrink-0 items-center justify-center bg-[#6400B2] text-white" aria-label="Date range">
+                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
+                </button>
             </div>
         </div>
 
@@ -147,7 +150,7 @@
                         <thead class="sticky top-0 bg-[#6400B2]">
                             <tr>
                                 <th class="px-[10px] py-[7px] font-normal">Address</th>
-                                <th class="px-[10px] py-[7px] font-normal">Campaign</th>
+                                <th class="px-[10px] py-[7px] font-normal">Invalid</th>
                                 <th class="px-[10px] py-[7px] font-normal">Last Click</th>
                             </tr>
                         </thead>
@@ -155,7 +158,7 @@
                             <template x-for="row in ips" :key="row.ip">
                                 <tr>
                                     <td class="px-[10px] py-[7px]" x-text="row.ip"></td>
-                                    <td class="px-[10px] py-[7px]">N/A</td>
+                                    <td class="px-[10px] py-[7px]" x-text="fmt(row.invalid) + ' / ' + fmt(row.total)"></td>
                                     <td class="px-[10px] py-[7px]" x-text="dateLabel(row.last_seen)"></td>
                                 </tr>
                             </template>
@@ -220,8 +223,27 @@ function paidAdvertisingFigma() {
             if (this.filters.to) p.set('to', this.filters.to);
             return p.toString();
         },
+        reloadTimer: null,
+        debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
+        scheduleReload() {
+            clearTimeout(this.reloadTimer);
+            this.reloadTimer = setTimeout(() => this.reload(), this.debounceMs);
+        },
+        syncHeaderDates() {
+            try {
+                const r = JSON.parse(localStorage.getItem('promotix-date-range') || '{}');
+                if (r.from) this.filters.from = r.from;
+                if (r.to) this.filters.to = r.to;
+            } catch (e) {}
+            this.reload();
+        },
         async init() {
-            this.setWindow();
+            this.syncHeaderDates();
+            if (!this.filters.from) this.setWindow();
+            window.addEventListener('promotix:date-range', () => {
+                this.syncHeaderDates();
+                this.scheduleReload();
+            });
             window.addEventListener('resize', () => {
                 clearTimeout(window.__paidFigmaResize);
                 window.__paidFigmaResize = setTimeout(() => this.render(), 180);

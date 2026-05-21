@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="initial-theme" content="{{ (auth()->user()?->ui_preferences['dark_mode'] ?? true) ? 'dark' : 'light' }}">
     <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
+    <script>window.PROMOTIX_FILTER_DEBOUNCE_MS = 1500;</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
@@ -97,7 +98,7 @@
                             <span>Domains</span>
                         </a>
                     @endif
-                    <a href="{{ route('domains.index') }}" class="figma-add-domain-btn flex h-[32px] w-full max-w-[188px] items-center justify-center gap-[6px] rounded-[8px] border-2 text-[13px] font-bold uppercase shadow-[inset_0_1px_1.8px_4px_rgba(0,0,0,.2)] transition hover:bg-[#6400B2] hover:text-white">
+                    <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-add-domain-btn flex h-[32px] w-full max-w-[188px] items-center justify-center gap-[6px] rounded-[8px] border-2 text-[13px] font-bold uppercase shadow-[inset_0_1px_1.8px_4px_rgba(0,0,0,.2)] transition hover:bg-[#6400B2] hover:text-white">
                         <span class="flex h-[16px] w-[16px] items-center justify-center rounded-full border text-[11px] leading-none">+</span>
                         ADD DOMAIN
                     </a>
@@ -135,10 +136,19 @@
             </a>
         </div>
 
-        <div class="relative flex items-center gap-[8px]" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
+        <div class="relative flex items-center gap-[8px]" x-data="figmaHeaderBar()" x-init="init()" @click.outside="userMenuOpen = false">
             @hasSection('header-actions')
                 <div class="hidden items-center gap-2 md:flex">@yield('header-actions')</div>
             @endif
+
+            <div class="hidden items-center gap-[6px] sm:flex" title="Date range for dashboards">
+                <input type="date" x-ref="fromDate" x-model="from" @change="applyRange()" class="h-[27px] rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] px-[6px] text-[10px] text-white">
+                <span class="text-[10px] text-white/50">–</span>
+                <input type="date" x-ref="toDate" x-model="to" @change="applyRange()" class="h-[27px] rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] px-[6px] text-[10px] text-white">
+                <button type="button" @click="openCalendar()" class="flex h-[27px] w-[27px] items-center justify-center rounded-[3px] border border-[#6400B2] bg-[#6400B2] text-white hover:bg-[#7B13C8]" aria-label="Pick date range">
+                    <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
+                </button>
+            </div>
 
             <div class="flex h-[27px] max-w-[60vw] items-center overflow-hidden rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] text-white sm:max-w-none">
                 <span class="flex h-full w-[30px] items-center justify-center border-r border-[#6400B2] bg-white/10">
@@ -180,11 +190,7 @@
         </div>
 
         <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]">
-            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px]"><span class="text-white/85">mail</span><span>1 m paid traffic reached</span></div>
-            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px]"><span class="text-white/85">mail</span><span>20 k block detections</span></div>
-            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px]"><span class="text-white/85">mail</span><span>Countries IP reviewed</span></div>
-            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px]"><span class="text-white/85">mail</span><span>Account is connected</span></div>
-            <div class="flex items-center gap-[10px]"><span class="text-white/85">mail</span><span>Campaigns is live</span></div>
+            <div class="text-white/60">Loading live alerts…</div>
         </div>
 
         <div class="mt-[16px]">
@@ -219,10 +225,10 @@
                     <span>Invalid Blocked user</span>
                     <span>Return Rate</span>
                 </div>
-                <div class="mt-[6px] flex items-center justify-around text-[10px]">
-                    <span>0</span>
-                    <span class="text-[#d9d9d9]">+</span>
-                    <span>2.4</span>
+                <div class="mt-[6px] flex items-center justify-around text-[10px]" id="rightbar-blocked-stats">
+                    <span>—</span>
+                    <span class="text-[#d9d9d9]">blocked</span>
+                    <span>—</span>
                 </div>
                 <div class="mt-[8px] rounded-[5px] bg-[#171515] px-[8px] py-[6px] text-center text-[7px] leading-tight">
                     Reallocated Budget Simulator
@@ -234,8 +240,46 @@
     </aside>
 </div>
 
+@include('partials.figma-notifications-script')
+
 <script>
+function figmaHeaderBar() {
+    const pad = (n) => String(n).padStart(2, '0');
+    const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const stored = (() => {
+        try { return JSON.parse(localStorage.getItem('promotix-date-range') || '{}'); } catch (e) { return {}; }
+    })();
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 6);
+    return {
+        userMenuOpen: false,
+        from: stored.from || fmt(weekAgo),
+        to: stored.to || fmt(today),
+        applyRange() {
+            localStorage.setItem('promotix-date-range', JSON.stringify({ from: this.from, to: this.to }));
+            window.dispatchEvent(new CustomEvent('promotix:date-range', { detail: { from: this.from, to: this.to } }));
+        },
+        openCalendar() {
+            this.$refs.fromDate?.showPicker?.();
+        },
+        init() {
+            this.applyRange();
+        },
+    };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    fetch('/overview/summary', { headers: { Accept: 'application/json' } })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+            const el = document.getElementById('rightbar-blocked-stats');
+            if (!el || !data) return;
+            const blocked = data.botProtection?.blockedHits ?? 0;
+            const invalid = data.paidAdvertising?.invalidVisits ?? 0;
+            el.innerHTML = `<span>${Number(blocked).toLocaleString()}</span><span class="text-[#d9d9d9]">blocked</span><span>${Number(invalid).toLocaleString()}</span>`;
+        })
+        .catch(() => {});
     const shell = document.getElementById('figma-shell');
     const sidebarToggle = document.getElementById('figma-sidebar-toggle');
     const overlay = document.getElementById('figma-sidebar-overlay');

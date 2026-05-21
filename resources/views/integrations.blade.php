@@ -37,14 +37,10 @@
         @endforeach
     </div>
 
-    <div class="space-y-[13px] border-b-2 border-[#5a2a99] pb-[18px] text-[10px] text-[#a9a9a9]">
-        @foreach (['1 m paid traffic reached', '20 k block detections', 'Countries IP reviewed', 'Account is connected', 'Campaigns is live'] as $notice)
-            <div class="flex items-center gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px] last:border-b-0">
-                <svg class="h-[14px] w-[14px] shrink-0 text-white/85" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M4 6h16v12H4z"/><path stroke-width="1.7" d="M4 7l8 6 8-6"/></svg>
-                <span>{{ $notice }}</span>
-            </div>
-        @endforeach
+    <div id="right-notifications" class="space-y-[13px] border-b-2 border-[#5a2a99] pb-[18px] text-[10px] text-[#a9a9a9]">
+        <div class="text-white/60">Loading live alerts…</div>
     </div>
+    @include('partials.figma-notifications-script')
 @endsection
 
 @section('content')
@@ -191,7 +187,14 @@
                 </section>
 
                 <section class="rounded-[10px] bg-[#3c3c3c] p-[16px]">
-                    <h2 class="mb-[20px] text-[16px] font-medium text-[#d9d9d9]">Connection Requirement</h2>
+                    <div class="mb-[20px] flex items-center justify-between gap-[8px]">
+                        <h2 class="text-[16px] font-medium text-[#d9d9d9]">Connection Requirement</h2>
+                        @if (collect($requirementSteps)->every(fn ($s) => $s['done']))
+                            <span class="rounded-full bg-emerald-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-emerald-200">Live</span>
+                        @else
+                            <span class="rounded-full bg-amber-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-amber-100">Setup in progress</span>
+                        @endif
+                    </div>
                     <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
                         <div class="relative h-[84px] w-[84px] rounded-full border-[14px] border-[#d9d9d9] border-l-[#7a56a9] border-t-[#7a56a9]"></div>
                         <div class="space-y-[8px]">

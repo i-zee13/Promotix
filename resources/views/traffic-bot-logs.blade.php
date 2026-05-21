@@ -64,7 +64,7 @@
             <div class="grid gap-3 md:grid-cols-5">
                 <div class="md:col-span-2">
                     <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">Search</label>
-                    <input type="search" class="brand-input mt-1 w-full" placeholder="IP, URL, campaign..." x-model.debounce.400ms="filters.search" @input="loadTraffic()">
+                    <input type="search" class="brand-input mt-1 w-full" placeholder="IP, URL, campaign..." x-model="filters.search" @input="scheduleLoadTraffic()">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">Threat group</label>
@@ -88,7 +88,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">Country (ISO)</label>
-                    <input type="text" maxlength="3" class="brand-input mt-1 w-full uppercase" placeholder="US" x-model.debounce.400ms="filters.country" @input="loadTraffic()">
+                    <input type="text" maxlength="3" class="brand-input mt-1 w-full uppercase" placeholder="US" x-model="filters.country" @input="scheduleLoadTraffic()">
                 </div>
             </div>
             <div class="mt-3 flex items-center gap-3">
@@ -248,6 +248,12 @@ function trafficLogs(initial) {
         },
         resetFilters() {
             this.filters = { search: '', threat_group: '', action_taken: '', country: '', blocked_only: false };
+        },
+        filterTimer: null,
+        debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
+        scheduleLoadTraffic() {
+            clearTimeout(this.filterTimer);
+            this.filterTimer = setTimeout(() => this.loadTraffic(1), this.debounceMs);
         },
         async loadStats() {
             try {

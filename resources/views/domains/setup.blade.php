@@ -80,25 +80,31 @@
 
         {{-- WP plugin --}}
         @php
-            $wpPluginSlug = 'promotix-tag';
-            $wpBase = 'https://' . $domain->hostname;
-            $wpAdminUrl = $wpBase . '/wp-admin/';
-            $wpPluginInstallPath = '/wp-admin/plugin-install.php?tab=plugin-information&plugin=' . $wpPluginSlug;
-            $wpAdminPluginInstallUrl = $wpBase . '/wp-login.php?redirect_to=' . urlencode($wpBase . $wpPluginInstallPath);
+            $serverUrl = rtrim(config('app.url'), '/');
+            $wpHost = preg_replace('#^https?://#i', '', $domain->hostname);
+            $wpBase = 'https://' . $wpHost;
+            $wpAdminRedirect = $wpBase . '/wp-admin/';
+            $wpAdminUrl = $wpBase . '/wp-login.php?redirect_to=' . urlencode($wpAdminRedirect);
+            $wpPluginSettingsUrl = $wpBase . '/wp-login.php?redirect_to=' . urlencode($wpBase . '/wp-admin/options-general.php?page=promotix-tag');
         @endphp
-        <x-ui.card title="WordPress plugin" subtitle="Install our plugin in WordPress, then paste these keys" x-show="tab==='wp'" x-cloak>
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p class="text-sm text-night-300">Download &amp; install the plugin, then open wp-admin.</p>
+        <x-ui.card title="WordPress plugin" subtitle="Download zip for this domain — keys are pre-filled on activate" x-show="tab==='wp'" x-cloak>
+            <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                <strong>Important:</strong> Install the zip under Plugins → Add New → Upload. Then open <strong>Settings → Promotix Tag</strong>, confirm keys, save, and click <strong>Verify plugin</strong> here. Domain shows “Connected” after verify or after a real site visit hits our tag.
+            </div>
+
+            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-night-300">Use the buttons below to open WordPress (login page if needed).</p>
                 <div class="flex flex-wrap gap-2">
-                    <x-ui.button variant="primary" size="sm" href="{{ route('domains.wp-plugin', $domain) }}">Download (.zip)</x-ui.button>
-                    <x-ui.button variant="outline" size="sm" href="{{ $wpAdminUrl }}" target="_blank" rel="noopener noreferrer">Open wp-admin</x-ui.button>
-                    <x-ui.button variant="primary" size="sm" href="{{ $wpAdminPluginInstallUrl }}" target="_blank" rel="noopener noreferrer">Install plugin</x-ui.button>
+                    <x-ui.button variant="primary" size="sm" href="{{ route('domains.wp-plugin', $domain) }}">Download plugin (.zip)</x-ui.button>
+                    <x-ui.button variant="outline" size="sm" href="{{ $wpAdminUrl }}" target="_blank" rel="noopener noreferrer">Open WordPress login</x-ui.button>
+                    <x-ui.button variant="outline" size="sm" href="{{ $wpPluginSettingsUrl }}" target="_blank" rel="noopener noreferrer">Promotix Tag settings</x-ui.button>
                     <x-ui.button variant="outline" size="sm" type="button" @click="verifyWordpress('{{ $domain->id }}')">Verify plugin</x-ui.button>
                 </div>
             </div>
 
             <div class="mt-4 space-y-3">
                 @foreach ([
+                    ['Server URL (required)', $serverUrl],
                     ['Domain key', $domain->domain_key],
                     ['Secret key', $domain->secret_key],
                     ['Authentication key', $domain->authentication_key],

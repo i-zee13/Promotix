@@ -51,16 +51,21 @@
                     <p class="text-[13px] text-[#a9a9a9]">No cards on file yet.</p>
                 @endforelse
             </div>
-            <form method="POST" action="{{ route('billing.payment-methods.store') }}" class="grid gap-[10px] rounded-[8px] border border-white/10 bg-[#101010] p-[12px] sm:grid-cols-2 lg:grid-cols-5">
+            <form method="POST" action="{{ route('billing.payment-methods.store') }}" class="space-y-[10px] rounded-[8px] border border-white/10 bg-[#101010] p-[12px]">
                 @csrf
-                <input name="card_number" placeholder="Card number" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white" required>
-                <input name="exp_month" placeholder="MM" maxlength="2" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white" required>
-                <input name="exp_year" placeholder="YY" maxlength="4" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white" required>
-                <input name="label" placeholder="Label" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white">
-                <div class="flex items-end gap-[8px]">
-                    <label class="flex items-center gap-[6px] text-[12px] text-[#a9a9a9]"><input type="checkbox" name="is_temporary" value="1" class="rounded"> Temp</label>
-                    <button type="submit" class="rounded-[6px] bg-[#6400B2] px-[12px] py-[8px] text-[12px] font-semibold text-white">Add card</button>
+                <div class="grid gap-[10px] sm:grid-cols-2 lg:grid-cols-4">
+                    <input name="card_number" placeholder="Card number" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white" required>
+                    <input name="exp_month" placeholder="MM" maxlength="2" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white" required>
+                    <input name="exp_year" placeholder="YY" maxlength="4" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white" required>
+                    <input name="label" placeholder="Label (optional)" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white">
                 </div>
+                <div class="flex flex-wrap items-center gap-[16px] text-[12px] text-[#d9d9d9]">
+                    <label class="flex items-center gap-[6px]"><input type="radio" name="card_role" value="primary" checked class="text-[#6400B2]"> Primary card (required for billing)</label>
+                    <label class="flex items-center gap-[6px]"><input type="radio" name="card_role" value="optional" class="text-[#6400B2]"> Optional backup card</label>
+                    <label class="flex items-center gap-[6px]"><input type="checkbox" name="auto_charge" value="1" class="rounded border-white/30 text-[#6400B2]"> Auto-charge on renewal</label>
+                    <label class="flex items-center gap-[6px]"><input type="checkbox" name="is_temporary" value="1" class="rounded border-white/30"> Temporary only</label>
+                </div>
+                <button type="submit" class="rounded-[6px] bg-[#6400B2] px-[12px] py-[8px] text-[12px] font-semibold text-white">Add card</button>
             </form>
         </article>
 
