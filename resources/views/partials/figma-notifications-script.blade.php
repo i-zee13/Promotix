@@ -6,11 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch('/notifications', { headers: { Accept: 'application/json' } })
         .then((res) => res.ok ? res.json() : [])
         .then((rows) => {
-            if (!Array.isArray(rows) || !rows.length) {
+            const items = Array.isArray(rows) ? rows.slice(0, 5) : [];
+            if (!items.length) {
                 wrap.innerHTML = '<div class="text-white/60">No alerts yet — traffic will appear here.</div>';
                 return;
             }
-            wrap.innerHTML = rows.map((row) => `
+            wrap.innerHTML = items.map((row) => `
                 <div class="flex items-start gap-[10px] border-b border-[#a9a9a9]/70 pb-[8px] last:border-b-0">
                     <svg class="mt-[1px] h-[14px] w-[14px] shrink-0 text-white/85" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M4 6h16v12H4z"/><path stroke-width="1.7" d="M4 7l8 6 8-6"/></svg>
                     <div>

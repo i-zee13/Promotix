@@ -68,7 +68,7 @@
                                     <p class="text-[13px] font-medium text-white">{{ $d->hostname }}</p>
                                     <p class="mt-[2px] text-[10px] text-[#a9a9a9]">Last seen: {{ $d->last_seen_at?->diffForHumans() ?? '—' }}</p>
                                 </td>
-                                <td class="px-[12px] py-[14px]">
+                                <td class="align-middle px-[12px] py-[14px]">
                                     @if ($d->tag_connected)
                                         <span class="inline-flex items-center gap-[6px] rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">
                                             Connected
@@ -80,17 +80,19 @@
                                         <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
                                     @endif
                                 </td>
-                                <td class="px-[12px] py-[14px]">
+                                <td class="align-middle px-[12px] py-[14px]">
                                     @if ($d->paid_marketing_connected)
-                                        <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
-                                        @if (isset($d->valid_visits_count) || isset($d->invalid_visits_count))
-                                            <p class="mt-[4px] text-[10px] text-[#a9a9a9]">Valid {{ (int) ($d->valid_visits_count ?? 0) }} · Invalid {{ (int) ($d->invalid_visits_count ?? 0) }}</p>
-                                        @endif
+                                        <div class="flex flex-col items-start justify-center gap-[4px]">
+                                            <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
+                                            @if (isset($d->valid_visits_count) || isset($d->invalid_visits_count))
+                                                <p class="text-[10px] leading-none text-[#a9a9a9]">Valid {{ (int) ($d->valid_visits_count ?? 0) }} · Invalid {{ (int) ($d->invalid_visits_count ?? 0) }}</p>
+                                            @endif
+                                        </div>
                                     @else
                                         <a href="{{ route('integrations') }}" class="text-[11px] text-[#9a1aff] hover:underline">Connect ads</a>
                                     @endif
                                 </td>
-                                <td class="px-[12px] py-[14px]">
+                                <td class="align-middle px-[12px] py-[14px]">
                                     <div class="flex flex-wrap items-center gap-[8px]">
                                         @if ($d->bot_mitigation_connected)
                                             <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>

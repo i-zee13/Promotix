@@ -12,6 +12,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class PaidMarketingController extends Controller
@@ -165,10 +167,40 @@ class PaidMarketingController extends Controller
             );
         }
 
+        $campaigns = collect();
+        if ($domain) {
+            if (Schema::hasTable('visits')) {
+                $campaigns = DB::table('visits')
+                    ->where('domain_id', $domain->id)
+                    ->whereNotNull('utm_campaign')
+                    ->where('utm_campaign', '!=', '')
+                    ->select('utm_campaign')
+                    ->selectRaw('COUNT(*) as total')
+                    ->groupBy('utm_campaign')
+                    ->orderByDesc('total')
+                    ->limit(50)
+                    ->pluck('utm_campaign');
+            }
+            if ($campaigns->isEmpty()) {
+                $campaigns = PaidMarketingVisit::query()
+                    ->where('domain_id', $domain->id)
+                    ->whereNotNull('campaign')
+                    ->where('campaign', '!=', '')
+                    ->select('campaign')
+                    ->selectRaw('COUNT(*) as total')
+                    ->groupBy('campaign')
+                    ->orderByDesc('total')
+                    ->limit(50)
+                    ->pluck('campaign');
+            }
+        }
+
         return view('paid-marketing.detection-settings', [
             'domains' => $domains,
             'domain' => $domain,
             'settings' => $settings,
+            'campaigns' => $campaigns,
+            'selectedCampaign' => $request->string('campaign')->toString(),
         ]);
     }
 

@@ -4,7 +4,7 @@
 @section('subtitle', 'Live campaign performance and detection results')
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma()" x-init="init()">
+<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js(['countryGetStarted' => $countryGetStarted]))" x-init="init()">
     <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-[12px]">
@@ -168,24 +168,62 @@
                 </div>
             </section>
 
-            <section class="relative min-h-[329px] overflow-hidden rounded-[10px] border border-[#6400B2] bg-[linear-gradient(180deg,rgba(217,217,217,.7)_21%,#6625F8_67%,rgba(0,0,0,.95)_100%)] p-[12px]">
+            <section class="relative min-h-[329px] overflow-hidden rounded-[10px] border border-[#6400B2] bg-[linear-gradient(180deg,rgba(217,217,217,.72)_18%,#6625F8_58%,rgba(0,0,0,.92)_100%)] p-[12px]">
                 <div class="flex items-center justify-between">
                     <h2 class="text-[14px] font-normal text-[#343434]">Country Breakdown</h2>
-                    <span class="text-[#343434]">i</span>
+                    <span class="flex h-[16px] w-[16px] items-center justify-center rounded-full border border-[#343434]/50 text-[9px] font-semibold text-[#343434]" title="Geographic invalid visit breakdown">i</span>
                 </div>
-                <div id="country-list" class="mt-[18px] space-y-[8px] text-[10px] text-white"></div>
-                <div class="pointer-events-none absolute inset-x-0 bottom-[66px] mx-auto flex h-[118px] w-[118px] items-center justify-center rounded-[14px] border-2 border-white/90 bg-white/10 shadow-[0_12px_35px_rgba(0,0,0,.4)]">
-                    <div class="h-[72px] w-[72px] rounded-b-full rounded-t-[18px] border border-white/80 bg-[#6400B2]/20"></div>
+
+                <div class="relative mt-[14px] min-h-[248px]">
+                    <div class="overflow-hidden rounded-[6px] border border-white/20 bg-black/10">
+                        <table class="w-full text-left text-[10px] text-white/90">
+                            <thead class="border-b border-white/15 bg-black/20 text-[#343434]">
+                                <tr>
+                                    <th class="px-[10px] py-[8px] font-normal">Country</th>
+                                    <th class="px-[10px] py-[8px] font-normal text-center">Invalid Visit</th>
+                                    <th class="px-[10px] py-[8px] font-normal text-right">Invalid Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody id="country-list" class="divide-y divide-white/10">
+                                @if ($countryGetStarted)
+                                    @for ($i = 0; $i < 5; $i++)
+                                        <tr class="text-white/80">
+                                            <td class="px-[10px] py-[9px]">
+                                                <span class="inline-flex items-center gap-[8px]">
+                                                    <span class="inline-block h-[10px] w-[14px] rounded-[2px] bg-white/40"></span>
+                                                    Country Stats
+                                                </span>
+                                            </td>
+                                            <td class="px-[10px] py-[9px] text-center">0</td>
+                                            <td class="px-[10px] py-[9px] text-right">0%</td>
+                                        </tr>
+                                    @endfor
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if ($countryGetStarted)
+                        <div class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-[#6625F8]/35 to-black/55 pt-[8px]">
+                            <div class="mb-[52px] flex h-[118px] w-[118px] items-center justify-center rounded-[16px] border-2 border-white/90 bg-white/10 shadow-[0_14px_40px_rgba(0,0,0,.45)]">
+                                <svg class="h-[78px] w-[78px] text-white drop-shadow-[0_0_12px_rgba(255,255,255,.45)]" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                                    <path d="M32 6L10 14v14c0 13.2 9.4 25.5 22 28 12.6-2.5 22-14.8 22-28V14L32 6z" stroke="currentColor" stroke-width="2.2" fill="rgba(100,0,178,.25)"/>
+                                    <path d="M24 33l6 6 12-14" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <a href="{{ route('domains.index', ['add' => 1]) }}" class="absolute bottom-[28px] left-1/2 -translate-x-1/2 rounded-[7px] bg-white px-[42px] py-[9px] text-[15px] font-semibold text-[#6400B2] shadow-[0_8px_24px_rgba(0,0,0,.35)] hover:bg-white/95">Get Started</a>
+                        </div>
+                    @endif
                 </div>
-                <a href="{{ route('upgrade-plan') }}" class="absolute bottom-[32px] left-1/2 -translate-x-1/2 rounded-[7px] bg-white px-[42px] py-[9px] text-[15px] text-[#6400B2] shadow-lg">Get Started</a>
             </section>
         </div>
     </section>
 </div>
 
 <script>
-function paidAdvertisingFigma() {
+function paidAdvertisingFigma(config = {}) {
     return {
+        countryGetStarted: Boolean(config.countryGetStarted),
         filters: { domain_id: '', path: '', window: 'weekly', from: '', to: '' },
         summary: { paid_visits: 0, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0 },
         trends: { labels: [], datasets: [] },
@@ -373,17 +411,21 @@ function paidAdvertisingFigma() {
             `).join('') : '<p class="text-[10px] text-white/70">No keyword data.</p>';
         },
         renderCountries() {
+            if (this.countryGetStarted) return;
             const el = document.getElementById('country-list');
             if (!el) return;
-            const rows = (this.countries || []).slice(0, 7);
+            const rows = (this.countries || []).slice(0, 8);
             el.innerHTML = rows.length ? rows.map(row => {
-                const rate = row.total ? Math.round((row.invalid / row.total) * 100) : 0;
-                return `<div class="grid grid-cols-[1fr_60px_42px] items-center gap-[8px]">
-                    <span><i class="mr-[6px] inline-block h-[8px] w-[12px] bg-white/55"></i>${row.country}</span>
-                    <span class="h-[5px] rounded bg-white/30"><i class="block h-full rounded bg-white/70" style="width:${rate}%"></i></span>
-                    <span>${rate}%</span>
-                </div>`;
-            }).join('') : '<p class="text-[10px] text-white/70">No country data.</p>';
+                const invalid = Number(row.invalid || 0);
+                const total = Number(row.total || 0);
+                const rate = total ? Math.round((invalid / total) * 100) : 0;
+                const label = row.country || 'Unknown';
+                return `<tr>
+                    <td class="px-[10px] py-[9px]"><span class="inline-flex items-center gap-[8px]"><span class="inline-block h-[10px] w-[14px] rounded-[2px] bg-white/40"></span>${label}</span></td>
+                    <td class="px-[10px] py-[9px] text-center">${this.fmt(invalid)}</td>
+                    <td class="px-[10px] py-[9px] text-right">${rate}%</td>
+                </tr>`;
+            }).join('') : '<tr><td colspan="3" class="px-[10px] py-[14px] text-center text-white/65">No country data for this period.</td></tr>';
         },
     };
 }

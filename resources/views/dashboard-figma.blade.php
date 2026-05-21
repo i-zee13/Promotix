@@ -65,11 +65,8 @@
                     <span class="text-[9px] text-white/70">Showing data for the last 7 days</span>
                     <button class="text-[10px] text-white hover:underline">Load More</button>
                 </div>
-                <div id="insight-list" class="space-y-[9px]">
-                    <div class="h-[30px] rounded-[6px] bg-[#0D0D0D]/70"></div>
-                    <div class="h-[30px] rounded-[6px] bg-[#0D0D0D]/70"></div>
-                    <div class="h-[30px] rounded-[6px] bg-[#0D0D0D]/70"></div>
-                    <div class="h-[30px] rounded-[6px] bg-[#0D0D0D]/70"></div>
+                <div id="insight-list" class="space-y-[9px] text-[10px] text-white/75">
+                    <div class="text-white/60">Loading insights…</div>
                 </div>
             </div>
         </div>
@@ -87,10 +84,12 @@
                     <svg class="h-[16px] w-[16px]" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 11.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 17a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
                 </button>
             </div>
-            <div class="grid min-h-[245px] grid-cols-1 gap-[18px] md:grid-cols-[minmax(0,1fr)_180px]">
-                <canvas id="trends-chart" class="h-[245px] w-full md:h-full"></canvas>
-                <div class="flex items-center justify-center">
-                    <canvas id="threats-chart" class="h-[150px] w-[150px]"></canvas>
+            <div class="figma-dash-threats-charts">
+                <div class="figma-dash-threats-charts__area">
+                    <canvas id="trends-chart" class="figma-dash-threats-charts__canvas"></canvas>
+                </div>
+                <div class="figma-dash-threats-charts__donut">
+                    <canvas id="threats-chart" class="figma-dash-threats-charts__canvas figma-dash-threats-charts__canvas--donut"></canvas>
                 </div>
             </div>
             <div id="chart-legend" class="mt-[6px] flex flex-wrap justify-center gap-x-[42px] gap-y-[5px] text-[10px] text-white/85"></div>
@@ -230,19 +229,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const {ctx, w, h} = retina(canvas);
         ctx.clearRect(0, 0, w, h);
         const total = values.reduce((sum, n) => sum + Number(n || 0), 0) || 1;
-        const cx = w / 2, cy = h / 2, radius = Math.min(w, h) / 2 - 12;
+        const cx = w / 2, cy = h / 2;
+        const ring = Math.max(14, Math.round(Math.min(w, h) * 0.075));
+        const radius = Math.min(w, h) / 2 - ring - 6;
         let start = -Math.PI / 2;
         ['#D9D9D9', '#FFFFFF', '#B893D8', '#8C8C8C'].forEach((color, i) => {
             const slice = ((values[i] || total / 4) / total) * Math.PI * 2;
             ctx.beginPath();
             ctx.arc(cx, cy, radius, start, start + slice);
-            ctx.lineWidth = 16;
+            ctx.lineWidth = ring;
             ctx.strokeStyle = color;
             ctx.stroke();
             start += slice;
         });
         ctx.beginPath();
-        ctx.arc(cx, cy, radius - 16, 0, Math.PI * 2);
+        ctx.arc(cx, cy, radius - ring, 0, Math.PI * 2);
         ctx.fillStyle = purple;
         ctx.fill();
     }

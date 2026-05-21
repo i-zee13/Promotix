@@ -188,9 +188,7 @@
             </button>
         </div>
 
-        <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]">
-            <div class="text-white/60">Loading live alerts…</div>
-        </div>
+        <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]"></div>
 
         <div class="mt-[16px]">
             <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Add Account</h2>

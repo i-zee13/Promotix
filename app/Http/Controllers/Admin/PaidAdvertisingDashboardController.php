@@ -18,10 +18,14 @@ class PaidAdvertisingDashboardController extends Controller
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
             ->orderBy('hostname')
-            ->get(['id', 'hostname']);
+            ->get(['id', 'hostname', 'paid_marketing_connected']);
+
+        $countryGetStarted = $domains->isEmpty()
+            || ! $domains->contains(fn (Domain $d) => (bool) $d->paid_marketing_connected);
 
         return view('paid-marketing.dashboard', [
             'domains' => $domains,
+            'countryGetStarted' => $countryGetStarted,
         ]);
     }
 

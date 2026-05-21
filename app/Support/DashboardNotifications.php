@@ -15,14 +15,13 @@ class DashboardNotifications
     public static function forUser(int $userId): array
     {
         $domainIds = Domain::query()->where('user_id', $userId)->pluck('id');
-        $blockedToday = IpLog::query()
+        $blockedToday = (int) IpLog::query()
             ->where('is_blocked', true)
             ->whereDate('updated_at', Carbon::today())
             ->sum('hits');
 
         $paidVisitsToday = 0;
         $invalidToday = 0;
-        $countriesToday = 0;
 
         if (Schema::hasTable('visits')) {
             $paidVisitsToday = (int) DB::table('visits')
@@ -35,12 +34,6 @@ class DashboardNotifications
                 ->where('is_invalid_traffic', true)
                 ->whereDate('visited_at', Carbon::today())
                 ->count();
-            $countriesToday = (int) DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->whereDate('visited_at', Carbon::today())
-                ->whereNotNull('country')
-                ->distinct()
-                ->count('country');
         } else {
             $paidVisitsToday = (int) PaidMarketingVisit::query()
                 ->whereIn('domain_id', $domainIds)
@@ -51,29 +44,17 @@ class DashboardNotifications
                 ->whereNotNull('threat_group')
                 ->whereDate('updated_at', Carbon::today())
                 ->count();
-            $countriesToday = (int) PaidMarketingVisit::query()
-                ->whereIn('domain_id', $domainIds)
-                ->whereDate('last_click_at', Carbon::today())
-                ->whereNotNull('country')
-                ->distinct()
-                ->count('country');
         }
 
-        $googleConnected = GoogleConnection::query()->where('user_id', $userId)->exists();
-        $pendingDomains = Domain::query()
-            ->where('user_id', $userId)
-            ->where(fn ($q) => $q->where('tag_connected', false)->orWhere('status', 'pending'))
-            ->count();
-        $liveCampaigns = 0;
-        if (Schema::hasTable('visits')) {
-            $liveCampaigns = (int) DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->where('is_paid_traffic', true)
-                ->whereNotNull('utm_campaign')
-                ->where('visited_at', '>=', Carbon::now()->subDays(7))
-                ->distinct()
-                ->count('utm_campaign');
-        }
+        $domains = Domain::query()->where('user_id', $userId)->get();
+        $platformReady = $domains->contains(
+            fn (Domain $d) => $d->tag_connected && $d->paid_marketing_connected && $d->bot_mitigation_connected
+        );
+        $pendingDomains = $domains->filter(
+            fn (Domain $d) => ! $d->tag_connected || ! $d->paid_marketing_connected || ! $d->bot_mitigation_connected
+        )->count();
+
+        $googleOAuthConnected = GoogleConnection::query()->where('user_id', $userId)->exists();
 
         $items = [
             [
@@ -83,46 +64,46 @@ class DashboardNotifications
                     ? number_format($paidVisitsToday) . ' paid visit(s) recorded today.'
                     : 'No paid visits yet today — install the tracking tag on your domain.',
             ],
-            [
-                'type' => 'security',
-                'title' => 'Blocked hits today',
-                'body' => $blockedToday > 0
-                    ? number_format((int) $blockedToday) . ' blocked hit(s) today.'
-                    : 'No blocked IPs yet today.',
-            ],
-            [
-                'type' => 'geo',
-                'title' => 'Countries reviewed',
-                'body' => $countriesToday > 0
-                    ? $countriesToday . ' countr' . ($countriesToday === 1 ? 'y' : 'ies') . ' seen in traffic today.'
-                    : 'Waiting for geo data from live visits.',
-            ],
-            [
-                'type' => 'integration',
-                'title' => 'Google Ads',
-                'body' => $googleConnected
-                    ? 'Google account connected — sync accounts under Platform Integrate.'
-                    : 'Connect Google Ads to link campaigns to your domains.',
-            ],
-            [
-                'type' => 'campaigns',
-                'title' => 'Campaigns',
-                'body' => $liveCampaigns > 0
-                    ? $liveCampaigns . ' active campaign(s) with traffic in the last 7 days.'
-                    : ($invalidToday > 0
-                        ? number_format($invalidToday) . ' invalid visit(s) detected today.'
-                        : 'No campaign traffic yet — check tag + UTM/gclid on ad URLs.'),
-            ],
         ];
 
-        if ($pendingDomains > 0) {
+        if ($invalidToday > 0) {
             $items[] = [
-                'type' => 'domains',
-                'title' => 'Domains pending setup',
-                'body' => $pendingDomains . ' domain(s) need tag installation or first ping.',
+                'type' => 'security',
+                'title' => 'Invalid visits today',
+                'body' => number_format($invalidToday) . ' invalid visit(s) detected today.',
             ];
         }
 
-        return $items;
+        if ($blockedToday > 0) {
+            $items[] = [
+                'type' => 'security',
+                'title' => 'Blocked hits today',
+                'body' => number_format($blockedToday) . ' blocked hit(s) today.',
+            ];
+        }
+
+        if (! $platformReady && $pendingDomains > 0) {
+            $items[] = [
+                'type' => 'domains',
+                'title' => 'Platform setup',
+                'body' => $pendingDomains . ' domain(s) still need Tag Manager, Paid Marketing, or Bot Protection.',
+            ];
+        } elseif ($platformReady) {
+            $items[] = [
+                'type' => 'integration',
+                'title' => 'Platform ready',
+                'body' => 'Tag, paid marketing, and bot protection are connected on at least one domain.',
+            ];
+        }
+
+        if (! $googleOAuthConnected && $platformReady) {
+            $items[] = [
+                'type' => 'integration',
+                'title' => 'Google Ads OAuth',
+                'body' => 'Connect Google under Platform Integrate to sync ad accounts.',
+            ];
+        }
+
+        return array_slice($items, 0, 5);
     }
 }

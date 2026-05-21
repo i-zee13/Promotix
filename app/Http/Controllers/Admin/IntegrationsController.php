@@ -53,7 +53,32 @@ class IntegrationsController extends Controller
             ->orderBy('platform')
             ->get();
 
-        return view('integrations', compact('connections', 'domains', 'accounts', 'mappings', 'directAds'));
+        $tagReady = $domains->contains(fn (Domain $d) => (bool) $d->tag_connected);
+        $paidReady = $domains->contains(fn (Domain $d) => (bool) $d->paid_marketing_connected);
+        $botReady = $domains->contains(fn (Domain $d) => (bool) $d->bot_mitigation_connected);
+        $platformReady = $domains->contains(
+            fn (Domain $d) => $d->tag_connected && $d->paid_marketing_connected && $d->bot_mitigation_connected
+        );
+
+        $requirementSteps = [
+            ['label' => 'Tag Manager', 'done' => $tagReady],
+            ['label' => 'Paid Marketing', 'done' => $paidReady],
+            ['label' => 'Bot Protection', 'done' => $botReady],
+            ['label' => 'Google Ads', 'done' => $connections->isNotEmpty() && $accounts->isNotEmpty()],
+        ];
+
+        return view('integrations', compact(
+            'connections',
+            'domains',
+            'accounts',
+            'mappings',
+            'directAds',
+            'tagReady',
+            'paidReady',
+            'botReady',
+            'platformReady',
+            'requirementSteps',
+        ));
     }
 
     public function googleRedirect(Request $request): RedirectResponse

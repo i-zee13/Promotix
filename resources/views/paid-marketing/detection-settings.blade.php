@@ -22,21 +22,27 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Detection</span>
             </div>
 
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
-                <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/70">Campaigns</span>
-                    <select class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0" disabled aria-label="Campaigns">
-                        <option>All campaigns</option>
-                    </select>
-                </label>
-                <label class="flex w-[178px] flex-col justify-center px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/70">Filter by path</span>
-                    <input type="search" placeholder="Filter by path" disabled class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0" aria-label="Filter by path">
-                </label>
-                <button type="button" class="figma-filter-action flex w-[34px] shrink-0 items-center justify-center text-white" aria-hidden="true" tabindex="-1">
-                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                </button>
-            </div>
+            @if ($domain)
+                <form method="GET" action="{{ route('paid-marketing.detection-settings') }}" class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
+                    <input type="hidden" name="domain_id" value="{{ $domain->id }}">
+                    <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
+                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/70">Campaigns</span>
+                        <select name="campaign" onchange="this.form.submit()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0" aria-label="Campaigns">
+                            <option value="">All campaigns</option>
+                            @foreach ($campaigns as $campaign)
+                                <option value="{{ $campaign }}" @selected($selectedCampaign === $campaign)>{{ $campaign }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="flex w-[178px] flex-col justify-center px-[12px]">
+                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/70">Filter by path</span>
+                        <input type="search" name="path" value="{{ request('path') }}" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0" aria-label="Filter by path" onkeydown="if(event.key==='Enter'){event.preventDefault();this.form.submit();}">
+                    </label>
+                    <button type="submit" class="figma-filter-action flex w-[34px] shrink-0 items-center justify-center text-white" aria-label="Apply filters">
+                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </button>
+                </form>
+            @endif
         </div>
 
         @if (session('status'))

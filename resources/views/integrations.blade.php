@@ -3,14 +3,11 @@
 @section('title', 'Platform Integrate')
 
 @php
-    $googleConnected = $connections->isNotEmpty();
+    $googleOAuthConnected = $connections->isNotEmpty();
     $directConnected = $directAds->isNotEmpty();
-    $requirementSteps = [
-        ['label' => 'Step 1', 'done' => $googleConnected],
-        ['label' => 'Step 2', 'done' => $accounts->isNotEmpty()],
-        ['label' => 'Step 3', 'done' => $mappings->count() > 0],
-        ['label' => 'Step 4', 'done' => $directConnected],
-    ];
+    $googleStatusConnected = $platformReady ?? false;
+    $menuDomain = $domains->first();
+    $primaryConnection = $connections->first();
 @endphp
 
 @section('rightbar')
@@ -37,24 +34,29 @@
         @endforeach
     </div>
 
-    <div id="right-notifications" class="space-y-[13px] border-b-2 border-[#5a2a99] pb-[18px] text-[10px] text-[#a9a9a9]">
-        <div class="text-white/60">Loading live alerts…</div>
-    </div>
+    <div id="right-notifications" class="space-y-[13px] border-b-2 border-[#5a2a99] pb-[18px] text-[10px] text-[#a9a9a9]"></div>
     @include('partials.figma-notifications-script')
 @endsection
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="platformIntegrations(@js([
-    'csrf' => csrf_token(),
-    'directStoreUrl' => url('/admin/integrations/direct-ads'),
-    'directInitial' => $directAds->map(fn ($row) => [
-        'id' => $row->id,
-        'platform' => $row->platform,
-        'account_label' => $row->account_label,
-        'account_id' => $row->account_id,
-        'tag_id' => $row->tag_id,
-    ])->values(),
-]))">
+<div
+    class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]"
+    x-data="platformIntegrations(@js([
+        'csrf' => csrf_token(),
+        'directStoreUrl' => url('/integrations/direct-ads'),
+        'trackingLink' => $menuDomain ? url('/tag/' . $menuDomain->domain_key . '.js') : null,
+        'statusUrl' => url('/integrations/status'),
+        'disconnectUrl' => $primaryConnection ? route('integrations.google.disconnect', $primaryConnection) : null,
+        'directInitial' => $directAds->map(fn ($row) => [
+            'id' => $row->id,
+            'platform' => $row->platform,
+            'account_label' => $row->account_label,
+            'account_id' => $row->account_id,
+            'tag_id' => $row->tag_id,
+        ])->values(),
+    ]))"
+    @platform-menu.window="handlePlatformMenu($event.detail)"
+>
     <section class="mx-auto w-full max-w-[1180px] px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[19px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-[12px]">
@@ -90,71 +92,72 @@
 
                 <div class="grid gap-[16px] lg:grid-cols-2">
                     <article class="min-h-[232px] rounded-[10px] border border-[#d9d9d9]/60 p-[18px]">
-                        <div class="flex items-start justify-between">
-                            <div class="flex gap-[18px]">
+                        <div class="flex items-start justify-between gap-[8px]">
+                            <div class="flex min-w-0 flex-1 gap-[18px]">
                                 <div class="w-[90px] shrink-0">
                                     <div class="mb-[12px] flex h-[79px] w-[90px] items-center justify-center rounded bg-white">
-                                        <svg class="h-[55px] w-[55px]" viewBox="0 0 48 48" aria-hidden="true">
-                                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c10 0 19-7.3 19-20 0-1.3-.1-2.3-.4-3.5z"/>
-                                            <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                                            <path fill="#4CAF50" d="M24 44c5.1 0 9.8-1.9 13.3-5.2l-6.2-5.2C29.1 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-                                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/>
-                                        </svg>
+                                        @include('partials.icons.google', ['class' => 'h-[55px] w-[55px]'])
                                     </div>
                                     <p class="text-center text-[20px] font-medium leading-none text-white">Google</p>
-                                    <div class="mx-auto mt-[8px] h-[15px] w-[72px] rounded-sm bg-black/55"></div>
+                                    <div class="mx-auto mt-[8px] min-h-[15px] w-[72px] rounded-sm px-[4px] py-[2px] text-center text-[8px] font-semibold {{ $googleStatusConnected ? 'bg-white text-[#6706B3]' : 'bg-black/55 text-white/70' }}">
+                                        {{ $googleStatusConnected ? 'Connected' : 'Setup' }}
+                                    </div>
                                 </div>
 
-                                <div class="space-y-[16px] pt-[8px]">
-                                    <a href="{{ route('integrations.google.redirect') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[12px] font-normal text-white">
-                                        @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[15px] w-[15px]'])
-                                        Pixel Guard
+                                <div class="flex min-w-0 flex-1 flex-col justify-center gap-[10px]">
+                                    <a href="{{ route('domains.index') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[11px] leading-none text-white">
+                                        @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                        <span class="whitespace-nowrap">Tag Manager</span>
                                     </a>
-                                    <a href="{{ route('paid-marketing.detection-settings') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[12px] font-normal text-white">
-                                        @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[15px] w-[15px]'])
-                                        Audience Exclusion
+                                    <a href="{{ route('paid-marketing.detection-settings') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[11px] leading-none text-white">
+                                        @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                        <span class="whitespace-nowrap">Paid Marketing</span>
                                     </a>
-                                    @if ($googleConnected && ($primaryConnection = $connections->first()))
+                                    <a href="{{ route('bot-protection.dashboard') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[11px] leading-none text-white">
+                                        @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                        <span class="whitespace-nowrap">Bot Protection</span>
+                                    </a>
+                                    @if ($googleOAuthConnected && ($primaryConnection = $connections->first()))
                                         <form method="POST" action="{{ route('integrations.google.sync-accounts', $primaryConnection) }}">
                                             @csrf
-                                            <button type="submit" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[12px] font-normal text-[#6706B3] hover:bg-white/90">
+                                            <button type="submit" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[11px] font-normal text-[#6706B3] hover:bg-white/90">
                                                 <svg class="h-[14px] w-[14px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                                 Sync Ads
                                             </button>
                                         </form>
-                                        <a href="{{ route('integrations.google.redirect') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white/60 bg-transparent px-[9px] text-[11px] font-normal text-white/90 hover:border-white">
+                                        <a href="{{ route('integrations.google.redirect') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white/60 bg-transparent px-[9px] text-[11px] font-normal text-white/90 hover:border-white">
                                             <span class="text-[12px]">+</span>
                                             Add Google login
                                         </a>
                                     @else
-                                        <a href="{{ route('integrations.google.redirect') }}" class="flex h-[26px] w-[142px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[12px] font-normal text-[#6706B3]">
+                                        <a href="{{ route('integrations.google.redirect') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[11px] font-normal text-[#6706B3]">
                                             <span class="flex h-[17px] w-[17px] items-center justify-center rounded-full border border-[#6706B3] text-[12px]">+</span>
                                             Connect Google
                                         </a>
                                     @endif
                                 </div>
                             </div>
-                            <span class="text-[24px] leading-none text-white">...</span>
+                            <x-integrations.google-platform-menu
+                                :google-o-auth-connected="$googleOAuthConnected"
+                                :menu-domain="$menuDomain"
+                                :primary-connection="$primaryConnection"
+                            />
                         </div>
                     </article>
 
                     <article class="min-h-[232px] rounded-[10px] border border-[#d9d9d9]/60 p-[18px]">
                         <div class="flex items-start justify-between">
-                            <div class="flex items-center gap-[24px] pt-[34px]">
-                                <svg class="h-[96px] w-[96px] shrink-0" viewBox="0 0 96 96" aria-hidden="true">
-                                    <path fill="#4285F4" d="M52 14c5.2-3 11.9-1.2 14.9 4l22 38.1c3 5.2 1.2 11.9-4 14.9s-11.9 1.2-14.9-4L48 28.9c-3-5.2-1.2-11.9 4-14.9z"/>
-                                    <path fill="#34A853" d="M8.4 67.4 30.5 29c3-5.2 9.7-7 14.9-4s7 9.7 4 14.9L27.3 78.2c-3 5.2-9.7 7-14.9 4s-7-9.6-4-14.8z"/>
-                                    <circle cx="18" cy="73" r="13" fill="#FBBC04"/>
-                                </svg>
+                            <div class="flex items-center gap-[20px] pt-[28px]">
+                                @include('partials.icons.google-ads', ['class' => 'h-[64px] w-[64px]'])
                                 <p class="text-[20px] font-medium leading-none text-white">Direct Ads</p>
                             </div>
-                            <span class="text-[24px] leading-none text-white">...</span>
+                            <x-integrations.direct-ads-platform-menu />
                         </div>
 
                         <form class="mt-[12px] grid gap-[9px] sm:grid-cols-[1fr_auto]" @submit.prevent="addDirectAds()">
-                            <input x-model="directForm.account_id" placeholder="ID Tracking" class="h-[26px] rounded border border-white bg-white px-[8px] text-[12px] text-[#6706B3] placeholder:text-[#6706B3] focus:ring-[#6400B2]">
-                            <button class="h-[26px] rounded border border-white bg-white px-[10px] text-[12px] text-[#6706B3]">Add</button>
-                            <input x-model="directForm.tag_id" placeholder="sadsadsadsadsad" class="h-[26px] rounded border border-white bg-white px-[8px] text-[12px] text-[#6706B3] placeholder:text-[#6706B3] focus:ring-[#6400B2] sm:col-span-2">
+                            <input id="direct-account-id" x-model="directForm.account_id" placeholder="Customer ID (e.g. 123-456-7890)" class="h-[26px] rounded border border-white bg-white px-[8px] text-[12px] text-[#6706B3] placeholder:text-[#6706B3]/80 focus:ring-[#6400B2]">
+                            <button type="submit" class="h-[26px] rounded border border-white bg-white px-[10px] text-[12px] text-[#6706B3]">Add</button>
+                            <input id="direct-tag-id" x-model="directForm.tag_id" placeholder="Conversion tag ID (e.g. AW-123456789)" class="h-[26px] rounded border border-white bg-white px-[8px] text-[12px] text-[#6706B3] placeholder:text-[#6706B3]/80 focus:ring-[#6400B2] sm:col-span-2">
                         </form>
                     </article>
                 </div>
@@ -164,23 +167,16 @@
                 <section class="rounded-[10px] bg-[#6706B3] p-[10px]">
                     <p class="mb-[12px] text-center text-[8px] uppercase text-white">Connection Status</p>
                     <div class="grid grid-cols-2 gap-[6px]">
-                        <div class="rounded border border-white bg-[#606060]/55 p-[8px] text-center">
+                        <div class="rounded border border-white {{ $googleStatusConnected ? 'bg-[#606060]/55' : 'bg-white/50' }} p-[8px] text-center">
                             <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center rounded bg-white">
-                                <svg class="h-[32px] w-[32px]" viewBox="0 0 48 48" aria-hidden="true">
-                                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c10 0 19-7.3 19-20 0-1.3-.1-2.3-.4-3.5z"/>
-                                    <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                                    <path fill="#4CAF50" d="M24 44c5.1 0 9.8-1.9 13.3-5.2l-6.2-5.2C29.1 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-                                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/>
-                                </svg>
+                                @include('partials.icons.google', ['class' => 'h-[32px] w-[32px]'])
                             </div>
-                            <div class="bg-white px-[4px] py-[2px] text-[8px] text-[#6706B3]">{{ $googleConnected ? 'Connected' : 'Not Connected' }}</div>
+                            <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold {{ $googleStatusConnected ? 'text-[#6706B3]' : 'text-[#101010]' }}">{{ $googleStatusConnected ? 'Connected' : 'Not Connected' }}</div>
                         </div>
                         <div class="rounded border border-white bg-white/50 p-[8px] text-center">
-                            <svg class="mx-auto mb-[8px] h-[50px] w-[50px]" viewBox="0 0 96 96" aria-hidden="true">
-                                <path fill="#4285F4" d="M52 14c5.2-3 11.9-1.2 14.9 4l22 38.1c3 5.2 1.2 11.9-4 14.9s-11.9 1.2-14.9-4L48 28.9c-3-5.2-1.2-11.9 4-14.9z"/>
-                                <path fill="#34A853" d="M8.4 67.4 30.5 29c3-5.2 9.7-7 14.9-4s7 9.7 4 14.9L27.3 78.2c-3 5.2-9.7 7-14.9 4s-7-9.6-4-14.8z"/>
-                                <circle cx="18" cy="73" r="13" fill="#FBBC04"/>
-                            </svg>
+                            <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center">
+                                @include('partials.icons.google-ads', ['class' => 'h-[50px] w-[50px]'])
+                            </div>
                             <div class="bg-white px-[4px] py-[2px] text-[8px] text-[#101010]">{{ $directConnected ? 'Connected' : 'Not Connected' }}</div>
                         </div>
                     </div>
@@ -196,11 +192,18 @@
                         @endif
                     </div>
                     <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
-                        <div class="relative h-[84px] w-[84px] rounded-full border-[14px] border-[#d9d9d9] border-l-[#7a56a9] border-t-[#7a56a9]"></div>
+                        @php
+                            $stepsDone = collect($requirementSteps)->filter(fn ($s) => $s['done'])->count();
+                            $ringPct = (int) round(($stepsDone / max(count($requirementSteps), 1)) * 100);
+                        @endphp
+                        <div class="relative h-[84px] w-[84px] shrink-0">
+                            <div class="h-full w-full rounded-full" style="background: conic-gradient(#7a56a9 {{ $ringPct }}%, #d9d9d9 0)"></div>
+                            <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>
+                        </div>
                         <div class="space-y-[8px]">
                             @foreach ($requirementSteps as $step)
                                 <div class="relative h-[15px] overflow-hidden rounded-full bg-[#d9d9d9]">
-                                    <div class="absolute inset-y-[2px] left-[2px] rounded-full {{ $step['done'] ? 'w-[calc(100%-4px)] bg-[#7a56a9]' : 'w-[calc(62%-4px)] bg-[#838284]' }}"></div>
+                                    <div class="absolute inset-y-[2px] left-[2px] rounded-full {{ $step['done'] ? 'w-[calc(100%-4px)] bg-[#7a56a9]' : 'w-0 bg-[#838284]' }}"></div>
                                     <span class="absolute inset-0 flex items-center justify-center text-[8px] text-white/70">{{ $step['label'] }}</span>
                                 </div>
                             @endforeach
@@ -210,7 +213,7 @@
             </div>
         </div>
 
-        @if ($googleConnected && $accounts->isEmpty())
+        @if ($googleOAuthConnected && $accounts->isEmpty())
             <div class="mt-[14px] rounded-[8px] border border-amber-300/40 bg-amber-500/15 px-[14px] py-[10px] text-[13px] text-amber-100">
                 Google is connected. Click <strong class="text-white">Sync Ads</strong> on the Google card above to pull your Google Ads accounts into the list below.
             </div>
@@ -230,13 +233,13 @@
             </section>
         @endif
 
-        <section class="mt-[20px] rounded-[10px] border border-[#6706B3] p-[16px]">
+        <section id="connected-platforms" class="mt-[20px] scroll-mt-[80px] rounded-[10px] border border-[#6706B3] p-[16px]">
             <div class="mb-[26px]">
                 <h2 class="text-[24px] font-medium text-white">Connected Platforms</h2>
                 <p class="mt-[5px] text-[14px] font-medium text-white">All Accounts</p>
             </div>
 
-            <form method="POST" action="{{ route('integrations.store-mapping') }}" class="mb-[14px] grid gap-[8px] rounded-[8px] border border-white/20 bg-[#6400B2]/35 p-[10px] lg:grid-cols-[1fr_1fr_150px_130px]">
+            <form id="link-domain-form" method="POST" action="{{ route('integrations.store-mapping') }}" class="mb-[14px] grid gap-[8px] rounded-[8px] border border-white/20 bg-[#6400B2]/35 p-[10px] lg:grid-cols-[1fr_1fr_150px_130px]">
                 @csrf
                 <select name="domain_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
                     <option value="">Select domain</option>
@@ -244,7 +247,7 @@
                         <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
                     @endforeach
                 </select>
-                <select name="google_ads_account_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
+                <select id="google-ads-account-select" name="google_ads_account_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
                     <option value="">Select connected account</option>
                     @foreach ($accounts as $account)
                         <option value="{{ $account->id }}">{{ $account->display_customer_id ?: $account->customer_id }} - {{ $account->google_tag_id ?: 'No tag ID' }}</option>
@@ -274,12 +277,7 @@
                             <tr class="rounded-[5px] bg-[#d9d9d9] text-[#121212]">
                                 <td class="rounded-l-[5px] px-[22px] py-[10px] text-[16px] font-medium">
                                     <span class="inline-flex items-center gap-[10px]">
-                                        <svg class="h-[22px] w-[22px]" viewBox="0 0 48 48" aria-hidden="true">
-                                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c10 0 19-7.3 19-20 0-1.3-.1-2.3-.4-3.5z"/>
-                                            <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                                            <path fill="#4CAF50" d="M24 44c5.1 0 9.8-1.9 13.3-5.2l-6.2-5.2C29.1 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-                                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/>
-                                        </svg>
+                                        @include('partials.icons.google', ['class' => 'h-[22px] w-[22px]'])
                                         Google
                                     </span>
                                 </td>
@@ -327,6 +325,21 @@
             @endif
         </section>
     </section>
+
+    @if ($primaryConnection)
+        <form id="google-disconnect-form" method="POST" action="{{ route('integrations.google.disconnect', $primaryConnection) }}" class="hidden">
+            @csrf
+            @method('DELETE')
+        </form>
+    @endif
+
+    <div
+        x-show="menuToast"
+        x-cloak
+        x-transition
+        class="fixed bottom-[24px] right-[24px] z-[200] max-w-[320px] rounded-[8px] border border-white/25 bg-[#101010] px-[14px] py-[10px] text-[12px] text-white shadow-lg"
+        x-text="menuToast"
+    ></div>
 </div>
 
 <script>
@@ -334,6 +347,142 @@ function platformIntegrations(config) {
     return {
         directList: config.directInitial || [],
         directForm: { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' },
+        menuToast: '',
+        menuToastTimer: null,
+        showMenuToast(message) {
+            this.menuToast = message;
+            clearTimeout(this.menuToastTimer);
+            this.menuToastTimer = setTimeout(() => { this.menuToast = ''; }, 3200);
+        },
+        async copyText(value, label = 'Copied') {
+            const text = String(value || '').trim();
+            if (!text) {
+                this.showMenuToast('Nothing to copy yet.');
+                return false;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                this.showMenuToast(`${label} copied.`);
+                return true;
+            } catch (e) {
+                this.showMenuToast('Could not copy to clipboard.');
+                return false;
+            }
+        },
+        scrollToEl(id, focusSelector = null) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (focusSelector) {
+                const target = el.querySelector(focusSelector) || el;
+                if (target?.focus) setTimeout(() => target.focus(), 400);
+            }
+        },
+        handlePlatformMenu(detail) {
+            const action = detail?.action;
+            if (!action) return;
+            switch (action) {
+                case 'google-details':
+                case 'direct-details':
+                    this.scrollToEl('connected-platforms');
+                    break;
+                case 'copy-tracking':
+                    this.copyText(config.trackingLink, 'Tracking link');
+                    break;
+                case 'open-pixel-guard': {
+                    this.scrollToEl('link-domain-form', 'select[name="protection_type"]');
+                    const sel = document.querySelector('#link-domain-form select[name="protection_type"]');
+                    if (sel) sel.value = 'pixel_guard';
+                    this.showMenuToast('Pixel Guard selected — link a domain below.');
+                    break;
+                }
+                case 'manage-ad-account':
+                    this.scrollToEl('link-domain-form', '#google-ads-account-select');
+                    break;
+                case 'test-google':
+                    this.testGoogleConnection();
+                    break;
+                case 'disconnect-google':
+                    this.disconnectGoogle();
+                    break;
+                case 'edit-direct-id': {
+                    const input = document.getElementById('direct-account-id');
+                    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => input?.focus(), 300);
+                    break;
+                }
+                case 'copy-direct-id': {
+                    const row = this.directList[0];
+                    const id = row?.account_id || this.directForm.account_id;
+                    this.copyText(id, 'Tracking ID');
+                    break;
+                }
+                case 'test-direct':
+                    this.testDirectTracking();
+                    break;
+                case 'regenerate-direct-id': {
+                    const next = `AW-${Date.now().toString().slice(-9)}`;
+                    this.directForm.tag_id = next;
+                    const tagEl = document.getElementById('direct-tag-id');
+                    if (tagEl) tagEl.focus();
+                    this.showMenuToast('New conversion tag ID generated.');
+                    break;
+                }
+                case 'remove-direct':
+                    this.removeDirectPlatform();
+                    break;
+            }
+        },
+        async testGoogleConnection() {
+            try {
+                const res = await fetch(config.statusUrl, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                const g = data?.google || {};
+                const msg = g.connected
+                    ? `Google connected${g.accounts ? ` · ${g.accounts} ad account(s)` : ''}.`
+                    : (g.oauth_configured ? 'Google OAuth ready — connect your account.' : 'Google Ads OAuth is not configured on the server.');
+                this.showMenuToast(msg);
+            } catch (e) {
+                this.showMenuToast('Connection test failed.');
+            }
+        },
+        async testDirectTracking() {
+            if (!this.directList.length && !this.directForm.account_id) {
+                this.showMenuToast('Add a Direct Ads ID first.');
+                return;
+            }
+            this.showMenuToast(this.directList.length
+                ? `Direct Ads active · ${this.directList.length} integration(s).`
+                : 'Draft ID ready — click Add to save.');
+        },
+        disconnectGoogle() {
+            if (!config.disconnectUrl) {
+                this.showMenuToast('No Google connection to remove.');
+                return;
+            }
+            if (!confirm('Disconnect Google from this workspace?')) return;
+            const form = document.getElementById('google-disconnect-form');
+            if (form) form.submit();
+        },
+        async removeDirectPlatform() {
+            const row = this.directList[0];
+            if (!row?.id) {
+                this.directForm = { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' };
+                this.showMenuToast('Direct Ads cleared.');
+                return;
+            }
+            if (!confirm('Remove this Direct Ads integration?')) return;
+            const res = await fetch(`${config.directStoreUrl}/${row.id}`, {
+                method: 'DELETE',
+                headers: { Accept: 'application/json', 'X-CSRF-TOKEN': config.csrf },
+            });
+            if (!res.ok) {
+                this.showMenuToast('Could not remove Direct Ads.');
+                return;
+            }
+            this.directList = this.directList.filter((item) => item.id !== row.id);
+            this.showMenuToast('Direct Ads removed.');
+        },
         async addDirectAds() {
             const response = await fetch(config.directStoreUrl, {
                 method: 'POST',
