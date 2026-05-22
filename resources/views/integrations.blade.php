@@ -138,6 +138,7 @@
                                 </div>
                             </div>
                             <x-integrations.google-platform-menu
+                                menu-id="google"
                                 :google-o-auth-connected="$googleOAuthConnected"
                                 :menu-domain="$menuDomain"
                                 :primary-connection="$primaryConnection"
@@ -151,7 +152,7 @@
                                 @include('partials.icons.google-ads', ['class' => 'h-[64px] w-[64px]'])
                                 <p class="text-[20px] font-medium leading-none text-white">Direct Ads</p>
                             </div>
-                            <x-integrations.direct-ads-platform-menu />
+                            <x-integrations.direct-ads-platform-menu menu-id="direct" />
                         </div>
 
                         <form class="mt-[12px] grid gap-[9px] sm:grid-cols-[1fr_auto]" @submit.prevent="addDirectAds()">
@@ -343,6 +344,66 @@
 </div>
 
 <script>
+document.addEventListener('alpine:init', () => {
+    Alpine.store('platformCardMenu', { open: null });
+});
+
+function platformCardDropdown(menuId, align = 'right') {
+    return {
+        menuId,
+        align,
+        menuStyle: '',
+        _docHandler: null,
+        get isOpen() {
+            return Alpine.store('platformCardMenu').open === this.menuId;
+        },
+        toggle() {
+            const store = Alpine.store('platformCardMenu');
+            store.open = store.open === this.menuId ? null : this.menuId;
+            if (store.open === this.menuId) {
+                this.$nextTick(() => this.positionMenu());
+            }
+        },
+        close() {
+            if (Alpine.store('platformCardMenu').open === this.menuId) {
+                Alpine.store('platformCardMenu').open = null;
+            }
+        },
+        init() {
+            this._docHandler = (e) => {
+                if (!this.isOpen) return;
+                if (this.$refs.trigger?.contains(e.target)) return;
+                if (this.$refs.panel?.contains(e.target)) return;
+                this.close();
+            };
+            document.addEventListener('click', this._docHandler, true);
+        },
+        destroy() {
+            if (this._docHandler) {
+                document.removeEventListener('click', this._docHandler, true);
+            }
+        },
+        onMenuClick(e) {
+            const action = e.target.closest('a[href], button[type="button"]');
+            if (action) {
+                this.close();
+            }
+        },
+        positionMenu() {
+            const btn = this.$refs.trigger?.querySelector('button');
+            if (!btn) return;
+            const r = btn.getBoundingClientRect();
+            const top = Math.round(r.bottom + 6);
+            if (this.align === 'right') {
+                const left = Math.round(r.right);
+                this.menuStyle = `top:${top}px;left:${left}px;transform:translateX(-100%);`;
+            } else {
+                this.menuStyle = `top:${top}px;left:${Math.round(r.left)}px;`;
+            }
+        },
+    };
+}
+
 function platformIntegrations(config) {
     return {
         directList: config.directInitial || [],
@@ -378,9 +439,13 @@ function platformIntegrations(config) {
                 if (target?.focus) setTimeout(() => target.focus(), 400);
             }
         },
+        closeAllMenus() {
+            Alpine.store('platformCardMenu').open = null;
+        },
         handlePlatformMenu(detail) {
             const action = detail?.action;
             if (!action) return;
+            this.closeAllMenus();
             switch (action) {
                 case 'google-details':
                 case 'direct-details':

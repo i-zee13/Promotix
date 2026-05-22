@@ -1,4 +1,5 @@
 @props([
+    'menuId' => 'google',
     'googleOAuthConnected' => false,
     'menuDomain' => null,
     'primaryConnection' => null,
@@ -6,35 +7,39 @@
 
 @php
     $canDisconnect = (bool) $primaryConnection;
+    $detectionUrl = route('paid-marketing.detection-settings', $menuDomain ? ['domain_id' => $menuDomain->id] : []);
+    $editConnectionUrl = $googleOAuthConnected
+        ? route('integrations.google.redirect')
+        : route('domains.index', ['add' => 1]);
 @endphp
 
-<x-integrations.platform-card-dropdown label="Google platform options">
-    <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'google-details' })">
+<x-integrations.platform-card-dropdown :menu-id="$menuId" label="Google platform options">
+    <a href="#connected-platforms" class="figma-platform-menu-item" title="Scroll to Connected Platforms table on this page">
         View Platform Details
-    </button>
-    <a href="{{ $googleOAuthConnected ? route('integrations.google.redirect') : route('domains.index') }}" class="figma-platform-menu-item">
+    </a>
+    <a href="{{ $editConnectionUrl }}" class="figma-platform-menu-item" title="{{ $googleOAuthConnected ? 'Reconnect or add another Google account' : 'Add a domain and connect Google' }}">
         Edit Connection
     </a>
-    <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'copy-tracking' })">
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'copy-tracking' })" title="Copy Promotix tag script URL to clipboard">
         Copy Tracking Link
     </button>
-    <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'open-pixel-guard' })">
+    <a href="#link-domain-form" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'open-pixel-guard' })" title="Jump to domain linking form with Pixel Guard selected">
         Open Pixel Guard
-    </button>
-    <a href="{{ route('paid-marketing.detection-settings', $menuDomain ? ['domain_id' => $menuDomain->id] : []) }}" class="figma-platform-menu-item">
+    </a>
+    <a href="{{ $detectionUrl }}" class="figma-platform-menu-item" title="Paid Marketing → Detection → Audience Exclusion settings">
         Open Audience Exclusion
     </a>
-    <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'manage-ad-account' })">
+    <a href="#google-ads-account-select" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'manage-ad-account' })" title="Jump to Google Ads account dropdown">
         Manage Ad Account
-    </button>
-    <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'test-google' })">
+    </a>
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'test-google' })" title="Check Google OAuth and synced accounts">
         Test Connection
     </button>
     @if ($canDisconnect)
-        <button type="button" class="figma-platform-menu-item figma-platform-menu-item--danger w-full text-left" @click="$dispatch('platform-menu', { action: 'disconnect-google' })">
+        <button type="button" class="figma-platform-menu-item figma-platform-menu-item--danger w-full text-left" @click="$dispatch('platform-menu', { action: 'disconnect-google' })" title="Remove Google OAuth from this workspace">
             Disconnect Platform
         </button>
     @else
-        <span class="figma-platform-menu-item figma-platform-menu-item--muted block cursor-default">Disconnect Platform</span>
+        <span class="figma-platform-menu-item figma-platform-menu-item--muted block cursor-default" title="Connect Google first">Disconnect Platform</span>
     @endif
 </x-integrations.platform-card-dropdown>
