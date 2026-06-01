@@ -112,6 +112,52 @@
                 </div>
             </div>
 
+            {{-- Traffic detail pills: VPN, data center, invalid traffic --}}
+            <div class="figma-bp-details-row mb-[12px] grid gap-[10px] sm:grid-cols-2 xl:grid-cols-4">
+                <article class="rounded-[8px] border border-white/15 bg-[#1a1a1a] px-[12px] py-[10px]">
+                    <p class="text-[9px] uppercase text-white/55">Invalid pageloads</p>
+                    <p class="mt-[4px] text-[18px] font-semibold text-white" x-text="fmt(invalidTrends.stats?.pageloads ?? 0)"></p>
+                </article>
+                <article class="rounded-[8px] border border-white/15 bg-[#1a1a1a] px-[12px] py-[10px]">
+                    <p class="text-[9px] uppercase text-white/55">Invalid interactions</p>
+                    <p class="mt-[4px] text-[18px] font-semibold text-white" x-text="fmt(invalidTrends.stats?.interactions ?? 0)"></p>
+                </article>
+                <article class="rounded-[8px] border border-white/15 bg-[#1a1a1a] px-[12px] py-[10px] sm:col-span-2">
+                    <p class="mb-[6px] text-[9px] uppercase text-white/55">Invalid bot breakdown (VPN, data center, rate limit)</p>
+                    <div class="flex flex-wrap gap-[8px]">
+                        <template x-for="(label, idx) in (cache.ib?.labels ?? [])" :key="label">
+                            <span class="rounded bg-[#6400B2]/40 px-[8px] py-[4px] text-[10px] text-white">
+                                <span x-text="threatLabel(label)"></span>: <strong x-text="fmt((cache.ib?.values ?? [])[idx] ?? 0)"></strong>
+                            </span>
+                        </template>
+                        <span x-show="!(cache.ib?.labels?.length)" class="text-[10px] text-white/45">No VPN / data center signals in this range.</span>
+                    </div>
+                </article>
+            </div>
+
+            <div class="figma-bp-details-row mb-[12px] grid gap-[10px] lg:grid-cols-2">
+                <section class="rounded-[8px] border border-white/15 bg-[#1a1a1a] p-[12px]">
+                    <h3 class="mb-[8px] text-[11px] font-semibold uppercase text-white/70">Threat groups</h3>
+                    <template x-for="(label, idx) in (cache.th?.labels ?? [])" :key="'th-'+label">
+                        <div class="flex items-center justify-between border-b border-white/5 py-[6px] text-[11px] text-white/85">
+                            <span x-text="threatLabel(label)"></span>
+                            <strong x-text="fmt((cache.th?.values ?? [])[idx] ?? 0)"></strong>
+                        </div>
+                    </template>
+                    <p x-show="!(cache.th?.labels?.length)" class="text-[10px] text-white/45">No threat group data.</p>
+                </section>
+                <section class="rounded-[8px] border border-white/15 bg-[#1a1a1a] p-[12px]">
+                    <h3 class="mb-[8px] text-[11px] font-semibold uppercase text-white/70">Invalid malicious activity</h3>
+                    <template x-for="(label, idx) in (cache.mal?.labels ?? [])" :key="'mal-'+label">
+                        <div class="flex items-center justify-between border-b border-white/5 py-[6px] text-[11px] text-white/85">
+                            <span x-text="threatLabel(label)"></span>
+                            <strong x-text="fmt((cache.mal?.values ?? [])[idx] ?? 0)"></strong>
+                        </div>
+                    </template>
+                    <p x-show="!(cache.mal?.labels?.length)" class="text-[10px] text-white/45">No malicious activity logged.</p>
+                </section>
+            </div>
+
             {{-- Row 3: Domain + Country tables side by side (Figma) --}}
             <div class="figma-bp-tables-row">
                 <section class="figma-bp-table min-w-0">
@@ -136,18 +182,20 @@
                     </div>
                 </section>
                 <section class="figma-bp-table min-w-0">
-                    <div class="figma-bp-table-head figma-bp-table-head--country">
+                    <div class="figma-bp-table-head figma-bp-table-head--country" style="grid-template-columns: 1.4fr 0.8fr 0.8fr 0.6fr;">
                         <span>Country</span>
-                        <span class="text-right">Invalid Traffic</span>
-                        <span class="text-right">% of All</span>
+                        <span class="text-right">Visits</span>
+                        <span class="text-right">Invalid</span>
+                        <span class="text-right">%</span>
                     </div>
                     <div class="figma-bp-table-body">
                         <template x-for="row in countries" :key="row.country">
-                            <div class="figma-bp-table-row--country">
+                            <div class="figma-bp-table-row--country" style="grid-template-columns: 1.4fr 0.8fr 0.8fr 0.6fr;">
                                 <span class="flex items-center gap-[6px] truncate">
                                     <span class="inline-block h-[10px] w-[14px] shrink-0 rounded-[2px] bg-white/30"></span>
                                     <span x-text="countryLabel(row.country)"></span>
                                 </span>
+                                <span class="text-right" x-text="fmt(row.total ?? 0)"></span>
                                 <span class="text-right" x-text="fmt(row.invalid)"></span>
                                 <span class="text-right" x-text="(row.percent ?? 0) + '%'"></span>
                             </div>
@@ -182,6 +230,11 @@ function botProtectionFigma() {
             return this.fmt(v);
         },
         countryLabel(code) { return countryNames[code] || code || 'Unknown'; },
+        threatLabel(key) {
+            const map = { vpn: 'VPN', data_center: 'Data center', abnormal_rate_limit: 'Rate limit', malicious: 'Malicious' };
+            const k = String(key || '').toLowerCase();
+            return map[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
+        },
         get thisWeekInvalid() {
             const ds = (this.invalidTrends.datasets || []).find(d => !d.dashed);
             return (ds?.values || []).reduce((a, b) => a + Number(b || 0), 0);
@@ -255,7 +308,12 @@ function botProtectionFigma() {
             this.invalidTrends = trends;
             this.countries = c;
             this.domainsList = ds;
-            this.cache = { traffic, th, ib: ib?.invalid_bot ?? { labels: [], values: [] }, mal: ib?.invalid_malicious ?? { labels: [], values: [] } };
+            this.cache = {
+                traffic,
+                th,
+                ib: ib?.invalid_bot ?? { labels: [], values: [] },
+                mal: ib?.invalid_malicious ?? { labels: [], values: [] },
+            };
             this.$nextTick(() => this.render());
         },
         canvas(id) {

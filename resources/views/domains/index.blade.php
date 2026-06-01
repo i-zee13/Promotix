@@ -66,7 +66,15 @@
                             >
                                 <td class="px-[16px] py-[14px]">
                                     <p class="text-[13px] font-medium text-white">{{ $d->hostname }}</p>
-                                    <p class="mt-[2px] text-[10px] text-[#a9a9a9]">Last seen: {{ $d->last_seen_at?->diffForHumans() ?? '—' }}</p>
+                                    <p class="mt-[2px] text-[10px] text-[#a9a9a9]">
+                                        @if ($d->isManual() && $d->google_ads_account_id)
+                                            Manual + Google Ads
+                                        @elseif (! $d->isManual())
+                                            From Google Ads sync
+                                        @else
+                                            Last seen: {{ $d->last_seen_at?->diffForHumans() ?? '—' }}
+                                        @endif
+                                    </p>
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
                                     @if ($d->tag_connected)
@@ -81,7 +89,7 @@
                                     @endif
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
-                                    @if ($d->paid_marketing_connected)
+                                    @if ($d->hasPaidAdvertisingFromAds())
                                         <div class="flex flex-col items-start justify-center gap-[4px]">
                                             <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
                                             @if (isset($d->valid_visits_count) || isset($d->invalid_visits_count))
@@ -89,12 +97,14 @@
                                             @endif
                                         </div>
                                     @else
-                                        <a href="{{ route('integrations') }}" class="text-[11px] text-[#9a1aff] hover:underline">Connect ads</a>
+                                        <a href="{{ route('integrations') }}" class="text-[11px] text-[#9a1aff] hover:underline">Sync Google Ads</a>
                                     @endif
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
                                     <div class="flex flex-wrap items-center gap-[8px]">
-                                        @if ($d->bot_mitigation_connected)
+                                        @if (! $d->isManual())
+                                            <span class="text-[10px] text-[#a9a9a9]">Add domain manually for bot protection</span>
+                                        @elseif ($d->bot_mitigation_connected)
                                             <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
                                         @else
                                             <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>

@@ -18,6 +18,7 @@ class BotProtectionController extends Controller
     {
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
+            ->forBotProtection()
             ->orderBy('hostname')
             ->get(['id', 'hostname']);
 
@@ -587,7 +588,10 @@ class BotProtectionController extends Controller
 
     private function scopedDomainIds(Request $request)
     {
-        $userDomainIds = Domain::query()->where('user_id', $request->user()->id)->pluck('id');
+        $userDomainIds = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forBotProtection()
+            ->pluck('id');
 
         if ($id = (int) $request->query('domain_id', 0)) {
             return $userDomainIds->filter(fn ($v) => (int) $v === $id)->values();

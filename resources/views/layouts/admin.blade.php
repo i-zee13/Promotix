@@ -178,14 +178,9 @@
             @yield('rightbar')
         @else
         <div class="figma-rightbar-default">
-        <div class="mb-[16px] flex items-center justify-between">
-            <div>
-                <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
-                <p class="mt-[4px] text-[9px] text-white/45">Account panel</p>
-            </div>
-            <button class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white">
-                <svg class="h-[13px] w-[13px]" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 11.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 17a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
-            </button>
+        <div class="mb-[16px]">
+            <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
+            <p class="mt-[4px] text-[9px] text-white/45">Account panel</p>
         </div>
 
         <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]"></div>
@@ -329,5 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+@include('partials.live-agent-chat')
 </body>
 </html>

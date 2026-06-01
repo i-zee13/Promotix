@@ -145,24 +145,32 @@
                         </select>
                     </div>
                 </div>
-                <div class="max-h-[365px] overflow-auto rounded-[4px] border border-white/15">
-                    <table class="min-w-[520px] w-full text-left text-[15px] text-[#a9a9a9]">
-                        <thead class="sticky top-0 bg-[#6400B2]">
+                <div class="max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
+                    <table class="w-full min-w-[720px] table-fixed text-left text-[11px] text-[#a9a9a9]">
+                        <thead class="sticky top-0 z-[1] bg-[#6400B2]">
                             <tr>
-                                <th class="px-[10px] py-[7px] font-normal">Address</th>
-                                <th class="px-[10px] py-[7px] font-normal">Invalid</th>
-                                <th class="px-[10px] py-[7px] font-normal">Last Click</th>
+                                <th class="w-[22%] px-[8px] py-[7px] font-normal">Address</th>
+                                <th class="w-[10%] px-[8px] py-[7px] font-normal">Country</th>
+                                <th class="w-[12%] px-[8px] py-[7px] font-normal">Invalid</th>
+                                <th class="w-[14%] px-[8px] py-[7px] font-normal">Bot detect</th>
+                                <th class="w-[12%] px-[8px] py-[7px] font-normal">VPN</th>
+                                <th class="w-[14%] px-[8px] py-[7px] font-normal">Data center</th>
+                                <th class="w-[16%] px-[8px] py-[7px] font-normal">Last click</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/15">
                             <template x-for="row in ips" :key="row.ip">
-                                <tr>
-                                    <td class="px-[10px] py-[7px]" x-text="row.ip"></td>
-                                    <td class="px-[10px] py-[7px]" x-text="fmt(row.invalid) + ' / ' + fmt(row.total)"></td>
-                                    <td class="px-[10px] py-[7px]" x-text="dateLabel(row.last_seen)"></td>
+                                <tr class="align-top">
+                                    <td class="truncate px-[8px] py-[6px] font-mono text-[10px]" :title="row.ip" x-text="row.ip"></td>
+                                    <td class="truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.invalid) + '/' + fmt(row.total)"></td>
+                                    <td class="truncate px-[8px] py-[6px] capitalize" x-text="threatLabel(row.top_threat)"></td>
+                                    <td class="px-[8px] py-[6px]" x-text="row.vpn_hits > 0 ? fmt(row.vpn_hits) : '—'"></td>
+                                    <td class="px-[8px] py-[6px]" x-text="row.data_center_hits > 0 ? fmt(row.data_center_hits) : '—'"></td>
+                                    <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
                                 </tr>
                             </template>
-                            <tr x-show="ips.length === 0"><td colspan="3" class="px-[10px] py-[12px] text-center text-white/60">No IP data yet.</td></tr>
+                            <tr x-show="ips.length === 0"><td colspan="7" class="px-[10px] py-[12px] text-center text-white/60">No IP data yet.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -239,6 +247,12 @@ function paidAdvertisingFigma(config = {}) {
             return paid ? Math.round((invalid / paid) * 100) : 0;
         },
         fmt(n) { return new Intl.NumberFormat().format(Number(n || 0)); },
+        threatLabel(key) {
+            const map = { vpn: 'VPN', data_center: 'Data center', malicious: 'Malicious', abnormal_rate_limit: 'Rate limit' };
+            const k = String(key || '').toLowerCase();
+            if (!k) return '—';
+            return map[k] || k.replace(/_/g, ' ');
+        },
         dateLabel(value) {
             if (!value) return 'N/A';
             const d = new Date(value);

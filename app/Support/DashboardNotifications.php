@@ -14,7 +14,7 @@ class DashboardNotifications
 {
     public static function forUser(int $userId): array
     {
-        $domainIds = Domain::query()->where('user_id', $userId)->pluck('id');
+        $domainIds = Domain::query()->where('user_id', $userId)->forPaidMarketing()->pluck('id');
         $blockedToday = (int) IpLog::query()
             ->where('is_blocked', true)
             ->whereDate('updated_at', Carbon::today())
@@ -46,13 +46,24 @@ class DashboardNotifications
                 ->count();
         }
 
-        $domains = Domain::query()->where('user_id', $userId)->get();
-        $platformReady = $domains->contains(
-            fn (Domain $d) => $d->tag_connected && $d->paid_marketing_connected && $d->bot_mitigation_connected
+        $manualDomains = Domain::query()->where('user_id', $userId)->forBotProtection()->get();
+        $paidDomains = Domain::query()->where('user_id', $userId)->forPaidMarketing()->get();
+
+        $botReady = $manualDomains->contains(
+            fn (Domain $d) => $d->tag_connected && $d->bot_mitigation_connected
         );
-        $pendingDomains = $domains->filter(
-            fn (Domain $d) => ! $d->tag_connected || ! $d->paid_marketing_connected || ! $d->bot_mitigation_connected
-        )->count();
+        $paidReady = $paidDomains->isNotEmpty();
+        $platformReady = $botReady && $paidReady;
+
+        $pendingDomains = 0;
+        if (! $botReady) {
+            $pendingDomains += $manualDomains->filter(
+                fn (Domain $d) => ! $d->tag_connected || ! $d->bot_mitigation_connected
+            )->count();
+        }
+        if (! $paidReady) {
+            $pendingDomains++;
+        }
 
         $googleOAuthConnected = GoogleConnection::query()->where('user_id', $userId)->exists();
 

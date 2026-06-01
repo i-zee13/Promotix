@@ -132,7 +132,7 @@ class User extends Authenticatable
 
     public function domainsUsed(): int
     {
-        return $this->domains()->count();
+        return $this->domains()->manual()->count();
     }
 
     public function canAddDomain(): bool

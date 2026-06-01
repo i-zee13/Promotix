@@ -51,7 +51,7 @@ class PaidMarketingController extends Controller
     {
         $query = PaidMarketingVisit::query()
             ->with(['domain', 'clicks' => fn ($q) => $q->orderBy('clicked_at')])
-            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id)->forPaidMarketing())
             ->select('paid_marketing_visits.*')
             ->selectSub(
                 IpLog::query()
@@ -142,6 +142,7 @@ class PaidMarketingController extends Controller
     {
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
+            ->forPaidMarketing()
             ->orderBy('hostname')
             ->get();
 

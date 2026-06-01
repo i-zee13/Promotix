@@ -39,5 +39,29 @@ class GoogleAdsAccount extends Model
     {
         return $this->hasMany(DomainGoogleAdsMapping::class);
     }
+
+    public function syncedDomains(): HasMany
+    {
+        return $this->hasMany(Domain::class, 'google_ads_account_id');
+    }
+
+    /** Accounts successfully loaded from Google Ads API (name + access confirmed). */
+    public function scopeSynced($query)
+    {
+        return $query
+            ->where('is_active', true)
+            ->whereNotNull('account_name')
+            ->where('account_name', '!=', '');
+    }
+
+    public function displayLabel(): string
+    {
+        $name = trim((string) $this->account_name);
+        if ($name !== '') {
+            return $name;
+        }
+
+        return $this->display_customer_id ?: $this->customer_id;
+    }
 }
 

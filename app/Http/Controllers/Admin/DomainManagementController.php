@@ -48,7 +48,7 @@ class DomainManagementController extends Controller
         $domains = $domainsQuery->paginate(25);
 
         $user = $request->user();
-        $domainCount = Domain::query()->where('user_id', $user->id)->count();
+        $domainCount = Domain::query()->where('user_id', $user->id)->manual()->count();
         $limit = $user->domainLimit();
         $limitDisplay = $limit === INF ? '∞' : (string) (int) $limit;
 
@@ -109,6 +109,7 @@ class DomainManagementController extends Controller
         $domain = Domain::create([
             'user_id' => $request->user()->id,
             'hostname' => $hostname,
+            'source' => Domain::SOURCE_MANUAL,
             'domain_key' => Str::uuid()->toString(),
             'secret_key' => Str::uuid()->toString(),
             'authentication_key' => Str::uuid()->toString(),
@@ -169,7 +170,7 @@ class DomainManagementController extends Controller
         ]);
 
         $domainLimit = (int) env('DOMAIN_LIMIT', 50);
-        $currentCount = Domain::query()->where('user_id', $request->user()->id)->count();
+        $currentCount = Domain::query()->where('user_id', $request->user()->id)->manual()->count();
         $added = [];
         $skipped = [];
 
@@ -186,6 +187,7 @@ class DomainManagementController extends Controller
             $domain = Domain::query()->firstOrCreate(
                 ['user_id' => $request->user()->id, 'hostname' => $hostname],
                 [
+                    'source' => Domain::SOURCE_MANUAL,
                     'domain_key' => Str::uuid()->toString(),
                     'secret_key' => Str::uuid()->toString(),
                     'authentication_key' => Str::uuid()->toString(),

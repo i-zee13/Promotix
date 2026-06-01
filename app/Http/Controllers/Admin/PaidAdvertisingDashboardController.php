@@ -17,11 +17,12 @@ class PaidAdvertisingDashboardController extends Controller
     {
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
+            ->forPaidMarketing()
             ->orderBy('hostname')
-            ->get(['id', 'hostname', 'paid_marketing_connected']);
+            ->get(['id', 'hostname', 'paid_marketing_connected', 'source', 'google_ads_account_id']);
 
         $countryGetStarted = $domains->isEmpty()
-            || ! $domains->contains(fn (Domain $d) => (bool) $d->paid_marketing_connected);
+            || ! $domains->contains(fn (Domain $d) => $d->hasPaidAdvertisingFromAds());
 
         return view('paid-marketing.dashboard', [
             'domains' => $domains,
@@ -238,7 +239,11 @@ class PaidAdvertisingDashboardController extends Controller
                 DB::raw('COUNT(*) as total'),
                 DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
                 DB::raw('MAX(country) as country'),
-                DB::raw('MAX(visited_at) as last_seen')
+                DB::raw('MAX(visited_at) as last_seen'),
+                DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
+                DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
+                DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
+                DB::raw('MAX(threat_group) as top_threat')
             )
             ->groupBy('ip')
             ->orderByDesc('total')
@@ -251,6 +256,10 @@ class PaidAdvertisingDashboardController extends Controller
             'total' => (int) $r->total,
             'invalid' => (int) $r->invalid,
             'last_seen' => (string) ($r->last_seen ?? ''),
+            'vpn_hits' => (int) ($r->vpn_hits ?? 0),
+            'data_center_hits' => (int) ($r->data_center_hits ?? 0),
+            'malicious_hits' => (int) ($r->malicious_hits ?? 0),
+            'top_threat' => $r->top_threat,
         ])->values());
     }
 
@@ -295,7 +304,10 @@ class PaidAdvertisingDashboardController extends Controller
 
     private function scopedDomainIds(Request $request)
     {
-        $userDomainIds = Domain::query()->where('user_id', $request->user()->id)->pluck('id');
+        $userDomainIds = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forPaidMarketing()
+            ->pluck('id');
 
         if ($id = (int) $request->query('domain_id', 0)) {
             return $userDomainIds->filter(fn ($v) => (int) $v === $id)->values();

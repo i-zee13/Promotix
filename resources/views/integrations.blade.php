@@ -11,26 +11,27 @@
 @endphp
 
 @section('rightbar')
-    <div class="mb-[22px] flex items-center justify-between">
+    <div class="mb-[22px]">
         <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
-        <button class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white">
-            <svg class="h-[13px] w-[13px]" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 11.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 17a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
-        </button>
     </div>
 
     <div class="mb-[24px] grid grid-cols-4 gap-[9px]">
         @foreach (['bell-notification', 'chat', 'share', 'more'] as $icon)
-            <a href="{{ route('integrations') }}" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white" aria-label="{{ $icon }}">
-                @if ($icon === 'bell-notification')
-                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 01-6 0"/></svg>
-                @elseif ($icon === 'chat')
+            @if ($icon === 'chat')
+                <button type="button" @click="$dispatch('open-live-agent')" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]" aria-label="Live agent chat">
                     <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M4 5h16v11H8l-4 4V5z"/></svg>
-                @elseif ($icon === 'share')
-                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M8 12h8M16 12l-4-4m4 4l-4 4"/></svg>
-                @else
-                    <svg class="h-[13px] w-[13px]" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 11.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 17a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
-                @endif
-            </a>
+                </button>
+            @else
+                <a href="{{ route('integrations') }}" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white" aria-label="{{ $icon }}">
+                    @if ($icon === 'bell-notification')
+                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 01-6 0"/></svg>
+                    @elseif ($icon === 'share')
+                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M8 12h8M16 12l-4-4m4 4l-4 4"/></svg>
+                    @else
+                        <svg class="h-[13px] w-[13px]" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/></svg>
+                    @endif
+                </a>
+            @endif
         @endforeach
     </div>
 
@@ -222,12 +223,30 @@
 
         @if ($accounts->isNotEmpty())
             <section class="mt-[14px] rounded-[10px] border border-white/25 bg-[#6400B2]/40 p-[12px]">
-                <p class="mb-[8px] text-[13px] font-semibold text-white">Synced Google Ads accounts ({{ $accounts->count() }})</p>
-                <ul class="flex flex-wrap gap-[8px]">
+                <p class="mb-[10px] text-[13px] font-semibold text-white">Google Ads accounts &amp; domains ({{ $accounts->count() }})</p>
+                <ul class="space-y-[10px]">
                     @foreach ($accounts as $account)
-                        <li class="rounded-[5px] bg-white/15 px-[10px] py-[6px] text-[12px] text-white">
-                            {{ $account->account_name ?: $account->display_customer_id ?: $account->customer_id }}
-                            <span class="text-white/60">({{ $account->display_customer_id ?: $account->customer_id }})</span>
+                        @php
+                            $accountId = $account->display_customer_id ?: ('AW-' . $account->customer_id);
+                        @endphp
+                        <li class="rounded-[8px] border border-white/15 bg-black/20 px-[12px] py-[10px] text-[12px] text-white">
+                            <p class="font-semibold">
+                                {{ $account->displayLabel() }}
+                                <span class="font-normal text-white/65">({{ $accountId }})</span>
+                                @if ($account->is_manager)
+                                    <span class="ml-[6px] rounded bg-white/15 px-[6px] py-[1px] text-[9px] uppercase">MCC</span>
+                                @endif
+                            </p>
+                            @if ($account->syncedDomains->isNotEmpty())
+                                <p class="mt-[6px] text-[10px] text-white/55">Domains:</p>
+                                <div class="mt-[4px] flex flex-wrap gap-[6px]">
+                                    @foreach ($account->syncedDomains as $domain)
+                                        <span class="rounded bg-white/10 px-[8px] py-[3px] text-[11px]">{{ $domain->hostname }}</span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="mt-[6px] text-[10px] text-white/45">No domains synced from this account yet.</p>
+                            @endif
                         </li>
                     @endforeach
                 </ul>
@@ -237,29 +256,62 @@
         <section id="connected-platforms" class="mt-[20px] scroll-mt-[80px] rounded-[10px] border border-[#6706B3] p-[16px]">
             <div class="mb-[26px]">
                 <h2 class="text-[24px] font-medium text-white">Connected Platforms</h2>
-                <p class="mt-[5px] text-[14px] font-medium text-white">All Accounts</p>
+                <p class="mt-[5px] text-[14px] font-medium text-white">Linked accounts &amp; domains</p>
             </div>
 
-            <form id="link-domain-form" method="POST" action="{{ route('integrations.store-mapping') }}" class="mb-[14px] grid gap-[8px] rounded-[8px] border border-white/20 bg-[#6400B2]/35 p-[10px] lg:grid-cols-[1fr_1fr_150px_130px]">
-                @csrf
-                <select name="domain_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
-                    <option value="">Select domain</option>
-                    @foreach ($domains as $domain)
-                        <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                    @endforeach
-                </select>
-                <select id="google-ads-account-select" name="google_ads_account_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
-                    <option value="">Select connected account</option>
-                    @foreach ($accounts as $account)
-                        <option value="{{ $account->id }}">{{ $account->display_customer_id ?: $account->customer_id }} - {{ $account->google_tag_id ?: 'No tag ID' }}</option>
-                    @endforeach
-                </select>
-                <select name="protection_type" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
-                    <option value="ip_blocking">IP Blocking</option>
-                    <option value="pixel_guard">Pixel Guard</option>
-                </select>
-                <button class="rounded-[5px] bg-[#6706B3] px-[12px] text-[12px] font-semibold text-white">Link domain</button>
-            </form>
+            <div id="mapping-filters" class="mb-[14px] grid gap-[8px] rounded-[8px] border border-white/20 bg-[#6400B2]/35 p-[10px] lg:grid-cols-[1fr_1fr_150px_auto]">
+                <label class="flex flex-col gap-[4px]">
+                    <span class="text-[9px] font-semibold uppercase text-white/60">Filter domain</span>
+                    <select x-model="mappingFilter.domain" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
+                        <option value="">All domains</option>
+                        @foreach ($paidMarketingDomains as $domain)
+                            <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label class="flex flex-col gap-[4px]">
+                    <span class="text-[9px] font-semibold uppercase text-white/60">Filter account</span>
+                    <select x-model="mappingFilter.account" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
+                        <option value="">All accounts</option>
+                        @foreach ($accounts as $account)
+                            <option value="{{ $account->id }}">{{ $account->displayLabel() }} ({{ $account->display_customer_id ?: $account->customer_id }})</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label class="flex flex-col gap-[4px]">
+                    <span class="text-[9px] font-semibold uppercase text-white/60">Protection</span>
+                    <select x-model="mappingFilter.protection" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
+                        <option value="">All types</option>
+                        <option value="ip_blocking">IP Blocking</option>
+                        <option value="pixel_guard">Pixel Guard</option>
+                    </select>
+                </label>
+                <button type="button" @click="mappingFilter = { domain: '', account: '', protection: '' }" class="self-end rounded-[5px] border border-white/30 px-[12px] py-[8px] text-[11px] text-white hover:bg-white/10">Clear</button>
+            </div>
+
+            <details class="mb-[14px] rounded-[8px] border border-white/15 bg-black/20 p-[10px] text-white">
+                <summary class="cursor-pointer text-[12px] font-medium text-white/90">Link new domain to Google Ads</summary>
+                <form id="link-domain-form" method="POST" action="{{ route('integrations.store-mapping') }}" class="mt-[10px] grid gap-[8px] lg:grid-cols-[1fr_1fr_150px_130px]">
+                    @csrf
+                    <select name="domain_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white">
+                        <option value="">Select domain</option>
+                        @foreach ($paidMarketingDomains as $domain)
+                            <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                        @endforeach
+                    </select>
+                    <select id="google-ads-account-select" name="google_ads_account_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white">
+                        <option value="">Select account</option>
+                        @foreach ($accounts as $account)
+                            <option value="{{ $account->id }}">{{ $account->displayLabel() }} ({{ $account->display_customer_id ?: $account->customer_id }})</option>
+                        @endforeach
+                    </select>
+                    <select name="protection_type" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white">
+                        <option value="ip_blocking">IP Blocking</option>
+                        <option value="pixel_guard">Pixel Guard</option>
+                    </select>
+                    <button type="submit" class="rounded-[5px] bg-[#6706B3] px-[12px] text-[12px] font-semibold text-white">Link</button>
+                </form>
+            </details>
 
             <div class="overflow-x-auto">
                 <table class="min-w-[1040px] w-full border-separate border-spacing-y-[5px] text-left">
@@ -275,7 +327,11 @@
                     </thead>
                     <tbody>
                         @forelse ($mappings as $mapping)
-                            <tr class="rounded-[5px] bg-[#d9d9d9] text-[#121212]">
+                            <tr
+                                class="rounded-[5px] bg-[#d9d9d9] text-[#121212]"
+                                x-show="mappingRowVisible({{ $mapping->domain_id }}, {{ $mapping->google_ads_account_id }}, @js($mapping->protection_type))"
+                                x-cloak
+                            >
                                 <td class="rounded-l-[5px] px-[22px] py-[10px] text-[16px] font-medium">
                                     <span class="inline-flex items-center gap-[10px]">
                                         @include('partials.icons.google', ['class' => 'h-[22px] w-[22px]'])
@@ -283,7 +339,10 @@
                                     </span>
                                 </td>
                                 <td class="px-[22px] py-[10px] text-[10px]">{{ $mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion' }}</td>
-                                <td class="px-[22px] py-[10px] text-[12px]">{{ $mapping->account->display_customer_id ?: $mapping->account->customer_id }}</td>
+                                <td class="px-[22px] py-[10px] text-[12px]">
+                                    <span class="block font-medium">{{ $mapping->account->displayLabel() }}</span>
+                                    <span class="text-[10px] text-[#121212]/65">{{ $mapping->account->display_customer_id ?: $mapping->account->customer_id }}</span>
+                                </td>
                                 <td class="px-[22px] py-[10px] text-[12px]">{{ $mapping->domain->hostname }}</td>
                                 <td class="px-[22px] py-[10px] text-[12px] font-medium text-[#6706B3]">
                                     <a href="{{ route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]) }}" class="inline-flex items-center gap-[6px] hover:underline">
@@ -292,11 +351,12 @@
                                     </a>
                                 </td>
                                 <td class="rounded-r-[5px] px-[22px] py-[10px] text-right">
-                                    <form method="POST" action="{{ route('integrations.destroy-mapping', $mapping) }}">
+                                    <form method="POST" action="{{ route('integrations.destroy-mapping', $mapping) }}" onsubmit="return confirm('Remove this platform link?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="text-[#121212]/70 hover:text-[#6706B3]" aria-label="Remove">
-                                            @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'h-[20px] w-[20px]'])
+                                        <button type="submit" class="inline-flex items-center gap-[6px] rounded-[5px] border border-red-400/50 bg-red-500/10 px-[10px] py-[5px] text-[11px] font-semibold text-red-700 hover:bg-red-500/20">
+                                            @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'h-[14px] w-[14px]'])
+                                            Delete
                                         </button>
                                     </form>
                                 </td>
@@ -408,6 +468,14 @@ function platformIntegrations(config) {
     return {
         directList: config.directInitial || [],
         directForm: { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' },
+        mappingFilter: { domain: '', account: '', protection: '' },
+        mappingRowVisible(domainId, accountId, protection) {
+            const f = this.mappingFilter;
+            if (f.domain && String(domainId) !== String(f.domain)) return false;
+            if (f.account && String(accountId) !== String(f.account)) return false;
+            if (f.protection && protection !== f.protection) return false;
+            return true;
+        },
         menuToast: '',
         menuToastTimer: null,
         showMenuToast(message) {
@@ -455,14 +523,13 @@ function platformIntegrations(config) {
                     this.copyText(config.trackingLink, 'Tracking link');
                     break;
                 case 'open-pixel-guard': {
-                    this.scrollToEl('link-domain-form', 'select[name="protection_type"]');
-                    const sel = document.querySelector('#link-domain-form select[name="protection_type"]');
-                    if (sel) sel.value = 'pixel_guard';
-                    this.showMenuToast('Pixel Guard selected — link a domain below.');
+                    this.scrollToEl('mapping-filters');
+                    this.mappingFilter.protection = 'pixel_guard';
+                    this.showMenuToast('Filtered to Pixel Guard mappings.');
                     break;
                 }
                 case 'manage-ad-account':
-                    this.scrollToEl('link-domain-form', '#google-ads-account-select');
+                    this.scrollToEl('mapping-filters');
                     break;
                 case 'test-google':
                     this.testGoogleConnection();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\GoogleAdsDomainSync;
 use App\Models\DirectAdsIntegration;
 use App\Models\Domain;
 use App\Models\DomainGoogleAdsMapping;
@@ -37,8 +38,22 @@ class IntegrationsController extends Controller
             ->orderBy('hostname')
             ->get();
 
+        $paidMarketingDomains = Domain::query()
+            ->where('user_id', $user->id)
+            ->forPaidMarketing()
+            ->orderBy('hostname')
+            ->get();
+
+        $manualDomains = Domain::query()
+            ->where('user_id', $user->id)
+            ->forBotProtection()
+            ->orderBy('hostname')
+            ->get();
+
         $accounts = GoogleAdsAccount::query()
             ->whereHas('connection', fn ($q) => $q->where('user_id', $user->id))
+            ->synced()
+            ->with(['syncedDomains' => fn ($q) => $q->where('user_id', $user->id)->orderBy('hostname')])
             ->orderBy('account_name')
             ->get();
 
@@ -53,12 +68,12 @@ class IntegrationsController extends Controller
             ->orderBy('platform')
             ->get();
 
-        $tagReady = $domains->contains(fn (Domain $d) => (bool) $d->tag_connected);
-        $paidReady = $domains->contains(fn (Domain $d) => (bool) $d->paid_marketing_connected);
-        $botReady = $domains->contains(fn (Domain $d) => (bool) $d->bot_mitigation_connected);
-        $platformReady = $domains->contains(
-            fn (Domain $d) => $d->tag_connected && $d->paid_marketing_connected && $d->bot_mitigation_connected
+        $tagReady = $manualDomains->contains(fn (Domain $d) => (bool) $d->tag_connected);
+        $paidReady = $paidMarketingDomains->isNotEmpty();
+        $botReady = $manualDomains->contains(
+            fn (Domain $d) => $d->tag_connected && $d->bot_mitigation_connected
         );
+        $platformReady = $botReady && $paidReady;
 
         $requirementSteps = [
             ['label' => 'Tag Manager', 'done' => $tagReady],
@@ -70,6 +85,8 @@ class IntegrationsController extends Controller
         return view('integrations', compact(
             'connections',
             'domains',
+            'paidMarketingDomains',
+            'manualDomains',
             'accounts',
             'mappings',
             'directAds',
@@ -285,17 +302,19 @@ class IntegrationsController extends Controller
             return back()->with('status', 'Google Ads account listing failed: ' . str($reason)->limit(220));
         }
 
-        $detailHeaders = array_merge($headers, [
+        $baseDetailHeaders = array_merge($headers, [
             'Content-Type' => 'application/json',
         ]);
-        if ($loginCustomerId !== '') {
-            $detailHeaders['login-customer-id'] = $loginCustomerId;
-        }
 
         $resources = (array) ($listRes->json('resourceNames') ?? []);
         $synced = 0;
-        $detailFailures = 0;
-        $detailFailureReasons = [];
+        $skipped = 0;
+        $domainsSynced = 0;
+        $domainSync = app(GoogleAdsDomainSync::class);
+
+        GoogleAdsAccount::query()
+            ->where('google_connection_id', $connection->id)
+            ->update(['is_active' => false]);
 
         foreach ($resources as $resource) {
             $customerId = preg_replace('/\D+/', '', (string) $resource);
@@ -303,37 +322,41 @@ class IntegrationsController extends Controller
                 continue;
             }
 
-            $display = 'AW-' . $customerId;
-            $name = null;
-            $isManager = false;
+            $detailRes = $this->googleAdsSearchStream(
+                (string) $usedVersion,
+                $customerId,
+                'SELECT customer.id, customer.descriptive_name, customer.manager FROM customer LIMIT 1',
+                $baseDetailHeaders,
+                $loginCustomerId !== '' ? $loginCustomerId : null
+            );
 
-            $detailRes = Http::timeout(20)
-                ->withHeaders($detailHeaders)
-                ->post($this->googleAdsUrl((string) $usedVersion, "customers/{$customerId}/googleAds:searchStream"), [
-                    'query' => 'SELECT customer.id, customer.descriptive_name, customer.manager FROM customer LIMIT 1',
-                ]);
-
-            if ($detailRes->successful()) {
-                $chunk = (array) ($detailRes->json()[0] ?? []);
-                $customer = (array) (($chunk['results'][0] ?? [])['customer'] ?? []);
-                $name = $customer['descriptiveName'] ?? null;
-                $isManager = (bool) ($customer['manager'] ?? false);
-            } else {
-                $detailFailures++;
-                $reason = $this->extractApiError($detailRes);
-                if ($reason !== '') {
-                    $detailFailureReasons[] = $reason;
-                }
-                Log::info('Google Ads customer detail fetch failed (non-blocking)', [
+            if (! $detailRes->successful()) {
+                $skipped++;
+                Log::info('Google Ads customer skipped (not accessible)', [
                     'connection_id' => $connection->id,
                     'customer_id' => $customerId,
                     'status' => $detailRes->status(),
+                    'reason' => $this->extractApiError($detailRes),
                     'version' => $usedVersion,
-                    'body' => Str::limit($detailRes->body(), 1000),
                 ]);
+                continue;
             }
 
-            GoogleAdsAccount::updateOrCreate(
+            $customer = $this->parseCustomerFromSearchStream($detailRes->json());
+            if ($customer === null) {
+                $skipped++;
+                continue;
+            }
+
+            $customerId = preg_replace('/\D+/', '', (string) ($customer['id'] ?? $customerId));
+            $display = 'AW-' . $customerId;
+            $name = trim((string) ($customer['descriptiveName'] ?? $customer['descriptive_name'] ?? ''));
+            if ($name === '') {
+                $name = 'Google Ads ' . $display;
+            }
+            $isManager = (bool) ($customer['manager'] ?? false);
+
+            $adsAccount = GoogleAdsAccount::updateOrCreate(
                 [
                     'google_connection_id' => $connection->id,
                     'customer_id' => $customerId,
@@ -342,24 +365,52 @@ class IntegrationsController extends Controller
                     'display_customer_id' => $display,
                     'account_name' => $name,
                     'is_manager' => $isManager,
+                    'manager_customer_id' => null,
                     'google_tag_id' => $display,
                     'is_active' => true,
                 ]
             );
             $synced++;
+
+            if ($isManager) {
+                $childResult = $this->syncManagerChildAccounts(
+                    $request->user()->id,
+                    $connection,
+                    $customerId,
+                    (string) $usedVersion,
+                    $baseDetailHeaders,
+                    $domainSync
+                );
+                $synced += $childResult['synced'];
+                $skipped += $childResult['skipped'];
+                $domainsSynced += $childResult['domains'];
+
+                continue;
+            }
+
+            $accountHeaders = $this->googleAdsDetailHeaders($baseDetailHeaders, $loginCustomerId !== '' ? $loginCustomerId : null);
+            $domainsSynced += $domainSync->syncForAccount(
+                $request->user()->id,
+                $adsAccount,
+                $customerId,
+                (string) $usedVersion,
+                $accountHeaders
+            );
         }
 
-        if ($detailFailures > 0) {
-            $topReason = collect($detailFailureReasons)
-                ->map(fn ($r) => trim((string) $r))
-                ->filter()
-                ->first();
+        $domainNote = $domainsSynced > 0
+            ? " Discovered {$domainsSynced} advertised domain(s) from your campaigns."
+            : '';
 
-            $suffix = $topReason ? ' Example: ' . str($topReason)->limit(120) : '';
-            return back()->with('status', "Synced {$synced} account(s), but {$detailFailures} detail fetch failed (non-blocking).{$suffix}");
+        if ($synced === 0 && $skipped > 0) {
+            return back()->with('status', "No accessible Google Ads accounts were synced. {$skipped} account(s) were skipped (disabled, deactivated, or no permission). Check GOOGLE_ADS_LOGIN_CUSTOMER_ID if you use an MCC.{$domainNote}");
         }
 
-        return back()->with('status', "Synced {$synced} Google Ads account(s).");
+        if ($skipped > 0) {
+            return back()->with('status', "Synced {$synced} Google Ads account(s) with names. {$skipped} inaccessible account(s) were skipped.{$domainNote}");
+        }
+
+        return back()->with('status', "Synced {$synced} Google Ads account(s).{$domainNote}");
     }
 
     public function storeAccount(Request $request): RedirectResponse
@@ -429,6 +480,10 @@ class IntegrationsController extends Controller
                 ],
             ]
         );
+
+        $domain->google_ads_account_id = $account->id;
+        $domain->paid_marketing_connected = true;
+        $domain->save();
 
         return back()->with('status', 'Domain linked to Google Ads.');
     }
@@ -520,6 +575,198 @@ class IntegrationsController extends Controller
         return trim(strip_tags(Str::limit($response->body(), 500)));
     }
 
+    /**
+     * @param mixed $payload
+     * @return array<string, mixed>|null
+     */
+    private function parseCustomerFromSearchStream($payload): ?array
+    {
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        foreach ($payload as $chunk) {
+            if (! is_array($chunk)) {
+                continue;
+            }
+            foreach (($chunk['results'] ?? []) as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $customer = $row['customer'] ?? null;
+                if (is_array($customer) && $customer !== []) {
+                    return $customer;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{synced: int, skipped: int, domains: int}
+     */
+    private function syncManagerChildAccounts(
+        int $userId,
+        GoogleConnection $connection,
+        string $managerCustomerId,
+        string $apiVersion,
+        array $baseDetailHeaders,
+        GoogleAdsDomainSync $domainSync
+    ): array {
+        $managerHeaders = $this->googleAdsDetailHeaders($baseDetailHeaders, $managerCustomerId);
+        $listRes = $this->googleAdsSearchStream(
+            $apiVersion,
+            $managerCustomerId,
+            'SELECT customer_client.client_customer, customer_client.descriptive_name, customer_client.manager, customer_client.status FROM customer_client WHERE customer_client.manager = FALSE AND customer_client.hidden = FALSE',
+            $baseDetailHeaders,
+            $managerCustomerId
+        );
+
+        if (! $listRes->successful()) {
+            Log::warning('Google Ads MCC child listing failed', [
+                'connection_id' => $connection->id,
+                'manager_customer_id' => $managerCustomerId,
+                'status' => $listRes->status(),
+                'reason' => $this->extractApiError($listRes),
+            ]);
+
+            return ['synced' => 0, 'skipped' => 0, 'domains' => 0];
+        }
+
+        $synced = 0;
+        $skipped = 0;
+        $domains = 0;
+
+        foreach ($this->parseCustomerClientRows($listRes->json()) as $client) {
+            $clientId = preg_replace('/\D+/', '', (string) ($client['clientCustomer'] ?? $client['client_customer'] ?? ''));
+            if ($clientId === '' || $clientId === $managerCustomerId) {
+                continue;
+            }
+
+            if ((bool) ($client['manager'] ?? false)) {
+                continue;
+            }
+
+            $status = strtoupper((string) ($client['status'] ?? 'ENABLED'));
+            if ($status !== '' && $status !== 'ENABLED') {
+                $skipped++;
+                continue;
+            }
+
+            $childName = trim((string) ($client['descriptiveName'] ?? $client['descriptive_name'] ?? ''));
+            if ($childName === '') {
+                $childName = 'Google Ads AW-' . $clientId;
+            }
+
+            $adsAccount = GoogleAdsAccount::updateOrCreate(
+                [
+                    'google_connection_id' => $connection->id,
+                    'customer_id' => $clientId,
+                ],
+                [
+                    'display_customer_id' => 'AW-' . $clientId,
+                    'account_name' => $childName,
+                    'is_manager' => false,
+                    'manager_customer_id' => $managerCustomerId,
+                    'google_tag_id' => 'AW-' . $clientId,
+                    'is_active' => true,
+                ]
+            );
+            $synced++;
+
+            $domains += $domainSync->syncForAccount(
+                $userId,
+                $adsAccount,
+                $clientId,
+                $apiVersion,
+                $managerHeaders
+            );
+        }
+
+        Log::info('Google Ads MCC child sync finished', [
+            'connection_id' => $connection->id,
+            'manager_customer_id' => $managerCustomerId,
+            'child_accounts_synced' => $synced,
+            'domains_synced' => $domains,
+            'skipped' => $skipped,
+        ]);
+
+        return ['synced' => $synced, 'skipped' => $skipped, 'domains' => $domains];
+    }
+
+    /**
+     * @param array<string, string> $baseHeaders
+     * @return array<string, string>
+     */
+    private function googleAdsDetailHeaders(array $baseHeaders, ?string $loginCustomerId): array
+    {
+        $headers = $baseHeaders;
+        unset($headers['login-customer-id']);
+
+        if ($loginCustomerId !== null && $loginCustomerId !== '') {
+            $headers['login-customer-id'] = $loginCustomerId;
+        }
+
+        return $headers;
+    }
+
+    /**
+     * @param array<string, string> $baseHeaders
+     */
+    private function googleAdsSearchStream(
+        string $apiVersion,
+        string $customerId,
+        string $query,
+        array $baseHeaders,
+        ?string $loginCustomerId
+    ) {
+        $response = Http::timeout(20)
+            ->withHeaders($this->googleAdsDetailHeaders($baseHeaders, $loginCustomerId))
+            ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if ($response->successful() || $loginCustomerId === null || $loginCustomerId === '') {
+            return $response;
+        }
+
+        return Http::timeout(20)
+            ->withHeaders($this->googleAdsDetailHeaders($baseHeaders, null))
+            ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+    }
+
+    /**
+     * @param mixed $payload
+     * @return list<array<string, mixed>>
+     */
+    private function parseCustomerClientRows($payload): array
+    {
+        $rows = [];
+        if (! is_array($payload)) {
+            return [];
+        }
+
+        foreach ($payload as $chunk) {
+            if (! is_array($chunk)) {
+                continue;
+            }
+            foreach (($chunk['results'] ?? []) as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $client = $row['customerClient'] ?? null;
+                if (is_array($client) && $client !== []) {
+                    $rows[] = $client;
+                }
+            }
+        }
+
+        return $rows;
+    }
+
     private function upsertGoogleConnection(int $userId, string $email, string $sub, array $token, string $accessToken): void
     {
         GoogleConnection::updateOrCreate(
@@ -567,15 +814,17 @@ class IntegrationsController extends Controller
                 'platform' => 'google',
                 'email' => $c->google_email,
                 'connected_at' => optional($c->connected_at)->toIso8601String(),
-                'accounts' => $c->adsAccounts->map(fn ($a) => [
-                    'id' => $a->id,
-                    'customer_id' => $a->customer_id,
-                    'display_customer_id' => $a->display_customer_id,
-                    'account_name' => $a->account_name,
-                    'google_tag_id' => $a->google_tag_id,
-                    'is_manager' => (bool) $a->is_manager,
-                    'is_active' => (bool) $a->is_active,
-                ])->values(),
+                'accounts' => $c->adsAccounts
+                    ->filter(fn ($a) => $a->is_active && filled($a->account_name))
+                    ->map(fn ($a) => [
+                        'id' => $a->id,
+                        'customer_id' => $a->customer_id,
+                        'display_customer_id' => $a->display_customer_id,
+                        'account_name' => $a->account_name,
+                        'google_tag_id' => $a->google_tag_id,
+                        'is_manager' => (bool) $a->is_manager,
+                        'is_active' => (bool) $a->is_active,
+                    ])->values(),
             ])->values();
 
         $direct = DirectAdsIntegration::query()
@@ -603,6 +852,7 @@ class IntegrationsController extends Controller
         $googleConnected = GoogleConnection::where('user_id', $userId)->exists();
         $googleAccountsCount = GoogleAdsAccount::query()
             ->whereHas('connection', fn ($q) => $q->where('user_id', $userId))
+            ->synced()
             ->count();
         $directCount = DirectAdsIntegration::query()
             ->where('user_id', $userId)
@@ -639,6 +889,7 @@ class IntegrationsController extends Controller
             'google_connections' => GoogleConnection::where('user_id', $userId)->count(),
             'google_ads_accounts' => GoogleAdsAccount::query()
                 ->whereHas('connection', fn ($q) => $q->where('user_id', $userId))
+                ->synced()
                 ->get(['id', 'customer_id', 'display_customer_id', 'account_name', 'google_tag_id', 'is_manager', 'is_active']),
             'direct_ads' => DirectAdsIntegration::where('user_id', $userId)
                 ->get(['id', 'platform', 'account_label', 'account_id', 'tag_id', 'is_active']),
@@ -673,6 +924,7 @@ class IntegrationsController extends Controller
 
         $accounts = GoogleAdsAccount::query()
             ->whereHas('connection', fn ($q) => $q->where('user_id', $userId))
+            ->synced()
             ->get(['id', 'customer_id', 'display_customer_id', 'account_name', 'google_tag_id', 'is_active']);
 
         $mappings = DomainGoogleAdsMapping::query()
