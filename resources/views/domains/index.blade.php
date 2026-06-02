@@ -67,10 +67,8 @@
                                 <td class="px-[16px] py-[14px]">
                                     <p class="text-[13px] font-medium text-white">{{ $d->hostname }}</p>
                                     <p class="mt-[2px] text-[10px] text-[#a9a9a9]">
-                                        @if ($d->isManual() && $d->google_ads_account_id)
-                                            Manual + Google Ads
-                                        @elseif (! $d->isManual())
-                                            From Google Ads sync
+                                        @if ($d->google_ads_account_id)
+                                            Paid: {{ $d->googleAdsAccount?->displayLabel() ?? 'Google Ads linked' }}
                                         @else
                                             Last seen: {{ $d->last_seen_at?->diffForHumans() ?? '—' }}
                                         @endif
@@ -90,21 +88,17 @@
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
                                     @if ($d->hasPaidAdvertisingFromAds())
-                                        <div class="flex flex-col items-start justify-center gap-[4px]">
+                                        <div class="flex flex-col items-start gap-[4px]">
                                             <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
-                                            @if (isset($d->valid_visits_count) || isset($d->invalid_visits_count))
-                                                <p class="text-[10px] leading-none text-[#a9a9a9]">Valid {{ (int) ($d->valid_visits_count ?? 0) }} · Invalid {{ (int) ($d->invalid_visits_count ?? 0) }}</p>
-                                            @endif
+                                            <a href="{{ route('paid-marketing.dashboard', ['domain_id' => $d->id]) }}" class="text-[10px] text-[#9a1aff] hover:underline">View campaigns →</a>
                                         </div>
                                     @else
-                                        <a href="{{ route('integrations') }}" class="text-[11px] text-[#9a1aff] hover:underline">Sync Google Ads</a>
+                                        <a href="{{ route('domains.paid-marketing.connect', $d) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
                                     @endif
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
                                     <div class="flex flex-wrap items-center gap-[8px]">
-                                        @if (! $d->isManual())
-                                            <span class="text-[10px] text-[#a9a9a9]">Add domain manually for bot protection</span>
-                                        @elseif ($d->bot_mitigation_connected)
+                                        @if ($d->bot_mitigation_connected)
                                             <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
                                         @else
                                             <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
@@ -284,6 +278,41 @@
         </div>
     </div>
 
+    {{-- Google Ads account picker (ClickCease-style) --}}
+    <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-[16px]" x-show="paidPick.open" x-cloak x-transition @click.self="paidPick.open = false">
+        <div class="flex max-h-[90vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#101010] shadow-2xl" @click.stop>
+            <header class="border-b border-white/15 bg-[#6400B2] px-[22px] py-[18px]">
+                <h2 class="text-[20px] font-bold text-white">Connect Google Ads</h2>
+                <p class="mt-[6px] text-[12px] text-white/85" x-text="paidPick.domainHostname ? 'Select the ad account for ' + paidPick.domainHostname : ''"></p>
+                <p class="mt-[4px] text-[11px] text-white/65" x-show="paidPick.googleEmail" x-text="'Signed in as ' + paidPick.googleEmail"></p>
+            </header>
+            <div class="flex-1 overflow-y-auto px-[18px] py-[14px]">
+                <p x-show="paidPick.loading" class="py-[24px] text-center text-[13px] text-white/60">Loading your Google Ads accounts…</p>
+                <p x-show="!paidPick.loading && paidPick.accounts.length === 0" class="py-[24px] text-center text-[13px] text-white/60">
+                    No ad accounts found. Sync from <a href="{{ route('integrations') }}" class="text-[#b893d8] underline">Platform Integrate</a> first.
+                </p>
+                <div class="space-y-[10px]">
+                    <template x-for="acc in paidPick.accounts" :key="acc.id">
+                        <button
+                            type="button"
+                            @click="paidPick.selectedId = acc.id"
+                            class="w-full rounded-[8px] border px-[14px] py-[12px] text-left transition"
+                            :class="paidPick.selectedId === acc.id ? 'border-[#6400B2] bg-[#6400B2]/25' : 'border-white/15 bg-[#1a1a1a] hover:border-white/30'"
+                        >
+                            <p class="text-[15px] font-bold text-white" x-text="acc.account_name"></p>
+                            <p class="mt-[2px] text-[12px] text-white/60" x-text="acc.customer_id"></p>
+                            <p x-show="acc.matches_domain" class="mt-[6px] text-[10px] font-semibold uppercase text-[#b893d8]">Matches this domain</p>
+                        </button>
+                    </template>
+                </div>
+            </div>
+            <footer class="flex justify-end gap-[10px] border-t border-white/15 px-[18px] py-[14px]">
+                <button type="button" @click="paidPick.open = false" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px] text-white">Cancel</button>
+                <button type="button" @click="confirmPaidPick()" :disabled="!paidPick.selectedId || paidPick.busy" class="rounded-[6px] bg-[#6400B2] px-[20px] py-[8px] text-[13px] font-semibold text-white disabled:opacity-50">Connect account</button>
+            </footer>
+        </div>
+    </div>
+
     <div class="fixed bottom-4 right-4 z-[90] rounded-[8px] bg-[#6400B2] px-[14px] py-[10px] text-[12px] text-white shadow-lg" x-show="toast" x-cloak x-text="toast" x-transition></div>
 </div>
 
@@ -311,6 +340,17 @@ function siteManagementFigma() {
         wpAdminUrl: '#',
         wpPluginSettingsUrl: '#',
         csrf: document.querySelector('meta[name=csrf-token]')?.content || '',
+        paidPick: {
+            open: false,
+            loading: false,
+            busy: false,
+            domainId: null,
+            domainHostname: '',
+            connectionId: null,
+            googleEmail: '',
+            accounts: [],
+            selectedId: null,
+        },
         applyTableSearch() {
             clearTimeout(this.tableSearchTimer);
             this.tableSearchTimer = setTimeout(() => {
@@ -337,6 +377,51 @@ function siteManagementFigma() {
             if (new URLSearchParams(window.location.search).get('add') === '1') {
                 this.openAdd();
             }
+            @if ($pickPaidDomain)
+                this.openPaidPick(@json(['id' => $pickPaidDomain->id, 'hostname' => $pickPaidDomain->hostname]), {{ (int) session('pick_google_ads_accounts.connection_id', 0) }});
+            @endif
+        },
+        async openPaidPick(domain, connectionId = 0) {
+            this.paidPick.open = true;
+            this.paidPick.loading = true;
+            this.paidPick.domainId = domain.id;
+            this.paidPick.domainHostname = domain.hostname;
+            this.paidPick.connectionId = connectionId;
+            this.paidPick.selectedId = null;
+            try {
+                const url = `/domains/${domain.id}/google-ads/pick-accounts` + (connectionId ? `?connection_id=${connectionId}` : '');
+                const res = await fetch(url, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                this.paidPick.accounts = data.accounts || [];
+                this.paidPick.googleEmail = data.google_email || '';
+                const match = this.paidPick.accounts.find(a => a.matches_domain);
+                if (match) this.paidPick.selectedId = match.id;
+            } catch (e) {
+                this.showToast('Could not load Google Ads accounts.');
+            }
+            this.paidPick.loading = false;
+        },
+        async confirmPaidPick() {
+            if (!this.paidPick.domainId || !this.paidPick.selectedId) return;
+            this.paidPick.busy = true;
+            try {
+                const res = await fetch(`/domains/${this.paidPick.domainId}/google-ads/link`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                    },
+                    body: JSON.stringify({ google_ads_account_id: this.paidPick.selectedId }),
+                });
+                if (!res.ok) throw new Error('link failed');
+                this.paidPick.open = false;
+                this.showToast('Google Ads account linked. Reloading…');
+                window.location.href = '{{ route('domains.index') }}';
+            } catch (e) {
+                this.showToast('Could not link account.');
+            }
+            this.paidPick.busy = false;
         },
         closeAll() {
             this.modal = null;

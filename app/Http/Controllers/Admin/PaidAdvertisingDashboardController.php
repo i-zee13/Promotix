@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
+use App\Models\GoogleAdsAccount;
+use App\Services\GoogleAdsConnectionService;
+use App\Services\GoogleAdsMetricsService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -141,13 +144,49 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function campaigns(Request $request): JsonResponse
     {
+        [$from, $to] = $this->dateRange($request);
+        $domainId = (int) $request->query('domain_id', 0);
+
+        if ($domainId > 0) {
+            $domain = Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->forPaidMarketing()
+                ->where('id', $domainId)
+                ->with('googleAdsAccount.connection')
+                ->first();
+
+            if ($domain?->googleAdsAccount && ! $domain->googleAdsAccount->is_manager) {
+                $googleRows = $this->googleAdsCampaignRows($domain->googleAdsAccount, $from, $to, $domain->hostname);
+                if ($googleRows !== []) {
+                    return response()->json($googleRows);
+                }
+            }
+        } else {
+            $allGoogle = [];
+            $domains = Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->forPaidMarketing()
+                ->with('googleAdsAccount.connection')
+                ->get();
+
+            foreach ($domains as $domain) {
+                if (! $domain->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
+                    continue;
+                }
+                foreach ($this->googleAdsCampaignRows($domain->googleAdsAccount, $from, $to, $domain->hostname) as $row) {
+                    $allGoogle[] = $row;
+                }
+            }
+            if ($allGoogle !== []) {
+                return response()->json(collect($allGoogle)->sortByDesc('clicks')->values());
+            }
+        }
+
         if (! Schema::hasTable('visits')) {
             return response()->json([]);
         }
 
-        [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
-
         $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
             ->whereNotNull('utm_campaign')
             ->select(
@@ -165,7 +204,41 @@ class PaidAdvertisingDashboardController extends Controller
             'total' => (int) $r->total,
             'invalid' => (int) $r->invalid,
             'valid' => max(0, (int) $r->total - (int) $r->invalid),
+            'source' => 'visits',
         ])->values());
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function googleAdsCampaignRows(GoogleAdsAccount $account, Carbon $from, Carbon $to, ?string $hostname = null): array
+    {
+        $connection = $account->connection;
+        if (! $connection) {
+            return [];
+        }
+
+        $api = app(GoogleAdsConnectionService::class);
+        $headers = $api->apiHeaders($connection);
+        if (! $headers) {
+            return [];
+        }
+
+        $loginId = $account->manager_customer_id ?: $api->loginCustomerId();
+        if ($loginId !== '') {
+            $headers['login-customer-id'] = $loginId;
+        }
+
+        $version = $api->apiVersions()[0] ?? 'v24';
+
+        return app(GoogleAdsMetricsService::class)->campaignMetrics(
+            $account,
+            $version,
+            $headers,
+            $from->format('Y-m-d'),
+            $to->format('Y-m-d'),
+            $hostname
+        );
     }
 
     public function keywords(Request $request): JsonResponse

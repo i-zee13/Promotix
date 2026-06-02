@@ -40,7 +40,12 @@ class GoogleAdsAccount extends Model
         return $this->hasMany(DomainGoogleAdsMapping::class);
     }
 
-    public function syncedDomains(): HasMany
+    public function advertisedHosts(): HasMany
+    {
+        return $this->hasMany(GoogleAdsAdvertisedHost::class);
+    }
+
+    public function linkedDomains(): HasMany
     {
         return $this->hasMany(Domain::class, 'google_ads_account_id');
     }

@@ -60,15 +60,11 @@ class Domain extends Model
      */
     public function hasPaidAdvertisingFromAds(): bool
     {
-        if (($this->source ?? self::SOURCE_MANUAL) === self::SOURCE_GOOGLE_ADS) {
-            return true;
+        if (! $this->isManual()) {
+            return false;
         }
 
-        if ($this->google_ads_account_id !== null) {
-            return true;
-        }
-
-        return $this->googleAdsMappings()->exists();
+        return $this->google_ads_account_id !== null || $this->googleAdsMappings()->exists();
     }
 
     public function scopeManual($query)
@@ -76,13 +72,19 @@ class Domain extends Model
         return $query->where('source', self::SOURCE_MANUAL);
     }
 
+    /** Manual domains linked to Google Ads (paid marketing dashboard). */
     public function scopeForPaidMarketing($query)
     {
-        return $query->where(function ($q) {
-            $q->where('source', self::SOURCE_GOOGLE_ADS)
-                ->orWhereNotNull('google_ads_account_id')
+        return $query->manual()->where(function ($q) {
+            $q->whereNotNull('google_ads_account_id')
                 ->orWhereHas('googleAdsMappings');
         });
+    }
+
+    /** All manual domains for site management. */
+    public function scopeForPaidMarketingSetup($query)
+    {
+        return $query->manual();
     }
 
     public function scopeForBotProtection($query)

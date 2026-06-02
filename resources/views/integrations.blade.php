@@ -237,15 +237,19 @@
                                     <span class="ml-[6px] rounded bg-white/15 px-[6px] py-[1px] text-[9px] uppercase">MCC</span>
                                 @endif
                             </p>
-                            @if ($account->syncedDomains->isNotEmpty())
-                                <p class="mt-[6px] text-[10px] text-white/55">Domains:</p>
+                            @if ($account->advertisedHosts->isNotEmpty())
+                                <p class="mt-[6px] text-[10px] text-white/55">Advertised domains (from Google Ads):</p>
                                 <div class="mt-[4px] flex flex-wrap gap-[6px]">
-                                    @foreach ($account->syncedDomains as $domain)
-                                        <span class="rounded bg-white/10 px-[8px] py-[3px] text-[11px]">{{ $domain->hostname }}</span>
+                                    @foreach ($account->advertisedHosts as $host)
+                                        <button
+                                            type="button"
+                                            class="rounded bg-white/10 px-[8px] py-[3px] text-[11px] hover:bg-white/25"
+                                            @click="openHostCampaigns(@js($host->hostname), {{ $account->id }}, @js($account->displayLabel()))"
+                                        >{{ $host->hostname }}</button>
                                     @endforeach
                                 </div>
                             @else
-                                <p class="mt-[6px] text-[10px] text-white/45">No domains synced from this account yet.</p>
+                                <p class="mt-[6px] text-[10px] text-white/45">No landing URLs found in this account yet. Run Sync Ads.</p>
                             @endif
                         </li>
                     @endforeach
@@ -401,6 +405,46 @@
         class="fixed bottom-[24px] right-[24px] z-[200] max-w-[320px] rounded-[8px] border border-white/25 bg-[#101010] px-[14px] py-[10px] text-[12px] text-white shadow-lg"
         x-text="menuToast"
     ></div>
+
+    <div class="fixed inset-0 z-[250] flex items-center justify-center bg-black/75 p-[16px]" x-show="campaignModal.open" x-cloak @click.self="campaignModal.open = false">
+        <div class="flex max-h-[88vh] w-full max-w-[720px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#101010]" @click.stop>
+            <header class="bg-[#6400B2] px-[20px] py-[16px]">
+                <h3 class="text-[18px] font-bold text-white" x-text="campaignModal.hostname"></h3>
+                <p class="text-[12px] text-white/80" x-text="campaignModal.accountName"></p>
+            </header>
+            <div class="overflow-auto p-[16px]">
+                <p x-show="campaignModal.loading" class="text-center text-[13px] text-white/60">Loading campaigns from Google Ads…</p>
+                <table x-show="!campaignModal.loading && campaignModal.rows.length" class="w-full text-left text-[12px] text-white/90">
+                    <thead class="border-b border-white/15 text-[10px] uppercase text-white/50">
+                        <tr>
+                            <th class="py-[6px] pr-[8px]">Campaign</th>
+                            <th class="py-[6px] text-right">Clicks</th>
+                            <th class="py-[6px] text-right">Impr.</th>
+                            <th class="py-[6px] text-right">CPC</th>
+                            <th class="py-[6px] text-right">Cost</th>
+                            <th class="py-[6px] text-right">Calls</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="c in campaignModal.rows" :key="c.campaign_id || c.campaign">
+                            <tr class="border-b border-white/8">
+                                <td class="py-[8px] font-medium" x-text="c.campaign"></td>
+                                <td class="py-[8px] text-right" x-text="c.clicks ?? 0"></td>
+                                <td class="py-[8px] text-right" x-text="c.impressions ?? 0"></td>
+                                <td class="py-[8px] text-right" x-text="'$' + (c.cpc ?? 0)"></td>
+                                <td class="py-[8px] text-right" x-text="'$' + (c.cost ?? 0)"></td>
+                                <td class="py-[8px] text-right" x-text="c.phone_calls ?? 0"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <p x-show="!campaignModal.loading && !campaignModal.rows.length" class="text-center text-[13px] text-white/50">No campaign data for this hostname in the selected date range.</p>
+            </div>
+            <footer class="flex justify-end border-t border-white/15 px-[16px] py-[12px]">
+                <button type="button" @click="campaignModal.open = false" class="rounded-[6px] bg-[#6400B2] px-[16px] py-[8px] text-[13px] text-white">Close</button>
+            </footer>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -478,6 +522,23 @@ function platformIntegrations(config) {
         },
         menuToast: '',
         menuToastTimer: null,
+        campaignModal: { open: false, loading: false, hostname: '', accountName: '', rows: [] },
+        async openHostCampaigns(hostname, accountId, accountName) {
+            this.campaignModal.open = true;
+            this.campaignModal.loading = true;
+            this.campaignModal.hostname = hostname;
+            this.campaignModal.accountName = accountName;
+            this.campaignModal.rows = [];
+            try {
+                const p = new URLSearchParams({ hostname, google_ads_account_id: accountId });
+                const res = await fetch(`{{ url('/integrations/google-ads/campaign-metrics') }}?${p}`, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                this.campaignModal.rows = data.campaigns || [];
+            } catch (e) {
+                this.showMenuToast('Could not load campaigns.');
+            }
+            this.campaignModal.loading = false;
+        },
         showMenuToast(message) {
             this.menuToast = message;
             clearTimeout(this.menuToastTimer);

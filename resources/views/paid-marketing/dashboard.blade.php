@@ -88,12 +88,17 @@
                 </div>
             </article>
 
-            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] text-center shadow-[0_0_18px_rgba(100,0,179,.35)]">
-                <h2 class="text-left text-[13px] font-normal text-white">Campaigns Breakdown</h2>
-                <div class="mx-auto mt-[14px] flex h-[62px] w-[62px] items-center justify-center rounded-full border border-white/55">
-                    <svg class="h-[34px] w-[34px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.4" d="M4 14l16-8-8 16-2-6-6-2z"/></svg>
+            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[14px] shadow-[0_0_18px_rgba(100,0,179,.35)] sm:col-span-2">
+                <h2 class="text-[13px] font-normal text-white">Google Ads Campaigns</h2>
+                <div class="mt-[8px] max-h-[120px] overflow-y-auto text-[10px] text-white/90">
+                    <template x-for="row in campaigns.slice(0, 6)" :key="row.campaign_id || row.campaign">
+                        <div class="flex justify-between gap-[8px] border-b border-white/10 py-[4px]">
+                            <span class="truncate font-medium" x-text="row.campaign"></span>
+                            <span class="shrink-0 text-white/70" x-text="(row.clicks ?? row.total ?? 0) + ' clk · $' + (row.cpc ?? 0)"></span>
+                        </div>
+                    </template>
+                    <p x-show="campaigns.length === 0" class="py-[8px] text-white/50">Link a domain to Google Ads on Site Management, then select it above.</p>
                 </div>
-                <a href="{{ route('paid-marketing.detection-settings') }}" class="mt-[10px] inline-block text-[9px] text-white/85 hover:underline">Set Tracking Parameter</a>
             </article>
         </div>
 

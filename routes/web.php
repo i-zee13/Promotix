@@ -131,6 +131,14 @@ Route::middleware(['auth', 'admin'])
         Route::put('/domains/{domain}', [DomainManagementController::class, 'update'])->name('domains.update');
         Route::delete('/domains/{domain}', [DomainManagementController::class, 'destroy'])->name('domains.destroy');
         Route::get('/domains/{domain}/setup', [DomainManagementController::class, 'setup'])->name('domains.setup');
+        Route::get('/domains/{domain}/paid-marketing/connect', function (\App\Models\Domain $domain) {
+            abort_unless($domain->user_id === auth()->id() && $domain->isManual(), 403);
+
+            return redirect()->route('integrations.google.redirect', [
+                'domain_id' => $domain->id,
+                'context' => 'paid_domain',
+            ]);
+        })->name('domains.paid-marketing.connect');
         Route::get('/domains/{domain}/wordpress-plugin.zip', [DomainManagementController::class, 'downloadWpPlugin'])->name('domains.wp-plugin');
         Route::get('/users', [UsersController::class, 'index'])->name('users');
         Route::patch('/users/{user}/role', [UsersController::class, 'updateRole'])->name('users.update-role');
@@ -151,6 +159,9 @@ Route::middleware(['auth', 'admin'])
         Route::post('/integrations/accounts', [IntegrationsController::class, 'storeAccount'])->name('integrations.store-account');
         Route::post('/integrations/mappings', [IntegrationsController::class, 'storeMapping'])->name('integrations.store-mapping');
         Route::delete('/integrations/mappings/{mapping}', [IntegrationsController::class, 'destroyMapping'])->name('integrations.destroy-mapping');
+        Route::get('/integrations/google-ads/campaign-metrics', [IntegrationsController::class, 'campaignMetricsForHost'])->name('integrations.google.campaign-metrics');
+        Route::get('/domains/{domain}/google-ads/pick-accounts', [IntegrationsController::class, 'pickAccountsJson'])->name('domains.google.pick-accounts');
+        Route::post('/domains/{domain}/google-ads/link', [IntegrationsController::class, 'linkDomainPaidAccount'])->name('domains.google.link-account');
         Route::get('/paid-marketing/dashboard', [PaidAdvertisingDashboardController::class, 'index'])->name('paid-marketing.dashboard');
         Route::get('/paid-marketing/detection-settings', [PaidMarketingController::class, 'detectionSettings'])->name('paid-marketing.detection-settings');
         Route::post('/paid-marketing/detection-settings/{domain}', [PaidMarketingController::class, 'updateDetectionSettings'])->name('paid-marketing.detection-settings.update');

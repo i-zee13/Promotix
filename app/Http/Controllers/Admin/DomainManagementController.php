@@ -23,6 +23,8 @@ class DomainManagementController extends Controller
         $domainsQuery = Domain::query()
             ->select('domains.*')
             ->where('user_id', $request->user()->id)
+            ->manual()
+            ->with('googleAdsAccount')
             ->when($search !== '', fn ($q) => $q->where('hostname', 'like', '%' . $search . '%'))
             ->orderBy('hostname');
 
@@ -52,6 +54,11 @@ class DomainManagementController extends Controller
         $limit = $user->domainLimit();
         $limitDisplay = $limit === INF ? '∞' : (string) (int) $limit;
 
+        $pickPaidDomainId = (int) $request->query('pick_paid_domain', 0);
+        $pickDomain = $pickPaidDomainId > 0
+            ? Domain::query()->where('user_id', $user->id)->manual()->find($pickPaidDomainId)
+            : null;
+
         return view('domains.index', [
             'domains' => $domains,
             'search' => $search,
@@ -61,6 +68,7 @@ class DomainManagementController extends Controller
             'canAddDomain' => $user->canAddDomain(),
             'currentPlan' => $user->currentPlan(),
             'planTiers' => Plan::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name', 'slug']),
+            'pickPaidDomain' => $pickDomain,
         ]);
     }
 

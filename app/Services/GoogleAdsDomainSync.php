@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Domain;
 use App\Models\GoogleAdsAccount;
+use App\Models\GoogleAdsAdvertisedHost;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -17,7 +18,7 @@ class GoogleAdsDomainSync
     private const FINAL_URLS_QUERY = 'SELECT ad_group_ad.ad.final_urls FROM ad_group_ad WHERE ad_group_ad.status != \'REMOVED\' LIMIT 500';
 
     /**
-     * Pull advertised hostnames from Google Ads and upsert domain rows for paid marketing.
+     * Pull advertised hostnames from Google Ads (stored separately; link manual domains only).
      */
     public function syncForAccount(
         int $userId,
@@ -42,7 +43,7 @@ class GoogleAdsDomainSync
 
         $synced = 0;
         foreach ($hostnames as $hostname) {
-            if ($this->upsertAdDomain($userId, $account, $hostname)) {
+            if ($this->upsertAdvertisedHost($userId, $account, $hostname)) {
                 $synced++;
             }
         }
@@ -128,40 +129,28 @@ class GoogleAdsDomainSync
         return $hostnames;
     }
 
-    private function upsertAdDomain(int $userId, GoogleAdsAccount $account, string $hostname): bool
+    private function upsertAdvertisedHost(int $userId, GoogleAdsAccount $account, string $hostname): bool
     {
-        $existing = Domain::query()
+        GoogleAdsAdvertisedHost::updateOrCreate(
+            [
+                'google_ads_account_id' => $account->id,
+                'hostname' => $hostname,
+            ],
+            ['synced_at' => now()]
+        );
+
+        $manual = Domain::query()
             ->where('user_id', $userId)
+            ->manual()
             ->where('hostname', $hostname)
             ->first();
 
-        if ($existing) {
-            $existing->google_ads_account_id = $account->id;
-            $existing->paid_marketing_connected = true;
-            $existing->ads_synced_at = now();
-            $existing->save();
-
-            return true;
+        if ($manual) {
+            $manual->google_ads_account_id = $account->id;
+            $manual->paid_marketing_connected = true;
+            $manual->ads_synced_at = now();
+            $manual->save();
         }
-
-        Domain::create([
-            'user_id' => $userId,
-            'hostname' => $hostname,
-            'source' => Domain::SOURCE_GOOGLE_ADS,
-            'google_ads_account_id' => $account->id,
-            'domain_key' => Str::uuid()->toString(),
-            'secret_key' => Str::uuid()->toString(),
-            'authentication_key' => Str::uuid()->toString(),
-            'paid_marketing_connected' => true,
-            'ads_synced_at' => now(),
-            'status' => 'pending',
-            'tracking_params' => [
-                'utm_source' => true,
-                'utm_medium' => true,
-                'utm_campaign' => true,
-                'utm_term' => true,
-            ],
-        ]);
 
         return true;
     }

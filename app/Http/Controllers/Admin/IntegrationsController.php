@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\GoogleAdsConnectionService;
 use App\Services\GoogleAdsDomainSync;
+use App\Services\GoogleAdsMetricsService;
 use App\Models\DirectAdsIntegration;
 use App\Models\Domain;
 use App\Models\DomainGoogleAdsMapping;
@@ -40,7 +42,7 @@ class IntegrationsController extends Controller
 
         $paidMarketingDomains = Domain::query()
             ->where('user_id', $user->id)
-            ->forPaidMarketing()
+            ->manual()
             ->orderBy('hostname')
             ->get();
 
@@ -53,7 +55,7 @@ class IntegrationsController extends Controller
         $accounts = GoogleAdsAccount::query()
             ->whereHas('connection', fn ($q) => $q->where('user_id', $user->id))
             ->synced()
-            ->with(['syncedDomains' => fn ($q) => $q->where('user_id', $user->id)->orderBy('hostname')])
+            ->with(['advertisedHosts' => fn ($q) => $q->orderBy('hostname')])
             ->orderBy('account_name')
             ->get();
 
@@ -108,11 +110,29 @@ class IntegrationsController extends Controller
 
         $state = Str::random(40);
         $request->session()->put('google_oauth_state', $state);
-        $context = $request->string('context')->toString() === 'auth' ? 'auth' : 'integrations';
-        if ($context === 'integrations' && ! $request->user()) {
+        $domainId = (int) $request->query('domain_id', 0);
+        $context = $request->string('context')->toString();
+        if ($context === 'auth') {
+            $oauthContext = 'auth';
+        } elseif ($domainId > 0) {
+            $oauthContext = 'paid_domain';
+            $domain = Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->manual()
+                ->where('id', $domainId)
+                ->first();
+            if (! $domain) {
+                return redirect()->route('domains.index')->with('status', 'Domain not found.');
+            }
+            $request->session()->put('google_oauth_domain_id', $domain->id);
+        } else {
+            $oauthContext = $context === 'integrations' ? 'integrations' : 'integrations';
+        }
+
+        if ($oauthContext !== 'auth' && ! $request->user()) {
             return redirect()->route('login')->with('status', 'Please sign in first.');
         }
-        $request->session()->put('google_oauth_context', $context);
+        $request->session()->put('google_oauth_context', $oauthContext);
 
         $query = http_build_query([
             'client_id' => $clientId,
@@ -195,8 +215,10 @@ class IntegrationsController extends Controller
             return $this->redirectAfterGoogleOAuth($request, $oauthContext, 'Google profile email not available.');
         }
 
+        $paidDomainId = (int) $request->session()->pull('google_oauth_domain_id', 0);
         $request->session()->forget('google_oauth_context');
         $isAuthFlow = $oauthContext === 'auth';
+        $isPaidDomainFlow = $oauthContext === 'paid_domain' && $paidDomainId > 0;
         $user = $request->user();
 
         if ($isAuthFlow && ! $user) {
@@ -219,7 +241,18 @@ class IntegrationsController extends Controller
             return $this->redirectAfterGoogleOAuth($request, $oauthContext, 'No authenticated user for Google connection.');
         }
 
-        $this->upsertGoogleConnection($user->id, $email, $sub, $token, $accessToken);
+        $connection = $this->upsertGoogleConnection($user->id, $email, $sub, $token, $accessToken);
+
+        if ($isPaidDomainFlow) {
+            $request->session()->put('pick_google_ads_accounts', [
+                'domain_id' => $paidDomainId,
+                'connection_id' => $connection->id,
+            ]);
+
+            return redirect()
+                ->route('domains.index', ['pick_paid_domain' => $paidDomainId])
+                ->with('status', 'Google connected. Select the Google Ads account for this domain.');
+        }
 
         return $this->redirectAfterGoogleOAuth($request, $oauthContext, 'Google account connected successfully.');
     }
@@ -399,7 +432,7 @@ class IntegrationsController extends Controller
         }
 
         $domainNote = $domainsSynced > 0
-            ? " Discovered {$domainsSynced} advertised domain(s) from your campaigns."
+            ? " Discovered {$domainsSynced} advertised hostname(s) from Google Ads (link manual domains on Site Management)."
             : '';
 
         if ($synced === 0 && $skipped > 0) {
@@ -767,9 +800,150 @@ class IntegrationsController extends Controller
         return $rows;
     }
 
-    private function upsertGoogleConnection(int $userId, string $email, string $sub, array $token, string $accessToken): void
+    public function campaignMetricsForHost(Request $request): JsonResponse
     {
-        GoogleConnection::updateOrCreate(
+        $hostname = strtolower(trim((string) $request->query('hostname', '')));
+        $accountId = (int) $request->query('google_ads_account_id', 0);
+        if ($hostname === '' || $accountId <= 0) {
+            return response()->json(['campaigns' => [], 'hostname' => $hostname]);
+        }
+
+        $account = GoogleAdsAccount::query()
+            ->where('id', $accountId)
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->with('connection')
+            ->first();
+
+        if (! $account || ! $account->connection) {
+            return response()->json(['campaigns' => [], 'error' => 'Account not found'], 404);
+        }
+
+        $api = app(GoogleAdsConnectionService::class);
+        $headers = $api->apiHeaders($account->connection);
+        if (! $headers) {
+            return response()->json(['campaigns' => [], 'error' => 'Reconnect Google Ads'], 401);
+        }
+
+        $loginId = $account->manager_customer_id ?: $api->loginCustomerId();
+        if ($loginId !== '') {
+            $headers['login-customer-id'] = $loginId;
+        }
+
+        [$from, $to] = $this->adsDateRange($request);
+        $version = $api->apiVersions()[0] ?? 'v24';
+        $metrics = app(GoogleAdsMetricsService::class)->campaignMetrics(
+            $account,
+            $version,
+            $headers,
+            $from->format('Y-m-d'),
+            $to->format('Y-m-d'),
+            $hostname
+        );
+
+        return response()->json([
+            'hostname' => $hostname,
+            'account' => $account->displayLabel(),
+            'customer_id' => $account->display_customer_id ?: $account->customer_id,
+            'campaigns' => $metrics,
+        ]);
+    }
+
+    public function pickAccountsJson(Request $request, Domain $domain): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id && $domain->isManual(), 403);
+
+        $connectionId = (int) $request->query('connection_id', 0);
+        $connection = GoogleConnection::query()
+            ->where('user_id', $request->user()->id)
+            ->when($connectionId > 0, fn ($q) => $q->where('id', $connectionId))
+            ->latest('id')
+            ->first();
+
+        if (! $connection) {
+            return response()->json(['accounts' => [], 'message' => 'Connect Google first.']);
+        }
+
+        $accounts = GoogleAdsAccount::query()
+            ->where('google_connection_id', $connection->id)
+            ->synced()
+            ->where('is_manager', false)
+            ->orderBy('account_name')
+            ->get()
+            ->map(fn ($a) => [
+                'id' => $a->id,
+                'account_name' => $a->displayLabel(),
+                'customer_id' => $a->display_customer_id ?: $a->customer_id,
+                'hostnames' => $a->advertisedHosts()->pluck('hostname')->values(),
+                'matches_domain' => $a->advertisedHosts()->where('hostname', $domain->hostname)->exists(),
+            ]);
+
+        return response()->json([
+            'domain' => ['id' => $domain->id, 'hostname' => $domain->hostname],
+            'connection_id' => $connection->id,
+            'google_email' => $connection->google_email,
+            'accounts' => $accounts,
+        ]);
+    }
+
+    public function linkDomainPaidAccount(Request $request, Domain $domain): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id && $domain->isManual(), 403);
+
+        $data = $request->validate([
+            'google_ads_account_id' => ['required', 'integer'],
+            'protection_type' => ['nullable', 'in:ip_blocking,pixel_guard'],
+        ]);
+
+        $account = GoogleAdsAccount::query()
+            ->where('id', $data['google_ads_account_id'])
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->firstOrFail();
+
+        $domain->google_ads_account_id = $account->id;
+        $domain->paid_marketing_connected = true;
+        $domain->ads_synced_at = now();
+        $domain->save();
+
+        DomainGoogleAdsMapping::updateOrCreate(
+            [
+                'domain_id' => $domain->id,
+                'google_ads_account_id' => $account->id,
+            ],
+            [
+                'protection_type' => $data['protection_type'] ?? 'ip_blocking',
+                'audience_exclusion_enabled' => true,
+                'settings' => ['linked_at' => now()->toISOString(), 'via' => 'domain_paid_setup'],
+            ]
+        );
+
+        $request->session()->forget('pick_google_ads_accounts');
+
+        return response()->json([
+            'ok' => true,
+            'domain_id' => $domain->id,
+            'account_name' => $account->displayLabel(),
+        ]);
+    }
+
+    private function adsDateRange(Request $request): array
+    {
+        $from = $request->query('from')
+            ? \Carbon\Carbon::parse($request->query('from'))->startOfDay()
+            : \Carbon\Carbon::now()->subDays(6)->startOfDay();
+        $to = $request->query('to')
+            ? \Carbon\Carbon::parse($request->query('to'))->endOfDay()
+            : \Carbon\Carbon::now()->endOfDay();
+
+        if ($from->gt($to)) {
+            [$from, $to] = [$to, $from];
+        }
+
+        return [$from, $to];
+    }
+
+    private function upsertGoogleConnection(int $userId, string $email, string $sub, array $token, string $accessToken): GoogleConnection
+    {
+        return GoogleConnection::updateOrCreate(
             [
                 'user_id' => $userId,
                 'google_email' => $email,
