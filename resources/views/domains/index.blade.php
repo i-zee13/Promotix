@@ -65,14 +65,26 @@
                                 data-hostname="{{ $d->hostname }}"
                             >
                                 <td class="px-[16px] py-[14px]">
-                                    <p class="text-[13px] font-medium text-white">{{ $d->hostname }}</p>
-                                    <p class="mt-[2px] text-[10px] text-[#a9a9a9]">
-                                        @if ($d->google_ads_account_id)
-                                            Paid: {{ $d->googleAdsAccount?->displayLabel() ?? 'Google Ads linked' }}
-                                        @else
-                                            Last seen: {{ $d->last_seen_at?->diffForHumans() ?? '—' }}
-                                        @endif
-                                    </p>
+                                    <div class="flex items-start justify-between gap-[10px]">
+                                        <div class="min-w-0">
+                                            <p class="text-[13px] font-medium text-white">{{ $d->hostname }}</p>
+                                            <p class="mt-[2px] text-[10px] text-[#a9a9a9]">
+                                                @if ($d->google_ads_account_id)
+                                                    Paid: {{ $d->googleAdsAccount?->displayLabel() ?? 'Google Ads linked' }}
+                                                @else
+                                                    Last seen: {{ $d->last_seen_at?->diffForHumans() ?? '—' }}
+                                                @endif
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            @click="removeDomain({{ $d->id }}, @js($d->hostname))"
+                                            class="shrink-0 rounded-[4px] border border-rose-500/50 bg-rose-950/40 px-[10px] py-[4px] text-[10px] font-semibold uppercase tracking-wide text-rose-300 hover:bg-rose-900/60"
+                                            title="Remove domain and unlink Google Ads"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
                                     @if ($d->tag_connected)
@@ -136,7 +148,7 @@
                                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 16"/></svg>
                                             Edit domain
                                         </button>
-                                        <button type="button" @click="removeDomain({{ $d->id }})" class="flex w-full items-center gap-[8px] px-[12px] py-[8px] text-rose-700 hover:bg-white/60">
+                                        <button type="button" @click="removeDomain({{ $d->id }}, @js($d->hostname))" class="flex w-full items-center gap-[8px] px-[12px] py-[8px] text-rose-700 hover:bg-white/60">
                                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v12a2 2 0 01-2 2H8a2 2 0 01-2-2V7h12z"/></svg>
                                             Remove
                                         </button>
@@ -578,13 +590,26 @@ function siteManagementFigma() {
                 this.editBusy = false;
             }
         },
-        async removeDomain(id) {
-            if (!confirm('Remove this domain?')) return;
-            const res = await fetch(`/domains/${id}`, {
-                method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': this.csrf, Accept: 'application/json' },
-            });
-            if (res.ok) window.location.reload();
+        async removeDomain(id, hostname = '') {
+            const label = hostname || 'this domain';
+            if (!confirm(`Delete ${label}?\n\nThis removes the site from your list and unlinks Google Ads. You can add the same domain again later.`)) {
+                return;
+            }
+            try {
+                const res = await fetch(`/domains/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': this.csrf, Accept: 'application/json' },
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    this.showToast(data.message || 'Domain deleted.');
+                    setTimeout(() => window.location.reload(), 600);
+                } else {
+                    this.showToast(data.message || 'Could not delete domain.');
+                }
+            } catch (_) {
+                this.showToast('Could not delete domain.');
+            }
         },
         async toggleMode(id, on) {
             await fetch(`/domains/${id}`, {

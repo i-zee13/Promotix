@@ -247,9 +247,19 @@ class DomainManagementController extends Controller
     public function destroy(Request $request, Domain $domain): JsonResponse
     {
         abort_unless($domain->user_id === $request->user()->id, 403);
-        $domain->delete();
 
-        return response()->json(['ok' => true]);
+        $hostname = $domain->hostname;
+
+        // Remove manual row and any legacy google_ads row for same hostname so re-add starts fresh.
+        Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->where('hostname', $hostname)
+            ->delete();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Domain removed. You can add it again and run Setup.',
+        ]);
     }
 
     public function updateStatus(Request $request, Domain $domain): JsonResponse
