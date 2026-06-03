@@ -85,16 +85,14 @@ class DomainManagementController extends Controller
             }
             return back()->withErrors(['hostname' => 'Please enter a valid domain hostname (e.g. example.com).']);
         }
-        $alreadyExists = Domain::query()
-            ->where('user_id', $request->user()->id)
-            ->where('hostname', $hostname)
-            ->exists();
-        if ($alreadyExists) {
+        if ($this->manualDomainExists($request->user()->id, $hostname)) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Domain already exists.'], 409);
+                return response()->json(['message' => 'This domain is already in your manual site list.'], 409);
             }
-            return back()->withErrors(['hostname' => 'Domain already exists.']);
+
+            return back()->withErrors(['hostname' => 'This domain is already in your manual site list.']);
         }
+
         $user = $request->user();
         if (! $user->canAddDomain()) {
             $limit = $user->domainLimit();
@@ -114,21 +112,24 @@ class DomainManagementController extends Controller
                 ->with('status', $message);
         }
 
-        $domain = Domain::create([
-            'user_id' => $request->user()->id,
-            'hostname' => $hostname,
-            'source' => Domain::SOURCE_MANUAL,
-            'domain_key' => Str::uuid()->toString(),
-            'secret_key' => Str::uuid()->toString(),
-            'authentication_key' => Str::uuid()->toString(),
-            'status' => 'pending',
-            'tracking_params' => [
-                'utm_source' => true,
-                'utm_medium' => true,
-                'utm_campaign' => true,
-                'utm_term' => true,
-            ],
-        ]);
+        $domain = $this->promoteLegacySyncedToManual($request->user()->id, $hostname);
+        if (! $domain) {
+            $domain = Domain::create([
+                'user_id' => $request->user()->id,
+                'hostname' => $hostname,
+                'source' => Domain::SOURCE_MANUAL,
+                'domain_key' => Str::uuid()->toString(),
+                'secret_key' => Str::uuid()->toString(),
+                'authentication_key' => Str::uuid()->toString(),
+                'status' => 'pending',
+                'tracking_params' => [
+                    'utm_source' => true,
+                    'utm_medium' => true,
+                    'utm_campaign' => true,
+                    'utm_term' => true,
+                ],
+            ]);
+        }
 
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'domain' => $domain]);
@@ -158,13 +159,8 @@ class DomainManagementController extends Controller
             return response()->json(['valid' => false, 'message' => 'Invalid domain format.'], 422);
         }
 
-        $exists = Domain::query()
-            ->where('user_id', $request->user()->id)
-            ->where('hostname', $hostname)
-            ->exists();
-
-        if ($exists) {
-            return response()->json(['valid' => false, 'message' => 'Domain already exists.'], 409);
+        if ($this->manualDomainExists($request->user()->id, $hostname)) {
+            return response()->json(['valid' => false, 'message' => 'This domain is already in your manual site list.'], 409);
         }
 
         return response()->json(['valid' => true, 'hostname' => $hostname]);
@@ -192,23 +188,27 @@ class DomainManagementController extends Controller
                 $skipped[] = ['hostname' => (string) $raw, 'reason' => 'Invalid hostname'];
                 continue;
             }
-            $domain = Domain::query()->firstOrCreate(
-                ['user_id' => $request->user()->id, 'hostname' => $hostname],
-                [
+            if ($this->manualDomainExists($request->user()->id, $hostname)) {
+                $skipped[] = ['hostname' => $hostname, 'reason' => 'Already in manual list'];
+
+                continue;
+            }
+
+            $domain = $this->promoteLegacySyncedToManual($request->user()->id, $hostname);
+            if (! $domain) {
+                $domain = Domain::create([
+                    'user_id' => $request->user()->id,
+                    'hostname' => $hostname,
                     'source' => Domain::SOURCE_MANUAL,
                     'domain_key' => Str::uuid()->toString(),
                     'secret_key' => Str::uuid()->toString(),
                     'authentication_key' => Str::uuid()->toString(),
                     'status' => 'pending',
-                ]
-            );
-
-            if ($domain->wasRecentlyCreated) {
-                $currentCount++;
-                $added[] = $hostname;
-            } else {
-                $skipped[] = ['hostname' => $hostname, 'reason' => 'Duplicate'];
+                ]);
             }
+
+            $currentCount++;
+            $added[] = $hostname;
         }
 
         return response()->json(compact('added', 'skipped'));
@@ -231,13 +231,8 @@ class DomainManagementController extends Controller
             if (! $this->isValidHostname($hostname)) {
                 return response()->json(['message' => 'Invalid domain hostname.'], 422);
             }
-            $duplicate = Domain::query()
-                ->where('user_id', $request->user()->id)
-                ->where('hostname', $hostname)
-                ->where('id', '!=', $domain->id)
-                ->exists();
-            if ($duplicate) {
-                return response()->json(['message' => 'Domain already exists.'], 409);
+            if ($this->manualDomainExists($request->user()->id, $hostname, $domain->id)) {
+                return response()->json(['message' => 'This domain is already in your manual site list.'], 409);
             }
             $domain->hostname = $hostname;
             unset($data['hostname']);
@@ -465,6 +460,46 @@ class DomainManagementController extends Controller
 
         $zip->close();
         return $zipPath;
+    }
+
+    private function manualDomainExists(int $userId, string $hostname, ?int $exceptDomainId = null): bool
+    {
+        return Domain::query()
+            ->where('user_id', $userId)
+            ->manual()
+            ->where('hostname', $hostname)
+            ->when($exceptDomainId, fn ($q) => $q->where('id', '!=', $exceptDomainId))
+            ->exists();
+    }
+
+    /**
+     * Old Google Ads sync rows (source=google_ads) can be claimed as manual when the user adds the same hostname.
+     */
+    private function promoteLegacySyncedToManual(int $userId, string $hostname): ?Domain
+    {
+        $legacy = Domain::query()
+            ->where('user_id', $userId)
+            ->where('hostname', $hostname)
+            ->where('source', Domain::SOURCE_GOOGLE_ADS)
+            ->first();
+
+        if (! $legacy) {
+            return null;
+        }
+
+        $legacy->source = Domain::SOURCE_MANUAL;
+        if (! $legacy->domain_key) {
+            $legacy->domain_key = Str::uuid()->toString();
+        }
+        if (! $legacy->secret_key) {
+            $legacy->secret_key = Str::uuid()->toString();
+        }
+        if (! $legacy->authentication_key) {
+            $legacy->authentication_key = Str::uuid()->toString();
+        }
+        $legacy->save();
+
+        return $legacy->fresh();
     }
 
     private function normalizeHostname(string $hostname): string
