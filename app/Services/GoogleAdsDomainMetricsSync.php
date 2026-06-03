@@ -12,30 +12,47 @@ class GoogleAdsDomainMetricsSync
 {
     public const DEFAULT_SYNC_DAYS = 30;
 
+    public ?string $lastMessage = null;
+
     /**
-     * Pull Google Ads campaign metrics for this domain's linked account and store per day in DB.
+     * @return array{saved: int, message: ?string}
      */
-    public function syncDomain(Domain $domain, ?Carbon $from = null, ?Carbon $to = null): int
+    public function syncDomain(Domain $domain, ?Carbon $from = null, ?Carbon $to = null): array
     {
+        $this->lastMessage = null;
+        $empty = ['saved' => 0, 'message' => null];
+
         $domain->loadMissing('googleAdsAccount.connection');
         $account = $domain->googleAdsAccount;
 
         if (! $account || (bool) $account->is_manager) {
-            return 0;
+            $this->lastMessage = 'No client Google Ads account linked.';
+
+            return array_merge($empty, ['message' => $this->lastMessage]);
         }
 
         $to = ($to ?? Carbon::now())->copy()->endOfDay();
         $from = ($from ?? $to->copy()->subDays(self::DEFAULT_SYNC_DAYS))->copy()->startOfDay();
 
-        $dailyRows = $this->fetchDailyFromGoogle($domain, $account, $from, $to);
+        // Store all campaigns for the linked account (no hostname filter on save).
+        $dailyRows = $this->fetchDailyFromGoogle($account, $from, $to);
+
         if ($dailyRows === []) {
+            $dailyRows = $this->fetchAggregateFallback($account, $from, $to);
+            if ($dailyRows !== []) {
+                $this->lastMessage = 'Saved period totals (daily breakdown was empty).';
+            }
+        }
+
+        if ($dailyRows === []) {
+            $this->lastMessage = 'Google returned no campaign metrics for the last ' . self::DEFAULT_SYNC_DAYS . ' days.';
             Log::info('Google Ads domain metrics sync: no rows', [
                 'domain_id' => $domain->id,
                 'hostname' => $domain->hostname,
                 'customer_id' => $account->customer_id,
             ]);
 
-            return 0;
+            return array_merge($empty, ['message' => $this->lastMessage]);
         }
 
         GoogleAdsCampaignDailyMetric::query()
@@ -47,13 +64,23 @@ class GoogleAdsDomainMetricsSync
         $saved = 0;
 
         foreach ($dailyRows as $row) {
+            $campaignId = (string) ($row['campaign_id'] ?? '');
+            if ($campaignId === '') {
+                continue;
+            }
+
+            $metricDate = (string) ($row['metric_date'] ?? '');
+            if ($metricDate === '') {
+                $metricDate = $to->toDateString();
+            }
+
             GoogleAdsCampaignDailyMetric::query()->create([
                 'domain_id' => $domain->id,
                 'google_ads_account_id' => $account->id,
-                'campaign_id' => (string) ($row['campaign_id'] ?? ''),
+                'campaign_id' => $campaignId,
                 'campaign_name' => (string) ($row['campaign'] ?? 'Campaign'),
                 'status' => (string) ($row['status'] ?? ''),
-                'metric_date' => (string) ($row['metric_date'] ?? $from->toDateString()),
+                'metric_date' => $metricDate,
                 'clicks' => (int) ($row['clicks'] ?? 0),
                 'impressions' => (int) ($row['impressions'] ?? 0),
                 'cost' => (float) ($row['cost'] ?? 0),
@@ -70,7 +97,10 @@ class GoogleAdsDomainMetricsSync
         $domain->ads_synced_at = $now;
         $domain->save();
 
-        return $saved;
+        return [
+            'saved' => $saved,
+            'message' => $this->lastMessage,
+        ];
     }
 
     /**
@@ -133,7 +163,53 @@ class GoogleAdsDomainMetricsSync
     /**
      * @return list<array<string, mixed>>
      */
-    private function fetchDailyFromGoogle(Domain $domain, GoogleAdsAccount $account, Carbon $from, Carbon $to): array
+    private function fetchDailyFromGoogle(GoogleAdsAccount $account, Carbon $from, Carbon $to): array
+    {
+        $connection = $account->connection;
+        if (! $connection) {
+            $this->lastMessage = 'Google connection missing for this account.';
+
+            return [];
+        }
+
+        $api = app(GoogleAdsConnectionService::class);
+        $baseHeaders = $api->apiHeaders($connection);
+        if (! $baseHeaders) {
+            $this->lastMessage = 'Could not build Google API headers (reconnect Gmail).';
+
+            return [];
+        }
+
+        $version = $api->apiVersions()[0] ?? 'v24';
+        $metrics = app(GoogleAdsMetricsService::class);
+        $fromStr = $from->format('Y-m-d');
+        $toStr = $to->format('Y-m-d');
+
+        $headerAttempts = [array_merge($baseHeaders, [])];
+        $loginId = preg_replace('/\D+/', '', (string) ($account->manager_customer_id ?: $api->loginCustomerId()));
+        if ($loginId !== '') {
+            $withMcc = $baseHeaders;
+            $withMcc['login-customer-id'] = $loginId;
+            array_unshift($headerAttempts, $withMcc);
+        }
+
+        foreach ($headerAttempts as $headers) {
+            $rows = $metrics->dailyCampaignMetrics($account, $version, $headers, $fromStr, $toStr, null);
+            if ($rows !== []) {
+                return $rows;
+            }
+        }
+
+        $this->lastMessage = $metrics->lastApiError
+            ?? 'Google Ads API returned no campaign rows for customer ' . $account->customer_id;
+
+        return [];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function fetchAggregateFallback(GoogleAdsAccount $account, Carbon $from, Carbon $to): array
     {
         $connection = $account->connection;
         if (! $connection) {
@@ -152,14 +228,17 @@ class GoogleAdsDomainMetricsSync
         }
 
         $version = $api->apiVersions()[0] ?? 'v24';
+        $snapshotDate = $to->format('Y-m-d');
 
-        return app(GoogleAdsMetricsService::class)->dailyCampaignMetrics(
+        $agg = app(GoogleAdsMetricsService::class)->campaignMetrics(
             $account,
             $version,
             $headers,
             $from->format('Y-m-d'),
             $to->format('Y-m-d'),
-            $domain->hostname
+            null
         );
+
+        return array_map(fn (array $row) => array_merge($row, ['metric_date' => $snapshotDate]), $agg);
     }
 }

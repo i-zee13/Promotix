@@ -291,14 +291,14 @@
     </div>
 
     {{-- Google Ads account picker (ClickCease-style) --}}
-    <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-[16px]" x-show="paidPick.open" x-cloak x-transition @click.self="paidPick.open = false">
-        <div class="flex max-h-[90vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#101010] shadow-2xl" @click.stop>
-            <header class="border-b border-white/15 bg-[#6400B2] px-[22px] py-[18px]">
+    <div class="fixed inset-0 z-[85] flex items-center justify-center overflow-y-auto bg-black/75 p-[16px] py-[5vh]" x-show="paidPick.open" x-cloak x-transition @click.self="paidPick.open = false">
+        <div class="my-auto flex max-h-[min(90vh,720px)] w-full max-w-[520px] min-h-0 flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#101010] shadow-2xl" @click.stop>
+            <header class="shrink-0 border-b border-white/15 bg-[#6400B2] px-[22px] py-[18px]">
                 <h2 class="text-[20px] font-bold text-white">Connect Google Ads</h2>
                 <p class="mt-[6px] text-[12px] text-white/85" x-text="paidPick.domainHostname ? 'Select the ad account for ' + paidPick.domainHostname : ''"></p>
                 <p class="mt-[4px] text-[11px] text-white/65" x-show="paidPick.googleEmail" x-text="'Signed in as ' + paidPick.googleEmail"></p>
             </header>
-            <div class="flex-1 overflow-y-auto px-[18px] py-[14px]">
+            <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-[18px] py-[14px] [scrollbar-gutter:stable]">
                 <p x-show="paidPick.loading" class="py-[24px] text-center text-[13px] text-white/60">Loading your Google Ads accounts…</p>
                 <p x-show="!paidPick.loading && paidPick.accounts.length === 0" class="py-[24px] text-center text-[13px] text-white/60">
                     <span x-text="paidPick.syncError || 'No ad accounts found for this Google login.'"></span>
@@ -319,9 +319,12 @@
                     </template>
                 </div>
             </div>
-            <footer class="flex justify-end gap-[10px] border-t border-white/15 px-[18px] py-[14px]">
+            <footer class="shrink-0 flex justify-end gap-[10px] border-t border-white/15 bg-[#101010] px-[18px] py-[14px]">
                 <button type="button" @click="paidPick.open = false" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px] text-white">Cancel</button>
-                <button type="button" @click="confirmPaidPick()" :disabled="!paidPick.selectedId || paidPick.busy" class="rounded-[6px] bg-[#6400B2] px-[20px] py-[8px] text-[13px] font-semibold text-white disabled:opacity-50">Connect account</button>
+                <button type="button" @click="confirmPaidPick()" :disabled="!paidPick.selectedId || paidPick.busy" class="rounded-[6px] bg-[#6400B2] px-[20px] py-[8px] text-[13px] font-semibold text-white disabled:opacity-50">
+                    <span x-show="!paidPick.busy">Connect account</span>
+                    <span x-show="paidPick.busy">Connecting…</span>
+                </button>
             </footer>
         </div>
     </div>
@@ -434,9 +437,10 @@ function siteManagementFigma() {
                 const data = await res.json();
                 this.paidPick.open = false;
                 const saved = Number(data.metrics_rows_saved || 0);
+                const note = data.metrics_message || '';
                 this.showToast(saved > 0
-                    ? `Linked. Pulled ${saved} day-campaign metrics from Google. Reloading…`
-                    : 'Linked. No metrics in the last 30 days (or API needs sync). Reloading…');
+                    ? `Linked. Saved ${saved} rows in ${data.metrics_table || 'DB'}. Reloading…`
+                    : (`Linked but 0 metrics saved. ${note || 'Check server migration + laravel.log.'} Reloading…`));
                 window.location.href = '{{ route('domains.index') }}';
             } catch (e) {
                 this.showToast('Could not link account.');

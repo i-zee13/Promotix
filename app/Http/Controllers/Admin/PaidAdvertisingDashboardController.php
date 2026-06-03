@@ -217,7 +217,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
             if ($sync->shouldRefresh($domain, $from, $to)) {
-                $sync->syncDomain($domain->fresh(), $from, $to);
+                $sync->syncDomain($domain->fresh(), $from, $to)['saved'] ?? 0;
             }
 
             $dbRows = $sync->aggregatedCampaignRows($domain->id, $from, $to);
@@ -228,7 +228,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         $liveRows = $this->googleAdsCampaignRows($domain->googleAdsAccount, $from, $to, $domain->hostname);
         if ($liveRows !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
-            $sync->syncDomain($domain->fresh(), $from, $to);
+            $sync->syncDomain($domain->fresh(), $from, $to)['saved'] ?? 0;
             $dbRows = $sync->aggregatedCampaignRows($domain->id, $from, $to);
 
             return $dbRows !== [] ? $dbRows : $liveRows;

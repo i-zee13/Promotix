@@ -9,7 +9,11 @@ use Illuminate\Support\Str;
 
 class GoogleAdsMetricsService
 {
+    public ?string $lastApiError = null;
+
     /**
+     * Period totals per campaign (aggregated from daily rows).
+     *
      * @return list<array<string, mixed>>
      */
     public function campaignMetrics(
@@ -20,67 +24,36 @@ class GoogleAdsMetricsService
         string $toDate,
         ?string $hostnameFilter = null
     ): array {
-        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
-        if ($customerId === '' || (bool) $account->is_manager) {
+        $daily = $this->dailyCampaignMetrics($account, $apiVersion, $headers, $fromDate, $toDate, $hostnameFilter);
+        if ($daily === []) {
             return [];
         }
 
-        $query = "SELECT campaign.id, campaign.name, campaign.status, metrics.clicks, metrics.impressions, metrics.cost_micros, metrics.average_cpc, metrics.conversions, metrics.phone_calls, metrics.ctr FROM campaign WHERE segments.date BETWEEN '{$fromDate}' AND '{$toDate}' AND campaign.status != 'REMOVED' ORDER BY metrics.clicks DESC LIMIT 100";
-
-        $res = Http::timeout(30)
-            ->withHeaders($headers)
-            ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
-                'query' => $query,
-            ]);
-
-        if (! $res->successful()) {
-            Log::warning('Google Ads campaign metrics failed', [
-                'customer_id' => $customerId,
-                'status' => $res->status(),
-                'body' => Str::limit($res->body(), 500),
-            ]);
-
-            return [];
-        }
-
-        $rows = [];
-        foreach ($this->parseRows($res->json()) as $row) {
-            $campaign = $row['campaign'] ?? [];
-            $metrics = $row['metrics'] ?? [];
-            if (! is_array($campaign) || ! is_array($metrics)) {
+        $byCampaign = [];
+        foreach ($daily as $row) {
+            $id = (string) ($row['campaign_id'] ?? '');
+            if ($id === '') {
                 continue;
             }
 
-            $clicks = (int) ($metrics['clicks'] ?? 0);
-            $costMicros = (int) ($metrics['costMicros'] ?? $metrics['cost_micros'] ?? 0);
-            $avgCpcMicros = (int) ($metrics['averageCpc'] ?? $metrics['average_cpc'] ?? 0);
+            if (! isset($byCampaign[$id])) {
+                $byCampaign[$id] = $row;
+                $byCampaign[$id]['phone_calls'] = 0;
 
-            $rows[] = [
-                'campaign_id' => (string) ($campaign['id'] ?? ''),
-                'campaign' => (string) ($campaign['name'] ?? 'Campaign'),
-                'status' => (string) ($campaign['status'] ?? ''),
-                'clicks' => $clicks,
-                'impressions' => (int) ($metrics['impressions'] ?? 0),
-                'cost' => round($costMicros / 1_000_000, 2),
-                'cpc' => $avgCpcMicros > 0 ? round($avgCpcMicros / 1_000_000, 2) : ($clicks > 0 ? round(($costMicros / 1_000_000) / $clicks, 2) : 0),
-                'conversions' => (float) ($metrics['conversions'] ?? 0),
-                'phone_calls' => (int) ($metrics['phoneCalls'] ?? $metrics['phone_calls'] ?? 0),
-                'ctr' => round((float) ($metrics['ctr'] ?? 0) * 100, 2),
-                'total' => $clicks,
-                'invalid' => 0,
-                'valid' => $clicks,
-                'source' => 'google_ads',
-            ];
-        }
-
-        if ($hostnameFilter !== null && $hostnameFilter !== '') {
-            $hostRows = $this->campaignIdsForHostname($customerId, $apiVersion, $headers, $hostnameFilter, $fromDate, $toDate);
-            if ($hostRows !== []) {
-                $rows = array_values(array_filter($rows, fn ($r) => in_array($r['campaign_id'], $hostRows, true)));
+                continue;
             }
+
+            $byCampaign[$id]['clicks'] += (int) ($row['clicks'] ?? 0);
+            $byCampaign[$id]['impressions'] += (int) ($row['impressions'] ?? 0);
+            $byCampaign[$id]['cost'] = round((float) $byCampaign[$id]['cost'] + (float) ($row['cost'] ?? 0), 2);
+            $byCampaign[$id]['conversions'] += (float) ($row['conversions'] ?? 0);
+            $byCampaign[$id]['total'] = $byCampaign[$id]['clicks'];
+            $byCampaign[$id]['valid'] = $byCampaign[$id]['clicks'];
+            $clicks = (int) $byCampaign[$id]['clicks'];
+            $byCampaign[$id]['cpc'] = $clicks > 0 ? round((float) $byCampaign[$id]['cost'] / $clicks, 2) : 0;
         }
 
-        return $rows;
+        return array_values($byCampaign);
     }
 
     /**
@@ -101,19 +74,15 @@ class GoogleAdsMetricsService
             return [];
         }
 
-        $query = "SELECT campaign.id, campaign.name, campaign.status, segments.date, metrics.clicks, metrics.impressions, metrics.cost_micros, metrics.average_cpc, metrics.conversions, metrics.phone_calls, metrics.ctr FROM campaign WHERE segments.date BETWEEN '{$fromDate}' AND '{$toDate}' AND campaign.status != 'REMOVED' ORDER BY segments.date DESC, metrics.clicks DESC LIMIT 5000";
+        $query = "SELECT campaign.id, campaign.name, campaign.status, segments.date, metrics.clicks, metrics.impressions, metrics.cost_micros, metrics.average_cpc, metrics.conversions, metrics.ctr FROM campaign WHERE segments.date BETWEEN '{$fromDate}' AND '{$toDate}' AND campaign.status != 'REMOVED' ORDER BY segments.date DESC, metrics.clicks DESC LIMIT 5000";
 
-        $res = Http::timeout(45)
-            ->withHeaders($headers)
-            ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
-                'query' => $query,
-            ]);
-
+        $res = $this->searchStream($apiVersion, $customerId, $query, $headers);
         if (! $res->successful()) {
             Log::warning('Google Ads daily campaign metrics failed', [
                 'customer_id' => $customerId,
                 'status' => $res->status(),
-                'body' => Str::limit($res->body(), 500),
+                'body' => Str::limit($res->body(), 800),
+                'login_customer_id' => $headers['login-customer-id'] ?? null,
             ]);
 
             return [];
@@ -143,7 +112,7 @@ class GoogleAdsMetricsService
                 'cost' => round($costMicros / 1_000_000, 2),
                 'cpc' => $avgCpcMicros > 0 ? round($avgCpcMicros / 1_000_000, 2) : ($clicks > 0 ? round(($costMicros / 1_000_000) / $clicks, 2) : 0),
                 'conversions' => (float) ($metrics['conversions'] ?? 0),
-                'phone_calls' => (int) ($metrics['phoneCalls'] ?? $metrics['phone_calls'] ?? 0),
+                'phone_calls' => 0,
                 'ctr' => round((float) ($metrics['ctr'] ?? 0) * 100, 2),
             ];
         }
@@ -172,12 +141,7 @@ class GoogleAdsMetricsService
         $host = strtolower(trim($hostname));
         $query = "SELECT campaign.id, landing_page_view.unexpanded_final_url FROM landing_page_view WHERE segments.date BETWEEN '{$fromDate}' AND '{$toDate}' LIMIT 500";
 
-        $res = Http::timeout(30)
-            ->withHeaders($headers)
-            ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
-                'query' => $query,
-            ]);
-
+        $res = $this->searchStream($apiVersion, $customerId, $query, $headers);
         if (! $res->successful()) {
             return [];
         }
@@ -197,6 +161,52 @@ class GoogleAdsMetricsService
         }
 
         return array_keys($ids);
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function searchStream(string $apiVersion, string $customerId, string $query, array $headers): \Illuminate\Http\Client\Response
+    {
+        $res = Http::timeout(45)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if (! $res->successful()) {
+            $this->lastApiError = 'HTTP ' . $res->status() . ': ' . Str::limit($this->extractErrorMessage($res->body()), 280);
+        } else {
+            $this->lastApiError = null;
+        }
+
+        return $res;
+    }
+
+    private function extractErrorMessage(string $body): string
+    {
+        $json = json_decode($body, true);
+        if (! is_array($json)) {
+            return $body;
+        }
+
+        $message = (string) ($json['error']['message'] ?? '');
+        if ($message !== '') {
+            return $message;
+        }
+
+        foreach (($json[0]['error']['details'] ?? []) as $detail) {
+            if (! is_array($detail)) {
+                continue;
+            }
+            foreach (($detail['errors'] ?? []) as $err) {
+                if (is_array($err) && ! empty($err['message'])) {
+                    return (string) $err['message'];
+                }
+            }
+        }
+
+        return $body;
     }
 
     /**
