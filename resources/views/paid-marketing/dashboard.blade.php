@@ -42,17 +42,22 @@
                         <button type="button" aria-label="Refresh" @click="reload(true, true)">Refresh</button>
                     </div>
                 </div>
-                <div class="mt-[12px] grid grid-cols-2 text-center">
-                    <div>
-                        <p class="text-[10px] text-white/75">Paid Traffic</p>
-                        <p class="text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
+                <div class="mt-[8px] grid grid-cols-[1fr_88px] items-center gap-[8px]">
+                    <div class="grid grid-cols-2 text-center">
+                        <div>
+                            <p class="text-[10px] text-white/75">Paid Traffic</p>
+                            <p class="text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-white/75">Invalid Paid Traffic</p>
+                            <p class="text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-[10px] text-white/75">Invalid Paid Traffic</p>
-                        <p class="text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
+                    <div class="relative h-[72px] w-[88px]">
+                        <canvas id="paid-invalid-donut" class="h-full w-full" aria-label="Invalid traffic rate"></canvas>
                     </div>
                 </div>
-                <div class="mt-[11px] grid grid-cols-3 border-t border-white/25 pt-[7px] text-[9px] text-white/80">
+                <div class="mt-[8px] grid grid-cols-3 border-t border-white/25 pt-[7px] text-[9px] text-white/80">
                     <span>Traffic</span><span>Valid</span><span>Invalid</span>
                     <span class="text-white/60">Organic</span><span x-text="fmt(summary.valid_paid_visits)"></span><span x-text="fmt(summary.invalid_paid_visits)"></span>
                 </div>
@@ -65,7 +70,9 @@
                         <p class="text-[30px] font-normal leading-none text-white"><span x-text="botRate"></span>%</p>
                         <p class="text-[18px] leading-none text-white">Bots</p>
                     </div>
-                    <canvas id="bot-bars" class="h-[80px] w-full"></canvas>
+                    <div class="relative h-[80px] w-full min-w-0">
+                        <canvas id="bot-bars" class="h-full w-full" aria-label="Invalid traffic trend"></canvas>
+                    </div>
                 </div>
             </article>
 
@@ -74,33 +81,40 @@
                     <h2 class="text-[13px] font-normal text-white">Blocking Activity</h2>
                     <span class="text-[12px] text-white/75">i</span>
                 </div>
-                <div class="mt-[10px] grid grid-cols-2 text-center">
-                    <div>
+                <div class="mt-[6px] grid grid-cols-2 gap-[8px]">
+                    <div class="text-center">
                         <p class="text-[9px] text-white/70">Invalid Total Traffic</p>
-                        <p class="text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
+                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
                     </div>
-                    <div>
+                    <div class="text-center">
                         <p class="text-[9px] text-white/70">Total Blocked</p>
-                        <p class="text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.blocked_paid_visits)"></p>
+                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.blocked_paid_visits)"></p>
                     </div>
                 </div>
-                <div class="mt-[7px] space-y-[3px] text-[9px] text-white/85">
+                <div class="relative mt-[6px] h-[42px] w-full">
+                    <canvas id="blocking-sparkline" class="h-full w-full" aria-label="Blocking activity trend"></canvas>
+                </div>
+                <div class="mt-[4px] space-y-[2px] text-[9px] text-white/85">
                     <div class="flex justify-between border-b border-white/15"><span>IP Range</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
-                    <div class="flex justify-between border-b border-white/15"><span>Events</span><span x-text="fmt(summary.invalid_paid_visits)"></span></div>
                     <div class="flex justify-between"><span>Audiences</span><a href="{{ route('paid-marketing.detection-settings') }}" class="rounded bg-white px-[8px] py-[1px] text-[8px] text-[#6400B2]">Set up</a></div>
                 </div>
             </article>
 
             <article class="paid-dashboard-card--wide min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[14px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
                 <h2 class="text-[13px] font-normal text-white">Google Ads Campaigns</h2>
-                <div class="mt-[8px] max-h-[140px] overflow-y-auto text-[10px] text-white/90">
-                    <template x-for="row in campaigns.slice(0, 6)" :key="row.campaign_id || row.campaign">
-                        <div class="flex justify-between gap-[8px] border-b border-white/10 py-[4px]">
-                            <span class="truncate font-medium" x-text="row.campaign"></span>
-                            <span class="shrink-0 text-white/70" x-text="(row.clicks ?? row.total ?? 0) + ' clk · $' + (row.cpc ?? 0)"></span>
-                        </div>
-                    </template>
-                    <p x-show="campaigns.length === 0" class="py-[8px] text-white/50">No Google Ads data for this date range. Try the calendar (stored data may be May–Jun 2026) or run: php artisan google-ads:sync-domain-metrics {domain_id}</p>
+                <div class="mt-[6px] grid grid-cols-1 gap-[8px] md:grid-cols-[minmax(0,1fr)_140px] md:items-center">
+                    <div class="max-h-[120px] overflow-y-auto text-[10px] text-white/90">
+                        <template x-for="row in campaigns.slice(0, 6)" :key="row.campaign_id || row.campaign">
+                            <div class="flex justify-between gap-[8px] border-b border-white/10 py-[4px]">
+                                <span class="truncate font-medium" x-text="row.campaign"></span>
+                                <span class="shrink-0 text-white/70" x-text="(row.clicks ?? row.total ?? 0) + ' clk · $' + (row.cpc ?? 0)"></span>
+                            </div>
+                        </template>
+                        <p x-show="campaigns.length === 0" class="py-[8px] text-white/50">No Google Ads data for this date range.</p>
+                    </div>
+                    <div class="relative mx-auto h-[110px] w-full max-w-[140px] md:mx-0">
+                        <canvas id="campaigns-mini-bars" class="h-full w-full" aria-label="Campaign clicks breakdown"></canvas>
+                    </div>
                 </div>
             </article>
         </div>
@@ -249,6 +263,7 @@ function paidAdvertisingFigma(config = {}) {
         countries: [],
         ips: [],
         heatmap: { days: [], hours: [], matrix: [] },
+        cardCharts: {},
         get botRate() {
             const paid = Number(this.summary.paid_visits || 0);
             const invalid = Number(this.summary.invalid_paid_visits || 0);
@@ -300,7 +315,6 @@ function paidAdvertisingFigma(config = {}) {
                 if (r.from) this.filters.from = r.from;
                 if (r.to) this.filters.to = r.to;
             } catch (e) {}
-            this.reload();
         },
         applyDomainFromUrl() {
             const id = new URLSearchParams(window.location.search).get('domain_id');
@@ -326,12 +340,13 @@ function paidAdvertisingFigma(config = {}) {
                 this.syncHeaderDates();
                 this.scheduleReload();
             });
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) this.reload();
+            });
+            await this.reload();
             window.addEventListener('resize', () => {
                 clearTimeout(window.__paidFigmaResize);
                 window.__paidFigmaResize = setTimeout(() => this.render(), 180);
-            });
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) this.reload();
             });
         },
         async reload(forceGoogle = false, withLoader = false) {
@@ -362,12 +377,183 @@ function paidAdvertisingFigma(config = {}) {
             }
         },
         render() {
-            this.drawLine('paid-trends', this.trends.labels || [], this.trends.datasets || []);
-            this.drawBars('bot-bars', this.trends.datasets?.[1]?.values || []);
-            this.drawLine('invalid-protection', this.blocking.labels || [], this.blocking.datasets || [], true);
-            this.renderHeatmap();
-            this.renderKeywords();
-            this.renderCountries();
+            requestAnimationFrame(() => {
+                this.renderCardCharts();
+                this.drawLine('paid-trends', this.trends.labels || [], this.trends.datasets || []);
+                this.drawLine('invalid-protection', this.blocking.labels || [], this.blocking.datasets || [], true);
+                this.renderHeatmap();
+                this.renderKeywords();
+                this.renderCountries();
+            });
+        },
+        destroyCardChart(key) {
+            if (this.cardCharts[key]) {
+                this.cardCharts[key].destroy();
+                delete this.cardCharts[key];
+            }
+        },
+        miniChartOptions(extra = {}) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 350 },
+                plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                ...extra,
+            };
+        },
+        renderCardCharts() {
+            if (!window.Chart) return;
+            this.renderInvalidDonut();
+            this.renderBotBars();
+            this.renderBlockingSparkline();
+            this.renderCampaignBars();
+        },
+        renderInvalidDonut() {
+            const el = document.getElementById('paid-invalid-donut');
+            if (!el) return;
+            this.destroyCardChart('invalidDonut');
+            const valid = Number(this.summary.valid_paid_visits || 0);
+            const invalid = Number(this.summary.invalid_paid_visits || 0);
+            const paid = Number(this.summary.paid_visits || 0);
+            const rate = paid ? Math.round((invalid / paid) * 100) : 0;
+            const hasData = valid + invalid > 0;
+            this.cardCharts.invalidDonut = new Chart(el, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Invalid', 'Valid'],
+                    datasets: [{
+                        data: hasData ? [invalid, valid] : [0, 1],
+                        backgroundColor: ['#FF4BC1', 'rgba(255,255,255,0.18)'],
+                        borderWidth: 0,
+                    }],
+                },
+                options: this.miniChartOptions({
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.label}: ${this.fmt(ctx.raw)}`,
+                            },
+                        },
+                    },
+                }),
+                plugins: [{
+                    id: 'invalidRateCenter',
+                    afterDraw: (chart) => {
+                        const { ctx, chartArea } = chart;
+                        if (!chartArea) return;
+                        const cx = (chartArea.left + chartArea.right) / 2;
+                        const cy = (chartArea.top + chartArea.bottom) / 2;
+                        ctx.save();
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '600 12px Inter, sans-serif';
+                        ctx.fillText(`${rate}%`, cx, cy - 5);
+                        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+                        ctx.font = '8px Inter, sans-serif';
+                        ctx.fillText('Invalid Rate', cx, cy + 9);
+                        ctx.restore();
+                    },
+                }],
+            });
+        },
+        renderBotBars() {
+            const el = document.getElementById('bot-bars');
+            if (!el) return;
+            this.destroyCardChart('botBars');
+            const values = (this.trends.datasets?.[1]?.values || this.trends.datasets?.[0]?.values || []).slice(-7);
+            const labels = (this.trends.labels || []).slice(-7);
+            const barValues = values.length ? values : [0, 0, 0, 0, 0, 0, 0];
+            this.cardCharts.botBars = new Chart(el, {
+                type: 'bar',
+                data: {
+                    labels: labels.length ? labels : barValues.map((_, i) => i + 1),
+                    datasets: [{
+                        data: barValues,
+                        backgroundColor: barValues.map((_, i) => (i % 2 ? '#B893D8' : 'rgba(255,255,255,0.55)')),
+                        borderRadius: 3,
+                        borderSkipped: false,
+                    }],
+                },
+                options: this.miniChartOptions({
+                    scales: {
+                        x: { display: false, grid: { display: false } },
+                        y: { display: false, grid: { display: false }, beginAtZero: true },
+                    },
+                }),
+            });
+        },
+        renderBlockingSparkline() {
+            const el = document.getElementById('blocking-sparkline');
+            if (!el) return;
+            this.destroyCardChart('blockingSpark');
+            const blocked = this.blocking.datasets?.find(d => d.name === 'Blocked')?.values || [];
+            const flagged = this.blocking.datasets?.find(d => d.name === 'Flagged')?.values || [];
+            const combined = (blocked.length ? blocked : flagged).map((_, i) =>
+                Number(blocked[i] || 0) + Number(flagged[i] || 0)
+            );
+            const values = combined.length ? combined.slice(-10) : [0, 0, 0, 0, 0];
+            this.cardCharts.blockingSpark = new Chart(el, {
+                type: 'line',
+                data: {
+                    labels: values.map((_, i) => i + 1),
+                    datasets: [{
+                        data: values,
+                        borderColor: '#FFFFFF',
+                        backgroundColor: 'rgba(255,255,255,0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 0,
+                        borderWidth: 1.5,
+                    }],
+                },
+                options: this.miniChartOptions({
+                    scales: {
+                        x: { display: false, grid: { display: false } },
+                        y: { display: false, grid: { display: false }, beginAtZero: true },
+                    },
+                }),
+            });
+        },
+        renderCampaignBars() {
+            const el = document.getElementById('campaigns-mini-bars');
+            if (!el) return;
+            this.destroyCardChart('campaignBars');
+            const rows = (this.campaigns || []).slice(0, 5);
+            const values = rows.map(r => Number(r.clicks ?? r.total ?? 0));
+            const labels = rows.map(r => String(r.campaign || '').slice(0, 8) || '—');
+            if (!values.length) {
+                this.cardCharts.campaignBars = new Chart(el, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['No data'],
+                        datasets: [{ data: [1], backgroundColor: ['rgba(255,255,255,0.12)'], borderWidth: 0 }],
+                    },
+                    options: this.miniChartOptions({ cutout: '65%' }),
+                });
+                return;
+            }
+            this.cardCharts.campaignBars = new Chart(el, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: '#B893D8',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }],
+                },
+                options: this.miniChartOptions({
+                    indexAxis: 'y',
+                    scales: {
+                        x: { display: false, grid: { display: false }, beginAtZero: true },
+                        y: { display: false, grid: { display: false } },
+                    },
+                }),
+            });
         },
         canvas(id) {
             const canvas = document.getElementById(id);
@@ -426,19 +612,6 @@ function paidAdvertisingFigma(config = {}) {
                     const x = left + i * ((w - left - right) / Math.max(labels.length - 1, 1));
                     ctx.fillText(String(l).slice(0, 3), x - 8, h - 8);
                 }
-            });
-        },
-        drawBars(id, values) {
-            const c = this.canvas(id);
-            if (!c) return;
-            const {ctx, w, h} = c;
-            const max = Math.max(...values, 1);
-            const barW = Math.max(7, (w - 16) / Math.max(values.length, 1) - 5);
-            values.forEach((v, i) => {
-                const bh = (Number(v || 0) / max) * (h - 12);
-                const x = 8 + i * (barW + 5);
-                ctx.fillStyle = i % 2 ? '#B893D8' : '#FFFFFF99';
-                ctx.fillRect(x, h - bh, barW, bh);
             });
         },
         renderHeatmap() {
