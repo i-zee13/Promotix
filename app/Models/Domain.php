@@ -112,6 +112,11 @@ class Domain extends Model
         return $this->hasMany(DomainGoogleAdsMapping::class);
     }
 
+    public function googleAdsCampaignDailyMetrics(): HasMany
+    {
+        return $this->hasMany(GoogleAdsCampaignDailyMetric::class);
+    }
+
     public function detectionSetting(): HasOne
     {
         return $this->hasOne(DomainDetectionSetting::class);

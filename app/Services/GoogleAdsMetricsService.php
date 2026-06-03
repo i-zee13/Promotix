@@ -84,6 +84,81 @@ class GoogleAdsMetricsService
     }
 
     /**
+     * Per-campaign, per-day metrics (stored in DB after domain connect).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function dailyCampaignMetrics(
+        GoogleAdsAccount $account,
+        string $apiVersion,
+        array $headers,
+        string $fromDate,
+        string $toDate,
+        ?string $hostnameFilter = null
+    ): array {
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+        if ($customerId === '' || (bool) $account->is_manager) {
+            return [];
+        }
+
+        $query = "SELECT campaign.id, campaign.name, campaign.status, segments.date, metrics.clicks, metrics.impressions, metrics.cost_micros, metrics.average_cpc, metrics.conversions, metrics.phone_calls, metrics.ctr FROM campaign WHERE segments.date BETWEEN '{$fromDate}' AND '{$toDate}' AND campaign.status != 'REMOVED' ORDER BY segments.date DESC, metrics.clicks DESC LIMIT 5000";
+
+        $res = Http::timeout(45)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if (! $res->successful()) {
+            Log::warning('Google Ads daily campaign metrics failed', [
+                'customer_id' => $customerId,
+                'status' => $res->status(),
+                'body' => Str::limit($res->body(), 500),
+            ]);
+
+            return [];
+        }
+
+        $rows = [];
+        foreach ($this->parseRows($res->json()) as $row) {
+            $campaign = $row['campaign'] ?? [];
+            $metrics = $row['metrics'] ?? [];
+            $segments = $row['segments'] ?? [];
+            if (! is_array($campaign) || ! is_array($metrics)) {
+                continue;
+            }
+
+            $clicks = (int) ($metrics['clicks'] ?? 0);
+            $costMicros = (int) ($metrics['costMicros'] ?? $metrics['cost_micros'] ?? 0);
+            $avgCpcMicros = (int) ($metrics['averageCpc'] ?? $metrics['average_cpc'] ?? 0);
+            $metricDate = (string) ($segments['date'] ?? '');
+
+            $rows[] = [
+                'campaign_id' => (string) ($campaign['id'] ?? ''),
+                'campaign' => (string) ($campaign['name'] ?? 'Campaign'),
+                'status' => (string) ($campaign['status'] ?? ''),
+                'metric_date' => $metricDate,
+                'clicks' => $clicks,
+                'impressions' => (int) ($metrics['impressions'] ?? 0),
+                'cost' => round($costMicros / 1_000_000, 2),
+                'cpc' => $avgCpcMicros > 0 ? round($avgCpcMicros / 1_000_000, 2) : ($clicks > 0 ? round(($costMicros / 1_000_000) / $clicks, 2) : 0),
+                'conversions' => (float) ($metrics['conversions'] ?? 0),
+                'phone_calls' => (int) ($metrics['phoneCalls'] ?? $metrics['phone_calls'] ?? 0),
+                'ctr' => round((float) ($metrics['ctr'] ?? 0) * 100, 2),
+            ];
+        }
+
+        if ($hostnameFilter !== null && $hostnameFilter !== '') {
+            $hostRows = $this->campaignIdsForHostname($customerId, $apiVersion, $headers, $hostnameFilter, $fromDate, $toDate);
+            if ($hostRows !== []) {
+                $rows = array_values(array_filter($rows, fn ($r) => in_array($r['campaign_id'], $hostRows, true)));
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
      * @return list<string>
      */
     private function campaignIdsForHostname(

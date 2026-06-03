@@ -415,8 +415,12 @@ function siteManagementFigma() {
                     body: JSON.stringify({ google_ads_account_id: this.paidPick.selectedId }),
                 });
                 if (!res.ok) throw new Error('link failed');
+                const data = await res.json();
                 this.paidPick.open = false;
-                this.showToast('Google Ads account linked. Reloading…');
+                const saved = Number(data.metrics_rows_saved || 0);
+                this.showToast(saved > 0
+                    ? `Linked. Pulled ${saved} day-campaign metrics from Google. Reloading…`
+                    : 'Linked. No metrics in the last 30 days (or API needs sync). Reloading…');
                 window.location.href = '{{ route('domains.index') }}';
             } catch (e) {
                 this.showToast('Could not link account.');

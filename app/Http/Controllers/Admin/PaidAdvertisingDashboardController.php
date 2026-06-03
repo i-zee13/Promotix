@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Domain;
 use App\Models\GoogleAdsAccount;
 use App\Services\GoogleAdsConnectionService;
+use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -155,11 +156,9 @@ class PaidAdvertisingDashboardController extends Controller
                 ->with('googleAdsAccount.connection')
                 ->first();
 
-            if ($domain?->googleAdsAccount && ! $domain->googleAdsAccount->is_manager) {
-                $googleRows = $this->googleAdsCampaignRows($domain->googleAdsAccount, $from, $to, $domain->hostname);
-                if ($googleRows !== []) {
-                    return response()->json($googleRows);
-                }
+            $googleRows = $this->resolveGoogleCampaignRowsForDomain($domain, $from, $to);
+            if ($googleRows !== []) {
+                return response()->json($googleRows);
             }
         } else {
             $allGoogle = [];
@@ -170,10 +169,7 @@ class PaidAdvertisingDashboardController extends Controller
                 ->get();
 
             foreach ($domains as $domain) {
-                if (! $domain->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
-                    continue;
-                }
-                foreach ($this->googleAdsCampaignRows($domain->googleAdsAccount, $from, $to, $domain->hostname) as $row) {
+                foreach ($this->resolveGoogleCampaignRowsForDomain($domain, $from, $to) as $row) {
                     $allGoogle[] = $row;
                 }
             }
@@ -206,6 +202,39 @@ class PaidAdvertisingDashboardController extends Controller
             'valid' => max(0, (int) $r->total - (int) $r->invalid),
             'source' => 'visits',
         ])->values());
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function resolveGoogleCampaignRowsForDomain(?Domain $domain, Carbon $from, Carbon $to): array
+    {
+        if (! $domain?->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
+            return [];
+        }
+
+        $sync = app(GoogleAdsDomainMetricsSync::class);
+
+        if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            if ($sync->shouldRefresh($domain, $from, $to)) {
+                $sync->syncDomain($domain->fresh(), $from, $to);
+            }
+
+            $dbRows = $sync->aggregatedCampaignRows($domain->id, $from, $to);
+            if ($dbRows !== []) {
+                return $dbRows;
+            }
+        }
+
+        $liveRows = $this->googleAdsCampaignRows($domain->googleAdsAccount, $from, $to, $domain->hostname);
+        if ($liveRows !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            $sync->syncDomain($domain->fresh(), $from, $to);
+            $dbRows = $sync->aggregatedCampaignRows($domain->id, $from, $to);
+
+            return $dbRows !== [] ? $dbRows : $liveRows;
+        }
+
+        return $liveRows;
     }
 
     /**

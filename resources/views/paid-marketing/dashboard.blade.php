@@ -97,7 +97,7 @@
                             <span class="shrink-0 text-white/70" x-text="(row.clicks ?? row.total ?? 0) + ' clk · $' + (row.cpc ?? 0)"></span>
                         </div>
                     </template>
-                    <p x-show="campaigns.length === 0" class="py-[8px] text-white/50">Link a domain to Google Ads on Site Management, then select it above.</p>
+                    <p x-show="campaigns.length === 0" class="py-[8px] text-white/50">No Google Ads data for this date range. Connect the domain via Setup on Site Management, or pick another domain above.</p>
                 </div>
             </article>
         </div>
@@ -294,7 +294,12 @@ function paidAdvertisingFigma(config = {}) {
             } catch (e) {}
             this.reload();
         },
+        applyDomainFromUrl() {
+            const id = new URLSearchParams(window.location.search).get('domain_id');
+            if (id) this.filters.domain_id = id;
+        },
         async init() {
+            this.applyDomainFromUrl();
             this.syncHeaderDates();
             if (!this.filters.from) this.setWindow();
             window.addEventListener('promotix:date-range', () => {

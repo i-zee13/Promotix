@@ -916,12 +916,23 @@ class IntegrationsController extends Controller
             ]
         );
 
+        $metricsSaved = 0;
+        try {
+            $metricsSaved = app(\App\Services\GoogleAdsDomainMetricsSync::class)->syncDomain($domain->fresh());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Google Ads metrics sync on domain link failed', [
+                'domain_id' => $domain->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
         $request->session()->forget('pick_google_ads_accounts');
 
         return response()->json([
             'ok' => true,
             'domain_id' => $domain->id,
             'account_name' => $account->displayLabel(),
+            'metrics_rows_saved' => $metricsSaved,
         ]);
     }
 
