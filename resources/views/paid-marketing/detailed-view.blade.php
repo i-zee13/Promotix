@@ -219,6 +219,7 @@
                     console.error(e);
                 } finally {
                     this.loading = false;
+                    window.promotixPageLoader?.hide();
                 }
             },
             clearFilters() {

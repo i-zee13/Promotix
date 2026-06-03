@@ -407,6 +407,8 @@ document.addEventListener('DOMContentLoaded', () => {
             await loadCharts();
         } catch (error) {
             console.error(error);
+        } finally {
+            window.promotixPageLoader?.hide();
         }
     }
 

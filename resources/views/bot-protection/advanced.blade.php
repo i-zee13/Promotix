@@ -202,10 +202,9 @@ function botProtectionAdvancedFigma() {
         async init() {
             this.syncHeaderDates();
             if (!this.filters.from || !this.filters.to) {
-                const today = new Date();
-                const start = new Date(today.getTime() - 6 * 86400000);
-                this.filters.from = start.toISOString().slice(0, 10);
-                this.filters.to = today.toISOString().slice(0, 10);
+                const t = new Date().toISOString().slice(0, 10);
+                this.filters.from = t;
+                this.filters.to = t;
             }
             window.addEventListener('promotix:date-range', () => {
                 this.syncHeaderDates();
@@ -215,14 +214,18 @@ function botProtectionAdvancedFigma() {
         },
         async reload(resetPage = false) {
             if (resetPage) this.meta.page = 1;
-            const qs = this.qs({ page: this.meta.page, per_page: this.meta.per_page });
-            const [visits, stats] = await Promise.all([
-                fetch(`/bot-protection/visits?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/bot-stats?${this.qs()}`).then(r => r.json()),
-            ]);
-            this.rows = visits.data || [];
-            this.meta = { ...this.meta, ...(visits.meta || {}) };
-            this.stats = stats;
+            try {
+                const qs = this.qs({ page: this.meta.page, per_page: this.meta.per_page });
+                const [visits, stats] = await Promise.all([
+                    fetch(`/bot-protection/visits?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/bot-stats?${this.qs()}`).then(r => r.json()),
+                ]);
+                this.rows = visits.data || [];
+                this.meta = { ...this.meta, ...(visits.meta || {}) };
+                this.stats = stats;
+            } finally {
+                window.promotixPageLoader?.hide();
+            }
         },
         async changePage(p) {
             this.meta.page = Math.max(1, p);

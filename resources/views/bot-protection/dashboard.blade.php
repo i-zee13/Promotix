@@ -278,10 +278,9 @@ function botProtectionFigma() {
         async init() {
             this.syncHeaderDates();
             if (!this.filters.from || !this.filters.to) {
-                const today = new Date();
-                const start = new Date(today.getTime() - 6 * 86400000);
-                this.filters.from = start.toISOString().slice(0, 10);
-                this.filters.to = today.toISOString().slice(0, 10);
+                const t = new Date().toISOString().slice(0, 10);
+                this.filters.from = t;
+                this.filters.to = t;
             }
             await this.reload();
             window.addEventListener('promotix:date-range', () => {
@@ -294,27 +293,31 @@ function botProtectionFigma() {
             });
         },
         async reload() {
-            const qs = this.qs();
-            const [s, traffic, trends, th, ib, c, ds] = await Promise.all([
-                fetch(`/bot-protection/summary?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/threat-groups?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/countries?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/domains-summary?${qs}`).then(r => r.json()),
-            ]);
-            this.summary = s;
-            this.invalidTrends = trends;
-            this.countries = c;
-            this.domainsList = ds;
-            this.cache = {
-                traffic,
-                th,
-                ib: ib?.invalid_bot ?? { labels: [], values: [] },
-                mal: ib?.invalid_malicious ?? { labels: [], values: [] },
-            };
-            this.$nextTick(() => this.render());
+            try {
+                const qs = this.qs();
+                const [s, traffic, trends, th, ib, c, ds] = await Promise.all([
+                    fetch(`/bot-protection/summary?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/threat-groups?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/countries?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/domains-summary?${qs}`).then(r => r.json()),
+                ]);
+                this.summary = s;
+                this.invalidTrends = trends;
+                this.countries = c;
+                this.domainsList = ds;
+                this.cache = {
+                    traffic,
+                    th,
+                    ib: ib?.invalid_bot ?? { labels: [], values: [] },
+                    mal: ib?.invalid_malicious ?? { labels: [], values: [] },
+                };
+                this.$nextTick(() => this.render());
+            } finally {
+                window.promotixPageLoader?.hide();
+            }
         },
         canvas(id) {
             const el = document.getElementById(id);

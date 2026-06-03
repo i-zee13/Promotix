@@ -33,13 +33,13 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-4">
-            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
+        <div class="grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-12">
+            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)] xl:col-span-4">
                 <div class="flex items-start justify-between">
                     <h2 class="text-[13px] font-normal text-white">Total Traffic</h2>
                     <div class="flex items-center gap-[8px] text-white/75">
                         <span class="text-[9px]" x-show="livePollOn" title="Reads DB every 30s (tag visits). Use Refresh for Google Ads API sync.">Live</span>
-                        <button type="button" aria-label="Refresh" @click="reload(true)">Refresh</button>
+                        <button type="button" aria-label="Refresh" @click="reload(true, true)">Refresh</button>
                     </div>
                 </div>
                 <div class="mt-[12px] grid grid-cols-2 text-center">
@@ -58,7 +58,7 @@
                 </div>
             </article>
 
-            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
+            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)] xl:col-span-4">
                 <h2 class="text-[13px] font-normal text-white">Bot Protection</h2>
                 <div class="grid grid-cols-[70px_1fr] items-end gap-[10px]">
                     <div class="pt-[15px]">
@@ -69,7 +69,7 @@
                 </div>
             </article>
 
-            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
+            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)] xl:col-span-4">
                 <div class="flex items-start justify-between">
                     <h2 class="text-[13px] font-normal text-white">Blocking Activity</h2>
                     <span class="text-[12px] text-white/75">i</span>
@@ -91,9 +91,9 @@
                 </div>
             </article>
 
-            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[14px] shadow-[0_0_18px_rgba(100,0,179,.35)] sm:col-span-2">
+            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[14px] shadow-[0_0_18px_rgba(100,0,179,.35)] md:col-span-2 xl:col-span-12">
                 <h2 class="text-[13px] font-normal text-white">Google Ads Campaigns</h2>
-                <div class="mt-[8px] max-h-[120px] overflow-y-auto text-[10px] text-white/90">
+                <div class="mt-[8px] max-h-[140px] overflow-y-auto text-[10px] text-white/90">
                     <template x-for="row in campaigns.slice(0, 6)" :key="row.campaign_id || row.campaign">
                         <div class="flex justify-between gap-[8px] border-b border-white/10 py-[4px]">
                             <span class="truncate font-medium" x-text="row.campaign"></span>
@@ -273,6 +273,7 @@ function paidAdvertisingFigma(config = {}) {
             const start = new Date(today.getTime() - days * 86400000);
             this.filters.from = start.toISOString().slice(0, 10);
             this.filters.to = today.toISOString().slice(0, 10);
+            window.promotixPageLoader?.show('Loading data…');
             this.reload();
         },
         qs(forceGoogle = false) {
@@ -315,7 +316,11 @@ function paidAdvertisingFigma(config = {}) {
         async init() {
             this.applyDomainFromUrl();
             this.syncHeaderDates();
-            if (!this.filters.from) this.setWindow();
+            if (!this.filters.from || !this.filters.to) {
+                const t = new Date().toISOString().slice(0, 10);
+                this.filters.from = t;
+                this.filters.to = t;
+            }
             this.startLivePoll();
             window.addEventListener('promotix:date-range', () => {
                 this.syncHeaderDates();
@@ -329,27 +334,32 @@ function paidAdvertisingFigma(config = {}) {
                 if (!document.hidden) this.reload();
             });
         },
-        async reload(forceGoogle = false) {
-            const qs = this.qs(forceGoogle);
-            const [summary, trends, blocking, campaigns, keywords, countries, ips, heatmap] = await Promise.all([
-                fetch(`/paid-marketing/summary?${qs}`).then(r => r.json()),
-                fetch(`/paid-marketing/trends?${qs}`).then(r => r.json()),
-                fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json()),
-                fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json()),
-                fetch(`/paid-marketing/keywords?${qs}`).then(r => r.json()),
-                fetch(`/paid-marketing/countries?${qs}`).then(r => r.json()),
-                fetch(`/paid-marketing/ips?${qs}`).then(r => r.json()),
-                fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
-            ]);
-            this.summary = summary;
-            this.trends = trends;
-            this.blocking = blocking;
-            this.campaigns = campaigns;
-            this.keywords = keywords;
-            this.countries = countries;
-            this.ips = ips;
-            this.heatmap = heatmap;
-            this.$nextTick(() => this.render());
+        async reload(forceGoogle = false, withLoader = false) {
+            if (withLoader) window.promotixPageLoader?.show('Refreshing dashboard…');
+            try {
+                const qs = this.qs(forceGoogle);
+                const [summary, trends, blocking, campaigns, keywords, countries, ips, heatmap] = await Promise.all([
+                    fetch(`/paid-marketing/summary?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/trends?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/keywords?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/countries?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/ips?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
+                ]);
+                this.summary = summary;
+                this.trends = trends;
+                this.blocking = blocking;
+                this.campaigns = campaigns;
+                this.keywords = keywords;
+                this.countries = countries;
+                this.ips = ips;
+                this.heatmap = heatmap;
+                this.$nextTick(() => this.render());
+            } finally {
+                window.promotixPageLoader?.hide();
+            }
         },
         render() {
             this.drawLine('paid-trends', this.trends.labels || [], this.trends.datasets || []);

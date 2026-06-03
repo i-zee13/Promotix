@@ -10,6 +10,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
+@include('partials.promotix-page-loader')
 @php
     $user = auth()->user();
     $navGroups = [
@@ -242,13 +243,13 @@ function figmaHeaderBar() {
         try { return JSON.parse(localStorage.getItem('promotix-date-range') || '{}'); } catch (e) { return {}; }
     })();
     const today = new Date();
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 6);
+    const todayStr = fmt(today);
     return {
         userMenuOpen: false,
-        from: stored.from || fmt(weekAgo),
-        to: stored.to || fmt(today),
+        from: stored.from || todayStr,
+        to: stored.to || todayStr,
         applyRange() {
+            window.promotixPageLoader?.show('Loading data…');
             localStorage.setItem('promotix-date-range', JSON.stringify({ from: this.from, to: this.to }));
             window.dispatchEvent(new CustomEvent('promotix:date-range', { detail: { from: this.from, to: this.to } }));
         },
@@ -256,6 +257,13 @@ function figmaHeaderBar() {
             this.$refs.fromDate?.showPicker?.();
         },
         init() {
+            const migrateKey = 'promotix-date-default-today-v1';
+            if (!localStorage.getItem(migrateKey)) {
+                const t = fmt(new Date());
+                this.from = t;
+                this.to = t;
+                localStorage.setItem(migrateKey, '1');
+            }
             this.applyRange();
         },
     };
