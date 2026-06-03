@@ -301,7 +301,8 @@
             <div class="flex-1 overflow-y-auto px-[18px] py-[14px]">
                 <p x-show="paidPick.loading" class="py-[24px] text-center text-[13px] text-white/60">Loading your Google Ads accounts…</p>
                 <p x-show="!paidPick.loading && paidPick.accounts.length === 0" class="py-[24px] text-center text-[13px] text-white/60">
-                    No ad accounts found. Sync from <a href="{{ route('integrations') }}" class="text-[#b893d8] underline">Platform Integrate</a> first.
+                    <span x-text="paidPick.syncError || 'No ad accounts found for this Google login.'"></span>
+                    <span class="mt-[8px] block text-[11px] text-white/45">Use the Gmail that owns the ads account, or fix GOOGLE_ADS_DEVELOPER_TOKEN / LOGIN_CUSTOMER_ID on the server.</span>
                 </p>
                 <div class="space-y-[10px]">
                     <template x-for="acc in paidPick.accounts" :key="acc.id">
@@ -362,6 +363,7 @@ function siteManagementFigma() {
             googleEmail: '',
             accounts: [],
             selectedId: null,
+            syncError: '',
         },
         applyTableSearch() {
             clearTimeout(this.tableSearchTimer);
@@ -406,6 +408,7 @@ function siteManagementFigma() {
                 const data = await res.json();
                 this.paidPick.accounts = data.accounts || [];
                 this.paidPick.googleEmail = data.google_email || '';
+                this.paidPick.syncError = data.sync_error || data.message || '';
                 const match = this.paidPick.accounts.find(a => a.matches_domain);
                 if (match) this.paidPick.selectedId = match.id;
             } catch (e) {

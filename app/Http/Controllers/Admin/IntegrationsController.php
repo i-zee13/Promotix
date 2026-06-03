@@ -249,9 +249,15 @@ class IntegrationsController extends Controller
                 'connection_id' => $connection->id,
             ]);
 
+            $syncResult = $this->syncGoogleAdsAccountsForConnection($connection, $user->id);
+            $status = $syncResult['error']
+                ?? ($syncResult['synced'] > 0
+                    ? "Google connected. Found {$syncResult['synced']} ad account(s)—pick one for this domain."
+                    : 'Google connected, but no accessible ad accounts for this Gmail. Try the account owner email or check MCC access in .env.');
+
             return redirect()
                 ->route('domains.index', ['pick_paid_domain' => $paidDomainId])
-                ->with('status', 'Google connected. Select the Google Ads account for this domain.');
+                ->with('status', $status);
         }
 
         return $this->redirectAfterGoogleOAuth($request, $oauthContext, 'Google account connected successfully.');
@@ -268,14 +274,47 @@ class IntegrationsController extends Controller
     public function syncAccounts(Request $request, GoogleConnection $connection): RedirectResponse
     {
         abort_unless($connection->user_id === $request->user()->id, 403);
+
+        $result = $this->syncGoogleAdsAccountsForConnection($connection, $request->user()->id);
+
+        if ($result['error']) {
+            return back()->with('status', $result['error']);
+        }
+
+        $synced = $result['synced'];
+        $skipped = $result['skipped'];
+        $domainsSynced = $result['domains'];
+
+        $domainNote = $domainsSynced > 0
+            ? " Discovered {$domainsSynced} advertised hostname(s) from Google Ads (link manual domains on Site Management)."
+            : '';
+
+        if ($synced === 0 && $skipped > 0) {
+            return back()->with('status', "No accessible Google Ads accounts were synced. {$skipped} account(s) were skipped (disabled, deactivated, or no permission). Check GOOGLE_ADS_LOGIN_CUSTOMER_ID if you use an MCC.{$domainNote}");
+        }
+
+        if ($skipped > 0) {
+            return back()->with('status', "Synced {$synced} Google Ads account(s) with names. {$skipped} inaccessible account(s) were skipped.{$domainNote}");
+        }
+
+        return back()->with('status', "Synced {$synced} Google Ads account(s).{$domainNote}");
+    }
+
+    /**
+     * @return array{synced: int, skipped: int, domains: int, error: ?string}
+     */
+    private function syncGoogleAdsAccountsForConnection(GoogleConnection $connection, int $userId): array
+    {
+        $empty = ['synced' => 0, 'skipped' => 0, 'domains' => 0, 'error' => null];
+
         $developerToken = (string) config('services.google_ads.developer_token');
         if ($developerToken === '') {
-            return back()->with('status', 'Missing GOOGLE_ADS_DEVELOPER_TOKEN.');
+            return array_merge($empty, ['error' => 'Missing GOOGLE_ADS_DEVELOPER_TOKEN.']);
         }
 
         $accessToken = $this->resolveAccessToken($connection);
         if (! $accessToken) {
-            return back()->with('status', 'Could not resolve Google access token. Reconnect Google.');
+            return array_merge($empty, ['error' => 'Could not resolve Google access token. Reconnect Google.']);
         }
 
         $headers = [
@@ -284,7 +323,6 @@ class IntegrationsController extends Controller
             'Accept' => 'application/json',
         ];
 
-        // login-customer-id is used for per-customer calls below, not listAccessibleCustomers.
         $loginCustomerId = preg_replace('/\D+/', '', (string) config('services.google_ads.login_customer_id'));
 
         $versions = $this->googleAdsApiVersions();
@@ -295,7 +333,6 @@ class IntegrationsController extends Controller
         foreach ($versions as $version) {
             $usedVersion = $version;
             $attemptedVersions[] = $version;
-            // REST: GET https://googleads.googleapis.com/v{VERSION}/customers:listAccessibleCustomers
             $listRes = Http::timeout(20)
                 ->withHeaders($headers)
                 ->get($this->googleAdsUrl($version, 'customers:listAccessibleCustomers'));
@@ -319,7 +356,7 @@ class IntegrationsController extends Controller
             $reason = $this->extractApiError($listRes);
             $all404 = $listRes && $listRes->status() === 404;
             Log::warning('Google Ads listAccessibleCustomers failed', [
-                'user_id' => $request->user()->id,
+                'user_id' => $userId,
                 'connection_id' => $connection->id,
                 'status' => $listRes?->status(),
                 'version_tried' => $usedVersion,
@@ -329,10 +366,10 @@ class IntegrationsController extends Controller
             ]);
 
             if ($all404) {
-                return back()->with('status', 'Google Ads API version not found. Set GOOGLE_ADS_API_VERSIONS=v24,v23,v22,v21,v20 in .env, run php artisan config:clear, then sync again.');
+                return array_merge($empty, ['error' => 'Google Ads API version not found. Set GOOGLE_ADS_API_VERSIONS=v24,v23,v22,v21,v20 in .env, run php artisan config:clear, then sync again.']);
             }
 
-            return back()->with('status', 'Google Ads account listing failed: ' . str($reason)->limit(220));
+            return array_merge($empty, ['error' => 'Google Ads account listing failed: ' . str($reason)->limit(220)]);
         }
 
         $baseDetailHeaders = array_merge($headers, [
@@ -407,7 +444,7 @@ class IntegrationsController extends Controller
 
             if ($isManager) {
                 $childResult = $this->syncManagerChildAccounts(
-                    $request->user()->id,
+                    $userId,
                     $connection,
                     $customerId,
                     (string) $usedVersion,
@@ -423,7 +460,7 @@ class IntegrationsController extends Controller
 
             $accountHeaders = $this->googleAdsDetailHeaders($baseDetailHeaders, $loginCustomerId !== '' ? $loginCustomerId : null);
             $domainsSynced += $domainSync->syncForAccount(
-                $request->user()->id,
+                $userId,
                 $adsAccount,
                 $customerId,
                 (string) $usedVersion,
@@ -431,19 +468,12 @@ class IntegrationsController extends Controller
             );
         }
 
-        $domainNote = $domainsSynced > 0
-            ? " Discovered {$domainsSynced} advertised hostname(s) from Google Ads (link manual domains on Site Management)."
-            : '';
-
-        if ($synced === 0 && $skipped > 0) {
-            return back()->with('status', "No accessible Google Ads accounts were synced. {$skipped} account(s) were skipped (disabled, deactivated, or no permission). Check GOOGLE_ADS_LOGIN_CUSTOMER_ID if you use an MCC.{$domainNote}");
-        }
-
-        if ($skipped > 0) {
-            return back()->with('status', "Synced {$synced} Google Ads account(s) with names. {$skipped} inaccessible account(s) were skipped.{$domainNote}");
-        }
-
-        return back()->with('status', "Synced {$synced} Google Ads account(s).{$domainNote}");
+        return [
+            'synced' => $synced,
+            'skipped' => $skipped,
+            'domains' => $domainsSynced,
+            'error' => null,
+        ];
     }
 
     public function storeAccount(Request $request): RedirectResponse
@@ -863,12 +893,13 @@ class IntegrationsController extends Controller
             return response()->json(['accounts' => [], 'message' => 'Connect Google first.']);
         }
 
-        $accounts = GoogleAdsAccount::query()
-            ->where('google_connection_id', $connection->id)
-            ->synced()
-            ->where('is_manager', false)
-            ->orderBy('account_name')
-            ->get()
+        $syncError = null;
+        if ($this->pickableAdsAccounts($connection)->isEmpty()) {
+            $syncResult = $this->syncGoogleAdsAccountsForConnection($connection, $request->user()->id);
+            $syncError = $syncResult['error'];
+        }
+
+        $accounts = $this->pickableAdsAccounts($connection)
             ->map(fn ($a) => [
                 'id' => $a->id,
                 'account_name' => $a->displayLabel(),
@@ -882,7 +913,21 @@ class IntegrationsController extends Controller
             'connection_id' => $connection->id,
             'google_email' => $connection->google_email,
             'accounts' => $accounts,
+            'sync_error' => $syncError,
+            'message' => $accounts->isEmpty()
+                ? ($syncError ?: 'No ad accounts found for this Google login.')
+                : null,
         ]);
+    }
+
+    private function pickableAdsAccounts(GoogleConnection $connection)
+    {
+        return GoogleAdsAccount::query()
+            ->where('google_connection_id', $connection->id)
+            ->synced()
+            ->where('is_manager', false)
+            ->orderBy('account_name')
+            ->get();
     }
 
     public function linkDomainPaidAccount(Request $request, Domain $domain): JsonResponse
