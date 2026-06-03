@@ -10,7 +10,18 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
-@include('partials.promotix-page-loader')
+@php
+    $usesDashboardDateRange = request()->routeIs([
+        'dashboard',
+        'paid-marketing.dashboard',
+        'paid-marketing.detailed',
+        'bot-protection.dashboard',
+        'bot-protection.advanced',
+    ]);
+@endphp
+@if ($usesDashboardDateRange)
+    @include('partials.promotix-page-loader')
+@endif
 @php
     $user = auth()->user();
     $navGroups = [
@@ -136,12 +147,13 @@
             </a>
         </div>
 
-        <div class="relative flex items-center gap-[8px]" x-data="figmaHeaderBar()" x-init="init()" @click.outside="userMenuOpen = false">
+        <div class="relative flex items-center gap-[8px]">
             @hasSection('header-actions')
                 <div class="hidden items-center gap-2 md:flex">@yield('header-actions')</div>
             @endif
 
-            <div class="relative hidden sm:block" title="Date range for dashboards" @click.outside="calendarOpen = false">
+            @if ($usesDashboardDateRange)
+            <div class="relative hidden sm:block" x-data="figmaDateRangePicker()" x-init="init()" @click.outside="calendarOpen = false" title="Date range for dashboards">
                 <button
                     type="button"
                     @click="toggleCalendar()"
@@ -183,23 +195,26 @@
                     <p class="figma-date-range-hint" x-text="pickStart ? 'Now select end date' : 'Select start date, then end date'"></p>
                 </div>
             </div>
+            @endif
 
-            <div class="flex h-[27px] max-w-[60vw] items-center overflow-hidden rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] text-white sm:max-w-none">
-                <span class="flex h-full w-[30px] items-center justify-center border-r border-[#6400B2] bg-white/10">
-                    <svg class="h-[15px] w-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 1115 0"/></svg>
-                </span>
-                <button type="button" @click="userMenuOpen = ! userMenuOpen" class="truncate px-[9px] text-left sm:px-[14px]">{{ $user?->email ?? 'example@gmail.com' }}</button>
-            </div>
+            <div class="relative" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
+                <div class="flex h-[27px] max-w-[60vw] items-center overflow-hidden rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] text-white sm:max-w-none">
+                    <span class="flex h-full w-[30px] items-center justify-center border-r border-[#6400B2] bg-white/10">
+                        <svg class="h-[15px] w-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 1115 0"/></svg>
+                    </span>
+                    <button type="button" @click="userMenuOpen = ! userMenuOpen" class="truncate px-[9px] text-left sm:px-[14px]">{{ $user?->email ?? 'example@gmail.com' }}</button>
+                </div>
 
-            <div x-show="userMenuOpen" x-cloak class="figma-user-menu absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#6400B2]/60 bg-[#111111] py-1 shadow-card-lg">
-                <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Account settings</a>
-                @if ($user?->is_super_admin)
-                    <a href="{{ route('super-admin.dashboard') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Super Admin</a>
-                @endif
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="block w-full px-4 py-2 text-left text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Logout</button>
-                </form>
+                <div x-show="userMenuOpen" x-cloak class="figma-user-menu absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#6400B2]/60 bg-[#111111] py-1 shadow-card-lg">
+                    <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Account settings</a>
+                    @if ($user?->is_super_admin)
+                        <a href="{{ route('super-admin.dashboard') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Super Admin</a>
+                    @endif
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="block w-full px-4 py-2 text-left text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Logout</button>
+                    </form>
+                </div>
             </div>
         </div>
     </header>
@@ -270,7 +285,7 @@
 @include('partials.figma-notifications-script')
 
 <script>
-function figmaHeaderBar() {
+function figmaDateRangePicker() {
     const pad = (n) => String(n).padStart(2, '0');
     const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const stored = (() => {
@@ -293,7 +308,6 @@ function figmaHeaderBar() {
     };
 
     return {
-        userMenuOpen: false,
         calendarOpen: false,
         pickStart: null,
         viewMonth: new Date(today.getFullYear(), today.getMonth(), 1),

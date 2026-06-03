@@ -9,6 +9,7 @@ window.promotixPageLoader = (function () {
     let visible = false;
     let shownAt = 0;
     let hideTimer = null;
+    let safetyTimer = null;
     const minMs = 1200;
 
     function node() {
@@ -18,19 +19,22 @@ window.promotixPageLoader = (function () {
     return {
         show(msg) {
             clearTimeout(hideTimer);
-            visible = true;
-            shownAt = Date.now();
+            clearTimeout(safetyTimer);
             const el = node();
             if (!el) return;
+            visible = true;
+            shownAt = Date.now();
             el.classList.remove('hidden');
             el.classList.add('flex');
             el.setAttribute('aria-hidden', 'false');
             const label = el.querySelector('[data-loader-msg]');
             if (label && msg) label.textContent = msg;
+            safetyTimer = setTimeout(() => this.hide(), 15000);
         },
         hide() {
             if (!visible) return;
             visible = false;
+            clearTimeout(safetyTimer);
             const wait = Math.max(0, minMs - (Date.now() - shownAt));
             clearTimeout(hideTimer);
             hideTimer = setTimeout(() => {
