@@ -97,7 +97,7 @@
                             <span class="shrink-0 text-white/70" x-text="(row.clicks ?? row.total ?? 0) + ' clk · $' + (row.cpc ?? 0)"></span>
                         </div>
                     </template>
-                    <p x-show="campaigns.length === 0" class="py-[8px] text-white/50">No Google Ads data for this date range. Connect the domain via Setup on Site Management, or pick another domain above.</p>
+                    <p x-show="campaigns.length === 0" class="py-[8px] text-white/50">No Google Ads data for this date range. Try the calendar (stored data may be May–Jun 2026) or run: php artisan google-ads:sync-domain-metrics {domain_id}</p>
                 </div>
             </article>
         </div>

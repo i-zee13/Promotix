@@ -34,6 +34,16 @@ class GoogleAdsDomainMetricsSync
         $to = ($to ?? Carbon::now())->copy()->endOfDay();
         $from = ($from ?? $to->copy()->subDays(self::DEFAULT_SYNC_DAYS))->copy()->startOfDay();
 
+        Log::info('Google Ads domain metrics sync → start', [
+            'domain_id' => $domain->id,
+            'hostname' => $domain->hostname,
+            'google_ads_account_id' => $account->id,
+            'customer_id' => $account->customer_id,
+            'manager_customer_id' => $account->manager_customer_id,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+        ]);
+
         // Store all campaigns for the linked account (no hostname filter on save).
         $dailyRows = $this->fetchDailyFromGoogle($account, $from, $to);
 
@@ -45,11 +55,15 @@ class GoogleAdsDomainMetricsSync
         }
 
         if ($dailyRows === []) {
-            $this->lastMessage = 'Google returned no campaign metrics for the last ' . self::DEFAULT_SYNC_DAYS . ' days.';
-            Log::info('Google Ads domain metrics sync: no rows', [
+            $apiErr = app(GoogleAdsMetricsService::class)->lastApiError;
+            $this->lastMessage = $apiErr
+                ?: ('Google returned no campaign metrics for the last ' . self::DEFAULT_SYNC_DAYS . ' days.');
+
+            Log::warning('Google Ads domain metrics sync ← no rows saved', [
                 'domain_id' => $domain->id,
                 'hostname' => $domain->hostname,
                 'customer_id' => $account->customer_id,
+                'api_error' => $apiErr,
             ]);
 
             return array_merge($empty, ['message' => $this->lastMessage]);
@@ -97,6 +111,12 @@ class GoogleAdsDomainMetricsSync
         $domain->ads_synced_at = $now;
         $domain->save();
 
+        Log::info('Google Ads domain metrics sync ← done', [
+            'domain_id' => $domain->id,
+            'rows_saved' => $saved,
+            'table' => 'google_ads_campaign_daily_metrics',
+        ]);
+
         return [
             'saved' => $saved,
             'message' => $this->lastMessage,
@@ -140,6 +160,88 @@ class GoogleAdsDomainMetricsSync
         })->values()->all();
     }
 
+    /**
+     * Use header date range when it overlaps DB rows; otherwise use all stored dates for this domain.
+     *
+     * @return array{from: Carbon, to: Carbon, used_stored_bounds: bool}
+     */
+    public function effectiveMetricRange(int $domainId, Carbon $from, Carbon $to): array
+    {
+        $hasInRange = GoogleAdsCampaignDailyMetric::query()
+            ->where('domain_id', $domainId)
+            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->exists();
+
+        if ($hasInRange) {
+            return ['from' => $from, 'to' => $to, 'used_stored_bounds' => false];
+        }
+
+        $bounds = GoogleAdsCampaignDailyMetric::query()
+            ->where('domain_id', $domainId)
+            ->selectRaw('MIN(metric_date) as min_date, MAX(metric_date) as max_date')
+            ->first();
+
+        if (! $bounds?->min_date || ! $bounds?->max_date) {
+            return ['from' => $from, 'to' => $to, 'used_stored_bounds' => false];
+        }
+
+        return [
+            'from' => Carbon::parse($bounds->min_date)->startOfDay(),
+            'to' => Carbon::parse($bounds->max_date)->endOfDay(),
+            'used_stored_bounds' => true,
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function aggregatedCampaignRowsWithFallback(int $domainId, Carbon $from, Carbon $to): array
+    {
+        $range = $this->effectiveMetricRange($domainId, $from, $to);
+
+        return $this->aggregatedCampaignRows($domainId, $range['from'], $range['to']);
+    }
+
+    /**
+     * @return array{clicks: int, cost: float, impressions: int, from: string, to: string, used_stored_bounds: bool}
+     */
+    public function clickTotalsForDomain(int $domainId, Carbon $from, Carbon $to): array
+    {
+        $range = $this->effectiveMetricRange($domainId, $from, $to);
+
+        $agg = GoogleAdsCampaignDailyMetric::query()
+            ->where('domain_id', $domainId)
+            ->whereBetween('metric_date', [$range['from']->toDateString(), $range['to']->toDateString()])
+            ->selectRaw('COALESCE(SUM(clicks), 0) as clicks, COALESCE(SUM(cost), 0) as cost, COALESCE(SUM(impressions), 0) as impressions')
+            ->first();
+
+        return [
+            'clicks' => (int) ($agg->clicks ?? 0),
+            'cost' => round((float) ($agg->cost ?? 0), 2),
+            'impressions' => (int) ($agg->impressions ?? 0),
+            'from' => $range['from']->toDateString(),
+            'to' => $range['to']->toDateString(),
+            'used_stored_bounds' => $range['used_stored_bounds'],
+        ];
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<string, object{metric_date: string, clicks: int}>
+     */
+    public function dailyClicksByDate(int $domainId, Carbon $from, Carbon $to)
+    {
+        $range = $this->effectiveMetricRange($domainId, $from, $to);
+
+        return GoogleAdsCampaignDailyMetric::query()
+            ->where('domain_id', $domainId)
+            ->whereBetween('metric_date', [$range['from']->toDateString(), $range['to']->toDateString()])
+            ->selectRaw('metric_date, SUM(clicks) as clicks')
+            ->groupBy('metric_date')
+            ->orderBy('metric_date')
+            ->get()
+            ->keyBy(fn ($row) => Carbon::parse($row->metric_date)->toDateString());
+    }
+
     public function shouldRefresh(Domain $domain, Carbon $from, Carbon $to): bool
     {
         if (! $domain->google_ads_account_id) {
@@ -156,7 +258,6 @@ class GoogleAdsDomainMetricsSync
 
         return ! GoogleAdsCampaignDailyMetric::query()
             ->where('domain_id', $domain->id)
-            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
             ->exists();
     }
 
@@ -193,9 +294,20 @@ class GoogleAdsDomainMetricsSync
             array_unshift($headerAttempts, $withMcc);
         }
 
-        foreach ($headerAttempts as $headers) {
+        foreach ($headerAttempts as $index => $headers) {
+            Log::info('Google Ads domain metrics sync: API attempt', [
+                'attempt' => $index + 1,
+                'customer_id' => $account->customer_id,
+                'login_customer_id' => $headers['login-customer-id'] ?? null,
+            ]);
+
             $rows = $metrics->dailyCampaignMetrics($account, $version, $headers, $fromStr, $toStr, null);
             if ($rows !== []) {
+                Log::info('Google Ads domain metrics sync: API attempt succeeded', [
+                    'attempt' => $index + 1,
+                    'rows' => count($rows),
+                ]);
+
                 return $rows;
             }
         }

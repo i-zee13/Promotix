@@ -76,15 +76,8 @@ class GoogleAdsMetricsService
 
         $query = "SELECT campaign.id, campaign.name, campaign.status, segments.date, metrics.clicks, metrics.impressions, metrics.cost_micros, metrics.average_cpc, metrics.conversions, metrics.ctr FROM campaign WHERE segments.date BETWEEN '{$fromDate}' AND '{$toDate}' AND campaign.status != 'REMOVED' ORDER BY segments.date DESC, metrics.clicks DESC LIMIT 5000";
 
-        $res = $this->searchStream($apiVersion, $customerId, $query, $headers);
+        $res = $this->searchStream($apiVersion, $customerId, $query, $headers, 'daily_campaign_metrics');
         if (! $res->successful()) {
-            Log::warning('Google Ads daily campaign metrics failed', [
-                'customer_id' => $customerId,
-                'status' => $res->status(),
-                'body' => Str::limit($res->body(), 800),
-                'login_customer_id' => $headers['login-customer-id'] ?? null,
-            ]);
-
             return [];
         }
 
@@ -124,6 +117,15 @@ class GoogleAdsMetricsService
             }
         }
 
+        Log::info('Google Ads daily campaign metrics parsed', [
+            'customer_id' => $customerId,
+            'login_customer_id' => $headers['login-customer-id'] ?? null,
+            'date_from' => $fromDate,
+            'date_to' => $toDate,
+            'rows_parsed' => count($rows),
+            'hostname_filter' => $hostnameFilter,
+        ]);
+
         return $rows;
     }
 
@@ -141,7 +143,7 @@ class GoogleAdsMetricsService
         $host = strtolower(trim($hostname));
         $query = "SELECT campaign.id, landing_page_view.unexpanded_final_url FROM landing_page_view WHERE segments.date BETWEEN '{$fromDate}' AND '{$toDate}' LIMIT 500";
 
-        $res = $this->searchStream($apiVersion, $customerId, $query, $headers);
+        $res = $this->searchStream($apiVersion, $customerId, $query, $headers, 'landing_page_hostname');
         if (! $res->successful()) {
             return [];
         }
@@ -166,18 +168,55 @@ class GoogleAdsMetricsService
     /**
      * @param array<string, string> $headers
      */
-    private function searchStream(string $apiVersion, string $customerId, string $query, array $headers): \Illuminate\Http\Client\Response
-    {
+    private function searchStream(
+        string $apiVersion,
+        string $customerId,
+        string $query,
+        array $headers,
+        string $context = 'search_stream'
+    ): \Illuminate\Http\Client\Response {
+        $safeHeaders = $headers;
+        unset($safeHeaders['Authorization']);
+
+        Log::info('Google Ads API → request', [
+            'context' => $context,
+            'customer_id' => $customerId,
+            'api_version' => $apiVersion,
+            'login_customer_id' => $safeHeaders['login-customer-id'] ?? null,
+            'query' => $query,
+        ]);
+
         $res = Http::timeout(45)
             ->withHeaders($headers)
             ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
                 'query' => $query,
             ]);
 
+        $body = (string) $res->body();
+        $parsedCount = $res->successful() ? count($this->parseRows($res->json())) : 0;
+
         if (! $res->successful()) {
-            $this->lastApiError = 'HTTP ' . $res->status() . ': ' . Str::limit($this->extractErrorMessage($res->body()), 280);
+            $this->lastApiError = 'HTTP ' . $res->status() . ': ' . Str::limit($this->extractErrorMessage($body), 280);
+
+            Log::warning('Google Ads API ← error response', [
+                'context' => $context,
+                'customer_id' => $customerId,
+                'status' => $res->status(),
+                'login_customer_id' => $safeHeaders['login-customer-id'] ?? null,
+                'error_summary' => $this->lastApiError,
+                'body' => Str::limit($body, 4000),
+            ]);
         } else {
             $this->lastApiError = null;
+
+            Log::info('Google Ads API ← success response', [
+                'context' => $context,
+                'customer_id' => $customerId,
+                'status' => $res->status(),
+                'login_customer_id' => $safeHeaders['login-customer-id'] ?? null,
+                'parsed_rows' => $parsedCount,
+                'body_preview' => Str::limit($body, 2500),
+            ]);
         }
 
         return $res;

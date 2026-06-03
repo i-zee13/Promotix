@@ -352,6 +352,16 @@ class IntegrationsController extends Controller
             }
         }
 
+        if ($listRes && $listRes->successful()) {
+            $resourceNames = (array) ($listRes->json('resourceNames') ?? []);
+            Log::info('Google Ads API ← listAccessibleCustomers success', [
+                'connection_id' => $connection->id,
+                'status' => $listRes->status(),
+                'account_count' => count($resourceNames),
+                'body_preview' => Str::limit((string) $listRes->body(), 2000),
+            ]);
+        }
+
         if (! $listRes || ! $listRes->successful()) {
             $reason = $this->extractApiError($listRes);
             $all404 = $listRes && $listRes->status() === 404;
@@ -784,21 +794,77 @@ class IntegrationsController extends Controller
         array $baseHeaders,
         ?string $loginCustomerId
     ) {
-        $response = Http::timeout(20)
-            ->withHeaders($this->googleAdsDetailHeaders($baseHeaders, $loginCustomerId))
-            ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
-                'query' => $query,
-            ]);
+        $response = $this->postGoogleAdsSearchStream(
+            $apiVersion,
+            $customerId,
+            $query,
+            $this->googleAdsDetailHeaders($baseHeaders, $loginCustomerId),
+            'integrations',
+            $loginCustomerId
+        );
 
         if ($response->successful() || $loginCustomerId === null || $loginCustomerId === '') {
             return $response;
         }
 
-        return Http::timeout(20)
-            ->withHeaders($this->googleAdsDetailHeaders($baseHeaders, null))
+        return $this->postGoogleAdsSearchStream(
+            $apiVersion,
+            $customerId,
+            $query,
+            $this->googleAdsDetailHeaders($baseHeaders, null),
+            'integrations_retry_no_mcc',
+            null
+        );
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function postGoogleAdsSearchStream(
+        string $apiVersion,
+        string $customerId,
+        string $query,
+        array $headers,
+        string $context,
+        ?string $loginCustomerId
+    ) {
+        $safeHeaders = $headers;
+        unset($safeHeaders['Authorization']);
+
+        Log::info('Google Ads API → request', [
+            'context' => $context,
+            'customer_id' => $customerId,
+            'api_version' => $apiVersion,
+            'login_customer_id' => $loginCustomerId,
+            'query' => Str::limit($query, 600),
+        ]);
+
+        $response = Http::timeout(20)
+            ->withHeaders($headers)
             ->post($this->googleAdsUrl($apiVersion, "customers/{$customerId}/googleAds:searchStream"), [
                 'query' => $query,
             ]);
+
+        $body = (string) $response->body();
+
+        if ($response->successful()) {
+            Log::info('Google Ads API ← success response', [
+                'context' => $context,
+                'customer_id' => $customerId,
+                'status' => $response->status(),
+                'body_preview' => Str::limit($body, 2500),
+            ]);
+        } else {
+            Log::warning('Google Ads API ← error response', [
+                'context' => $context,
+                'customer_id' => $customerId,
+                'status' => $response->status(),
+                'error_summary' => $this->extractApiError($response),
+                'body' => Str::limit($body, 4000),
+            ]);
+        }
+
+        return $response;
     }
 
     /**
@@ -964,15 +1030,29 @@ class IntegrationsController extends Controller
         $metricsSaved = 0;
         $metricsMessage = null;
         try {
+            Log::info('Google Ads link domain → starting metrics sync', [
+                'domain_id' => $domain->id,
+                'hostname' => $domain->hostname,
+                'google_ads_account_id' => $account->id,
+                'customer_id' => $account->customer_id,
+            ]);
+
             $sync = app(\App\Services\GoogleAdsDomainMetricsSync::class);
             $syncResult = $sync->syncDomain($domain->fresh());
             $metricsSaved = (int) ($syncResult['saved'] ?? 0);
             $metricsMessage = $syncResult['message'] ?? $sync->lastMessage;
+
+            Log::info('Google Ads link domain ← metrics sync finished', [
+                'domain_id' => $domain->id,
+                'metrics_rows_saved' => $metricsSaved,
+                'metrics_message' => $metricsMessage,
+            ]);
         } catch (\Throwable $e) {
             $metricsMessage = $e->getMessage();
-            \Illuminate\Support\Facades\Log::warning('Google Ads metrics sync on domain link failed', [
+            Log::warning('Google Ads metrics sync on domain link failed', [
                 'domain_id' => $domain->id,
                 'message' => $e->getMessage(),
+                'trace' => Str::limit($e->getTraceAsString(), 1500),
             ]);
         }
 

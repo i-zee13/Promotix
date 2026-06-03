@@ -36,23 +36,33 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function summary(Request $request): JsonResponse
     {
-        if (! Schema::hasTable('visits')) {
-            return response()->json($this->emptySummary());
-        }
-
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $base = $this->scopedVisitsQuery($request, $domainIds, $from, $to);
-
-        $paid = (clone $base)->count();
-        $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
+        $paid = 0;
+        $invalid = 0;
         $blocked = 0;
         $flagged = 0;
 
-        if (Schema::hasColumn('visits', 'action_taken')) {
-            $blocked = (clone $base)->where('action_taken', 'block')->count();
-            $flagged = (clone $base)->where('action_taken', 'flag')->count();
+        if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
+            $base = $this->scopedVisitsQuery($request, $domainIds, $from, $to);
+            $paid = (clone $base)->count();
+            $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
+
+            if (Schema::hasColumn('visits', 'action_taken')) {
+                $blocked = (clone $base)->where('action_taken', 'block')->count();
+                $flagged = (clone $base)->where('action_taken', 'flag')->count();
+            }
+        }
+
+        $googleAds = null;
+        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->count() === 1) {
+            $googleAds = app(GoogleAdsDomainMetricsSync::class)
+                ->clickTotalsForDomain((int) $domainIds->first(), $from, $to);
+
+            if ($paid === 0 && ($googleAds['clicks'] ?? 0) > 0) {
+                $paid = (int) $googleAds['clicks'];
+            }
         }
 
         return response()->json([
@@ -61,6 +71,7 @@ class PaidAdvertisingDashboardController extends Controller
             'blocked_paid_visits' => $blocked,
             'flagged_paid_visits' => $flagged,
             'valid_paid_visits' => max(0, $paid - $invalid),
+            'google_ads' => $googleAds,
             'window' => [
                 'from' => $from->toIso8601String(),
                 'to' => $to->toIso8601String(),
@@ -70,29 +81,43 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function trends(Request $request): JsonResponse
     {
-        if (! Schema::hasTable('visits')) {
-            return response()->json(['labels' => [], 'datasets' => []]);
-        }
-
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
-            ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
-            ->groupBy('day')
-            ->orderBy('day')
-            ->get();
+        $rows = collect();
+        if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
+            $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+                ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
+                ->groupBy('day')
+                ->orderBy('day')
+                ->get();
+        }
+
+        $googleByDay = null;
+        $chartFrom = $from;
+        $chartTo = $to;
+
+        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->count() === 1) {
+            $sync = app(GoogleAdsDomainMetricsSync::class);
+            $domainId = (int) $domainIds->first();
+            $range = $sync->effectiveMetricRange($domainId, $from, $to);
+            $chartFrom = $range['from'];
+            $chartTo = $range['to'];
+            $googleByDay = $sync->dailyClicksByDate($domainId, $from, $to);
+        }
 
         $labels = [];
         $paidSeries = [];
         $invalidSeries = [];
 
-        $period = $from->copy();
-        while ($period->lt($to)) {
+        $period = $chartFrom->copy();
+        while ($period->lte($chartTo)) {
             $key = $period->toDateString();
             $row = $rows->firstWhere('day', $key);
+            $visitPaid = (int) ($row->total ?? 0);
+            $googlePaid = (int) ($googleByDay?->get($key)?->clicks ?? 0);
             $labels[] = $period->format('M d');
-            $paidSeries[] = (int) ($row->total ?? 0);
+            $paidSeries[] = $visitPaid > 0 ? $visitPaid : $googlePaid;
             $invalidSeries[] = (int) ($row->invalid ?? 0);
             $period->addDay();
         }
@@ -220,7 +245,7 @@ class PaidAdvertisingDashboardController extends Controller
                 $sync->syncDomain($domain->fresh(), $from, $to)['saved'] ?? 0;
             }
 
-            $dbRows = $sync->aggregatedCampaignRows($domain->id, $from, $to);
+            $dbRows = $sync->aggregatedCampaignRowsWithFallback($domain->id, $from, $to);
             if ($dbRows !== []) {
                 return $dbRows;
             }
@@ -229,7 +254,7 @@ class PaidAdvertisingDashboardController extends Controller
         $liveRows = $this->googleAdsCampaignRows($domain->googleAdsAccount, $from, $to, $domain->hostname);
         if ($liveRows !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
             $sync->syncDomain($domain->fresh(), $from, $to)['saved'] ?? 0;
-            $dbRows = $sync->aggregatedCampaignRows($domain->id, $from, $to);
+            $dbRows = $sync->aggregatedCampaignRowsWithFallback($domain->id, $from, $to);
 
             return $dbRows !== [] ? $dbRows : $liveRows;
         }
