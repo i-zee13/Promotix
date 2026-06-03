@@ -142,9 +142,9 @@
             @endif
 
             <div class="hidden items-center gap-[6px] sm:flex" title="Date range for dashboards">
-                <input type="date" x-ref="fromDate" x-model="from" @change="applyRange()" class="h-[27px] rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] px-[6px] text-[10px] text-white">
+                <input type="date" x-ref="fromDate" x-model="from" @change="applyRange(true)" class="h-[27px] rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] px-[6px] text-[10px] text-white">
                 <span class="text-[10px] text-white/50">–</span>
-                <input type="date" x-ref="toDate" x-model="to" @change="applyRange()" class="h-[27px] rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] px-[6px] text-[10px] text-white">
+                <input type="date" x-ref="toDate" x-model="to" @change="applyRange(true)" class="h-[27px] rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] px-[6px] text-[10px] text-white">
                 <button type="button" @click="openCalendar()" class="flex h-[27px] w-[27px] items-center justify-center rounded-[3px] border border-[#6400B2] bg-[#6400B2] text-white hover:bg-[#7B13C8]" aria-label="Pick date range">
                     <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
                 </button>
@@ -248,8 +248,10 @@ function figmaHeaderBar() {
         userMenuOpen: false,
         from: stored.from || todayStr,
         to: stored.to || todayStr,
-        applyRange() {
-            window.promotixPageLoader?.show('Loading data…');
+        applyRange(showLoader = false) {
+            if (showLoader) {
+                window.promotixPageLoader?.show('Loading data…');
+            }
             localStorage.setItem('promotix-date-range', JSON.stringify({ from: this.from, to: this.to }));
             window.dispatchEvent(new CustomEvent('promotix:date-range', { detail: { from: this.from, to: this.to } }));
         },
@@ -264,7 +266,7 @@ function figmaHeaderBar() {
                 this.to = t;
                 localStorage.setItem(migrateKey, '1');
             }
-            this.applyRange();
+            this.applyRange(false);
         },
     };
 }
