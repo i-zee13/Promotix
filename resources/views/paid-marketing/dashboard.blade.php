@@ -33,8 +33,8 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-12">
-            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)] xl:col-span-4">
+        <div class="paid-dashboard-cards">
+            <article class="paid-dashboard-card--stat min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
                 <div class="flex items-start justify-between">
                     <h2 class="text-[13px] font-normal text-white">Total Traffic</h2>
                     <div class="flex items-center gap-[8px] text-white/75">
@@ -58,7 +58,7 @@
                 </div>
             </article>
 
-            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)] xl:col-span-4">
+            <article class="paid-dashboard-card--stat min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
                 <h2 class="text-[13px] font-normal text-white">Bot Protection</h2>
                 <div class="grid grid-cols-[70px_1fr] items-end gap-[10px]">
                     <div class="pt-[15px]">
@@ -69,7 +69,7 @@
                 </div>
             </article>
 
-            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)] xl:col-span-4">
+            <article class="paid-dashboard-card--stat min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
                 <div class="flex items-start justify-between">
                     <h2 class="text-[13px] font-normal text-white">Blocking Activity</h2>
                     <span class="text-[12px] text-white/75">i</span>
@@ -91,7 +91,7 @@
                 </div>
             </article>
 
-            <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[14px] shadow-[0_0_18px_rgba(100,0,179,.35)] md:col-span-2 xl:col-span-12">
+            <article class="paid-dashboard-card--wide min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[14px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
                 <h2 class="text-[13px] font-normal text-white">Google Ads Campaigns</h2>
                 <div class="mt-[8px] max-h-[140px] overflow-y-auto text-[10px] text-white/90">
                     <template x-for="row in campaigns.slice(0, 6)" :key="row.campaign_id || row.campaign">

@@ -70,9 +70,9 @@
                 <form method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
                     @csrf
 
-                    <div class="figma-detection-layout grid grid-cols-1 gap-[10px] xl:grid-cols-12">
+                    <div class="figma-detection-layout">
                         {{-- Left: threat groups (Figma gray panel) --}}
-                        <div class="figma-detection-left xl:col-span-6">
+                        <div class="figma-detection-left">
                             <div class="figma-detection-section">
                                 <h2 class="figma-detection-section-title">Invalid Bot Activity</h2>
                                 <div class="figma-detection-card figma-detection-card--row">
@@ -149,7 +149,7 @@
                         </div>
 
                         {{-- Right: marketing optimization (Figma purple panel) --}}
-                        <section class="figma-detection-right xl:col-span-6">
+                        <section class="figma-detection-right">
                             <div class="figma-detection-right-inner space-y-[40px]">
                                 <div>
                                     <h2 class="figma-detection-right-title">Marketing Optimization Rules</h2>
