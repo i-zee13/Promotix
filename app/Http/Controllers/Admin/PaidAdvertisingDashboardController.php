@@ -39,6 +39,10 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
+        if ($request->boolean('force_google_sync')) {
+            $this->forceGoogleSyncForDomains($request, $domainIds, $from, $to);
+        }
+
         $paid = 0;
         $invalid = 0;
         $blocked = 0;
@@ -83,6 +87,10 @@ class PaidAdvertisingDashboardController extends Controller
     {
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
+
+        if ($request->boolean('force_google_sync')) {
+            $this->forceGoogleSyncForDomains($request, $domainIds, $from, $to);
+        }
 
         $rows = collect();
         if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
@@ -172,6 +180,7 @@ class PaidAdvertisingDashboardController extends Controller
     {
         [$from, $to] = $this->dateRange($request);
         $domainId = (int) $request->query('domain_id', 0);
+        $forceGoogleSync = $request->boolean('force_google_sync');
 
         if ($domainId > 0) {
             $domain = Domain::query()
@@ -181,7 +190,7 @@ class PaidAdvertisingDashboardController extends Controller
                 ->with('googleAdsAccount.connection')
                 ->first();
 
-            $googleRows = $this->resolveGoogleCampaignRowsForDomain($domain, $from, $to);
+            $googleRows = $this->resolveGoogleCampaignRowsForDomain($domain, $from, $to, $forceGoogleSync);
             if ($googleRows !== []) {
                 return response()->json($googleRows);
             }
@@ -194,7 +203,7 @@ class PaidAdvertisingDashboardController extends Controller
                 ->get();
 
             foreach ($domains as $domain) {
-                foreach ($this->resolveGoogleCampaignRowsForDomain($domain, $from, $to) as $row) {
+                foreach ($this->resolveGoogleCampaignRowsForDomain($domain, $from, $to, $forceGoogleSync) as $row) {
                     $allGoogle[] = $row;
                 }
             }
@@ -232,7 +241,7 @@ class PaidAdvertisingDashboardController extends Controller
     /**
      * @return list<array<string, mixed>>
      */
-    private function resolveGoogleCampaignRowsForDomain(?Domain $domain, Carbon $from, Carbon $to): array
+    private function resolveGoogleCampaignRowsForDomain(?Domain $domain, Carbon $from, Carbon $to, bool $forceGoogleSync = false): array
     {
         if (! $domain?->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
             return [];
@@ -241,7 +250,7 @@ class PaidAdvertisingDashboardController extends Controller
         $sync = app(GoogleAdsDomainMetricsSync::class);
 
         if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
-            if ($sync->shouldRefresh($domain, $from, $to)) {
+            if ($forceGoogleSync || $sync->shouldRefresh($domain, $from, $to)) {
                 $sync->syncDomain($domain->fresh(), $from, $to)['saved'] ?? 0;
             }
 
@@ -427,6 +436,28 @@ class PaidAdvertisingDashboardController extends Controller
             'hours' => $hours,
             'matrix' => $matrix,
         ]);
+    }
+
+    private function forceGoogleSyncForDomains(Request $request, $domainIds, Carbon $from, Carbon $to): void
+    {
+        if (! Schema::hasTable('google_ads_campaign_daily_metrics') || $domainIds->isEmpty()) {
+            return;
+        }
+
+        $sync = app(GoogleAdsDomainMetricsSync::class);
+        $domains = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forPaidMarketing()
+            ->whereIn('id', $domainIds)
+            ->with('googleAdsAccount')
+            ->get();
+
+        foreach ($domains as $domain) {
+            if (! $domain->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
+                continue;
+            }
+            $sync->syncDomain($domain, $from, $to);
+        }
     }
 
     private function scopedDomainIds(Request $request)

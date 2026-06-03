@@ -38,8 +38,8 @@
                 <div class="flex items-start justify-between">
                     <h2 class="text-[13px] font-normal text-white">Total Traffic</h2>
                     <div class="flex items-center gap-[8px] text-white/75">
-                        <span class="text-[9px]" x-show="livePollOn" title="Tag traffic refreshes every 30s">Live</span>
-                        <button type="button" aria-label="Refresh" @click="reload()">Refresh</button>
+                        <span class="text-[9px]" x-show="livePollOn" title="Reads DB every 30s (tag visits). Use Refresh for Google Ads API sync.">Live</span>
+                        <button type="button" aria-label="Refresh" @click="reload(true)">Refresh</button>
                     </div>
                 </div>
                 <div class="mt-[12px] grid grid-cols-2 text-center">
@@ -275,12 +275,13 @@ function paidAdvertisingFigma(config = {}) {
             this.filters.to = today.toISOString().slice(0, 10);
             this.reload();
         },
-        qs() {
+        qs(forceGoogle = false) {
             const p = new URLSearchParams();
             if (this.filters.domain_id) p.set('domain_id', this.filters.domain_id);
             if (this.filters.path) p.set('path', this.filters.path);
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);
+            if (forceGoogle) p.set('force_google_sync', '1');
             return p.toString();
         },
         reloadTimer: null,
@@ -328,8 +329,8 @@ function paidAdvertisingFigma(config = {}) {
                 if (!document.hidden) this.reload();
             });
         },
-        async reload() {
-            const qs = this.qs();
+        async reload(forceGoogle = false) {
+            const qs = this.qs(forceGoogle);
             const [summary, trends, blocking, campaigns, keywords, countries, ips, heatmap] = await Promise.all([
                 fetch(`/paid-marketing/summary?${qs}`).then(r => r.json()),
                 fetch(`/paid-marketing/trends?${qs}`).then(r => r.json()),
