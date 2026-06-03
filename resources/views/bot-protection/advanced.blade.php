@@ -26,14 +26,11 @@
                     <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
                     <input x-model="filters.path" @input="scheduleReload(true)" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                 </label>
-                <button type="button" @click="openDatePicker()" class="figma-filter-action flex w-[34px] shrink-0 items-center justify-center bg-[#6400B2] text-white" aria-label="Date range">
+                <button type="button" @click="window.dispatchEvent(new CustomEvent('promotix:open-date-calendar'))" class="figma-filter-action flex w-[34px] shrink-0 items-center justify-center bg-[#6400B2] text-white" aria-label="Date range">
                     <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
                 </button>
             </div>
         </div>
-
-        <input type="date" x-ref="fromPicker" x-model="filters.from" @change="reload(true)" class="sr-only" tabindex="-1" aria-hidden="true">
-        <input type="date" x-ref="toPicker" x-model="filters.to" @change="reload(true)" class="sr-only" tabindex="-1" aria-hidden="true">
 
         <section class="overflow-hidden rounded-[12px] border border-[#6706b3]">
             <div class="flex flex-wrap items-center justify-between gap-[10px] bg-[#6400B2] px-[16px] py-[12px]">
@@ -183,9 +180,6 @@ function botProtectionAdvancedFigma() {
             return p.toString();
         },
         csvHref() { return `/bot-protection/export.csv?${this.qs()}`; },
-        openDatePicker() {
-            this.$refs.fromPicker?.showPicker?.() || this.$refs.fromPicker?.click();
-        },
         reloadTimer: null,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         scheduleReload(resetPage = false) {

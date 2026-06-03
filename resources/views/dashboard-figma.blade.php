@@ -391,13 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncHeaderDatesFromStorage() {
-        try {
-            const r = JSON.parse(localStorage.getItem('promotix-date-range') || '{}');
-            const fromEl = document.querySelector('[x-ref="fromDate"]');
-            const toEl = document.querySelector('[x-ref="toDate"]');
-            if (r.from && fromEl) fromEl.value = r.from;
-            if (r.to && toEl) toEl.value = r.to;
-        } catch (e) {}
+        /* Dates come from header range calendar via localStorage + promotix:date-range */
     }
 
     async function loadAll() {

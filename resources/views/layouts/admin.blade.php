@@ -141,13 +141,47 @@
                 <div class="hidden items-center gap-2 md:flex">@yield('header-actions')</div>
             @endif
 
-            <div class="hidden items-center gap-[6px] sm:flex" title="Date range for dashboards">
-                <input type="date" x-ref="fromDate" x-model="from" @change="applyRange(true)" class="h-[27px] rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] px-[6px] text-[10px] text-white">
-                <span class="text-[10px] text-white/50">–</span>
-                <input type="date" x-ref="toDate" x-model="to" @change="applyRange(true)" class="h-[27px] rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] px-[6px] text-[10px] text-white">
-                <button type="button" @click="openCalendar()" class="flex h-[27px] w-[27px] items-center justify-center rounded-[3px] border border-[#6400B2] bg-[#6400B2] text-white hover:bg-[#7B13C8]" aria-label="Pick date range">
-                    <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
+            <div class="relative hidden sm:block" title="Date range for dashboards" @click.outside="calendarOpen = false">
+                <button
+                    type="button"
+                    @click="toggleCalendar()"
+                    class="figma-date-range-trigger flex h-[27px] min-w-[148px] items-center gap-[8px] rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] px-[8px] text-[10px] text-white hover:border-[#7B13C8]"
+                    aria-label="Pick date range"
+                    :aria-expanded="calendarOpen"
+                >
+                    <span class="truncate" x-text="rangeLabel()"></span>
+                    <svg class="h-[14px] w-[14px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
                 </button>
+
+                <div x-show="calendarOpen" x-cloak x-transition class="figma-date-range-popover absolute right-0 top-[calc(100%+6px)] z-[120]">
+                    <div class="figma-date-range-nav">
+                        <button type="button" @click="prevMonth()" aria-label="Previous month">&lsaquo;</button>
+                        <span x-text="monthLabel()"></span>
+                        <button type="button" @click="nextMonth()" aria-label="Next month">&rsaquo;</button>
+                    </div>
+                    <div class="figma-date-range-weekdays">
+                        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                    </div>
+                    <div class="figma-date-range-grid">
+                        <template x-for="day in calendarDays()" :key="day.iso + '-' + day.inMonth">
+                            <button
+                                type="button"
+                                @click="selectDay(day.iso)"
+                                :disabled="!day.inMonth"
+                                :class="{
+                                    'is-outside': !day.inMonth,
+                                    'is-today': day.isToday,
+                                    'is-range': day.inRange,
+                                    'is-start': day.isStart,
+                                    'is-end': day.isEnd,
+                                }"
+                                class="figma-date-range-day"
+                                x-text="day.day"
+                            ></button>
+                        </template>
+                    </div>
+                    <p class="figma-date-range-hint" x-text="pickStart ? 'Now select end date' : 'Select start date, then end date'"></p>
+                </div>
             </div>
 
             <div class="flex h-[27px] max-w-[60vw] items-center overflow-hidden rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] text-white sm:max-w-none">
@@ -244,19 +278,98 @@ function figmaHeaderBar() {
     })();
     const today = new Date();
     const todayStr = fmt(today);
+
+    const dayCell = (dt, inMonth, selFrom, selTo, todayIso) => {
+        const iso = fmt(dt);
+        return {
+            iso,
+            day: dt.getDate(),
+            inMonth,
+            inRange: iso > selFrom && iso < selTo,
+            isStart: iso === selFrom,
+            isEnd: iso === selTo,
+            isToday: iso === todayIso,
+        };
+    };
+
     return {
         userMenuOpen: false,
+        calendarOpen: false,
+        pickStart: null,
+        viewMonth: new Date(today.getFullYear(), today.getMonth(), 1),
         from: stored.from || todayStr,
         to: stored.to || todayStr,
+        rangeLabel() {
+            const display = (iso) => {
+                if (!iso) return '—';
+                const [y, m, d] = iso.split('-');
+                return `${m}/${d}/${y}`;
+            };
+            if (this.from === this.to) return display(this.from);
+            return `${display(this.from)} – ${display(this.to)}`;
+        },
+        monthLabel() {
+            return this.viewMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+        },
+        calendarDays() {
+            const year = this.viewMonth.getFullYear();
+            const month = this.viewMonth.getMonth();
+            const first = new Date(year, month, 1);
+            const startDay = first.getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const rangeFrom = this.pickStart || this.from;
+            const rangeTo = this.pickStart ? this.pickStart : this.to;
+            const selFrom = rangeFrom <= rangeTo ? rangeFrom : rangeTo;
+            const selTo = rangeFrom <= rangeTo ? rangeTo : rangeFrom;
+            const cells = [];
+            const prevMonthDays = new Date(year, month, 0).getDate();
+
+            for (let i = startDay - 1; i >= 0; i--) {
+                cells.push(dayCell(new Date(year, month - 1, prevMonthDays - i), false, selFrom, selTo, todayStr));
+            }
+            for (let d = 1; d <= daysInMonth; d++) {
+                cells.push(dayCell(new Date(year, month, d), true, selFrom, selTo, todayStr));
+            }
+            let nextDay = 1;
+            while (cells.length % 7 !== 0) {
+                cells.push(dayCell(new Date(year, month + 1, nextDay++), false, selFrom, selTo, todayStr));
+            }
+            return cells;
+        },
+        toggleCalendar(forceOpen = false) {
+            this.calendarOpen = forceOpen ? true : !this.calendarOpen;
+            if (this.calendarOpen) {
+                this.pickStart = null;
+                this.viewMonth = new Date((this.from || todayStr) + 'T12:00:00');
+                this.viewMonth = new Date(this.viewMonth.getFullYear(), this.viewMonth.getMonth(), 1);
+            }
+        },
+        prevMonth() {
+            this.viewMonth = new Date(this.viewMonth.getFullYear(), this.viewMonth.getMonth() - 1, 1);
+        },
+        nextMonth() {
+            this.viewMonth = new Date(this.viewMonth.getFullYear(), this.viewMonth.getMonth() + 1, 1);
+        },
+        selectDay(iso) {
+            if (!this.pickStart) {
+                this.pickStart = iso;
+                return;
+            }
+            let from = this.pickStart;
+            let to = iso;
+            if (to < from) [from, to] = [to, from];
+            this.from = from;
+            this.to = to;
+            this.pickStart = null;
+            this.calendarOpen = false;
+            this.applyRange(true);
+        },
         applyRange(showLoader = false) {
             if (showLoader) {
                 window.promotixPageLoader?.show('Loading data…');
             }
             localStorage.setItem('promotix-date-range', JSON.stringify({ from: this.from, to: this.to }));
             window.dispatchEvent(new CustomEvent('promotix:date-range', { detail: { from: this.from, to: this.to } }));
-        },
-        openCalendar() {
-            this.$refs.fromDate?.showPicker?.();
         },
         init() {
             const migrateKey = 'promotix-date-default-today-v1';
@@ -267,6 +380,7 @@ function figmaHeaderBar() {
                 localStorage.setItem(migrateKey, '1');
             }
             this.applyRange(false);
+            window.addEventListener('promotix:open-date-calendar', () => this.toggleCalendar(true));
         },
     };
 }
