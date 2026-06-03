@@ -181,6 +181,7 @@ Route::middleware(['auth', 'admin'])
         Route::get('/billing/receipts/{payment}', [BillingController::class, 'downloadReceipt'])->name('billing.receipt.download');
         Route::post('/billing', [BillingController::class, 'submit'])->name('billing.submit');
         Route::post('/billing/payment-methods', [BillingController::class, 'storePaymentMethod'])->name('billing.payment-methods.store');
+        Route::patch('/billing/payment-methods/{paymentMethod}/primary', [BillingController::class, 'setPrimaryPaymentMethod'])->name('billing.payment-methods.primary');
         Route::delete('/billing/payment-methods/{paymentMethod}', [BillingController::class, 'destroyPaymentMethod'])->name('billing.payment-methods.destroy');
         Route::get('/upgrade-plan', fn () => redirect()->route('billing.index'))->name('upgrade-plan');
         Route::post('/upgrade-plan', [BillingController::class, 'submit'])->name('upgrade-plan.submit');
@@ -250,6 +251,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/paid-marketing/keywords', [PaidAdvertisingDashboardController::class, 'keywords']);
     Route::get('/paid-marketing/countries', [PaidAdvertisingDashboardController::class, 'countries']);
     Route::get('/paid-marketing/ips', [PaidAdvertisingDashboardController::class, 'ips']);
+    Route::get('/paid-marketing/ips/export.csv', [PaidAdvertisingDashboardController::class, 'exportIpsCsv'])->name('paid-marketing.ips.export');
     Route::get('/paid-marketing/heatmap', [PaidAdvertisingDashboardController::class, 'heatmap']);
 
     Route::get('/integrations/connected', [IntegrationsController::class, 'connectedJson']);

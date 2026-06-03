@@ -85,10 +85,41 @@ class PaidMarketingController extends Controller
 
     private function formatDetailedVisit(PaidMarketingVisit $visit): array
     {
+        $clicks = $visit->clicks;
+        $clickCount = max($clicks->count(), (int) ($visit->visits ?? 1));
+
+        $vpnHits = $clicks->filter(
+            fn ($c) => strtolower((string) $c->threat_group) === 'vpn'
+        )->count();
+        if ($vpnHits === 0 && strtolower((string) $visit->threat_group) === 'vpn') {
+            $vpnHits = $clickCount;
+        }
+
+        $dataCenterHits = $clicks->filter(
+            fn ($c) => in_array(strtolower((string) $c->threat_group), ['data_center', 'datacenter'], true)
+        )->count();
+        if ($dataCenterHits === 0 && in_array(strtolower((string) $visit->threat_group), ['data_center', 'datacenter'], true)) {
+            $dataCenterHits = $clickCount;
+        }
+
+        $invalidClicks = $clicks->filter(fn ($c) => filled($c->threat_group))->count();
+        if ($invalidClicks === 0 && filled($visit->threat_group)) {
+            $invalidClicks = $clickCount;
+        }
+
+        $validClicks = max($clickCount - $invalidClicks, 0);
+        $ipParts = collect(preg_split('/\s*,\s*/', (string) $visit->ip))
+            ->map(fn ($part) => trim($part))
+            ->filter()
+            ->values()
+            ->all();
+
         return [
             'id' => $visit->id,
             'ip' => $visit->ip,
-            'visits' => (int) ($visit->visits ?? $visit->clicks->count() ?: 1),
+            'ip_parts' => $ipParts,
+            'ip_count' => max(count($ipParts), 1),
+            'visits' => (int) ($visit->visits ?? $clicks->count() ?: 1),
             'campaign' => $visit->campaign,
             'last_click_at' => $visit->last_click_at?->toIso8601String(),
             'last_click_label' => $visit->last_click_at?->format('m/d/y') ?? '-',
@@ -97,7 +128,11 @@ class PaidMarketingController extends Controller
             'country' => $visit->country,
             'last_path' => $visit->last_path,
             'ip_is_blocked' => (bool) $visit->ip_is_blocked,
-            'clicks' => $visit->clicks->map(fn ($c) => [
+            'vpn_hits' => $vpnHits,
+            'data_center_hits' => $dataCenterHits,
+            'invalid_clicks' => $invalidClicks,
+            'valid_clicks' => $validClicks,
+            'clicks' => $clicks->map(fn ($c) => [
                 'id' => $c->id,
                 'clicked_at' => $c->clicked_at?->toIso8601String(),
                 'last_click_at' => $c->last_click_at?->toIso8601String(),

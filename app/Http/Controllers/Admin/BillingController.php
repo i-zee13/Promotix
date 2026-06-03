@@ -189,4 +189,20 @@ class BillingController extends Controller
 
         return back()->with('status', 'Payment method removed.');
     }
+
+    public function setPrimaryPaymentMethod(Request $request, PaymentMethod $paymentMethod): RedirectResponse
+    {
+        abort_unless($paymentMethod->user_id === $request->user()->id, 403);
+
+        PaymentMethod::query()
+            ->where('user_id', $request->user()->id)
+            ->update(['is_primary' => false]);
+
+        $paymentMethod->update([
+            'is_primary' => true,
+            'is_temporary' => false,
+        ]);
+
+        return back()->with('status', 'Primary payment method updated.');
+    }
 }

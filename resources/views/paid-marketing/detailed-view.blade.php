@@ -69,35 +69,47 @@
         </div>
 
         <section class="mt-[8px] overflow-hidden">
-            <div class="overflow-x-auto">
-                <div class="min-w-[895px]">
-                    <div class="figma-data-grid-header grid grid-cols-[22px_115px_70px_135px_112px_120px_118px_1fr] items-center border-b border-white px-[14px] py-[9px] text-[13px] text-white">
-                        <span></span>
-                        <span>IP Address</span>
-                        <span>Visits</span>
-                        <span>Campaigns</span>
-                        <span>Last Click</span>
-                        <span>Threat Group</span>
-                        <span>Threat Type</span>
-                        <span>Country</span>
-                    </div>
-
-                    <div class="max-h-[318px] overflow-y-auto pr-[6px]">
+            <div class="promotix-slim-scroll paid-detailed-scroll max-h-[360px]">
+                <table class="paid-detailed-table">
+                    <thead>
+                        <tr>
+                            <th class="w-[22px]"></th>
+                            <th class="w-[130px]">IP Address</th>
+                            <th class="w-[52px]">Visits</th>
+                            <th class="w-[110px]">Campaigns</th>
+                            <th class="w-[88px]">Last Click</th>
+                            <th class="w-[100px]">Threat Group</th>
+                            <th class="w-[90px]">Threat Type</th>
+                            <th class="w-[72px]">Country</th>
+                            <th class="w-[48px]">VPN</th>
+                            <th class="w-[72px]">Data Center</th>
+                            <th class="w-[72px]">Invalid Click</th>
+                            <th class="w-[68px]">Valid Click</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                         <template x-for="visit in rows" :key="visit.id">
-                            <button type="button" class="figma-data-row mt-[6px] grid h-[47px] w-full grid-cols-[22px_115px_70px_135px_112px_120px_118px_1fr] items-center rounded-[10px] border-[3px] border-white/40 bg-[#151515] px-[11px] text-left text-[15px] text-[#a9a9a9] transition hover:border-white/70" @click="openClicks(visit)">
-                                <span class="text-white/90">&gt;</span>
-                                <span x-text="visit.ip"></span>
-                                <span x-text="visit.visits"></span>
-                                <span x-text="visit.campaign || 'N/A'"></span>
-                                <span class="text-[#8d8d8d]" x-text="visit.last_click_label"></span>
-                                <span class="text-[#8d8d8d]" x-text="visit.threat_group || '—'"></span>
-                                <span class="text-[#8d8d8d]" x-text="visit.threat_type || '—'"></span>
-                                <span class="text-[#8d8d8d]" x-text="visit.country || '—'"></span>
-                            </button>
+                            <tr @click="openClicks(visit)">
+                                <td>&gt;</td>
+                                <td class="cell-ip" :title="visit.ip">
+                                    <span x-text="ipLabel(visit)"></span>
+                                    <span x-show="visit.ip_count > 1" class="cell-ip-badge" x-text="'+' + (visit.ip_count - 1)"></span>
+                                </td>
+                                <td x-text="visit.visits"></td>
+                                <td class="cell-muted" :title="visit.campaign || 'N/A'" x-text="visit.campaign || 'N/A'"></td>
+                                <td class="cell-muted" x-text="visit.last_click_label"></td>
+                                <td class="cell-muted" :title="visit.threat_group || '—'" x-text="visit.threat_group || '—'"></td>
+                                <td class="cell-muted" :title="visit.threat_type || '—'" x-text="visit.threat_type || '—'"></td>
+                                <td class="cell-muted" x-text="visit.country || '—'"></td>
+                                <td x-text="visit.vpn_hits > 0 ? visit.vpn_hits : '—'"></td>
+                                <td x-text="visit.data_center_hits > 0 ? visit.data_center_hits : '—'"></td>
+                                <td x-text="visit.invalid_clicks ?? 0"></td>
+                                <td x-text="visit.valid_clicks ?? 0"></td>
+                            </tr>
                         </template>
-                        <div x-show="!loading && rows.length === 0" class="mt-[6px] rounded-[10px] border-[3px] border-white/40 px-[14px] py-[28px] text-center text-[15px] text-[#a9a9a9]">No rows match your filters.</div>
-                    </div>
-                </div>
+                    </tbody>
+                </table>
+                <div x-show="!loading && rows.length === 0" class="mt-[6px] rounded-[10px] border-[3px] border-white/40 px-[14px] py-[28px] text-center text-[15px] text-[#a9a9a9]">No rows match your filters.</div>
             </div>
         </section>
 
@@ -116,47 +128,51 @@
             </div>
         </section>
 
-        <div class="brand-modal-overlay"
+        <div class="figma-modal-overlay"
              x-show="modal.open" x-cloak x-transition
              @keydown.escape.window="closeModal()" @click.self="closeModal()">
-            <div class="brand-modal max-w-5xl">
+            <div class="figma-modal max-w-5xl">
                 <header class="mb-4 flex items-center justify-between gap-3">
-                    <h3 class="brand-modal-title">Click Details</h3>
-                    <button type="button" class="rounded-lg p-1.5 text-night-300 hover:bg-night-800 hover:text-white" @click="closeModal()" aria-label="Close">
+                    <h3 class="figma-modal-title">Click Details</h3>
+                    <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeModal()" aria-label="Close">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </header>
 
                 <div class="grid grid-cols-1 gap-0 lg:grid-cols-4">
-                    <aside class="border-b border-night-700/60 p-2 lg:border-b-0 lg:border-r lg:pr-4">
+                    <aside class="border-b border-white/10 p-2 lg:border-b-0 lg:border-r lg:pr-4">
                         <template x-for="(c, idx) in modal.clicks" :key="c.id ?? idx">
                             <button type="button"
-                                    class="mb-2 w-full rounded-xl border border-night-700 bg-night-900 px-3 py-2 text-left transition hover:bg-night-800"
-                                    :class="idx === modal.activeIndex ? 'ring-2 ring-brand-400' : ''"
+                                    class="mb-2 w-full rounded-xl border border-white/15 bg-[#0d0d0d] px-3 py-2 text-left transition hover:bg-[#1a1a1a]"
+                                    :class="idx === modal.activeIndex ? 'ring-2 ring-[#6400B2]' : ''"
                                     @click="modal.activeIndex = idx">
                                 <p class="text-sm font-semibold text-white" x-text="`Click ${idx + 1}`"></p>
-                                <p class="text-xs text-night-300" x-text="formatDateTime(c.clicked_at || c.last_click_at)"></p>
+                                <p class="text-xs text-white/50" x-text="formatDateTime(c.clicked_at || c.last_click_at)"></p>
                             </button>
                         </template>
                         <template x-if="modal.clicks.length === 0">
-                            <p class="text-sm text-night-300">No clicks for this visit.</p>
+                            <p class="text-sm text-white/50">No clicks for this visit.</p>
                         </template>
                     </aside>
 
                     <div class="p-4 lg:col-span-3 lg:pl-6" x-show="modal.clicks.length > 0">
                         <template x-if="activeClick">
                             <div class="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">IP</p><p class="mt-1 text-sm text-white" x-text="activeClick.ip || modal.visit?.ip || '-'"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">Browser</p><p class="mt-1 text-sm text-white" x-text="activeClick.browser_name || '-'"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">Country</p><p class="mt-1 text-sm text-white" x-text="activeClick.country || modal.visit?.country || '-'"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">Browser version</p><p class="mt-1 text-sm text-white" x-text="activeClick.browser_version || '-'"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">Last Click</p><p class="mt-1 text-sm text-white" x-text="formatDateTime(activeClick.last_click_at || modal.visit?.last_click_at)"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">OS</p><p class="mt-1 text-sm text-white" x-text="activeClick.os || '-'"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">Threat Group</p><p class="mt-1 text-sm text-white" x-text="activeClick.threat_group || modal.visit?.threat_group || 'N/A'"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">Paid ID</p><p class="mt-1 text-sm text-white" x-text="activeClick.paid_id || '-'"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">Campaign</p><p class="mt-1 text-sm text-white" x-text="activeClick.campaign || modal.visit?.campaign || 'N/A'"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">Path</p><p class="mt-1 text-sm text-white" x-text="activeClick.path || modal.visit?.last_path || '-'"></p></div>
-                                <div><p class="text-xs uppercase tracking-wider text-night-400">Keyword</p><p class="mt-1 text-sm text-white" x-text="activeClick.keyword || 'N/A'"></p></div>
+                                <div class="md:col-span-2"><p class="figma-modal-label">IP</p><p class="figma-modal-value break-all font-mono text-[12px]" x-text="modal.visit?.ip || activeClick.ip || '-'"></p></div>
+                                <div><p class="figma-modal-label">VPN Hits</p><p class="figma-modal-value" x-text="modal.visit?.vpn_hits > 0 ? modal.visit.vpn_hits : '—'"></p></div>
+                                <div><p class="figma-modal-label">Data Center</p><p class="figma-modal-value" x-text="modal.visit?.data_center_hits > 0 ? modal.visit.data_center_hits : '—'"></p></div>
+                                <div><p class="figma-modal-label">Invalid Clicks</p><p class="figma-modal-value" x-text="modal.visit?.invalid_clicks ?? 0"></p></div>
+                                <div><p class="figma-modal-label">Valid Clicks</p><p class="figma-modal-value" x-text="modal.visit?.valid_clicks ?? 0"></p></div>
+                                <div><p class="figma-modal-label">Browser</p><p class="figma-modal-value" x-text="activeClick.browser_name || '-'"></p></div>
+                                <div><p class="figma-modal-label">Country</p><p class="figma-modal-value" x-text="activeClick.country || modal.visit?.country || '-'"></p></div>
+                                <div><p class="figma-modal-label">Browser version</p><p class="figma-modal-value" x-text="activeClick.browser_version || '-'"></p></div>
+                                <div><p class="figma-modal-label">Last Click</p><p class="figma-modal-value" x-text="formatDateTime(activeClick.last_click_at || modal.visit?.last_click_at)"></p></div>
+                                <div><p class="figma-modal-label">OS</p><p class="figma-modal-value" x-text="activeClick.os || '-'"></p></div>
+                                <div><p class="figma-modal-label">Threat Group</p><p class="figma-modal-value" x-text="activeClick.threat_group || modal.visit?.threat_group || 'N/A'"></p></div>
+                                <div><p class="figma-modal-label">Paid ID</p><p class="figma-modal-value" x-text="activeClick.paid_id || '-'"></p></div>
+                                <div><p class="figma-modal-label">Campaign</p><p class="figma-modal-value" x-text="activeClick.campaign || modal.visit?.campaign || 'N/A'"></p></div>
+                                <div><p class="figma-modal-label">Path</p><p class="figma-modal-value" x-text="activeClick.path || modal.visit?.last_path || '-'"></p></div>
+                                <div><p class="figma-modal-label">Keyword</p><p class="figma-modal-value" x-text="activeClick.keyword || 'N/A'"></p></div>
                             </div>
                         </template>
                     </div>
@@ -244,6 +260,15 @@
                 const date = new Date(value);
                 if (Number.isNaN(date.getTime())) return String(value);
                 return date.toLocaleString();
+            },
+            ipLabel(visit) {
+                const raw = String(visit?.ip || '');
+                const parts = Array.isArray(visit?.ip_parts) && visit.ip_parts.length
+                    ? visit.ip_parts
+                    : raw.split(',').map((p) => p.trim()).filter(Boolean);
+                const first = parts[0] || raw || '—';
+                if (first.length > 20) return first.slice(0, 18) + '…';
+                return first;
             },
         };
     }

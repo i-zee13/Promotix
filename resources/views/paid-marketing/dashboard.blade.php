@@ -156,7 +156,12 @@
         <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,585px)_minmax(260px,1fr)]">
             <section class="min-h-[451px] rounded-[10px] border border-[#5a2a99] bg-[#111111] p-[18px]">
                 <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[10px]">
-                    <h2 class="text-[24px] font-semibold leading-none text-[#a9a9a9]">IP Address</h2>
+                    <div class="flex items-center gap-[10px]">
+                        <h2 class="text-[24px] font-semibold leading-none text-[#a9a9a9]">IP Address</h2>
+                        <button type="button" @click="exportIpsCsv()" title="Download CSV" class="flex h-[26px] w-[26px] items-center justify-center rounded-[4px] border border-[#6400B2]/60 bg-[#1a1a1a] text-[#B893D8] transition hover:border-[#6400B2] hover:bg-[#6400B2]/20 hover:text-white">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
+                        </button>
+                    </div>
                     <div class="flex h-[28px] items-center gap-[8px] rounded-[3px] bg-[#6400B2] px-[9px] text-[10px] text-white">
                         <span>Campaigns</span>
                         <select x-model="filters.domain_id" @change="reload()" class="h-[18px] rounded-[2px] border-0 bg-[#0B0B0B] px-[8px] py-0 text-[9px] text-white focus:ring-0">
@@ -167,7 +172,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
+                <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
                     <table class="w-full min-w-[720px] table-fixed text-left text-[11px] text-[#a9a9a9]">
                         <thead class="sticky top-0 z-[1] bg-[#6400B2]">
                             <tr>
@@ -182,13 +187,13 @@
                         </thead>
                         <tbody class="divide-y divide-white/15">
                             <template x-for="row in ips" :key="row.ip">
-                                <tr class="align-top">
-                                    <td class="truncate px-[8px] py-[6px] font-mono text-[10px]" :title="row.ip" x-text="row.ip"></td>
-                                    <td class="truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
+                                <tr class="cursor-pointer align-middle transition hover:bg-white/5" @click="openIpModal(row)">
+                                    <td class="max-w-0 truncate px-[8px] py-[6px] font-mono text-[10px] text-white" :title="row.ip" x-text="row.ip"></td>
+                                    <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.invalid) + '/' + fmt(row.total)"></td>
-                                    <td class="truncate px-[8px] py-[6px] capitalize" x-text="threatLabel(row.top_threat)"></td>
-                                    <td class="px-[8px] py-[6px]" x-text="row.vpn_hits > 0 ? fmt(row.vpn_hits) : '—'"></td>
-                                    <td class="px-[8px] py-[6px]" x-text="row.data_center_hits > 0 ? fmt(row.data_center_hits) : '—'"></td>
+                                    <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-text="threatLabel(row.top_threat)"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.vpn_hits > 0 ? fmt(row.vpn_hits) : '—'"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.data_center_hits > 0 ? fmt(row.data_center_hits) : '—'"></td>
                                     <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
                                 </tr>
                             </template>
@@ -248,6 +253,31 @@
             </section>
         </div>
     </section>
+
+    <div class="figma-modal-overlay"
+         x-show="ipModal.open" x-cloak x-transition
+         @keydown.escape.window="closeIpModal()" @click.self="closeIpModal()">
+        <div class="figma-modal max-w-lg">
+            <header class="mb-[14px] flex items-center justify-between gap-3">
+                <h3 class="figma-modal-title">IP Details</h3>
+                <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeIpModal()" aria-label="Close">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </header>
+            <template x-if="ipModal.row">
+                <div class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                    <div><p class="figma-modal-label">IP Address</p><p class="figma-modal-value font-mono" x-text="ipModal.row.ip"></p></div>
+                    <div><p class="figma-modal-label">Country</p><p class="figma-modal-value" x-text="ipModal.row.country || '—'"></p></div>
+                    <div><p class="figma-modal-label">Invalid / Total</p><p class="figma-modal-value" x-text="fmt(ipModal.row.invalid) + ' / ' + fmt(ipModal.row.total)"></p></div>
+                    <div><p class="figma-modal-label">Bot Detect</p><p class="figma-modal-value capitalize" x-text="threatLabel(ipModal.row.top_threat)"></p></div>
+                    <div><p class="figma-modal-label">VPN Hits</p><p class="figma-modal-value" x-text="ipModal.row.vpn_hits > 0 ? fmt(ipModal.row.vpn_hits) : '—'"></p></div>
+                    <div><p class="figma-modal-label">Data Center</p><p class="figma-modal-value" x-text="ipModal.row.data_center_hits > 0 ? fmt(ipModal.row.data_center_hits) : '—'"></p></div>
+                    <div><p class="figma-modal-label">Malicious</p><p class="figma-modal-value" x-text="ipModal.row.malicious_hits > 0 ? fmt(ipModal.row.malicious_hits) : '—'"></p></div>
+                    <div><p class="figma-modal-label">Last Click</p><p class="figma-modal-value" x-text="dateLabel(ipModal.row.last_seen)"></p></div>
+                </div>
+            </template>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -262,6 +292,7 @@ function paidAdvertisingFigma(config = {}) {
         keywords: [],
         countries: [],
         ips: [],
+        ipModal: { open: false, row: null },
         heatmap: { days: [], hours: [], matrix: [] },
         cardCharts: {},
         get botRate() {
@@ -343,6 +374,7 @@ function paidAdvertisingFigma(config = {}) {
             document.addEventListener('visibilitychange', () => {
                 if (!document.hidden) this.reload();
             });
+            window.addEventListener('promotix:export-ips-csv', () => this.exportIpsCsv());
             await this.reload();
             window.addEventListener('resize', () => {
                 clearTimeout(window.__paidFigmaResize);
@@ -375,6 +407,18 @@ function paidAdvertisingFigma(config = {}) {
             } finally {
                 window.promotixPageLoader?.hide();
             }
+        },
+        openIpModal(row) {
+            this.ipModal.row = row;
+            this.ipModal.open = true;
+        },
+        closeIpModal() {
+            this.ipModal.open = false;
+            this.ipModal.row = null;
+        },
+        exportIpsCsv() {
+            const qs = this.qs();
+            window.location.href = `{{ route('paid-marketing.ips.export') }}${qs ? '?' + qs : ''}`;
         },
         render() {
             requestAnimationFrame(() => {

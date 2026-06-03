@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PaidAdvertisingDashboardController extends Controller
 {
@@ -397,6 +398,59 @@ class PaidAdvertisingDashboardController extends Controller
             'malicious_hits' => (int) ($r->malicious_hits ?? 0),
             'top_threat' => $r->top_threat,
         ])->values());
+    }
+
+    public function exportIpsCsv(Request $request): StreamedResponse
+    {
+        [$from, $to] = $this->dateRange($request);
+        $domainIds = $this->scopedDomainIds($request);
+        $filename = 'paid-marketing-ips-' . now()->format('YmdHis') . '.csv';
+
+        return response()->streamDownload(function () use ($request, $domainIds, $from, $to): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['IP Address', 'Country', 'Invalid', 'Total', 'Bot Detect', 'VPN Hits', 'Data Center Hits', 'Malicious Hits', 'Last Click']);
+
+            if (! Schema::hasTable('visits') || $domainIds->isEmpty()) {
+                fclose($handle);
+
+                return;
+            }
+
+            $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+                ->select(
+                    'ip',
+                    DB::raw('COUNT(*) as total'),
+                    DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
+                    DB::raw('MAX(country) as country'),
+                    DB::raw('MAX(visited_at) as last_seen'),
+                    DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
+                    DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
+                    DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
+                    DB::raw('MAX(threat_group) as top_threat')
+                )
+                ->groupBy('ip')
+                ->orderByDesc('total')
+                ->limit(5000)
+                ->cursor()
+                ->each(function ($r) use ($handle): void {
+                    fputcsv($handle, [
+                        $r->ip,
+                        $r->country,
+                        (int) $r->invalid,
+                        (int) $r->total,
+                        $r->top_threat,
+                        (int) ($r->vpn_hits ?? 0),
+                        (int) ($r->data_center_hits ?? 0),
+                        (int) ($r->malicious_hits ?? 0),
+                        (string) ($r->last_seen ?? ''),
+                    ]);
+                });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
     }
 
     public function heatmap(Request $request): JsonResponse

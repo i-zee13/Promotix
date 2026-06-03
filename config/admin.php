@@ -83,6 +83,7 @@ return [
         'billing.index'     => 'upgrade-plan',
         'billing.submit'    => 'upgrade-plan',
         'billing.payment-methods.store' => 'upgrade-plan',
+        'billing.payment-methods.primary' => 'upgrade-plan',
         'billing.payment-methods.destroy' => 'upgrade-plan',
         'upgrade-plan'      => 'upgrade-plan',
         'upgrade-plan.submit' => 'upgrade-plan',

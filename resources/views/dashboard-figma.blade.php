@@ -76,8 +76,8 @@
                 <div>
                     <h2 class="text-[13px] font-normal leading-none text-white">Invalid Visits Trends &amp; Threat groups</h2>
                     <div class="mt-[7px] flex items-center gap-[18px] border-b border-white/70 pb-[4px] text-[15px] leading-none text-white/95">
-                        <span>Paid Advertising</span>
-                        <span class="text-white/60">Bot Protection</span>
+                        <button type="button" id="insights-tab-paid" class="border-b-2 border-white pb-[2px] text-white">Paid Advertising</button>
+                        <button type="button" id="insights-tab-bot" class="pb-[2px] text-white/60 hover:text-white">Bot Protection</button>
                     </div>
                 </div>
                 <button class="text-white/80" aria-label="More">
@@ -271,6 +271,67 @@ document.addEventListener('DOMContentLoaded', () => {
         return qs ? `${path}?${qs}` : path;
     }
 
+    function drawTrendDual(labels, datasets) {
+        const canvas = document.getElementById('trends-chart');
+        if (!canvas) return;
+        const {ctx, w, h} = retina(canvas);
+        ctx.clearRect(0, 0, w, h);
+        const series = (datasets || []).map(d => ({ ...d, values: d.values || [] }));
+        const max = Math.max(...series.flatMap(d => d.values), 1);
+        const left = 30, right = 12, top = 18, bottom = 26;
+        ctx.strokeStyle = 'rgba(255,255,255,.16)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 6; i++) {
+            const y = top + i * ((h - top - bottom) / 5);
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(w - right, y);
+            ctx.stroke();
+        }
+        series.forEach((ds, si) => {
+            const values = ds.values;
+            const points = values.map((value, i) => ({
+                x: left + i * ((w - left - right) / Math.max(values.length - 1, 1)),
+                y: h - bottom - (Number(value || 0) / max) * (h - top - bottom),
+            }));
+            if (si === 0) {
+                const grad = ctx.createLinearGradient(0, top, 0, h - bottom);
+                grad.addColorStop(0, 'rgba(255,255,255,.72)');
+                grad.addColorStop(1, 'rgba(255,255,255,.08)');
+                ctx.beginPath();
+                points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+                ctx.lineTo(points.at(-1)?.x || left, h - bottom);
+                ctx.lineTo(left, h - bottom);
+                ctx.closePath();
+                ctx.fillStyle = grad;
+                ctx.fill();
+            }
+            ctx.strokeStyle = ds.color || (si === 0 ? 'rgba(255,255,255,.72)' : '#FF4BC1');
+            ctx.lineWidth = ds.dashed ? 1 : 1.5;
+            if (ds.dashed) ctx.setLineDash([4, 4]); else ctx.setLineDash([]);
+            ctx.beginPath();
+            points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+    }
+
+    let insightsTab = 'paid';
+
+    function setInsightsTab(tab) {
+        insightsTab = tab;
+        ['paid', 'bot'].forEach((name) => {
+            const btn = document.getElementById(`insights-tab-${name}`);
+            if (!btn) return;
+            const active = name === tab;
+            btn.classList.toggle('border-b-2', active);
+            btn.classList.toggle('border-white', active);
+            btn.classList.toggle('text-white', active);
+            btn.classList.toggle('text-white/60', !active);
+        });
+        loadCharts();
+    }
+
     async function loadSummary() {
         const data = await json(apiUrl('/overview/summary'));
         document.getElementById('suite-paid-visits').textContent = fmt(data.paidAdvertising?.invalidVisits ?? data.paidAdvertising?.visits);
@@ -375,6 +436,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (campaign) params.set('campaign', campaign);
         if (path) params.set('path', path);
         const qs = params.toString();
+
+        if (insightsTab === 'bot') {
+            const trends = await json(qs ? `/bot-protection/invalid-traffic-trends?${qs}` : '/bot-protection/invalid-traffic-trends');
+            const threats = await json(qs ? `/bot-protection/threat-groups?${qs}` : '/bot-protection/threat-groups');
+            drawTrendDual(trends.labels || [], trends.datasets || []);
+            drawDonut(threats.labels || [], threats.values || []);
+            const legend = document.getElementById('chart-legend');
+            if (legend && (threats.labels || []).length) {
+                const colors = ['#B893D8', '#FFFFFF', '#D9D9D9', '#8C8C8C'];
+                legend.innerHTML = (threats.labels || []).map((label, i) =>
+                    `<span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px]" style="background:${colors[i % colors.length]}"></i>${label} (${fmt((threats.values || [])[i])})</span>`
+                ).join('');
+            } else if (legend) {
+                legend.innerHTML = '<span class="text-white/60">No threat groups in range yet.</span>';
+            }
+            return;
+        }
+
         const trends = await json(qs ? `/analytics/trends?${qs}` : '/analytics/trends');
         const threats = await json(qs ? `/analytics/threats?${qs}` : '/analytics/threats');
         drawTrend(trends.labels || [], trends.values || []);
@@ -406,6 +485,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    document.getElementById('insights-tab-paid')?.addEventListener('click', () => setInsightsTab('paid'));
+    document.getElementById('insights-tab-bot')?.addEventListener('click', () => setInsightsTab('bot'));
     document.getElementById('domain-tab-all')?.addEventListener('click', () => setDomainTab('all'));
     document.getElementById('domain-tab-invalid')?.addEventListener('click', () => setDomainTab('invalid'));
     document.getElementById('domain-tab-pending')?.addEventListener('click', () => setDomainTab('pending'));

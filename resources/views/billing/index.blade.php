@@ -41,16 +41,42 @@
         {{-- Payment methods --}}
         <article class="mb-[16px] rounded-[10px] border border-white/15 bg-[#151515] p-[18px]">
             <h2 class="mb-[12px] text-[16px] font-semibold text-white">Payment methods</h2>
-            <div class="mb-[12px] space-y-[8px]">
-                @forelse ($paymentMethods as $card)
-                    <div class="flex flex-wrap items-center justify-between gap-[8px] rounded-[8px] border border-white/10 bg-[#101010] px-[12px] py-[10px] text-[13px] text-white">
-                        <span>{{ $card->maskedLabel() }} @if($card->is_primary)<span class="ml-[6px] rounded bg-[#6400B2] px-[6px] py-[1px] text-[10px]">Primary</span>@endif @if($card->is_temporary)<span class="ml-[6px] text-[#a9a9a9]">Temporary</span>@endif</span>
-                        <form method="POST" action="{{ route('billing.payment-methods.destroy', $card) }}">@csrf @method('DELETE')<button type="submit" class="text-[12px] text-rose-300 hover:underline">Remove</button></form>
-                    </div>
-                @empty
-                    <p class="text-[13px] text-[#a9a9a9]">No cards on file yet.</p>
-                @endforelse
-            </div>
+
+            @if ($paymentMethods->isNotEmpty())
+                <div class="billing-card-grid mb-[14px]">
+                    @foreach ($paymentMethods as $card)
+                        <div class="billing-card-chip {{ $card->is_primary ? 'is-primary' : '' }}">
+                            @if ($card->is_primary)
+                                <span class="billing-card-chip__badge">Primary</span>
+                            @endif
+                            <div>
+                                <p class="billing-card-chip__brand">{{ $card->brand ?: 'Card' }}</p>
+                                <p class="billing-card-chip__number">•••• {{ $card->last_four ?: '0000' }}</p>
+                                <p class="billing-card-chip__meta">{{ $card->exp_month }}/{{ $card->exp_year }} @if($card->is_temporary)· Temp @endif</p>
+                            </div>
+                            <div class="billing-card-chip__actions">
+                                @unless ($card->is_primary)
+                                    <form method="POST" action="{{ route('billing.payment-methods.primary', $card) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="hover:underline">Set primary</button>
+                                    </form>
+                                @else
+                                    <span class="text-[10px] text-[#B893D8]">Active</span>
+                                @endunless
+                                <form method="POST" action="{{ route('billing.payment-methods.destroy', $card) }}" onsubmit="return confirm('Remove this card?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="is-danger hover:underline">Remove</button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="mb-[12px] text-[13px] text-[#a9a9a9]">No cards on file yet.</p>
+            @endif
+
             <form method="POST" action="{{ route('billing.payment-methods.store') }}" class="space-y-[10px] rounded-[8px] border border-white/10 bg-[#101010] p-[12px]">
                 @csrf
                 <div class="grid gap-[10px] sm:grid-cols-2 lg:grid-cols-4">

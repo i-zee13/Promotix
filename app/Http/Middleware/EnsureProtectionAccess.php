@@ -14,6 +14,7 @@ class EnsureProtectionAccess
         'billing.index',
         'billing.submit',
         'billing.payment-methods.store',
+        'billing.payment-methods.primary',
         'billing.payment-methods.destroy',
         'upgrade-plan',
         'upgrade-plan.submit',

@@ -261,6 +261,11 @@
                         @include('partials.sidebar-icon', ['name' => $tool['icon'], 'class' => 'h-[18px] w-[18px]'])
                     </a>
                 @endforeach
+                @if (request()->routeIs('paid-marketing.dashboard'))
+                    <button type="button" title="Export IPs CSV" onclick="window.dispatchEvent(new CustomEvent('promotix:export-ips-csv'))" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+                        @include('partials.sidebar-icon', ['name' => 'download', 'class' => 'h-[18px] w-[18px]'])
+                    </button>
+                @endif
             </div>
             <a href="{{ route('billing.index') }}" class="figma-rightbar-extra mt-[16px] block rounded-[5px] bg-[#6603B3] p-[8px] text-white">
                 <div class="flex items-center justify-between text-[7px] text-[#a9a9a9]">
