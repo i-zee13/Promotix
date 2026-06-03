@@ -403,7 +403,7 @@ function siteManagementFigma() {
             this.paidPick.connectionId = connectionId;
             this.paidPick.selectedId = null;
             try {
-                const url = `/domains/${domain.id}/google-ads/pick-accounts` + (connectionId ? `?connection_id=${connectionId}` : '');
+                const url = @json(url('/domains/0/google-ads/pick-accounts')).replace('/domains/0/', `/domains/${domain.id}/`) + (connectionId ? `?connection_id=${connectionId}` : '');
                 const res = await fetch(url, { headers: { Accept: 'application/json' } });
                 const data = await res.json();
                 this.paidPick.accounts = data.accounts || [];
@@ -420,7 +420,8 @@ function siteManagementFigma() {
             if (!this.paidPick.domainId || !this.paidPick.selectedId) return;
             this.paidPick.busy = true;
             try {
-                const res = await fetch(`/domains/${this.paidPick.domainId}/google-ads/link`, {
+                const linkUrl = @json(url('/domains/0/google-ads/link')).replace('/domains/0/', `/domains/${this.paidPick.domainId}/`);
+                const res = await fetch(linkUrl, {
                     method: 'POST',
                     headers: {
                         Accept: 'application/json',
