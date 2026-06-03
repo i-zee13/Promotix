@@ -37,7 +37,10 @@
             <article class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
                 <div class="flex items-start justify-between">
                     <h2 class="text-[13px] font-normal text-white">Total Traffic</h2>
-                    <button class="text-white/75" aria-label="Refresh" @click="reload()">Refresh</button>
+                    <div class="flex items-center gap-[8px] text-white/75">
+                        <span class="text-[9px]" x-show="livePollOn" title="Tag traffic refreshes every 30s">Live</span>
+                        <button type="button" aria-label="Refresh" @click="reload()">Refresh</button>
+                    </div>
                 </div>
                 <div class="mt-[12px] grid grid-cols-2 text-center">
                     <div>
@@ -281,6 +284,9 @@ function paidAdvertisingFigma(config = {}) {
             return p.toString();
         },
         reloadTimer: null,
+        livePollTimer: null,
+        livePollOn: true,
+        livePollMs: 30000,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         scheduleReload() {
             clearTimeout(this.reloadTimer);
@@ -298,10 +304,18 @@ function paidAdvertisingFigma(config = {}) {
             const id = new URLSearchParams(window.location.search).get('domain_id');
             if (id) this.filters.domain_id = id;
         },
+        startLivePoll() {
+            clearInterval(this.livePollTimer);
+            this.livePollTimer = setInterval(() => {
+                if (!this.livePollOn || document.hidden) return;
+                this.reload();
+            }, this.livePollMs);
+        },
         async init() {
             this.applyDomainFromUrl();
             this.syncHeaderDates();
             if (!this.filters.from) this.setWindow();
+            this.startLivePoll();
             window.addEventListener('promotix:date-range', () => {
                 this.syncHeaderDates();
                 this.scheduleReload();
@@ -309,6 +323,9 @@ function paidAdvertisingFigma(config = {}) {
             window.addEventListener('resize', () => {
                 clearTimeout(window.__paidFigmaResize);
                 window.__paidFigmaResize = setTimeout(() => this.render(), 180);
+            });
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) this.reload();
             });
         },
         async reload() {
