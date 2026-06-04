@@ -13,22 +13,25 @@
             </div>
 
             <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
-                <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Campaigns</span>
-                    <select x-model="filters.domain_id" @change="reload(true)" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0">
-                        <option value="">All campaigns</option>
-                        @foreach ($domains as $d)
-                            <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                        @endforeach
-                    </select>
+                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.domain_id" @change="reload(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All campaigns</option>
+                            @foreach ($domains as $d)
+                                <option value="{{ $d->id }}">{{ $d->hostname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </label>
-                <label class="flex w-[178px] flex-col justify-center px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
-                    <input x-model="filters.path" @input="scheduleReload(true)" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
+                    <div class="figma-filter-path-wrap">
+                        <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input x-model="filters.path" @input="scheduleReload(true)" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    </div>
                 </label>
-                <button type="button" @click="window.dispatchEvent(new CustomEvent('promotix:open-date-calendar'))" class="figma-filter-action flex w-[34px] shrink-0 items-center justify-center bg-[#6400B2] text-white" aria-label="Date range">
-                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
-                </button>
+                @include('partials.figma-filter-date-fields')
             </div>
         </div>
 
@@ -193,12 +196,26 @@ function botProtectionAdvancedFigma() {
                 if (r.to) this.filters.to = r.to;
             } catch (e) {}
         },
+        applyPageDates() {
+            if (!this.filters.from || !this.filters.to) return;
+            try {
+                localStorage.setItem('promotix-date-range', JSON.stringify({
+                    from: this.filters.from,
+                    to: this.filters.to,
+                }));
+            } catch (e) {}
+            window.dispatchEvent(new CustomEvent('promotix:date-range', {
+                detail: { from: this.filters.from, to: this.filters.to },
+            }));
+            this.reload(true);
+        },
         async init() {
             this.syncHeaderDates();
             if (!this.filters.from || !this.filters.to) {
-                const t = new Date().toISOString().slice(0, 10);
-                this.filters.from = t;
-                this.filters.to = t;
+                const today = new Date();
+                const start = new Date(today.getTime() - 6 * 86400000);
+                this.filters.from = start.toISOString().slice(0, 10);
+                this.filters.to = today.toISOString().slice(0, 10);
             }
             window.addEventListener('promotix:date-range', () => {
                 this.syncHeaderDates();

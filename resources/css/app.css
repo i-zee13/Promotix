@@ -2258,7 +2258,7 @@ select:autofill {
     color: #ffffff !important;
 }
 
-/* Paid dashboard — top stat cards + Google Ads row */
+/* Paid dashboard — Figma 4-card top row */
 .paid-dashboard-cards {
     display: grid;
     grid-template-columns: 1fr;
@@ -2273,26 +2273,185 @@ select:autofill {
 
 @media (min-width: 1280px) {
     .paid-dashboard-cards {
-        grid-template-columns: repeat(12, minmax(0, 1fr));
-    }
-
-    .paid-dashboard-card--stat {
-        grid-column: span 4;
-    }
-
-    .paid-dashboard-card--wide {
-        grid-column: span 12;
-    }
-}
-
-@media (min-width: 768px) and (max-width: 1279px) {
-    .paid-dashboard-card--wide {
-        grid-column: span 2;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
 
 .paid-dashboard-cards > * {
     min-width: 0;
+}
+
+.paid-dashboard-card {
+    min-height: 158px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: #6400B2;
+    padding: 16px;
+    box-shadow: 0 0 18px rgba(100, 0, 179, 0.35);
+}
+
+.paid-dashboard-card__title {
+    font-size: 13px;
+    font-weight: 400;
+    color: #fff;
+}
+
+.paid-dashboard-card__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.75);
+    transition: color 0.15s;
+}
+
+.paid-dashboard-card__icon-btn:hover {
+    color: #fff;
+}
+
+.paid-blocking-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 3px 0;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.paid-blocking-row:last-child {
+    border-bottom: 0;
+}
+
+.paid-campaign-breakdown {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 110px;
+    text-align: center;
+}
+
+.paid-campaign-diamond {
+    display: flex;
+    height: 56px;
+    width: 56px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.paid-campaign-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #fff;
+    padding: 4px 12px;
+    font-size: 9px;
+    font-weight: 600;
+    color: #6400B2;
+    transition: background 0.15s;
+}
+
+.paid-campaign-link:hover {
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.paid-trends-wrap {
+    position: relative;
+}
+
+.paid-trends-tooltip {
+    position: absolute;
+    z-index: 5;
+    min-width: 120px;
+    transform: translateX(-50%);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.92);
+    padding: 8px 10px;
+    font-size: 10px;
+    color: #fff;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.paid-trends-tooltip strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+}
+
+.paid-trends-tooltip span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.paid-trends-tooltip span i {
+    display: inline-block;
+    height: 8px;
+    width: 8px;
+    border-radius: 1px;
+    flex-shrink: 0;
+}
+
+.paid-sidebar-card {
+    min-height: 158px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: #6400B2;
+    padding: 14px;
+}
+
+.paid-sidebar-card__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 400;
+    color: #a9a9a9;
+}
+
+.paid-heatmap-bar {
+    margin-top: 10px;
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+}
+
+.paid-heatmap-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #f59e0b 0%, #fff 100%);
+}
+
+.paid-keyword-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-radius: 9999px;
+    background: #fff;
+    padding: 4px 12px;
+    font-size: 10px;
+    color: #6400B2;
+}
+
+.paid-invalid-card {
+    min-height: 158px;
+    border-radius: 10px;
+    border: 1px solid #5a2a99;
+    background: #090909;
+    padding: 14px;
 }
 
 /* Platform Integrate — action buttons (aligned, single-line labels) */
@@ -2316,6 +2475,14 @@ select:autofill {
 
 .figma-platform-kebab:hover {
     background: rgba(255, 255, 255, 0.12);
+}
+
+.integration-row-menu .figma-platform-kebab {
+    color: #121212;
+}
+
+.integration-row-menu .figma-platform-kebab:hover {
+    background: rgba(0, 0, 0, 0.08);
 }
 
 .figma-platform-menu-item {
@@ -2832,48 +2999,94 @@ select:autofill {
 }
 
 .figma-bp-visits-row,
-.figma-bp-invalid-row {
+.figma-bp-mid-section {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
+    align-items: start;
 }
 
 @media (max-width: 1279px) {
-    .figma-bp-donuts-col {
-        grid-template-columns: 1fr;
-        max-width: 280px;
-    }
-
     .figma-bp-bars-col {
-        flex-direction: row;
+        width: 100%;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .figma-bp-pill-card {
-        min-height: 100px;
-        flex: 1;
+        height: 200px;
+    }
+
+    .figma-bp-donuts-col {
+        width: 100%;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        justify-content: stretch;
+    }
+
+    .figma-bp-donut-card {
+        width: auto;
+        max-width: 105px;
+        height: 133px;
+        max-height: 133px;
+        min-height: 133px;
+    }
+
+    .figma-bp-side-col {
+        max-width: 100%;
+        justify-self: stretch;
+    }
+
+    .figma-bp-mid-section > .figma-bp-side-col {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    .figma-bp-mid-section > .figma-bp-invalid-card,
+    .figma-bp-mid-section > .figma-bp-domain-panel {
+        grid-column: 1;
+        grid-row: auto;
     }
 }
 
 @media (min-width: 1280px) {
+    /* Figma v266_216 + v266_219/372/373: 593px chart + 3×105px pills */
     .figma-bp-visits-row {
-        grid-template-columns: minmax(0, 1fr) 168px;
+        grid-template-columns: minmax(0, 1fr) 331px;
+        align-items: stretch;
+        min-height: 309px;
     }
 
-    .figma-bp-invalid-row {
-        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    /* Chart left | donuts + country right; domain full width below chart */
+    .figma-bp-mid-section {
+        grid-template-columns: minmax(0, 1fr) 331px;
+        grid-template-rows: auto auto;
+        align-items: stretch;
     }
 
-    .figma-bp-tables-row {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    .figma-bp-mid-section > .figma-bp-invalid-card {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .figma-bp-mid-section > .figma-bp-side-col {
+        grid-column: 2;
+        grid-row: 1 / 3;
+    }
+
+    .figma-bp-mid-section > .figma-bp-domain-panel {
+        grid-column: 1;
+        grid-row: 2;
     }
 }
 
 .figma-bp-visits-card {
-    border-radius: 12px;
-    border: 1px solid #6706b3;
-    background: linear-gradient(180deg, #6400b2 0%, #4a0088 100%);
-    padding: 16px 18px 14px;
-    box-shadow: 0 0 24px rgba(100, 0, 179, 0.35);
+    display: flex;
+    min-height: 309px;
+    flex-direction: column;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: #6400b2;
+    padding: 14px 16px 10px;
+    box-shadow: 0 0 20px rgba(100, 0, 179, 0.28);
 }
 
 .figma-bp-visits-title {
@@ -2883,6 +3096,54 @@ select:autofill {
     color: #e7e7e7;
 }
 
+.figma-bp-visits-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px 14px;
+}
+
+.figma-bp-visits-head__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px 12px;
+    margin-left: auto;
+}
+
+.figma-bp-card-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 30;
+    min-width: 148px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: #101010;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.figma-bp-card-menu button,
+.figma-bp-card-menu a {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 12px;
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.figma-bp-card-menu button:hover,
+.figma-bp-card-menu a:hover {
+    background: rgba(100, 0, 178, 0.45);
+}
+
 .figma-bp-legend {
     display: flex;
     flex-wrap: wrap;
@@ -2890,6 +3151,11 @@ select:autofill {
     margin-top: 8px;
     font-size: 9px;
     color: rgba(255, 255, 255, 0.85);
+}
+
+.figma-bp-legend--inline {
+    margin-top: 0;
+    justify-content: flex-end;
 }
 
 .figma-bp-legend span {
@@ -2905,75 +3171,94 @@ select:autofill {
     border-radius: 1px;
 }
 
+/* Figma v290_379: chart area 464×177 inside 593×309 card */
 .figma-bp-area-canvas {
-    height: 220px;
+    flex: 1;
     width: 100%;
-    margin-top: 10px;
-}
-
-@media (min-width: 1280px) {
-    .figma-bp-area-canvas {
-        height: 177px;
-    }
+    min-height: 177px;
+    max-height: 177px;
+    margin-top: 8px;
 }
 
 .figma-bp-bars-col {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: grid;
+    width: 331px;
+    grid-template-columns: repeat(3, 105px);
+    gap: 8px;
+    align-content: stretch;
 }
 
 .figma-bp-pill-card {
     display: flex;
-    flex: 1;
+    height: 287px;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-end;
-    min-height: 118px;
     border-radius: 10px;
-    border: 1px solid #6706b3;
+    border: 1px solid rgba(255, 255, 255, 0.4);
     background-color: #6400b2;
-    padding: 10px 8px 8px;
+    padding: 10px 4px 8px;
     text-align: center;
 }
 
-.figma-bp-pill-card p:first-child {
+.figma-bp-pill-label {
+    margin: 0;
+    width: 101px;
     font-size: 11px;
-    line-height: 1.2;
-    color: rgba(255, 255, 255, 0.92);
+    line-height: 1.25;
+    color: #ffffff;
 }
 
 .figma-bp-pill-track {
     display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    width: 36px;
-    height: 72px;
-    margin-top: auto;
-    border-radius: 18px;
-    background: rgba(74, 0, 136, 0.65);
+    width: 97px;
+    flex: 1;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin-top: 8px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: transparent;
 }
 
 .figma-bp-pill-fill {
-    width: 100%;
+    display: block;
+    width: 95px;
+    margin: 0 auto;
     min-height: 8px;
-    border-radius: 18px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 10px;
 }
 
-.figma-bp-pill-value {
-    margin-top: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    color: #ffffff;
+/* Figma v266_674 / v266_676 / v290_369 */
+.figma-bp-pill-fill--valid {
+    background: #9a1aff;
+}
+
+.figma-bp-pill-fill--invalid {
+    background: rgba(255, 255, 255, 0.56);
+}
+
+.figma-bp-pill-fill--crawler {
+    background: rgba(255, 255, 255, 0.56);
 }
 
 .figma-bp-invalid-card {
     position: relative;
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
     overflow: hidden;
     border-radius: 12px;
-    border: 1px solid rgba(103, 6, 179, 0.55);
-    background-color: #111111;
+    border: 1px solid rgba(90, 42, 153, 1);
+    background-color: #111827;
     padding: 14px 16px 12px;
+}
+
+@media (min-width: 1280px) {
+    .figma-bp-invalid-card {
+        min-height: 341px;
+    }
 }
 
 .figma-bp-invalid-title {
@@ -2982,58 +3267,175 @@ select:autofill {
     color: #a9a9a9;
 }
 
-.figma-bp-week-stats {
+.figma-bp-invalid-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px 24px;
-    margin-top: 10px;
-    font-size: 11px;
-    color: #d9d9d9;
+    gap: 12px 18px;
+    margin-top: 8px;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.82);
 }
 
-.figma-bp-week-stats strong {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
+.figma-bp-invalid-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.figma-bp-invalid-legend i {
+    display: inline-block;
+    height: 8px;
+    width: 8px;
+    border-radius: 1px;
+}
+
+.figma-bp-invalid-chart-wrap {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    margin-top: 8px;
+}
+
+.figma-bp-chart-tooltip {
+    position: absolute;
+    z-index: 5;
+    min-width: 132px;
+    transform: translateX(-50%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background: rgba(13, 13, 13, 0.94);
+    padding: 8px 10px;
+    font-size: 10px;
     color: #ffffff;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.figma-bp-chart-tooltip strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.figma-bp-chart-tooltip span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.figma-bp-chart-tooltip i {
+    display: inline-block;
+    height: 7px;
+    width: 7px;
+    border-radius: 1px;
 }
 
 .figma-bp-invalid-canvas {
-    height: 200px;
+    flex: 1;
+    min-height: 192px;
+    max-height: 220px;
     width: 100%;
-    margin-top: 8px;
+}
+
+/* Figma v290_376/377/378: 105×133 — must not stretch with left chart */
+.figma-bp-side-col {
+    display: flex;
+    width: 100%;
+    max-width: 331px;
+    flex-direction: column;
+    gap: 10px;
+    justify-self: end;
 }
 
 .figma-bp-donuts-col {
     display: grid;
+    width: 100%;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    align-content: start;
+    gap: 8px;
+    align-items: start;
 }
 
 .figma-bp-donut-card {
+    display: flex;
+    box-sizing: border-box;
+    width: 105px;
+    height: 133px;
+    max-height: 133px;
+    min-height: 133px;
+    flex: 0 0 133px;
+    flex-direction: column;
+    align-items: center;
+    overflow: visible;
     border-radius: 10px;
-    border: 1px solid #6706b3;
+    border: 1px solid rgba(255, 255, 255, 0.4);
     background-color: #6400b2;
-    padding: 10px 8px 12px;
+    padding: 8px 6px 4px;
 }
 
 .figma-bp-donut-card h3 {
-    margin-bottom: 6px;
+    margin: 0 0 4px;
+    flex: 0 0 auto;
     text-align: center;
     font-size: 10px;
     font-weight: 400;
-    line-height: 1.2;
+    line-height: 1.15;
     color: rgba(255, 255, 255, 0.92);
 }
 
-.figma-bp-donut-canvas {
-    display: block;
-    height: 108px;
-    width: 100%;
-    max-width: 120px;
-    margin-left: auto;
-    margin-right: auto;
+.figma-bp-donut-ring {
+    position: relative;
+    display: flex;
+    flex: 0 0 72px;
+    width: 72px;
+    height: 72px;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    border-radius: 50%;
+}
+
+.figma-bp-donut-hole {
+    display: flex;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: #4a0088;
+}
+
+.figma-bp-donut-hole__text {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    color: #ffffff;
+}
+
+.figma-bp-donut-card .figma-bp-donut-legend {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    max-height: 28px;
+    overflow: hidden;
+    font-size: 7px;
+    line-height: 1.2;
+}
+
+.figma-bp-demo-badge {
+    display: inline-flex;
+    margin-left: 10px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 2px 8px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.75);
+    vertical-align: middle;
 }
 
 .figma-bp-donut-legend {
@@ -3043,9 +3445,26 @@ select:autofill {
     color: rgba(255, 255, 255, 0.8);
 }
 
-.figma-bp-tables-row {
-    display: grid;
-    gap: 12px;
+.figma-bp-donut-legend.text-center {
+    text-align: center;
+}
+
+.figma-bp-country-panel {
+    display: flex;
+    width: 100%;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+}
+
+.figma-bp-country-panel .figma-bp-table-body--country {
+    flex: 1;
+    max-height: none;
+    min-height: 120px;
+}
+
+.figma-bp-domain-panel {
+    width: 100%;
 }
 
 .figma-bp-table {
@@ -3070,23 +3489,15 @@ select:autofill {
 }
 
 .figma-bp-table-head--country {
-    grid-template-columns: minmax(0, 1fr) 72px 52px;
+    grid-template-columns: minmax(0, 1fr) 44px 44px 36px;
+    padding: 8px 10px;
+    font-size: 10px;
+    color: #d9c4f0;
 }
 
 .figma-bp-table-body {
     max-height: 300px;
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #6706b3 transparent;
-}
-
-.figma-bp-table-body::-webkit-scrollbar {
-    width: 6px;
-}
-
-.figma-bp-table-body::-webkit-scrollbar-thumb {
-    background: #6706b3;
-    border-radius: 3px;
 }
 
 .figma-bp-table-row--domain {
@@ -3107,13 +3518,13 @@ select:autofill {
 
 .figma-bp-table-row--country {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 72px 52px;
+    grid-template-columns: minmax(0, 1fr) 44px 44px 36px;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background-color: #151515;
-    padding: 9px 12px;
-    font-size: 10px;
+    padding: 7px 10px;
+    font-size: 9px;
     color: #d9d9d9;
 }
 
@@ -3150,7 +3561,15 @@ select:autofill {
 
 /* Top filter bar (campaigns / path) */
 .figma-filter-bar {
+    position: relative;
+    z-index: 20;
+    overflow: visible !important;
     border-color: rgba(100, 0, 178, 0.22) !important;
+}
+
+.figma-filter-calendar-host {
+    position: relative;
+    z-index: 30;
 }
 
 .figma-filter-control {
@@ -3755,6 +4174,85 @@ select option, .brand-select option { background:#ffffff; color:#111827; }
     font-weight: 600;
     line-height: 1;
     color: var(--figma-toggle-label-color);
+    pointer-events: none;
+}
+
+.figma-filter-select-wrap {
+    position: relative;
+}
+
+.figma-filter-select-wrap .figma-filter-control {
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.figma-filter-select-wrap::after {
+    content: '';
+    position: absolute;
+    right: 4px;
+    bottom: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background-color: #101010;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%238c8787' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 10px;
+    pointer-events: none;
+}
+
+.figma-filter-path-wrap {
+    position: relative;
+}
+
+.figma-filter-path-icon {
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    z-index: 1;
+    width: 12px;
+    height: 12px;
+    transform: translateY(-50%);
+    color: #8c8787;
+    pointer-events: none;
+}
+
+.figma-filter-calendar-btn {
+    display: flex;
+    height: 34px;
+    width: 34px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 6px;
+    background-color: #101010;
+    color: #8c8787;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.figma-filter-calendar-btn:hover {
+    background-color: #1a1a1a;
+    color: #c8c4d0;
+}
+
+.figma-filter-bar .figma-date-range-popover,
+.figma-filter-calendar-host .figma-date-range-popover {
+    right: 0;
+    left: auto;
+    z-index: 250;
+}
+
+.light-mode .figma-filter-select-wrap::after {
+    border-color: #c9b8dc;
+    background-color: #ffffff;
+}
+
+.light-mode .figma-filter-calendar-btn {
+    background-color: #ffffff;
+    border: 1px solid #c9b8dc;
+    color: #5c5470;
 }
 
 /* Light app theme: dark labels except on forced-dark panels */

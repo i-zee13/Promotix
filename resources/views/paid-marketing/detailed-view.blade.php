@@ -12,24 +12,26 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
             </div>
 
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
-                <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Campaigns</span>
-                    <select x-model="filters.platform" @change="scheduleFetch()" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0">
-                        <option value="">All campaigns</option>
-                        @foreach ($platforms as $platform)
-                            <option value="{{ $platform }}">{{ $platform }}</option>
-                        @endforeach
-                    </select>
+            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
+                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.campaign" @change="scheduleFetch()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All campaigns</option>
+                            @foreach ($campaigns as $campaign)
+                                <option value="{{ $campaign }}">{{ $campaign }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </label>
-                <label class="flex w-[178px] flex-col justify-center px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
-                    <input x-model="filters.path" @input="scheduleFetch()" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
+                    <div class="figma-filter-path-wrap">
+                        <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input x-model="filters.path" @input="scheduleFetch()" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    </div>
                 </label>
-                <div class="figma-filter-action flex w-[34px] items-center justify-center bg-[#6400B2] text-white" aria-hidden="true">
-                    <svg class="h-[18px] w-[18px] animate-spin text-white/80" x-show="loading" x-cloak fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    <svg class="h-[18px] w-[18px]" x-show="!loading" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                </div>
+                @include('partials.figma-filter-date-fields')
             </div>
         </div>
 
@@ -55,16 +57,8 @@
                 </div>
             </div>
 
-            <div x-show="filtersOpen" x-cloak class="mt-[14px] grid gap-[10px] rounded-[8px] bg-black/20 p-[10px] sm:grid-cols-2">
-                <label class="text-[11px] text-white/70">From
-                    <input type="date" x-model="filters.from" @change="scheduleFetch()" class="mt-[4px] h-[32px] w-full rounded-[4px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
-                </label>
-                <label class="text-[11px] text-white/70">To
-                    <input type="date" x-model="filters.to" @change="scheduleFetch()" class="mt-[4px] h-[32px] w-full rounded-[4px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
-                </label>
-                <div class="flex gap-[8px] sm:col-span-2 sm:justify-end">
-                    <button type="button" @click="clearFilters()" class="rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] text-white/80">Clear</button>
-                </div>
+            <div x-show="filtersOpen" x-cloak class="mt-[14px] flex justify-end rounded-[8px] bg-black/20 p-[10px]">
+                <button type="button" @click="clearFilters()" class="rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] text-white/80">Clear filters</button>
             </div>
         </div>
 
@@ -115,10 +109,10 @@
 
         <section class="mt-[20px]">
             <h2 class="mx-auto mb-[18px] flex h-[36px] w-[184px] items-center justify-center rounded-[4px] bg-[#6706B3] text-[24px] font-semibold text-[#a9a9a9]">Paid Stats</h2>
-            <div class="grid grid-cols-2 gap-[14px] sm:grid-cols-3 xl:grid-cols-6">
+            <div class="grid grid-cols-2 gap-[14px] sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
                 <template x-for="card in statCards" :key="card.label">
                     <article class="relative h-[228px] overflow-hidden rounded-[10px] border border-white/40 bg-[#6400B2]">
-                        <div class="absolute inset-x-0 bottom-0 rounded-t-[10px]" :class="card.fillClass + ' ' + card.toneClass"></div>
+                        <div class="absolute inset-x-0 bottom-0 rounded-t-[10px] opacity-40" :class="card.fillClass + ' ' + card.toneClass"></div>
                         <div class="relative z-10 pt-[31px] text-center">
                             <p class="mb-[26px] text-[14px] text-[#a9a9a9]" x-text="card.label"></p>
                             <p class="text-[36px] font-medium leading-none text-white" x-text="card.value + '%'"></p>
@@ -189,13 +183,19 @@
             fetchTimer: null,
             loading: false,
             filtersOpen: false,
-            filters: { ip: '', path: '', platform: '', from: '', to: '' },
+            filters: { ip: '', path: '', campaign: '', from: '', to: '' },
             rows: [],
             statCards: [],
             modal: { open: false, visit: null, clicks: [], activeIndex: 0 },
             get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
             init() {
                 this.syncHeaderDates();
+                if (!this.filters.from || !this.filters.to) {
+                    const today = new Date();
+                    const start = new Date(today.getTime() - 6 * 86400000);
+                    this.filters.from = start.toISOString().slice(0, 10);
+                    this.filters.to = today.toISOString().slice(0, 10);
+                }
                 this.fetchNow();
                 window.addEventListener('promotix:date-range', () => {
                     this.syncHeaderDates();
@@ -208,6 +208,19 @@
                     if (r.from) this.filters.from = r.from;
                     if (r.to) this.filters.to = r.to;
                 } catch (e) {}
+            },
+            applyPageDates() {
+                if (!this.filters.from || !this.filters.to) return;
+                try {
+                    localStorage.setItem('promotix-date-range', JSON.stringify({
+                        from: this.filters.from,
+                        to: this.filters.to,
+                    }));
+                } catch (e) {}
+                window.dispatchEvent(new CustomEvent('promotix:date-range', {
+                    detail: { from: this.filters.from, to: this.filters.to },
+                }));
+                this.scheduleFetch();
             },
             scheduleFetch() {
                 clearTimeout(this.fetchTimer);
@@ -239,7 +252,7 @@
                 }
             },
             clearFilters() {
-                this.filters = { ip: '', path: '', platform: '', from: '', to: '' };
+                this.filters = { ip: '', path: '', campaign: '', from: '', to: '' };
                 this.syncHeaderDates();
                 this.fetchNow();
             },

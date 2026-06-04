@@ -221,60 +221,6 @@
                 <p class="mt-[5px] text-[14px] font-medium text-white">Linked accounts &amp; domains</p>
             </div>
 
-            <div id="mapping-filters" class="mb-[14px] grid gap-[8px] rounded-[8px] border border-white/20 bg-[#6400B2]/35 p-[10px] lg:grid-cols-[1fr_1fr_150px_auto]">
-                <label class="flex flex-col gap-[4px]">
-                    <span class="text-[9px] font-semibold uppercase text-white/60">Filter domain</span>
-                    <select x-model="mappingFilter.domain" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
-                        <option value="">All domains</option>
-                        @foreach ($paidMarketingDomains as $domain)
-                            <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                        @endforeach
-                    </select>
-                </label>
-                <label class="flex flex-col gap-[4px]">
-                    <span class="text-[9px] font-semibold uppercase text-white/60">Filter account</span>
-                    <select x-model="mappingFilter.account" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
-                        <option value="">All accounts</option>
-                        @foreach ($accounts as $account)
-                            <option value="{{ $account->id }}">{{ $account->displayLabel() }} ({{ $account->display_customer_id ?: $account->customer_id }})</option>
-                        @endforeach
-                    </select>
-                </label>
-                <label class="flex flex-col gap-[4px]">
-                    <span class="text-[9px] font-semibold uppercase text-white/60">Protection</span>
-                    <select x-model="mappingFilter.protection" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white focus:ring-[#6400B2]">
-                        <option value="">All types</option>
-                        <option value="ip_blocking">IP Blocking</option>
-                        <option value="pixel_guard">Pixel Guard</option>
-                    </select>
-                </label>
-                <button type="button" @click="mappingFilter = { domain: '', account: '', protection: '' }" class="self-end rounded-[5px] border border-white/30 px-[12px] py-[8px] text-[11px] text-white hover:bg-white/10">Clear</button>
-            </div>
-
-            <details class="mb-[14px] rounded-[8px] border border-white/15 bg-black/20 p-[10px] text-white">
-                <summary class="cursor-pointer text-[12px] font-medium text-white/90">Link new domain to Google Ads</summary>
-                <form id="link-domain-form" method="POST" action="{{ route('integrations.store-mapping') }}" class="mt-[10px] grid gap-[8px] lg:grid-cols-[1fr_1fr_150px_130px]">
-                    @csrf
-                    <select name="domain_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white">
-                        <option value="">Select domain</option>
-                        @foreach ($paidMarketingDomains as $domain)
-                            <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                        @endforeach
-                    </select>
-                    <select id="google-ads-account-select" name="google_ads_account_id" required class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white">
-                        <option value="">Select account</option>
-                        @foreach ($accounts as $account)
-                            <option value="{{ $account->id }}">{{ $account->displayLabel() }} ({{ $account->display_customer_id ?: $account->customer_id }})</option>
-                        @endforeach
-                    </select>
-                    <select name="protection_type" class="figma-select h-[34px] rounded-[5px] border border-white/25 bg-[#101010] px-[8px] text-[12px] text-white">
-                        <option value="ip_blocking">IP Blocking</option>
-                        <option value="pixel_guard">Pixel Guard</option>
-                    </select>
-                    <button type="submit" class="rounded-[5px] bg-[#6706B3] px-[12px] text-[12px] font-semibold text-white">Link</button>
-                </form>
-            </details>
-
             <div class="overflow-x-auto">
                 <table class="min-w-[1040px] w-full border-separate border-spacing-y-[5px] text-left">
                     <thead>
@@ -289,11 +235,7 @@
                     </thead>
                     <tbody>
                         @forelse ($mappings as $mapping)
-                            <tr
-                                class="rounded-[5px] bg-[#d9d9d9] text-[#121212]"
-                                x-show="mappingRowVisible({{ $mapping->domain_id }}, {{ $mapping->google_ads_account_id }}, @js($mapping->protection_type))"
-                                x-cloak
-                            >
+                            <tr class="rounded-[5px] bg-[#d9d9d9] text-[#121212]">
                                 <td class="rounded-l-[5px] px-[22px] py-[10px] text-[16px] font-medium">
                                     <span class="inline-flex items-center gap-[10px]">
                                         @include('partials.icons.google', ['class' => 'h-[22px] w-[22px]'])
@@ -313,14 +255,18 @@
                                     </a>
                                 </td>
                                 <td class="rounded-r-[5px] px-[22px] py-[10px] text-right">
-                                    <form method="POST" action="{{ route('integrations.destroy-mapping', $mapping) }}" onsubmit="return confirm('Remove this platform link?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="inline-flex items-center gap-[6px] rounded-[5px] border border-red-400/50 bg-red-500/10 px-[10px] py-[5px] text-[11px] font-semibold text-red-700 hover:bg-red-500/20">
-                                            @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'h-[14px] w-[14px]'])
-                                            Delete
-                                        </button>
-                                    </form>
+                                    <div class="integration-row-menu inline-flex justify-end">
+                                        <x-integrations.platform-card-dropdown :menu-id="'mapping-' . $mapping->id" label="Platform row options">
+                                            <form method="POST" action="{{ route('integrations.destroy-mapping', $mapping) }}" onsubmit="return confirm('Remove this platform link?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="figma-platform-menu-item figma-platform-menu-item--danger w-full text-left">
+                                                    @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'mr-[8px] inline h-[14px] w-[14px]'])
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        </x-integrations.platform-card-dropdown>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -430,14 +376,6 @@ function platformIntegrations(config) {
     return {
         directList: config.directInitial || [],
         directForm: { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' },
-        mappingFilter: { domain: '', account: '', protection: '' },
-        mappingRowVisible(domainId, accountId, protection) {
-            const f = this.mappingFilter;
-            if (f.domain && String(domainId) !== String(f.domain)) return false;
-            if (f.account && String(accountId) !== String(f.account)) return false;
-            if (f.protection && protection !== f.protection) return false;
-            return true;
-        },
         menuToast: '',
         menuToastTimer: null,
         showMenuToast(message) {
@@ -484,14 +422,12 @@ function platformIntegrations(config) {
                 case 'copy-tracking':
                     this.copyText(config.trackingLink, 'Tracking link');
                     break;
-                case 'open-pixel-guard': {
-                    this.scrollToEl('mapping-filters');
-                    this.mappingFilter.protection = 'pixel_guard';
-                    this.showMenuToast('Filtered to Pixel Guard mappings.');
+                case 'open-pixel-guard':
+                    this.scrollToEl('connected-platforms');
+                    this.showMenuToast('Connected platforms below.');
                     break;
-                }
                 case 'manage-ad-account':
-                    this.scrollToEl('mapping-filters');
+                    this.scrollToEl('connected-platforms');
                     break;
                 case 'test-google':
                     this.testGoogleConnection();

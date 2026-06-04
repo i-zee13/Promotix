@@ -23,13 +23,13 @@
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'copy-tracking' })" title="Copy Promotix tag script URL to clipboard">
         Copy Tracking Link
     </button>
-    <a href="#mapping-filters" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'open-pixel-guard' })" title="Filter connected platforms to Pixel Guard">
+    <a href="#connected-platforms" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'open-pixel-guard' })" title="Scroll to connected platforms">
         Open Pixel Guard
     </a>
     <a href="{{ $detectionUrl }}" class="figma-platform-menu-item" title="Paid Marketing → Detection → Audience Exclusion settings">
         Open Audience Exclusion
     </a>
-    <a href="#mapping-filters" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'manage-ad-account' })" title="Filter by Google Ads account">
+    <a href="#connected-platforms" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'manage-ad-account' })" title="Scroll to connected platforms">
         Manage Ad Account
     </a>
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'test-google' })" title="Check Google OAuth and synced accounts">

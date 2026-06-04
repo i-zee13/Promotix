@@ -20,16 +20,8 @@ class PaidMarketingController extends Controller
 {
     public function detailedView(Request $request): View
     {
-        $platforms = PaidMarketingVisit::query()
-            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id))
-            ->select('platform')
-            ->whereNotNull('platform')
-            ->distinct()
-            ->orderBy('platform')
-            ->pluck('platform');
-
         return view('paid-marketing.detailed-view', [
-            'platforms' => $platforms,
+            'campaigns' => $this->campaignNamesForUser($request),
         ]);
     }
 
@@ -69,8 +61,8 @@ class PaidMarketingController extends Controller
             $query->where('last_path', 'like', '%' . $path . '%');
         }
 
-        if ($platform = trim((string) $request->query('platform', ''))) {
-            $query->where('platform', $platform);
+        if ($campaign = trim((string) $request->query('campaign', ''))) {
+            $query->where('campaign', $campaign);
         }
 
         if ($from = $request->query('from')) {
@@ -163,14 +155,45 @@ class PaidMarketingController extends Controller
 
         return [
             'cards' => [
-                ['label' => 'Blocked', 'value' => (int) round(($blockedCount / $rowCount) * 100), 'fillClass' => 'h-[80%]', 'toneClass' => 'bg-[#9A1AFF]'],
-                ['label' => 'Invalid Traffic', 'value' => (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[32%]', 'toneClass' => 'bg-white/55'],
-                ['label' => 'PaidTraffic', 'value' => min(100, (int) round(($paidVisits / max($paidVisits + $threatCount, 1)) * 100)), 'fillClass' => 'h-[92%]', 'toneClass' => 'bg-white/55'],
-                ['label' => 'Bot Detection', 'value' => (int) round(($botCount / $rowCount) * 100), 'fillClass' => 'h-0', 'toneClass' => 'bg-white/55'],
-                ['label' => 'Countries', 'value' => min(100, $countryCount * 10), 'fillClass' => 'h-0', 'toneClass' => 'bg-white/55'],
-                ['label' => 'Overall', 'value' => (int) round((($blockedCount + $threatCount + $botCount) / max($rowCount * 3, 1)) * 100), 'fillClass' => 'h-[68%]', 'toneClass' => 'bg-white/55'],
+                ['label' => 'VPN Tracking', 'value' => (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[45%]', 'toneClass' => 'bg-[#9A1AFF]/50'],
+                ['label' => 'Threats', 'value' => (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[32%]', 'toneClass' => 'bg-white/25'],
+                ['label' => 'Data Centers', 'value' => min(100, $countryCount * 12), 'fillClass' => 'h-[55%]', 'toneClass' => 'bg-white/25'],
+                ['label' => 'Bot Detected', 'value' => (int) round(($botCount / $rowCount) * 100), 'fillClass' => 'h-[40%]', 'toneClass' => 'bg-white/25'],
+                ['label' => 'Invalid Clicks', 'value' => (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[60%]', 'toneClass' => 'bg-[#FF4BC1]/40'],
+                ['label' => 'Valid Click', 'value' => max(0, 100 - (int) round(($threatCount / $rowCount) * 100)), 'fillClass' => 'h-[75%]', 'toneClass' => 'bg-emerald-400/25'],
+                ['label' => 'Invalid Rate', 'value' => (int) round((($blockedCount + $threatCount) / max($rowCount * 2, 1)) * 100), 'fillClass' => 'h-[68%]', 'toneClass' => 'bg-white/20'],
             ],
         ];
+    }
+
+    private function campaignNamesForUser(Request $request): Collection
+    {
+        $campaigns = collect();
+
+        if (Schema::hasTable('visits')) {
+            $campaigns = DB::table('visits')
+                ->join('domains', 'domains.id', '=', 'visits.domain_id')
+                ->where('domains.user_id', $request->user()->id)
+                ->whereNotNull('utm_campaign')
+                ->where('utm_campaign', '!=', '')
+                ->select('utm_campaign')
+                ->distinct()
+                ->orderBy('utm_campaign')
+                ->pluck('utm_campaign');
+        }
+
+        if ($campaigns->isEmpty()) {
+            $campaigns = PaidMarketingVisit::query()
+                ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id))
+                ->whereNotNull('campaign')
+                ->where('campaign', '!=', '')
+                ->select('campaign')
+                ->distinct()
+                ->orderBy('campaign')
+                ->pluck('campaign');
+        }
+
+        return $campaigns;
     }
 
     public function detectionSettings(Request $request): View

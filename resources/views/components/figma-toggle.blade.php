@@ -22,6 +22,9 @@
     'figma-toggle--sm' => $size === 'sm',
     'figma-toggle--no-labels' => ! $hasLabels,
 ]) for="{{ $id }}">
+    @if ($name)
+        <input type="hidden" name="{{ $name }}" value="0">
+    @endif
     <input
         type="checkbox"
         id="{{ $id }}"

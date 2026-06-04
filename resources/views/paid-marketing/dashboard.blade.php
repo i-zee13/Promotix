@@ -14,38 +14,43 @@
             </div>
 
             <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
-                <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
+                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
-                    <select x-model="filters.domain_id" @change="reload()" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0">
-                        <option value="">All campaigns</option>
-                        @foreach ($domains as $domain)
-                            <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                        @endforeach
-                    </select>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All campaigns</option>
+                            @foreach ($domains as $domain)
+                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </label>
-                <label class="flex w-[178px] flex-col justify-center px-[12px]">
+                <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
-                    <input x-model="filters.path" @input="scheduleReload()" placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    <div class="figma-filter-path-wrap">
+                        <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input x-model="filters.path" @input="scheduleReload()" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    </div>
                 </label>
-                <button type="button" @click="window.dispatchEvent(new CustomEvent('promotix:open-date-calendar'))" class="figma-filter-action flex w-[34px] shrink-0 items-center justify-center bg-[#6400B2] text-white" aria-label="Date range">
-                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
-                </button>
+                @include('partials.figma-filter-date-fields')
             </div>
         </div>
 
         <div class="paid-dashboard-cards">
-            <article class="paid-dashboard-card--stat min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
+            <article class="paid-dashboard-card">
                 <div class="flex items-start justify-between">
-                    <h2 class="text-[13px] font-normal text-white">Total Traffic</h2>
-                    <div class="flex items-center gap-[8px] text-white/75">
-                        <span class="text-[9px]" x-show="livePollOn" title="Reads DB every 30s (tag visits). Use Refresh for Google Ads API sync.">Live</span>
-                        <button type="button" aria-label="Refresh" @click="reload(true, true)">Refresh</button>
+                    <h2 class="paid-dashboard-card__title">Paid Traffic</h2>
+                    <div class="flex items-center gap-[6px]">
+                        <button type="button" class="paid-dashboard-card__icon-btn" aria-label="Refresh" @click="reload(true, true)" title="Refresh Google Ads sync">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
+                        </button>
+                        <span class="paid-dashboard-card__icon-btn text-[11px]" title="Invalid rate for selected period">i</span>
                     </div>
                 </div>
                 <div class="mt-[8px] grid grid-cols-[1fr_88px] items-center gap-[8px]">
                     <div class="grid grid-cols-2 text-center">
                         <div>
-                            <p class="text-[10px] text-white/75">Paid Traffic</p>
+                            <p class="text-[10px] text-white/75">Paid traffic</p>
                             <p class="text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
                         </div>
                         <div>
@@ -57,14 +62,10 @@
                         <canvas id="paid-invalid-donut" class="h-full w-full" aria-label="Invalid traffic rate"></canvas>
                     </div>
                 </div>
-                <div class="mt-[8px] grid grid-cols-3 border-t border-white/25 pt-[7px] text-[9px] text-white/80">
-                    <span>Traffic</span><span>Valid</span><span>Invalid</span>
-                    <span class="text-white/60">Organic</span><span x-text="fmt(summary.valid_paid_visits)"></span><span x-text="fmt(summary.invalid_paid_visits)"></span>
-                </div>
             </article>
 
-            <article class="paid-dashboard-card--stat min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
-                <h2 class="text-[13px] font-normal text-white">Bot Protection</h2>
+            <article class="paid-dashboard-card">
+                <h2 class="paid-dashboard-card__title">Bot Protection</h2>
                 <div class="grid grid-cols-[70px_1fr] items-end gap-[10px]">
                     <div class="pt-[15px]">
                         <p class="text-[30px] font-normal leading-none text-white"><span x-text="botRate"></span>%</p>
@@ -76,10 +77,10 @@
                 </div>
             </article>
 
-            <article class="paid-dashboard-card--stat min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
+            <article class="paid-dashboard-card">
                 <div class="flex items-start justify-between">
-                    <h2 class="text-[13px] font-normal text-white">Blocking Activity</h2>
-                    <span class="text-[12px] text-white/75">i</span>
+                    <h2 class="paid-dashboard-card__title">Blocking Activity</h2>
+                    <span class="paid-dashboard-card__icon-btn text-[12px]" title="Blocking breakdown">i</span>
                 </div>
                 <div class="mt-[6px] grid grid-cols-2 gap-[8px]">
                     <div class="text-center">
@@ -87,34 +88,36 @@
                         <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
                     </div>
                     <div class="text-center">
-                        <p class="text-[9px] text-white/70">Total Blocked</p>
+                        <p class="text-[9px] text-white/70">Total blocked</p>
                         <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.blocked_paid_visits)"></p>
                     </div>
                 </div>
-                <div class="relative mt-[6px] h-[42px] w-full">
-                    <canvas id="blocking-sparkline" class="h-full w-full" aria-label="Blocking activity trend"></canvas>
-                </div>
-                <div class="mt-[4px] space-y-[2px] text-[9px] text-white/85">
-                    <div class="flex justify-between border-b border-white/15"><span>IP Range</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
-                    <div class="flex justify-between"><span>Audiences</span><a href="{{ route('paid-marketing.detection-settings') }}" class="rounded bg-white px-[8px] py-[1px] text-[8px] text-[#6400B2]">Set up</a></div>
+                <div class="mt-[8px] space-y-0">
+                    <div class="paid-blocking-row"><span>IP</span><span x-text="fmt(summary.unique_ips)"></span></div>
+                    <div class="paid-blocking-row"><span>IP Range</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
+                    <div class="paid-blocking-row"><span>Events</span><span x-text="fmt(summary.blocked_paid_visits)"></span></div>
+                    <div class="paid-blocking-row">
+                        <span>Audiences</span>
+                        <a href="{{ route('paid-marketing.detection-settings') }}" class="paid-campaign-link !py-[1px] !px-[8px] !text-[8px]">Set up</a>
+                    </div>
                 </div>
             </article>
 
-            <article class="paid-dashboard-card--wide min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[14px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
-                <h2 class="text-[13px] font-normal text-white">Google Ads Campaigns</h2>
-                <div class="mt-[6px] grid grid-cols-1 gap-[8px] md:grid-cols-[minmax(0,1fr)_140px] md:items-center">
-                    <div class="max-h-[120px] overflow-y-auto text-[10px] text-white/90">
-                        <template x-for="row in campaigns.slice(0, 6)" :key="row.campaign_id || row.campaign">
-                            <div class="flex justify-between gap-[8px] border-b border-white/10 py-[4px]">
-                                <span class="truncate font-medium" x-text="row.campaign"></span>
-                                <span class="shrink-0 text-white/70" x-text="(row.clicks ?? row.total ?? 0) + ' clk · $' + (row.cpc ?? 0)"></span>
-                            </div>
-                        </template>
-                        <p x-show="campaigns.length === 0" class="py-[8px] text-white/50">No Google Ads data for this date range.</p>
+            <article class="paid-dashboard-card">
+                <h2 class="paid-dashboard-card__title">Campaigns Breakdown</h2>
+                <div class="paid-campaign-breakdown">
+                    <div class="paid-campaign-diamond">
+                        <svg class="h-[28px] w-[28px] text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M12 3l2.2 6.8H21l-5.5 4 2.1 6.8L12 16.6 6.4 20.6l2.1-6.8L3 9.8h6.8L12 3z" stroke="currentColor" stroke-width="1.4" fill="rgba(255,255,255,0.12)"/>
+                        </svg>
                     </div>
-                    <div class="relative mx-auto h-[110px] w-full max-w-[140px] md:mx-0">
-                        <canvas id="campaigns-mini-bars" class="h-full w-full" aria-label="Campaign clicks breakdown"></canvas>
-                    </div>
+                    <template x-if="topCampaign">
+                        <p class="max-w-full truncate px-[6px] text-[10px] text-white/85" x-text="topCampaign.campaign"></p>
+                    </template>
+                    <template x-if="!topCampaign">
+                        <p class="text-[10px] text-white/55">No campaign data yet</p>
+                    </template>
+                    <a href="{{ route('paid-marketing.detection-settings') }}" class="paid-campaign-link">Set Tracking Parameter</a>
                 </div>
             </article>
         </div>
@@ -122,7 +125,7 @@
         <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,589px)_minmax(260px,1fr)]">
             <section class="min-h-[341px] rounded-[12px] border border-[#6400B2] bg-[#6400B2] p-[20px] shadow-[0_0_24px_rgba(100,0,179,.45)]">
                 <div class="mb-[8px] flex flex-wrap items-center justify-between gap-[8px]">
-                    <div class="flex items-center gap-[10px]">
+                    <div class="flex flex-wrap items-center gap-[10px]">
                         <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trends</h2>
                         <span class="text-[12px] text-white"><i class="mr-[4px] inline-block h-[12px] w-[12px] rounded-[1px] bg-white"></i>Last Week</span>
                         <span class="text-[12px] text-white"><i class="mr-[4px] inline-block h-[12px] w-[12px] rounded-[1px] bg-[#6625F8]"></i>This Week</span>
@@ -132,21 +135,31 @@
                         <option value="monthly">Monthly</option>
                     </select>
                 </div>
-                <canvas id="paid-trends" class="h-[270px] w-full"></canvas>
+                <div class="paid-trends-wrap">
+                    <div id="paid-trends-tooltip" class="paid-trends-tooltip" hidden></div>
+                    <canvas id="paid-trends" class="h-[270px] w-full"></canvas>
+                </div>
             </section>
 
             <div class="grid grid-cols-1 gap-[12px] sm:grid-cols-2 xl:grid-cols-2">
-                <section class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[14px]">
-                    <h2 class="text-[16px] font-normal text-[#a9a9a9]">Heatmap</h2>
+                <section class="paid-sidebar-card">
+                    <div class="paid-sidebar-card__head">
+                        <svg class="h-[16px] w-[16px] text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 9v4m0 3h.01"/></svg>
+                        <h2>Heatmap</h2>
+                    </div>
                     <div id="heatmap-grid" class="mt-[10px] grid grid-cols-8 gap-[3px]"></div>
+                    <div class="paid-heatmap-bar"><span :style="'width:' + heatmapIntensity + '%'"></span></div>
                 </section>
 
-                <section class="min-h-[158px] rounded-[10px] border border-white/40 bg-[#6400B2] p-[14px]">
-                    <h2 class="text-[16px] font-normal text-[#a9a9a9]">Keyword</h2>
+                <section class="paid-sidebar-card">
+                    <div class="paid-sidebar-card__head">
+                        <svg class="h-[16px] w-[16px] text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
+                        <h2>Keyword</h2>
+                    </div>
                     <div id="keyword-list" class="mt-[10px] space-y-[6px]"></div>
                 </section>
 
-                <section class="min-h-[158px] rounded-[10px] border border-[#5a2a99] bg-[#090909] p-[14px] sm:col-span-2 xl:col-span-2">
+                <section class="paid-invalid-card sm:col-span-2 xl:col-span-2">
                     <h2 class="text-[16px] font-normal text-[#a9a9a9]">Invalid Traffic Protection</h2>
                     <canvas id="invalid-protection" class="mt-[8px] h-[105px] w-full"></canvas>
                 </section>
@@ -162,13 +175,18 @@
                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
                         </button>
                     </div>
-                    <div class="flex h-[28px] items-center gap-[8px] rounded-[3px] bg-[#6400B2] px-[9px] text-[10px] text-white">
-                        <span>Campaigns</span>
-                        <select x-model="filters.domain_id" @change="reload()" class="h-[18px] rounded-[2px] border-0 bg-[#0B0B0B] px-[8px] py-0 text-[9px] text-white focus:ring-0">
-                            <option value="">Select</option>
-                            @foreach ($domains as $domain)
-                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                            @endforeach
+                    <div class="flex h-[28px] max-w-[min(100%,280px)] items-center gap-[8px] rounded-[3px] bg-[#6400B2] px-[9px] text-[10px] text-white">
+                        <span class="shrink-0">Campaign</span>
+                        <select
+                            x-model="filters.campaign"
+                            @change="onCampaignFilterChange()"
+                            :disabled="!filters.domain_id"
+                            class="h-[18px] min-w-0 flex-1 rounded-[2px] border-0 bg-[#0B0B0B] px-[8px] py-0 text-[9px] text-white focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <option value="" x-text="filters.domain_id ? 'All campaigns' : 'Select domain first'"></option>
+                            <template x-for="row in campaignOptions" :key="row.campaign_id || row.campaign">
+                                <option :value="row.campaign" x-text="campaignOptionLabel(row)"></option>
+                            </template>
                         </select>
                     </div>
                 </div>
@@ -178,7 +196,7 @@
                             <tr>
                                 <th class="w-[22%] px-[8px] py-[7px] font-normal">Address</th>
                                 <th class="w-[10%] px-[8px] py-[7px] font-normal">Country</th>
-                                <th class="w-[12%] px-[8px] py-[7px] font-normal">Invalid</th>
+                                <th class="w-[12%] px-[8px] py-[7px] font-normal">Invalid Clicks</th>
                                 <th class="w-[14%] px-[8px] py-[7px] font-normal">Bot detect</th>
                                 <th class="w-[12%] px-[8px] py-[7px] font-normal">VPN</th>
                                 <th class="w-[14%] px-[8px] py-[7px] font-normal">Data center</th>
@@ -190,7 +208,7 @@
                                 <tr class="cursor-pointer align-middle transition hover:bg-white/5" @click="openIpModal(row)">
                                     <td class="max-w-0 truncate px-[8px] py-[6px] font-mono text-[10px] text-white" :title="row.ip" x-text="row.ip"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.invalid) + '/' + fmt(row.total)"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.invalid)"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-text="threatLabel(row.top_threat)"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.vpn_hits > 0 ? fmt(row.vpn_hits) : '—'"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.data_center_hits > 0 ? fmt(row.data_center_hits) : '—'"></td>
@@ -268,7 +286,7 @@
                 <div class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                     <div><p class="figma-modal-label">IP Address</p><p class="figma-modal-value font-mono" x-text="ipModal.row.ip"></p></div>
                     <div><p class="figma-modal-label">Country</p><p class="figma-modal-value" x-text="ipModal.row.country || '—'"></p></div>
-                    <div><p class="figma-modal-label">Invalid / Total</p><p class="figma-modal-value" x-text="fmt(ipModal.row.invalid) + ' / ' + fmt(ipModal.row.total)"></p></div>
+                    <div><p class="figma-modal-label">Invalid Clicks</p><p class="figma-modal-value" x-text="fmt(ipModal.row.invalid)"></p></div>
                     <div><p class="figma-modal-label">Bot Detect</p><p class="figma-modal-value capitalize" x-text="threatLabel(ipModal.row.top_threat)"></p></div>
                     <div><p class="figma-modal-label">VPN Hits</p><p class="figma-modal-value" x-text="ipModal.row.vpn_hits > 0 ? fmt(ipModal.row.vpn_hits) : '—'"></p></div>
                     <div><p class="figma-modal-label">Data Center</p><p class="figma-modal-value" x-text="ipModal.row.data_center_hits > 0 ? fmt(ipModal.row.data_center_hits) : '—'"></p></div>
@@ -284,9 +302,9 @@
 function paidAdvertisingFigma(config = {}) {
     return {
         countryGetStarted: Boolean(config.countryGetStarted),
-        filters: { domain_id: '', path: '', window: 'weekly', from: '', to: '' },
-        summary: { paid_visits: 0, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0 },
-        trends: { labels: [], datasets: [] },
+        filters: { domain_id: '', campaign: '', path: '', window: 'weekly', from: '', to: '' },
+        summary: { paid_visits: 0, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
+        trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [] },
         campaigns: [],
         keywords: [],
@@ -294,13 +312,43 @@ function paidAdvertisingFigma(config = {}) {
         ips: [],
         ipModal: { open: false, row: null },
         heatmap: { days: [], hours: [], matrix: [] },
+        trendsHoverIndex: null,
         cardCharts: {},
         get botRate() {
             const paid = Number(this.summary.paid_visits || 0);
             const invalid = Number(this.summary.invalid_paid_visits || 0);
             return paid ? Math.round((invalid / paid) * 100) : 0;
         },
+        get topCampaign() {
+            return (this.campaigns || []).find(r => r.campaign) || null;
+        },
+        get campaignOptions() {
+            return (this.campaigns || []).filter(r => r.campaign);
+        },
+        campaignOptionLabel(row) {
+            const name = row.campaign || 'Campaign';
+            const traffic = Number(row.clicks ?? row.total ?? 0);
+            const invalid = Number(row.invalid ?? 0);
+            if (traffic > 0 && invalid > 0) {
+                return `${name} (${this.fmt(traffic)} · ${this.fmt(invalid)} inv)`;
+            }
+            if (traffic > 0) {
+                return `${name} (${this.fmt(traffic)} clicks)`;
+            }
+            return `${name} (${this.fmt(row.total ?? 0)})`;
+        },
+        get heatmapIntensity() {
+            const flat = (this.heatmap.matrix || []).flat();
+            const max = Math.max(...flat, 1);
+            const avg = flat.length ? flat.reduce((a, b) => a + Number(b || 0), 0) / flat.length : 0;
+            return Math.min(100, Math.round((avg / max) * 100));
+        },
         fmt(n) { return new Intl.NumberFormat().format(Number(n || 0)); },
+        fmtCompact(n) {
+            const v = Number(n || 0);
+            if (v >= 1000) return `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+            return this.fmt(v);
+        },
         threatLabel(key) {
             const map = { vpn: 'VPN', data_center: 'Data center', malicious: 'Malicious', abnormal_rate_limit: 'Rate limit' };
             const k = String(key || '').toLowerCase();
@@ -347,9 +395,56 @@ function paidAdvertisingFigma(config = {}) {
                 if (r.to) this.filters.to = r.to;
             } catch (e) {}
         },
+        applyPageDates() {
+            if (!this.filters.from || !this.filters.to) return;
+            try {
+                localStorage.setItem('promotix-date-range', JSON.stringify({
+                    from: this.filters.from,
+                    to: this.filters.to,
+                }));
+            } catch (e) {}
+            window.dispatchEvent(new CustomEvent('promotix:date-range', {
+                detail: { from: this.filters.from, to: this.filters.to },
+            }));
+            this.reload();
+        },
         applyDomainFromUrl() {
             const id = new URLSearchParams(window.location.search).get('domain_id');
             if (id) this.filters.domain_id = id;
+        },
+        onDomainChange() {
+            this.filters.campaign = '';
+            window.promotixPageLoader?.show('Loading data…');
+            this.reload();
+        },
+        async onCampaignFilterChange() {
+            await this.reloadIps();
+        },
+        syncCampaignFilter() {
+            if (!this.filters.campaign) return;
+            const names = this.campaignOptions.map(r => r.campaign);
+            if (!names.includes(this.filters.campaign)) {
+                this.filters.campaign = '';
+            }
+        },
+        ipsQueryString() {
+            const p = new URLSearchParams(this.qs());
+            if (this.filters.campaign) {
+                p.set('campaign', this.filters.campaign);
+            }
+            return p.toString();
+        },
+        async reloadIps() {
+            if (!this.filters.domain_id) {
+                this.ips = [];
+                return;
+            }
+            try {
+                const qs = this.ipsQueryString();
+                this.ips = await fetch(`/paid-marketing/ips?${qs}`).then(r => r.json());
+            } catch (e) {
+                this.ips = [];
+            }
         },
         startLivePoll() {
             clearInterval(this.livePollTimer);
@@ -362,9 +457,11 @@ function paidAdvertisingFigma(config = {}) {
             this.applyDomainFromUrl();
             this.syncHeaderDates();
             if (!this.filters.from || !this.filters.to) {
-                const t = new Date().toISOString().slice(0, 10);
-                this.filters.from = t;
-                this.filters.to = t;
+                const today = new Date();
+                const days = this.filters.window === 'monthly' ? 29 : 6;
+                const start = new Date(today.getTime() - days * 86400000);
+                this.filters.from = start.toISOString().slice(0, 10);
+                this.filters.to = today.toISOString().slice(0, 10);
             }
             this.startLivePoll();
             window.addEventListener('promotix:date-range', () => {
@@ -399,6 +496,7 @@ function paidAdvertisingFigma(config = {}) {
                 this.trends = trends;
                 this.blocking = blocking;
                 this.campaigns = campaigns;
+                this.syncCampaignFilter();
                 this.keywords = keywords;
                 this.countries = countries;
                 this.ips = ips;
@@ -417,14 +515,17 @@ function paidAdvertisingFigma(config = {}) {
             this.ipModal.row = null;
         },
         exportIpsCsv() {
-            const qs = this.qs();
+            const qs = this.ipsQueryString();
             window.location.href = `{{ route('paid-marketing.ips.export') }}${qs ? '?' + qs : ''}`;
         },
         render() {
             requestAnimationFrame(() => {
                 this.renderCardCharts();
-                this.drawLine('paid-trends', this.trends.labels || [], this.trends.datasets || []);
-                this.drawLine('invalid-protection', this.blocking.labels || [], this.blocking.datasets || [], true);
+                const labels = this.trends.labels || [];
+                const datasets = this.trends.datasets || [];
+                this.drawPaidTrendLine('paid-trends', labels, datasets, this.trendsHoverIndex);
+                this.bindPaidTrendHover('paid-trends', labels, datasets);
+                this.drawProtectionLine('invalid-protection', this.blocking.labels || [], this.blocking.datasets || []);
                 this.renderHeatmap();
                 this.renderKeywords();
                 this.renderCountries();
@@ -449,8 +550,6 @@ function paidAdvertisingFigma(config = {}) {
             if (!window.Chart) return;
             this.renderInvalidDonut();
             this.renderBotBars();
-            this.renderBlockingSparkline();
-            this.renderCampaignBars();
         },
         renderInvalidDonut() {
             const el = document.getElementById('paid-invalid-donut');
@@ -507,7 +606,7 @@ function paidAdvertisingFigma(config = {}) {
             const el = document.getElementById('bot-bars');
             if (!el) return;
             this.destroyCardChart('botBars');
-            const values = (this.trends.datasets?.[1]?.values || this.trends.datasets?.[0]?.values || []).slice(-7);
+            const values = (this.trends.invalid_daily || []).slice(-7);
             const labels = (this.trends.labels || []).slice(-7);
             const barValues = values.length ? values : [0, 0, 0, 0, 0, 0, 0];
             this.cardCharts.botBars = new Chart(el, {
@@ -516,7 +615,15 @@ function paidAdvertisingFigma(config = {}) {
                     labels: labels.length ? labels : barValues.map((_, i) => i + 1),
                     datasets: [{
                         data: barValues,
-                        backgroundColor: barValues.map((_, i) => (i % 2 ? '#B893D8' : 'rgba(255,255,255,0.55)')),
+                        backgroundColor: (ctx) => {
+                            const chart = ctx.chart;
+                            const { chartArea } = chart;
+                            if (!chartArea) return '#6625F8';
+                            const g = chart.ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            g.addColorStop(0, 'rgba(102,37,248,0.05)');
+                            g.addColorStop(1, '#6625F8');
+                            return g;
+                        },
                         borderRadius: 3,
                         borderSkipped: false,
                     }],
@@ -529,74 +636,143 @@ function paidAdvertisingFigma(config = {}) {
                 }),
             });
         },
-        renderBlockingSparkline() {
-            const el = document.getElementById('blocking-sparkline');
-            if (!el) return;
-            this.destroyCardChart('blockingSpark');
-            const blocked = this.blocking.datasets?.find(d => d.name === 'Blocked')?.values || [];
-            const flagged = this.blocking.datasets?.find(d => d.name === 'Flagged')?.values || [];
-            const combined = (blocked.length ? blocked : flagged).map((_, i) =>
-                Number(blocked[i] || 0) + Number(flagged[i] || 0)
-            );
-            const values = combined.length ? combined.slice(-10) : [0, 0, 0, 0, 0];
-            this.cardCharts.blockingSpark = new Chart(el, {
-                type: 'line',
-                data: {
-                    labels: values.map((_, i) => i + 1),
-                    datasets: [{
-                        data: values,
-                        borderColor: '#FFFFFF',
-                        backgroundColor: 'rgba(255,255,255,0.12)',
-                        fill: true,
-                        tension: 0.35,
-                        pointRadius: 0,
-                        borderWidth: 1.5,
-                    }],
-                },
-                options: this.miniChartOptions({
-                    scales: {
-                        x: { display: false, grid: { display: false } },
-                        y: { display: false, grid: { display: false }, beginAtZero: true },
-                    },
-                }),
+        bindPaidTrendHover(id, labels, datasets) {
+            const canvas = document.getElementById(id);
+            const tip = document.getElementById('paid-trends-tooltip');
+            if (!canvas || !tip) return;
+            if (canvas._paidHoverBound) return;
+            canvas._paidHoverBound = true;
+
+            const primary = datasets.find(d => !d.dashed) || datasets[0];
+            const compare = datasets.find(d => d.dashed) || datasets[1];
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const left = 36, right = 14;
+                const x = e.clientX - rect.left;
+                const innerW = rect.width - left - right;
+                if (innerW <= 0 || labels.length === 0) return;
+                const idx = Math.max(0, Math.min(labels.length - 1, Math.round(((x - left) / innerW) * (labels.length - 1))));
+                this.trendsHoverIndex = idx;
+                const thisVal = Number(primary?.values?.[idx] || 0);
+                const lastVal = Number(compare?.values?.[idx] || 0);
+                tip.hidden = false;
+                tip.innerHTML = `<strong>${labels[idx] || ''}</strong><span><i style="background:#6625F8"></i>This Week ${this.fmtCompact(thisVal)}</span><span><i style="background:#FF4BC1"></i>Last Week ${this.fmtCompact(lastVal)}</span>`;
+                tip.style.left = `${Math.min(Math.max(x, 60), rect.width - 60)}px`;
+                tip.style.top = '12px';
+                this.drawPaidTrendLine(id, labels, datasets, idx);
+            });
+            canvas.addEventListener('mouseleave', () => {
+                this.trendsHoverIndex = null;
+                tip.hidden = true;
+                this.drawPaidTrendLine(id, labels, datasets, null);
             });
         },
-        renderCampaignBars() {
-            const el = document.getElementById('campaigns-mini-bars');
-            if (!el) return;
-            this.destroyCardChart('campaignBars');
-            const rows = (this.campaigns || []).slice(0, 5);
-            const values = rows.map(r => Number(r.clicks ?? r.total ?? 0));
-            const labels = rows.map(r => String(r.campaign || '').slice(0, 8) || '—');
-            if (!values.length) {
-                this.cardCharts.campaignBars = new Chart(el, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['No data'],
-                        datasets: [{ data: [1], backgroundColor: ['rgba(255,255,255,0.12)'], borderWidth: 0 }],
-                    },
-                    options: this.miniChartOptions({ cutout: '65%' }),
-                });
-                return;
+        drawPaidTrendLine(id, labels, datasets, hoverIndex = null) {
+            const c = this.canvas(id);
+            if (!c) return;
+            const { ctx, w, h } = c;
+            const series = (datasets || []).map(d => ({ ...d, values: d.values || [] }));
+            const max = Math.max(...series.flatMap(d => d.values), 1);
+            const left = 36, right = 14, top = 16, bottom = 28;
+            const xStep = (w - left - right) / Math.max(labels.length - 1, 1);
+            const yAt = v => h - bottom - (Number(v) / max) * (h - top - bottom);
+
+            ctx.strokeStyle = 'rgba(255,255,255,.14)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 6; i++) {
+                const y = top + i * ((h - top - bottom) / 5);
+                ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(w - right, y); ctx.stroke();
             }
-            this.cardCharts.campaignBars = new Chart(el, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: '#B893D8',
-                        borderRadius: 4,
-                        borderSkipped: false,
-                    }],
-                },
-                options: this.miniChartOptions({
-                    indexAxis: 'y',
-                    scales: {
-                        x: { display: false, grid: { display: false }, beginAtZero: true },
-                        y: { display: false, grid: { display: false } },
-                    },
-                }),
+
+            ctx.fillStyle = 'rgba(255,255,255,0.45)';
+            ctx.font = '9px Inter, sans-serif';
+            for (let i = 0; i < 6; i++) {
+                const val = Math.round(max - (i * max / 5));
+                const y = top + i * ((h - top - bottom) / 5);
+                ctx.fillText(val >= 1000 ? `${Math.round(val / 1000)}k` : String(val), 4, y + 3);
+            }
+
+            const primary = series.find(d => !d.dashed) || series[0];
+            if (primary) {
+                const pts = primary.values.map((v, i) => ({ x: left + i * xStep, y: yAt(v) }));
+                const grad = ctx.createLinearGradient(0, top, 0, h - bottom);
+                grad.addColorStop(0, 'rgba(102,37,248,0.38)');
+                grad.addColorStop(1, 'rgba(102,37,248,0.02)');
+                ctx.beginPath();
+                pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+                ctx.lineTo(pts.at(-1)?.x || left, h - bottom);
+                ctx.lineTo(left, h - bottom);
+                ctx.closePath();
+                ctx.fillStyle = grad;
+                ctx.fill();
+            }
+
+            series.forEach(ds => {
+                const pts = ds.values.map((v, i) => ({ x: left + i * xStep, y: yAt(v) }));
+                ctx.strokeStyle = ds.color || '#fff';
+                ctx.lineWidth = ds.dashed ? 1 : 1.5;
+                ctx.setLineDash(ds.dashed ? [5, 4] : []);
+                ctx.beginPath();
+                pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+
+            if (hoverIndex != null && labels[hoverIndex] != null) {
+                const x = left + hoverIndex * xStep;
+                ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(x, top);
+                ctx.lineTo(x, h - bottom);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                series.forEach(ds => {
+                    const v = Number(ds.values[hoverIndex] || 0);
+                    ctx.beginPath();
+                    ctx.fillStyle = ds.dashed ? '#FF4BC1' : '#6625F8';
+                    ctx.arc(x, yAt(v), 4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            ctx.fillStyle = '#D9D9D9';
+            ctx.font = '10px Inter, sans-serif';
+            labels.forEach((l, i) => ctx.fillText(String(l).slice(0, 3), left + i * xStep - 8, h - 8));
+        },
+        drawProtectionLine(id, labels, datasets) {
+            const c = this.canvas(id);
+            if (!c) return;
+            const { ctx, w, h } = c;
+            const series = datasets.map(d => d.values || []);
+            const max = Math.max(...series.flat(), 1);
+            const left = 28, right = 10, top = 8, bottom = 22;
+            const colors = ['#6625F8', '#FFFFFF'];
+            ctx.strokeStyle = 'rgba(255,255,255,.16)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 5; i++) {
+                const y = top + i * ((h - top - bottom) / 4);
+                ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(w - right, y); ctx.stroke();
+            }
+            series.forEach((values, si) => {
+                const pts = values.map((v, i) => ({
+                    x: left + i * ((w - left - right) / Math.max(values.length - 1, 1)),
+                    y: h - bottom - (Number(v || 0) / max) * (h - top - bottom),
+                }));
+                ctx.strokeStyle = colors[si % colors.length];
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+                ctx.stroke();
+            });
+            ctx.fillStyle = '#9D9D9D';
+            ctx.font = '9px Inter, sans-serif';
+            labels.forEach((l, i) => {
+                if (i % Math.ceil(labels.length / 7 || 1) === 0) {
+                    const x = left + i * ((w - left - right) / Math.max(labels.length - 1, 1));
+                    ctx.fillText(String(l).slice(0, 3), x - 8, h - 4);
+                }
             });
         },
         canvas(id) {
@@ -610,53 +786,7 @@ function paidAdvertisingFigma(config = {}) {
             const ctx = canvas.getContext('2d');
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, w, h);
-            return {ctx, w, h};
-        },
-        drawLine(id, labels, datasets, dark = false) {
-            const c = this.canvas(id);
-            if (!c) return;
-            const {ctx, w, h} = c;
-            const series = datasets.map(d => d.values || []);
-            const max = Math.max(...series.flat(), 1);
-            const left = 36, right = 14, top = 16, bottom = 28;
-            ctx.strokeStyle = dark ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.14)';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < 6; i++) {
-                const y = top + i * ((h - top - bottom) / 5);
-                ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(w - right, y); ctx.stroke();
-            }
-            const colors = ['#FFFFFF', '#FF4BC1', '#B893D8'];
-            series.forEach((values, si) => {
-                const pts = values.map((v, i) => ({
-                    x: left + i * ((w - left - right) / Math.max(values.length - 1, 1)),
-                    y: h - bottom - (Number(v || 0) / max) * (h - top - bottom),
-                }));
-                if (si === 0 && !dark) {
-                    const grad = ctx.createLinearGradient(0, top, 0, h - bottom);
-                    grad.addColorStop(0, 'rgba(255,255,255,.75)');
-                    grad.addColorStop(1, 'rgba(255,255,255,.08)');
-                    ctx.beginPath();
-                    pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-                    ctx.lineTo(pts.at(-1)?.x || left, h - bottom);
-                    ctx.lineTo(left, h - bottom);
-                    ctx.closePath();
-                    ctx.fillStyle = grad;
-                    ctx.fill();
-                }
-                ctx.strokeStyle = colors[si % colors.length];
-                ctx.lineWidth = si === 0 ? 1.5 : 1;
-                ctx.beginPath();
-                pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-                ctx.stroke();
-            });
-            ctx.fillStyle = dark ? '#9D9D9D' : '#D9D9D9';
-            ctx.font = '10px Inter, sans-serif';
-            labels.forEach((l, i) => {
-                if (i % Math.ceil(labels.length / 7 || 1) === 0) {
-                    const x = left + i * ((w - left - right) / Math.max(labels.length - 1, 1));
-                    ctx.fillText(String(l).slice(0, 3), x - 8, h - 8);
-                }
-            });
+            return { ctx, w, h };
         },
         renderHeatmap() {
             const el = document.getElementById('heatmap-grid');
@@ -665,16 +795,17 @@ function paidAdvertisingFigma(config = {}) {
             const max = Math.max(...flat, 1);
             const cells = flat.slice(0, 56);
             el.innerHTML = cells.map(v => {
-                const alpha = max ? 0.12 + (Number(v || 0) / max) * 0.75 : 0.12;
-                return `<span class="h-[13px] rounded-[2px]" style="background: rgba(255,255,255,${alpha})"></span>`;
+                const t = max ? Number(v || 0) / max : 0;
+                const bg = t > 0.65 ? '#6625F8' : t > 0.35 ? '#8B4FD4' : 'rgba(255,255,255,0.22)';
+                return `<span class="h-[13px] rounded-[2px]" style="background:${bg}"></span>`;
             }).join('');
         },
         renderKeywords() {
             const el = document.getElementById('keyword-list');
             if (!el) return;
-            const rows = (this.keywords || []).slice(0, 5);
+            const rows = (this.keywords || []).slice(0, 4);
             el.innerHTML = rows.length ? rows.map(row => `
-                <div class="flex items-center justify-between rounded-full bg-white px-[10px] py-[3px] text-[10px] text-[#6400B2]">
+                <div class="paid-keyword-pill">
                     <span class="truncate">${row.keyword}</span><span>${row.invalid}</span>
                 </div>
             `).join('') : '<p class="text-[10px] text-white/70">No keyword data.</p>';

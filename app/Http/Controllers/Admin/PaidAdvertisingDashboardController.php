@@ -48,11 +48,13 @@ class PaidAdvertisingDashboardController extends Controller
         $invalid = 0;
         $blocked = 0;
         $flagged = 0;
+        $uniqueIps = 0;
 
         if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
             $base = $this->scopedVisitsQuery($request, $domainIds, $from, $to);
             $paid = (clone $base)->count();
             $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
+            $uniqueIps = (clone $base)->distinct()->count('ip');
 
             if (Schema::hasColumn('visits', 'action_taken')) {
                 $blocked = (clone $base)->where('action_taken', 'block')->count();
@@ -75,6 +77,7 @@ class PaidAdvertisingDashboardController extends Controller
             'invalid_paid_visits' => $invalid,
             'blocked_paid_visits' => $blocked,
             'flagged_paid_visits' => $flagged,
+            'unique_ips' => $uniqueIps,
             'valid_paid_visits' => max(0, $paid - $invalid),
             'google_ads' => $googleAds,
             'window' => [
@@ -93,14 +96,19 @@ class PaidAdvertisingDashboardController extends Controller
             $this->forceGoogleSyncForDomains($request, $domainIds, $from, $to);
         }
 
-        $rows = collect();
-        if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
-            $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+        $fetchRows = function (Carbon $rangeFrom, Carbon $rangeTo) use ($request, $domainIds) {
+            if (! Schema::hasTable('visits') || $domainIds->isEmpty()) {
+                return collect();
+            }
+
+            return $this->scopedVisitsQuery($request, $domainIds, $rangeFrom, $rangeTo)
                 ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
                 ->groupBy('day')
                 ->orderBy('day')
                 ->get();
-        }
+        };
+
+        $rows = $fetchRows($from, $to);
 
         $googleByDay = null;
         $chartFrom = $from;
@@ -115,27 +123,59 @@ class PaidAdvertisingDashboardController extends Controller
             $googleByDay = $sync->dailyClicksByDate($domainId, $from, $to);
         }
 
-        $labels = [];
-        $paidSeries = [];
-        $invalidSeries = [];
+        $buildSeries = function (Carbon $rangeFrom, Carbon $rangeTo, $dayRows, $googleDays) use ($domainIds): array {
+            $paid = [];
+            $invalid = [];
+            $period = $rangeFrom->copy();
+            while ($period->lte($rangeTo)) {
+                $key = $period->toDateString();
+                $row = $dayRows->firstWhere('day', $key);
+                $visitPaid = (int) ($row->total ?? 0);
+                $googlePaid = (int) ($googleDays?->get($key)?->clicks ?? 0);
+                $paid[] = $visitPaid > 0 ? $visitPaid : $googlePaid;
+                $invalid[] = (int) ($row->invalid ?? 0);
+                $period->addDay();
+            }
 
+            return ['paid' => $paid, 'invalid' => $invalid];
+        };
+
+        $labels = [];
         $period = $chartFrom->copy();
         while ($period->lte($chartTo)) {
-            $key = $period->toDateString();
-            $row = $rows->firstWhere('day', $key);
-            $visitPaid = (int) ($row->total ?? 0);
-            $googlePaid = (int) ($googleByDay?->get($key)?->clicks ?? 0);
-            $labels[] = $period->format('M d');
-            $paidSeries[] = $visitPaid > 0 ? $visitPaid : $googlePaid;
-            $invalidSeries[] = (int) ($row->invalid ?? 0);
+            $labels[] = $period->format('D');
             $period->addDay();
         }
 
+        $current = $buildSeries($chartFrom, $chartTo, $rows, $googleByDay);
+        $paidSeries = $current['paid'];
+        $invalidSeries = $current['invalid'];
+
+        $days = max(1, $chartFrom->diffInDays($chartTo) + 1);
+        $prevFrom = $chartFrom->copy()->subDays($days);
+        $prevTo = $chartFrom->copy()->subSecond();
+        $prevRows = $fetchRows($prevFrom, $prevTo);
+
+        $googlePrev = null;
+        if ($googleByDay !== null && $domainIds->count() === 1) {
+            $googlePrev = app(GoogleAdsDomainMetricsSync::class)
+                ->dailyClicksByDate((int) $domainIds->first(), $prevFrom, $prevTo);
+        }
+
+        $previous = $buildSeries($prevFrom, $prevTo, $prevRows, $googlePrev);
+        $lastWeekSeries = $previous['paid'];
+
+        while (count($lastWeekSeries) < count($paidSeries)) {
+            array_unshift($lastWeekSeries, 0);
+        }
+        $lastWeekSeries = array_slice($lastWeekSeries, 0, count($paidSeries));
+
         return response()->json([
             'labels' => $labels,
+            'invalid_daily' => $invalidSeries,
             'datasets' => [
-                ['name' => 'Paid', 'values' => $paidSeries],
-                ['name' => 'Invalid', 'values' => $invalidSeries],
+                ['name' => 'This Week', 'values' => $paidSeries, 'color' => '#FFFFFF'],
+                ['name' => 'Last Week', 'values' => $lastWeekSeries, 'color' => '#FF4BC1', 'dashed' => true],
             ],
         ]);
     }
@@ -538,6 +578,11 @@ class PaidAdvertisingDashboardController extends Controller
         $path = trim((string) $request->query('path', ''));
         if ($path !== '') {
             $query->where('url', 'like', '%' . $path . '%');
+        }
+
+        $campaign = trim((string) $request->query('campaign', ''));
+        if ($campaign !== '') {
+            $query->where('utm_campaign', $campaign);
         }
 
         return $query;

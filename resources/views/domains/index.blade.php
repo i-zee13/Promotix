@@ -65,25 +65,15 @@
                                 data-hostname="{{ $d->hostname }}"
                             >
                                 <td class="px-[16px] py-[14px]">
-                                    <div class="flex items-start justify-between gap-[10px]">
-                                        <div class="min-w-0">
-                                            <p class="text-[13px] font-medium text-white">{{ $d->hostname }}</p>
-                                            <p class="mt-[2px] text-[10px] text-[#a9a9a9]">
-                                                @if ($d->google_ads_account_id)
-                                                    Paid: {{ $d->googleAdsAccount?->displayLabel() ?? 'Google Ads linked' }}
-                                                @else
-                                                    Last seen: {{ $d->last_seen_at?->diffForHumans() ?? '—' }}
-                                                @endif
-                                            </p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            @click="removeDomain({{ $d->id }}, @js($d->hostname))"
-                                            class="shrink-0 rounded-[4px] border border-rose-500/50 bg-rose-950/40 px-[10px] py-[4px] text-[10px] font-semibold uppercase tracking-wide text-rose-300 hover:bg-rose-900/60"
-                                            title="Remove domain and unlink Google Ads"
-                                        >
-                                            Delete
-                                        </button>
+                                    <div class="min-w-0">
+                                        <p class="text-[13px] font-medium text-white">{{ $d->hostname }}</p>
+                                        <p class="mt-[2px] text-[10px] text-[#a9a9a9]">
+                                            @if ($d->google_ads_account_id)
+                                                Paid: {{ $d->googleAdsAccount?->displayLabel() ?? 'Google Ads linked' }}
+                                            @else
+                                                Last seen: {{ $d->last_seen_at?->diffForHumans() ?? '—' }}
+                                            @endif
+                                        </p>
                                     </div>
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">

@@ -24,6 +24,7 @@ class BotProtectionController extends Controller
 
         return view('bot-protection.dashboard', [
             'domains' => $domains,
+            'useDemo' => app()->environment('local'),
         ]);
     }
 
@@ -37,6 +38,7 @@ class BotProtectionController extends Controller
         }
 
         $base = DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]);
+        $base = $this->applyPathFilter($base, $request);
 
         $total = (clone $base)->count();
         $invalidBot = (clone $base)->where('is_invalid_traffic', true)->where(function ($q): void {
@@ -84,7 +86,8 @@ class BotProtectionController extends Controller
 
         $rows = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
+            ->whereBetween('visited_at', [$from, $to]);
+        $rows = $this->applyPathFilter($rows, $request)
             ->selectRaw("DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid, SUM(CASE WHEN is_invalid_traffic = 1 AND threat_group IN ('data_center','vpn','abnormal_rate_limit') THEN 1 ELSE 0 END) as bad_bots, {$crawlerSql}")
             ->groupBy('day')
             ->orderBy('day')
@@ -118,10 +121,10 @@ class BotProtectionController extends Controller
             'labels' => $labels,
             'datasets' => [
                 ['name' => 'Valid Visits', 'values' => $validSeries, 'color' => '#FFFFFF'],
-                ['name' => 'Bad Bots', 'values' => $badBotSeries, 'color' => '#B893D8'],
+                ['name' => 'Bad Bots', 'values' => $badBotSeries, 'color' => '#0D0D0D'],
                 ['name' => 'Crawler', 'values' => $crawlerSeries, 'color' => '#6625F8'],
                 ['name' => 'Invalid', 'values' => $invalidSeries, 'color' => '#FF4BC1'],
-                ['name' => 'Total Visits', 'values' => $totalSeries, 'color' => '#D9D9D9', 'line' => true],
+                ['name' => 'Total Visits', 'values' => $totalSeries, 'color' => '#B893D8', 'line' => true],
             ],
         ]);
     }
@@ -139,10 +142,12 @@ class BotProtectionController extends Controller
         $prevFrom = $from->copy()->subDays($days);
         $prevTo = $from->copy()->subSecond();
 
-        $fetch = function (Carbon $start, Carbon $end) use ($domainIds) {
-            $rows = DB::table('visits')
+        $fetch = function (Carbon $start, Carbon $end) use ($domainIds, $request) {
+            $query = DB::table('visits')
                 ->whereIn('domain_id', $domainIds)
-                ->whereBetween('visited_at', [$start, $end])
+                ->whereBetween('visited_at', [$start, $end]);
+            $query = $this->applyPathFilter($query, $request);
+            $rows = $query
                 ->selectRaw('DATE(visited_at) as day, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid, COUNT(*) as total')
                 ->groupBy('day')
                 ->orderBy('day')
@@ -171,17 +176,19 @@ class BotProtectionController extends Controller
         }
 
         $pageloads = array_sum($thisWeek);
-        $interactions = (int) DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_invalid_traffic', true)
-            ->where('threat_group', 'malicious')
-            ->count();
+        $interactions = (int) $this->applyPathFilter(
+            DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$from, $to])
+                ->where('is_invalid_traffic', true)
+                ->where('threat_group', 'malicious'),
+            $request
+        )->count();
 
         return response()->json([
             'labels' => $labels,
             'datasets' => [
-                ['name' => 'Invalid Pageloads', 'values' => $thisWeek, 'color' => '#FFFFFF'],
+                ['name' => 'Invalid Pageloads', 'values' => $thisWeek, 'color' => '#6625F8'],
                 ['name' => 'Invalid Site Interaction', 'values' => $lastWeek, 'color' => '#FF4BC1', 'dashed' => true],
             ],
             'stats' => [
@@ -268,7 +275,8 @@ class BotProtectionController extends Controller
 
         $rows = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
+            ->whereBetween('visited_at', [$from, $to]);
+        $rows = $this->applyPathFilter($rows, $request)
             ->select('country', DB::raw('COUNT(*) as total'), DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'))
             ->whereNotNull('country')
             ->groupBy('country')
@@ -367,6 +375,7 @@ class BotProtectionController extends Controller
         $base = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('visited_at', [$from, $to]);
+        $base = $this->applyPathFilter($base, $request);
 
         $total = max(1, (clone $base)->count());
         $blocked = (clone $base)->where('action_taken', 'block')->count();
@@ -469,7 +478,8 @@ class BotProtectionController extends Controller
         $query = DB::table('visits')
             ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
             ->whereIn('visits.domain_id', $domainIds)
-            ->whereBetween('visits.visited_at', [$from, $to])
+            ->whereBetween('visits.visited_at', [$from, $to]);
+        $query = $this->applyPathFilter($query, $request, 'visits.url')
             ->select(
                 'visits.id',
                 'domains.hostname',
@@ -584,6 +594,16 @@ class BotProtectionController extends Controller
         $code = strtoupper((string) $code);
 
         return $map[$code] ?? ($code ?: '—');
+    }
+
+    private function applyPathFilter($query, Request $request, string $column = 'url')
+    {
+        $path = trim((string) $request->query('path', ''));
+        if ($path !== '' && Schema::hasColumn('visits', 'url')) {
+            $query->where($column, 'like', '%' . $path . '%');
+        }
+
+        return $query;
     }
 
     private function scopedDomainIds(Request $request)
