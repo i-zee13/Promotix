@@ -125,7 +125,7 @@
         <div class="figma-modal-overlay"
              x-show="modal.open" x-cloak x-transition
              @keydown.escape.window="closeModal()" @click.self="closeModal()">
-            <div class="figma-modal max-w-5xl">
+            <div class="figma-modal figma-modal--click-details">
                 <header class="mb-4 flex items-center justify-between gap-3">
                     <h3 class="figma-modal-title">Click Details</h3>
                     <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeModal()" aria-label="Close">
@@ -133,12 +133,12 @@
                     </button>
                 </header>
 
-                <div class="grid grid-cols-1 gap-0 lg:grid-cols-4">
-                    <aside class="border-b border-white/10 p-2 lg:border-b-0 lg:border-r lg:pr-4">
+                <div class="figma-click-modal-layout">
+                    <aside class="figma-click-modal-sidebar">
                         <template x-for="(c, idx) in modal.clicks" :key="c.id ?? idx">
                             <button type="button"
-                                    class="mb-2 w-full rounded-xl border border-white/15 bg-[#0d0d0d] px-3 py-2 text-left transition hover:bg-[#1a1a1a]"
-                                    :class="idx === modal.activeIndex ? 'ring-2 ring-[#6400B2]' : ''"
+                                    class="figma-click-modal-tab"
+                                    :class="idx === modal.activeIndex ? 'is-active' : ''"
                                     @click="modal.activeIndex = idx">
                                 <p class="text-sm font-semibold text-white" x-text="`Click ${idx + 1}`"></p>
                                 <p class="text-xs text-white/50" x-text="formatDateTime(c.clicked_at || c.last_click_at)"></p>
@@ -149,24 +149,83 @@
                         </template>
                     </aside>
 
-                    <div class="p-4 lg:col-span-3 lg:pl-6" x-show="modal.clicks.length > 0">
+                    <div class="figma-click-modal-body" x-show="modal.clicks.length > 0">
                         <template x-if="activeClick">
-                            <div class="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
-                                <div class="md:col-span-2"><p class="figma-modal-label">IP</p><p class="figma-modal-value break-all font-mono text-[12px]" x-text="modal.visit?.ip || activeClick.ip || '-'"></p></div>
-                                <div><p class="figma-modal-label">VPN Hits</p><p class="figma-modal-value" x-text="modal.visit?.vpn_hits > 0 ? modal.visit.vpn_hits : '—'"></p></div>
-                                <div><p class="figma-modal-label">Data Center</p><p class="figma-modal-value" x-text="modal.visit?.data_center_hits > 0 ? modal.visit.data_center_hits : '—'"></p></div>
-                                <div><p class="figma-modal-label">Invalid Clicks</p><p class="figma-modal-value" x-text="modal.visit?.invalid_clicks ?? 0"></p></div>
-                                <div><p class="figma-modal-label">Valid Clicks</p><p class="figma-modal-value" x-text="modal.visit?.valid_clicks ?? 0"></p></div>
-                                <div><p class="figma-modal-label">Browser</p><p class="figma-modal-value" x-text="activeClick.browser_name || '-'"></p></div>
-                                <div><p class="figma-modal-label">Country</p><p class="figma-modal-value" x-text="activeClick.country || modal.visit?.country || '-'"></p></div>
-                                <div><p class="figma-modal-label">Browser version</p><p class="figma-modal-value" x-text="activeClick.browser_version || '-'"></p></div>
-                                <div><p class="figma-modal-label">Last Click</p><p class="figma-modal-value" x-text="formatDateTime(activeClick.last_click_at || modal.visit?.last_click_at)"></p></div>
-                                <div><p class="figma-modal-label">OS</p><p class="figma-modal-value" x-text="activeClick.os || '-'"></p></div>
-                                <div><p class="figma-modal-label">Threat Group</p><p class="figma-modal-value" x-text="activeClick.threat_group || modal.visit?.threat_group || 'N/A'"></p></div>
-                                <div><p class="figma-modal-label">Paid ID</p><p class="figma-modal-value" x-text="activeClick.paid_id || '-'"></p></div>
-                                <div><p class="figma-modal-label">Campaign</p><p class="figma-modal-value" x-text="activeClick.campaign || modal.visit?.campaign || 'N/A'"></p></div>
-                                <div><p class="figma-modal-label">Path</p><p class="figma-modal-value" x-text="activeClick.path || modal.visit?.last_path || '-'"></p></div>
-                                <div><p class="figma-modal-label">Keyword</p><p class="figma-modal-value" x-text="activeClick.keyword || 'N/A'"></p></div>
+                            <div class="figma-click-modal-fields">
+                                <div class="figma-click-modal-compact">
+                                    <div class="figma-modal-field figma-modal-field--full">
+                                        <div class="figma-modal-field__head">
+                                            <p class="figma-modal-label">IP</p>
+                                            <button type="button" class="figma-modal-copy-btn" @click="copyText(modal.visit?.ip || activeClick.ip)">Copy</button>
+                                        </div>
+                                        <p class="figma-modal-value figma-modal-value--mono" x-text="modal.visit?.ip || activeClick.ip || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">VPN Hits</p>
+                                        <p class="figma-modal-value" x-text="modal.visit?.vpn_hits > 0 ? modal.visit.vpn_hits : '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Data Center</p>
+                                        <p class="figma-modal-value" x-text="modal.visit?.data_center_hits > 0 ? modal.visit.data_center_hits : '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Invalid Clicks</p>
+                                        <p class="figma-modal-value" x-text="modal.visit?.invalid_clicks ?? 0"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Valid Clicks</p>
+                                        <p class="figma-modal-value" x-text="modal.visit?.valid_clicks ?? 0"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Browser</p>
+                                        <p class="figma-modal-value" x-text="activeClick.browser_name || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Country</p>
+                                        <p class="figma-modal-value" x-text="activeClick.country || modal.visit?.country || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Browser version</p>
+                                        <p class="figma-modal-value" x-text="activeClick.browser_version || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Last Click</p>
+                                        <p class="figma-modal-value" x-text="formatDateTime(activeClick.last_click_at || modal.visit?.last_click_at)"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">OS</p>
+                                        <p class="figma-modal-value" x-text="activeClick.os || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Threat Group</p>
+                                        <p class="figma-modal-value" x-text="activeClick.threat_group || modal.visit?.threat_group || 'N/A'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Campaign</p>
+                                        <p class="figma-modal-value" x-text="activeClick.campaign || modal.visit?.campaign || 'N/A'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Keyword</p>
+                                        <p class="figma-modal-value" x-text="activeClick.keyword || 'N/A'"></p>
+                                    </div>
+                                </div>
+
+                                <div class="figma-click-modal-wide">
+                                    <div class="figma-modal-field figma-modal-field--full">
+                                        <div class="figma-modal-field__head">
+                                            <p class="figma-modal-label">Paid ID</p>
+                                            <button type="button" class="figma-modal-copy-btn" @click="copyText(activeClick.paid_id)" x-show="activeClick.paid_id">Copy</button>
+                                        </div>
+                                        <p class="figma-modal-value figma-modal-value--long" x-text="activeClick.paid_id || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field figma-modal-field--full">
+                                        <div class="figma-modal-field__head">
+                                            <p class="figma-modal-label">Path</p>
+                                            <button type="button" class="figma-modal-copy-btn" @click="copyText(activeClick.path || modal.visit?.last_path)" x-show="activeClick.path || modal.visit?.last_path">Copy</button>
+                                        </div>
+                                        <p class="figma-modal-value figma-modal-value--long" x-text="activeClick.path || modal.visit?.last_path || '—'"></p>
+                                    </div>
+                                </div>
                             </div>
                         </template>
                     </div>
@@ -282,6 +341,22 @@
                 const first = parts[0] || raw || '—';
                 if (first.length > 20) return first.slice(0, 18) + '…';
                 return first;
+            },
+            async copyText(value) {
+                const text = String(value || '').trim();
+                if (!text) return;
+                try {
+                    await navigator.clipboard.writeText(text);
+                } catch (e) {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
             },
         };
     }
