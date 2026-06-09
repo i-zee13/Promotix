@@ -49,6 +49,10 @@ return [
         'base_url' => env('IPDETAILS_BASE_URL', 'https://api.ipdetails.io'),
     ],
 
+    'cron' => [
+        'token' => env('CRON_TOKEN'),
+    ],
+
     'google_ads' => [
         'client_id' => env('GOOGLE_ADS_CLIENT_ID'),
         'client_secret' => env('GOOGLE_ADS_CLIENT_SECRET'),

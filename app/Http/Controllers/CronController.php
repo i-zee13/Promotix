@@ -11,7 +11,7 @@ class CronController extends Controller
     public function run(Request $request, string $token): JsonResponse
     {
         $expected = (string) env('CRON_TOKEN', '');
-
+        dump($expected, $token);
         if ($expected === '' || ! hash_equals($expected, $token)) {
             abort(404);
         }
@@ -29,9 +29,7 @@ class CronController extends Controller
 
     public function aggregate(Request $request, string $token): JsonResponse
     {
-        $expected = (string) env('CRON_TOKEN', '');
-
-        if ($expected === '' || ! hash_equals($expected, $token)) {
+        if (! $this->cronTokenMatches($token)) {
             abort(404);
         }
 
@@ -46,5 +44,12 @@ class CronController extends Controller
             'ran_at' => now()->toIso8601String(),
             'output' => $output,
         ]);
+    }
+
+    private function cronTokenMatches(string $token): bool
+    {
+        $expected = (string) config('services.cron.token', '');
+
+        return $expected !== '' && hash_equals($expected, $token);
     }
 }
