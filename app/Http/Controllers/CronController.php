@@ -10,9 +10,7 @@ class CronController extends Controller
 {
     public function run(Request $request, string $token): JsonResponse
     {
-        $expected = (string) env('CRON_TOKEN', '');
-        dump($expected, $token);
-        if ($expected === '' || ! hash_equals($expected, $token)) {
+        if (! $this->cronTokenMatches($token)) {
             abort(404);
         }
 
