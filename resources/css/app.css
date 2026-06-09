@@ -113,7 +113,27 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 
 .figma-click-modal-sidebar {
     border-right: 1px solid rgba(255, 255, 255, 0.1);
-    padding-right: 14px;
+    padding-right: 10px;
+    max-height: min(480px, calc(100vh - 200px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.figma-click-modal-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.figma-click-modal-sidebar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.figma-click-modal-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 0, 178, 0.55);
 }
 
 .figma-click-modal-tab {
@@ -215,6 +235,7 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
         margin-bottom: 14px;
         padding-right: 0;
         padding-bottom: 12px;
+        max-height: 200px;
     }
 
     .figma-click-modal-body {
