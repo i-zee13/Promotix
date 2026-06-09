@@ -17,6 +17,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Scheduled workers (cron / schedule:run)
+    |--------------------------------------------------------------------------
+    |
+    | On shared hosting we spawn short-lived queue:work processes each minute
+    | instead of a long-running Supervisor pool. QUEUE_SCHEDULED_WORKERS sets
+    | how many can run in parallel per schedule tick (each uses its own mutex).
+    |
+    */
+
+    'scheduled_workers' => max(1, (int) env('QUEUE_SCHEDULED_WORKERS', 3)),
+    'worker_max_time' => max(10, (int) env('QUEUE_WORKER_MAX_TIME', 55)),
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------
     |

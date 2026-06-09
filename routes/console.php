@@ -13,7 +13,14 @@ Artisan::command('inspire', function () {
 Schedule::command('analytics:aggregate-hourly --hours=2')
     ->everyMinute()
     ->appendOutputTo(storage_path('logs/cron.log'));
-Schedule::command('queue:work --stop-when-empty --max-time=55')
-    ->everyMinute()
-    ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/queue.log'));
+$queueConnection = config('queue.default', 'database');
+$queueMaxTime = (int) config('queue.worker_max_time', 55);
+$queueWorkers = (int) config('queue.scheduled_workers', 3);
+
+for ($worker = 1; $worker <= $queueWorkers; $worker++) {
+    Schedule::command("queue:work {$queueConnection} --stop-when-empty --max-time={$queueMaxTime} --tries=3")
+        ->everyMinute()
+        ->withoutOverlapping()
+        ->name("queue-worker-{$worker}")
+        ->appendOutputTo(storage_path('logs/queue.log'));
+}
