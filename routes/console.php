@@ -13,3 +13,7 @@ Artisan::command('inspire', function () {
 Schedule::command('analytics:aggregate-hourly --hours=2')
     ->everyMinute()
     ->appendOutputTo(storage_path('logs/cron.log'));
+Schedule::command('queue:work --stop-when-empty --max-time=55')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/queue.log'));
