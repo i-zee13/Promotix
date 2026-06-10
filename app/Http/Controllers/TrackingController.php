@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesClientIp;
 use App\Models\Domain;
-use App\Models\DomainDetectionSetting;
-use App\Models\IpLog;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
-use App\Jobs\EnrichIpIntelJob;
+use App\Services\IpIntel\VisitProtectionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -16,6 +15,8 @@ use Illuminate\Support\Facades\Validator;
 
 class TrackingController extends Controller
 {
+    use ResolvesClientIp;
+
     /** 1×1 transparent GIF for GET pixel fallback (see TagController::pixel). */
     private const TRACKING_PIXEL_GIF = "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b";
 
@@ -61,35 +62,15 @@ class TrackingController extends Controller
         $sessionId = (string) ($request->input('session_id') ?: $request->cookie(config('session.cookie', 'laravel_session')) ?: $request->session()->getId());
         $sessionId = $sessionId !== '' ? $sessionId : null;
 
-        // Log IP into existing ip_logs table
-        $ipLog = IpLog::firstOrNew(['ip' => $ip]);
-        if (! $ipLog->exists) {
-            $ipLog->hits = 0;
-        }
-        $ipLog->hits = ($ipLog->hits ?? 0) + 1;
-        $ipLog->user_agent = $ua;
-        $ipLog->last_seen_at = now();
-        $ipLog->last_path = $data['path'] ?? null;
-        $ipLog->last_referrer = $data['referrer'] ?? null;
-        $ipLog->save();
+        // Log IP and run fraud protection (sync intel + block repeat offenders).
+        $protection = app(VisitProtectionService::class);
+        $ipLog = $protection->touchIpLog($ip, $ua, $data['path'] ?? null, $data['referrer'] ?? null);
+        $assessment = $protection->assess($domain, $ipLog, $country, $sessionId, $isCrawler);
+        $ipLog = $assessment['ipLog'];
+        $detection = $assessment['detection'];
+        $enforceBlock = $assessment['enforce_block'];
 
-        // Enrich IP intel asynchronously (VPN/Proxy + abuse score)
-        EnrichIpIntelJob::dispatch($ipLog->id);
-
-        $existingSessionHits = 0;
-        if ($sessionId !== null && Schema::hasTable('ip_sessions')) {
-            $existingSessionHits = (int) (DB::table('ip_sessions')
-                ->where('domain_id', $domain->id)
-                ->where('session_id', $sessionId)
-                ->value('hits') ?? 0);
-        }
-
-        $detection = $this->evaluateDetection($domain, $ipLog, $country, $existingSessionHits + 1);
-        if ($detection['action_taken'] === 'block') {
-            $ipLog->is_blocked = true;
-            $ipLog->save();
-        }
-
+        $resolvedCountry = $country ?? $ipLog->intel_country_code ?? $ipLog->intel_country_name;
         $domain->last_seen_at = now();
         $domain->tag_connected = true;
         $domain->status = 'connected';
@@ -114,7 +95,7 @@ class TrackingController extends Controller
         $visit->last_path = $data['path'] ?? null;
         $visit->campaign = $data['utm_campaign'] ?? null;
         $visit->platform = $device;
-        $visit->country = $country ?? $ipLog->intel_country_code;
+        $visit->country = $ipLog->intel_country_name ?? $resolvedCountry;
         $visit->threat_group = $detection['threat_group'];
         $visit->threat_type = $detection['action_taken'] === 'allow' ? null : $detection['action_taken'];
         $visit->save();
@@ -124,7 +105,7 @@ class TrackingController extends Controller
             'paid_marketing_visit_id' => $visit->id,
             'clicked_at' => now(),
             'ip' => $ip,
-            'country' => $country ?? $ipLog->intel_country_code,
+            'country' => $ipLog->intel_country_name ?? $resolvedCountry,
             'last_click_at' => now(),
             'threat_group' => $detection['threat_group'],
             'campaign' => $data['utm_campaign'] ?? null,
@@ -142,7 +123,7 @@ class TrackingController extends Controller
                 'domain_id' => $domain->id,
                 'session_id' => $sessionId,
                 'ip' => $ip,
-                'country' => $country ?? $ipLog->intel_country_code,
+                'country' => $ipLog->intel_country_name ?? $resolvedCountry,
                 'device' => $device,
                 'browser' => $browser['name'],
                 'os' => $os,
@@ -248,7 +229,13 @@ class TrackingController extends Controller
             ]);
         }
 
+        $clientPayload = $protection->clientPayload($detection, $enforceBlock);
+
         if ($request->isMethod('get')) {
+            if ($enforceBlock) {
+                return $this->cors($request, response()->json($clientPayload, 403));
+            }
+
             return $this->cors(
                 $request,
                 response(self::TRACKING_PIXEL_GIF, 200, [
@@ -258,65 +245,7 @@ class TrackingController extends Controller
             );
         }
 
-        return $this->cors($request, response()->json(['ok' => true]));
-    }
-
-    private function clientIp(Request $request): string
-    {
-        $candidates = [
-            $request->headers->get('CF-Connecting-IP'),
-            $request->headers->get('True-Client-IP'),
-            $request->headers->get('X-Real-IP'),
-            $request->headers->get('X-Forwarded-For'),
-            // Some stacks (e.g. behind Apache/LiteSpeed) use this non-standard header.
-            $request->headers->get('X-Cluster-Client-IP'),
-        ];
-
-        $ips = [];
-        foreach ($candidates as $value) {
-            if (! $value) {
-                continue;
-            }
-            foreach (preg_split('/\s*,\s*/', $value) as $ip) {
-                $ip = trim($ip);
-                if ($ip !== '') {
-                    $ips[] = $ip;
-                }
-            }
-        }
-
-        // Prefer a valid non-loopback IP if available.
-        foreach ($ips as $ip) {
-            if ($this->isValidIp($ip) && ! $this->isLoopbackIp($ip)) {
-                return $ip;
-            }
-        }
-
-        return $request->ip() ?? '0.0.0.0';
-    }
-
-    private function isValidIp(string $ip): bool
-    {
-        return filter_var($ip, FILTER_VALIDATE_IP) !== false;
-    }
-
-    private function isLoopbackIp(string $ip): bool
-    {
-        return $ip === '127.0.0.1' || $ip === '::1';
-    }
-
-    protected function cors(Request $request, $response)
-    {
-        $origin = $request->headers->get('Origin');
-        $allowOrigin = $origin ?: '*';
-
-        return $response
-            ->header('Access-Control-Allow-Origin', $allowOrigin)
-            ->header('Vary', 'Origin')
-            ->header('Access-Control-Allow-Credentials', $origin ? 'true' : 'false')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, Accept, Origin')
-            ->header('Access-Control-Max-Age', '86400');
+        return $this->cors($request, response()->json($clientPayload));
     }
 
     private function platformFromUa(string $ua): ?string
@@ -375,109 +304,5 @@ class TrackingController extends Controller
         return ['name' => null, 'version' => null];
     }
 
-    private function evaluateDetection(Domain $domain, IpLog $ipLog, ?string $country, int $sessionHits): array
-    {
-        $settings = DomainDetectionSetting::firstOrCreate(
-            ['domain_id' => $domain->id],
-            [
-                'invalid_bot_action' => 'block',
-                'invalid_malicious_action' => 'block',
-                'suspicious_enabled' => true,
-                'suspicious_matrix' => [
-                    'vpn' => 'allow',
-                    'proxy' => 'block',
-                    'data_center' => 'block',
-                    'abnormal_rate_limit' => 'allow',
-                ],
-                'audience_exclusion_event' => 'exclude_all_threat_groups_auto',
-            ]
-        );
-
-        if ($settings->allow_list_enabled && $this->ipInAllowList($ipLog->ip, (string) $settings->allow_list_ips)) {
-            return [
-                'threat_score' => 0,
-                'threat_group' => null,
-                'action_taken' => 'allow',
-                'reasons' => ['allow_list'],
-            ];
-        }
-
-        $matrix = (array) ($settings->suspicious_matrix ?? []);
-        $signals = [];
-
-        if ((int) ($ipLog->iphub_block ?? 0) === 1) {
-            $signals[] = ['group' => 'data_center', 'score' => 60, 'action' => $matrix['data_center'] ?? 'block'];
-        }
-
-        if ((bool) ($ipLog->abuse_is_tor ?? false)) {
-            $signals[] = ['group' => 'vpn', 'score' => 70, 'action' => $matrix['vpn'] ?? 'allow'];
-        }
-
-        if ((int) ($ipLog->abuse_confidence_score ?? 0) >= 50) {
-            $signals[] = ['group' => 'malicious', 'score' => (int) $ipLog->abuse_confidence_score, 'action' => $settings->invalid_malicious_action];
-        }
-
-        if ($settings->frequency_capping && $sessionHits > 5) {
-            $signals[] = ['group' => 'abnormal_rate_limit', 'score' => min(100, 40 + ($sessionHits * 5)), 'action' => $matrix['abnormal_rate_limit'] ?? 'allow'];
-        }
-
-        if ($settings->out_of_geo_enabled && $country) {
-            $allowedCountries = collect((array) ($settings->out_of_geo_countries ?? []))
-                ->map(fn ($value) => strtoupper(trim((string) $value)))
-                ->filter()
-                ->all();
-            if ($allowedCountries !== [] && ! in_array(strtoupper($country), $allowedCountries, true)) {
-                $signals[] = ['group' => 'out_of_geo', 'score' => 55, 'action' => 'flag'];
-            }
-        }
-
-        if ($signals === []) {
-            return [
-                'threat_score' => 0,
-                'threat_group' => null,
-                'action_taken' => 'allow',
-                'reasons' => [],
-            ];
-        }
-
-        usort($signals, fn ($a, $b) => $b['score'] <=> $a['score']);
-        $action = $this->strongestAction(array_column($signals, 'action'));
-
-        return [
-            'threat_score' => max(array_column($signals, 'score')),
-            'threat_group' => $signals[0]['group'],
-            'action_taken' => $action,
-            'reasons' => array_values(array_unique(array_column($signals, 'group'))),
-        ];
-    }
-
-    private function strongestAction(array $actions): string
-    {
-        if (in_array('block', $actions, true)) {
-            return 'block';
-        }
-        if (in_array('flag', $actions, true)) {
-            return 'flag';
-        }
-        return 'allow';
-    }
-
-    private function ipInAllowList(string $ip, string $allowList): bool
-    {
-        $items = preg_split('/[\s,]+/', $allowList) ?: [];
-        foreach ($items as $item) {
-            $item = trim($item);
-            if ($item === '') {
-                continue;
-            }
-            if ($item === $ip) {
-                return true;
-            }
-            if (str_ends_with($item, '*') && str_starts_with($ip, rtrim($item, '*'))) {
-                return true;
-            }
-        }
-        return false;
-    }
 }
 

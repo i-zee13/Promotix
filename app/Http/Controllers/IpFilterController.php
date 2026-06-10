@@ -2,112 +2,87 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\IpLog;
-use App\Jobs\EnrichIpIntelJob;
+use App\Http\Controllers\Concerns\ResolvesClientIp;
+use App\Models\Domain;
+use App\Services\IpIntel\VisitProtectionService;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class IpFilterController extends Controller
 {
+    use ResolvesClientIp;
+
     /**
-     * Handle IP check and logging.
-     *
-     * This endpoint is called from the small script you embed in any website.
-     * It logs the visitor IP and tells the script whether this IP is allowed.
+     * Lightweight gate for embedded scripts / plugins.
+     * Returns allowed=false when the visitor IP is blocked or fails fraud checks.
      */
-    public function check(Request $request)
+    public function check(Request $request): Response
     {
-        // Handle CORS preflight
         if ($request->isMethod('options')) {
             return $this->cors($request, response()->noContent());
         }
 
+        $domainKey = (string) ($request->input('domainKey') ?: $request->input('domain_key') ?: '');
         $ip = $this->clientIp($request);
         $userAgent = $request->userAgent() ?? '';
+        $country = $request->headers->get('CF-IPCountry') ?: null;
 
-        $log = IpLog::firstOrNew(['ip' => $ip]);
+        $protection = app(VisitProtectionService::class);
+        $ipLog = $protection->touchIpLog(
+            $ip,
+            $userAgent,
+            $request->input('path'),
+            $request->input('referrer'),
+        );
 
-        if (! $log->exists) {
-            $log->hits = 0;
+        if ($domainKey === '') {
+            $allowed = ! $ipLog->is_blocked;
+
+            return $this->cors($request, response()->json([
+                'allowed' => $allowed,
+                'blocked' => ! $allowed,
+            ]));
         }
 
-        $log->hits = ($log->hits ?? 0) + 1;
-        $log->user_agent = $userAgent;
-        $log->last_seen_at = now();
-        $log->last_path = $request->input('path');
-        $log->last_referrer = $request->input('referrer');
-        $log->save();
+        $domain = Domain::where('domain_key', $domainKey)->first();
+        if (! $domain || ($domain->status ?? 'pending') === 'disabled') {
+            return $this->cors($request, response()->json([
+                'allowed' => true,
+                'blocked' => false,
+                'skipped' => 'unknown_domain',
+            ]));
+        }
 
-        EnrichIpIntelJob::dispatch($log->id);
+        $isCrawler = $this->isCrawlerUa($userAgent);
+        $assessment = $protection->assess($domain, $ipLog, $country, null, $isCrawler);
+        $enforceBlock = $assessment['enforce_block'];
 
-        // For now, "fake" detection = IPs you manually mark as blocked in the database.
-        // If is_blocked is true, the script should bounce this visitor.
-        $allowed = ! $log->is_blocked;
-
-        return $this->cors(
-            $request,
-            response()->json([
-                'allowed' => $allowed,
-            ])
-        );
+        return $this->cors($request, response()->json(array_merge(
+            $protection->clientPayload($assessment['detection'], $enforceBlock),
+            [
+                'allowed' => ! $enforceBlock,
+            ],
+        )));
     }
 
-    private function clientIp(Request $request): string
+    private function isCrawlerUa(string $ua): bool
     {
-        $candidates = [
-            $request->headers->get('CF-Connecting-IP'),
-            $request->headers->get('True-Client-IP'),
-            $request->headers->get('X-Real-IP'),
-            $request->headers->get('X-Forwarded-For'),
-            $request->headers->get('X-Cluster-Client-IP'),
+        if ($ua === '') {
+            return false;
+        }
+
+        $needles = [
+            'Googlebot', 'bingbot', 'Slurp', 'DuckDuckBot', 'YandexBot', 'Baiduspider',
+            'facebookexternalhit', 'Twitterbot', 'LinkedInBot', 'Applebot', 'AhrefsBot',
+            'SemrushBot', 'MJ12bot', 'PetalBot', 'Bytespider', 'GPTBot', 'ClaudeBot',
         ];
 
-        $ips = [];
-        foreach ($candidates as $value) {
-            if (! $value) {
-                continue;
-            }
-            foreach (preg_split('/\s*,\s*/', $value) as $ip) {
-                $ip = trim($ip);
-                if ($ip !== '') {
-                    $ips[] = $ip;
-                }
+        foreach ($needles as $needle) {
+            if (stripos($ua, $needle) !== false) {
+                return true;
             }
         }
 
-        foreach ($ips as $ip) {
-            if ($this->isValidIp($ip) && ! $this->isLoopbackIp($ip)) {
-                return $ip;
-            }
-        }
-
-        return $request->ip() ?? '0.0.0.0';
-    }
-
-    private function isValidIp(string $ip): bool
-    {
-        return filter_var($ip, FILTER_VALIDATE_IP) !== false;
-    }
-
-    private function isLoopbackIp(string $ip): bool
-    {
-        return $ip === '127.0.0.1' || $ip === '::1';
-    }
-
-    /**
-     * Attach permissive CORS headers so this can be called from any domain.
-     */
-    protected function cors(Request $request, $response)
-    {
-        $origin = $request->headers->get('Origin');
-        $allowOrigin = $origin ?: '*';
-
-        return $response
-            ->header('Access-Control-Allow-Origin', $allowOrigin)
-            ->header('Vary', 'Origin')
-            ->header('Access-Control-Allow-Credentials', $origin ? 'true' : 'false')
-            ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, Accept, Origin')
-            ->header('Access-Control-Max-Age', '86400');
+        return preg_match('/(crawler|spider|bot)\\b/i', $ua) === 1;
     }
 }
-

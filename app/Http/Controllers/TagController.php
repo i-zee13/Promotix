@@ -19,6 +19,7 @@ class TagController extends Controller
         }
 
         $collectUrl = url('/ingest/visit');
+        $gateUrl = url('/ip-check');
 
         // Minimal tag: sends pageview data. Browser IP is captured server-side.
         $trackingParams = (array) ($domain->tracking_params ?? [
@@ -36,6 +37,7 @@ class TagController extends Controller
 (function(){
   var domainKey = {$this->json($domainKey)};
   var collectUrl = {$this->json($collectUrl)};
+  var gateUrl = {$this->json($gateUrl)};
   var trackSource = {$trackSource};
   var trackMedium = {$trackMedium};
   var trackCampaign = {$trackCampaign};
@@ -63,26 +65,53 @@ class TagController extends Controller
     }catch(e){}
   }
 
+  function enforceBlock(payload){
+    try {
+      var style = document.createElement('style');
+      style.textContent = 'html,body{visibility:hidden!important;height:0!important;overflow:hidden!important;margin:0!important;padding:0!important}';
+      (document.head || document.documentElement).appendChild(style);
+      if (window.stop) window.stop();
+      document.documentElement.innerHTML = '';
+      document.body && (document.body.innerHTML = '');
+    } catch (e) {}
+    try {
+      location.replace('about:blank');
+    } catch (e2) {}
+  }
+
+  function handleProtectionResponse(data){
+    if (data && (data.blocked === true || data.allowed === false)) {
+      enforceBlock(data);
+      return true;
+    }
+    return false;
+  }
+
   function send(payload){
     try {
-      if (navigator.sendBeacon){
-        var ok = navigator.sendBeacon(collectUrl, new Blob([JSON.stringify(payload)], {type: 'application/json'}));
-        if (!ok) pixel(payload);
-        return;
-      }
-      if (window.fetch){
-        fetch(collectUrl, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify(payload),
-            mode: 'cors',
-            credentials: 'omit',
-            keepalive: true
-          }).catch(function(){ pixel(payload); });
-        return;
-      }
-      pixel(payload);
+      fetch(collectUrl, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload),
+        mode: 'cors',
+        credentials: 'omit',
+        keepalive: true
+      }).then(function(res){
+        return res.json().catch(function(){ return null; });
+      }).then(function(data){
+        handleProtectionResponse(data);
+      }).catch(function(){
+        try {
+          if (navigator.sendBeacon){
+            navigator.sendBeacon(collectUrl, new Blob([JSON.stringify(payload)], {type: 'application/json'}));
+            return;
+          }
+        } catch (e) {}
+        pixel(payload);
+      });
+      return;
     } catch (e) {}
+    pixel(payload);
   }
 
   function sessionId(){
@@ -108,7 +137,6 @@ class TagController extends Controller
       session_id: sessionId(),
       ts: Date.now()
     };
-    // Basic paid params
     try {
       var u = new URL(location.href);
       payload.gclid = u.searchParams.get('gclid') || null;
@@ -117,7 +145,29 @@ class TagController extends Controller
       payload.utm_campaign = trackCampaign ? (u.searchParams.get('utm_campaign') || null) : null;
       payload.utm_term = trackTerm ? (u.searchParams.get('utm_term') || null) : null;
     } catch (e) {}
-    send(payload);
+
+    try {
+      fetch(gateUrl, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          domainKey: domainKey,
+          path: payload.path || '',
+          referrer: payload.referrer || ''
+        }),
+        mode: 'cors',
+        credentials: 'omit'
+      }).then(function(res){
+        return res.json();
+      }).then(function(data){
+        if (handleProtectionResponse(data)) return;
+        send(payload);
+      }).catch(function(){
+        send(payload);
+      });
+    } catch (e) {
+      send(payload);
+    }
   }
 
   pageview();

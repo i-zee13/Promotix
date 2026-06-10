@@ -172,8 +172,8 @@ function promotix_tag_inject_head() {
     $tagUrl = promotix_tag_build_tag_url($s['server_url'], $s['domain_key']);
     if ($tagUrl === '') return;
 
-    echo "\n<!-- Promotix Tag -->\n";
-    echo '<script async src="' . esc_url($tagUrl) . '" class="pm_tag"></script>' . "\n";
+    echo "\n<!-- Promotix Tag (load early in head for IP protection) -->\n";
+    echo '<script src="' . esc_url($tagUrl) . '" class="pm_tag"></script>' . "\n";
 }
 add_action('wp_head', 'promotix_tag_inject_head', 1);
 

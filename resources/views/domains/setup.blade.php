@@ -7,9 +7,9 @@
 @php
     $scriptUrl = url('/tag/' . $domain->domain_key . '.js');
     $noscriptUrl = url('/tag/' . $domain->domain_key . '.html');
-    $headSnippet = '<script async src="' . $scriptUrl . '" class="pm_tag"></script>';
+    $headSnippet = '<script src="' . $scriptUrl . '" class="pm_tag"></script>';
     $bodySnippet = '<noscript><iframe src="' . $noscriptUrl . '" width="0" height="0" style="display:none"></iframe></noscript>';
-    $gtmSnippet = "<script>(function(){var s=document.createElement('script');s.async=true;s.src='".url('/tag/' . $domain->domain_key . ".js")."';document.head.appendChild(s);}())</script>";
+    $gtmSnippet = "<script>(function(){var s=document.createElement('script');s.src='".url('/tag/' . $domain->domain_key . ".js");s.className='pm_tag';document.head.appendChild(s);}())</script>";
     $gtmIconPath = public_path('images/google-tag-manager.svg');
     $wpIconPath = public_path('images/wordpress.svg');
     $gtmIconSrc = url('/images/google-tag-manager.svg') . (is_file($gtmIconPath) ? '?v=' . filemtime($gtmIconPath) : '');
