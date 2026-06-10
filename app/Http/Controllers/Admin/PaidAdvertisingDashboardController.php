@@ -403,41 +403,19 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function ips(Request $request): JsonResponse
     {
-        if (! Schema::hasTable('visits')) {
-            return response()->json([]);
-        }
-
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
-            ->select(
-                'ip',
-                DB::raw('COUNT(*) as total'),
-                DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
-                DB::raw('MAX(country) as country'),
-                DB::raw('MAX(visited_at) as last_seen'),
-                DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
-                DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
-                DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
-                DB::raw('MAX(threat_group) as top_threat')
-            )
-            ->groupBy('ip')
-            ->orderByDesc('total')
-            ->limit(50)
-            ->get();
+        if ($domainIds->isEmpty()) {
+            return response()->json([]);
+        }
 
-        return response()->json($rows->map(fn ($r) => [
-            'ip' => $r->ip,
-            'country' => $r->country,
-            'total' => (int) $r->total,
-            'invalid' => (int) $r->invalid,
-            'last_seen' => (string) ($r->last_seen ?? ''),
-            'vpn_hits' => (int) ($r->vpn_hits ?? 0),
-            'data_center_hits' => (int) ($r->data_center_hits ?? 0),
-            'malicious_hits' => (int) ($r->malicious_hits ?? 0),
-            'top_threat' => $r->top_threat,
-        ])->values());
+        $rows = $this->mergeIpAggregates(
+            $this->ipRowsFromVisits($request, $domainIds, $from, $to),
+            $this->ipRowsFromPaidMarketing($request, $domainIds, $from, $to),
+        );
+
+        return response()->json($rows->take(50)->values());
     }
 
     public function exportIpsCsv(Request $request): StreamedResponse
@@ -450,41 +428,31 @@ class PaidAdvertisingDashboardController extends Controller
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['IP Address', 'Country', 'Invalid', 'Total', 'Bot Detect', 'VPN Hits', 'Data Center Hits', 'Malicious Hits', 'Last Click']);
 
-            if (! Schema::hasTable('visits') || $domainIds->isEmpty()) {
+            if ($domainIds->isEmpty()
+                || (! Schema::hasTable('visits') && ! Schema::hasTable('paid_marketing_visits'))) {
                 fclose($handle);
 
                 return;
             }
 
-            $this->scopedVisitsQuery($request, $domainIds, $from, $to)
-                ->select(
-                    'ip',
-                    DB::raw('COUNT(*) as total'),
-                    DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
-                    DB::raw('MAX(country) as country'),
-                    DB::raw('MAX(visited_at) as last_seen'),
-                    DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
-                    DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
-                    DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
-                    DB::raw('MAX(threat_group) as top_threat')
-                )
-                ->groupBy('ip')
-                ->orderByDesc('total')
-                ->limit(5000)
-                ->cursor()
-                ->each(function ($r) use ($handle): void {
-                    fputcsv($handle, [
-                        $r->ip,
-                        $r->country,
-                        (int) $r->invalid,
-                        (int) $r->total,
-                        $r->top_threat,
-                        (int) ($r->vpn_hits ?? 0),
-                        (int) ($r->data_center_hits ?? 0),
-                        (int) ($r->malicious_hits ?? 0),
-                        (string) ($r->last_seen ?? ''),
-                    ]);
-                });
+            $rows = $this->mergeIpAggregates(
+                $this->ipRowsFromVisits($request, $domainIds, $from, $to),
+                $this->ipRowsFromPaidMarketing($request, $domainIds, $from, $to),
+            );
+
+            foreach ($rows->take(5000) as $r) {
+                fputcsv($handle, [
+                    $r['ip'],
+                    $r['country'],
+                    $r['invalid'],
+                    $r['total'],
+                    $r['top_threat'],
+                    $r['vpn_hits'],
+                    $r['data_center_hits'],
+                    $r['malicious_hits'],
+                    $r['last_seen'],
+                ]);
+            }
 
             fclose($handle);
         }, $filename, [
@@ -582,10 +550,141 @@ class PaidAdvertisingDashboardController extends Controller
 
         $campaign = trim((string) $request->query('campaign', ''));
         if ($campaign !== '') {
-            $query->where('utm_campaign', $campaign);
+            $this->applyCampaignNameFilter($query, 'utm_campaign', $campaign);
         }
 
         return $query;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    private function ipRowsFromVisits(Request $request, $domainIds, Carbon $from, Carbon $to)
+    {
+        if (! Schema::hasTable('visits')) {
+            return collect();
+        }
+
+        return $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+            ->select(
+                'ip',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
+                DB::raw('MAX(country) as country'),
+                DB::raw('MAX(visited_at) as last_seen'),
+                DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
+                DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
+                DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
+                DB::raw('MAX(threat_group) as top_threat')
+            )
+            ->groupBy('ip')
+            ->orderByDesc('total')
+            ->limit(500)
+            ->get();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    private function ipRowsFromPaidMarketing(Request $request, $domainIds, Carbon $from, Carbon $to)
+    {
+        if (! Schema::hasTable('paid_marketing_visits')) {
+            return collect();
+        }
+
+        $query = DB::table('paid_marketing_visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('last_click_at', [$from, $to]);
+
+        $campaign = trim((string) $request->query('campaign', ''));
+        if ($campaign !== '') {
+            $this->applyCampaignNameFilter($query, 'campaign', $campaign);
+        }
+
+        return $query
+            ->select(
+                'ip',
+                DB::raw('SUM(visits) as total'),
+                DB::raw("SUM(CASE WHEN threat_group IS NOT NULL AND threat_group != '' THEN visits ELSE 0 END) as invalid"),
+                DB::raw('MAX(country) as country'),
+                DB::raw('MAX(last_click_at) as last_seen'),
+                DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN visits ELSE 0 END) as vpn_hits"),
+                DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN visits ELSE 0 END) as data_center_hits"),
+                DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN visits ELSE 0 END) as malicious_hits"),
+                DB::raw('MAX(threat_group) as top_threat')
+            )
+            ->groupBy('ip')
+            ->orderByDesc('total')
+            ->limit(500)
+            ->get();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, object>  $fromVisits
+     * @param  \Illuminate\Support\Collection<int, object>  $fromPaid
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function mergeIpAggregates($fromVisits, $fromPaid)
+    {
+        $merged = [];
+
+        foreach ($fromVisits->concat($fromPaid) as $row) {
+            $ip = (string) $row->ip;
+            if ($ip === '') {
+                continue;
+            }
+
+            if (! isset($merged[$ip])) {
+                $merged[$ip] = [
+                    'ip' => $ip,
+                    'country' => $row->country,
+                    'total' => 0,
+                    'invalid' => 0,
+                    'last_seen' => '',
+                    'vpn_hits' => 0,
+                    'data_center_hits' => 0,
+                    'malicious_hits' => 0,
+                    'top_threat' => null,
+                ];
+            }
+
+            $merged[$ip]['total'] += (int) $row->total;
+            $merged[$ip]['invalid'] += (int) $row->invalid;
+            $merged[$ip]['vpn_hits'] += (int) ($row->vpn_hits ?? 0);
+            $merged[$ip]['data_center_hits'] += (int) ($row->data_center_hits ?? 0);
+            $merged[$ip]['malicious_hits'] += (int) ($row->malicious_hits ?? 0);
+
+            if (! $merged[$ip]['country'] && $row->country) {
+                $merged[$ip]['country'] = $row->country;
+            }
+
+            $lastSeen = (string) ($row->last_seen ?? '');
+            if ($lastSeen !== '' && $lastSeen > $merged[$ip]['last_seen']) {
+                $merged[$ip]['last_seen'] = $lastSeen;
+            }
+
+            if ($row->top_threat && ! $merged[$ip]['top_threat']) {
+                $merged[$ip]['top_threat'] = $row->top_threat;
+            }
+        }
+
+        return collect($merged)
+            ->sortByDesc('total')
+            ->values();
+    }
+
+    private function applyCampaignNameFilter($query, string $column, string $campaign): void
+    {
+        $campaign = trim($campaign);
+        if ($campaign === '') {
+            return;
+        }
+
+        $query->where(function ($inner) use ($column, $campaign): void {
+            $inner->where($column, $campaign)
+                ->orWhere($column, 'like', '%' . $campaign . '%')
+                ->orWhereRaw('? LIKE CONCAT("%", ' . $column . ', "%")', [$campaign]);
+        });
     }
 
     private function dateRange(Request $request): array

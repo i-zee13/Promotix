@@ -489,7 +489,7 @@ function paidAdvertisingFigma(config = {}) {
                     fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json()),
                     fetch(`/paid-marketing/keywords?${qs}`).then(r => r.json()),
                     fetch(`/paid-marketing/countries?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/ips?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/ips?${this.ipsQueryString()}`).then(r => r.json()),
                     fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
                 ]);
                 this.summary = summary;
