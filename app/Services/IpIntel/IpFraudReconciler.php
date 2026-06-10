@@ -6,6 +6,7 @@ use App\Models\Domain;
 use App\Models\IpLog;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
+use App\Support\CountryValue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -68,8 +69,8 @@ class IpFraudReconciler
             if (Schema::hasColumn('visits', 'detection_reasons')) {
                 $payload['detection_reasons'] = json_encode($detection['reasons']);
             }
-            if (Schema::hasColumn('visits', 'country') && $ipLog->intel_country_name) {
-                $payload['country'] = $ipLog->intel_country_name;
+            if (Schema::hasColumn('visits', 'country') && $ipLog->intel_country_code) {
+                $payload['country'] = CountryValue::forVisitsTable($ipLog);
             }
 
             DB::table('visits')->where('id', $row->id)->update($payload);

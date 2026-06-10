@@ -7,6 +7,7 @@ use App\Models\Domain;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Services\IpIntel\VisitProtectionService;
+use App\Support\CountryValue;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -71,6 +72,8 @@ class TrackingController extends Controller
         $enforceBlock = $assessment['enforce_block'];
 
         $resolvedCountry = $country ?? $ipLog->intel_country_code ?? $ipLog->intel_country_name;
+        $visitCountryCode = CountryValue::forVisitsTable($ipLog, $country);
+        $displayCountry = CountryValue::forDisplay($ipLog, $country);
         $domain->last_seen_at = now();
         $domain->tag_connected = true;
         $domain->status = 'connected';
@@ -95,7 +98,7 @@ class TrackingController extends Controller
         $visit->last_path = $data['path'] ?? null;
         $visit->campaign = $data['utm_campaign'] ?? null;
         $visit->platform = $device;
-        $visit->country = $ipLog->intel_country_name ?? $resolvedCountry;
+        $visit->country = $displayCountry;
         $visit->threat_group = $detection['threat_group'];
         $visit->threat_type = $detection['action_taken'] === 'allow' ? null : $detection['action_taken'];
         $visit->save();
@@ -105,7 +108,7 @@ class TrackingController extends Controller
             'paid_marketing_visit_id' => $visit->id,
             'clicked_at' => now(),
             'ip' => $ip,
-            'country' => $ipLog->intel_country_name ?? $resolvedCountry,
+            'country' => $displayCountry,
             'last_click_at' => now(),
             'threat_group' => $detection['threat_group'],
             'campaign' => $data['utm_campaign'] ?? null,
@@ -123,7 +126,7 @@ class TrackingController extends Controller
                 'domain_id' => $domain->id,
                 'session_id' => $sessionId,
                 'ip' => $ip,
-                'country' => $ipLog->intel_country_name ?? $resolvedCountry,
+                'country' => $visitCountryCode,
                 'device' => $device,
                 'browser' => $browser['name'],
                 'os' => $os,
