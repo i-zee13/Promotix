@@ -215,7 +215,7 @@
                                     <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
                                 </tr>
                             </template>
-                            <tr x-show="ips.length === 0"><td colspan="7" class="px-[10px] py-[12px] text-center text-white/60" x-text="!filters.domain_id ? 'Select a domain above to load IPs.' : (filters.campaign ? 'No IPs matched this campaign yet. Tag must send utm_campaign (e.g. Tmobile) on landing URLs.' : 'No IP data yet for this domain.')"></td></tr>
+                            <tr x-show="ips.length === 0"><td colspan="7" class="px-[10px] py-[12px] text-center text-white/60" x-text="!filters.domain_id ? 'Select a domain above to load IPs.' : (filters.campaign ? 'No paid IPs for this campaign in the selected date range. Add utm_campaign to landing URLs for exact match.' : 'No paid IP data yet for this domain.')"></td></tr>
                         </tbody>
                     </table>
                 </div>

@@ -185,22 +185,31 @@ class GoogleAdsMetricsService
             return [];
         }
 
-        $query = "SELECT click_view.gclid FROM click_view WHERE campaign.id = {$campaignId} AND segments.date BETWEEN '{$fromDate}' AND '{$toDate}' AND click_view.gclid != '' LIMIT 10000";
+        $queries = [
+            "SELECT click_view.gclid FROM click_view WHERE campaign.id = {$campaignId} AND segments.date BETWEEN '{$fromDate}' AND '{$toDate}' AND click_view.gclid != '' LIMIT 10000",
+            "SELECT click_view.gclid, campaign.id FROM click_view WHERE campaign.id = {$campaignId} AND segments.date BETWEEN '{$fromDate}' AND '{$toDate}' LIMIT 10000",
+        ];
 
-        $res = $this->searchStream($apiVersion, $customerId, $query, $headers, 'campaign_gclids');
-        if (! $res->successful()) {
-            return [];
-        }
+        foreach ($queries as $index => $query) {
+            $res = $this->searchStream($apiVersion, $customerId, $query, $headers, 'campaign_gclids_' . $index);
+            if (! $res->successful()) {
+                continue;
+            }
 
-        $gclids = [];
-        foreach ($this->parseRows($res->json()) as $row) {
-            $gclid = (string) ($row['clickView']['gclid'] ?? $row['click_view']['gclid'] ?? '');
-            if ($gclid !== '') {
-                $gclids[$gclid] = true;
+            $gclids = [];
+            foreach ($this->parseRows($res->json()) as $row) {
+                $gclid = (string) ($row['clickView']['gclid'] ?? $row['click_view']['gclid'] ?? '');
+                if ($gclid !== '') {
+                    $gclids[$gclid] = true;
+                }
+            }
+
+            if ($gclids !== []) {
+                return array_keys($gclids);
             }
         }
 
-        return array_keys($gclids);
+        return [];
     }
 
     /**

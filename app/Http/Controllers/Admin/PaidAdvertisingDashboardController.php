@@ -548,7 +548,18 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         if ($this->hasCampaignFilter($request)) {
-            $this->applyCampaignAttributionFilter($query, $request, $domainIds, $from, $to, 'utm_campaign');
+            $gclidColumn = Schema::hasColumn('visits', 'gclid') ? 'gclid' : null;
+            $this->applyCampaignAttributionFilter(
+                $query,
+                $request,
+                $domainIds,
+                $from,
+                $to,
+                'utm_campaign',
+                'ip',
+                $gclidColumn,
+                'visited_at',
+            );
         }
 
         return $query;
@@ -598,19 +609,17 @@ class PaidAdvertisingDashboardController extends Controller
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
         if ($this->hasCampaignFilter($request)) {
-            $query->where(function ($outer) use ($request, $domainIds, $from, $to): void {
-                $campaign = trim((string) $request->query('campaign', ''));
-                if ($campaign !== '') {
-                    $outer->where(function ($utm) use ($request): void {
-                        $this->applySmartCampaignFilterConditions($utm, 'pc.campaign', $request);
-                    });
-                }
-
-                $gclids = $this->resolveCampaignGclids($request, $domainIds, $from, $to);
-                if ($gclids !== []) {
-                    $outer->orWhereIn('pc.paid_id', $gclids);
-                }
-            });
+            $this->applyCampaignAttributionFilter(
+                $query,
+                $request,
+                $domainIds,
+                $from,
+                $to,
+                'pc.campaign',
+                'pc.ip',
+                'pc.paid_id',
+                'pc.clicked_at',
+            );
         }
 
         return $query
@@ -753,66 +762,165 @@ class PaidAdvertisingDashboardController extends Controller
         Carbon $from,
         Carbon $to,
         string $utmColumn,
+        string $ipColumn = 'ip',
+        ?string $gclidColumn = 'gclid',
+        string $visitedAtColumn = 'visited_at',
     ): void {
         $campaign = trim((string) $request->query('campaign', ''));
-        $gclids = $this->resolveCampaignGclids($request, $domainIds, $from, $to);
+        $domainId = $domainIds->count() === 1 ? (int) $domainIds->first() : 0;
+        $campaignId = $domainId > 0 ? $this->resolveCampaignId($request, $domainId) : '';
+        $gclids = $this->resolveCampaignGclids($request, $domainIds, $from, $to, $campaignId);
+        $activeDates = $domainId > 0 && $campaignId !== ''
+            ? $this->resolveCampaignActiveDates($domainId, $campaignId, $from, $to)
+            : [];
 
-        $query->where(function ($outer) use ($utmColumn, $request, $campaign, $gclids, $domainIds, $from, $to): void {
+        $query->where(function ($outer) use (
+            $utmColumn,
+            $ipColumn,
+            $gclidColumn,
+            $visitedAtColumn,
+            $request,
+            $campaign,
+            $gclids,
+            $activeDates,
+            $domainIds,
+            $from,
+            $to,
+        ): void {
             if ($campaign !== '') {
                 $outer->where(function ($utm) use ($utmColumn, $request): void {
                     $this->applySmartCampaignFilterConditions($utm, $utmColumn, $request);
                 });
             }
 
-            if ($gclids === []) {
-                return;
+            if ($gclids !== [] && $gclidColumn !== null) {
+                $outer->orWhereIn($gclidColumn, $gclids);
             }
 
-            $outer->orWhere(function ($gclid) use ($gclids, $domainIds, $from, $to): void {
-                if (Schema::hasColumn('visits', 'gclid')) {
-                    $gclid->whereIn('gclid', $gclids);
-                }
+            if ($gclids !== [] && Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits')) {
+                $outer->orWhereExists(function ($sub) use ($gclids, $domainIds, $from, $to, $ipColumn): void {
+                    $sub->selectRaw('1')
+                        ->from('paid_marketing_clicks as pc_attr')
+                        ->join('paid_marketing_visits as pv_attr', 'pv_attr.id', '=', 'pc_attr.paid_marketing_visit_id')
+                        ->whereIn('pv_attr.domain_id', $domainIds)
+                        ->whereColumn('pv_attr.ip', $ipColumn)
+                        ->whereBetween('pc_attr.clicked_at', [$from, $to])
+                        ->whereIn('pc_attr.paid_id', $gclids);
+                });
+            }
 
-                if (Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits')) {
-                    $gclid->orWhereExists(function ($sub) use ($gclids, $domainIds, $from, $to): void {
-                        $sub->selectRaw('1')
-                            ->from('paid_marketing_clicks as pc_attr')
-                            ->join('paid_marketing_visits as pv_attr', 'pv_attr.id', '=', 'pc_attr.paid_marketing_visit_id')
-                            ->whereIn('pv_attr.domain_id', $domainIds)
-                            ->whereColumn('pv_attr.ip', 'visits.ip')
-                            ->whereBetween('pc_attr.clicked_at', [$from, $to])
-                            ->whereIn('pc_attr.paid_id', $gclids);
-                    });
-                }
-            });
+            if ($activeDates !== []) {
+                $outer->orWhere(function ($dates) use (
+                    $utmColumn,
+                    $gclidColumn,
+                    $visitedAtColumn,
+                    $ipColumn,
+                    $activeDates,
+                    $domainIds,
+                    $from,
+                    $to,
+                ): void {
+                    $dates->whereIn(DB::raw('DATE(' . $visitedAtColumn . ')'), $activeDates)
+                        ->where(function ($unattrib) use ($utmColumn): void {
+                            $unattrib->whereNull($utmColumn)->orWhere($utmColumn, '');
+                        });
+
+                    if ($gclidColumn !== null) {
+                        $dates->where(function ($paid) use ($gclidColumn, $domainIds, $from, $to, $ipColumn): void {
+                            $paid->whereNotNull($gclidColumn)->where($gclidColumn, '!=', '');
+
+                            if (Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits')) {
+                                $paid->orWhereExists(function ($sub) use ($domainIds, $from, $to, $ipColumn): void {
+                                    $sub->selectRaw('1')
+                                        ->from('paid_marketing_clicks as pc_day')
+                                        ->join('paid_marketing_visits as pv_day', 'pv_day.id', '=', 'pc_day.paid_marketing_visit_id')
+                                        ->whereIn('pv_day.domain_id', $domainIds)
+                                        ->whereColumn('pv_day.ip', $ipColumn)
+                                        ->whereBetween('pc_day.clicked_at', [$from, $to])
+                                        ->whereNotNull('pc_day.paid_id')
+                                        ->where('pc_day.paid_id', '!=', '');
+                                });
+                            }
+                        });
+                    }
+                });
+            }
         });
+    }
+
+    private function resolveCampaignId(Request $request, int $domainId): string
+    {
+        $campaignId = preg_replace('/\D+/', '', (string) $request->query('campaign_id', ''));
+        if ($campaignId !== '') {
+            return $campaignId;
+        }
+
+        $campaignName = trim((string) $request->query('campaign', ''));
+        if ($campaignName === '' || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            return '';
+        }
+
+        $id = DB::table('google_ads_campaign_daily_metrics')
+            ->where('domain_id', $domainId)
+            ->where('campaign_name', $campaignName)
+            ->orderByDesc('metric_date')
+            ->value('campaign_id');
+
+        if ($id) {
+            return preg_replace('/\D+/', '', (string) $id);
+        }
+
+        $tokens = $this->campaignMatchTokens($campaignName);
+        if ($tokens === []) {
+            return '';
+        }
+
+        $row = DB::table('google_ads_campaign_daily_metrics')
+            ->where('domain_id', $domainId)
+            ->where(function ($q) use ($tokens): void {
+                foreach ($tokens as $token) {
+                    $q->orWhere('campaign_name', 'like', '%' . $token . '%');
+                }
+            })
+            ->orderByDesc('metric_date')
+            ->value('campaign_id');
+
+        return $row ? preg_replace('/\D+/', '', (string) $row) : '';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveCampaignActiveDates(int $domainId, string $campaignId, Carbon $from, Carbon $to): array
+    {
+        if ($campaignId === '' || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            return [];
+        }
+
+        return DB::table('google_ads_campaign_daily_metrics')
+            ->where('domain_id', $domainId)
+            ->where('campaign_id', $campaignId)
+            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->where('clicks', '>', 0)
+            ->distinct()
+            ->pluck('metric_date')
+            ->map(fn ($date) => Carbon::parse((string) $date)->toDateString())
+            ->values()
+            ->all();
     }
 
     /**
      * @param  \Illuminate\Support\Collection<int, int>  $domainIds
      * @return list<string>
      */
-    private function resolveCampaignGclids(Request $request, $domainIds, Carbon $from, Carbon $to): array
+    private function resolveCampaignGclids(Request $request, $domainIds, Carbon $from, Carbon $to, ?string $campaignId = null): array
     {
         if ($domainIds->count() !== 1) {
             return [];
         }
 
         $domainId = (int) $domainIds->first();
-        $campaignId = preg_replace('/\D+/', '', (string) $request->query('campaign_id', ''));
-        $campaignName = trim((string) $request->query('campaign', ''));
-
-        if ($campaignId === '' && $campaignName !== '' && Schema::hasTable('google_ads_campaign_daily_metrics')) {
-            $row = DB::table('google_ads_campaign_daily_metrics')
-                ->where('domain_id', $domainId)
-                ->where('campaign_name', $campaignName)
-                ->orderByDesc('metric_date')
-                ->value('campaign_id');
-
-            if ($row) {
-                $campaignId = preg_replace('/\D+/', '', (string) $row);
-            }
-        }
+        $campaignId = $campaignId ?? $this->resolveCampaignId($request, $domainId);
 
         if ($campaignId === '') {
             return [];
