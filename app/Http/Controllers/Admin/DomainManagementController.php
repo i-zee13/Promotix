@@ -173,13 +173,13 @@ class DomainManagementController extends Controller
             'hostnames.*' => ['required', 'string', 'max:255'],
         ]);
 
-        $domainLimit = (int) env('DOMAIN_LIMIT', 50);
-        $currentCount = Domain::query()->where('user_id', $request->user()->id)->manual()->count();
+        $user = $request->user();
+        $currentCount = $user->domainsUsed();
         $added = [];
         $skipped = [];
 
         foreach ($data['hostnames'] as $raw) {
-            if ($currentCount >= $domainLimit) {
+            if (! $user->canAddDomain()) {
                 $skipped[] = ['hostname' => (string) $raw, 'reason' => 'Domain limit reached'];
                 continue;
             }
@@ -354,30 +354,37 @@ class DomainManagementController extends Controller
     public function verifyWordpress(Request $request, Domain $domain): JsonResponse
     {
         abort_unless($domain->user_id === $request->user()->id, 403);
-        $verified = false;
-        $message = 'Could not reach WordPress verification endpoint.';
-        $hosts = array_values(array_unique(array_filter([
-            $domain->hostname,
-            str_starts_with($domain->hostname, 'www.') ? substr($domain->hostname, 4) : 'www.' . $domain->hostname,
-        ])));
 
-        foreach (['https', 'http'] as $scheme) {
-            foreach ($hosts as $host) {
-                $endpoint = $scheme . '://' . $host . '/wp-json/promotix/v1/verify';
-                try {
-                    $response = Http::timeout(12)->get($endpoint, [
-                        'domain_key' => $domain->domain_key,
-                        'secret_key' => $domain->secret_key,
-                    ]);
-                    if ($response->successful()) {
-                        $verified = (bool) $response->json('verified');
-                        $message = (string) ($response->json('message') ?? 'Verification response received.');
-                        break 2;
-                    }
-                    $message = 'WordPress returned HTTP ' . $response->status() . ' on ' . $host . '.';
-                } catch (\Throwable $e) {
-                    $message = 'Could not reach ' . $scheme . '://' . $host . ' (check SSL, firewall, or REST API).';
-                }
+        $verified = false;
+        $message = 'Could not verify tag installation.';
+        $method = null;
+
+        $wpResult = $this->verifyWordpressPlugin($domain);
+        if ($wpResult['verified']) {
+            $verified = true;
+            $message = $wpResult['message'];
+            $method = 'wordpress';
+        }
+
+        if (! $verified) {
+            $htmlResult = $this->verifyTagInPageSource($domain);
+            if ($htmlResult['verified']) {
+                $verified = true;
+                $message = $htmlResult['message'];
+                $method = 'html';
+            } elseif ($htmlResult['message'] !== '') {
+                $message = $htmlResult['message'];
+            }
+        }
+
+        if (! $verified) {
+            $activityResult = $this->verifyRecentTagActivity($domain);
+            if ($activityResult['verified']) {
+                $verified = true;
+                $message = $activityResult['message'];
+                $method = 'activity';
+            } elseif ($activityResult['message'] !== '') {
+                $message = $activityResult['message'];
             }
         }
 
@@ -390,7 +397,132 @@ class DomainManagementController extends Controller
         return response()->json([
             'verified' => $verified,
             'message' => $message,
+            'method' => $method,
         ]);
+    }
+
+    /**
+     * @return array{verified: bool, message: string}
+     */
+    private function verifyWordpressPlugin(Domain $domain): array
+    {
+        $message = 'Could not reach WordPress verification endpoint.';
+        $hosts = $this->verificationHosts($domain->hostname);
+
+        foreach (['https', 'http'] as $scheme) {
+            foreach ($hosts as $host) {
+                $endpoint = $scheme . '://' . $host . '/wp-json/promotix/v1/verify';
+                try {
+                    $response = Http::timeout(12)->get($endpoint, [
+                        'domain_key' => $domain->domain_key,
+                        'secret_key' => $domain->secret_key,
+                    ]);
+                    if ($response->successful()) {
+                        $verified = (bool) $response->json('verified');
+
+                        return [
+                            'verified' => $verified,
+                            'message' => (string) ($response->json('message') ?? ($verified
+                                ? 'WordPress plugin verified.'
+                                : 'WordPress plugin keys do not match or plugin is disabled.')),
+                        ];
+                    }
+                    $message = 'WordPress returned HTTP ' . $response->status() . ' on ' . $host . '.';
+                } catch (\Throwable) {
+                    $message = 'Could not reach ' . $scheme . '://' . $host . ' (check SSL, firewall, or REST API).';
+                }
+            }
+        }
+
+        return ['verified' => false, 'message' => $message];
+    }
+
+    /**
+     * @return array{verified: bool, message: string}
+     */
+    private function verifyTagInPageSource(Domain $domain): array
+    {
+        $domainKey = (string) $domain->domain_key;
+        $needle = '/tag/' . $domainKey . '.js';
+        $hosts = $this->verificationHosts($domain->hostname);
+        $paths = ['/', '/index.html'];
+        $message = 'Tag script was not found in the page HTML.';
+
+        foreach (['https', 'http'] as $scheme) {
+            foreach ($hosts as $host) {
+                foreach ($paths as $path) {
+                    $url = $scheme . '://' . $host . $path;
+                    try {
+                        $response = Http::timeout(15)
+                            ->withHeaders([
+                                'User-Agent' => 'PromoTix-Tag-Verifier/1.0',
+                                'Accept' => 'text/html,application/xhtml+xml',
+                            ])
+                            ->get($url);
+
+                        if (! $response->successful()) {
+                            $message = 'Site returned HTTP ' . $response->status() . ' on ' . $host . $path . '.';
+                            continue;
+                        }
+
+                        $html = strtolower($response->body());
+                        if (
+                            str_contains($html, strtolower($needle))
+                            || str_contains($html, strtolower($domainKey))
+                        ) {
+                            return [
+                                'verified' => true,
+                                'message' => 'Tracking tag found in page source on ' . $scheme . '://' . $host . $path . '.',
+                            ];
+                        }
+
+                        $message = 'Tag script not found in HTML on ' . $scheme . '://' . $host . $path . '. Check domain key matches this site.';
+                    } catch (\Throwable) {
+                        $message = 'Could not fetch ' . $scheme . '://' . $host . $path . ' to inspect page source.';
+                    }
+                }
+            }
+        }
+
+        return ['verified' => false, 'message' => $message];
+    }
+
+    /**
+     * @return array{verified: bool, message: string}
+     */
+    private function verifyRecentTagActivity(Domain $domain): array
+    {
+        if (! $domain->last_seen_at) {
+            return [
+                'verified' => false,
+                'message' => 'No visit received yet. Open the site in a browser after installing the tag, then verify again.',
+            ];
+        }
+
+        if ($domain->last_seen_at->gte(now()->subDays(7))) {
+            return [
+                'verified' => true,
+                'message' => 'Tag is active — last visit received ' . $domain->last_seen_at->diffForHumans() . '.',
+            ];
+        }
+
+        return [
+            'verified' => false,
+            'message' => 'Last visit was ' . $domain->last_seen_at->diffForHumans() . '. Open the site to send a fresh ping, then verify again.',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function verificationHosts(string $hostname): array
+    {
+        $hostname = strtolower(trim($hostname));
+
+        return array_values(array_unique(array_filter([
+            $hostname,
+            str_starts_with($hostname, 'www.') ? substr($hostname, 4) : 'www.' . $hostname,
+        ])));
     }
 
     public function wordpressPlugin(): BinaryFileResponse

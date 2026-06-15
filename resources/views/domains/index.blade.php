@@ -274,7 +274,7 @@
                 </div>
             </div>
             <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[24px] py-[14px]">
-                <button type="button" @click="verifyWordpressFromKeys()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Verify plugin</button>
+                <button type="button" @click="verifyWordpressFromKeys()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Verify installation</button>
                 <button type="button" @click="modal = null" class="rounded-[6px] bg-white px-[22px] py-[8px] text-[13px] font-semibold text-[#6400B2]">Done</button>
             </footer>
         </div>
@@ -500,7 +500,7 @@ function siteManagementFigma() {
                     body: JSON.stringify({}),
                 });
                 const data = await res.json();
-                this.showToast(data.verified ? 'Plugin verified — reload page' : (data.message || 'Not verified'));
+                this.showToast(data.verified ? 'Installation verified — reload page' : (data.message || 'Not verified'));
                 if (data.verified) {
                     setTimeout(() => window.location.reload(), 1200);
                 }

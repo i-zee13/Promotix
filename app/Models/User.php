@@ -127,6 +127,10 @@ class User extends Authenticatable
 
     public function domainLimit(): int|float
     {
+        if ($this->bypassesPlanLimits()) {
+            return INF;
+        }
+
         return $this->planLimit('domain_limit', 1);
     }
 
@@ -137,12 +141,24 @@ class User extends Authenticatable
 
     public function canAddDomain(): bool
     {
+        if ($this->bypassesPlanLimits()) {
+            return true;
+        }
+
         $limit = $this->domainLimit();
         if ($limit === INF) {
             return true;
         }
 
         return $this->domainsUsed() < $limit;
+    }
+
+    /**
+     * Admins are not restricted by subscription plan limits.
+     */
+    public function bypassesPlanLimits(): bool
+    {
+        return (bool) ($this->is_admin || $this->is_super_admin);
     }
 
     /**
