@@ -419,8 +419,7 @@ function paidAdvertisingFigma(config = {}) {
             this.reload();
         },
         async onCampaignFilterChange() {
-            const row = this.campaignOptions.find(r => r.campaign === this.filters.campaign);
-            this.filters.campaign_id = row?.campaign_id ? String(row.campaign_id) : '';
+            this.syncCampaignFilter();
             await this.reloadIps();
         },
         syncCampaignFilter() {

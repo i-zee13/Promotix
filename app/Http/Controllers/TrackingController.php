@@ -144,6 +144,10 @@ class TrackingController extends Controller
                 'updated_at' => now(),
             ];
 
+            if (Schema::hasColumn('visits', 'gclid')) {
+                $visitPayload['gclid'] = $data['gclid'] ?? null;
+            }
+
             if (Schema::hasColumn('visits', 'threat_score')) {
                 $visitPayload['threat_score'] = $detection['threat_score'];
                 $visitPayload['threat_group'] = $detection['threat_group'];

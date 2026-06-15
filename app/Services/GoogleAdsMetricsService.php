@@ -166,6 +166,44 @@ class GoogleAdsMetricsService
     }
 
     /**
+     * GCLIDs for a campaign in a date range (click_view). Used to match tag visits to Google campaigns.
+     *
+     * @param  array<string, string>  $headers
+     * @return list<string>
+     */
+    public function gclidsForCampaign(
+        GoogleAdsAccount $account,
+        string $apiVersion,
+        array $headers,
+        string $campaignId,
+        string $fromDate,
+        string $toDate,
+    ): array {
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+        $campaignId = preg_replace('/\D+/', '', $campaignId);
+        if ($customerId === '' || $campaignId === '' || (bool) $account->is_manager) {
+            return [];
+        }
+
+        $query = "SELECT click_view.gclid FROM click_view WHERE campaign.id = {$campaignId} AND segments.date BETWEEN '{$fromDate}' AND '{$toDate}' AND click_view.gclid != '' LIMIT 10000";
+
+        $res = $this->searchStream($apiVersion, $customerId, $query, $headers, 'campaign_gclids');
+        if (! $res->successful()) {
+            return [];
+        }
+
+        $gclids = [];
+        foreach ($this->parseRows($res->json()) as $row) {
+            $gclid = (string) ($row['clickView']['gclid'] ?? $row['click_view']['gclid'] ?? '');
+            if ($gclid !== '') {
+                $gclids[$gclid] = true;
+            }
+        }
+
+        return array_keys($gclids);
+    }
+
+    /**
      * @param array<string, string> $headers
      */
     private function searchStream(

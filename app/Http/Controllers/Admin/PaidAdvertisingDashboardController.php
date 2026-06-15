@@ -547,9 +547,8 @@ class PaidAdvertisingDashboardController extends Controller
             $query->where('url', 'like', '%' . $path . '%');
         }
 
-        $campaign = trim((string) $request->query('campaign', ''));
-        if ($campaign !== '') {
-            $this->applySmartCampaignFilter($query, 'utm_campaign', $request);
+        if ($this->hasCampaignFilter($request)) {
+            $this->applyCampaignAttributionFilter($query, $request, $domainIds, $from, $to, 'utm_campaign');
         }
 
         return $query;
@@ -598,9 +597,20 @@ class PaidAdvertisingDashboardController extends Controller
 
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
-        $campaign = trim((string) $request->query('campaign', ''));
-        if ($campaign !== '') {
-            $this->applySmartCampaignFilter($query, 'pc.campaign', $request);
+        if ($this->hasCampaignFilter($request)) {
+            $query->where(function ($outer) use ($request, $domainIds, $from, $to): void {
+                $campaign = trim((string) $request->query('campaign', ''));
+                if ($campaign !== '') {
+                    $outer->where(function ($utm) use ($request): void {
+                        $this->applySmartCampaignFilterConditions($utm, 'pc.campaign', $request);
+                    });
+                }
+
+                $gclids = $this->resolveCampaignGclids($request, $domainIds, $from, $to);
+                if ($gclids !== []) {
+                    $outer->orWhereIn('pc.paid_id', $gclids);
+                }
+            });
         }
 
         return $query
@@ -693,25 +703,149 @@ class PaidAdvertisingDashboardController extends Controller
             return;
         }
 
+        $query->where(function ($inner) use ($column, $request): void {
+            $this->applySmartCampaignFilterConditions($inner, $column, $request);
+        });
+    }
+
+    private function applySmartCampaignFilterConditions($query, string $column, Request $request): void
+    {
+        $campaign = trim((string) $request->query('campaign', ''));
+        if ($campaign === '') {
+            return;
+        }
+
         $domainId = (int) $request->query('domain_id', 0);
         $aliases = $domainId > 0 ? $this->resolveTrackedCampaignAliases($domainId, $campaign) : [];
         $tokens = $this->campaignMatchTokens($campaign);
 
-        $query->where(function ($inner) use ($column, $campaign, $aliases, $tokens): void {
-            if ($aliases !== []) {
-                $inner->whereIn($column, $aliases);
+        if ($aliases !== []) {
+            $query->whereIn($column, $aliases);
+        }
+
+        $query->orWhere($column, $campaign)
+            ->orWhere($column, 'like', '%' . $campaign . '%')
+            ->orWhereRaw('? LIKE CONCAT("%", ' . $column . ', "%")', [$campaign]);
+
+        foreach ($tokens as $token) {
+            if (strlen($token) >= 2) {
+                $query->orWhere($column, 'like', '%' . $token . '%');
+            }
+        }
+    }
+
+    private function hasCampaignFilter(Request $request): bool
+    {
+        return trim((string) $request->query('campaign', '')) !== ''
+            || preg_replace('/\D+/', '', (string) $request->query('campaign_id', '')) !== '';
+    }
+
+    /**
+     * Match campaign by utm_campaign and/or Google click gclids (when URL has no utm).
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @param  \Illuminate\Support\Collection<int, int>  $domainIds
+     */
+    private function applyCampaignAttributionFilter(
+        $query,
+        Request $request,
+        $domainIds,
+        Carbon $from,
+        Carbon $to,
+        string $utmColumn,
+    ): void {
+        $campaign = trim((string) $request->query('campaign', ''));
+        $gclids = $this->resolveCampaignGclids($request, $domainIds, $from, $to);
+
+        $query->where(function ($outer) use ($utmColumn, $request, $campaign, $gclids, $domainIds, $from, $to): void {
+            if ($campaign !== '') {
+                $outer->where(function ($utm) use ($utmColumn, $request): void {
+                    $this->applySmartCampaignFilterConditions($utm, $utmColumn, $request);
+                });
             }
 
-            $inner->orWhere($column, $campaign)
-                ->orWhere($column, 'like', '%' . $campaign . '%')
-                ->orWhereRaw('? LIKE CONCAT("%", ' . $column . ', "%")', [$campaign]);
+            if ($gclids === []) {
+                return;
+            }
 
-            foreach ($tokens as $token) {
-                if (strlen($token) >= 3) {
-                    $inner->orWhere($column, 'like', '%' . $token . '%');
+            $outer->orWhere(function ($gclid) use ($gclids, $domainIds, $from, $to): void {
+                if (Schema::hasColumn('visits', 'gclid')) {
+                    $gclid->whereIn('gclid', $gclids);
                 }
-            }
+
+                if (Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits')) {
+                    $gclid->orWhereExists(function ($sub) use ($gclids, $domainIds, $from, $to): void {
+                        $sub->selectRaw('1')
+                            ->from('paid_marketing_clicks as pc_attr')
+                            ->join('paid_marketing_visits as pv_attr', 'pv_attr.id', '=', 'pc_attr.paid_marketing_visit_id')
+                            ->whereIn('pv_attr.domain_id', $domainIds)
+                            ->whereColumn('pv_attr.ip', 'visits.ip')
+                            ->whereBetween('pc_attr.clicked_at', [$from, $to])
+                            ->whereIn('pc_attr.paid_id', $gclids);
+                    });
+                }
+            });
         });
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>  $domainIds
+     * @return list<string>
+     */
+    private function resolveCampaignGclids(Request $request, $domainIds, Carbon $from, Carbon $to): array
+    {
+        if ($domainIds->count() !== 1) {
+            return [];
+        }
+
+        $domainId = (int) $domainIds->first();
+        $campaignId = preg_replace('/\D+/', '', (string) $request->query('campaign_id', ''));
+        $campaignName = trim((string) $request->query('campaign', ''));
+
+        if ($campaignId === '' && $campaignName !== '' && Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            $row = DB::table('google_ads_campaign_daily_metrics')
+                ->where('domain_id', $domainId)
+                ->where('campaign_name', $campaignName)
+                ->orderByDesc('metric_date')
+                ->value('campaign_id');
+
+            if ($row) {
+                $campaignId = preg_replace('/\D+/', '', (string) $row);
+            }
+        }
+
+        if ($campaignId === '') {
+            return [];
+        }
+
+        $domain = Domain::query()
+            ->with('googleAdsAccount.connection')
+            ->find($domainId);
+
+        $account = $domain?->googleAdsAccount;
+        if (! $account?->connection || $account->is_manager) {
+            return [];
+        }
+
+        $api = app(GoogleAdsConnectionService::class);
+        $headers = $api->apiHeaders($account->connection);
+        if (! $headers) {
+            return [];
+        }
+
+        $loginId = $account->manager_customer_id ?: $api->loginCustomerId();
+        if ($loginId !== '') {
+            $headers['login-customer-id'] = $loginId;
+        }
+
+        return app(GoogleAdsMetricsService::class)->gclidsForCampaign(
+            $account,
+            $api->apiVersions()[0] ?? 'v24',
+            $headers,
+            $campaignId,
+            $from->toDateString(),
+            $to->toDateString(),
+        );
     }
 
     /**
@@ -796,10 +930,18 @@ class PaidAdvertisingDashboardController extends Controller
 
         $stopWords = ['mix', 'the', 'and', 'for', 'maximize', 'click', 'calls', 'leads', 'digital', 'promotix'];
 
-        return array_values(array_filter(
+        $tokens = array_values(array_filter(
             $parts,
-            fn (string $part) => strlen($part) >= 3 && ! in_array($part, $stopWords, true)
+            fn (string $part) => strlen($part) >= 2 && ! in_array($part, $stopWords, true)
         ));
+
+        $primary = strtolower(trim(explode('-', $campaign, 2)[0] ?? ''));
+        $primary = preg_replace('/[^a-z0-9]+/', '', $primary) ?? '';
+        if ($primary !== '' && strlen($primary) >= 2 && ! in_array($primary, $stopWords, true)) {
+            array_unshift($tokens, $primary);
+        }
+
+        return array_values(array_unique($tokens));
     }
 
     private function dateRange(Request $request): array
