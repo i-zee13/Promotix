@@ -242,6 +242,71 @@ class GoogleAdsDomainMetricsSync
             ->keyBy(fn ($row) => Carbon::parse($row->metric_date)->toDateString());
     }
 
+    /**
+     * @param  iterable<int>  $domainIds
+     * @return array{clicks: int, cost: float, impressions: int, from: string, to: string, used_stored_bounds: bool}
+     */
+    public function clickTotalsForDomains(iterable $domainIds, Carbon $from, Carbon $to): array
+    {
+        $ids = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [
+                'clicks' => 0,
+                'cost' => 0.0,
+                'impressions' => 0,
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'used_stored_bounds' => false,
+            ];
+        }
+
+        if ($ids->count() === 1) {
+            return $this->clickTotalsForDomain((int) $ids->first(), $from, $to);
+        }
+
+        $agg = GoogleAdsCampaignDailyMetric::query()
+            ->whereIn('domain_id', $ids)
+            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->selectRaw('COALESCE(SUM(clicks), 0) as clicks, COALESCE(SUM(cost), 0) as cost, COALESCE(SUM(impressions), 0) as impressions')
+            ->first();
+
+        return [
+            'clicks' => (int) ($agg->clicks ?? 0),
+            'cost' => round((float) ($agg->cost ?? 0), 2),
+            'impressions' => (int) ($agg->impressions ?? 0),
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'used_stored_bounds' => false,
+        ];
+    }
+
+    /**
+     * @param  iterable<int>  $domainIds
+     * @return \Illuminate\Support\Collection<string, object{metric_date: string, clicks: int}>
+     */
+    public function dailyClicksByDateForDomains(iterable $domainIds, Carbon $from, Carbon $to)
+    {
+        $ids = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        if ($ids->count() === 1) {
+            return $this->dailyClicksByDate((int) $ids->first(), $from, $to);
+        }
+
+        return GoogleAdsCampaignDailyMetric::query()
+            ->whereIn('domain_id', $ids)
+            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->selectRaw('metric_date, SUM(clicks) as clicks')
+            ->groupBy('metric_date')
+            ->orderBy('metric_date')
+            ->get()
+            ->keyBy(fn ($row) => Carbon::parse($row->metric_date)->toDateString());
+    }
+
     public function shouldRefresh(Domain $domain, Carbon $from, Carbon $to): bool
     {
         if (! $domain->google_ads_account_id) {

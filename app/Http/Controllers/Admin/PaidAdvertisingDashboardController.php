@@ -63,9 +63,9 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         $googleAds = null;
-        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->count() === 1) {
+        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
             $googleAds = app(GoogleAdsDomainMetricsSync::class)
-                ->clickTotalsForDomain((int) $domainIds->first(), $from, $to);
+                ->clickTotalsForDomains($domainIds, $from, $to);
 
             if ($paid === 0 && ($googleAds['clicks'] ?? 0) > 0) {
                 $paid = (int) $googleAds['clicks'];
@@ -114,13 +114,15 @@ class PaidAdvertisingDashboardController extends Controller
         $chartFrom = $from;
         $chartTo = $to;
 
-        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->count() === 1) {
+        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
             $sync = app(GoogleAdsDomainMetricsSync::class);
-            $domainId = (int) $domainIds->first();
-            $range = $sync->effectiveMetricRange($domainId, $from, $to);
-            $chartFrom = $range['from'];
-            $chartTo = $range['to'];
-            $googleByDay = $sync->dailyClicksByDate($domainId, $from, $to);
+            if ($domainIds->count() === 1) {
+                $domainId = (int) $domainIds->first();
+                $range = $sync->effectiveMetricRange($domainId, $from, $to);
+                $chartFrom = $range['from'];
+                $chartTo = $range['to'];
+            }
+            $googleByDay = $sync->dailyClicksByDateForDomains($domainIds, $from, $to);
         }
 
         $buildSeries = function (Carbon $rangeFrom, Carbon $rangeTo, $dayRows, $googleDays) use ($domainIds): array {
@@ -157,9 +159,9 @@ class PaidAdvertisingDashboardController extends Controller
         $prevRows = $fetchRows($prevFrom, $prevTo);
 
         $googlePrev = null;
-        if ($googleByDay !== null && $domainIds->count() === 1) {
+        if ($googleByDay !== null && $domainIds->isNotEmpty()) {
             $googlePrev = app(GoogleAdsDomainMetricsSync::class)
-                ->dailyClicksByDate((int) $domainIds->first(), $prevFrom, $prevTo);
+                ->dailyClicksByDateForDomains($domainIds, $prevFrom, $prevTo);
         }
 
         $previous = $buildSeries($prevFrom, $prevTo, $prevRows, $googlePrev);

@@ -18,7 +18,7 @@
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">Select domain</option>
+                            <option value="">All domains</option>
                             @foreach ($domains as $domain)
                                 <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
                             @endforeach
