@@ -16,7 +16,7 @@ class AdminUserSeeder extends Seeder
     {
         $superAdmin = Role::where('slug', 'super-admin')->first();
 
-        User::updateOrCreate(
+        $user = User::updateOrCreate(
             ['email' => 'admin@example.com'],
             [
                 'name' => 'Admin',
@@ -26,5 +26,7 @@ class AdminUserSeeder extends Seeder
                 'role_id' => $superAdmin?->id,
             ]
         );
+
+        $user->forceFill(['email_verified_at' => now()])->save();
     }
 }

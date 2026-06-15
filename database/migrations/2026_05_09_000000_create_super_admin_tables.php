@@ -21,7 +21,12 @@ return new class extends Migration
 
             DB::table('users')
                 ->where('email', 'admin@example.com')
-                ->update(['is_super_admin' => true, 'is_admin' => true, 'status' => 'active']);
+                ->update([
+                    'is_super_admin' => true,
+                    'is_admin' => true,
+                    'status' => 'active',
+                    'email_verified_at' => now(),
+                ]);
         }
 
         if (! Schema::hasTable('saas_products')) {
