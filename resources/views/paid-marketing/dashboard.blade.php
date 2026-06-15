@@ -18,7 +18,7 @@
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All campaigns</option>
+                            <option value="">Select domain</option>
                             @foreach ($domains as $domain)
                                 <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
                             @endforeach
@@ -215,7 +215,7 @@
                                     <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
                                 </tr>
                             </template>
-                            <tr x-show="ips.length === 0"><td colspan="7" class="px-[10px] py-[12px] text-center text-white/60">No IP data yet.</td></tr>
+                            <tr x-show="ips.length === 0"><td colspan="7" class="px-[10px] py-[12px] text-center text-white/60" x-text="!filters.domain_id ? 'Select a domain above to load IPs.' : (filters.campaign ? 'No IPs matched this campaign yet. Tag must send utm_campaign (e.g. Tmobile) on landing URLs.' : 'No IP data yet for this domain.')"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -302,7 +302,7 @@
 function paidAdvertisingFigma(config = {}) {
     return {
         countryGetStarted: Boolean(config.countryGetStarted),
-        filters: { domain_id: '', campaign: '', path: '', window: 'weekly', from: '', to: '' },
+        filters: { domain_id: '', campaign: '', campaign_id: '', path: '', window: 'weekly', from: '', to: '' },
         summary: { paid_visits: 0, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [] },
@@ -414,23 +414,35 @@ function paidAdvertisingFigma(config = {}) {
         },
         onDomainChange() {
             this.filters.campaign = '';
+            this.filters.campaign_id = '';
             window.promotixPageLoader?.show('Loading data…');
             this.reload();
         },
         async onCampaignFilterChange() {
+            const row = this.campaignOptions.find(r => r.campaign === this.filters.campaign);
+            this.filters.campaign_id = row?.campaign_id ? String(row.campaign_id) : '';
             await this.reloadIps();
         },
         syncCampaignFilter() {
-            if (!this.filters.campaign) return;
-            const names = this.campaignOptions.map(r => r.campaign);
-            if (!names.includes(this.filters.campaign)) {
-                this.filters.campaign = '';
+            if (!this.filters.campaign) {
+                this.filters.campaign_id = '';
+                return;
             }
+            const row = this.campaignOptions.find(r => r.campaign === this.filters.campaign);
+            if (!row) {
+                this.filters.campaign = '';
+                this.filters.campaign_id = '';
+                return;
+            }
+            this.filters.campaign_id = row.campaign_id ? String(row.campaign_id) : '';
         },
         ipsQueryString() {
             const p = new URLSearchParams(this.qs());
             if (this.filters.campaign) {
                 p.set('campaign', this.filters.campaign);
+            }
+            if (this.filters.campaign_id) {
+                p.set('campaign_id', this.filters.campaign_id);
             }
             return p.toString();
         },

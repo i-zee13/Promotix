@@ -85,40 +85,41 @@ class TrackingController extends Controller
         }
         $domain->save();
 
-        // Paid marketing visit row (1 row per domain+ip)
-        $visit = PaidMarketingVisit::firstOrNew([
-            'domain_id' => $domain->id,
-            'ip' => $ip,
-        ]);
-        if (! $visit->exists) {
-            $visit->visits = 0;
-        }
-        $visit->visits = ($visit->visits ?? 0) + 1;
-        $visit->last_click_at = now();
-        $visit->last_path = $data['path'] ?? null;
-        $visit->campaign = $data['utm_campaign'] ?? null;
-        $visit->platform = $device;
-        $visit->country = $displayCountry;
-        $visit->threat_group = $detection['threat_group'];
-        $visit->threat_type = $detection['action_taken'] === 'allow' ? null : $detection['action_taken'];
-        $visit->save();
+        if ($isPaidTraffic) {
+            // Paid marketing rows only for ad traffic (gclid or utm_campaign), same as visits.is_paid_traffic.
+            $visit = PaidMarketingVisit::firstOrNew([
+                'domain_id' => $domain->id,
+                'ip' => $ip,
+            ]);
+            if (! $visit->exists) {
+                $visit->visits = 0;
+            }
+            $visit->visits = ($visit->visits ?? 0) + 1;
+            $visit->last_click_at = now();
+            $visit->last_path = $data['path'] ?? null;
+            $visit->campaign = $data['utm_campaign'] ?? null;
+            $visit->platform = $device;
+            $visit->country = $displayCountry;
+            $visit->threat_group = $detection['threat_group'];
+            $visit->threat_type = $detection['action_taken'] === 'allow' ? null : $detection['action_taken'];
+            $visit->save();
 
-        // Click detail entry (used by the modal list)
-        PaidMarketingClick::create([
-            'paid_marketing_visit_id' => $visit->id,
-            'clicked_at' => now(),
-            'ip' => $ip,
-            'country' => $displayCountry,
-            'last_click_at' => now(),
-            'threat_group' => $detection['threat_group'],
-            'campaign' => $data['utm_campaign'] ?? null,
-            'paid_id' => $data['gclid'] ?? null,
-            'path' => $data['url'] ?? ($data['path'] ?? null),
-            'keyword' => $data['utm_term'] ?? ($data['keyword'] ?? null),
-            'browser_name' => $browser['name'],
-            'browser_version' => $browser['version'],
-            'os' => $os,
-        ]);
+            PaidMarketingClick::create([
+                'paid_marketing_visit_id' => $visit->id,
+                'clicked_at' => now(),
+                'ip' => $ip,
+                'country' => $displayCountry,
+                'last_click_at' => now(),
+                'threat_group' => $detection['threat_group'],
+                'campaign' => $data['utm_campaign'] ?? null,
+                'paid_id' => $data['gclid'] ?? null,
+                'path' => $data['url'] ?? ($data['path'] ?? null),
+                'keyword' => $data['utm_term'] ?? ($data['keyword'] ?? null),
+                'browser_name' => $browser['name'],
+                'browser_version' => $browser['version'],
+                'os' => $os,
+            ]);
+        }
 
         $visitId = null;
         if (Schema::hasTable('visits')) {

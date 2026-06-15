@@ -403,6 +403,11 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function ips(Request $request): JsonResponse
     {
+        $domainId = (int) $request->query('domain_id', 0);
+        if ($domainId <= 0) {
+            return response()->json([]);
+        }
+
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
@@ -410,10 +415,7 @@ class PaidAdvertisingDashboardController extends Controller
             return response()->json([]);
         }
 
-        $rows = $this->mergeIpAggregates(
-            $this->ipRowsFromVisits($request, $domainIds, $from, $to),
-            $this->ipRowsFromPaidMarketing($request, $domainIds, $from, $to),
-        );
+        $rows = $this->resolveIpRows($request, $domainIds, $from, $to);
 
         return response()->json($rows->take(50)->values());
     }
@@ -435,10 +437,7 @@ class PaidAdvertisingDashboardController extends Controller
                 return;
             }
 
-            $rows = $this->mergeIpAggregates(
-                $this->ipRowsFromVisits($request, $domainIds, $from, $to),
-                $this->ipRowsFromPaidMarketing($request, $domainIds, $from, $to),
-            );
+            $rows = $this->resolveIpRows($request, $domainIds, $from, $to);
 
             foreach ($rows->take(5000) as $r) {
                 fputcsv($handle, [
@@ -550,7 +549,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         $campaign = trim((string) $request->query('campaign', ''));
         if ($campaign !== '') {
-            $this->applyCampaignNameFilter($query, 'utm_campaign', $campaign);
+            $this->applySmartCampaignFilter($query, 'utm_campaign', $request);
         }
 
         return $query;
@@ -588,89 +587,89 @@ class PaidAdvertisingDashboardController extends Controller
      */
     private function ipRowsFromPaidMarketing(Request $request, $domainIds, Carbon $from, Carbon $to)
     {
-        if (! Schema::hasTable('paid_marketing_visits')) {
+        if (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits')) {
             return collect();
         }
 
-        $query = DB::table('paid_marketing_visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('last_click_at', [$from, $to]);
+        $query = DB::table('paid_marketing_clicks as pc')
+            ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+            ->whereIn('pv.domain_id', $domainIds)
+            ->whereBetween('pc.clicked_at', [$from, $to]);
+
+        $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
         $campaign = trim((string) $request->query('campaign', ''));
         if ($campaign !== '') {
-            $this->applyCampaignNameFilter($query, 'campaign', $campaign);
+            $this->applySmartCampaignFilter($query, 'pc.campaign', $request);
         }
 
         return $query
             ->select(
-                'ip',
-                DB::raw('SUM(visits) as total'),
-                DB::raw("SUM(CASE WHEN threat_group IS NOT NULL AND threat_group != '' THEN visits ELSE 0 END) as invalid"),
-                DB::raw('MAX(country) as country'),
-                DB::raw('MAX(last_click_at) as last_seen'),
-                DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN visits ELSE 0 END) as vpn_hits"),
-                DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN visits ELSE 0 END) as data_center_hits"),
-                DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN visits ELSE 0 END) as malicious_hits"),
-                DB::raw('MAX(threat_group) as top_threat')
+                'pc.ip as ip',
+                DB::raw('COUNT(*) as total'),
+                DB::raw("SUM(CASE WHEN pc.threat_group IS NOT NULL AND pc.threat_group != '' THEN 1 ELSE 0 END) as invalid"),
+                DB::raw('MAX(pc.country) as country'),
+                DB::raw('MAX(pc.clicked_at) as last_seen'),
+                DB::raw("SUM(CASE WHEN pc.threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
+                DB::raw("SUM(CASE WHEN pc.threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
+                DB::raw("SUM(CASE WHEN pc.threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
+                DB::raw('MAX(pc.threat_group) as top_threat')
             )
-            ->groupBy('ip')
+            ->groupBy('pc.ip')
             ->orderByDesc('total')
             ->limit(500)
             ->get();
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, object>  $fromVisits
-     * @param  \Illuminate\Support\Collection<int, object>  $fromPaid
+     * Paid IPs only (is_paid_traffic = 1): visits table first, legacy clicks fallback.
+     *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
-    private function mergeIpAggregates($fromVisits, $fromPaid)
+    private function resolveIpRows(Request $request, $domainIds, Carbon $from, Carbon $to)
     {
-        $merged = [];
-
-        foreach ($fromVisits->concat($fromPaid) as $row) {
-            $ip = (string) $row->ip;
-            if ($ip === '') {
-                continue;
-            }
-
-            if (! isset($merged[$ip])) {
-                $merged[$ip] = [
-                    'ip' => $ip,
-                    'country' => $row->country,
-                    'total' => 0,
-                    'invalid' => 0,
-                    'last_seen' => '',
-                    'vpn_hits' => 0,
-                    'data_center_hits' => 0,
-                    'malicious_hits' => 0,
-                    'top_threat' => null,
-                ];
-            }
-
-            $merged[$ip]['total'] += (int) $row->total;
-            $merged[$ip]['invalid'] += (int) $row->invalid;
-            $merged[$ip]['vpn_hits'] += (int) ($row->vpn_hits ?? 0);
-            $merged[$ip]['data_center_hits'] += (int) ($row->data_center_hits ?? 0);
-            $merged[$ip]['malicious_hits'] += (int) ($row->malicious_hits ?? 0);
-
-            if (! $merged[$ip]['country'] && $row->country) {
-                $merged[$ip]['country'] = $row->country;
-            }
-
-            $lastSeen = (string) ($row->last_seen ?? '');
-            if ($lastSeen !== '' && $lastSeen > $merged[$ip]['last_seen']) {
-                $merged[$ip]['last_seen'] = $lastSeen;
-            }
-
-            if ($row->top_threat && ! $merged[$ip]['top_threat']) {
-                $merged[$ip]['top_threat'] = $row->top_threat;
-            }
+        $rows = $this->ipRowsFromVisits($request, $domainIds, $from, $to);
+        if ($rows->isEmpty()) {
+            $rows = $this->ipRowsFromPaidMarketing($request, $domainIds, $from, $to);
         }
 
-        return collect($merged)
-            ->sortByDesc('total')
-            ->values();
+        return $this->formatIpRows($rows);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, object>  $rows
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function formatIpRows($rows)
+    {
+        return $rows->map(fn ($row) => [
+            'ip' => (string) ($row->ip ?? ''),
+            'country' => $row->country ?? null,
+            'total' => (int) ($row->total ?? 0),
+            'invalid' => (int) ($row->invalid ?? 0),
+            'last_seen' => $row->last_seen ?? null,
+            'vpn_hits' => (int) ($row->vpn_hits ?? 0),
+            'data_center_hits' => (int) ($row->data_center_hits ?? 0),
+            'malicious_hits' => (int) ($row->malicious_hits ?? 0),
+            'top_threat' => $row->top_threat ?? null,
+        ])->values();
+    }
+
+    /**
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyPaidTrafficOnlyFilter($query, string $clickAlias = 'pc'): void
+    {
+        $paidIdColumn = "{$clickAlias}.paid_id";
+        $campaignColumn = "{$clickAlias}.campaign";
+
+        $query->where(function ($paid) use ($paidIdColumn, $campaignColumn): void {
+            $paid->where(function ($gclid) use ($paidIdColumn): void {
+                $gclid->whereNotNull($paidIdColumn)->where($paidIdColumn, '!=', '');
+            })->orWhere(function ($utm) use ($campaignColumn): void {
+                $utm->whereNotNull($campaignColumn)->where($campaignColumn, '!=', '');
+            });
+        });
     }
 
     private function applyCampaignNameFilter($query, string $column, string $campaign): void
@@ -685,6 +684,122 @@ class PaidAdvertisingDashboardController extends Controller
                 ->orWhere($column, 'like', '%' . $campaign . '%')
                 ->orWhereRaw('? LIKE CONCAT("%", ' . $column . ', "%")', [$campaign]);
         });
+    }
+
+    private function applySmartCampaignFilter($query, string $column, Request $request): void
+    {
+        $campaign = trim((string) $request->query('campaign', ''));
+        if ($campaign === '') {
+            return;
+        }
+
+        $domainId = (int) $request->query('domain_id', 0);
+        $aliases = $domainId > 0 ? $this->resolveTrackedCampaignAliases($domainId, $campaign) : [];
+        $tokens = $this->campaignMatchTokens($campaign);
+
+        $query->where(function ($inner) use ($column, $campaign, $aliases, $tokens): void {
+            if ($aliases !== []) {
+                $inner->whereIn($column, $aliases);
+            }
+
+            $inner->orWhere($column, $campaign)
+                ->orWhere($column, 'like', '%' . $campaign . '%')
+                ->orWhereRaw('? LIKE CONCAT("%", ' . $column . ', "%")', [$campaign]);
+
+            foreach ($tokens as $token) {
+                if (strlen($token) >= 3) {
+                    $inner->orWhere($column, 'like', '%' . $token . '%');
+                }
+            }
+        });
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveTrackedCampaignAliases(int $domainId, string $googleCampaign): array
+    {
+        $candidates = collect();
+
+        if (Schema::hasTable('visits')) {
+            $candidates = $candidates->merge(
+                DB::table('visits')
+                    ->where('domain_id', $domainId)
+                    ->whereNotNull('utm_campaign')
+                    ->where('utm_campaign', '!=', '')
+                    ->distinct()
+                    ->pluck('utm_campaign')
+            );
+        }
+
+        if (Schema::hasTable('paid_marketing_visits')) {
+            $candidates = $candidates->merge(
+                DB::table('paid_marketing_visits')
+                    ->where('domain_id', $domainId)
+                    ->whereNotNull('campaign')
+                    ->where('campaign', '!=', '')
+                    ->distinct()
+                    ->pluck('campaign')
+            );
+        }
+
+        if (Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits')) {
+            $candidates = $candidates->merge(
+                DB::table('paid_marketing_clicks as pc')
+                    ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+                    ->where('pv.domain_id', $domainId)
+                    ->whereNotNull('pc.campaign')
+                    ->where('pc.campaign', '!=', '')
+                    ->distinct()
+                    ->pluck('pc.campaign')
+            );
+        }
+
+        $googleLower = strtolower($googleCampaign);
+        $tokens = $this->campaignMatchTokens($googleCampaign);
+        $matches = [];
+
+        foreach ($candidates->unique()->filter() as $candidate) {
+            $value = (string) $candidate;
+            $lower = strtolower($value);
+
+            if ($lower === $googleLower) {
+                $matches[] = $value;
+                continue;
+            }
+
+            if (str_contains($googleLower, $lower) || str_contains($lower, $googleLower)) {
+                $matches[] = $value;
+                continue;
+            }
+
+            foreach ($tokens as $token) {
+                if (strlen($token) >= 3 && str_contains($lower, $token)) {
+                    $matches[] = $value;
+                    break;
+                }
+            }
+        }
+
+        return array_values(array_unique($matches));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function campaignMatchTokens(string $campaign): array
+    {
+        $normalized = strtolower($campaign);
+        $normalized = preg_replace('/\bdigital\s+promotix\b/i', ' ', $normalized) ?? $normalized;
+        $normalized = preg_replace('/[^a-z0-9]+/', ' ', $normalized) ?? $normalized;
+        $parts = preg_split('/\s+/', trim($normalized)) ?: [];
+
+        $stopWords = ['mix', 'the', 'and', 'for', 'maximize', 'click', 'calls', 'leads', 'digital', 'promotix'];
+
+        return array_values(array_filter(
+            $parts,
+            fn (string $part) => strlen($part) >= 3 && ! in_array($part, $stopWords, true)
+        ));
     }
 
     private function dateRange(Request $request): array
