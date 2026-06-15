@@ -22,6 +22,10 @@ class OnboardingController extends Controller
     {
         $user = $request->user();
 
+        if ($user->bypassesOnboarding()) {
+            return redirect()->route($user->homeRouteName());
+        }
+
         if (! $user->hasVerifiedEmail()) {
             return redirect()->route('verification.notice');
         }
@@ -54,6 +58,10 @@ class OnboardingController extends Controller
         ]);
 
         $user = $request->user();
+
+        if ($user->bypassesOnboarding()) {
+            return redirect()->route($user->homeRouteName());
+        }
 
         if (! $user->hasVerifiedEmail()) {
             return redirect()->route('verification.notice');
@@ -97,12 +105,8 @@ class OnboardingController extends Controller
 
     private function afterPlanRedirect($user): RedirectResponse
     {
-        if ($user->is_super_admin ?? false) {
-            return redirect()->route('super-admin.dashboard');
-        }
-
-        if ($user->is_admin) {
-            return redirect()->route('dashboard');
+        if ($user->bypassesOnboarding()) {
+            return redirect()->route($user->homeRouteName());
         }
 
         return redirect()->route('home');

@@ -162,6 +162,30 @@ class User extends Authenticatable
     }
 
     /**
+     * Admins skip email/plan onboarding gates (no plan selection required).
+     */
+    public function bypassesOnboarding(): bool
+    {
+        return $this->bypassesPlanLimits();
+    }
+
+    /**
+     * Default route after login or email verification.
+     */
+    public function homeRouteName(): string
+    {
+        if ($this->is_super_admin ?? false) {
+            return 'super-admin.dashboard';
+        }
+
+        if ($this->is_admin) {
+            return 'dashboard';
+        }
+
+        return 'onboarding.plan';
+    }
+
+    /**
      * Check if user can access a given permission (by slug) or route name.
      * Super admins (is_admin) have access to everything.
      */

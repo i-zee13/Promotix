@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  *   - Not email-verified  → /verify-email
  *   - Verified but no active/trialing subscription → /onboarding/plan
- *   - Super admins bypass both checks.
+ *   - Admins and super admins bypass both checks.
  *
  * Routes that should be reachable while onboarding is incomplete (login, logout,
  * verification screens, plan selection, etc.) are listed in the `skipRouteNames` array.
@@ -47,7 +47,7 @@ class EnsureOnboardingComplete
             return $next($request);
         }
 
-        if ($user->is_super_admin ?? false) {
+        if ($user->bypassesOnboarding()) {
             return $next($request);
         }
 

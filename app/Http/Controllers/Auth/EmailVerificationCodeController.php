@@ -34,7 +34,7 @@ class EmailVerificationCodeController extends Controller
         }
 
         if ($user->hasVerifiedEmail()) {
-            return redirect()->route('onboarding.plan');
+            return redirect()->route($user->homeRouteName());
         }
 
         return view('auth.verify-email', [
@@ -51,7 +51,7 @@ class EmailVerificationCodeController extends Controller
         }
 
         if ($user->hasVerifiedEmail()) {
-            return redirect()->route('onboarding.plan');
+            return redirect()->route($user->homeRouteName());
         }
 
         $code = (string) random_int(100000, 999999);
@@ -91,7 +91,7 @@ class EmailVerificationCodeController extends Controller
         ]);
 
         if ($user->hasVerifiedEmail()) {
-            return redirect()->route('onboarding.plan');
+            return redirect()->route($user->homeRouteName());
         }
 
         $row = DB::table('email_verification_codes')
@@ -125,7 +125,7 @@ class EmailVerificationCodeController extends Controller
             ->where('email', strtolower($user->email))
             ->delete();
 
-        return redirect()->route('onboarding.plan');
+        return redirect()->route($user->homeRouteName());
     }
 
     private function mailCode(string $name, string $email, string $code): void
