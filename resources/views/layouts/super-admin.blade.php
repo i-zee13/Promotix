@@ -59,8 +59,8 @@
                         </button>
                     
                     </div>
-                    <a href="{{ route('dashboard') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" title="Customer portal">
-                        @include('partials.sidebar-icon', ['name' => 'home', 'class' => 'h-[17px] w-[17px]'])
+                    <a href="{{ route('profile.edit') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" aria-label="Settings">
+                        @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
                     </a>
                 </div>
                 @include('partials.sidebar-logo')
@@ -81,7 +81,7 @@
         </div>
 
         <div class="relative flex items-center gap-[8px]" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
-            <a href="{{ route('dashboard') }}" class="hidden rounded-[6px] border border-white/25 px-[12px] py-[6px] text-[11px] font-semibold text-white/90 hover:bg-[#6400B2]/30 sm:inline-flex">Customer portal</a>
+            @include('partials.portal-switch')
             <div class="flex h-[27px] max-w-[60vw] items-center overflow-hidden rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] text-white sm:max-w-none">
                 <span class="flex h-full w-[30px] items-center justify-center border-r border-[#6400B2] bg-white/10">
                     <svg class="h-[15px] w-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 1115 0"/></svg>

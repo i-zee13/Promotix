@@ -191,7 +191,7 @@ class User extends Authenticatable
      */
     public function canAccess(string $permissionSlugOrRouteName): bool
     {
-        if ($this->is_admin) {
+        if ($this->is_admin || ($this->is_super_admin ?? false)) {
             return true;
         }
 

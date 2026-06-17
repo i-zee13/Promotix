@@ -27,7 +27,7 @@ class AdminMiddleware
             abort(403, 'Your account is not active.');
         }
 
-        if ($user->is_admin) {
+        if ($user->is_admin || ($user->is_super_admin ?? false)) {
             return $next($request);
         }
 

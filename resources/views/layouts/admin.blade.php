@@ -147,6 +147,8 @@
                 <div class="hidden items-center gap-2 md:flex">@yield('header-actions')</div>
             @endif
 
+            @include('partials.portal-switch')
+
             @if ($usesDashboardDateRange)
             <div class="relative hidden sm:block" x-data="figmaDateRangePicker" x-init="init()" @click.outside="calendarOpen = false" title="Date range for dashboards">
                 <button
