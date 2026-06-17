@@ -77,9 +77,6 @@
                     <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
                     <input placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                 </label>
-                <button type="button" class="figma-filter-action flex w-[34px] items-center justify-center bg-[#6400B2] text-white" aria-label="Filter">
-                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7h8M8 12h8M8 17h8"/></svg>
-                </button>
             </div>
         </div>
 

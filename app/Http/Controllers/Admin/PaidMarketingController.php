@@ -63,7 +63,23 @@ class PaidMarketingController extends Controller
         }
 
         if ($campaign = trim((string) $request->query('campaign', ''))) {
-            $query->where('campaign', $campaign);
+            $domainIds = $this->domainIdsForLinkedAccountLabel($request->user()->id, $campaign);
+
+            if ($domainIds->isNotEmpty()) {
+                $query->whereIn('domain_id', $domainIds);
+            } else {
+                $query->where(function ($match) use ($campaign): void {
+                    if (Schema::hasColumn('paid_marketing_visits', 'campaign_name')) {
+                        $match->where('campaign_name', $campaign)
+                            ->orWhere('campaign', $campaign)
+                            ->orWhere('campaign_name', 'like', '%' . $campaign . '%')
+                            ->orWhere('campaign', 'like', '%' . $campaign . '%');
+                    } else {
+                        $match->where('campaign', $campaign)
+                            ->orWhere('campaign', 'like', '%' . $campaign . '%');
+                    }
+                });
+            }
         }
 
         if ($request->query('from') || $request->query('to')) {
@@ -111,7 +127,7 @@ class PaidMarketingController extends Controller
             'ip_parts' => $ipParts,
             'ip_count' => max(count($ipParts), 1),
             'visits' => (int) ($visit->visits ?? $clicks->count() ?: 1),
-            'campaign' => $visit->campaign,
+            'campaign' => $visit->campaign_name ?: $visit->campaign,
             'last_click_at' => UserTimezone::isoForUser($visit->last_click_at, $user),
             'last_click_label' => UserTimezone::formatForUser($visit->last_click_at, $user, 'm/d/y') ?? '-',
             'threat_group' => $visit->threat_group,
@@ -130,7 +146,7 @@ class PaidMarketingController extends Controller
                 'ip' => $c->ip,
                 'country' => $c->country,
                 'threat_group' => $c->threat_group,
-                'campaign' => $c->campaign,
+                'campaign' => $c->campaign_name ?: $c->campaign,
                 'paid_id' => $c->paid_id,
                 'path' => $c->path,
                 'keyword' => $c->keyword,
@@ -167,32 +183,82 @@ class PaidMarketingController extends Controller
 
     private function campaignNamesForUser(Request $request): Collection
     {
-        $campaigns = collect();
+        $userId = $request->user()->id;
+        $names = collect();
+
+        Domain::query()
+            ->where('user_id', $userId)
+            ->forPaidMarketing()
+            ->with('googleAdsAccount')
+            ->get()
+            ->each(function (Domain $domain) use ($names): void {
+                $label = trim($domain->googleAdsAccount?->displayLabel() ?? '');
+                if ($label !== '') {
+                    $names->push($label);
+                }
+            });
+
+        if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            $names = $names->merge(
+                DB::table('google_ads_campaign_daily_metrics as m')
+                    ->join('domains as d', 'd.id', '=', 'm.domain_id')
+                    ->where('d.user_id', $userId)
+                    ->whereNotNull('m.campaign_name')
+                    ->where('m.campaign_name', '!=', '')
+                    ->distinct()
+                    ->pluck('m.campaign_name')
+            );
+        }
 
         if (Schema::hasTable('visits')) {
-            $campaigns = DB::table('visits')
+            $visitQuery = DB::table('visits')
                 ->join('domains', 'domains.id', '=', 'visits.domain_id')
-                ->where('domains.user_id', $request->user()->id)
-                ->whereNotNull('utm_campaign')
-                ->where('utm_campaign', '!=', '')
-                ->select('utm_campaign')
-                ->distinct()
-                ->orderBy('utm_campaign')
-                ->pluck('utm_campaign');
+                ->where('domains.user_id', $userId);
+
+            if (Schema::hasColumn('visits', 'campaign_name')) {
+                $visitQuery->where(function ($q): void {
+                    $q->where(function ($name): void {
+                        $name->whereNotNull('visits.campaign_name')->where('visits.campaign_name', '!=', '');
+                    })->orWhere(function ($utm): void {
+                        $utm->whereNotNull('visits.utm_campaign')->where('visits.utm_campaign', '!=', '');
+                    });
+                })->selectRaw('COALESCE(NULLIF(visits.campaign_name, ""), visits.utm_campaign) as name');
+            } else {
+                $visitQuery->whereNotNull('utm_campaign')
+                    ->where('utm_campaign', '!=', '')
+                    ->select('utm_campaign as name');
+            }
+
+            $names = $names->merge($visitQuery->distinct()->pluck('name'));
         }
 
-        if ($campaigns->isEmpty()) {
-            $campaigns = PaidMarketingVisit::query()
-                ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id))
-                ->whereNotNull('campaign')
-                ->where('campaign', '!=', '')
-                ->select('campaign')
-                ->distinct()
-                ->orderBy('campaign')
-                ->pluck('campaign');
+        if (Schema::hasTable('paid_marketing_visits')) {
+            $names = $names->merge(
+                PaidMarketingVisit::query()
+                    ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
+                    ->get(['campaign', 'campaign_name'])
+                    ->map(fn (PaidMarketingVisit $visit) => trim((string) ($visit->campaign_name ?: $visit->campaign)))
+                    ->filter()
+            );
         }
 
-        return $campaigns;
+        return $names->filter()->unique()->sort()->values();
+    }
+
+    /** @return Collection<int, int> */
+    private function domainIdsForLinkedAccountLabel(int $userId, string $label): Collection
+    {
+        if ($label === '') {
+            return collect();
+        }
+
+        return Domain::query()
+            ->where('user_id', $userId)
+            ->forPaidMarketing()
+            ->with('googleAdsAccount')
+            ->get()
+            ->filter(fn (Domain $domain) => $domain->googleAdsAccount?->displayLabel() === $label)
+            ->pluck('id');
     }
 
     public function detectionSettings(Request $request): View
