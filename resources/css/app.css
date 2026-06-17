@@ -1653,6 +1653,11 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     border-color: rgba(255, 255, 255, 0.45);
     background: rgba(255, 255, 255, 0.14);
     color: #ffffff;
+    box-shadow: none;
+}
+
+.figma-sidebar-search:focus {
+    box-shadow: none;
 }
 
 .figma-sidebar-search::placeholder {
@@ -1727,6 +1732,11 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     background: #f0ecf5 !important;
     border-color: #c9b8dc !important;
     color: #2d2d2d !important;
+    box-shadow: none !important;
+}
+
+.light-mode .figma-sidebar-search:focus {
+    box-shadow: none !important;
 }
 
 .light-mode .figma-sidebar-search::placeholder {

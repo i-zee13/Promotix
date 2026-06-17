@@ -30,7 +30,7 @@
                 <span class="figma-sidebar-search-icon absolute left-[11px] top-1/2 -translate-y-1/2 text-white/70">
                     <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </span>
-                <input type="search" placeholder="Search menu" class="figma-sidebar-search h-[32px] w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none shadow-[inset_0_1px_1.8px_4px_rgba(0,0,0,.25)] focus:border-[#6400B2] focus:ring-[#6400B2]/30">
+                <input type="search" placeholder="Search menu" class="figma-sidebar-search h-[32px] w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[#6400B2] focus:ring-[#6400B2]/30">
             </div>
 
             <nav class="figma-nav-scrollless min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-[2px]" aria-label="Super admin navigation">
