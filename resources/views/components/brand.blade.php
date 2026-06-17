@@ -23,5 +23,6 @@
         style="height: {{ (int) $height }}px;"
         loading="eager"
         decoding="async"
+        referrerpolicy="no-referrer"
     >
 </a>

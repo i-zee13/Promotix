@@ -10,4 +10,5 @@
     class="figma-sidebar-logo mx-auto h-[48px] w-[118px] object-contain"
     loading="eager"
     decoding="async"
+    referrerpolicy="no-referrer"
 >
