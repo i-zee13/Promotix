@@ -114,7 +114,7 @@ function promotix_tag_render_settings_page() {
     ?>
     <div class="wrap">
         <h1>Promotix Tag</h1>
-        <p>Paste your keys from the Promotix dashboard. This plugin will inject the tracking tag site-wide.</p>
+        <p>Paste your keys from the Promotix dashboard. This plugin injects the tracking tag on the public site (no client-side IP blocking).</p>
 
         <form method="post" action="options.php">
             <?php settings_fields('promotix_tag'); ?>
@@ -188,7 +188,7 @@ function promotix_tag_inject_head() {
     $tagUrl = promotix_tag_build_tag_url($s['server_url'], $s['domain_key']);
     if ($tagUrl === '') return;
 
-    echo "\n<!-- Promotix Tag (load early in head for IP protection) -->\n";
+    echo "\n<!-- Promotix Tag -->\n";
     echo '<script async defer src="' . esc_url($tagUrl) . '" class="pm_tag"></script>' . "\n";
 }
 add_action('wp_head', 'promotix_tag_inject_head', 1);

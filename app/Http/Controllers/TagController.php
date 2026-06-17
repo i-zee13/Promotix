@@ -19,9 +19,8 @@ class TagController extends Controller
         }
 
         $collectUrl = url('/ingest/visit');
-        $gateUrl = url('/ip-check');
 
-        // Minimal tag: sends pageview data. Browser IP is captured server-side.
+        // Tracking-only tag: records visits server-side. No client-side IP block / page hide.
         $trackingParams = (array) ($domain->tracking_params ?? [
             'utm_source' => true,
             'utm_medium' => true,
@@ -37,7 +36,6 @@ class TagController extends Controller
 (function(){
   var domainKey = {$this->json($domainKey)};
   var collectUrl = {$this->json($collectUrl)};
-  var gateUrl = {$this->json($gateUrl)};
   var trackSource = {$trackSource};
   var trackMedium = {$trackMedium};
   var trackCampaign = {$trackCampaign};
@@ -65,25 +63,6 @@ class TagController extends Controller
     }catch(e){}
   }
 
-  function enforceBlock(payload){
-    try {
-      var style = document.createElement('style');
-      style.id = 'pm_block_style';
-      style.textContent = 'html,body{visibility:hidden!important;overflow:hidden!important}';
-      if (!document.getElementById('pm_block_style')) {
-        (document.head || document.documentElement).appendChild(style);
-      }
-    } catch (e) {}
-  }
-
-  function handleProtectionResponse(data){
-    if (data && (data.blocked === true || data.allowed === false)) {
-      enforceBlock(data);
-      return true;
-    }
-    return false;
-  }
-
   function send(payload){
     try {
       fetch(collectUrl, {
@@ -93,10 +72,6 @@ class TagController extends Controller
         mode: 'cors',
         credentials: 'omit',
         keepalive: true
-      }).then(function(res){
-        return res.json().catch(function(){ return null; });
-      }).then(function(data){
-        handleProtectionResponse(data);
       }).catch(function(){
         try {
           if (navigator.sendBeacon){
@@ -181,28 +156,7 @@ class TagController extends Controller
       payload.utm_term = attr.utm_term;
     } catch (e) {}
 
-    try {
-      fetch(gateUrl, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          domainKey: domainKey,
-          path: payload.path || '',
-          referrer: payload.referrer || ''
-        }),
-        mode: 'cors',
-        credentials: 'omit'
-      }).then(function(res){
-        return res.json();
-      }).then(function(data){
-        if (handleProtectionResponse(data)) return;
-        send(payload);
-      }).catch(function(){
-        send(payload);
-      });
-    } catch (e) {
-      send(payload);
-    }
+    send(payload);
   }
 
   pageview();
@@ -217,8 +171,6 @@ JS;
 
     public function noscript(Request $request, string $domainKey): Response
     {
-        // Just record a minimal hit (if someone uses the iframe).
-        // For now, return a blank 204 to avoid rendering anything.
         return response()->noContent();
     }
 
@@ -227,4 +179,3 @@ JS;
         return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 }
-

@@ -250,13 +250,9 @@ class TrackingController extends Controller
             ]);
         }
 
-        $clientPayload = $protection->clientPayload($detection, $enforceBlock);
+        $clientPayload = $protection->clientPayload($detection, false);
 
         if ($request->isMethod('get')) {
-            if ($enforceBlock) {
-                return $this->cors($request, response()->json($clientPayload, 403));
-            }
-
             return $this->cors(
                 $request,
                 response(self::TRACKING_PIXEL_GIF, 200, [
@@ -266,7 +262,7 @@ class TrackingController extends Controller
             );
         }
 
-        return $this->cors($request, response()->json($clientPayload));
+        return $this->cors($request, response()->json(['ok' => true] + $clientPayload));
     }
 
     private function platformFromUa(string $ua): ?string

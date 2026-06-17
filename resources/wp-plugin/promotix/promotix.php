@@ -66,7 +66,7 @@ function promotix_tag_render_settings_page() {
     ?>
     <div class="wrap">
         <h1>Promotix Tag</h1>
-        <p>Paste your keys from the Promotix dashboard. This plugin will inject the tracking tag site-wide.</p>
+        <p>Paste your keys from the Promotix dashboard. This plugin injects the tracking tag on the public site (no client-side IP blocking).</p>
 
         <form method="post" action="options.php">
             <?php settings_fields('promotix_tag'); ?>
