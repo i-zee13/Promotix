@@ -1760,14 +1760,25 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     box-shadow: none !important;
 }
 
-/* Logo: dark = white (inverted), light = original blue/purple brand */
+/* Logo: dark sidebar = white text PNG; light sidebar = dark text SVG */
 .figma-sidebar-logo {
     display: block;
     max-width: 100%;
     height: auto;
     opacity: 1;
-    /* Logo PNG already has black canvas + brand colors — do not invert */
     filter: none;
+}
+
+.figma-sidebar-logo--light {
+    display: none;
+}
+
+.light-mode .figma-sidebar-logo--dark {
+    display: none;
+}
+
+.light-mode .figma-sidebar-logo--light {
+    display: block;
 }
 
 .light-mode .figma-sidebar-settings {

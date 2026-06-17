@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 96" fill="none" role="img" aria-label="Digital Promotix">
+  <g transform="translate(4, 10)">
+    <ellipse cx="34" cy="38" rx="11" ry="8" fill="#6400B2" transform="rotate(-18 34 38)"/>
+    <ellipse cx="52" cy="24" rx="10" ry="7" fill="#7B13C8" transform="rotate(12 52 24)"/>
+    <ellipse cx="58" cy="44" rx="12" ry="8" fill="#9A1AFF" transform="rotate(-8 58 44)"/>
+    <ellipse cx="42" cy="56" rx="11" ry="7" fill="#6400B2" transform="rotate(22 42 56)"/>
+    <ellipse cx="24" cy="48" rx="9" ry="6" fill="#7B13C8" transform="rotate(-30 24 48)"/>
+    <ellipse cx="48" cy="38" rx="8" ry="6" fill="#9A1AFF" transform="rotate(8 48 38)"/>
+    <ellipse cx="36" cy="28" rx="7" ry="5" fill="#6400B2" transform="rotate(-12 36 28)"/>
+    <ellipse cx="30" cy="62" rx="8" ry="5" fill="#7B13C8" transform="rotate(18 30 62)"/>
+    <ellipse cx="54" cy="58" rx="9" ry="6" fill="#6400B2" transform="rotate(-15 54 58)"/>
+    <path d="M34 38 L52 24 M52 24 L58 44 M58 44 L42 56 M42 56 L24 48 M24 48 L34 38 M48 38 L52 24 M48 38 L58 44 M36 28 L52 24 M30 62 L42 56 M54 58 L58 44" stroke="#6400B2" stroke-width="2.2" stroke-linecap="round"/>
+  </g>
+  <text x="82" y="44" fill="#181818" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="800" letter-spacing="0.5">DIGITAL</text>
+  <text x="82" y="68" fill="#2D2D2D" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="3.2">PROMOTIX</text>
+</svg>
