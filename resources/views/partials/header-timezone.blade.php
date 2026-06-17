@@ -15,9 +15,9 @@
             <svg class="h-[13px] w-[13px] shrink-0 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"/>
             </svg>
-            <span class="hidden max-w-[120px] truncate md:inline" id="header-timezone-name">{{ $headerTz }}</span>
-            <span class="text-white/45">·</span>
-            <span id="header-timezone-clock">{{ \App\Support\UserTimezone::headerLabel($headerUser) }}</span>
+            <span class="hidden max-w-[140px] truncate md:inline" id="header-timezone-name">{{ $headerTz }}</span>
+            <span class="hidden text-white/45 md:inline">·</span>
+            <span id="header-timezone-clock" class="whitespace-nowrap">{{ \App\Support\UserTimezone::headerLabel($headerUser) }}</span>
         </a>
     @endif
 @endauth

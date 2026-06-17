@@ -101,7 +101,7 @@ class UserTimezone
         $tz = self::forUser($user);
         $now = Carbon::now($tz);
 
-        return $now->format('T').' · '.$now->format('g:i A');
+        return $now->format('g:i A');
     }
 
     public static function headerTitle(?User $user): string

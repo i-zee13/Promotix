@@ -61,16 +61,12 @@ function initHeaderTimezoneClock() {
 
     const tick = () => {
         try {
-            const parts = new Intl.DateTimeFormat('en-US', {
+            clockEl.textContent = new Intl.DateTimeFormat('en-US', {
                 timeZone: tz,
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true,
-                timeZoneName: 'short',
-            }).formatToParts(new Date());
-            const abbr = parts.find((p) => p.type === 'timeZoneName')?.value || '';
-            const time = parts.filter((p) => ['hour', 'minute', 'dayPeriod'].includes(p.type)).map((p) => p.value).join('');
-            clockEl.textContent = `${abbr} · ${time}`;
+            }).format(new Date());
         } catch (e) {}
     };
 
