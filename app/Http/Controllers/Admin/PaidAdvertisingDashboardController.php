@@ -44,7 +44,7 @@ class PaidAdvertisingDashboardController extends Controller
             $this->forceGoogleSyncForDomains($request, $domainIds, $from, $to);
         }
 
-        $paid = 0;
+        $tagPaid = 0;
         $invalid = 0;
         $blocked = 0;
         $flagged = 0;
@@ -52,7 +52,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
             $base = $this->scopedVisitsQuery($request, $domainIds, $from, $to);
-            $paid = (clone $base)->count();
+            $tagPaid = (clone $base)->count();
             $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
             $uniqueIps = (clone $base)->distinct()->count('ip');
 
@@ -63,17 +63,19 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         $googleAds = null;
+        $googleClicks = 0;
         if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
             $googleAds = app(GoogleAdsDomainMetricsSync::class)
                 ->clickTotalsForDomains($domainIds, $from, $to);
-
-            if ($paid === 0 && ($googleAds['clicks'] ?? 0) > 0) {
-                $paid = (int) $googleAds['clicks'];
-            }
+            $googleClicks = (int) ($googleAds['clicks'] ?? 0);
         }
+
+        $paid = $this->displayPaidTrafficCount($tagPaid, $googleClicks);
 
         return response()->json([
             'paid_visits' => $paid,
+            'tag_paid_visits' => $tagPaid,
+            'google_clicks' => $googleClicks,
             'invalid_paid_visits' => $invalid,
             'blocked_paid_visits' => $blocked,
             'flagged_paid_visits' => $flagged,
@@ -134,7 +136,7 @@ class PaidAdvertisingDashboardController extends Controller
                 $row = $dayRows->firstWhere('day', $key);
                 $visitPaid = (int) ($row->total ?? 0);
                 $googlePaid = (int) ($googleDays?->get($key)?->clicks ?? 0);
-                $paid[] = $visitPaid > 0 ? $visitPaid : $googlePaid;
+                $paid[] = $this->displayPaidTrafficCount($visitPaid, $googlePaid);
                 $invalid[] = (int) ($row->invalid ?? 0);
                 $period->addDay();
             }
@@ -536,8 +538,27 @@ class PaidAdvertisingDashboardController extends Controller
     {
         $query = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
-            ->where('is_paid_traffic', true);
+            ->whereBetween('visited_at', [$from, $to]);
+
+        $query->where(function ($paid): void {
+            $paid->where('is_paid_traffic', true);
+
+            if (Schema::hasColumn('visits', 'gclid')) {
+                $paid->orWhere(function ($gclid): void {
+                    $gclid->whereNotNull('gclid')->where('gclid', '!=', '');
+                });
+            }
+            if (Schema::hasColumn('visits', 'gbraid')) {
+                $paid->orWhere(function ($gbraid): void {
+                    $gbraid->whereNotNull('gbraid')->where('gbraid', '!=', '');
+                });
+            }
+            if (Schema::hasColumn('visits', 'wbraid')) {
+                $paid->orWhere(function ($wbraid): void {
+                    $wbraid->whereNotNull('wbraid')->where('wbraid', '!=', '');
+                });
+            }
+        });
 
         $path = trim((string) $request->query('path', ''));
         if ($path !== '') {
@@ -663,6 +684,7 @@ class PaidAdvertisingDashboardController extends Controller
             'country' => $row->country ?? null,
             'total' => (int) ($row->total ?? 0),
             'invalid' => (int) ($row->invalid ?? 0),
+            'valid' => max(0, (int) ($row->total ?? 0) - (int) ($row->invalid ?? 0)),
             'last_seen' => $row->last_seen ?? null,
             'vpn_hits' => (int) ($row->vpn_hits ?? 0),
             'data_center_hits' => (int) ($row->data_center_hits ?? 0),
@@ -1064,6 +1086,21 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         return [$from, $to];
+    }
+
+    /**
+     * Google Ads clicks (API) plus tagged on-site paid visits from the PromoTix tag.
+     */
+    private function displayPaidTrafficCount(int $tagPaid, int $googleClicks): int
+    {
+        $tagPaid = max(0, $tagPaid);
+        $googleClicks = max(0, $googleClicks);
+
+        if ($googleClicks > 0) {
+            return $googleClicks + $tagPaid;
+        }
+
+        return $tagPaid;
     }
 
     private function emptySummary(): array

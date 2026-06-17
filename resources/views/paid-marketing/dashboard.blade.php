@@ -190,15 +190,16 @@
                     </div>
                 </div>
                 <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
-                    <table class="w-full min-w-[720px] table-fixed text-left text-[11px] text-[#a9a9a9]">
+                    <table class="w-full min-w-[640px] table-fixed text-left text-[11px] text-[#a9a9a9]">
                         <thead class="sticky top-0 z-[1] bg-[#6400B2]">
                             <tr>
-                                <th class="w-[22%] px-[8px] py-[7px] font-normal">Address</th>
-                                <th class="w-[10%] px-[8px] py-[7px] font-normal">Country</th>
-                                <th class="w-[12%] px-[8px] py-[7px] font-normal">Invalid Clicks</th>
-                                <th class="w-[14%] px-[8px] py-[7px] font-normal">Bot detect</th>
-                                <th class="w-[12%] px-[8px] py-[7px] font-normal">VPN</th>
-                                <th class="w-[14%] px-[8px] py-[7px] font-normal">Data center</th>
+                                <th class="w-[24%] px-[8px] py-[7px] font-normal">Address</th>
+                                <th class="w-[9%] px-[8px] py-[7px] font-normal">Country</th>
+                                <th class="w-[10%] px-[8px] py-[7px] font-normal">Invalid</th>
+                                <th class="w-[9%] px-[8px] py-[7px] font-normal">Valid</th>
+                                <th class="w-[12%] px-[8px] py-[7px] font-normal">Bot detect</th>
+                                <th class="w-[9%] px-[8px] py-[7px] font-normal">VPN</th>
+                                <th class="w-[11%] px-[8px] py-[7px] font-normal">Data center</th>
                                 <th class="w-[16%] px-[8px] py-[7px] font-normal">Last click</th>
                             </tr>
                         </thead>
@@ -208,13 +209,14 @@
                                     <td class="max-w-0 truncate px-[8px] py-[6px] font-mono text-[10px] text-white" :title="row.ip" x-text="row.ip"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.invalid)"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-text="threatLabel(row.top_threat)"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.vpn_hits > 0 ? fmt(row.vpn_hits) : '—'"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.data_center_hits > 0 ? fmt(row.data_center_hits) : '—'"></td>
                                     <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
                                 </tr>
                             </template>
-                            <tr x-show="ips.length === 0"><td colspan="7" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
+                            <tr x-show="ips.length === 0"><td colspan="8" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -286,6 +288,7 @@
                     <div><p class="figma-modal-label">IP Address</p><p class="figma-modal-value font-mono" x-text="ipModal.row.ip"></p></div>
                     <div><p class="figma-modal-label">Country</p><p class="figma-modal-value" x-text="ipModal.row.country || '—'"></p></div>
                     <div><p class="figma-modal-label">Invalid Clicks</p><p class="figma-modal-value" x-text="fmt(ipModal.row.invalid)"></p></div>
+                    <div><p class="figma-modal-label">Valid Clicks</p><p class="figma-modal-value" x-text="fmt(ipModal.row.valid ?? Math.max(0, Number(ipModal.row.total || 0) - Number(ipModal.row.invalid || 0)))"></p></div>
                     <div><p class="figma-modal-label">Bot Detect</p><p class="figma-modal-value capitalize" x-text="threatLabel(ipModal.row.top_threat)"></p></div>
                     <div><p class="figma-modal-label">VPN Hits</p><p class="figma-modal-value" x-text="ipModal.row.vpn_hits > 0 ? fmt(ipModal.row.vpn_hits) : '—'"></p></div>
                     <div><p class="figma-modal-label">Data Center</p><p class="figma-modal-value" x-text="ipModal.row.data_center_hits > 0 ? fmt(ipModal.row.data_center_hits) : '—'"></p></div>
