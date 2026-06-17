@@ -331,7 +331,8 @@
                 if (!value) return '-';
                 const date = new Date(value);
                 if (Number.isNaN(date.getTime())) return String(value);
-                return date.toLocaleString();
+                const tz = document.querySelector('meta[name="user-timezone"]')?.content || undefined;
+                return date.toLocaleString(undefined, tz ? { timeZone: tz } : undefined);
             },
             ipLabel(visit) {
                 const raw = String(visit?.ip || '');

@@ -31,6 +31,8 @@ class User extends Authenticatable
         'status',
         'role_id',
         'ui_preferences',
+        'timezone',
+        'timezone_source',
         'last_login_at',
     ];
 

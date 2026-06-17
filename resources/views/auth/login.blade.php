@@ -5,8 +5,9 @@
 @section('content')
     <h1 class="auth-login-title">Log <span style="font-weight:300;color:rgba(255,255,255,.65)">in</span></h1>
 
-    <form method="POST" action="{{ route('login') }}" x-data="{ showPwd: false }">
+    <form method="POST" action="{{ route('login') }}" x-data="{ showPwd: false }" id="login-form">
         @csrf
+        <input type="hidden" name="timezone" id="login-timezone" value="">
 
         <div class="auth-field">
             <span class="auth-field-icon" aria-hidden="true">
@@ -92,4 +93,14 @@
             Continue with Google
         </a>
     </form>
+
+    <script>
+        document.getElementById('login-form')?.addEventListener('submit', () => {
+            const field = document.getElementById('login-timezone');
+            if (!field) return;
+            try {
+                field.value = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+            } catch (e) {}
+        });
+    </script>
 @endsection

@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Onboarding gate: forces unverified / no-plan users through the funnel.
         $middleware->web(append: [
+            \App\Http\Middleware\SetUserTimezone::class,
             \App\Http\Middleware\EnsureOnboardingComplete::class,
             \App\Http\Middleware\EnsureProtectionAccess::class,
         ]);

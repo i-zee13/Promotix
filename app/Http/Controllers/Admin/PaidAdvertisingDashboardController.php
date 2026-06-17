@@ -8,6 +8,7 @@ use App\Models\GoogleAdsAccount;
 use App\Services\GoogleAdsConnectionService;
 use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
+use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -1073,19 +1074,7 @@ class PaidAdvertisingDashboardController extends Controller
 
     private function dateRange(Request $request): array
     {
-        $from = $request->query('from')
-            ? Carbon::parse($request->query('from'))->startOfDay()
-            : Carbon::now()->subDays(6)->startOfDay();
-
-        $to = $request->query('to')
-            ? Carbon::parse($request->query('to'))->endOfDay()
-            : Carbon::now()->endOfDay();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to, $from];
-        }
-
-        return [$from, $to];
+        return UserTimezone::dateRangeFromRequest($request, $request->user());
     }
 
     /**

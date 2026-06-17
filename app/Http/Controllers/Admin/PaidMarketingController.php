@@ -7,6 +7,7 @@ use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
 use App\Models\PaidMarketingVisit;
+use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -33,7 +34,7 @@ class PaidMarketingController extends Controller
             ->get();
 
         return response()->json([
-            'rows' => $rows->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit($visit))->values(),
+            'rows' => $rows->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit($visit, $request->user()))->values(),
             'stats' => $this->computeDetailedStats($rows),
             'total' => $rows->count(),
         ]);
@@ -65,17 +66,15 @@ class PaidMarketingController extends Controller
             $query->where('campaign', $campaign);
         }
 
-        if ($from = $request->query('from')) {
-            $query->whereDate('last_click_at', '>=', $from);
-        }
-        if ($to = $request->query('to')) {
-            $query->whereDate('last_click_at', '<=', $to);
+        if ($request->query('from') || $request->query('to')) {
+            [$fromUtc, $toUtc] = UserTimezone::dateRangeFromRequest($request, $request->user());
+            $query->whereBetween('last_click_at', [$fromUtc, $toUtc]);
         }
 
         return $query;
     }
 
-    private function formatDetailedVisit(PaidMarketingVisit $visit): array
+    private function formatDetailedVisit(PaidMarketingVisit $visit, ?\App\Models\User $user = null): array
     {
         $clicks = $visit->clicks;
         $clickCount = max($clicks->count(), (int) ($visit->visits ?? 1));
@@ -113,8 +112,8 @@ class PaidMarketingController extends Controller
             'ip_count' => max(count($ipParts), 1),
             'visits' => (int) ($visit->visits ?? $clicks->count() ?: 1),
             'campaign' => $visit->campaign,
-            'last_click_at' => $visit->last_click_at?->toIso8601String(),
-            'last_click_label' => $visit->last_click_at?->format('m/d/y') ?? '-',
+            'last_click_at' => UserTimezone::isoForUser($visit->last_click_at, $user),
+            'last_click_label' => UserTimezone::formatForUser($visit->last_click_at, $user, 'm/d/y') ?? '-',
             'threat_group' => $visit->threat_group,
             'threat_type' => $visit->threat_type,
             'country' => $visit->country,
@@ -126,8 +125,8 @@ class PaidMarketingController extends Controller
             'valid_clicks' => $validClicks,
             'clicks' => $clicks->map(fn ($c) => [
                 'id' => $c->id,
-                'clicked_at' => $c->clicked_at?->toIso8601String(),
-                'last_click_at' => $c->last_click_at?->toIso8601String(),
+                'clicked_at' => UserTimezone::isoForUser($c->clicked_at, $user),
+                'last_click_at' => UserTimezone::isoForUser($c->last_click_at, $user),
                 'ip' => $c->ip,
                 'country' => $c->country,
                 'threat_group' => $c->threat_group,

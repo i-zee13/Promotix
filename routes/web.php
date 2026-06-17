@@ -190,6 +190,7 @@ Route::middleware(['auth', 'admin'])
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/timezone/sync', [\App\Http\Controllers\ProfileController::class, 'syncTimezone'])->name('profile.timezone.sync');
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::post('/impersonate/stop', [SuperAdminUsersController::class, 'stopImpersonating'])->name('impersonate.stop');
 

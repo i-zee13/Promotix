@@ -9,6 +9,7 @@ use App\Models\PaidMarketingVisit;
 use App\Services\IpIntel\VisitProtectionService;
 use App\Support\CountryValue;
 use App\Support\GoogleClickAttribution;
+use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -62,8 +63,8 @@ class TrackingController extends Controller
         $isPaidTraffic = GoogleClickAttribution::isPaidTraffic($data);
         $googleClick = GoogleClickAttribution::resolve($data);
         $visitedAt = isset($data['ts']) && is_numeric($data['ts'])
-            ? Carbon::createFromTimestampMs((int) $data['ts'])
-            : now();
+            ? UserTimezone::parseInstant($data['ts'])
+            : UserTimezone::nowUtc();
         $sessionId = (string) ($request->input('session_id') ?: $request->cookie(config('session.cookie', 'laravel_session')) ?: $request->session()->getId());
         $sessionId = $sessionId !== '' ? $sessionId : null;
 
@@ -78,7 +79,7 @@ class TrackingController extends Controller
         $resolvedCountry = $country ?? $ipLog->intel_country_code ?? $ipLog->intel_country_name;
         $visitCountryCode = CountryValue::forVisitsTable($ipLog, $country);
         $displayCountry = CountryValue::forDisplay($ipLog, $country);
-        $domain->last_seen_at = now();
+        $domain->last_seen_at = UserTimezone::nowUtc();
         $domain->tag_connected = true;
         $domain->status = 'connected';
         if ($isPaidTraffic) {
@@ -99,7 +100,7 @@ class TrackingController extends Controller
                 $visit->visits = 0;
             }
             $visit->visits = ($visit->visits ?? 0) + 1;
-            $visit->last_click_at = now();
+            $visit->last_click_at = $visitedAt;
             $visit->last_path = $data['path'] ?? null;
             $visit->campaign = $data['utm_campaign'] ?? null;
             $visit->platform = $device;
@@ -110,10 +111,10 @@ class TrackingController extends Controller
 
             PaidMarketingClick::create([
                 'paid_marketing_visit_id' => $visit->id,
-                'clicked_at' => now(),
+                'clicked_at' => $visitedAt,
                 'ip' => $ip,
                 'country' => $displayCountry,
-                'last_click_at' => now(),
+                'last_click_at' => $visitedAt,
                 'threat_group' => $detection['threat_group'],
                 'campaign' => $data['utm_campaign'] ?? null,
                 'paid_id' => $googleClick['id'] ?? ($data['gclid'] ?? null),
@@ -144,8 +145,8 @@ class TrackingController extends Controller
                 'is_paid_traffic' => $isPaidTraffic,
                 'is_invalid_traffic' => $detection['action_taken'] !== 'allow',
                 'visited_at' => $visitedAt,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'created_at' => UserTimezone::nowUtc(),
+                'updated_at' => UserTimezone::nowUtc(),
             ];
 
             if (Schema::hasColumn('visits', 'gclid')) {
@@ -191,7 +192,7 @@ class TrackingController extends Controller
                         'ip' => $ip,
                         'hits' => ((int) $existingSession->hits) + 1,
                         'last_seen_at' => $visitedAt,
-                        'updated_at' => now(),
+                        'updated_at' => UserTimezone::nowUtc(),
                     ]);
             } else {
                 DB::table('ip_sessions')->insert([
@@ -200,14 +201,16 @@ class TrackingController extends Controller
                     'ip' => $ip,
                     'hits' => 1,
                     'last_seen_at' => $visitedAt,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'created_at' => UserTimezone::nowUtc(),
+                    'updated_at' => UserTimezone::nowUtc(),
                 ]);
             }
         }
 
         if (Schema::hasTable('analytics_hourly')) {
-            $bucketHour = $visitedAt->copy()->startOfHour();
+            $domain->loadMissing('user');
+            $ownerTz = UserTimezone::forUser($domain->user);
+            $bucketHour = $visitedAt->copy()->timezone($ownerTz)->startOfHour()->utc();
             $existingHour = DB::table('analytics_hourly')
                 ->where('domain_id', $domain->id)
                 ->where('bucket_hour', $bucketHour)
@@ -220,7 +223,7 @@ class TrackingController extends Controller
                         'total_visits' => ((int) $existingHour->total_visits) + 1,
                         'paid_visits' => ((int) $existingHour->paid_visits) + ($isPaidTraffic ? 1 : 0),
                         'invalid_visits' => ((int) $existingHour->invalid_visits) + ($detection['action_taken'] !== 'allow' ? 1 : 0),
-                        'updated_at' => now(),
+                        'updated_at' => UserTimezone::nowUtc(),
                     ]);
             } else {
                 DB::table('analytics_hourly')->insert([
@@ -229,8 +232,8 @@ class TrackingController extends Controller
                     'total_visits' => 1,
                     'paid_visits' => $isPaidTraffic ? 1 : 0,
                     'invalid_visits' => $detection['action_taken'] !== 'allow' ? 1 : 0,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'created_at' => UserTimezone::nowUtc(),
+                    'updated_at' => UserTimezone::nowUtc(),
                 ]);
             }
         }
@@ -245,8 +248,8 @@ class TrackingController extends Controller
                 'action_taken' => $detection['action_taken'],
                 'reasons' => json_encode($detection['reasons']),
                 'detected_at' => $visitedAt,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'created_at' => UserTimezone::nowUtc(),
+                'updated_at' => UserTimezone::nowUtc(),
             ]);
         }
 

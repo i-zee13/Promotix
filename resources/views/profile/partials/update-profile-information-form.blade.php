@@ -1,6 +1,6 @@
 <article class="rounded-[10px] border border-white/15 bg-[#151515] p-[20px]">
     <h2 class="text-[16px] font-semibold text-white">Profile information</h2>
-    <p class="mt-[4px] text-[12px] text-[#a9a9a9]">Update your name and email address.</p>
+    <p class="mt-[4px] text-[12px] text-[#a9a9a9]">Update your name, email, and timezone.</p>
 
     <form id="send-verification" method="post" action="{{ route('verification.send') }}">
         @csrf
@@ -39,6 +39,38 @@
                     @endif
                 </div>
             @endif
+        </div>
+
+        <div id="timezone-settings">
+            <label for="profile-timezone" class="mb-[6px] block text-[12px] font-semibold text-[#a9a9a9]">Timezone</label>
+            @php
+                $selectedTimezone = old('timezone', $user->timezone ?: \App\Support\UserTimezone::forUser($user));
+                $groupedTimezones = \App\Support\UserTimezone::groupedOptions();
+            @endphp
+            <select id="profile-timezone" name="timezone" class="figma-input">
+                <optgroup label="Common">
+                    @foreach (\App\Support\UserTimezone::COMMON as $tz)
+                        <option value="{{ $tz }}" @selected($selectedTimezone === $tz)>{{ $tz }}</option>
+                    @endforeach
+                </optgroup>
+                @foreach ($groupedTimezones as $region => $zones)
+                    <optgroup label="{{ $region }}">
+                        @foreach ($zones as $tz)
+                            @continue(in_array($tz, \App\Support\UserTimezone::COMMON, true))
+                            <option value="{{ $tz }}" @selected($selectedTimezone === $tz)>{{ $tz }}</option>
+                        @endforeach
+                    </optgroup>
+                @endforeach
+            </select>
+            <p class="mt-[6px] text-[11px] text-[#8c8787]">
+                Currently: {{ $user->timezone ?: 'Not set yet' }}
+                @if ($user->timezone_source)
+                    · {{ \App\Support\UserTimezone::sourceLabel($user->timezone_source) }}
+                @endif
+            </p>
+            @foreach ($errors->get('timezone') as $message)
+                <p class="mt-[6px] text-[12px] text-rose-300">{{ $message }}</p>
+            @endforeach
         </div>
 
         <div class="flex flex-wrap items-center gap-[12px] pt-[4px]">

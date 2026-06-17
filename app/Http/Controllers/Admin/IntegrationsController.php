@@ -13,6 +13,7 @@ use App\Models\GoogleAdsAccount;
 use App\Models\GoogleConnection;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\UserTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -1070,18 +1071,7 @@ class IntegrationsController extends Controller
 
     private function adsDateRange(Request $request): array
     {
-        $from = $request->query('from')
-            ? \Carbon\Carbon::parse($request->query('from'))->startOfDay()
-            : \Carbon\Carbon::now()->subDays(6)->startOfDay();
-        $to = $request->query('to')
-            ? \Carbon\Carbon::parse($request->query('to'))->endOfDay()
-            : \Carbon\Carbon::now()->endOfDay();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to, $from];
-        }
-
-        return [$from, $to];
+        return UserTimezone::dateRangeFromRequest($request, $request->user());
     }
 
     private function upsertGoogleConnection(int $userId, string $email, string $sub, array $token, string $accessToken): GoogleConnection

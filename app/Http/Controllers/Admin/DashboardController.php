@@ -8,6 +8,7 @@ use App\Models\IpLog;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Support\DashboardNotifications;
+use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -374,18 +375,6 @@ class DashboardController extends Controller
     /** @return array{0: Carbon, 1: Carbon} */
     private function dateRange(Request $request): array
     {
-        $from = $request->query('from')
-            ? Carbon::parse($request->query('from'))->startOfDay()
-            : Carbon::now()->subDays(6)->startOfDay();
-
-        $to = $request->query('to')
-            ? Carbon::parse($request->query('to'))->endOfDay()
-            : Carbon::now()->endOfDay();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
-        }
-
-        return [$from, $to];
+        return UserTimezone::dateRangeFromRequest($request, $request->user());
     }
 }

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="initial-theme" content="{{ (auth()->user()?->ui_preferences['dark_mode'] ?? true) ? 'dark' : 'light' }}">
+    @auth
+        <meta name="user-timezone" content="{{ \App\Support\UserTimezone::forUser(auth()->user()) }}">
+    @endauth
     <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
     <script>window.PROMOTIX_FILTER_DEBOUNCE_MS = 1500;</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -149,6 +152,8 @@
 
             @include('partials.portal-switch')
 
+            @include('partials.header-timezone')
+
             @if ($usesDashboardDateRange)
             <div class="relative hidden sm:block" x-data="figmaDateRangePicker" x-init="init()" @click.outside="calendarOpen = false" title="Date range for dashboards">
                 <button
@@ -171,7 +176,7 @@
                     <span class="flex h-full w-[30px] items-center justify-center border-r border-[#6400B2] bg-white/10">
                         <svg class="h-[15px] w-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 1115 0"/></svg>
                     </span>
-                    <button type="button" @click="userMenuOpen = ! userMenuOpen" class="truncate px-[9px] text-left sm:px-[14px]">{{ $user?->email ?? 'example@gmail.com' }}</button>
+                    <button type="button" @click="userMenuOpen = ! userMenuOpen" class="truncate px-[9px] text-left sm:px-[14px]">{{ $user?->name ?: ($user?->email ?? 'User') }}</button>
                 </div>
 
                 <div x-show="userMenuOpen" x-cloak class="figma-user-menu absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#6400B2]/60 bg-[#111111] py-1 shadow-card-lg">
@@ -322,6 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+@include('partials.timezone-sync')
 @include('partials.live-agent-chat')
 </body>
 </html>
