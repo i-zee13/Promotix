@@ -120,12 +120,14 @@ class TagController extends Controller
       utm_source: null,
       utm_medium: null,
       utm_campaign: null,
-      utm_term: null
+      utm_term: null,
+      gad_campaignid: null
     };
     try {
       out.gclid = storedAttribution('gclid', u.searchParams.get('gclid'));
       out.gbraid = storedAttribution('gbraid', u.searchParams.get('gbraid'));
       out.wbraid = storedAttribution('wbraid', u.searchParams.get('wbraid'));
+      out.gad_campaignid = storedAttribution('gad_campaignid', u.searchParams.get('gad_campaignid'));
       if (trackSource) out.utm_source = storedAttribution('utm_source', u.searchParams.get('utm_source'));
       if (trackMedium) out.utm_medium = storedAttribution('utm_medium', u.searchParams.get('utm_medium'));
       if (trackCampaign) out.utm_campaign = storedAttribution('utm_campaign', u.searchParams.get('utm_campaign'));
@@ -154,6 +156,7 @@ class TagController extends Controller
       payload.utm_medium = attr.utm_medium;
       payload.utm_campaign = attr.utm_campaign;
       payload.utm_term = attr.utm_term;
+      payload.gad_campaignid = attr.gad_campaignid;
     } catch (e) {}
 
     send(payload);

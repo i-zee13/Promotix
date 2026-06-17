@@ -428,7 +428,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         return response()->streamDownload(function () use ($request, $domainIds, $from, $to): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['IP Address', 'Country', 'Invalid', 'Total', 'Bot Detect', 'VPN Hits', 'Data Center Hits', 'Malicious Hits', 'Last Click']);
+            fputcsv($handle, ['IP Address', 'Country', 'Campaign', 'Invalid', 'Total', 'Bot Detect', 'VPN Hits', 'Data Center Hits', 'Malicious Hits', 'Last Click']);
 
             if ($domainIds->isEmpty()
                 || (! Schema::hasTable('visits') && ! Schema::hasTable('paid_marketing_visits'))) {
@@ -443,6 +443,7 @@ class PaidAdvertisingDashboardController extends Controller
                 fputcsv($handle, [
                     $r['ip'],
                     $r['country'],
+                    $r['campaign'],
                     $r['invalid'],
                     $r['total'],
                     $r['top_threat'],
@@ -567,18 +568,11 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         if ($this->hasCampaignFilter($request)) {
-            $gclidColumn = Schema::hasColumn('visits', 'gclid') ? 'gclid' : null;
-            $this->applyCampaignAttributionFilter(
-                $query,
-                $request,
-                $domainIds,
-                $from,
-                $to,
-                'utm_campaign',
-                'ip',
-                $gclidColumn,
-                'visited_at',
-            );
+            if (Schema::hasColumn('visits', 'campaign_name')) {
+                $this->applyDirectCampaignFilter($query, $request, 'campaign_name', 'google_campaign_id', 'utm_campaign');
+            } else {
+                $this->applyDirectCampaignFilter($query, $request, 'utm_campaign', 'google_campaign_id');
+            }
         }
 
         return $query;
@@ -600,6 +594,9 @@ class PaidAdvertisingDashboardController extends Controller
                 DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
                 DB::raw('MAX(country) as country'),
                 DB::raw('MAX(visited_at) as last_seen'),
+                DB::raw(Schema::hasColumn('visits', 'campaign_name')
+                    ? 'MAX(COALESCE(campaign_name, utm_campaign)) as campaign'
+                    : 'MAX(utm_campaign) as campaign'),
                 DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
                 DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
                 DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
@@ -628,17 +625,11 @@ class PaidAdvertisingDashboardController extends Controller
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
         if ($this->hasCampaignFilter($request)) {
-            $this->applyCampaignAttributionFilter(
-                $query,
-                $request,
-                $domainIds,
-                $from,
-                $to,
-                'pc.campaign',
-                'pc.ip',
-                'pc.paid_id',
-                'pc.clicked_at',
-            );
+            if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
+                $this->applyDirectCampaignFilter($query, $request, 'pc.campaign_name', 'pc.google_campaign_id', 'pc.campaign');
+            } else {
+                $this->applyDirectCampaignFilter($query, $request, 'pc.campaign', 'pc.google_campaign_id');
+            }
         }
 
         return $query
@@ -648,6 +639,9 @@ class PaidAdvertisingDashboardController extends Controller
                 DB::raw("SUM(CASE WHEN pc.threat_group IS NOT NULL AND pc.threat_group != '' THEN 1 ELSE 0 END) as invalid"),
                 DB::raw('MAX(pc.country) as country'),
                 DB::raw('MAX(pc.clicked_at) as last_seen'),
+                DB::raw(Schema::hasColumn('paid_marketing_clicks', 'campaign_name')
+                    ? 'MAX(COALESCE(pc.campaign_name, pc.campaign, pv.campaign_name, pv.campaign)) as campaign'
+                    : 'MAX(COALESCE(pc.campaign, pv.campaign)) as campaign'),
                 DB::raw("SUM(CASE WHEN pc.threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
                 DB::raw("SUM(CASE WHEN pc.threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
                 DB::raw("SUM(CASE WHEN pc.threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
@@ -687,6 +681,7 @@ class PaidAdvertisingDashboardController extends Controller
             'invalid' => (int) ($row->invalid ?? 0),
             'valid' => max(0, (int) ($row->total ?? 0) - (int) ($row->invalid ?? 0)),
             'last_seen' => $row->last_seen ?? null,
+            'campaign' => $row->campaign ?? null,
             'vpn_hits' => (int) ($row->vpn_hits ?? 0),
             'data_center_hits' => (int) ($row->data_center_hits ?? 0),
             'malicious_hits' => (int) ($row->malicious_hits ?? 0),
@@ -722,6 +717,53 @@ class PaidAdvertisingDashboardController extends Controller
             $inner->where($column, $campaign)
                 ->orWhere($column, 'like', '%' . $campaign . '%')
                 ->orWhereRaw('? LIKE CONCAT("%", ' . $column . ', "%")', [$campaign]);
+        });
+    }
+
+    private function applyDirectCampaignFilter($query, Request $request, string $nameColumn, string $idColumn, ?string $legacyNameColumn = null): void
+    {
+        if (! $this->hasCampaignFilter($request)) {
+            return;
+        }
+
+        $campaignName = trim((string) $request->query('campaign', ''));
+        $campaignId = preg_replace('/\D+/', '', (string) $request->query('campaign_id', ''));
+
+        if ($campaignName === '' && $campaignId === '') {
+            return;
+        }
+
+        $query->where(function ($match) use ($campaignName, $campaignId, $nameColumn, $idColumn, $legacyNameColumn): void {
+            $started = false;
+
+            if ($campaignId !== '') {
+                $match->where($idColumn, $campaignId);
+                $started = true;
+            }
+
+            if ($campaignName === '') {
+                return;
+            }
+
+            $nameMatcher = function ($nameQ) use ($campaignName, $nameColumn, $legacyNameColumn): void {
+                $nameQ->where($nameColumn, $campaignName);
+
+                if ($legacyNameColumn !== null && $legacyNameColumn !== $nameColumn) {
+                    $nameQ->orWhere($legacyNameColumn, $campaignName);
+                }
+
+                $nameQ->orWhere($nameColumn, 'like', '%' . $campaignName . '%');
+
+                if ($legacyNameColumn !== null && $legacyNameColumn !== $nameColumn) {
+                    $nameQ->orWhere($legacyNameColumn, 'like', '%' . $campaignName . '%');
+                }
+            };
+
+            if ($started) {
+                $match->orWhere($nameMatcher);
+            } else {
+                $match->where($nameMatcher);
+            }
         });
     }
 

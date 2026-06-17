@@ -18,6 +18,8 @@ class PaidMarketingClick extends Model
         'last_click_at',
         'threat_group',
         'campaign',
+        'google_campaign_id',
+        'campaign_name',
         'campaignr',
         'browser_name',
         'browser_version',

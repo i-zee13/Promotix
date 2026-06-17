@@ -17,6 +17,8 @@ class PaidMarketingVisit extends Model
         'ip',
         'visits',
         'campaign',
+        'google_campaign_id',
+        'campaign_name',
         'last_click_at',
         'threat_group',
         'threat_type',

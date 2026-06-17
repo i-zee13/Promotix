@@ -7,6 +7,7 @@ use App\Models\Domain;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Services\IpIntel\VisitProtectionService;
+use App\Support\CampaignAttributionResolver;
 use App\Support\CountryValue;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
@@ -42,6 +43,7 @@ class TrackingController extends Controller
             'utm_source' => ['nullable', 'string'],
             'utm_medium' => ['nullable', 'string'],
             'utm_campaign' => ['nullable', 'string'],
+            'gad_campaignid' => ['nullable', 'string'],
             'utm_term' => ['nullable', 'string'],
             'keyword' => ['nullable', 'string'],
             'session_id' => ['nullable', 'string', 'max:128'],
@@ -90,6 +92,8 @@ class TrackingController extends Controller
         }
         $domain->save();
 
+        $campaignAttribution = CampaignAttributionResolver::resolve($domain, $data);
+
         if ($isPaidTraffic) {
             // Paid marketing rows only for ad traffic (gclid or utm_campaign), same as visits.is_paid_traffic.
             $visit = PaidMarketingVisit::firstOrNew([
@@ -102,28 +106,42 @@ class TrackingController extends Controller
             $visit->visits = ($visit->visits ?? 0) + 1;
             $visit->last_click_at = $visitedAt;
             $visit->last_path = $data['path'] ?? null;
-            $visit->campaign = $data['utm_campaign'] ?? null;
+            $visit->campaign = $campaignAttribution['campaign'];
             $visit->platform = $device;
             $visit->country = $displayCountry;
             $visit->threat_group = $detection['threat_group'];
             $visit->threat_type = $detection['action_taken'] === 'allow' ? null : $detection['action_taken'];
+            if (Schema::hasColumn('paid_marketing_visits', 'google_campaign_id')) {
+                $visit->google_campaign_id = $campaignAttribution['google_campaign_id'];
+            }
+            if (Schema::hasColumn('paid_marketing_visits', 'campaign_name')) {
+                $visit->campaign_name = $campaignAttribution['campaign_name'];
+            }
             $visit->save();
 
-            PaidMarketingClick::create([
+            $clickPayload = [
                 'paid_marketing_visit_id' => $visit->id,
                 'clicked_at' => $visitedAt,
                 'ip' => $ip,
                 'country' => $displayCountry,
                 'last_click_at' => $visitedAt,
                 'threat_group' => $detection['threat_group'],
-                'campaign' => $data['utm_campaign'] ?? null,
+                'campaign' => $campaignAttribution['campaign'],
                 'paid_id' => $googleClick['id'] ?? ($data['gclid'] ?? null),
                 'path' => $data['url'] ?? ($data['path'] ?? null),
                 'keyword' => $data['utm_term'] ?? ($data['keyword'] ?? null),
                 'browser_name' => $browser['name'],
                 'browser_version' => $browser['version'],
                 'os' => $os,
-            ]);
+            ];
+            if (Schema::hasColumn('paid_marketing_clicks', 'google_campaign_id')) {
+                $clickPayload['google_campaign_id'] = $campaignAttribution['google_campaign_id'];
+            }
+            if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
+                $clickPayload['campaign_name'] = $campaignAttribution['campaign_name'];
+            }
+
+            PaidMarketingClick::create($clickPayload);
         }
 
         $visitId = null;
@@ -160,6 +178,12 @@ class TrackingController extends Controller
             }
             if (Schema::hasColumn('visits', 'google_click_type')) {
                 $visitPayload['google_click_type'] = $googleClick['type'] ?? null;
+            }
+            if (Schema::hasColumn('visits', 'google_campaign_id')) {
+                $visitPayload['google_campaign_id'] = $campaignAttribution['google_campaign_id'];
+            }
+            if (Schema::hasColumn('visits', 'campaign_name')) {
+                $visitPayload['campaign_name'] = $campaignAttribution['campaign_name'];
             }
 
             if (Schema::hasColumn('visits', 'threat_score')) {
