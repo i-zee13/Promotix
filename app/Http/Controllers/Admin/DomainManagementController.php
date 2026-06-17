@@ -258,7 +258,7 @@ class DomainManagementController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Domain removed. You can add it again and run Setup.',
+            'message' => 'Domain and all related traffic data (visits, IPs, clicks, metrics) have been removed.',
         ]);
     }
 

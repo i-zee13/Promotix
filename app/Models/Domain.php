@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\PaidMarketingVisit;
+use App\Services\DomainDataPurger;
 
 class Domain extends Model
 {
@@ -47,6 +48,13 @@ class Domain extends Model
             'last_seen_at' => 'datetime',
             'ads_synced_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Domain $domain): void {
+            app(DomainDataPurger::class)->purge($domain);
+        });
     }
 
     public function isManual(): bool

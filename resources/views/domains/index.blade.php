@@ -590,7 +590,7 @@ function siteManagementFigma() {
         },
         async removeDomain(id, hostname = '') {
             const label = hostname || 'this domain';
-            if (!confirm(`Delete ${label}?\n\nThis removes the site from your list and unlinks Google Ads. You can add the same domain again later.`)) {
+            if (!confirm(`Delete ${label}?\n\nThis permanently removes the site and all related data: visits, IP records, paid clicks, Google metrics, and detection logs.`)) {
                 return;
             }
             try {
