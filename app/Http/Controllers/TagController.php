@@ -68,15 +68,12 @@ class TagController extends Controller
   function enforceBlock(payload){
     try {
       var style = document.createElement('style');
-      style.textContent = 'html,body{visibility:hidden!important;height:0!important;overflow:hidden!important;margin:0!important;padding:0!important}';
-      (document.head || document.documentElement).appendChild(style);
-      if (window.stop) window.stop();
-      document.documentElement.innerHTML = '';
-      document.body && (document.body.innerHTML = '');
+      style.id = 'pm_block_style';
+      style.textContent = 'html,body{visibility:hidden!important;overflow:hidden!important}';
+      if (!document.getElementById('pm_block_style')) {
+        (document.head || document.documentElement).appendChild(style);
+      }
     } catch (e) {}
-    try {
-      location.replace('about:blank');
-    } catch (e2) {}
   }
 
   function handleProtectionResponse(data){
@@ -127,6 +124,37 @@ class TagController extends Controller
     }
   }
 
+  function storedAttribution(key, value){
+    var storageKey = 'pm_' + key + '_' + domainKey;
+    try {
+      if (value) {
+        localStorage.setItem(storageKey, value);
+        return value;
+      }
+      return localStorage.getItem(storageKey) || null;
+    } catch (e) {
+      return value || null;
+    }
+  }
+
+  function readAttribution(u){
+    var out = {
+      gclid: null,
+      utm_source: null,
+      utm_medium: null,
+      utm_campaign: null,
+      utm_term: null
+    };
+    try {
+      out.gclid = storedAttribution('gclid', u.searchParams.get('gclid'));
+      if (trackSource) out.utm_source = storedAttribution('utm_source', u.searchParams.get('utm_source'));
+      if (trackMedium) out.utm_medium = storedAttribution('utm_medium', u.searchParams.get('utm_medium'));
+      if (trackCampaign) out.utm_campaign = storedAttribution('utm_campaign', u.searchParams.get('utm_campaign'));
+      if (trackTerm) out.utm_term = storedAttribution('utm_term', u.searchParams.get('utm_term'));
+    } catch (e) {}
+    return out;
+  }
+
   function pageview(){
     var payload = {
       domainKey: domainKey,
@@ -139,11 +167,12 @@ class TagController extends Controller
     };
     try {
       var u = new URL(location.href);
-      payload.gclid = u.searchParams.get('gclid') || null;
-      payload.utm_source = trackSource ? (u.searchParams.get('utm_source') || null) : null;
-      payload.utm_medium = trackMedium ? (u.searchParams.get('utm_medium') || null) : null;
-      payload.utm_campaign = trackCampaign ? (u.searchParams.get('utm_campaign') || null) : null;
-      payload.utm_term = trackTerm ? (u.searchParams.get('utm_term') || null) : null;
+      var attr = readAttribution(u);
+      payload.gclid = attr.gclid;
+      payload.utm_source = attr.utm_source;
+      payload.utm_medium = attr.utm_medium;
+      payload.utm_campaign = attr.utm_campaign;
+      payload.utm_term = attr.utm_term;
     } catch (e) {}
 
     try {

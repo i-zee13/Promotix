@@ -405,11 +405,6 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function ips(Request $request): JsonResponse
     {
-        $domainId = (int) $request->query('domain_id', 0);
-        if ($domainId <= 0) {
-            return response()->json([]);
-        }
-
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 

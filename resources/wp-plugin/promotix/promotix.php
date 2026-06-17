@@ -19,7 +19,7 @@ function promotix_tag_default_settings() {
         'domain_key' => '',
         'secret_key' => '',
         'authentication_key' => '',
-        'enabled' => '1',
+        'enabled' => '0',
     );
 }
 
@@ -117,7 +117,23 @@ function promotix_tag_build_tag_url($server_url, $domain_key) {
     return $server_url . '/tag/' . rawurlencode($domain_key) . '.js';
 }
 
+function promotix_tag_should_inject_tag() {
+    if (is_admin() || wp_doing_ajax() || wp_doing_cron()) {
+        return false;
+    }
+
+    if (function_exists('wp_login_url') && isset($GLOBALS['pagenow']) && $GLOBALS['pagenow'] === 'wp-login.php') {
+        return false;
+    }
+
+    return true;
+}
+
 function promotix_tag_inject_head() {
+    if (! promotix_tag_should_inject_tag()) {
+        return;
+    }
+
     $s = promotix_tag_get_settings();
     if ($s['enabled'] !== '1') return;
 
@@ -125,7 +141,7 @@ function promotix_tag_inject_head() {
     if ($tagUrl === '') return;
 
     echo "\n<!-- Promotix Tag -->\n";
-    echo '<script async src="' . esc_url($tagUrl) . '" class="pm_tag"></script>' . "\n";
+    echo '<script async defer src="' . esc_url($tagUrl) . '" class="pm_tag"></script>' . "\n";
 }
 add_action('wp_head', 'promotix_tag_inject_head', 1);
 

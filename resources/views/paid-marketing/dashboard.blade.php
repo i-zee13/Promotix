@@ -180,10 +180,9 @@
                         <select
                             x-model="filters.campaign"
                             @change="onCampaignFilterChange()"
-                            :disabled="!filters.domain_id"
-                            class="h-[18px] min-w-0 flex-1 rounded-[2px] border-0 bg-[#0B0B0B] px-[8px] py-0 text-[9px] text-white focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
+                            class="h-[18px] min-w-0 flex-1 rounded-[2px] border-0 bg-[#0B0B0B] px-[8px] py-0 text-[9px] text-white focus:ring-0"
                         >
-                            <option value="" x-text="filters.domain_id ? 'All campaigns' : 'Select domain first'"></option>
+                            <option value="">All campaigns</option>
                             <template x-for="row in campaignOptions" :key="row.campaign_id || row.campaign">
                                 <option :value="row.campaign" x-text="campaignOptionLabel(row)"></option>
                             </template>
@@ -215,7 +214,7 @@
                                     <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
                                 </tr>
                             </template>
-                            <tr x-show="ips.length === 0"><td colspan="7" class="px-[10px] py-[12px] text-center text-white/60" x-text="!filters.domain_id ? 'Select a domain above to load IPs.' : (filters.campaign ? 'No paid IPs for this campaign in the selected date range. Add utm_campaign to landing URLs for exact match.' : 'No paid IP data yet for this domain.')"></td></tr>
+                            <tr x-show="ips.length === 0"><td colspan="7" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -446,10 +445,6 @@ function paidAdvertisingFigma(config = {}) {
             return p.toString();
         },
         async reloadIps() {
-            if (!this.filters.domain_id) {
-                this.ips = [];
-                return;
-            }
             try {
                 const qs = this.ipsQueryString();
                 this.ips = await fetch(`/paid-marketing/ips?${qs}`).then(r => r.json());
