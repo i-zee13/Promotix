@@ -8,6 +8,7 @@ use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Services\IpIntel\VisitProtectionService;
 use App\Support\CountryValue;
+use App\Support\GoogleClickAttribution;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -35,6 +36,8 @@ class TrackingController extends Controller
             'path' => ['nullable', 'string'],
             'referrer' => ['nullable', 'string'],
             'gclid' => ['nullable', 'string'],
+            'gbraid' => ['nullable', 'string'],
+            'wbraid' => ['nullable', 'string'],
             'utm_source' => ['nullable', 'string'],
             'utm_medium' => ['nullable', 'string'],
             'utm_campaign' => ['nullable', 'string'],
@@ -56,7 +59,8 @@ class TrackingController extends Controller
         $country = $request->headers->get('CF-IPCountry') ?: null;
         $device = $this->platformFromUa($ua);
         $isCrawler = $this->isCrawlerUa($ua);
-        $isPaidTraffic = ! empty($data['gclid'] ?? null) || ! empty($data['utm_campaign'] ?? null);
+        $isPaidTraffic = GoogleClickAttribution::isPaidTraffic($data);
+        $googleClick = GoogleClickAttribution::resolve($data);
         $visitedAt = isset($data['ts']) && is_numeric($data['ts'])
             ? Carbon::createFromTimestampMs((int) $data['ts'])
             : now();
@@ -112,7 +116,7 @@ class TrackingController extends Controller
                 'last_click_at' => now(),
                 'threat_group' => $detection['threat_group'],
                 'campaign' => $data['utm_campaign'] ?? null,
-                'paid_id' => $data['gclid'] ?? null,
+                'paid_id' => $googleClick['id'] ?? ($data['gclid'] ?? null),
                 'path' => $data['url'] ?? ($data['path'] ?? null),
                 'keyword' => $data['utm_term'] ?? ($data['keyword'] ?? null),
                 'browser_name' => $browser['name'],
@@ -146,6 +150,15 @@ class TrackingController extends Controller
 
             if (Schema::hasColumn('visits', 'gclid')) {
                 $visitPayload['gclid'] = $data['gclid'] ?? null;
+            }
+            if (Schema::hasColumn('visits', 'gbraid')) {
+                $visitPayload['gbraid'] = $data['gbraid'] ?? null;
+            }
+            if (Schema::hasColumn('visits', 'wbraid')) {
+                $visitPayload['wbraid'] = $data['wbraid'] ?? null;
+            }
+            if (Schema::hasColumn('visits', 'google_click_type')) {
+                $visitPayload['google_click_type'] = $googleClick['type'] ?? null;
             }
 
             if (Schema::hasColumn('visits', 'threat_score')) {

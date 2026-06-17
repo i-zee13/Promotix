@@ -140,6 +140,8 @@ class TagController extends Controller
   function readAttribution(u){
     var out = {
       gclid: null,
+      gbraid: null,
+      wbraid: null,
       utm_source: null,
       utm_medium: null,
       utm_campaign: null,
@@ -147,6 +149,8 @@ class TagController extends Controller
     };
     try {
       out.gclid = storedAttribution('gclid', u.searchParams.get('gclid'));
+      out.gbraid = storedAttribution('gbraid', u.searchParams.get('gbraid'));
+      out.wbraid = storedAttribution('wbraid', u.searchParams.get('wbraid'));
       if (trackSource) out.utm_source = storedAttribution('utm_source', u.searchParams.get('utm_source'));
       if (trackMedium) out.utm_medium = storedAttribution('utm_medium', u.searchParams.get('utm_medium'));
       if (trackCampaign) out.utm_campaign = storedAttribution('utm_campaign', u.searchParams.get('utm_campaign'));
@@ -169,6 +173,8 @@ class TagController extends Controller
       var u = new URL(location.href);
       var attr = readAttribution(u);
       payload.gclid = attr.gclid;
+      payload.gbraid = attr.gbraid;
+      payload.wbraid = attr.wbraid;
       payload.utm_source = attr.utm_source;
       payload.utm_medium = attr.utm_medium;
       payload.utm_campaign = attr.utm_campaign;
