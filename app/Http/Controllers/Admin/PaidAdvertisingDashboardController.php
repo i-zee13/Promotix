@@ -787,11 +787,14 @@ class PaidAdvertisingDashboardController extends Controller
         string $visitedAtColumn = 'visited_at',
     ): void {
         $campaign = trim((string) $request->query('campaign', ''));
-        $domainId = $domainIds->count() === 1 ? (int) $domainIds->first() : 0;
+        $domainId = (int) $request->query('domain_id', 0);
+        if ($domainId <= 0 && $domainIds->count() === 1) {
+            $domainId = (int) $domainIds->first();
+        }
         $campaignId = $domainId > 0 ? $this->resolveCampaignId($request, $domainId) : '';
         $gclids = $this->resolveCampaignGclids($request, $domainIds, $from, $to, $campaignId);
         $activeDates = $domainId > 0 && $campaignId !== ''
-            ? $this->resolveCampaignActiveDates($domainId, $campaignId, $from, $to)
+            ? $this->resolveCampaignActiveDates($domainId, $campaignId, $from, $to, $request->user())
             : [];
 
         $query->where(function ($outer) use (
@@ -804,6 +807,8 @@ class PaidAdvertisingDashboardController extends Controller
             $gclids,
             $activeDates,
             $domainIds,
+            $domainId,
+            $campaignId,
             $from,
             $to,
         ): void {
@@ -815,6 +820,20 @@ class PaidAdvertisingDashboardController extends Controller
 
             if ($gclids !== [] && $gclidColumn !== null) {
                 $outer->orWhereIn($gclidColumn, $gclids);
+            }
+
+            if (Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits') && $campaign !== '') {
+                $outer->orWhereExists(function ($sub) use ($campaign, $domainIds, $from, $to, $ipColumn, $request): void {
+                    $sub->selectRaw('1')
+                        ->from('paid_marketing_clicks as pc_camp')
+                        ->join('paid_marketing_visits as pv_camp', 'pv_camp.id', '=', 'pc_camp.paid_marketing_visit_id')
+                        ->whereIn('pv_camp.domain_id', $domainIds)
+                        ->whereColumn('pv_camp.ip', $ipColumn)
+                        ->whereBetween('pc_camp.clicked_at', [$from, $to])
+                        ->where(function ($camp) use ($request): void {
+                            $this->applySmartCampaignFilterConditions($camp, 'pc_camp.campaign', $request);
+                        });
+                });
             }
 
             if ($gclids !== [] && Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits')) {
@@ -839,11 +858,11 @@ class PaidAdvertisingDashboardController extends Controller
                     $domainIds,
                     $from,
                     $to,
+                    $request,
                 ): void {
-                    $dates->whereIn(DB::raw('DATE(' . $visitedAtColumn . ')'), $activeDates)
-                        ->where(function ($unattrib) use ($utmColumn): void {
-                            $unattrib->whereNull($utmColumn)->orWhere($utmColumn, '');
-                        });
+                    $dates->where(function ($unattrib) use ($utmColumn): void {
+                        $unattrib->whereNull($utmColumn)->orWhere($utmColumn, '');
+                    });
 
                     if ($gclidColumn !== null) {
                         $dates->where(function ($paid) use ($gclidColumn, $domainIds, $from, $to, $ipColumn): void {
@@ -863,9 +882,68 @@ class PaidAdvertisingDashboardController extends Controller
                             }
                         });
                     }
+
+                    $this->applyVisitLocalDayFilter($dates, $visitedAtColumn, $activeDates, $request);
+                });
+            }
+
+            if (
+                $campaignId !== ''
+                && $domainId > 0
+                && $gclidColumn !== null
+                && $this->domainHasSingleGoogleCampaign($domainId, $from, $to, $request->user())
+            ) {
+                $outer->orWhere(function ($fallback) use ($gclidColumn, $utmColumn, $visitedAtColumn, $from, $to): void {
+                    $fallback->whereBetween($visitedAtColumn, [$from, $to])
+                        ->whereNotNull($gclidColumn)
+                        ->where($gclidColumn, '!=', '')
+                        ->where(function ($unattrib) use ($utmColumn): void {
+                            $unattrib->whereNull($utmColumn)->orWhere($utmColumn, '');
+                        });
                 });
             }
         });
+    }
+
+    /**
+     * Match visit timestamps to campaign-active calendar days in the user's timezone.
+     *
+     * @param  list<string>  $dates
+     */
+    private function applyVisitLocalDayFilter($query, string $visitedAtColumn, array $dates, Request $request): void
+    {
+        if ($dates === []) {
+            return;
+        }
+
+        $tz = UserTimezone::forUser($request->user());
+        $query->where(function ($days) use ($dates, $tz, $visitedAtColumn): void {
+            foreach ($dates as $date) {
+                $days->orWhereBetween($visitedAtColumn, [
+                    Carbon::parse($date, $tz)->startOfDay()->utc(),
+                    Carbon::parse($date, $tz)->endOfDay()->utc(),
+                ]);
+            }
+        });
+    }
+
+    private function domainHasSingleGoogleCampaign(int $domainId, Carbon $from, Carbon $to, ?\App\Models\User $user = null): bool
+    {
+        if (! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            return false;
+        }
+
+        $tz = UserTimezone::forUser($user);
+
+        return DB::table('google_ads_campaign_daily_metrics')
+            ->where('domain_id', $domainId)
+            ->whereBetween('metric_date', [
+                $from->copy()->timezone($tz)->toDateString(),
+                $to->copy()->timezone($tz)->toDateString(),
+            ])
+            ->where('clicks', '>', 0)
+            ->distinct()
+            ->count('campaign_id') === 1;
     }
 
     private function resolveCampaignId(Request $request, int $domainId): string
@@ -911,16 +989,21 @@ class PaidAdvertisingDashboardController extends Controller
     /**
      * @return list<string>
      */
-    private function resolveCampaignActiveDates(int $domainId, string $campaignId, Carbon $from, Carbon $to): array
+    private function resolveCampaignActiveDates(int $domainId, string $campaignId, Carbon $from, Carbon $to, ?\App\Models\User $user = null): array
     {
         if ($campaignId === '' || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
             return [];
         }
 
+        $tz = UserTimezone::forUser($user);
+
         return DB::table('google_ads_campaign_daily_metrics')
             ->where('domain_id', $domainId)
             ->where('campaign_id', $campaignId)
-            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->whereBetween('metric_date', [
+                $from->copy()->timezone($tz)->toDateString(),
+                $to->copy()->timezone($tz)->toDateString(),
+            ])
             ->where('clicks', '>', 0)
             ->distinct()
             ->pluck('metric_date')
@@ -935,19 +1018,97 @@ class PaidAdvertisingDashboardController extends Controller
      */
     private function resolveCampaignGclids(Request $request, $domainIds, Carbon $from, Carbon $to, ?string $campaignId = null): array
     {
-        if ($domainIds->count() !== 1) {
+        $domainId = (int) $request->query('domain_id', 0);
+        if ($domainId <= 0 && $domainIds->count() === 1) {
+            $domainId = (int) $domainIds->first();
+        }
+
+        if ($domainId <= 0) {
+            return $this->resolveStoredCampaignGclids($domainIds, $from, $to, $request, $campaignId ?? '');
+        }
+
+        $campaignId = $campaignId ?? $this->resolveCampaignId($request, $domainId);
+        $remote = $this->resolveRemoteCampaignGclids($domainId, $from, $to, $campaignId);
+        $local = $this->resolveStoredCampaignGclids(collect([$domainId]), $from, $to, $request, $campaignId);
+
+        return array_values(array_unique(array_merge($remote, $local)));
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>  $domainIds
+     * @return list<string>
+     */
+    private function resolveStoredCampaignGclids($domainIds, Carbon $from, Carbon $to, Request $request, string $campaignId): array
+    {
+        $gclids = collect();
+        $campaign = trim((string) $request->query('campaign', ''));
+
+        if ($campaign === '' && $campaignId === '') {
             return [];
         }
 
-        $domainId = (int) $domainIds->first();
-        $campaignId = $campaignId ?? $this->resolveCampaignId($request, $domainId);
+        if (Schema::hasTable('visits') && Schema::hasColumn('visits', 'gclid')) {
+            $query = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$from, $to])
+                ->whereNotNull('gclid')
+                ->where('gclid', '!=', '');
 
+            $query->where(function ($outer) use ($request, $campaignId, $domainIds, $from, $to): void {
+                $outer->where(function ($utm) use ($request): void {
+                    $this->applySmartCampaignFilterConditions($utm, 'utm_campaign', $request);
+                });
+
+                $domainId = (int) $request->query('domain_id', 0);
+                if ($domainId <= 0 && $domainIds->count() === 1) {
+                    $domainId = (int) $domainIds->first();
+                }
+
+                if ($campaignId !== '' && $domainId > 0) {
+                    $activeDates = $this->resolveCampaignActiveDates($domainId, $campaignId, $from, $to, $request->user());
+                    if ($activeDates !== []) {
+                        $outer->orWhere(function ($unattrib) use ($request, $activeDates): void {
+                            $unattrib->where(function ($utm) {
+                                $utm->whereNull('utm_campaign')->orWhere('utm_campaign', '');
+                            });
+                            $this->applyVisitLocalDayFilter($unattrib, 'visited_at', $activeDates, $request);
+                        });
+                    }
+                }
+            });
+
+            $gclids = $gclids->merge($query->pluck('gclid'));
+        }
+
+        if (Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits')) {
+            $clickQuery = DB::table('paid_marketing_clicks as pc')
+                ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+                ->whereIn('pv.domain_id', $domainIds)
+                ->whereBetween('pc.clicked_at', [$from, $to])
+                ->whereNotNull('pc.paid_id')
+                ->where('pc.paid_id', '!=', '');
+
+            $clickQuery->where(function ($camp) use ($request): void {
+                $this->applySmartCampaignFilterConditions($camp, 'pc.campaign', $request);
+            });
+
+            $gclids = $gclids->merge($clickQuery->pluck('pc.paid_id'));
+        }
+
+        return $gclids->map(fn ($value) => (string) $value)->filter()->unique()->values()->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveRemoteCampaignGclids(int $domainId, Carbon $from, Carbon $to, string $campaignId): array
+    {
         if ($campaignId === '') {
             return [];
         }
 
         $domain = Domain::query()
-            ->with('googleAdsAccount.connection')
+            ->with(['googleAdsAccount.connection', 'user'])
             ->find($domainId);
 
         $account = $domain?->googleAdsAccount;
@@ -966,13 +1127,15 @@ class PaidAdvertisingDashboardController extends Controller
             $headers['login-customer-id'] = $loginId;
         }
 
+        $tz = UserTimezone::forUser($domain?->user);
+
         return app(GoogleAdsMetricsService::class)->gclidsForCampaign(
             $account,
             $api->apiVersions()[0] ?? 'v24',
             $headers,
             $campaignId,
-            $from->toDateString(),
-            $to->toDateString(),
+            $from->copy()->timezone($tz)->toDateString(),
+            $to->copy()->timezone($tz)->toDateString(),
         );
     }
 
