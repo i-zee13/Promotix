@@ -1667,6 +1667,11 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     border-color: #ffffff;
     color: #d9d9d9;
     background: transparent;
+    box-shadow: none;
+}
+
+.figma-add-domain-btn:hover {
+    box-shadow: none;
 }
 
 .figma-sidebar-settings {
@@ -1736,11 +1741,13 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     border-color: #6400b2 !important;
     color: #6400b2 !important;
     background: #ffffff !important;
+    box-shadow: none !important;
 }
 
 .light-mode .figma-add-domain-btn:hover {
     background: #6400b2 !important;
     color: #ffffff !important;
+    box-shadow: none !important;
 }
 
 /* Logo: dark = white (inverted), light = original blue/purple brand */

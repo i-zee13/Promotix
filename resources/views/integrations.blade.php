@@ -218,40 +218,48 @@
                 <p class="mt-[5px] text-[14px] font-medium text-white">Linked accounts &amp; domains</p>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-[1040px] w-full border-separate border-spacing-y-[5px] text-left">
+            <div>
+                <table class="w-full table-fixed border-separate border-spacing-y-[5px] text-left">
+                    <colgroup>
+                        <col class="w-[11%]">
+                        <col class="w-[15%]">
+                        <col class="w-[27%]">
+                        <col class="w-[23%]">
+                        <col class="w-[20%]">
+                        <col class="w-[4%]">
+                    </colgroup>
                     <thead>
-                        <tr class="text-[14px] font-medium text-white">
-                            <th class="px-[22px] py-[8px]">Platform</th>
-                            <th class="px-[22px] py-[8px]">Protection Type</th>
-                            <th class="px-[22px] py-[8px]">Connected Entity ID</th>
-                            <th class="px-[22px] py-[8px]">Tag</th>
-                            <th class="px-[22px] py-[8px]">Settings</th>
-                            <th class="px-[22px] py-[8px]"></th>
+                        <tr class="text-[13px] font-medium text-white">
+                            <th class="px-[12px] py-[8px]">Platform</th>
+                            <th class="px-[12px] py-[8px]">Protection Type</th>
+                            <th class="px-[12px] py-[8px]">Connected Entity ID</th>
+                            <th class="px-[12px] py-[8px]">Tag</th>
+                            <th class="px-[12px] py-[8px]">Settings</th>
+                            <th class="px-[8px] py-[8px]"><span class="sr-only">Options</span></th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($mappings as $mapping)
                             <tr class="rounded-[5px] bg-[#d9d9d9] text-[#121212]">
-                                <td class="rounded-l-[5px] px-[22px] py-[10px] text-[16px] font-medium">
-                                    <span class="inline-flex items-center gap-[10px]">
-                                        @include('partials.icons.google', ['class' => 'h-[22px] w-[22px]'])
-                                        Google
+                                <td class="rounded-l-[5px] px-[12px] py-[10px] text-[14px] font-medium">
+                                    <span class="inline-flex min-w-0 items-center gap-[8px]">
+                                        @include('partials.icons.google', ['class' => 'h-[20px] w-[20px] shrink-0'])
+                                        <span class="truncate">Google</span>
                                     </span>
                                 </td>
-                                <td class="px-[22px] py-[10px] text-[10px]">{{ $mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion' }}</td>
-                                <td class="px-[22px] py-[10px] text-[12px]">
-                                    <span class="block font-medium">{{ $mapping->account->displayLabel() }}</span>
-                                    <span class="text-[10px] text-[#121212]/65">{{ $mapping->account->display_customer_id ?: $mapping->account->customer_id }}</span>
+                                <td class="px-[12px] py-[10px] text-[10px] leading-snug">{{ $mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion' }}</td>
+                                <td class="px-[12px] py-[10px] text-[12px]">
+                                    <span class="block truncate font-medium" title="{{ $mapping->account->displayLabel() }}">{{ $mapping->account->displayLabel() }}</span>
+                                    <span class="block truncate text-[10px] text-[#121212]/65">{{ $mapping->account->display_customer_id ?: $mapping->account->customer_id }}</span>
                                 </td>
-                                <td class="px-[22px] py-[10px] text-[12px]">{{ $mapping->domain->hostname }}</td>
-                                <td class="px-[22px] py-[10px] text-[12px] font-medium text-[#6706B3]">
-                                    <a href="{{ route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]) }}" class="inline-flex items-center gap-[6px] hover:underline">
-                                        @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[18px] w-[18px]'])
-                                        Campaign Settings
+                                <td class="truncate px-[12px] py-[10px] text-[12px]" title="{{ $mapping->domain->hostname }}">{{ $mapping->domain->hostname }}</td>
+                                <td class="px-[12px] py-[10px] text-[11px] font-medium text-[#6706B3]">
+                                    <a href="{{ route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]) }}" class="inline-flex min-w-0 items-center gap-[5px] hover:underline">
+                                        @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[16px] w-[16px] shrink-0'])
+                                        <span class="truncate">Campaign Settings</span>
                                     </a>
                                 </td>
-                                <td class="rounded-r-[5px] px-[22px] py-[10px] text-right">
+                                <td class="rounded-r-[5px] px-[8px] py-[10px] text-right">
                                     <div class="integration-row-menu inline-flex justify-end">
                                         <x-integrations.platform-card-dropdown :menu-id="'mapping-' . $mapping->id" label="Platform row options">
                                             <form method="POST" action="{{ route('integrations.destroy-mapping', $mapping) }}" onsubmit="return confirm('Remove this platform link?');">
@@ -268,18 +276,18 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="rounded-[5px] bg-[#d9d9d9] px-[22px] py-[20px] text-center text-[13px] text-[#121212]">No platform mappings yet.</td>
+                                <td colspan="6" class="rounded-[5px] bg-[#d9d9d9] px-[12px] py-[20px] text-center text-[13px] text-[#121212]">No platform mappings yet.</td>
                             </tr>
                         @endforelse
 
                         <template x-for="row in directList" :key="`direct-${row.id}`">
                             <tr class="rounded-[5px] bg-[#d9d9d9] text-[#121212]">
-                                <td class="rounded-l-[5px] px-[22px] py-[10px] text-[16px] font-medium">Direct Ads</td>
-                                <td class="px-[22px] py-[10px] text-[12px]">ID Tracking</td>
-                                <td class="px-[22px] py-[10px] text-[12px]" x-text="row.account_id || 'N/A'"></td>
-                                <td class="px-[22px] py-[10px] text-[12px]" x-text="row.tag_id || 'N/A'"></td>
-                                <td class="px-[22px] py-[10px] text-[12px] font-medium text-[#6706B3]">Campaign Settings</td>
-                                <td class="rounded-r-[5px] px-[22px] py-[10px] text-right"></td>
+                                <td class="rounded-l-[5px] px-[12px] py-[10px] text-[14px] font-medium">Direct Ads</td>
+                                <td class="px-[12px] py-[10px] text-[12px]">ID Tracking</td>
+                                <td class="truncate px-[12px] py-[10px] text-[12px]" x-text="row.account_id || 'N/A'"></td>
+                                <td class="truncate px-[12px] py-[10px] text-[12px]" x-text="row.tag_id || 'N/A'"></td>
+                                <td class="px-[12px] py-[10px] text-[11px] font-medium text-[#6706B3]">Campaign Settings</td>
+                                <td class="rounded-r-[5px] px-[8px] py-[10px] text-right"></td>
                             </tr>
                         </template>
                     </tbody>

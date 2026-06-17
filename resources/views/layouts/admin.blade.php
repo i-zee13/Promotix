@@ -108,7 +108,7 @@
                             <span>Domains</span>
                         </a>
                     @endif
-                    <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-add-domain-btn flex h-[32px] w-full max-w-[188px] items-center justify-center gap-[6px] rounded-[8px] border-2 text-[13px] font-bold uppercase shadow-[inset_0_1px_1.8px_4px_rgba(0,0,0,.2)] transition hover:bg-[#6400B2] hover:text-white">
+                    <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-add-domain-btn flex h-[32px] w-full max-w-[188px] items-center justify-center gap-[6px] rounded-[8px] border text-[13px] font-bold uppercase transition hover:bg-[#6400B2] hover:text-white">
                         <span class="flex h-[16px] w-[16px] items-center justify-center rounded-full border text-[11px] leading-none">+</span>
                         ADD DOMAIN
                     </a>
