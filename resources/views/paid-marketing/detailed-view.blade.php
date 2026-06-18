@@ -58,18 +58,20 @@
             </div>
 
             <div x-show="filtersOpen" x-cloak class="mt-[14px] rounded-[8px] bg-black/20 p-[12px]">
-                <div class="flex flex-col gap-[12px] sm:flex-row sm:items-end sm:justify-between">
-                    <label x-show="filters.domain_id" class="block min-w-[220px] flex-1">
+                <div class="flex flex-wrap items-end gap-[12px]">
+                    <label x-show="filters.domain_id" class="block w-[220px] max-w-full shrink-0">
                         <span class="mb-[6px] block text-[10px] font-semibold uppercase text-white/70">Campaigns</span>
-                        <select x-model="filters.campaign" @change="scheduleFetch(true)" class="h-[32px] w-full rounded-[5px] border border-white/25 bg-[#0f0e0e] px-[10px] text-[12px] text-[#d9d9d9] focus:border-[#9a1aff] focus:ring-0">
-                            <option value="">All campaigns</option>
-                            <template x-for="name in campaignOptions" :key="name">
-                                <option :value="name" x-text="name"></option>
-                            </template>
-                        </select>
+                        <div class="figma-filter-select-wrap figma-bp-advanced-select-wrap">
+                            <select x-model="filters.campaign" @change="scheduleFetch(true)" class="figma-filter-control h-[26px] w-full appearance-none rounded-[5px] border border-white/25 bg-[#0f0e0e] py-0 pl-[10px] pr-[28px] text-[11px] leading-[26px] text-[#9d9898] focus:border-[#9a1aff] focus:ring-0">
+                                <option value="">All campaigns</option>
+                                <template x-for="name in campaignOptions" :key="name">
+                                    <option :value="name" x-text="name"></option>
+                                </template>
+                            </select>
+                        </div>
                     </label>
                     <p x-show="!filters.domain_id" class="text-[12px] text-white/55">Select a domain above to filter by campaign.</p>
-                    <button type="button" @click="clearAdvancedFilters()" class="shrink-0 rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] text-white/80 hover:bg-white/10">Clear filters</button>
+                    <button type="button" @click="clearAdvancedFilters()" class="ml-auto shrink-0 rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] leading-none text-white/80 hover:bg-white/10">Clear filters</button>
                 </div>
             </div>
         </div>

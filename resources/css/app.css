@@ -4428,6 +4428,21 @@ select option, .brand-select option { background:#ffffff; color:#111827; }
     pointer-events: none;
 }
 
+.figma-bp-advanced-select-wrap::after {
+    bottom: 4px;
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.figma-bp-advanced-select-wrap .figma-filter-control {
+    color: #9d9898 !important;
+    line-height: 26px;
+}
+
+.figma-bp-advanced-select-wrap .figma-filter-control option {
+    color: #d9d9d9;
+    background: #101010;
+}
+
 .figma-filter-path-wrap {
     position: relative;
 }
