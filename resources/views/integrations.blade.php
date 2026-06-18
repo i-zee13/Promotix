@@ -90,7 +90,7 @@
             <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[#6400B2]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
         @endif
 
-        <div class="grid gap-[12px] xl:grid-cols-[minmax(0,720px)_minmax(320px,1fr)]">
+        <div class="grid gap-[12px] md:grid-cols-2">
             <section class="rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
                 <h2 class="mb-[16px] text-[24px] font-medium text-white">Connect Your Platforms</h2>
 
@@ -168,53 +168,51 @@
                 </div>
             </section>
 
-            <div class="grid gap-[12px] sm:grid-cols-2">
-                <section class="rounded-[10px] bg-[#6706B3] p-[10px]">
-                    <p class="mb-[12px] text-center text-[8px] uppercase text-white">Connection Status</p>
-                    <div class="grid grid-cols-2 gap-[6px]">
-                        <div class="rounded border border-white p-[8px] text-center" :class="googleConnected ? 'bg-[#606060]/55' : 'bg-white/50'">
-                            <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center rounded bg-white">
-                                @include('partials.icons.google', ['class' => 'h-[32px] w-[32px]'])
-                            </div>
-                            <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold" :class="googleConnected ? 'text-[#6706B3]' : 'text-[#101010]'" x-text="googleConnected ? 'Connected' : 'Not Connected'"></div>
+            <section class="rounded-[10px] bg-[#6706B3] p-[10px]">
+                <p class="mb-[12px] text-center text-[8px] uppercase text-white">Connection Status</p>
+                <div class="grid grid-cols-2 gap-[6px]">
+                    <div class="rounded border border-white p-[8px] text-center" :class="googleConnected ? 'bg-[#606060]/55' : 'bg-white/50'">
+                        <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center rounded bg-white">
+                            @include('partials.icons.google', ['class' => 'h-[32px] w-[32px]'])
                         </div>
-                        <div class="rounded border border-white p-[8px] text-center" :class="googleAdsConnected ? 'bg-[#606060]/55' : 'bg-white/50'">
-                            <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center">
-                                @include('partials.icons.google-ads', ['class' => 'h-[50px] w-[50px]'])
-                            </div>
-                            <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold" :class="googleAdsConnected ? 'text-[#6706B3]' : 'text-[#101010]'" x-text="googleAdsConnected ? 'Connected' : 'Not Connected'"></div>
-                        </div>
+                        <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold" :class="googleConnected ? 'text-[#6706B3]' : 'text-[#101010]'" x-text="googleConnected ? 'Connected' : 'Not Connected'"></div>
                     </div>
-                </section>
-
-                <section class="rounded-[10px] bg-[#3c3c3c] p-[16px]">
-                    <div class="mb-[20px] flex items-center justify-between gap-[8px]">
-                        <h2 class="text-[16px] font-medium text-[#d9d9d9]">Connection Requirement</h2>
-                        <span x-show="requirementLive" class="rounded-full bg-emerald-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-emerald-200">Live</span>
-                        <span x-show="!requirementLive" x-cloak class="rounded-full bg-amber-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-amber-100">Setup in progress</span>
-                    </div>
-                    <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
-                        <div class="relative h-[84px] w-[84px] shrink-0">
-                            <div class="h-full w-full rounded-full" :style="`background: conic-gradient(#7a56a9 ${requirementRingPct}%, #d9d9d9 0)`"></div>
-                            <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>
+                    <div class="rounded border border-white p-[8px] text-center" :class="googleAdsConnected ? 'bg-[#606060]/55' : 'bg-white/50'">
+                        <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center">
+                            @include('partials.icons.google-ads', ['class' => 'h-[50px] w-[50px]'])
                         </div>
-                        <div class="platform-requirement-steps min-w-0">
-                            <template x-for="step in requirementSteps" :key="step.label">
-                                <button
-                                    type="button"
-                                    class="platform-requirement-pill"
-                                    :class="step.done ? 'is-done' : ''"
-                                    @click="handleRequirementClick(step)"
-                                >
-                                    <span class="platform-requirement-pill__label" x-text="step.label"></span>
-                                    <span x-show="!step.done" x-cloak class="platform-requirement-pill__setup">Setup</span>
-                                </button>
-                            </template>
-                        </div>
+                        <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold" :class="googleAdsConnected ? 'text-[#6706B3]' : 'text-[#101010]'" x-text="googleAdsConnected ? 'Connected' : 'Not Connected'"></div>
                     </div>
-                </section>
-            </div>
+                </div>
+            </section>
         </div>
+
+        <section class="mt-[12px] rounded-[10px] bg-[#3c3c3c] p-[16px]">
+            <div class="mb-[20px] flex items-center justify-between gap-[8px]">
+                <h2 class="text-[16px] font-medium text-[#d9d9d9]">Connection Requirement</h2>
+                <span x-show="requirementLive" class="rounded-full bg-emerald-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-emerald-200">Live</span>
+                <span x-show="!requirementLive" x-cloak class="rounded-full bg-amber-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-amber-100">Setup in progress</span>
+            </div>
+            <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
+                <div class="relative h-[84px] w-[84px] shrink-0">
+                    <div class="h-full w-full rounded-full" :style="`background: conic-gradient(#7a56a9 ${requirementRingPct}%, #d9d9d9 0)`"></div>
+                    <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>
+                </div>
+                <div class="platform-requirement-steps min-w-0">
+                    <template x-for="step in requirementSteps" :key="step.label">
+                        <button
+                            type="button"
+                            class="platform-requirement-pill"
+                            :class="step.done ? 'is-done' : ''"
+                            @click="handleRequirementClick(step)"
+                        >
+                            <span class="platform-requirement-pill__label" x-text="step.label"></span>
+                            <span x-show="!step.done" x-cloak class="platform-requirement-pill__setup">Setup</span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </section>
 
         <section id="connected-platforms" class="mt-[20px] scroll-mt-[80px] rounded-[10px] border border-[#6706B3] p-[16px]">
             <div class="mb-[26px]">
