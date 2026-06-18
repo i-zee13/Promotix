@@ -90,7 +90,7 @@
             <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[#6400B2]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
         @endif
 
-        <div class="grid gap-[12px] xl:grid-cols-[minmax(0,720px)_360px]">
+        <div class="grid gap-[12px] xl:grid-cols-[minmax(0,720px)_minmax(320px,1fr)]">
             <section class="rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
                 <h2 class="mb-[16px] text-[24px] font-medium text-white">Connect Your Platforms</h2>
 
@@ -168,7 +168,7 @@
                 </div>
             </section>
 
-            <div class="grid gap-[12px] sm:grid-cols-2 xl:grid-cols-1 xl:max-w-[360px]">
+            <div class="grid gap-[12px] sm:grid-cols-2">
                 <section class="rounded-[10px] bg-[#6706B3] p-[10px]">
                     <p class="mb-[12px] text-center text-[8px] uppercase text-white">Connection Status</p>
                     <div class="grid grid-cols-2 gap-[6px]">
@@ -193,17 +193,22 @@
                         <span x-show="requirementLive" class="rounded-full bg-emerald-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-emerald-200">Live</span>
                         <span x-show="!requirementLive" x-cloak class="rounded-full bg-amber-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-amber-100">Setup in progress</span>
                     </div>
-                    <div class="platform-requirement-layout">
+                    <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
                         <div class="relative h-[84px] w-[84px] shrink-0">
                             <div class="h-full w-full rounded-full" :style="`background: conic-gradient(#7a56a9 ${requirementRingPct}%, #d9d9d9 0)`"></div>
                             <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>
                         </div>
-                        <div class="platform-requirement-steps">
+                        <div class="platform-requirement-steps min-w-0">
                             <template x-for="step in requirementSteps" :key="step.label">
-                                <div class="platform-requirement-bar">
-                                    <div class="platform-requirement-bar__fill" :class="step.done ? 'is-done' : ''"></div>
-                                    <span class="platform-requirement-bar__label" x-text="step.label"></span>
-                                </div>
+                                <button
+                                    type="button"
+                                    class="platform-requirement-pill"
+                                    :class="step.done ? 'is-done' : ''"
+                                    @click="handleRequirementClick(step)"
+                                >
+                                    <span class="platform-requirement-pill__label" x-text="step.label"></span>
+                                    <span x-show="!step.done" x-cloak class="platform-requirement-pill__setup">Setup</span>
+                                </button>
                             </template>
                         </div>
                     </div>
@@ -306,6 +311,41 @@
         </form>
     @endif
 
+    {{-- Domain keys modal (Tag Manager + Bot Protection) --}}
+    <div class="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-[16px]" x-show="keysModal.open" x-cloak x-transition @click.self="closeKeysModal()" @keydown.escape.window="closeKeysModal()">
+        <div class="w-full max-w-[560px] overflow-hidden rounded-[12px] bg-[#6400B2] text-white shadow-2xl" @click.stop>
+            <header class="flex items-center justify-between border-b border-white/25 px-[24px] py-[18px]">
+                <h2 class="text-[18px] font-semibold">Finish Setup <span class="text-[13px] font-normal text-white/80">(Required For WordPress Domains)</span></h2>
+                <button type="button" @click="copyAllKeys()" class="flex items-center gap-[6px] text-[12px] text-white/90 hover:text-white">
+                    <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M8 8h8v8H8zM4 4h8v2H6v6H4z"/></svg>
+                    Copy all
+                </button>
+            </header>
+            <div class="space-y-[14px] px-[24px] py-[20px]">
+                <p class="text-[12px] text-white/85" x-text="'Installation keys for ' + (keysModal.hostname || 'domain')"></p>
+                <template x-for="row in keysModal.rows" :key="row.label">
+                    <div class="flex flex-col gap-[6px] sm:flex-row sm:items-center sm:gap-[12px]">
+                        <span class="w-[130px] shrink-0 text-[12px] font-medium" x-text="row.label"></span>
+                        <div class="min-w-0 flex-1 rounded-[4px] border border-dashed border-white/70 bg-[#4a0088]/50 px-[12px] py-[8px] font-mono text-[11px] break-all" x-text="row.value || '…'"></div>
+                        <button type="button" @click="copyKeyText(row.value)" class="flex shrink-0 items-center gap-[4px] text-[11px] text-white/90 hover:text-white">
+                            <svg class="h-[13px] w-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M8 8h8v8H8zM4 4h8v2H6v6H4z"/></svg>
+                            Copy
+                        </button>
+                    </div>
+                </template>
+                <div class="flex flex-wrap gap-[10px] pt-[4px]">
+                    <a :href="keysModal.setupUrl" class="inline-block text-[12px] text-white underline">Full tracking setup →</a>
+                    <a :href="keysModal.wpAdminUrl" target="_blank" rel="noopener noreferrer" class="inline-block text-[12px] text-white/90 underline">Open WordPress</a>
+                    <a :href="keysModal.wpPluginSettingsUrl" target="_blank" rel="noopener noreferrer" class="inline-block text-[12px] text-white/90 underline">Promotix plugin settings</a>
+                </div>
+            </div>
+            <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[24px] py-[14px]">
+                <button type="button" @click="verifyKeysInstallation()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Verify installation</button>
+                <button type="button" @click="closeKeysModal()" class="rounded-[6px] bg-white px-[22px] py-[8px] text-[13px] font-semibold text-[#6400B2]">Done</button>
+            </footer>
+        </div>
+    </div>
+
     <div
         x-show="menuToast"
         x-cloak
@@ -381,6 +421,15 @@ function platformIntegrations(config) {
         directList: config.directInitial || [],
         domainConnections: config.domainConnections || [],
         selectedDomainId: '',
+        keysModal: {
+            open: false,
+            id: null,
+            hostname: '',
+            rows: [],
+            setupUrl: '#',
+            wpAdminUrl: '#',
+            wpPluginSettingsUrl: '#',
+        },
         directForm: { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' },
         menuToast: '',
         menuToastTimer: null,
@@ -415,6 +464,104 @@ function platformIntegrations(config) {
         get requirementLive() {
             const steps = this.requirementSteps;
             return steps.length > 0 && steps.every((s) => s.done);
+        },
+        requireSelectedDomain() {
+            if (!this.selectedDomainId) {
+                this.showMenuToast('Select a domain from the header first.');
+                return null;
+            }
+            const domain = this.activeDomainStatus;
+            if (!domain) {
+                this.showMenuToast('Selected domain not found.');
+                return null;
+            }
+            return domain;
+        },
+        wpUrls(hostname) {
+            const host = String(hostname || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+            const base = 'https://' + host;
+            return {
+                admin: base + '/wp-login.php?redirect_to=' + encodeURIComponent(base + '/wp-admin/'),
+                settings: base + '/wp-login.php?redirect_to=' + encodeURIComponent(base + '/wp-admin/options-general.php?page=promotix-tag'),
+            };
+        },
+        closeKeysModal() {
+            this.keysModal.open = false;
+        },
+        async openDomainKeys(domain) {
+            const wp = this.wpUrls(domain.hostname);
+            this.keysModal = {
+                open: true,
+                id: domain.id,
+                hostname: domain.hostname,
+                setupUrl: `/domains/${domain.id}/setup`,
+                wpAdminUrl: wp.admin,
+                wpPluginSettingsUrl: wp.settings,
+                rows: [
+                    { label: 'Server URL', value: '…' },
+                    { label: 'Domain Key', value: '…' },
+                    { label: 'Secret key', value: '…' },
+                    { label: 'Authentication Key', value: '…' },
+                ],
+            };
+            try {
+                const res = await fetch(`/domains/${domain.id}/api-key`, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                this.keysModal.rows = [
+                    { label: 'Server URL', value: data.server_url },
+                    { label: 'Domain Key', value: data.domain_key },
+                    { label: 'Secret key', value: data.secret_key },
+                    { label: 'Authentication Key', value: data.authentication_key },
+                ];
+            } catch (_) {
+                this.showMenuToast('Could not load domain keys.');
+            }
+        },
+        handleRequirementClick(step) {
+            const domain = this.requireSelectedDomain();
+            if (!domain) return;
+
+            const label = step.label;
+            if (label === 'Tag Manager' || label === 'Bot Protection') {
+                this.openDomainKeys(domain);
+                return;
+            }
+
+            if (label === 'Paid Marketing' || label === 'Google Ads') {
+                if (step.done) {
+                    this.showMenuToast(`${label} is already connected for this domain.`);
+                    return;
+                }
+                window.location.href = `/domains/${domain.id}/paid-marketing/connect`;
+            }
+        },
+        copyKeyText(text) {
+            this.copyText(text, 'Key');
+        },
+        copyAllKeys() {
+            const blob = (this.keysModal.rows || []).map((r) => `${r.label}: ${r.value}`).join('\n');
+            this.copyText(blob, 'All keys');
+        },
+        async verifyKeysInstallation() {
+            if (!this.keysModal.id) return;
+            try {
+                const res = await fetch(`/domains/${this.keysModal.id}/verify-wordpress`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': config.csrf,
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify({}),
+                });
+                const data = await res.json();
+                this.showMenuToast(data.verified ? 'Installation verified — reload page' : (data.message || 'Not verified'));
+                if (data.verified) {
+                    setTimeout(() => window.location.reload(), 1200);
+                }
+            } catch (_) {
+                this.showMenuToast('Verify request failed.');
+            }
         },
         showMenuToast(message) {
             this.menuToast = message;

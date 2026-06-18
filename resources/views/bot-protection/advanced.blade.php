@@ -39,6 +39,48 @@
             <div class="flex flex-wrap items-center justify-between gap-[10px] bg-[#6400B2] px-[16px] py-[12px]">
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
+                    <div class="relative" @click.outside="moreFiltersOpen = false">
+                        <button type="button" @click="moreFiltersOpen = !moreFiltersOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                            More filters
+                            <svg class="h-[12px] w-[12px] transition-transform" :class="moreFiltersOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div x-show="moreFiltersOpen" x-cloak x-transition class="bp-adv-filters-menu promotix-slim-scroll">
+                            <div class="grid grid-cols-1 gap-[10px] sm:grid-cols-2">
+                                <label class="block">
+                                    <span class="mb-[4px] block text-[10px] uppercase text-white/70">Country</span>
+                                    <input type="text" maxlength="2" placeholder="US" x-model="filters.country" @input="scheduleReload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white uppercase">
+                                </label>
+                                <label class="block">
+                                    <span class="mb-[4px] block text-[10px] uppercase text-white/70">Action</span>
+                                    <select x-model="filters.action" @change="reload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white">
+                                        <option value="">All</option>
+                                        <option value="allow">Allow</option>
+                                        <option value="flag">Flag</option>
+                                        <option value="block">Block</option>
+                                    </select>
+                                </label>
+                                <label class="block sm:col-span-2">
+                                    <span class="mb-[4px] block text-[10px] uppercase text-white/70">Threat group</span>
+                                    <select x-model="filters.threat_group" @change="reload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white">
+                                        <option value="">All</option>
+                                        <option value="data_center">Data center</option>
+                                        <option value="vpn">VPN</option>
+                                        <option value="malicious">Malicious</option>
+                                        <option value="abnormal_rate_limit">Abnormal rate limit</option>
+                                        <option value="out_of_geo">Out of geo</option>
+                                    </select>
+                                </label>
+                                <label class="inline-flex items-center gap-[8px] text-[11px] text-white">
+                                    <x-figma-toggle x-model="filters.only_invalid" @change="reload(true)" :show-labels="false" />
+                                    Only invalid
+                                </label>
+                                <label class="inline-flex items-center gap-[8px] text-[11px] text-white">
+                                    <x-figma-toggle x-model="filters.only_paid" @change="reload(true)" :show-labels="false" />
+                                    Only paid
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                     <label class="relative flex h-[28px] min-w-[200px] max-w-[280px] flex-1 items-center rounded-[6px] bg-white px-[10px]">
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input type="search" placeholder="Search for IP Address" x-model="filters.ip" @input="scheduleReload(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
@@ -68,7 +110,16 @@
                         <span class="truncate" x-text="row.threat_group_label"></span>
                         <span class="truncate" x-text="row.threat_type_label"></span>
                         <span class="truncate capitalize" x-text="row.action_taken"></span>
-                        <span class="truncate" x-text="row.country_label"></span>
+                        <span class="flex min-w-0 items-center gap-[5px] truncate">
+                            <img
+                                x-show="countryFlagUrl(row.country)"
+                                :src="countryFlagUrl(row.country)"
+                                :alt="row.country_label"
+                                class="h-[10px] w-[14px] shrink-0 rounded-[1px] object-cover"
+                                loading="lazy"
+                            >
+                            <span class="truncate" x-text="row.country_label"></span>
+                        </span>
                         <span class="truncate" x-text="row.domain_url || row.hostname || '-'"></span>
                     </div>
                 </template>
@@ -104,46 +155,6 @@
             </div>
         </section>
 
-        <details class="mt-[16px] rounded-[10px] border border-white/10 bg-[#151515] p-[12px] text-[11px] text-[#a9a9a9]">
-            <summary class="cursor-pointer font-medium text-white">More filters</summary>
-            <div class="mt-[12px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-4">
-                <label class="block">
-                    <span class="mb-[4px] block text-[10px] uppercase">Country</span>
-                    <input type="text" maxlength="2" placeholder="US" x-model="filters.country" @input="scheduleReload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white uppercase">
-                </label>
-                <label class="block">
-                    <span class="mb-[4px] block text-[10px] uppercase">Action</span>
-                    <select x-model="filters.action" @change="reload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white">
-                        <option value="">All</option>
-                        <option value="allow">Allow</option>
-                        <option value="flag">Flag</option>
-                        <option value="block">Block</option>
-                    </select>
-                </label>
-                <label class="block">
-                    <span class="mb-[4px] block text-[10px] uppercase">Threat group</span>
-                    <select x-model="filters.threat_group" @change="reload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white">
-                        <option value="">All</option>
-                        <option value="data_center">Data center</option>
-                        <option value="vpn">VPN</option>
-                        <option value="malicious">Malicious</option>
-                        <option value="abnormal_rate_limit">Abnormal rate limit</option>
-                        <option value="out_of_geo">Out of geo</option>
-                    </select>
-                </label>
-                <div class="flex flex-col justify-end gap-[6px]">
-                    <label class="inline-flex items-center gap-[8px] text-white">
-                        <x-figma-toggle x-model="filters.only_invalid" @change="reload(true)" :show-labels="false" />
-                        Only invalid
-                    </label>
-                    <label class="inline-flex items-center gap-[8px] text-white">
-                        <x-figma-toggle x-model="filters.only_paid" @change="reload(true)" :show-labels="false" />
-                        Only paid
-                    </label>
-                </div>
-            </div>
-        </details>
-
         <p class="mt-[12px] text-right">
             <a href="{{ route('bot-protection.dashboard') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">&larr; Back to Dashboard</a>
         </p>
@@ -152,6 +163,20 @@
 .bp-adv-scroll { scrollbar-width: thin; scrollbar-color: #6400B2 transparent; }
 .bp-adv-scroll::-webkit-scrollbar { width: 5px; }
 .bp-adv-scroll::-webkit-scrollbar-thumb { background: #6400B2; border-radius: 4px; }
+.bp-adv-filters-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 50;
+    width: min(calc(100vw - 32px), 420px);
+    max-height: 320px;
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    background: #0f0e0e;
+    padding: 12px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
 </style>
 
 <script>
@@ -163,6 +188,7 @@ function botProtectionAdvancedFigma() {
         },
         rows: [],
         meta: { total: 0, page: 1, per_page: 25 },
+        moreFiltersOpen: false,
         stats: { blocked: 0, invalid_traffic: 0, paid_traffic: 0, bot_detection: 0, country: 0, overall: 0 },
         get statCards() {
             return [
@@ -246,6 +272,11 @@ function botProtectionAdvancedFigma() {
             const start = this.rows.length ? ((this.meta.page - 1) * this.meta.per_page + 1) : 0;
             const end = Math.min(this.meta.total, this.meta.page * this.meta.per_page);
             return `${start}-${end} of ${this.meta.total}`;
+        },
+        countryFlagUrl(code) {
+            const c = String(code || '').trim().toLowerCase();
+            if (!/^[a-z]{2}$/.test(c)) return '';
+            return `https://flagcdn.com/w20/${c}.png`;
         },
     };
 }

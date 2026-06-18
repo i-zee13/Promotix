@@ -104,7 +104,7 @@
                         $limits = $plan->feature_limits ?? [];
                         $isCurrent = $currentPlan && $currentPlan->id === $plan->id && in_array($currentSubscription?->status, ['active', 'trialing'], true);
                     @endphp
-                    <article class="flex flex-col rounded-[10px] border p-[16px] {{ $plan->is_highlighted ? 'border-[#9a1aff] bg-[#6400B2]/40' : 'border-white/20 bg-[#151515]' }}">
+                    <article class="flex flex-col rounded-[10px] border p-[16px] shadow-[0_0_18px_rgba(100,0,179,.25)] {{ $plan->is_highlighted ? 'border-[#9a1aff] bg-[#6400B2]' : 'border-white/30 bg-[#6400B2]' }}">
                         @if ($plan->is_highlighted)
                             <span class="mb-[8px] inline-block w-fit rounded-full bg-white px-[10px] py-[2px] text-[10px] font-semibold text-[#6400B2]">Recommended</span>
                         @endif

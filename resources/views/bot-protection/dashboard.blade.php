@@ -58,11 +58,11 @@
                                 </template>
                             </div>
                             <div class="relative" x-data="{ cardMenu: false }">
-                                <button type="button" @click.stop="cardMenu = !cardMenu" class="figma-platform-kebab" aria-label="Chart options">
-                                    <span class="flex flex-col items-center gap-[4px]" aria-hidden="true">
-                                        <span class="block h-[4px] w-[4px] rounded-full bg-current"></span>
-                                        <span class="block h-[4px] w-[4px] rounded-full bg-current"></span>
-                                        <span class="block h-[4px] w-[4px] rounded-full bg-current"></span>
+                                <button type="button" @click.stop="cardMenu = !cardMenu" class="figma-bp-kebab" aria-label="Chart options">
+                                    <span class="flex flex-col items-center gap-[2px]" aria-hidden="true">
+                                        <span class="block h-[3px] w-[3px] rounded-full bg-current"></span>
+                                        <span class="block h-[3px] w-[3px] rounded-full bg-current"></span>
+                                        <span class="block h-[3px] w-[3px] rounded-full bg-current"></span>
                                     </span>
                                 </button>
                                 <div x-show="cardMenu" x-cloak @click.outside="cardMenu = false" class="figma-bp-card-menu">
@@ -174,7 +174,13 @@
                             <template x-for="row in countries" :key="row.country">
                                 <div class="figma-bp-table-row--country">
                                     <span class="flex min-w-0 items-center gap-[4px] truncate">
-                                        <span class="inline-block h-[8px] w-[12px] shrink-0 rounded-[2px] bg-white/35"></span>
+                                        <img
+                                            x-show="countryFlagUrl(row.country)"
+                                            :src="countryFlagUrl(row.country)"
+                                            :alt="countryLabel(row.country)"
+                                            class="h-[8px] w-[12px] shrink-0 rounded-[1px] object-cover"
+                                            loading="lazy"
+                                        >
                                         <span x-text="countryLabel(row.country)"></span>
                                     </span>
                                     <span class="text-right" x-text="fmt(row.total ?? 0)"></span>
@@ -303,6 +309,11 @@ function botProtectionFigma(config = {}) {
             return this.fmt(v);
         },
         countryLabel(code) { return countryNames[code] || code || 'Unknown'; },
+        countryFlagUrl(code) {
+            const c = String(code || '').trim().toLowerCase();
+            if (!/^[a-z]{2}$/.test(c)) return '';
+            return `https://flagcdn.com/w20/${c}.png`;
+        },
         threatLabel(key) {
             const map = { vpn: 'VPN', data_center: 'Data center', abnormal_rate_limit: 'Rate limit', malicious: 'Malicious' };
             const k = String(key || '').toLowerCase();

@@ -177,7 +177,7 @@
                         $active = $currentPlan && $currentPlan->id === $tier->id;
                         $usedPct = $domainLimitDisplay === '∞' ? 35 : min(100, (int) round(($domainCount / max(1, (int) $domainLimit)) * 100));
                     @endphp
-                    <article class="rounded-[10px] border border-white/15 bg-[#151515] p-[20px] text-center">
+                    <article class="rounded-[10px] border border-white/25 bg-[#6400B2] p-[20px] text-center shadow-[0_0_16px_rgba(100,0,179,.25)]">
                         <h3 class="mb-[14px] text-[16px] font-semibold text-white">{{ $tier->name }} plan</h3>
                         <div class="relative mx-auto h-[100px] w-[100px]">
                             <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
