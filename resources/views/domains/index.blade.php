@@ -390,6 +390,9 @@ function siteManagementFigma() {
             this.ipSearchApplied = (this.ipSearch || '').trim().toLowerCase();
             if (new URLSearchParams(window.location.search).get('add') === '1') {
                 this.openAdd();
+                const url = new URL(window.location.href);
+                url.searchParams.delete('add');
+                window.history.replaceState({}, '', url.pathname + url.search);
             }
             @if ($pickPaidDomain)
                 this.openPaidPick(@json(['id' => $pickPaidDomain->id, 'hostname' => $pickPaidDomain->hostname]), {{ (int) session('pick_google_ads_accounts.connection_id', 0) }});
@@ -528,6 +531,13 @@ function siteManagementFigma() {
             const blob = this.keyRows.map(r => `${r.label}: ${r.value}`).join('\n');
             this.copyText(blob);
         },
+        redirectAfterDomainChange() {
+            this.modal = null;
+            this.addForm.hostname = '';
+            const url = new URL(window.location.href);
+            url.searchParams.delete('add');
+            window.location.replace(url.pathname + url.search);
+        },
         async submitAdd() {
             const lines = (this.addForm.hostname || '').split('\n').map(v => v.trim()).filter(Boolean);
             if (!lines.length) return;
@@ -559,12 +569,16 @@ function siteManagementFigma() {
                         body: JSON.stringify({ hostnames: lines }),
                     });
                     const data = await res.json();
+                    if (!res.ok) {
+                        alert(data.message || 'Could not add domains.');
+                        return;
+                    }
                     if (!(data.added || []).length && (data.skipped || []).length) {
                         alert('No domains were added. Check duplicates or plan limit.');
                         return;
                     }
                 }
-                window.location.reload();
+                this.redirectAfterDomainChange();
             } finally {
                 this.addBusy = false;
             }
