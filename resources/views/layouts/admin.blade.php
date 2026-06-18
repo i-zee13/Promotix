@@ -75,10 +75,10 @@
                 <input type="search" placeholder="Search" class="figma-sidebar-search h-[32px] w-full max-w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[#6400B2] focus:ring-[#6400B2]/30">
             </div>
 
-            <nav class="figma-nav-scrollless shrink-0 overflow-hidden overflow-x-hidden pr-[2px]" aria-label="Main navigation">
+            <nav class="figma-nav-scrollless mt-[4px] shrink-0 overflow-hidden overflow-x-hidden pr-[2px]" aria-label="Main navigation">
                 @foreach ($navGroups as $group => $items)
-                    <div class="mb-[8px]">
-                        <p class="figma-nav-label mb-[3px] text-[11px] font-bold uppercase leading-none">{{ $group }}</p>
+                    <div class="mb-[14px]">
+                        <p class="figma-nav-label mb-[8px] text-[11px] font-bold uppercase leading-none">{{ $group }}</p>
                         <div class="space-y-[4px]">
                             @foreach ($items as $item)
                                 @continue($user && ! $user->canAccess($item['permission']))
@@ -96,8 +96,8 @@
                     </div>
                 @endforeach
 
-                <div class="mb-[6px]">
-                    <p class="figma-nav-label mb-[3px] text-[11px] font-bold uppercase leading-none">SITE MANAGEMENT</p>
+                <div class="mb-[14px]">
+                    <p class="figma-nav-label mb-[8px] text-[11px] font-bold uppercase leading-none">SITE MANAGEMENT</p>
                     @if ($user && $user->canAccess('domain-management'))
                         <a href="{{ route('domains.index') }}" @class([
                             'mb-[6px] flex h-[30px] items-center gap-[9px] rounded-[7px] px-[7px] text-[14px] leading-none transition',
