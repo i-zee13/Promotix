@@ -12,7 +12,7 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
             </div>
 
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[520px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
+            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
                 <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
                     <div class="figma-filter-select-wrap">
@@ -21,17 +21,6 @@
                             @foreach ($domains as $domain)
                                 <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
                             @endforeach
-                        </select>
-                    </div>
-                </label>
-                <label x-show="filters.domain_id" x-cloak class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="filters.campaign" @change="scheduleFetch(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All campaigns</option>
-                            <template x-for="name in campaignOptions" :key="name">
-                                <option :value="name" x-text="name"></option>
-                            </template>
                         </select>
                     </div>
                 </label>
@@ -61,15 +50,27 @@
                         <svg class="mr-[9px] h-[15px] w-[15px] text-[#9d9898]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input x-model="filters.ip" @input="scheduleFetch(true)" placeholder="Filter by IP" class="h-full flex-1 border-0 bg-transparent p-0 text-[14px] font-light text-[#9d9898] placeholder:text-[#9d9898] focus:ring-0">
                     </label>
-                    <button type="button" @click="filtersOpen = ! filtersOpen" class="flex h-[49px] w-full items-center rounded-[5px] border border-white/30 bg-[#0f0e0e] px-[13px] text-left text-[14px] text-[#9d9898]">
+                    <button type="button" @click="toggleAdvancedFilters()" class="flex h-[49px] w-full items-center rounded-[5px] border border-white/30 bg-[#0f0e0e] px-[13px] text-left text-[14px] text-[#9d9898]">
                         <svg class="mr-[12px] h-[22px] w-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="1.7" d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
                         <span>Advanced<br>Filters</span>
                     </button>
                 </div>
             </div>
 
-            <div x-show="filtersOpen" x-cloak class="mt-[14px] flex justify-end rounded-[8px] bg-black/20 p-[10px]">
-                <button type="button" @click="clearFilters()" class="rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] text-white/80">Clear filters</button>
+            <div x-show="filtersOpen" x-cloak class="mt-[14px] rounded-[8px] bg-black/20 p-[12px]">
+                <div class="flex flex-col gap-[12px] sm:flex-row sm:items-end sm:justify-between">
+                    <label x-show="filters.domain_id" class="block min-w-[220px] flex-1">
+                        <span class="mb-[6px] block text-[10px] font-semibold uppercase text-white/70">Campaigns</span>
+                        <select x-model="filters.campaign" @change="scheduleFetch(true)" class="h-[32px] w-full rounded-[5px] border border-white/25 bg-[#0f0e0e] px-[10px] text-[12px] text-[#d9d9d9] focus:border-[#9a1aff] focus:ring-0">
+                            <option value="">All campaigns</option>
+                            <template x-for="name in campaignOptions" :key="name">
+                                <option :value="name" x-text="name"></option>
+                            </template>
+                        </select>
+                    </label>
+                    <p x-show="!filters.domain_id" class="text-[12px] text-white/55">Select a domain above to filter by campaign.</p>
+                    <button type="button" @click="clearAdvancedFilters()" class="shrink-0 rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] text-white/80 hover:bg-white/10">Clear filters</button>
+                </div>
             </div>
         </div>
 
@@ -302,10 +303,13 @@
             async onDomainChange() {
                 this.filters.campaign = '';
                 this.campaignOptions = [];
-                if (this.filters.domain_id) {
+                this.scheduleFetch(true);
+            },
+            async toggleAdvancedFilters() {
+                this.filtersOpen = !this.filtersOpen;
+                if (this.filtersOpen && this.filters.domain_id && this.campaignOptions.length === 0) {
                     await this.loadCampaignsForDomain();
                 }
-                this.scheduleFetch(true);
             },
             async loadCampaignsForDomain() {
                 const params = new URLSearchParams();
@@ -346,11 +350,11 @@
                     window.promotixPageLoader?.hide();
                 }
             },
-            clearFilters() {
-                this.filters = { ip: '', path: '', domain_id: '', campaign: '', from: '', to: '' };
-                this.campaignOptions = [];
-                this.syncHeaderDates();
-                this.fetchNow();
+            clearAdvancedFilters() {
+                this.filters.ip = '';
+                this.filters.path = '';
+                this.filters.campaign = '';
+                this.scheduleFetch(true);
             },
             openClicks(visit) {
                 this.modal.visit = visit;

@@ -3356,6 +3356,50 @@ select:autofill {
     margin-top: 8px;
 }
 
+.figma-bp-area-canvas .apexcharts-canvas,
+.figma-bp-area-canvas .apexcharts-svg,
+.figma-bp-invalid-canvas .apexcharts-canvas,
+.figma-bp-invalid-canvas .apexcharts-svg {
+    background: transparent !important;
+}
+
+.figma-bp-area-canvas .apexcharts-tooltip,
+.figma-bp-invalid-canvas .apexcharts-tooltip {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 8px !important;
+    background: rgba(13, 13, 13, 0.94) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+.figma-bp-apex-tooltip {
+    min-width: 132px;
+    padding: 2px 0;
+    font-size: 10px;
+    color: #ffffff;
+}
+
+.figma-bp-apex-tooltip strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.figma-bp-apex-tooltip span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.figma-bp-apex-tooltip i {
+    display: inline-block;
+    height: 7px;
+    width: 7px;
+    border-radius: 1px;
+}
+
 .figma-bp-bars-col {
     display: grid;
     width: 331px;
@@ -3515,6 +3559,11 @@ select:autofill {
     min-height: 192px;
     max-height: 220px;
     width: 100%;
+}
+
+.figma-bp-invalid-canvas .apexcharts-xaxistooltip,
+.figma-bp-area-canvas .apexcharts-xaxistooltip {
+    display: none;
 }
 
 /* Figma v290_376/377/378: 105×133 — must not stretch with left chart */

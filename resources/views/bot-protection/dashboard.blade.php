@@ -66,7 +66,7 @@
                             </div>
                         </div>
                     </div>
-                    <canvas id="bp-area-chart" class="figma-bp-area-canvas"></canvas>
+                    <div id="bp-area-chart" class="figma-bp-area-canvas"></div>
                 </section>
                 <div class="figma-bp-bars-col">
                     <article class="figma-bp-pill-card">
@@ -99,8 +99,7 @@
                         <span><i style="background:#FF4BC1"></i>Invalid Site Interaction</span>
                     </div>
                     <div class="figma-bp-invalid-chart-wrap">
-                        <canvas id="bp-invalid-line" class="figma-bp-invalid-canvas"></canvas>
-                        <div id="bp-invalid-tooltip" class="figma-bp-chart-tooltip" hidden></div>
+                        <div id="bp-invalid-line" class="figma-bp-invalid-canvas"></div>
                     </div>
                 </section>
 
@@ -442,20 +441,14 @@ function botProtectionFigma(config = {}) {
                 delete this.charts[key];
             }
         },
-        hexAlpha(hex, alpha) {
-            const h = String(hex || '#ffffff').replace('#', '');
-            const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
-            const n = parseInt(full, 16);
-            const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-            return `rgba(${r},${g},${b},${alpha})`;
-        },
-        areaGradient(chart, color, topAlpha = 0.55) {
-            const { ctx, chartArea } = chart;
-            if (!chartArea) return color;
-            const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-            g.addColorStop(0, this.hexAlpha(color, topAlpha));
-            g.addColorStop(1, this.hexAlpha(color, 0.02));
-            return g;
+        bpApexGrid() {
+            return {
+                borderColor: 'rgba(255,255,255,0.08)',
+                strokeDashArray: 4,
+                xaxis: { lines: { show: true } },
+                yaxis: { lines: { show: true } },
+                padding: { top: 0, right: 8, bottom: 0, left: 8 },
+            };
         },
         bpYAxisCap(peak) {
             const value = Math.max(Number(peak) || 0, 1);
@@ -474,31 +467,24 @@ function botProtectionFigma(config = {}) {
             if (cap <= 5000) return 1000;
             return Math.max(1000, cap / 5);
         },
-        bpChartScales(maxY) {
+        bpApexYAxis(maxY) {
             const cap = this.bpYAxisCap(maxY);
             const step = this.bpYAxisStep(cap);
             return {
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
-                    ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 9 }, maxRotation: 0 },
-                },
-                y: {
-                    min: 0,
-                    max: cap,
-                    grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false },
-                    ticks: {
-                        color: 'rgba(255,255,255,0.45)',
-                        font: { size: 8 },
-                        stepSize: step,
-                        callback: (v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : v),
-                    },
+                min: 0,
+                max: cap,
+                tickAmount: Math.max(2, Math.round(cap / step)),
+                labels: {
+                    style: { colors: 'rgba(255,255,255,0.45)', fontSize: '8px' },
+                    formatter: (v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : Math.round(v)),
                 },
             };
         },
         renderAreaChart() {
             const el = document.getElementById('bp-area-chart');
-            if (!el || !window.Chart) return;
+            if (!el || !window.ApexCharts) return;
             this.destroyChart('area');
+
             const traffic = this.cache?.traffic ?? { labels: [], datasets: [] };
             const labels = traffic.labels || [];
             const datasets = traffic.datasets || [];
@@ -508,64 +494,92 @@ function botProtectionFigma(config = {}) {
             const lineDs = datasets.find(d => d.line);
             const allValues = datasets.flatMap(d => d.values || []);
             const maxY = Math.max(...allValues, 0);
-            const areaAlpha = {
+            const fillOpacity = {
                 '#FFFFFF': 0.42,
-                '#0D0D0D': 0.55,
-                '#6625F8': 0.5,
-                '#FF4BC1': 0.45,
+                '#0D0D0D': 0.58,
+                '#6625F8': 0.52,
+                '#FF4BC1': 0.46,
             };
 
-            const chartSets = areas.map((ds, idx) => ({
-                label: ds.name,
+            const series = areas.map(ds => ({
+                name: ds.name,
                 data: ds.values || [],
-                borderColor: this.hexAlpha(ds.color, 0.85),
-                backgroundColor: (ctx) => this.areaGradient(ctx.chart, ds.color, areaAlpha[ds.color] ?? 0.4),
-                fill: 'origin',
-                tension: 0.42,
-                pointRadius: 0,
-                borderWidth: 1,
-                order: idx + 2,
             }));
 
+            const colors = areas.map(ds => ds.color);
+            const opacities = areas.map(ds => fillOpacity[ds.color] ?? 0.45);
+
             if (lineDs) {
-                chartSets.push({
-                    label: lineDs.name,
-                    data: lineDs.values || [],
-                    type: 'line',
-                    borderColor: lineDs.color || '#B893D8',
-                    backgroundColor: 'transparent',
-                    fill: false,
-                    tension: 0.42,
-                    pointRadius: 0,
-                    borderWidth: 2,
-                    order: 0,
-                });
+                series.push({ name: lineDs.name, data: lineDs.values || [] });
+                colors.push(lineDs.color || '#B893D8');
+                opacities.push(0);
             }
 
-            this.charts.area = new Chart(el, {
-                type: 'line',
-                data: { labels, datasets: chartSets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(0,0,0,0.9)',
-                            titleColor: '#fff',
-                            bodyColor: 'rgba(255,255,255,0.85)',
-                            padding: 10,
-                        },
+            const strokeWidths = [...areas.map(() => 1.5), ...(lineDs ? [2.5] : [])];
+
+            this.charts.area = new ApexCharts(el, {
+                chart: {
+                    type: 'area',
+                    height: 177,
+                    fontFamily: 'inherit',
+                    background: 'transparent',
+                    toolbar: { show: false },
+                    zoom: { enabled: false },
+                    animations: { enabled: true, speed: 450 },
+                },
+                series,
+                colors,
+                dataLabels: { enabled: false },
+                stroke: {
+                    curve: 'smooth',
+                    width: strokeWidths,
+                    lineCap: 'round',
+                },
+                fill: {
+                    type: 'gradient',
+                    gradient: {
+                        shade: 'dark',
+                        type: 'vertical',
+                        shadeIntensity: 0.35,
+                        opacityFrom: 0.65,
+                        opacityTo: 0.04,
+                        stops: [0, 88, 100],
                     },
-                    scales: this.bpChartScales(maxY),
+                    opacity: opacities,
+                },
+                grid: this.bpApexGrid(),
+                xaxis: {
+                    categories: labels,
+                    axisBorder: { show: false },
+                    axisTicks: { show: false },
+                    labels: {
+                        style: { colors: 'rgba(255,255,255,0.55)', fontSize: '9px' },
+                    },
+                    crosshairs: {
+                        show: true,
+                        stroke: { color: 'rgba(255,255,255,0.25)', width: 1, dashArray: 4 },
+                    },
+                },
+                yaxis: this.bpApexYAxis(maxY),
+                legend: { show: false },
+                tooltip: {
+                    theme: 'dark',
+                    shared: true,
+                    intersect: false,
+                    style: { fontSize: '11px' },
+                    y: { formatter: (v) => this.fmt(Math.round(v || 0)) },
+                },
+                markers: {
+                    size: 0,
+                    strokeWidth: 0,
+                    hover: { size: 4, sizeOffset: 1 },
                 },
             });
+            this.charts.area.render();
         },
         renderInvalidChart() {
             const el = document.getElementById('bp-invalid-line');
-            const tip = document.getElementById('bp-invalid-tooltip');
-            if (!el || !window.Chart) return;
+            if (!el || !window.ApexCharts) return;
             this.destroyChart('invalid');
 
             const labels = this.invalidTrends.labels ?? [];
@@ -575,101 +589,101 @@ function botProtectionFigma(config = {}) {
             const primary = datasets.find(d => !d.dashed) || datasets[0];
             const compare = datasets.find(d => d.dashed) || datasets[1];
             const maxY = Math.max(...datasets.flatMap(d => d.values), 0);
-            const yCap = this.bpYAxisCap(maxY);
-            const yStep = this.bpYAxisStep(yCap);
 
-            const chartSets = [];
+            const series = [];
+            const colors = [];
+            const strokeWidths = [];
+            const dashArrays = [];
+            const fillOpacities = [];
+
             if (primary) {
-                chartSets.push({
-                    label: primary.name || 'This Week',
-                    data: primary.values,
-                    borderColor: primary.color || '#6625F8',
-                    backgroundColor: (ctx) => {
-                        const { chart } = ctx;
-                        const { chartArea } = chart;
-                        if (!chartArea) return 'rgba(102,37,248,0.2)';
-                        const g = chart.ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        g.addColorStop(0, 'rgba(102,37,248,0.42)');
-                        g.addColorStop(1, 'rgba(102,37,248,0.02)');
-                        return g;
-                    },
-                    fill: true,
-                    tension: 0.35,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
-                    borderWidth: 1.5,
-                    order: 1,
-                });
+                series.push({ name: primary.name || 'Invalid Pageloads', data: primary.values });
+                colors.push(primary.color || '#6625F8');
+                strokeWidths.push(2);
+                dashArrays.push(0);
+                fillOpacities.push(0.48);
             }
             if (compare) {
-                chartSets.push({
-                    label: compare.name || 'Last Week',
-                    data: compare.values,
-                    borderColor: compare.color || '#FF4BC1',
-                    backgroundColor: 'transparent',
-                    fill: false,
-                    tension: 0.35,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
-                    borderWidth: 1.5,
-                    borderDash: [6, 4],
-                    order: 0,
-                });
+                series.push({ name: compare.name || 'Invalid Site Interaction', data: compare.values });
+                colors.push(compare.color || '#FF4BC1');
+                strokeWidths.push(2);
+                dashArrays.push(6);
+                fillOpacities.push(0);
             }
 
-            this.charts.invalid = new Chart(el, {
-                type: 'line',
-                data: { labels, datasets: chartSets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { enabled: false },
+            const fmtCompact = this.fmtCompact.bind(this);
+
+            this.charts.invalid = new ApexCharts(el, {
+                chart: {
+                    type: 'area',
+                    height: 210,
+                    fontFamily: 'inherit',
+                    background: 'transparent',
+                    toolbar: { show: false },
+                    zoom: { enabled: false },
+                    animations: { enabled: true, speed: 450 },
+                },
+                series,
+                colors,
+                dataLabels: { enabled: false },
+                stroke: {
+                    curve: 'smooth',
+                    width: strokeWidths,
+                    dashArray: dashArrays,
+                    lineCap: 'round',
+                },
+                fill: {
+                    type: 'gradient',
+                    gradient: {
+                        shade: 'dark',
+                        type: 'vertical',
+                        shadeIntensity: 0.4,
+                        opacityFrom: 0.55,
+                        opacityTo: 0.03,
+                        stops: [0, 92, 100],
                     },
-                    scales: {
-                        x: {
-                            grid: { color: 'rgba(255,255,255,0.06)' },
-                            ticks: { color: '#9D9D9D', font: { size: 9 } },
-                        },
-                        y: {
-                            min: 0,
-                            max: yCap,
-                            grid: { color: 'rgba(255,255,255,0.08)' },
-                            ticks: {
-                                color: 'rgba(255,255,255,0.45)',
-                                font: { size: 8 },
-                                stepSize: yStep,
-                                callback: (v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : v),
-                            },
-                        },
+                    opacity: fillOpacities,
+                },
+                grid: this.bpApexGrid(),
+                xaxis: {
+                    categories: labels,
+                    axisBorder: { show: false },
+                    axisTicks: { show: false },
+                    labels: {
+                        style: { colors: '#9D9D9D', fontSize: '9px' },
                     },
-                    onHover: (evt, elements) => {
-                        if (!tip || !elements?.length) {
-                            if (tip) tip.hidden = true;
-                            return;
-                        }
-                        const idx = elements[0].index;
-                        const label = labels[idx] || '';
-                        const thisVal = Number(primary?.values?.[idx] || 0);
-                        const lastVal = Number(compare?.values?.[idx] || 0);
-                        tip.hidden = false;
-                        tip.innerHTML = `<strong>${label}</strong><span><i style="background:#6625F8"></i>This Week: ${this.fmtCompact(thisVal)}</span><span><i style="background:#FF4BC1"></i>Last Week: ${this.fmtCompact(lastVal)}</span>`;
-                        const rect = el.getBoundingClientRect();
-                        const x = evt.x - rect.left;
-                        tip.style.left = `${Math.min(Math.max(x, 56), rect.width - 56)}px`;
-                        tip.style.top = '14px';
+                    crosshairs: {
+                        show: true,
+                        stroke: { color: 'rgba(255,255,255,0.45)', width: 1, dashArray: 4 },
                     },
                 },
+                yaxis: this.bpApexYAxis(maxY),
+                legend: { show: false },
+                tooltip: {
+                    theme: 'dark',
+                    shared: true,
+                    intersect: false,
+                    custom: ({ series, dataPointIndex, w }) => {
+                        const label = w.globals.labels[dataPointIndex] || '';
+                        const rows = (w.globals.seriesNames || []).map((name, idx) => {
+                            const color = colors[idx] || '#6625F8';
+                            const val = Number(series[idx]?.[dataPointIndex] || 0);
+                            return `<span><i style="background:${color}"></i>${name}: ${fmtCompact(val)}</span>`;
+                        }).join('');
+                        return `<div class="figma-bp-apex-tooltip"><strong>${label}</strong>${rows}</div>`;
+                    },
+                },
+                markers: {
+                    size: 0,
+                    strokeWidth: 2,
+                    strokeColors: colors,
+                    hover: { size: 6, sizeOffset: 2 },
+                },
             });
-
-            el.onmouseleave = () => {
-                if (tip) tip.hidden = true;
-            };
+            this.charts.invalid.render();
         },
         renderCharts() {
-            if (!window.Chart) return;
+            if (!window.ApexCharts) return;
             this.renderAreaChart();
             this.renderInvalidChart();
         },

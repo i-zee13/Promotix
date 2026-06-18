@@ -34,147 +34,17 @@ class PaidMarketingController extends Controller
 
     public function detailedVisits(Request $request): JsonResponse
     {
-        $rows = collect($this->resolveDetailedRows($request));
+        $rows = $this->detailedVisitQuery($request)
+            ->orderByDesc('last_click_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit($visit, $request->user()));
 
         return response()->json([
             'rows' => $rows->values(),
             'stats' => $this->computeDetailedStatsFromArrays($rows),
             'total' => $rows->count(),
         ]);
-    }
-
-    /** @return list<array<string, mixed>> */
-    private function resolveDetailedRows(Request $request): array
-    {
-        $fromVisits = $this->detailedRowsFromVisitsTable($request);
-        if ($fromVisits->isNotEmpty()) {
-            return $fromVisits->all();
-        }
-
-        return $this->detailedVisitQuery($request)
-            ->orderByDesc('last_click_at')
-            ->limit(100)
-            ->get()
-            ->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit($visit, $request->user()))
-            ->all();
-    }
-
-    /** @return Collection<int, array<string, mixed>> */
-    private function detailedRowsFromVisitsTable(Request $request): Collection
-    {
-        if (! Schema::hasTable('visits')) {
-            return collect();
-        }
-
-        $domainIds = Domain::query()
-            ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
-            ->pluck('id');
-
-        if ($domainId = (int) $request->query('domain_id', 0)) {
-            $domainIds = $domainIds->intersect([$domainId]);
-        }
-
-        if ($domainIds->isEmpty()) {
-            return collect();
-        }
-
-        [$fromUtc, $toUtc] = UserTimezone::dateRangeFromRequest($request, $request->user());
-
-        $query = DB::table('visits as v')
-            ->join('domains as d', 'd.id', '=', 'v.domain_id')
-            ->whereIn('v.domain_id', $domainIds)
-            ->whereBetween('v.visited_at', [$fromUtc, $toUtc])
-            ->where(function ($paid): void {
-                $paid->where('v.is_paid_traffic', true);
-
-                if (Schema::hasColumn('visits', 'gclid')) {
-                    $paid->orWhere(function ($gclid): void {
-                        $gclid->whereNotNull('v.gclid')->where('v.gclid', '!=', '');
-                    });
-                }
-            });
-
-        if ($ip = trim((string) $request->query('ip', ''))) {
-            $this->applyIpFilter($query, 'v.ip', $ip);
-        }
-
-        if ($path = trim((string) $request->query('path', ''))) {
-            $query->where('v.url', 'like', '%' . $path . '%');
-        }
-
-        if ($campaign = trim((string) $request->query('campaign', ''))) {
-            $query->where(function ($match) use ($campaign): void {
-                if (Schema::hasColumn('visits', 'campaign_name')) {
-                    $match->where('v.campaign_name', $campaign)
-                        ->orWhere('v.utm_campaign', $campaign)
-                        ->orWhere('v.campaign_name', 'like', '%' . $campaign . '%')
-                        ->orWhere('v.utm_campaign', 'like', '%' . $campaign . '%');
-                } else {
-                    $match->where('v.utm_campaign', $campaign)
-                        ->orWhere('v.utm_campaign', 'like', '%' . $campaign . '%');
-                }
-            });
-        }
-
-        $campaignExpr = Schema::hasColumn('visits', 'campaign_name')
-            ? 'MAX(COALESCE(NULLIF(v.campaign_name, ""), v.utm_campaign))'
-            : 'MAX(v.utm_campaign)';
-
-        $rows = $query
-            ->select(
-                DB::raw('MIN(v.id) as id'),
-                'v.ip',
-                'v.domain_id',
-                'd.hostname as domain',
-                DB::raw('COUNT(*) as visits'),
-                DB::raw("{$campaignExpr} as campaign"),
-                DB::raw('MAX(v.visited_at) as last_click_at'),
-                DB::raw('MAX(v.threat_group) as threat_group'),
-                DB::raw('MAX(v.threat_type) as threat_type'),
-                DB::raw('MAX(v.country) as country'),
-                DB::raw('MAX(v.url) as last_path'),
-                DB::raw("SUM(CASE WHEN v.threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
-                DB::raw("SUM(CASE WHEN v.threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
-                DB::raw('SUM(CASE WHEN v.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid_clicks'),
-                DB::raw('SUM(CASE WHEN v.is_invalid_traffic = 0 OR v.is_invalid_traffic IS NULL THEN 1 ELSE 0 END) as valid_clicks')
-            )
-            ->groupBy('v.ip', 'v.domain_id', 'd.hostname')
-            ->orderByDesc('last_click_at')
-            ->limit(100)
-            ->get();
-
-        $user = $request->user();
-
-        return $rows->map(function ($row) use ($user) {
-            $ipParts = collect(preg_split('/\s*,\s*/', (string) $row->ip))
-                ->map(fn ($part) => trim($part))
-                ->filter()
-                ->values()
-                ->all();
-
-            return [
-                'id' => (int) $row->id,
-                'ip' => (string) $row->ip,
-                'ip_parts' => $ipParts,
-                'ip_count' => max(count($ipParts), 1),
-                'visits' => (int) $row->visits,
-                'domain' => (string) $row->domain,
-                'campaign' => $row->campaign ?: null,
-                'last_click_at' => UserTimezone::isoForUser($row->last_click_at, $user),
-                'last_click_label' => UserTimezone::formatForUser($row->last_click_at, $user, 'm/d/y') ?? '-',
-                'threat_group' => $row->threat_group,
-                'threat_type' => $row->threat_type,
-                'country' => $row->country,
-                'last_path' => $row->last_path,
-                'ip_is_blocked' => false,
-                'vpn_hits' => (int) $row->vpn_hits,
-                'data_center_hits' => (int) $row->data_center_hits,
-                'invalid_clicks' => (int) $row->invalid_clicks,
-                'valid_clicks' => (int) $row->valid_clicks,
-                'clicks' => [],
-            ];
-        });
     }
 
     private function detailedVisitQuery(Request $request): Builder
