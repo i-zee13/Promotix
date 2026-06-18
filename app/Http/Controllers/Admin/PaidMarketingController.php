@@ -7,6 +7,7 @@ use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
 use App\Models\PaidMarketingVisit;
+use App\Services\IpIntel\IpIntelService;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -34,11 +35,21 @@ class PaidMarketingController extends Controller
 
     public function detailedVisits(Request $request): JsonResponse
     {
-        $rows = $this->detailedVisitQuery($request)
+        $visits = $this->detailedVisitQuery($request)
             ->orderByDesc('last_click_at')
             ->limit(100)
+            ->get();
+
+        $ipLogs = IpLog::query()
+            ->whereIn('ip', $visits->pluck('ip')->unique()->filter()->values())
             ->get()
-            ->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit($visit, $request->user()));
+            ->keyBy('ip');
+
+        $rows = $visits->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit(
+            $visit,
+            $request->user(),
+            $ipLogs->get($visit->ip)
+        ));
 
         return response()->json([
             'rows' => $rows->values(),
@@ -101,7 +112,7 @@ class PaidMarketingController extends Controller
         return $query;
     }
 
-    private function formatDetailedVisit(PaidMarketingVisit $visit, ?\App\Models\User $user = null): array
+    private function formatDetailedVisit(PaidMarketingVisit $visit, ?\App\Models\User $user = null, ?IpLog $ipLog = null): array
     {
         $clicks = $visit->clicks;
         $clickCount = max($clicks->count(), (int) ($visit->visits ?? 1));
@@ -166,6 +177,71 @@ class PaidMarketingController extends Controller
                 'browser_version' => $c->browser_version,
                 'os' => $c->os,
             ])->values()->all(),
+            ...$this->intelFieldsForVisit($visit, $ipLog, $user),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function intelFieldsForVisit(PaidMarketingVisit $visit, ?IpLog $ipLog, ?\App\Models\User $user = null): array
+    {
+        $raw = (array) ($ipLog?->ipdetails_raw ?? []);
+        $abuser = $ipLog?->ipdetails_abuser_score;
+        $riskLevel = null;
+
+        if (is_numeric($abuser)) {
+            $score = (float) $abuser;
+            $riskLevel = $score >= 0.7 ? 'High' : ($score >= 0.2 ? 'Medium' : 'Low');
+        } elseif (is_int($ipLog?->abuse_confidence_score)) {
+            $riskLevel = $ipLog->abuse_confidence_score >= 50 ? 'High' : 'Low';
+        }
+
+        $threatGroup = strtolower((string) $visit->threat_group);
+        $isVpn = $threatGroup === 'vpn';
+        $isDc = in_array($threatGroup, ['data_center', 'datacenter'], true);
+        $isTor = (bool) ($ipLog?->abuse_is_tor ?? false);
+        $isHosting = $ipLog ? app(IpIntelService::class)->isHostingType($ipLog) : false;
+        $isProxy = $ipLog ? app(IpIntelService::class)->isProxySuspect($ipLog) : false;
+
+        $status = 'Valid';
+        if ($ipLog?->is_blocked) {
+            $status = 'Blocked';
+        } elseif (filled($visit->threat_group) || filled($visit->threat_type)) {
+            $status = 'Invalid';
+        }
+
+        return [
+            'status' => $status,
+            'intel_region' => $raw['region'] ?? $raw['state'] ?? null,
+            'intel_city' => $raw['city'] ?? null,
+            'intel_latitude' => $raw['latitude'] ?? null,
+            'intel_longitude' => $raw['longitude'] ?? null,
+            'intel_asn' => $raw['asn'] ?? null,
+            'intel_asn_org' => $raw['company'] ?? $raw['org'] ?? $ipLog?->intel_isp,
+            'intel_isp' => $ipLog?->intel_isp ?? null,
+            'intel_network_range' => $raw['network'] ?? $raw['network_range'] ?? null,
+            'intel_routed_prefix' => $raw['prefix'] ?? $raw['routed_prefix'] ?? null,
+            'intel_allocated_range' => $raw['allocated'] ?? $raw['allocated_range'] ?? null,
+            'intel_range_note' => $raw['range_note'] ?? null,
+            'intel_vpn' => $isVpn ? 'Yes' : 'No',
+            'intel_proxy' => $isProxy ? 'Yes' : 'No',
+            'intel_tor' => $isTor ? 'Yes' : 'No',
+            'intel_datacenter' => ($isDc || $isHosting) ? 'Yes' : 'No',
+            'intel_risk_score' => $abuser ?? $ipLog?->abuse_confidence_score,
+            'intel_risk_level' => $riskLevel,
+            'intel_confidence' => $ipLog?->abuse_confidence_score,
+            'intel_evidence' => $ipLog?->abuse_total_reports ? ($ipLog->abuse_total_reports . ' reports') : null,
+            'intel_checked_at' => UserTimezone::formatForUser($ipLog?->intel_checked_at, $user, 'm/d/y H:i'),
+            'intel_error' => $ipLog?->intel_status === 'error' ? 'Yes' : null,
+            'intel_ip_need_blockation' => $ipLog?->is_blocked ? 'Yes' : 'No',
+            'intel_blockation_type' => is_array($ipLog?->iphub_proxy_type)
+                ? implode(', ', $ipLog->iphub_proxy_type)
+                : ($ipLog?->iphub_proxy_type ?? null),
+            'intel_block_reason' => $ipLog?->iphub_block_reason ?? null,
+            'intel_device_action' => $visit->threat_type,
+            'intel_provider_type' => $raw['type'] ?? null,
+            'intel_matched_provider' => $raw['provider'] ?? $raw['abuse_name'] ?? null,
+            'intel_matched_dataset' => $raw['dataset'] ?? null,
+            'intel_cloud_provider' => $raw['cloud_provider'] ?? null,
         ];
     }
 

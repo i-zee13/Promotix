@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidMarketingDetailed()" x-init="init()">
-    <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[19px] xl:pt-[68px]">
+    <section class="mx-auto w-full px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-[12px]">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
@@ -35,33 +35,52 @@
             </div>
         </div>
 
-        <div class="relative z-20 overflow-visible rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
-            <div class="grid gap-[16px] lg:grid-cols-[1fr_244px]">
-                <div class="flex min-h-[91px] flex-col justify-between">
-                    <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trends</h2>
-                    <button type="button" @click="window.print()" class="flex w-fit items-center gap-[5px] text-[15px] text-white hover:underline">
-                        <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
-                        Download
-                    </button>
-                </div>
-
-                <div class="space-y-[12px]">
-                    <label class="flex h-[26px] items-center rounded-[5px] border border-white/30 bg-[#0f0e0e] px-[10px]">
-                        <svg class="mr-[9px] h-[15px] w-[15px] text-[#9d9898]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input x-model="filters.ip" @input="scheduleFetch(true)" placeholder="Filter by IP" class="h-full flex-1 border-0 bg-transparent p-0 text-[14px] font-light text-[#9d9898] placeholder:text-[#9d9898] focus:ring-0">
+        <section class="relative z-10 overflow-visible rounded-[12px] border border-[#6706b3]">
+            <div class="flex flex-wrap items-center justify-between gap-[10px] bg-[#6400B2] px-[16px] py-[12px]">
+                <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
+                <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
+                    <label class="relative flex h-[28px] min-w-[200px] max-w-[280px] flex-1 items-center rounded-[6px] bg-white px-[10px]">
+                        <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input type="search" placeholder="Search for IP Address" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
                     </label>
-                    <button type="button" @click="toggleAdvancedFilters()" class="flex h-[49px] w-full items-center rounded-[5px] border border-white/30 bg-[#0f0e0e] px-[13px] text-left text-[14px] text-[#9d9898]">
-                        <svg class="mr-[12px] h-[22px] w-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="1.7" d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
-                        <span>Advanced<br>Filters</span>
+                    <button type="button" @click="toggleAdvancedFilters()" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="1.7" d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
+                        Advanced Filters
+                    </button>
+                    <div class="relative" @click.outside="columnsMenuOpen = false">
+                        <button type="button" @click="columnsMenuOpen = !columnsMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                            Columns
+                            <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
+                        </button>
+                        <div x-show="columnsMenuOpen" x-cloak class="paid-advanced-columns-menu promotix-slim-scroll">
+                            <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Primary columns</p>
+                            <template x-for="col in columnCatalog.filter(c => c.primary)" :key="col.key">
+                                <label class="paid-advanced-column-option is-locked">
+                                    <input type="checkbox" checked disabled>
+                                    <span x-text="col.label"></span>
+                                </label>
+                            </template>
+                            <p class="mb-[8px] mt-[10px] text-[10px] font-semibold uppercase text-white/55">Optional columns</p>
+                            <template x-for="col in columnCatalog.filter(c => !c.primary)" :key="col.key">
+                                <label class="paid-advanced-column-option">
+                                    <input type="checkbox" :value="col.key" :checked="optionalColumnKeys.includes(col.key)" @change="toggleOptionalColumn(col.key)">
+                                    <span x-text="col.label"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+                    <button type="button" @click="window.print()" class="inline-flex items-center gap-[6px] text-[12px] font-medium text-white hover:underline">
+                        <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
+                        Download
                     </button>
                 </div>
             </div>
 
-            <div x-show="filtersOpen" x-cloak class="relative z-30 mt-[14px] overflow-visible rounded-[8px] bg-[#520090] p-[12px]">
+            <div x-show="filtersOpen" x-cloak class="relative z-40 border-b border-[#6706b3]/40 bg-[#520090] px-[16px] py-[12px]">
                 <div class="flex flex-wrap items-end gap-[12px]">
                     <div x-show="filters.domain_id" class="relative w-[220px] max-w-full shrink-0" @click.outside="campaignMenuOpen = false">
                         <span class="mb-[6px] block text-[10px] font-semibold uppercase text-white/70">Campaigns</span>
-                        <button type="button" @click="campaignMenuOpen = !campaignMenuOpen" class="figma-filter-select-wrap figma-bp-advanced-select-wrap flex h-[26px] w-full items-center rounded-[5px] border border-white/25 bg-[#0f0e0e] py-0 pl-[10px] pr-[28px] text-left text-[11px] text-[#9d9898]">
+                        <button type="button" @click="openCampaignMenu()" class="figma-filter-select-wrap figma-bp-advanced-select-wrap flex h-[26px] w-full items-center rounded-[5px] border border-white/25 bg-[#0f0e0e] py-0 pl-[10px] pr-[28px] text-left text-[11px] text-[#9d9898]">
                             <span class="truncate" x-text="filters.campaign || 'All campaigns'"></span>
                         </button>
                         <div x-show="campaignMenuOpen" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll">
@@ -71,51 +90,39 @@
                             </template>
                         </div>
                     </div>
-                    <p x-show="!filters.domain_id" class="text-[12px] text-white/55">Select a domain above to filter by campaign.</p>
+                    <p x-show="!filters.domain_id" class="text-[12px] text-white/55">Select a domain in the header to filter by campaign.</p>
                     <button type="button" @click="clearAdvancedFilters()" class="ml-auto shrink-0 rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] leading-none text-white/80 hover:bg-white/10">Clear filters</button>
                 </div>
             </div>
-        </div>
 
-        <section class="relative z-0 mt-[8px] overflow-hidden rounded-[12px] border border-[#6706b3]">
-            <div class="pm-adv-grid pm-adv-grid--head bg-[#1a1a1a] px-[12px] py-[10px] text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]">
-                <span>IP Address</span>
-                <span>Visits</span>
-                <span>Domain</span>
-                <span>Campaigns</span>
-                <span>Last Click</span>
-                <span>Threat Group</span>
-                <span>Threat Type</span>
-                <span>Country</span>
-                <span>VPN</span>
-                <span>Data Center</span>
-                <span>Invalid</span>
-                <span>Valid</span>
+            <div class="overflow-x-auto bg-[#1a1a1a]">
+                <div class="pm-adv-grid-row pm-adv-grid-row--head min-w-max px-[12px] py-[10px] text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
+                    <template x-for="col in visibleColumns" :key="'head-' + col.key">
+                        <span x-text="col.label"></span>
+                    </template>
+                </div>
             </div>
 
-            <div class="max-h-[420px] overflow-y-auto pm-adv-scroll px-[10px] py-[8px]">
+            <div class="max-h-[420px] overflow-auto pm-adv-scroll px-[10px] py-[8px]">
                 <template x-for="visit in rows" :key="visit.id">
-                    <div class="pm-adv-grid pm-adv-grid--row mb-[8px] cursor-pointer rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] transition hover:bg-[#ececec] sm:text-[11px]" @click="openClicks(visit)">
-                        <span class="truncate font-medium" :title="visit.ip">
-                            <span x-text="ipLabel(visit)"></span>
-                            <span x-show="visit.ip_count > 1" class="ml-[4px] rounded-[3px] bg-[#6400b2] px-[4px] py-[1px] text-[9px] text-white" x-text="'+' + (visit.ip_count - 1)"></span>
-                        </span>
-                        <span class="truncate" x-text="visit.visits"></span>
-                        <span class="truncate" :title="visit.domain || '—'" x-text="visit.domain || '—'"></span>
-                        <span class="truncate" :title="visit.campaign || 'N/A'" x-text="visit.campaign || 'N/A'"></span>
-                        <span class="truncate" x-text="visit.last_click_label"></span>
-                        <span class="truncate" :title="visit.threat_group || '—'" x-text="visit.threat_group || '—'"></span>
-                        <span class="truncate" :title="visit.threat_type || '—'" x-text="visit.threat_type || '—'"></span>
-                        <span class="truncate" x-text="visit.country || '—'"></span>
-                        <span class="truncate" x-text="visit.vpn_hits > 0 ? visit.vpn_hits : '—'"></span>
-                        <span class="truncate" x-text="visit.data_center_hits > 0 ? visit.data_center_hits : '—'"></span>
-                        <span class="truncate" x-text="visit.invalid_clicks ?? 0"></span>
-                        <span class="truncate" x-text="visit.valid_clicks ?? 0"></span>
+                    <div class="pm-adv-grid-row pm-adv-grid-row--data mb-[8px] min-w-max cursor-pointer rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] transition hover:bg-[#ececec] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
+                        <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
+                            <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(visit, col.key)" x-text="cellValue(visit, col.key)"></span>
+                        </template>
                     </div>
                 </template>
                 <p x-show="!loading && rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No rows match your filters.</p>
             </div>
         </section>
+
+<style>
+.pm-adv-scroll { scrollbar-width: thin; scrollbar-color: #6400B2 transparent; }
+.pm-adv-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+.pm-adv-scroll::-webkit-scrollbar-thumb { background: #6400B2; border-radius: 4px; }
+.pm-adv-grid-row { display: grid; gap: 8px; align-items: center; }
+.pm-adv-grid-row--head span,
+.pm-adv-grid-row--data span { min-width: 0; }
+</style>
 
         <section class="mt-[20px]">
             <h2 class="mx-auto mb-[18px] flex h-[36px] w-[184px] items-center justify-center rounded-[4px] bg-[#6706B3] text-[24px] font-semibold text-[#a9a9a9]">Paid Stats</h2>
@@ -211,6 +218,10 @@
                                         <p class="figma-modal-value" x-text="activeClick.threat_group || modal.visit?.threat_group || 'N/A'"></p>
                                     </div>
                                     <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Domain</p>
+                                        <p class="figma-modal-value" x-text="modal.visit?.domain || activeClick.domain || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
                                         <p class="figma-modal-label">Campaign</p>
                                         <p class="figma-modal-value" x-text="activeClick.campaign || modal.visit?.campaign || 'N/A'"></p>
                                     </div>
@@ -247,18 +258,76 @@
 
 <script>
     function paidMarketingDetailed() {
+        const columnCatalog = [
+            { key: 'ip', label: 'IP Address', primary: true, min: 120 },
+            { key: 'visits', label: 'Visits', primary: true, min: 44 },
+            { key: 'domain', label: 'Domain', primary: true, min: 100 },
+            { key: 'campaign', label: 'Campaigns', primary: true, min: 100 },
+            { key: 'last_click_label', label: 'Last Click', primary: true, min: 76 },
+            { key: 'threat_group', label: 'Threat Group', primary: true, min: 84 },
+            { key: 'threat_type', label: 'Threat Type', primary: true, min: 76 },
+            { key: 'country', label: 'Country', primary: true, min: 72 },
+            { key: 'invalid_clicks', label: 'Invalid', primary: true, min: 52 },
+            { key: 'valid_clicks', label: 'Valid', primary: true, min: 52 },
+            { key: 'status', label: 'Status', primary: false, min: 72 },
+            { key: 'intel_region', label: 'Region', primary: false, min: 80 },
+            { key: 'intel_city', label: 'City', primary: false, min: 80 },
+            { key: 'intel_latitude', label: 'Latitude', primary: false, min: 72 },
+            { key: 'intel_longitude', label: 'Longitude', primary: false, min: 72 },
+            { key: 'intel_asn', label: 'ASN', primary: false, min: 64 },
+            { key: 'intel_asn_org', label: 'ASN Organization', primary: false, min: 110 },
+            { key: 'intel_isp', label: 'ISP', primary: false, min: 90 },
+            { key: 'intel_network_range', label: 'Network Range', primary: false, min: 100 },
+            { key: 'intel_routed_prefix', label: 'Routed Prefix', primary: false, min: 100 },
+            { key: 'intel_allocated_range', label: 'Allocated Range', primary: false, min: 100 },
+            { key: 'intel_range_note', label: 'Range Note', primary: false, min: 90 },
+            { key: 'intel_vpn', label: 'VPN', primary: false, min: 48 },
+            { key: 'intel_proxy', label: 'Proxy', primary: false, min: 48 },
+            { key: 'intel_tor', label: 'Tor', primary: false, min: 48 },
+            { key: 'intel_datacenter', label: 'Datacenter', primary: false, min: 72 },
+            { key: 'intel_risk_score', label: 'Risk Score', primary: false, min: 72 },
+            { key: 'intel_risk_level', label: 'Risk Level', primary: false, min: 72 },
+            { key: 'intel_confidence', label: 'Confidence', primary: false, min: 72 },
+            { key: 'intel_evidence', label: 'Evidence', primary: false, min: 90 },
+            { key: 'intel_checked_at', label: 'Checked At', primary: false, min: 100 },
+            { key: 'intel_error', label: 'Error', primary: false, min: 56 },
+            { key: 'intel_ip_need_blockation', label: 'IP Need Blockation', primary: false, min: 110 },
+            { key: 'intel_blockation_type', label: 'Blockation Type', primary: false, min: 100 },
+            { key: 'intel_block_reason', label: 'Block Reason', primary: false, min: 100 },
+            { key: 'intel_device_action', label: 'Device Action', primary: false, min: 90 },
+            { key: 'intel_provider_type', label: 'Provider Type', primary: false, min: 90 },
+            { key: 'intel_matched_provider', label: 'Matched Provider', primary: false, min: 110 },
+            { key: 'intel_matched_dataset', label: 'Matched Dataset', primary: false, min: 110 },
+            { key: 'intel_cloud_provider', label: 'Cloud Provider', primary: false, min: 100 },
+        ];
+
+        let savedOptional = [];
+        try {
+            savedOptional = JSON.parse(localStorage.getItem('pm-adv-optional-columns') || '[]');
+        } catch (e) {}
+
         return {
             debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
             fetchTimer: null,
             loading: false,
             filtersOpen: false,
             campaignMenuOpen: false,
+            columnsMenuOpen: false,
+            columnCatalog,
+            optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
             filters: { ip: '', path: '', domain_id: '', campaign: '', from: '', to: '' },
             campaignOptions: [],
             rows: [],
             statCards: [],
             modal: { open: false, visit: null, clicks: [], activeIndex: 0 },
             get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
+            get visibleColumns() {
+                return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
+            },
+            get gridStyle() {
+                const cols = this.visibleColumns.map(col => `minmax(${col.min || 80}px, 1fr)`).join(' ');
+                return `grid-template-columns: ${cols}`;
+            },
             init() {
                 this.syncHeaderDates();
                 if (!this.filters.from || !this.filters.to) {
@@ -301,16 +370,42 @@
                 this.filters.campaign = '';
                 this.campaignOptions = [];
                 this.campaignMenuOpen = false;
+                if (this.filters.domain_id) {
+                    await this.loadCampaignsForDomain();
+                }
                 this.scheduleFetch(true);
+            },
+            async openCampaignMenu() {
+                if (this.filters.domain_id && this.campaignOptions.length === 0) {
+                    await this.loadCampaignsForDomain();
+                }
+                this.campaignMenuOpen = !this.campaignMenuOpen;
             },
             async toggleAdvancedFilters() {
                 this.filtersOpen = !this.filtersOpen;
                 if (!this.filtersOpen) {
                     this.campaignMenuOpen = false;
-                }
-                if (this.filtersOpen && this.filters.domain_id && this.campaignOptions.length === 0) {
+                } else if (this.filters.domain_id && this.campaignOptions.length === 0) {
                     await this.loadCampaignsForDomain();
                 }
+            },
+            toggleOptionalColumn(key) {
+                if (this.optionalColumnKeys.includes(key)) {
+                    this.optionalColumnKeys = this.optionalColumnKeys.filter(k => k !== key);
+                } else {
+                    this.optionalColumnKeys = [...this.optionalColumnKeys, key];
+                }
+                try {
+                    localStorage.setItem('pm-adv-optional-columns', JSON.stringify(this.optionalColumnKeys));
+                } catch (e) {}
+            },
+            cellValue(visit, key) {
+                if (key === 'ip') return this.ipLabel(visit);
+                if (key === 'campaign') return visit.campaign || 'N/A';
+                const value = visit[key];
+                if (value === 0) return '0';
+                if (value === null || value === undefined || value === '') return '—';
+                return String(value);
             },
             selectCampaign(name) {
                 this.filters.campaign = name;
@@ -318,6 +413,10 @@
                 this.scheduleFetch(true);
             },
             async loadCampaignsForDomain() {
+                if (!this.filters.domain_id) {
+                    this.campaignOptions = [];
+                    return;
+                }
                 const params = new URLSearchParams();
                 params.set('domain_id', this.filters.domain_id);
                 if (this.filters.from) params.set('from', this.filters.from);
@@ -326,7 +425,7 @@
                     const rows = await fetch(`/paid-marketing/campaigns?${params}`, {
                         headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     }).then(r => r.json());
-                    this.campaignOptions = [...new Set((rows || []).map(r => r.campaign).filter(Boolean))];
+                    this.campaignOptions = [...new Set((rows || []).map(r => r.campaign).filter(Boolean))].sort();
                 } catch (e) {
                     this.campaignOptions = [];
                 }

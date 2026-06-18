@@ -289,6 +289,69 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.paid-advanced-columns-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 70;
+    width: 260px;
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    background: #0f0e0e;
+    padding: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+.paid-advanced-column-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    font-size: 11px;
+    color: #d9d9d9;
+    cursor: pointer;
+}
+
+.paid-advanced-column-option.is-locked {
+    opacity: 0.65;
+    cursor: default;
+}
+
+.paid-advanced-column-option input {
+    accent-color: #6400b2;
+}
+
+.pm-adv-grid {
+    display: grid;
+    gap: 8px;
+    min-width: 1080px;
+    grid-template-columns:
+        minmax(120px, 1.3fr)
+        minmax(44px, 0.45fr)
+        minmax(96px, 1fr)
+        minmax(96px, 1fr)
+        minmax(76px, 0.75fr)
+        minmax(84px, 0.85fr)
+        minmax(76px, 0.8fr)
+        minmax(64px, 0.65fr)
+        minmax(40px, 0.4fr)
+        minmax(64px, 0.55fr)
+        minmax(52px, 0.45fr)
+        minmax(52px, 0.45fr);
+}
+
+.pm-adv-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+}
+
+.pm-adv-grid--head span,
+.pm-adv-grid--row span {
+    min-width: 0;
+}
+
 .paid-detailed-table {
     width: 100%;
     min-width: 1180px;
