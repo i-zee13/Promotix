@@ -190,8 +190,14 @@
                 <section class="rounded-[10px] bg-[#3c3c3c] p-[16px]">
                     <div class="mb-[20px] flex items-center justify-between gap-[8px]">
                         <h2 class="text-[16px] font-medium text-[#d9d9d9]">Connection Requirement</h2>
-                        <span x-show="requirementLive" class="rounded-full bg-emerald-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-emerald-200">Live</span>
-                        <span x-show="!requirementLive" x-cloak class="rounded-full bg-amber-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-amber-100">Setup in progress</span>
+                        <span x-show="requirementLive" class="platform-requirement-status platform-requirement-status--live">
+                            <span class="platform-requirement-status__dot"></span>
+                            Live
+                        </span>
+                        <span x-show="!requirementLive" x-cloak class="platform-requirement-status platform-requirement-status--pending">
+                            <span class="platform-requirement-status__dot"></span>
+                            Setup in progress
+                        </span>
                     </div>
                     <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
                         <div class="relative h-[84px] w-[84px] shrink-0">
@@ -351,7 +357,12 @@
         x-show="menuToast"
         x-cloak
         x-transition
-        class="fixed bottom-[24px] right-[24px] z-[200] max-w-[320px] rounded-[8px] border border-white/25 bg-[#101010] px-[14px] py-[10px] text-[12px] text-white shadow-lg"
+        class="fixed top-[70px] right-[24px] z-[250] max-w-[min(360px,calc(100vw-48px))] rounded-[8px] px-[14px] py-[10px] text-[12px] shadow-lg backdrop-blur-sm"
+        :class="{
+            'border border-red-400/45 bg-red-500/20 text-red-50': menuToastType === 'error',
+            'border border-emerald-400/35 bg-emerald-500/15 text-emerald-50': menuToastType === 'success',
+            'border border-[#6400B2]/40 bg-[#6400B2]/30 text-white': menuToastType === 'info',
+        }"
         x-text="menuToast"
     ></div>
 </div>
@@ -433,6 +444,7 @@ function platformIntegrations(config) {
         },
         directForm: { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' },
         menuToast: '',
+        menuToastType: 'info',
         menuToastTimer: null,
         get activeDomainStatus() {
             if (!this.selectedDomainId) return null;
@@ -468,15 +480,27 @@ function platformIntegrations(config) {
         },
         requireSelectedDomain() {
             if (!this.selectedDomainId) {
-                this.showMenuToast('Select a domain from the header first.');
+                this.showMenuToast('Select a domain from the header first.', 'error');
                 return null;
             }
             const domain = this.activeDomainStatus;
             if (!domain) {
-                this.showMenuToast('Selected domain not found.');
+                this.showMenuToast('Selected domain not found.', 'error');
                 return null;
             }
             return domain;
+        },
+        resolveConnectDomain(label = null) {
+            if (this.activeDomainStatus) return this.activeDomainStatus;
+            if (!this.domainConnections.length) return null;
+            if (label) {
+                const pending = this.domainConnections.find((d) => {
+                    const step = (d.steps || []).find((s) => s.label === label);
+                    return step && !step.done;
+                });
+                if (pending) return pending;
+            }
+            return this.domainConnections[0];
         },
         wpUrls(hostname) {
             const host = String(hostname || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
@@ -515,26 +539,32 @@ function platformIntegrations(config) {
                     { label: 'Authentication Key', value: data.authentication_key },
                 ];
             } catch (_) {
-                this.showMenuToast('Could not load domain keys.');
+                this.showMenuToast('Could not load domain keys.', 'error');
             }
         },
         handleRequirementClick(step) {
-            const domain = this.requireSelectedDomain();
-            if (!domain) return;
-
             const label = step.label;
 
-            if (label === 'Tag Manager' || label === 'Bot Protection') {
-                this.openDomainKeys(domain);
-                return;
-            }
-
             if (label === 'Paid Marketing' || label === 'Google Ads') {
-                if (step.done) {
-                    this.showMenuToast(`${label} is already connected for this domain.`);
+                const domain = this.resolveConnectDomain(label);
+                if (!domain) {
+                    this.showMenuToast('Add a domain first from Site Management.', 'error');
+                    return;
+                }
+                const domainStep = (domain.steps || []).find((s) => s.label === label);
+                if (domainStep?.done) {
+                    this.showMenuToast(`${label} is already connected for ${domain.hostname}.`, 'info');
                     return;
                 }
                 window.location.href = `/domains/${domain.id}/paid-marketing/connect`;
+                return;
+            }
+
+            const domain = this.requireSelectedDomain();
+            if (!domain) return;
+
+            if (label === 'Tag Manager' || label === 'Bot Protection') {
+                this.openDomainKeys(domain);
             }
         },
         copyKeyText(text) {
@@ -557,31 +587,32 @@ function platformIntegrations(config) {
                     body: JSON.stringify({}),
                 });
                 const data = await res.json();
-                this.showMenuToast(data.verified ? 'Installation verified — reload page' : (data.message || 'Not verified'));
+                this.showMenuToast(data.verified ? 'Installation verified — reload page' : (data.message || 'Not verified'), data.verified ? 'success' : 'error');
                 if (data.verified) {
                     setTimeout(() => window.location.reload(), 1200);
                 }
             } catch (_) {
-                this.showMenuToast('Verify request failed.');
+                this.showMenuToast('Verify request failed.', 'error');
             }
         },
-        showMenuToast(message) {
+        showMenuToast(message, type = 'info') {
             this.menuToast = message;
+            this.menuToastType = type;
             clearTimeout(this.menuToastTimer);
             this.menuToastTimer = setTimeout(() => { this.menuToast = ''; }, 3200);
         },
         async copyText(value, label = 'Copied') {
             const text = String(value || '').trim();
             if (!text) {
-                this.showMenuToast('Nothing to copy yet.');
+                this.showMenuToast('Nothing to copy yet.', 'error');
                 return false;
             }
             try {
                 await navigator.clipboard.writeText(text);
-                this.showMenuToast(`${label} copied.`);
+                this.showMenuToast(`${label} copied.`, 'success');
                 return true;
             } catch (e) {
-                this.showMenuToast('Could not copy to clipboard.');
+                this.showMenuToast('Could not copy to clipboard.', 'error');
                 return false;
             }
         },

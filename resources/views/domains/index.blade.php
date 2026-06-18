@@ -324,7 +324,7 @@
         </div>
     </div>
 
-    <div class="fixed bottom-4 right-4 z-[90] rounded-[8px] bg-[#6400B2] px-[14px] py-[10px] text-[12px] text-white shadow-lg" x-show="toast" x-cloak x-text="toast" x-transition></div>
+    <div class="fixed top-[70px] right-6 z-[90] max-w-[min(360px,calc(100vw-48px))] rounded-[8px] border border-[#6400B2]/40 bg-[#6400B2]/30 px-[14px] py-[10px] text-[12px] text-white shadow-lg backdrop-blur-sm" x-show="toast" x-cloak x-text="toast" x-transition></div>
 </div>
 
 <script>
