@@ -34,7 +34,7 @@
             </div>
 
             <nav class="figma-nav-scrollless min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-[2px]" aria-label="Super admin navigation">
-                <div class="space-y-[2px]">
+                <div class="space-y-[4px]">
                     @foreach ($menu as $slug => $item)
                         @php
                             $routePrefix = str($item['route'])->beforeLast('.');

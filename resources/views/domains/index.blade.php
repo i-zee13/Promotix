@@ -10,10 +10,15 @@
 
             <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
                 <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
-                    <select class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0">
-                        <option>All campaigns</option>
-                    </select>
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="domainFilter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All domains</option>
+                            @foreach ($domains as $d)
+                                <option value="{{ $d->id }}">{{ $d->hostname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </label>
                 <label class="flex w-[178px] flex-col justify-center px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
@@ -60,7 +65,7 @@
                     <tbody>
                         @forelse ($domains as $d)
                             <tr
-                                x-show="rowVisible(@js($d->hostname))"
+                                x-show="rowVisible(@js($d->hostname), {{ $d->id }})"
                                 class="border-b border-white/10 text-white last:border-b-0"
                                 data-hostname="{{ $d->hostname }}"
                             >
@@ -327,6 +332,7 @@ function siteManagementFigma() {
     return {
         modal: null,
         openMenuId: null,
+        domainFilter: '',
         tableSearch: '',
         tableSearchApplied: '',
         ipSearch: @json($search),
@@ -370,7 +376,8 @@ function siteManagementFigma() {
                 this.ipSearchApplied = (this.ipSearch || '').trim().toLowerCase();
             }, this.debounceMs);
         },
-        rowVisible(hostname) {
+        rowVisible(hostname, domainId = null) {
+            if (this.domainFilter && String(domainId) !== String(this.domainFilter)) return false;
             const host = (hostname || '').toLowerCase();
             const pathQ = this.tableSearchApplied;
             const ipQ = this.ipSearchApplied;

@@ -271,6 +271,23 @@ class GoogleAdsDomainMetricsSync
             ->selectRaw('COALESCE(SUM(clicks), 0) as clicks, COALESCE(SUM(cost), 0) as cost, COALESCE(SUM(impressions), 0) as impressions')
             ->first();
 
+        if ((int) ($agg->clicks ?? 0) === 0) {
+            $totals = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0, 'used_stored_bounds' => false];
+            foreach ($ids as $domainId) {
+                $part = $this->clickTotalsForDomain((int) $domainId, $from, $to);
+                $totals['clicks'] += (int) ($part['clicks'] ?? 0);
+                $totals['cost'] += (float) ($part['cost'] ?? 0);
+                $totals['impressions'] += (int) ($part['impressions'] ?? 0);
+                $totals['used_stored_bounds'] = $totals['used_stored_bounds'] || (bool) ($part['used_stored_bounds'] ?? false);
+            }
+            $totals['cost'] = round($totals['cost'], 2);
+
+            return array_merge($totals, [
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+            ]);
+        }
+
         return [
             'clicks' => (int) ($agg->clicks ?? 0),
             'cost' => round((float) ($agg->cost ?? 0), 2),

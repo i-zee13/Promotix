@@ -12,7 +12,7 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
             </div>
 
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
+            <div class="figma-filter-bar relative z-20 flex h-[54px] w-full overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black" :class="filters.domain_id ? 'max-w-[560px]' : 'max-w-[370px]'">
                 <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
                     <div class="figma-filter-select-wrap">
@@ -22,6 +22,18 @@
                                 <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
                             @endforeach
                         </select>
+                    </div>
+                </label>
+                <label x-show="filters.domain_id" x-cloak class="relative flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]" @click.outside="campaignMenuOpen = false">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
+                    <button type="button" @click="openCampaignMenu()" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="filters.campaign || 'All campaigns'"></span>
+                    </button>
+                    <div x-show="campaignMenuOpen" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[12px] !right-auto !min-w-[180px]">
+                        <button type="button" @click="selectCampaign('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">All campaigns</button>
+                        <template x-for="name in campaignOptions" :key="name">
+                            <button type="button" @click="selectCampaign(name)" class="paid-advanced-campaign-option" :class="filters.campaign === name && 'is-active'" x-text="name"></button>
+                        </template>
                     </div>
                 </label>
                 <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
@@ -43,10 +55,6 @@
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input type="search" placeholder="Search for IP Address" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
                     </label>
-                    <button type="button" @click="toggleAdvancedFilters()" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
-                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="1.7" d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
-                        Advanced Filters
-                    </button>
                     <div class="relative" @click.outside="columnsMenuOpen = false">
                         <button type="button" @click="columnsMenuOpen = !columnsMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
                             Columns
@@ -73,25 +81,6 @@
                         <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
                         Download
                     </button>
-                </div>
-            </div>
-
-            <div x-show="filtersOpen" x-cloak class="relative z-40 border-b border-[#6706b3]/40 bg-[#520090] px-[16px] py-[12px]">
-                <div class="flex flex-wrap items-end gap-[12px]">
-                    <div x-show="filters.domain_id" class="relative w-[220px] max-w-full shrink-0" @click.outside="campaignMenuOpen = false">
-                        <span class="mb-[6px] block text-[10px] font-semibold uppercase text-white/70">Campaigns</span>
-                        <button type="button" @click="openCampaignMenu()" class="figma-filter-select-wrap figma-bp-advanced-select-wrap flex h-[26px] w-full items-center rounded-[5px] border border-white/25 bg-[#0f0e0e] py-0 pl-[10px] pr-[28px] text-left text-[11px] text-[#9d9898]">
-                            <span class="truncate" x-text="filters.campaign || 'All campaigns'"></span>
-                        </button>
-                        <div x-show="campaignMenuOpen" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll">
-                            <button type="button" @click="selectCampaign('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">All campaigns</button>
-                            <template x-for="name in campaignOptions" :key="name">
-                                <button type="button" @click="selectCampaign(name)" class="paid-advanced-campaign-option" :class="filters.campaign === name && 'is-active'" x-text="name"></button>
-                            </template>
-                        </div>
-                    </div>
-                    <p x-show="!filters.domain_id" class="text-[12px] text-white/55">Select a domain in the header to filter by campaign.</p>
-                    <button type="button" @click="clearAdvancedFilters()" class="ml-auto shrink-0 rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] leading-none text-white/80 hover:bg-white/10">Clear filters</button>
                 </div>
             </div>
 
@@ -310,7 +299,6 @@
             debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
             fetchTimer: null,
             loading: false,
-            filtersOpen: false,
             campaignMenuOpen: false,
             columnsMenuOpen: false,
             columnCatalog,
@@ -329,12 +317,17 @@
                 return `grid-template-columns: ${cols}`;
             },
             init() {
+                const id = new URLSearchParams(window.location.search).get('domain_id');
+                if (id) this.filters.domain_id = id;
                 this.syncHeaderDates();
                 if (!this.filters.from || !this.filters.to) {
                     const today = new Date();
                     const start = new Date(today.getTime() - 6 * 86400000);
                     this.filters.from = start.toISOString().slice(0, 10);
                     this.filters.to = today.toISOString().slice(0, 10);
+                }
+                if (this.filters.domain_id) {
+                    this.loadCampaignsForDomain();
                 }
                 this.fetchNow();
                 window.addEventListener('promotix:date-range', () => {
@@ -380,14 +373,6 @@
                     await this.loadCampaignsForDomain();
                 }
                 this.campaignMenuOpen = !this.campaignMenuOpen;
-            },
-            async toggleAdvancedFilters() {
-                this.filtersOpen = !this.filtersOpen;
-                if (!this.filtersOpen) {
-                    this.campaignMenuOpen = false;
-                } else if (this.filters.domain_id && this.campaignOptions.length === 0) {
-                    await this.loadCampaignsForDomain();
-                }
             },
             toggleOptionalColumn(key) {
                 if (this.optionalColumnKeys.includes(key)) {
@@ -454,13 +439,6 @@
                     this.loading = false;
                     window.promotixPageLoader?.hide();
                 }
-            },
-            clearAdvancedFilters() {
-                this.filters.ip = '';
-                this.filters.path = '';
-                this.filters.campaign = '';
-                this.campaignMenuOpen = false;
-                this.scheduleFetch(true);
             },
             openClicks(visit) {
                 this.modal.visit = visit;

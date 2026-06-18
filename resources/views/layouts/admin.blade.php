@@ -79,7 +79,7 @@
                 @foreach ($navGroups as $group => $items)
                     <div class="mb-[8px]">
                         <p class="figma-nav-label mb-[3px] text-[11px] font-bold uppercase leading-none">{{ $group }}</p>
-                        <div class="space-y-[2px]">
+                        <div class="space-y-[4px]">
                             @foreach ($items as $item)
                                 @continue($user && ! $user->canAccess($item['permission']))
                                 @php $active = request()->routeIs($item['route']); @endphp

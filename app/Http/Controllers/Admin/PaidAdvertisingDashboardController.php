@@ -63,6 +63,13 @@ class PaidAdvertisingDashboardController extends Controller
             }
         }
 
+        if ($tagPaid === 0 && $domainIds->isNotEmpty()) {
+            $legacy = $this->paidMarketingTrafficStats($request, $domainIds, $from, $to);
+            $tagPaid = (int) ($legacy['total'] ?? 0);
+            $invalid = (int) ($legacy['invalid'] ?? 0);
+            $uniqueIps = (int) ($legacy['unique_ips'] ?? 0);
+        }
+
         $googleAds = null;
         $googleClicks = 0;
         if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
@@ -100,15 +107,20 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         $fetchRows = function (Carbon $rangeFrom, Carbon $rangeTo) use ($request, $domainIds) {
-            if (! Schema::hasTable('visits') || $domainIds->isEmpty()) {
-                return collect();
+            $rows = collect();
+            if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
+                $rows = $this->scopedVisitsQuery($request, $domainIds, $rangeFrom, $rangeTo)
+                    ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
+                    ->groupBy('day')
+                    ->orderBy('day')
+                    ->get();
             }
 
-            return $this->scopedVisitsQuery($request, $domainIds, $rangeFrom, $rangeTo)
-                ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
-                ->groupBy('day')
-                ->orderBy('day')
-                ->get();
+            if ($rows->isEmpty() && $domainIds->isNotEmpty()) {
+                $rows = $this->paidMarketingDailyTrendRows($request, $domainIds, $rangeFrom, $rangeTo);
+            }
+
+            return $rows;
         };
 
         $rows = $fetchRows($from, $to);
@@ -286,9 +298,12 @@ class PaidAdvertisingDashboardController extends Controller
             return [];
         }
 
+        $sync = app(GoogleAdsDomainMetricsSync::class);
+        $range = $sync->effectiveMetricRange($domainId, $from, $to);
+
         return DB::table('google_ads_campaign_daily_metrics')
             ->where('domain_id', $domainId)
-            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->whereBetween('metric_date', [$range['from']->toDateString(), $range['to']->toDateString()])
             ->whereNotNull('campaign_name')
             ->where('campaign_name', '!=', '')
             ->selectRaw('campaign_id, MAX(campaign_name) as campaign, SUM(clicks) as total')
@@ -544,17 +559,33 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function heatmap(Request $request): JsonResponse
     {
-        if (! Schema::hasTable('visits')) {
+        if (! Schema::hasTable('visits')
+            && (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits'))) {
             return response()->json(['matrix' => [], 'days' => [], 'hours' => []]);
         }
 
         [$from, $to] = $this->dateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
-            ->selectRaw('DAYOFWEEK(visited_at) as dow, HOUR(visited_at) as hr, COUNT(*) as total')
-            ->groupBy('dow', 'hr')
-            ->get();
+        $rows = collect();
+        if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
+            $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+                ->selectRaw('DAYOFWEEK(visited_at) as dow, HOUR(visited_at) as hr, COUNT(*) as total')
+                ->groupBy('dow', 'hr')
+                ->get();
+        }
+
+        if ($rows->isEmpty() && Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits') && $domainIds->isNotEmpty()) {
+            $pmQuery = DB::table('paid_marketing_clicks as pc')
+                ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+                ->whereIn('pv.domain_id', $domainIds)
+                ->whereBetween('pc.clicked_at', [$from, $to]);
+            $this->applyPaidTrafficOnlyFilter($pmQuery, 'pc');
+            $rows = $pmQuery
+                ->selectRaw('DAYOFWEEK(pc.clicked_at) as dow, HOUR(pc.clicked_at) as hr, COUNT(*) as total')
+                ->groupBy('dow', 'hr')
+                ->get();
+        }
 
         $days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         $hours = range(0, 23);
@@ -747,6 +778,74 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         return $this->formatIpRows($rows);
+    }
+
+    /**
+     * Legacy paid-marketing click totals when visits table has no rows in range.
+     *
+     * @return array{total: int, invalid: int, unique_ips: int}
+     */
+    private function paidMarketingTrafficStats(Request $request, $domainIds, Carbon $from, Carbon $to): array
+    {
+        if (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits') || collect($domainIds)->isEmpty()) {
+            return ['total' => 0, 'invalid' => 0, 'unique_ips' => 0];
+        }
+
+        $query = DB::table('paid_marketing_clicks as pc')
+            ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+            ->whereIn('pv.domain_id', $domainIds)
+            ->whereBetween('pc.clicked_at', [$from, $to]);
+
+        $this->applyPaidTrafficOnlyFilter($query, 'pc');
+
+        if ($this->hasCampaignFilter($request)) {
+            if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
+                $this->applyDirectCampaignFilter($query, $request, 'pc.campaign_name', 'pc.google_campaign_id', 'pc.campaign');
+            } else {
+                $this->applyDirectCampaignFilter($query, $request, 'pc.campaign', 'pc.google_campaign_id');
+            }
+        }
+
+        $row = (clone $query)
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN pc.threat_group IS NOT NULL AND pc.threat_group != "" THEN 1 ELSE 0 END) as invalid, COUNT(DISTINCT pc.ip) as unique_ips')
+            ->first();
+
+        return [
+            'total' => (int) ($row->total ?? 0),
+            'invalid' => (int) ($row->invalid ?? 0),
+            'unique_ips' => (int) ($row->unique_ips ?? 0),
+        ];
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, object{day: string, total: int, invalid: int}>
+     */
+    private function paidMarketingDailyTrendRows(Request $request, $domainIds, Carbon $from, Carbon $to)
+    {
+        if (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits') || collect($domainIds)->isEmpty()) {
+            return collect();
+        }
+
+        $query = DB::table('paid_marketing_clicks as pc')
+            ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+            ->whereIn('pv.domain_id', $domainIds)
+            ->whereBetween('pc.clicked_at', [$from, $to]);
+
+        $this->applyPaidTrafficOnlyFilter($query, 'pc');
+
+        if ($this->hasCampaignFilter($request)) {
+            if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
+                $this->applyDirectCampaignFilter($query, $request, 'pc.campaign_name', 'pc.google_campaign_id', 'pc.campaign');
+            } else {
+                $this->applyDirectCampaignFilter($query, $request, 'pc.campaign', 'pc.google_campaign_id');
+            }
+        }
+
+        return $query
+            ->selectRaw('DATE(pc.clicked_at) as day, COUNT(*) as total, SUM(CASE WHEN pc.threat_group IS NOT NULL AND pc.threat_group != "" THEN 1 ELSE 0 END) as invalid')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get();
     }
 
     /**
