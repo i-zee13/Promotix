@@ -48,6 +48,7 @@
         'trackingLink' => $menuDomain ? url('/tag/' . $menuDomain->domain_key . '.js') : null,
         'statusUrl' => url('/integrations/status'),
         'disconnectUrl' => $primaryConnection ? route('integrations.google.disconnect', $primaryConnection) : null,
+        'paidMarketingConnectUrl' => route('domains.paid-marketing.connect', ['domain' => 0]),
         'domainConnections' => $domainConnections,
         'directInitial' => $directAds->map(fn ($row) => [
             'id' => $row->id,
@@ -490,18 +491,6 @@ function platformIntegrations(config) {
             }
             return domain;
         },
-        resolveConnectDomain(label = null) {
-            if (this.activeDomainStatus) return this.activeDomainStatus;
-            if (!this.domainConnections.length) return null;
-            if (label) {
-                const pending = this.domainConnections.find((d) => {
-                    const step = (d.steps || []).find((s) => s.label === label);
-                    return step && !step.done;
-                });
-                if (pending) return pending;
-            }
-            return this.domainConnections[0];
-        },
         wpUrls(hostname) {
             const host = String(hostname || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
             const base = 'https://' + host;
@@ -543,28 +532,23 @@ function platformIntegrations(config) {
             }
         },
         handleRequirementClick(step) {
+            const domain = this.requireSelectedDomain();
+            if (!domain) return;
+
             const label = step.label;
 
+            if (label === 'Tag Manager' || label === 'Bot Protection') {
+                this.openDomainKeys(domain);
+                return;
+            }
+
             if (label === 'Paid Marketing' || label === 'Google Ads') {
-                const domain = this.resolveConnectDomain(label);
-                if (!domain) {
-                    this.showMenuToast('Add a domain first from Site Management.', 'error');
-                    return;
-                }
                 const domainStep = (domain.steps || []).find((s) => s.label === label);
                 if (domainStep?.done) {
                     this.showMenuToast(`${label} is already connected for ${domain.hostname}.`, 'info');
                     return;
                 }
-                window.location.href = `/domains/${domain.id}/paid-marketing/connect`;
-                return;
-            }
-
-            const domain = this.requireSelectedDomain();
-            if (!domain) return;
-
-            if (label === 'Tag Manager' || label === 'Bot Protection') {
-                this.openDomainKeys(domain);
+                window.location.href = config.paidMarketingConnectUrl.replace('/domains/0/', `/domains/${domain.id}/`);
             }
         },
         copyKeyText(text) {
