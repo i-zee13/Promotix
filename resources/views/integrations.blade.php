@@ -48,6 +48,7 @@
         'trackingLink' => $menuDomain ? url('/tag/' . $menuDomain->domain_key . '.js') : null,
         'statusUrl' => url('/integrations/status'),
         'disconnectUrl' => $primaryConnection ? route('integrations.google.disconnect', $primaryConnection) : null,
+        'domainConnections' => $domainConnections,
         'directInitial' => $directAds->map(fn ($row) => [
             'id' => $row->id,
             'platform' => $row->platform,
@@ -67,11 +68,16 @@
             </div>
 
             <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
-                <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Campaigns</span>
-                    <select class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0">
-                        <option>All campaigns</option>
-                    </select>
+                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/70">Domains</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="selectedDomainId" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All domains</option>
+                            @foreach ($manualDomains as $domain)
+                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </label>
                 <label class="flex w-[178px] flex-col justify-center px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
@@ -166,17 +172,17 @@
                 <section class="rounded-[10px] bg-[#6706B3] p-[10px]">
                     <p class="mb-[12px] text-center text-[8px] uppercase text-white">Connection Status</p>
                     <div class="grid grid-cols-2 gap-[6px]">
-                        <div class="rounded border border-white {{ $googleStatusConnected ? 'bg-[#606060]/55' : 'bg-white/50' }} p-[8px] text-center">
+                        <div class="rounded border border-white p-[8px] text-center" :class="googleConnected ? 'bg-[#606060]/55' : 'bg-white/50'">
                             <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center rounded bg-white">
                                 @include('partials.icons.google', ['class' => 'h-[32px] w-[32px]'])
                             </div>
-                            <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold {{ $googleStatusConnected ? 'text-[#6706B3]' : 'text-[#101010]' }}">{{ $googleStatusConnected ? 'Connected' : 'Not Connected' }}</div>
+                            <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold" :class="googleConnected ? 'text-[#6706B3]' : 'text-[#101010]'" x-text="googleConnected ? 'Connected' : 'Not Connected'"></div>
                         </div>
-                        <div class="rounded border border-white bg-white/50 p-[8px] text-center">
+                        <div class="rounded border border-white p-[8px] text-center" :class="googleAdsConnected ? 'bg-[#606060]/55' : 'bg-white/50'">
                             <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center">
                                 @include('partials.icons.google-ads', ['class' => 'h-[50px] w-[50px]'])
                             </div>
-                            <div class="bg-white px-[4px] py-[2px] text-[8px] text-[#101010]">{{ $directConnected ? 'Connected' : 'Not Connected' }}</div>
+                            <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold" :class="googleAdsConnected ? 'text-[#6706B3]' : 'text-[#101010]'" x-text="googleAdsConnected ? 'Connected' : 'Not Connected'"></div>
                         </div>
                     </div>
                 </section>
@@ -184,28 +190,21 @@
                 <section class="rounded-[10px] bg-[#3c3c3c] p-[16px]">
                     <div class="mb-[20px] flex items-center justify-between gap-[8px]">
                         <h2 class="text-[16px] font-medium text-[#d9d9d9]">Connection Requirement</h2>
-                        @if (collect($requirementSteps)->every(fn ($s) => $s['done']))
-                            <span class="rounded-full bg-emerald-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-emerald-200">Live</span>
-                        @else
-                            <span class="rounded-full bg-amber-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-amber-100">Setup in progress</span>
-                        @endif
+                        <span x-show="requirementLive" class="rounded-full bg-emerald-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-emerald-200">Live</span>
+                        <span x-show="!requirementLive" x-cloak class="rounded-full bg-amber-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-amber-100">Setup in progress</span>
                     </div>
                     <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
-                        @php
-                            $stepsDone = collect($requirementSteps)->filter(fn ($s) => $s['done'])->count();
-                            $ringPct = (int) round(($stepsDone / max(count($requirementSteps), 1)) * 100);
-                        @endphp
                         <div class="relative h-[84px] w-[84px] shrink-0">
-                            <div class="h-full w-full rounded-full" style="background: conic-gradient(#7a56a9 {{ $ringPct }}%, #d9d9d9 0)"></div>
+                            <div class="h-full w-full rounded-full" :style="`background: conic-gradient(#7a56a9 ${requirementRingPct}%, #d9d9d9 0)`"></div>
                             <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>
                         </div>
                         <div class="space-y-[8px]">
-                            @foreach ($requirementSteps as $step)
+                            <template x-for="step in requirementSteps" :key="step.label">
                                 <div class="relative h-[15px] overflow-hidden rounded-full bg-[#d9d9d9]">
-                                    <div class="absolute inset-y-[2px] left-[2px] rounded-full {{ $step['done'] ? 'w-[calc(100%-4px)] bg-[#7a56a9]' : 'w-0 bg-[#838284]' }}"></div>
-                                    <span class="absolute inset-0 flex items-center justify-center text-[8px] text-white/70">{{ $step['label'] }}</span>
+                                    <div class="absolute inset-y-[2px] left-[2px] rounded-full transition-all duration-300" :class="step.done ? 'w-[calc(100%-4px)] bg-[#7a56a9]' : 'w-0 bg-[#838284]'"></div>
+                                    <span class="absolute inset-0 flex items-center justify-center text-[8px] text-white/70" x-text="step.label"></span>
                                 </div>
-                            @endforeach
+                            </template>
                         </div>
                     </div>
                 </section>
@@ -380,9 +379,43 @@ function platformCardDropdown(menuId, align = 'right') {
 function platformIntegrations(config) {
     return {
         directList: config.directInitial || [],
+        domainConnections: config.domainConnections || [],
+        selectedDomainId: '',
         directForm: { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' },
         menuToast: '',
         menuToastTimer: null,
+        get activeDomainStatus() {
+            if (!this.selectedDomainId) return null;
+            return this.domainConnections.find((d) => String(d.id) === String(this.selectedDomainId)) || null;
+        },
+        get googleConnected() {
+            if (this.activeDomainStatus) return Boolean(this.activeDomainStatus.google_connected);
+            return this.domainConnections.some((d) => d.google_connected);
+        },
+        get googleAdsConnected() {
+            if (this.activeDomainStatus) return Boolean(this.activeDomainStatus.google_ads_connected);
+            return this.domainConnections.some((d) => d.google_ads_connected);
+        },
+        get requirementSteps() {
+            const labels = ['Tag Manager', 'Paid Marketing', 'Bot Protection', 'Google Ads'];
+            if (this.activeDomainStatus) {
+                return this.activeDomainStatus.steps || [];
+            }
+            return labels.map((label) => ({
+                label,
+                done: this.domainConnections.some((d) => (d.steps || []).find((s) => s.label === label)?.done),
+            }));
+        },
+        get requirementRingPct() {
+            const steps = this.requirementSteps;
+            if (!steps.length) return 0;
+            const done = steps.filter((s) => s.done).length;
+            return Math.round((done / steps.length) * 100);
+        },
+        get requirementLive() {
+            const steps = this.requirementSteps;
+            return steps.length > 0 && steps.every((s) => s.done);
+        },
         showMenuToast(message) {
             this.menuToast = message;
             clearTimeout(this.menuToastTimer);

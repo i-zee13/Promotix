@@ -50,8 +50,22 @@ class IntegrationsController extends Controller
         $manualDomains = Domain::query()
             ->where('user_id', $user->id)
             ->forBotProtection()
+            ->withCount('googleAdsMappings')
             ->orderBy('hostname')
             ->get();
+
+        $domainConnections = $manualDomains->map(fn (Domain $d) => [
+            'id' => $d->id,
+            'hostname' => $d->hostname,
+            'google_connected' => (bool) $d->tag_connected,
+            'google_ads_connected' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0,
+            'steps' => [
+                ['label' => 'Tag Manager', 'done' => (bool) $d->tag_connected],
+                ['label' => 'Paid Marketing', 'done' => (bool) $d->paid_marketing_connected || $d->google_ads_account_id !== null],
+                ['label' => 'Bot Protection', 'done' => (bool) $d->bot_mitigation_connected],
+                ['label' => 'Google Ads', 'done' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0],
+            ],
+        ])->values()->all();
 
         $accounts = GoogleAdsAccount::query()
             ->whereHas('connection', fn ($q) => $q->where('user_id', $user->id))
@@ -98,6 +112,7 @@ class IntegrationsController extends Controller
             'botReady',
             'platformReady',
             'requirementSteps',
+            'domainConnections',
         ));
     }
 
