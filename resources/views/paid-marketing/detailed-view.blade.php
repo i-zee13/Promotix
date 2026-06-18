@@ -84,33 +84,87 @@
                 </div>
             </div>
 
-            <div class="overflow-x-auto bg-[#1a1a1a]">
-                <div class="pm-adv-grid-row pm-adv-grid-row--head min-w-max px-[12px] py-[10px] text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
-                    <template x-for="col in visibleColumns" :key="'head-' + col.key">
-                        <span x-text="col.label"></span>
-                    </template>
-                </div>
-            </div>
-
-            <div class="max-h-[420px] overflow-auto pm-adv-scroll px-[10px] py-[8px]">
-                <template x-for="visit in rows" :key="visit.id">
-                    <div class="pm-adv-grid-row pm-adv-grid-row--data mb-[8px] min-w-max cursor-pointer rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] transition hover:bg-[#ececec] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
-                        <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
-                            <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(visit, col.key)" x-text="cellValue(visit, col.key)"></span>
+            <div class="pm-adv-table-scroll max-h-[420px] overflow-auto bg-[#1a1a1a] px-[10px] pb-[8px]">
+                <table class="pm-adv-table" :style="tableStyle">
+                    <colgroup>
+                        <template x-for="col in visibleColumns" :key="'col-' + col.key">
+                            <col :style="`width:${col.min || 80}px; min-width:${col.min || 80}px`">
                         </template>
-                    </div>
-                </template>
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <template x-for="col in visibleColumns" :key="'head-' + col.key">
+                                <th scope="col" x-text="col.label"></th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="visit in rows" :key="visit.id">
+                            <tr class="pm-adv-table-row" @click="openClicks(visit)">
+                                <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
+                                    <td
+                                        :class="col.key === 'ip' && 'pm-adv-table-cell--ip'"
+                                        :title="cellValue(visit, col.key)"
+                                        x-text="cellValue(visit, col.key)"
+                                    ></td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
                 <p x-show="!loading && rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No rows match your filters.</p>
             </div>
         </section>
 
 <style>
-.pm-adv-scroll { scrollbar-width: thin; scrollbar-color: #6400B2 transparent; }
-.pm-adv-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-.pm-adv-scroll::-webkit-scrollbar-thumb { background: #6400B2; border-radius: 4px; }
-.pm-adv-grid-row { display: grid; gap: 8px; align-items: center; }
-.pm-adv-grid-row--head span,
-.pm-adv-grid-row--data span { min-width: 0; }
+.pm-adv-table-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #6400B2 transparent;
+}
+.pm-adv-table-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.pm-adv-table-scroll::-webkit-scrollbar-thumb { background: #6400B2; border-radius: 4px; }
+.pm-adv-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+.pm-adv-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 10px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    color: #a9a9a9;
+    background: #1a1a1a;
+    white-space: nowrap;
+}
+@media (min-width: 640px) {
+    .pm-adv-table thead th { font-size: 11px; }
+}
+.pm-adv-table tbody tr { cursor: pointer; }
+.pm-adv-table tbody td {
+    padding: 10px 8px;
+    font-size: 10px;
+    color: #121212;
+    background: #d9d9d9;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    transition: background-color 0.15s ease;
+}
+@media (min-width: 640px) {
+    .pm-adv-table tbody td { font-size: 11px; }
+}
+.pm-adv-table tbody tr:hover td { background: #ececec; }
+.pm-adv-table tbody tr td:first-child { border-radius: 10px 0 0 10px; }
+.pm-adv-table tbody tr td:last-child { border-radius: 0 10px 10px 0; }
+.pm-adv-table-cell--ip { font-weight: 600; }
 </style>
 
         <section class="mt-[20px]">
@@ -312,9 +366,9 @@
             get visibleColumns() {
                 return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
             },
-            get gridStyle() {
-                const cols = this.visibleColumns.map(col => `minmax(${col.min || 80}px, 1fr)`).join(' ');
-                return `grid-template-columns: ${cols}`;
+            get tableStyle() {
+                const width = this.visibleColumns.reduce((sum, col) => sum + (col.min || 80), 0) + 32;
+                return `min-width: ${width}px`;
             },
             init() {
                 const id = new URLSearchParams(window.location.search).get('domain_id');
