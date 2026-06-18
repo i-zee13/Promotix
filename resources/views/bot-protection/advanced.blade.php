@@ -14,10 +14,10 @@
 
             <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
                 <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="reload(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All campaigns</option>
+                            <option value="">All domains</option>
                             @foreach ($domains as $d)
                                 <option value="{{ $d->id }}">{{ $d->hostname }}</option>
                             @endforeach
@@ -69,14 +69,14 @@
                         <span class="truncate" x-text="row.threat_type_label"></span>
                         <span class="truncate capitalize" x-text="row.action_taken"></span>
                         <span class="truncate" x-text="row.country_label"></span>
-                        <span class="truncate" x-text="row.domain_url || row.hostname || 'â€”'"></span>
+                        <span class="truncate" x-text="row.domain_url || row.hostname || '-'"></span>
                     </div>
                 </template>
                 <p x-show="rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No matching visits in this window.</p>
             </div>
 
             <div class="flex items-center justify-between border-t border-[#6706b3]/40 px-[14px] py-[10px] text-[10px] text-[#a9a9a9]">
-                <span x-text="`${rows.length ? ((meta.page - 1) * meta.per_page + 1) : 0}â€“${Math.min(meta.total, meta.page * meta.per_page)} of ${meta.total}`"></span>
+                <span x-text="paginationLabel()"></span>
                 <div class="flex gap-[8px]">
                     <button type="button" class="rounded-[6px] border border-[#6706b3] px-[12px] py-[4px] text-[10px] text-white disabled:opacity-40" :disabled="meta.page <= 1" @click="changePage(meta.page - 1)">Prev</button>
                     <button type="button" class="rounded-[6px] border border-[#6706b3] px-[12px] py-[4px] text-[10px] text-white disabled:opacity-40" :disabled="meta.page * meta.per_page >= meta.total" @click="changePage(meta.page + 1)">Next</button>
@@ -145,7 +145,7 @@
         </details>
 
         <p class="mt-[12px] text-right">
-            <a href="{{ route('bot-protection.dashboard') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">â† Back to Dashboard</a>
+            <a href="{{ route('bot-protection.dashboard') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">&larr; Back to Dashboard</a>
         </p>
     </section>
 <style>
@@ -241,6 +241,11 @@ function botProtectionAdvancedFigma() {
         async changePage(p) {
             this.meta.page = Math.max(1, p);
             await this.reload(false);
+        },
+        paginationLabel() {
+            const start = this.rows.length ? ((this.meta.page - 1) * this.meta.per_page + 1) : 0;
+            const end = Math.min(this.meta.total, this.meta.page * this.meta.per_page);
+            return `${start}-${end} of ${this.meta.total}`;
         },
     };
 }

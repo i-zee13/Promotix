@@ -15,7 +15,7 @@
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
 @php
     // Date range lives on each dashboard page filter bar — not the top header.
-    $usesDashboardDateRange = request()->routeIs(['dashboard']);
+    $usesDashboardDateRange = false;
 @endphp
 @if ($usesDashboardDateRange)
     @include('partials.promotix-page-loader')

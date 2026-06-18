@@ -3,21 +3,31 @@
 @section('title', 'Overview')
 
 @section('content')
+@include('partials.promotix-page-loader')
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]">
     <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[18px] sm:px-[18px] xl:max-w-none xl:px-[22px] xl:pt-[20px]">
         <div class="mb-[10px] flex flex-col gap-[9px] sm:flex-row sm:items-center sm:justify-between">
             <h1 class="text-[31px] font-normal leading-none text-white">Overview</h1>
-            <div class="flex h-[42px] w-full max-w-[330px] overflow-hidden rounded-[8px] border border-white/25 bg-white text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                <label class="flex flex-1 flex-col justify-center border-r border-black/20 px-[10px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
-                    <select id="campaign-filter" class="h-[20px] rounded-[3px] border-0 bg-[#0B0B0B] px-[6px] py-0 text-[10px] text-white focus:ring-0">
-                        <option value="">All campaigns</option>
-                    </select>
+            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
+                    <div class="figma-filter-select-wrap">
+                        <select id="domain-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All domains</option>
+                            @foreach ($domains as $domain)
+                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </label>
-                <label class="flex w-[125px] flex-col justify-center px-[10px]">
+                <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
-                    <input id="path-filter" value="" placeholder="/pricing" class="h-[20px] rounded-[3px] border-0 bg-[#0B0B0B] px-[6px] py-0 text-[10px] text-white placeholder:text-white/60 focus:ring-0">
+                    <div class="figma-filter-path-wrap">
+                        <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input id="path-filter" value="" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    </div>
                 </label>
+                @include('partials.figma-filter-date-fields')
             </div>
         </div>
 
@@ -172,8 +182,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const fmt = (n) => new Intl.NumberFormat().format(Number(n || 0));
-    const css = getComputedStyle(document.documentElement);
-    const purple = '#6400B2';
 
     function retina(canvas) {
         const dpr = window.devicePixelRatio || 1;
@@ -223,29 +231,53 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.stroke();
     }
 
-    function drawDonut(labels, values) {
+    function renderDonut(labels, values) {
         const canvas = document.getElementById('threats-chart');
-        if (!canvas) return;
-        const {ctx, w, h} = retina(canvas);
-        ctx.clearRect(0, 0, w, h);
-        const total = values.reduce((sum, n) => sum + Number(n || 0), 0) || 1;
-        const cx = w / 2, cy = h / 2;
-        const ring = Math.max(14, Math.round(Math.min(w, h) * 0.075));
-        const radius = Math.min(w, h) / 2 - ring - 6;
-        let start = -Math.PI / 2;
-        ['#D9D9D9', '#FFFFFF', '#B893D8', '#8C8C8C'].forEach((color, i) => {
-            const slice = ((values[i] || total / 4) / total) * Math.PI * 2;
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius, start, start + slice);
-            ctx.lineWidth = ring;
-            ctx.strokeStyle = color;
-            ctx.stroke();
-            start += slice;
+        if (!canvas || !window.Chart) return;
+
+        if (threatsChart) {
+            threatsChart.destroy();
+            threatsChart = null;
+        }
+
+        const safeLabels = labels || [];
+        const safeValues = (values || []).map((value) => Number(value || 0));
+        const total = safeValues.reduce((sum, value) => sum + value, 0);
+        const chartLabels = total > 0 ? safeLabels : ['No data'];
+        const chartValues = total > 0 ? safeValues : [1];
+        const chartColors = total > 0
+            ? chartLabels.map((_, index) => donutColors[index % donutColors.length])
+            : ['rgba(255,255,255,0.15)'];
+
+        threatsChart = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    data: chartValues,
+                    backgroundColor: chartColors,
+                    borderWidth: 0,
+                    hoverBorderWidth: 2,
+                    hoverBorderColor: '#ffffff',
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: (ctx) => total > 0
+                                ? `${ctx.label}: ${fmt(ctx.raw)}`
+                                : 'No threat groups in range',
+                        },
+                    },
+                },
+            },
         });
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius - ring, 0, Math.PI * 2);
-        ctx.fillStyle = purple;
-        ctx.fill();
     }
 
     async function json(url) {
@@ -266,8 +298,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function filterParams() {
+        const params = dateParams();
+        const domainId = document.getElementById('domain-filter')?.value || '';
+        const path = document.getElementById('path-filter')?.value || '';
+        if (domainId) params.set('domain_id', domainId);
+        if (path) params.set('path', path);
+        return params;
+    }
+
     function apiUrl(path) {
-        const qs = dateParams().toString();
+        const qs = filterParams().toString();
         return qs ? `${path}?${qs}` : path;
     }
 
@@ -317,6 +358,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let insightsTab = 'paid';
+    let threatsChart = null;
+    const donutColors = ['#D9D9D9', '#FFFFFF', '#B893D8', '#8C8C8C'];
 
     function setInsightsTab(tab) {
         insightsTab = tab;
@@ -389,7 +432,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadInsights() {
-        const d = await json(apiUrl('/insights'));
+        const params = dateParams();
+        const domainId = document.getElementById('domain-filter')?.value || '';
+        const path = document.getElementById('path-filter')?.value || '';
+        if (domainId) params.set('domain_id', domainId);
+        if (path) params.set('path', path);
+        const qs = params.toString();
+        const d = await json(qs ? `/insights?${qs}` : '/insights');
         const today = new Date();
         const rows = [
             ['Paid Advertising: detection on example domain', d.totalClicks],
@@ -409,17 +458,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('bottom-top-campaign').textContent = d.topCampaign || 'N/A';
     }
 
-    async function loadCampaigns() {
-        const list = await json('/campaigns');
-        const select = document.getElementById('campaign-filter');
-        list.forEach((campaign) => {
-            const option = document.createElement('option');
-            option.value = campaign;
-            option.textContent = campaign;
-            select.appendChild(option);
-        });
-    }
-
     async function loadDomainTable() {
         const params = dateParams();
         const q = domainSearch.trim();
@@ -431,9 +469,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadCharts() {
         const params = dateParams();
-        const campaign = document.getElementById('campaign-filter').value;
-        const path = document.getElementById('path-filter').value;
-        if (campaign) params.set('campaign', campaign);
+        const domainId = document.getElementById('domain-filter')?.value || '';
+        const path = document.getElementById('path-filter')?.value || '';
+        if (domainId) params.set('domain_id', domainId);
         if (path) params.set('path', path);
         const qs = params.toString();
 
@@ -441,12 +479,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const trends = await json(qs ? `/bot-protection/invalid-traffic-trends?${qs}` : '/bot-protection/invalid-traffic-trends');
             const threats = await json(qs ? `/bot-protection/threat-groups?${qs}` : '/bot-protection/threat-groups');
             drawTrendDual(trends.labels || [], trends.datasets || []);
-            drawDonut(threats.labels || [], threats.values || []);
+            renderDonut(threats.labels || [], threats.values || []);
             const legend = document.getElementById('chart-legend');
             if (legend && (threats.labels || []).length) {
-                const colors = ['#B893D8', '#FFFFFF', '#D9D9D9', '#8C8C8C'];
                 legend.innerHTML = (threats.labels || []).map((label, i) =>
-                    `<span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px]" style="background:${colors[i % colors.length]}"></i>${label} (${fmt((threats.values || [])[i])})</span>`
+                    `<span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px]" style="background:${donutColors[i % donutColors.length]}"></i>${label} (${fmt((threats.values || [])[i])})</span>`
                 ).join('');
             } else if (legend) {
                 legend.innerHTML = '<span class="text-white/60">No threat groups in range yet.</span>';
@@ -457,12 +494,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const trends = await json(qs ? `/analytics/trends?${qs}` : '/analytics/trends');
         const threats = await json(qs ? `/analytics/threats?${qs}` : '/analytics/threats');
         drawTrend(trends.labels || [], trends.values || []);
-        drawDonut(threats.labels || [], threats.values || []);
+        renderDonut(threats.labels || [], threats.values || []);
         const legend = document.getElementById('chart-legend');
         if (legend && (threats.labels || []).length) {
-            const colors = ['#B893D8', '#FFFFFF', '#D9D9D9', '#8C8C8C'];
             legend.innerHTML = (threats.labels || []).map((label, i) =>
-                `<span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px]" style="background:${colors[i % colors.length]}"></i>${label} (${fmt((threats.values || [])[i])})</span>`
+                `<span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px]" style="background:${donutColors[i % donutColors.length]}"></i>${label} (${fmt((threats.values || [])[i])})</span>`
             ).join('');
         } else if (legend) {
             legend.innerHTML = '<span class="text-white/60">No threat groups in range yet.</span>';
@@ -476,7 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadAll() {
         syncHeaderDatesFromStorage();
         try {
-            await Promise.all([loadSummary(), loadInsights(), loadCampaigns(), loadDomainTable()]);
+            await Promise.all([loadSummary(), loadInsights(), loadDomainTable()]);
             await loadCharts();
         } catch (error) {
             console.error(error);
@@ -500,12 +536,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     window.addEventListener('promotix:date-range', loadAll);
 
-    document.getElementById('campaign-filter').addEventListener('change', loadCharts);
-    document.getElementById('path-filter').addEventListener('input', () => {
+    document.getElementById('domain-filter')?.addEventListener('change', loadAll);
+    document.getElementById('path-filter')?.addEventListener('input', () => {
         clearTimeout(window.__figmaPathTimer);
-        window.__figmaPathTimer = setTimeout(loadCharts, FILTER_DEBOUNCE_MS);
+        window.__figmaPathTimer = setTimeout(loadAll, FILTER_DEBOUNCE_MS);
     });
-    window.addEventListener('resize', loadCharts);
+    window.addEventListener('resize', () => loadCharts());
     loadAll();
 });
 </script>

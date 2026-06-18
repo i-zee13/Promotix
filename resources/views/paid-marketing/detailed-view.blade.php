@@ -12,15 +12,26 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
             </div>
 
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
+            <div class="figma-filter-bar flex h-[54px] w-full max-w-[520px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
                 <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All domains</option>
+                            @foreach ($domains as $domain)
+                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </label>
+                <label x-show="filters.domain_id" x-cloak class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
                     <div class="figma-filter-select-wrap">
-                        <select x-model="filters.campaign" @change="scheduleFetch()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                        <select x-model="filters.campaign" @change="scheduleFetch(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All campaigns</option>
-                            @foreach ($campaigns as $campaign)
-                                <option value="{{ $campaign }}">{{ $campaign }}</option>
-                            @endforeach
+                            <template x-for="name in campaignOptions" :key="name">
+                                <option :value="name" x-text="name"></option>
+                            </template>
                         </select>
                     </div>
                 </label>
@@ -48,7 +59,7 @@
                 <div class="space-y-[12px]">
                     <label class="flex h-[26px] items-center rounded-[5px] border border-white/30 bg-[#0f0e0e] px-[10px]">
                         <svg class="mr-[9px] h-[15px] w-[15px] text-[#9d9898]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input x-model="filters.ip" @input="scheduleFetch()" placeholder="Filter by IP" class="h-full flex-1 border-0 bg-transparent p-0 text-[14px] font-light text-[#9d9898] placeholder:text-[#9d9898] focus:ring-0">
+                        <input x-model="filters.ip" @input="scheduleFetch(true)" placeholder="Filter by IP" class="h-full flex-1 border-0 bg-transparent p-0 text-[14px] font-light text-[#9d9898] placeholder:text-[#9d9898] focus:ring-0">
                     </label>
                     <button type="button" @click="filtersOpen = ! filtersOpen" class="flex h-[49px] w-full items-center rounded-[5px] border border-white/30 bg-[#0f0e0e] px-[13px] text-left text-[14px] text-[#9d9898]">
                         <svg class="mr-[12px] h-[22px] w-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="1.7" d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
@@ -68,9 +79,10 @@
                     <thead>
                         <tr>
                             <th class="w-[22px]"></th>
-                            <th class="w-[130px]">IP Address</th>
-                            <th class="w-[52px]">Visits</th>
-                            <th class="w-[110px]">Campaigns</th>
+                            <th class="w-[120px]">IP Address</th>
+                            <th class="w-[48px]">Visits</th>
+                            <th class="w-[100px]">Domain</th>
+                            <th class="w-[100px]">Campaigns</th>
                             <th class="w-[88px]">Last Click</th>
                             <th class="w-[100px]">Threat Group</th>
                             <th class="w-[90px]">Threat Type</th>
@@ -90,7 +102,8 @@
                                     <span x-show="visit.ip_count > 1" class="cell-ip-badge" x-text="'+' + (visit.ip_count - 1)"></span>
                                 </td>
                                 <td x-text="visit.visits"></td>
-                                <td class="cell-muted" :title="visit.campaign || 'N/A'" x-text="visit.campaign || 'N/A'"></td>
+                                <td class="cell-muted truncate" :title="visit.domain || '—'" x-text="visit.domain || '—'"></td>
+                                <td class="cell-muted truncate" :title="visit.campaign || 'N/A'" x-text="visit.campaign || 'N/A'"></td>
                                 <td class="cell-muted" x-text="visit.last_click_label"></td>
                                 <td class="cell-muted" :title="visit.threat_group || '—'" x-text="visit.threat_group || '—'"></td>
                                 <td class="cell-muted" :title="visit.threat_type || '—'" x-text="visit.threat_type || '—'"></td>
@@ -242,7 +255,8 @@
             fetchTimer: null,
             loading: false,
             filtersOpen: false,
-            filters: { ip: '', path: '', campaign: '', from: '', to: '' },
+            filters: { ip: '', path: '', domain_id: '', campaign: '', from: '', to: '' },
+            campaignOptions: [],
             rows: [],
             statCards: [],
             modal: { open: false, visit: null, clicks: [], activeIndex: 0 },
@@ -281,9 +295,31 @@
                 }));
                 this.scheduleFetch();
             },
-            scheduleFetch() {
+            scheduleFetch(fast = false) {
                 clearTimeout(this.fetchTimer);
-                this.fetchTimer = setTimeout(() => this.fetchNow(), this.debounceMs);
+                this.fetchTimer = setTimeout(() => this.fetchNow(), fast ? 350 : this.debounceMs);
+            },
+            async onDomainChange() {
+                this.filters.campaign = '';
+                this.campaignOptions = [];
+                if (this.filters.domain_id) {
+                    await this.loadCampaignsForDomain();
+                }
+                this.scheduleFetch(true);
+            },
+            async loadCampaignsForDomain() {
+                const params = new URLSearchParams();
+                params.set('domain_id', this.filters.domain_id);
+                if (this.filters.from) params.set('from', this.filters.from);
+                if (this.filters.to) params.set('to', this.filters.to);
+                try {
+                    const rows = await fetch(`/paid-marketing/campaigns?${params}`, {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    }).then(r => r.json());
+                    this.campaignOptions = [...new Set((rows || []).map(r => r.campaign).filter(Boolean))];
+                } catch (e) {
+                    this.campaignOptions = [];
+                }
             },
             queryString() {
                 const p = new URLSearchParams();
@@ -311,7 +347,8 @@
                 }
             },
             clearFilters() {
-                this.filters = { ip: '', path: '', campaign: '', from: '', to: '' };
+                this.filters = { ip: '', path: '', domain_id: '', campaign: '', from: '', to: '' };
+                this.campaignOptions = [];
                 this.syncHeaderDates();
                 this.fetchNow();
             },

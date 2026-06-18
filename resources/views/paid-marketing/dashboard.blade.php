@@ -15,7 +15,7 @@
 
             <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
                 <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All domains</option>
@@ -176,16 +176,16 @@
                         </button>
                     </div>
                     <div class="flex h-[28px] max-w-[min(100%,280px)] items-center gap-[8px] rounded-[3px] bg-[#6400B2] px-[9px] text-[10px] text-white">
-                        <span class="shrink-0">Campaign</span>
+                        <span class="shrink-0">Domain</span>
                         <select
-                            x-model="filters.campaign"
-                            @change="onCampaignFilterChange()"
+                            x-model="filters.domain_id"
+                            @change="onDomainChange()"
                             class="h-[18px] min-w-0 flex-1 rounded-[2px] border-0 bg-[#0B0B0B] px-[8px] py-0 text-[9px] text-white focus:ring-0"
                         >
-                            <option value="">All campaigns</option>
-                            <template x-for="row in campaignOptions" :key="row.campaign_id || row.campaign">
-                                <option :value="row.campaign" x-text="campaignOptionLabel(row)"></option>
-                            </template>
+                            <option value="">All domains</option>
+                            @foreach ($domains as $domain)
+                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                            @endforeach
                         </select>
                     </div>
                 </div>

@@ -12,15 +12,21 @@ use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return view('dashboard-figma');
+        $domains = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->orderBy('hostname')
+            ->get(['id', 'hostname']);
+
+        return view('dashboard-figma', compact('domains'));
     }
 
     public function summary(Request $request): JsonResponse
@@ -31,7 +37,7 @@ class DashboardController extends Controller
     public function insights(Request $request): JsonResponse
     {
         $user = $request->user();
-        $domainIds = Domain::query()->where('user_id', $user->id)->pluck('id');
+        $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
 
         if (Schema::hasTable('visits')) {
@@ -74,19 +80,15 @@ class DashboardController extends Controller
 
     public function trends(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $campaign = trim((string) $request->query('campaign', ''));
+        $domainIds = $this->scopedDomainIds($request);
         $path = trim((string) $request->query('path', ''));
         [$from, $to] = $this->dateRange($request);
 
         if (Schema::hasTable('visits')) {
             $query = DB::table('visits')
-                ->whereIn('domain_id', Domain::query()->where('user_id', $user->id)->pluck('id'))
+                ->whereIn('domain_id', $domainIds)
                 ->whereBetween('visited_at', [$from, $to]);
 
-            if ($campaign !== '') {
-                $query->where('utm_campaign', $campaign);
-            }
             if ($path !== '') {
                 $query->where('url', 'like', '%' . $path . '%');
             }
@@ -99,12 +101,9 @@ class DashboardController extends Controller
                 ->get();
         } else {
             $query = PaidMarketingClick::query()
-                ->whereHas('visit.domain', fn ($q) => $q->where('user_id', $user->id))
+                ->whereHas('visit', fn ($q) => $q->whereIn('domain_id', $domainIds))
                 ->whereBetween('clicked_at', [$from, $to]);
 
-            if ($campaign !== '') {
-                $query->where('campaign', $campaign);
-            }
             if ($path !== '') {
                 $query->where('path', 'like', '%' . $path . '%');
             }
@@ -137,11 +136,10 @@ class DashboardController extends Controller
 
     public function threats(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
 
         if (Schema::hasTable('detection_logs')) {
-            $domainIds = Domain::query()->where('user_id', $user->id)->pluck('id');
             $rows = DB::table('detection_logs')
                 ->whereIn('domain_id', $domainIds)
                 ->whereBetween('detected_at', [$from, $to])
@@ -151,7 +149,6 @@ class DashboardController extends Controller
                 ->orderByDesc('total')
                 ->get();
         } elseif (Schema::hasTable('visits')) {
-            $domainIds = Domain::query()->where('user_id', $user->id)->pluck('id');
             $rows = DB::table('visits')
                 ->whereIn('domain_id', $domainIds)
                 ->whereBetween('visited_at', [$from, $to])
@@ -163,7 +160,7 @@ class DashboardController extends Controller
                 ->get();
         } else {
             $rows = PaidMarketingVisit::query()
-                ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id))
+                ->whereIn('domain_id', $domainIds)
                 ->whereBetween('last_click_at', [$from, $to])
                 ->select('threat_group', DB::raw('COUNT(*) as total'))
                 ->whereNotNull('threat_group')
@@ -314,7 +311,7 @@ class DashboardController extends Controller
     private function snapshot(Request $request): array
     {
         $user = $request->user();
-        $domainIds = Domain::query()->where('user_id', $user->id)->pluck('id');
+        $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
 
         $visitBase = Schema::hasTable('visits')
@@ -370,6 +367,20 @@ class DashboardController extends Controller
             'dateRange' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'ts' => now()->toIso8601String(),
         ];
+    }
+
+    /** @return Collection<int, int> */
+    private function scopedDomainIds(Request $request): Collection
+    {
+        $ids = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->pluck('id');
+
+        if ($domainId = (int) $request->query('domain_id', 0)) {
+            return $ids->intersect([$domainId]);
+        }
+
+        return $ids;
     }
 
     /** @return array{0: Carbon, 1: Carbon} */
