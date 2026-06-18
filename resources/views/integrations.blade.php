@@ -198,16 +198,16 @@
                             <div class="h-full w-full rounded-full" :style="`background: conic-gradient(#7a56a9 ${requirementRingPct}%, #d9d9d9 0)`"></div>
                             <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>
                         </div>
-                        <div class="platform-requirement-bars min-w-0">
+                        <div class="platform-requirement-steps min-w-0">
                             <template x-for="step in requirementSteps" :key="step.label">
                                 <button
                                     type="button"
-                                    class="platform-requirement-bar"
+                                    class="platform-requirement-pill"
+                                    :class="step.done ? 'is-done' : ''"
                                     @click="handleRequirementClick(step)"
                                 >
-                                    <div class="platform-requirement-bar__fill" :class="step.done ? 'is-done' : ''"></div>
-                                    <span class="platform-requirement-bar__label" x-text="step.label"></span>
-                                    <span x-show="!step.done" x-cloak class="platform-requirement-bar__setup">Setup</span>
+                                    <span class="platform-requirement-pill__label" x-text="step.label"></span>
+                                    <span x-show="!step.done" x-cloak class="platform-requirement-pill__setup">Setup</span>
                                 </button>
                             </template>
                         </div>
@@ -522,6 +522,7 @@ function platformIntegrations(config) {
             if (!domain) return;
 
             const label = step.label;
+
             if (label === 'Tag Manager' || label === 'Bot Protection') {
                 this.openDomainKeys(domain);
                 return;

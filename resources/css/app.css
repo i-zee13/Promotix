@@ -2799,70 +2799,59 @@ select:autofill {
     z-index: 120;
 }
 
-/* Platform Integrate — connection requirement bars */
-.platform-requirement-bars {
+/* Platform Integrate — connection requirement pills */
+.platform-requirement-steps {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
 }
 
-.platform-requirement-bar {
+.platform-requirement-pill {
     position: relative;
-    display: block;
-    width: 100%;
-    height: 15px;
-    overflow: hidden;
-    border: 0;
-    border-radius: 9999px;
-    background: #d9d9d9;
-    padding: 0;
-    cursor: pointer;
-    transition: opacity 0.15s ease;
-}
-
-.platform-requirement-bar:hover {
-    opacity: 0.92;
-}
-
-.platform-requirement-bar__fill {
-    position: absolute;
-    top: 2px;
-    bottom: 2px;
-    left: 2px;
-    width: 0;
-    border-radius: 9999px;
-    background: #838284;
-    transition: width 0.3s ease;
-}
-
-.platform-requirement-bar__fill.is-done {
-    width: calc(100% - 4px);
-    background: #7a56a9;
-}
-
-.platform-requirement-bar__label {
-    position: absolute;
-    inset: 0;
     display: flex;
+    width: 100%;
+    max-width: 220px;
+    height: 44px;
     align-items: center;
     justify-content: center;
-    font-size: 8px;
-    color: rgba(255, 255, 255, 0.7);
-    pointer-events: none;
+    border: 2px solid rgba(255, 255, 255, 0.82);
+    border-radius: 9999px;
+    background: #6706b3;
+    padding: 0 52px 0 14px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.92);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
-.platform-requirement-bar__setup {
+.platform-requirement-pill:hover {
+    background: #7a13c8;
+}
+
+.platform-requirement-pill.is-done {
+    border-color: rgba(255, 255, 255, 0.55);
+    background: #4a0088;
+    padding-right: 14px;
+}
+
+.platform-requirement-pill.is-done:hover {
+    background: #560099;
+}
+
+.platform-requirement-pill__label {
+    text-align: center;
+}
+
+.platform-requirement-pill__setup {
     position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
+    right: 8px;
     border-radius: 9999px;
-    background: rgba(0, 0, 0, 0.28);
-    padding: 1px 6px;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 7px;
     font-size: 7px;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
     color: #ffffff;
     pointer-events: none;

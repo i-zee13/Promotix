@@ -181,10 +181,10 @@
                         <h3 class="mb-[14px] text-[16px] font-semibold text-white">{{ $tier->name }} plan</h3>
                         <div class="relative mx-auto h-[100px] w-[100px]">
                             <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="42" fill="none" stroke="#2a2a2a" stroke-width="10"/>
-                                <circle cx="50" cy="50" r="42" fill="none" stroke="#6400B2" stroke-width="10" stroke-linecap="round" stroke-dasharray="{{ $active ? (264 * $usedPct / 100) : 80 }} 264"/>
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="10"/>
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round" stroke-dasharray="{{ $active ? (264 * $usedPct / 100) : 0 }} 264"/>
                             </svg>
-                            <span class="absolute inset-0 flex items-center justify-center text-[14px] font-medium text-[#a9a9a9]">{{ $active ? $usedPct . '%' : '—' }}</span>
+                            <span class="absolute inset-0 flex items-center justify-center text-[14px] font-semibold text-white">{{ $active ? $usedPct . '%' : '—' }}</span>
                         </div>
                         @if ($active)
                             <p class="mt-[10px] text-[11px] text-[#a9a9a9]">Current plan</p>
