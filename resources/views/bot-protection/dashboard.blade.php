@@ -16,10 +16,10 @@
 
             <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
                 <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All campaigns</option>
+                            <option value="">All domains</option>
                             @foreach ($domains as $d)
                                 <option value="{{ $d->id }}">{{ $d->hostname }}</option>
                             @endforeach
@@ -457,9 +457,26 @@ function botProtectionFigma(config = {}) {
             g.addColorStop(1, this.hexAlpha(color, 0.02));
             return g;
         },
-        bpChartScales() {
-            const cap = 8000;
-            const step = 1000;
+        bpYAxisCap(peak) {
+            const value = Math.max(Number(peak) || 0, 1);
+            if (value <= 10) return 10;
+            if (value <= 50) return Math.ceil(value / 5) * 5;
+            if (value <= 200) return Math.ceil(value / 20) * 20;
+            if (value <= 1000) return Math.ceil(value / 100) * 100;
+            if (value <= 5000) return Math.ceil(value / 500) * 500;
+            return Math.ceil(value / 1000) * 1000;
+        },
+        bpYAxisStep(cap) {
+            if (cap <= 10) return 2;
+            if (cap <= 50) return 10;
+            if (cap <= 200) return 40;
+            if (cap <= 1000) return 200;
+            if (cap <= 5000) return 1000;
+            return Math.max(1000, cap / 5);
+        },
+        bpChartScales(maxY) {
+            const cap = this.bpYAxisCap(maxY);
+            const step = this.bpYAxisStep(cap);
             return {
                 x: {
                     grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
@@ -490,7 +507,7 @@ function botProtectionFigma(config = {}) {
             const areas = datasets.filter(d => !d.line);
             const lineDs = datasets.find(d => d.line);
             const allValues = datasets.flatMap(d => d.values || []);
-            const maxY = Math.max(...allValues, 1);
+            const maxY = Math.max(...allValues, 0);
             const areaAlpha = {
                 '#FFFFFF': 0.42,
                 '#0D0D0D': 0.55,
@@ -541,7 +558,7 @@ function botProtectionFigma(config = {}) {
                             padding: 10,
                         },
                     },
-                    scales: this.bpChartScales(),
+                    scales: this.bpChartScales(maxY),
                 },
             });
         },
@@ -557,7 +574,9 @@ function botProtectionFigma(config = {}) {
 
             const primary = datasets.find(d => !d.dashed) || datasets[0];
             const compare = datasets.find(d => d.dashed) || datasets[1];
-            const maxY = Math.max(...datasets.flatMap(d => d.values), 5000);
+            const maxY = Math.max(...datasets.flatMap(d => d.values), 0);
+            const yCap = this.bpYAxisCap(maxY);
+            const yStep = this.bpYAxisStep(yCap);
 
             const chartSets = [];
             if (primary) {
@@ -577,7 +596,7 @@ function botProtectionFigma(config = {}) {
                     fill: true,
                     tension: 0.35,
                     pointRadius: 0,
-                    pointHoverRadius: 5,
+                    pointHoverRadius: 6,
                     borderWidth: 1.5,
                     order: 1,
                 });
@@ -591,7 +610,7 @@ function botProtectionFigma(config = {}) {
                     fill: false,
                     tension: 0.35,
                     pointRadius: 0,
-                    pointHoverRadius: 5,
+                    pointHoverRadius: 6,
                     borderWidth: 1.5,
                     borderDash: [6, 4],
                     order: 0,
@@ -616,11 +635,12 @@ function botProtectionFigma(config = {}) {
                         },
                         y: {
                             min: 0,
-                            max: Math.ceil(maxY / 1000) * 1000,
+                            max: yCap,
                             grid: { color: 'rgba(255,255,255,0.08)' },
                             ticks: {
                                 color: 'rgba(255,255,255,0.45)',
                                 font: { size: 8 },
+                                stepSize: yStep,
                                 callback: (v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : v),
                             },
                         },

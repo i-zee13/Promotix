@@ -101,8 +101,9 @@ class BotProtectionController extends Controller
         $badBotSeries = [];
         $crawlerSeries = [];
 
-        $period = Carbon::parse($from)->copy();
-        while ($period->lt($to)) {
+        $period = Carbon::parse($from)->copy()->startOfDay();
+        $endDay = $to->copy()->startOfDay();
+        while ($period->lte($endDay)) {
             $key = $period->toDateString();
             $row = $rows->firstWhere('day', $key);
             $labels[] = $period->format('M d');
@@ -204,15 +205,37 @@ class BotProtectionController extends Controller
         $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
 
-        if (! Schema::hasTable('detection_logs')) {
+        if (Schema::hasTable('detection_logs')) {
+            $rows = DB::table('detection_logs')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('detected_at', [$from, $to])
+                ->select('threat_group', DB::raw('COUNT(*) as total'))
+                ->whereNotNull('threat_group')
+                ->groupBy('threat_group')
+                ->orderByDesc('total')
+                ->get();
+
+            if ($rows->isNotEmpty()) {
+                return response()->json([
+                    'labels' => $rows->pluck('threat_group')->values(),
+                    'values' => $rows->pluck('total')->map(fn ($n) => (int) $n)->values(),
+                ]);
+            }
+        }
+
+        if (! Schema::hasTable('visits')) {
             return response()->json(['labels' => [], 'values' => []]);
         }
 
-        $rows = DB::table('detection_logs')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('detected_at', [$from, $to])
+        $rows = $this->applyPathFilter(
+            DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$from, $to])
+                ->where('is_invalid_traffic', true)
+                ->whereNotNull('threat_group'),
+            $request
+        )
             ->select('threat_group', DB::raw('COUNT(*) as total'))
-            ->whereNotNull('threat_group')
             ->groupBy('threat_group')
             ->orderByDesc('total')
             ->get();
