@@ -20,10 +20,10 @@
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All domains</option>
-                            @foreach ($domains as $d)
-                                <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                            @endforeach
-                        </select>
+                        @foreach ($domains as $d)
+                            <option value="{{ $d->id }}">{{ $d->hostname }}</option>
+                        @endforeach
+                    </select>
                     </div>
                 </label>
                 <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
@@ -42,7 +42,7 @@
             <div class="figma-bp-visits-row">
                 <section class="figma-bp-visits-card min-w-0">
                     <div class="figma-bp-visits-head">
-                        <h2 class="figma-bp-visits-title">Total Visits Breakdown</h2>
+                    <h2 class="figma-bp-visits-title">Total Visits Breakdown</h2>
                         <div class="figma-bp-visits-head__meta">
                             <div class="figma-bp-legend figma-bp-legend--inline">
                                 <template x-for="ds in areaLegendItems()" :key="ds.name">
@@ -119,15 +119,15 @@
                 </section>
 
                 <div class="figma-bp-side-col">
-                    <div class="figma-bp-donuts-col">
-                        <section class="figma-bp-donut-card">
-                            <h3>Threat Groups</h3>
+                <div class="figma-bp-donuts-col">
+                    <section class="figma-bp-donut-card">
+                        <h3>Threat Groups</h3>
                             <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.th?.values)" role="img" aria-label="Threat groups chart">
                                 <span class="figma-bp-donut-hole"><span class="figma-bp-donut-hole__text" x-text="donutTotal(cache.th?.values)"></span></span>
                             </div>
                             <p class="figma-bp-donut-legend text-center" x-text="donutFooter(cache.th)"></p>
-                        </section>
-                        <section class="figma-bp-donut-card">
+                    </section>
+                    <section class="figma-bp-donut-card">
                             <h3>Invalid Bot Activity</h3>
                             <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.ib?.values, 'ib')" role="img" aria-label="Invalid bot activity chart">
                                 <span class="figma-bp-donut-hole"><span class="figma-bp-donut-hole__text" x-text="donutTotal(cache.ib?.values)"></span></span>
@@ -143,9 +143,9 @@
                                     ></button>
                                 </template>
                             </div>
-                        </section>
-                        <section class="figma-bp-donut-card">
-                            <h3>Invalid Malicious</h3>
+                    </section>
+                    <section class="figma-bp-donut-card">
+                        <h3>Invalid Malicious</h3>
                             <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.mal?.values, 'mal')" role="img" aria-label="Invalid malicious chart">
                                 <span class="figma-bp-donut-hole"><span class="figma-bp-donut-hole__text" x-text="donutTotal(cache.mal?.values)"></span></span>
                             </div>
@@ -191,7 +191,7 @@
                             <p x-show="countries.length === 0" class="px-[10px] py-[16px] text-center text-[10px] text-[#a9a9a9]">No country data.</p>
                         </div>
                     </section>
-                </div>
+            </div>
 
                 <section class="figma-bp-table figma-bp-domain-panel min-w-0">
                     <div class="figma-bp-table-head figma-bp-table-head--domain">
@@ -509,19 +509,19 @@ function botProtectionFigma(config = {}) {
                     this.$nextTick(() => this.renderCharts());
                     return;
                 }
-                const qs = this.qs();
-                const [s, traffic, trends, th, ib, c, ds] = await Promise.all([
-                    fetch(`/bot-protection/summary?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/threat-groups?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/countries?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/domains-summary?${qs}`).then(r => r.json()),
-                ]);
-                this.summary = s;
-                this.invalidTrends = trends;
-                this.countries = c;
+            const qs = this.qs();
+            const [s, traffic, trends, th, ib, c, ds] = await Promise.all([
+                fetch(`/bot-protection/summary?${qs}`).then(r => r.json()),
+                fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => r.json()),
+                fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => r.json()),
+                fetch(`/bot-protection/threat-groups?${qs}`).then(r => r.json()),
+                fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => r.json()),
+                fetch(`/bot-protection/countries?${qs}`).then(r => r.json()),
+                fetch(`/bot-protection/domains-summary?${qs}`).then(r => r.json()),
+            ]);
+            this.summary = s;
+            this.invalidTrends = trends;
+            this.countries = c;
                 this.domainsList = Array.isArray(ds) ? ds : [];
                 this.cache = {
                     traffic,
