@@ -252,6 +252,43 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     overflow: auto;
 }
 
+.paid-advanced-campaign-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 60;
+    width: 100%;
+    max-height: 180px;
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 5px;
+    background: #0f0e0e;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+.paid-advanced-campaign-option {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 11px;
+    line-height: 1.35;
+    color: #9d9898;
+    cursor: pointer;
+}
+
+.paid-advanced-campaign-option:hover,
+.paid-advanced-campaign-option.is-active {
+    background: #6400b2;
+    color: #ffffff;
+}
+
+.paid-advanced-campaign-option + .paid-advanced-campaign-option {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .paid-detailed-table {
     width: 100%;
     min-width: 1180px;
@@ -4431,6 +4468,16 @@ select option, .brand-select option { background:#ffffff; color:#111827; }
 .figma-bp-advanced-select-wrap::after {
     bottom: 4px;
     border-color: rgba(255, 255, 255, 0.28);
+}
+
+button.figma-bp-advanced-select-wrap {
+    position: relative;
+    cursor: pointer;
+}
+
+button.figma-bp-advanced-select-wrap:focus {
+    outline: none;
+    border-color: #9a1aff;
 }
 
 .figma-bp-advanced-select-wrap .figma-filter-control {

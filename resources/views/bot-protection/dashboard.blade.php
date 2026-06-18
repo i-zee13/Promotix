@@ -206,7 +206,7 @@ function buildBpDemoPayload() {
     const invalid = wave(1200, 350, 0.5);
     const total = dayLabels.map((_, i) => Math.max(valid[i], invalid[i] + crawlers[i]) + 400);
     const thisWeek = wave(4200, 1100, 0);
-    const lastWeek = wave(2800, 800, 1.2);
+    const siteInteraction = wave(1600, 520, 1.1);
 
     return {
         summary: {
@@ -230,10 +230,10 @@ function buildBpDemoPayload() {
         invalidTrends: {
             labels: dayLabels,
             datasets: [
-                { name: 'This Week', values: thisWeek, color: '#6625F8' },
-                { name: 'Last Week', values: lastWeek, color: '#FF4BC1', dashed: true },
+                { name: 'Invalid Pageloads', values: thisWeek, color: '#6625F8' },
+                { name: 'Invalid Site Interaction', values: siteInteraction, color: '#FF4BC1', dashed: true },
             ],
-            stats: { pageloads: thisWeek.reduce((a, b) => a + b, 0), interactions: 1840 },
+            stats: { pageloads: thisWeek.reduce((a, b) => a + b, 0), interactions: siteInteraction.reduce((a, b) => a + b, 0) },
         },
         cache: {
             traffic: {
@@ -480,6 +480,11 @@ function botProtectionFigma(config = {}) {
                 },
             };
         },
+        alignSeriesValues(values, length) {
+            const out = (values || []).map(v => Number(v || 0));
+            while (out.length < length) out.push(0);
+            return out.slice(0, length);
+        },
         renderAreaChart() {
             const el = document.getElementById('bp-area-chart');
             if (!el || !window.ApexCharts) return;
@@ -492,8 +497,9 @@ function botProtectionFigma(config = {}) {
 
             const areas = datasets.filter(d => !d.line);
             const lineDs = datasets.find(d => d.line);
-            const allValues = datasets.flatMap(d => d.values || []);
+            const allValues = datasets.flatMap(d => this.alignSeriesValues(d.values, labels.length));
             const maxY = Math.max(...allValues, 0);
+            const sparse = labels.length <= 4;
             const fillOpacity = {
                 '#FFFFFF': 0.42,
                 '#0D0D0D': 0.58,
@@ -503,14 +509,14 @@ function botProtectionFigma(config = {}) {
 
             const series = areas.map(ds => ({
                 name: ds.name,
-                data: ds.values || [],
+                data: this.alignSeriesValues(ds.values, labels.length),
             }));
 
             const colors = areas.map(ds => ds.color);
             const opacities = areas.map(ds => fillOpacity[ds.color] ?? 0.45);
 
             if (lineDs) {
-                series.push({ name: lineDs.name, data: lineDs.values || [] });
+                series.push({ name: lineDs.name, data: this.alignSeriesValues(lineDs.values, labels.length) });
                 colors.push(lineDs.color || '#B893D8');
                 opacities.push(0);
             }
@@ -531,7 +537,7 @@ function botProtectionFigma(config = {}) {
                 colors,
                 dataLabels: { enabled: false },
                 stroke: {
-                    curve: 'smooth',
+                    curve: sparse ? 'straight' : 'smooth',
                     width: strokeWidths,
                     lineCap: 'round',
                 },
@@ -583,12 +589,17 @@ function botProtectionFigma(config = {}) {
             this.destroyChart('invalid');
 
             const labels = this.invalidTrends.labels ?? [];
-            const datasets = (this.invalidTrends.datasets ?? []).map(d => ({ ...d, values: d.values || [] }));
+            const datasets = (this.invalidTrends.datasets ?? []).map(d => ({
+                ...d,
+                values: this.alignSeriesValues(d.values, labels.length),
+            }));
             if (!labels.length) return;
 
             const primary = datasets.find(d => !d.dashed) || datasets[0];
             const compare = datasets.find(d => d.dashed) || datasets[1];
             const maxY = Math.max(...datasets.flatMap(d => d.values), 0);
+            const sparse = labels.length <= 6;
+            const showMarkers = labels.length <= 8;
 
             const series = [];
             const colors = [];
@@ -626,11 +637,15 @@ function botProtectionFigma(config = {}) {
                 series,
                 colors,
                 dataLabels: { enabled: false },
+                plotOptions: {
+                    area: { fillTo: 'origin' },
+                },
                 stroke: {
-                    curve: 'smooth',
+                    curve: sparse ? 'straight' : 'smooth',
                     width: strokeWidths,
                     dashArray: dashArrays,
                     lineCap: 'round',
+                    show: true,
                 },
                 fill: {
                     type: 'gradient',
@@ -674,10 +689,11 @@ function botProtectionFigma(config = {}) {
                     },
                 },
                 markers: {
-                    size: 0,
+                    size: showMarkers ? 4 : 0,
                     strokeWidth: 2,
                     strokeColors: colors,
-                    hover: { size: 6, sizeOffset: 2 },
+                    fillOpacity: 1,
+                    hover: { size: 7, sizeOffset: 2 },
                 },
             });
             this.charts.invalid.render();

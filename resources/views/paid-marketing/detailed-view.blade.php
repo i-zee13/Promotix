@@ -35,7 +35,7 @@
             </div>
         </div>
 
-        <div class="rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
+        <div class="relative z-20 overflow-visible rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
             <div class="grid gap-[16px] lg:grid-cols-[1fr_244px]">
                 <div class="flex min-h-[91px] flex-col justify-between">
                     <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trends</h2>
@@ -57,26 +57,27 @@
                 </div>
             </div>
 
-            <div x-show="filtersOpen" x-cloak class="mt-[14px] rounded-[8px] bg-black/20 p-[12px]">
+            <div x-show="filtersOpen" x-cloak class="relative z-30 mt-[14px] overflow-visible rounded-[8px] bg-[#520090] p-[12px]">
                 <div class="flex flex-wrap items-end gap-[12px]">
-                    <label x-show="filters.domain_id" class="block w-[220px] max-w-full shrink-0">
+                    <div x-show="filters.domain_id" class="relative w-[220px] max-w-full shrink-0" @click.outside="campaignMenuOpen = false">
                         <span class="mb-[6px] block text-[10px] font-semibold uppercase text-white/70">Campaigns</span>
-                        <div class="figma-filter-select-wrap figma-bp-advanced-select-wrap">
-                            <select x-model="filters.campaign" @change="scheduleFetch(true)" class="figma-filter-control h-[26px] w-full appearance-none rounded-[5px] border border-white/25 bg-[#0f0e0e] py-0 pl-[10px] pr-[28px] text-[11px] leading-[26px] text-[#9d9898] focus:border-[#9a1aff] focus:ring-0">
-                                <option value="">All campaigns</option>
-                                <template x-for="name in campaignOptions" :key="name">
-                                    <option :value="name" x-text="name"></option>
-                                </template>
-                            </select>
+                        <button type="button" @click="campaignMenuOpen = !campaignMenuOpen" class="figma-filter-select-wrap figma-bp-advanced-select-wrap flex h-[26px] w-full items-center rounded-[5px] border border-white/25 bg-[#0f0e0e] py-0 pl-[10px] pr-[28px] text-left text-[11px] text-[#9d9898]">
+                            <span class="truncate" x-text="filters.campaign || 'All campaigns'"></span>
+                        </button>
+                        <div x-show="campaignMenuOpen" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll">
+                            <button type="button" @click="selectCampaign('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">All campaigns</button>
+                            <template x-for="name in campaignOptions" :key="name">
+                                <button type="button" @click="selectCampaign(name)" class="paid-advanced-campaign-option" :class="filters.campaign === name && 'is-active'" x-text="name"></button>
+                            </template>
                         </div>
-                    </label>
+                    </div>
                     <p x-show="!filters.domain_id" class="text-[12px] text-white/55">Select a domain above to filter by campaign.</p>
                     <button type="button" @click="clearAdvancedFilters()" class="ml-auto shrink-0 rounded-[4px] border border-white/30 px-[12px] py-[7px] text-[12px] leading-none text-white/80 hover:bg-white/10">Clear filters</button>
                 </div>
             </div>
         </div>
 
-        <section class="mt-[8px] overflow-hidden">
+        <section class="relative z-0 mt-[8px] overflow-hidden">
             <div class="promotix-slim-scroll paid-detailed-scroll max-h-[360px]">
                 <table class="paid-detailed-table">
                     <thead>
@@ -258,6 +259,7 @@
             fetchTimer: null,
             loading: false,
             filtersOpen: false,
+            campaignMenuOpen: false,
             filters: { ip: '', path: '', domain_id: '', campaign: '', from: '', to: '' },
             campaignOptions: [],
             rows: [],
@@ -305,13 +307,22 @@
             async onDomainChange() {
                 this.filters.campaign = '';
                 this.campaignOptions = [];
+                this.campaignMenuOpen = false;
                 this.scheduleFetch(true);
             },
             async toggleAdvancedFilters() {
                 this.filtersOpen = !this.filtersOpen;
+                if (!this.filtersOpen) {
+                    this.campaignMenuOpen = false;
+                }
                 if (this.filtersOpen && this.filters.domain_id && this.campaignOptions.length === 0) {
                     await this.loadCampaignsForDomain();
                 }
+            },
+            selectCampaign(name) {
+                this.filters.campaign = name;
+                this.campaignMenuOpen = false;
+                this.scheduleFetch(true);
             },
             async loadCampaignsForDomain() {
                 const params = new URLSearchParams();
@@ -356,6 +367,7 @@
                 this.filters.ip = '';
                 this.filters.path = '';
                 this.filters.campaign = '';
+                this.campaignMenuOpen = false;
                 this.scheduleFetch(true);
             },
             openClicks(visit) {

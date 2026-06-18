@@ -140,64 +140,100 @@ class BotProtectionController extends Controller
             return response()->json(['labels' => [], 'datasets' => [], 'stats' => ['pageloads' => 0, 'interactions' => 0]]);
         }
 
-        $days = max(1, $from->diffInDays($to) + 1);
-        $prevFrom = $from->copy()->subDays($days);
-        $prevTo = $from->copy()->subSecond();
+        $days = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
+        $hourly = $days <= 1;
 
-        $fetch = function (Carbon $start, Carbon $end) use ($domainIds, $request) {
-            $query = DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->whereBetween('visited_at', [$start, $end]);
-            $query = $this->applyPathFilter($query, $request);
-            $rows = $query
-                ->selectRaw('DATE(visited_at) as day, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid, COUNT(*) as total')
-                ->groupBy('day')
-                ->orderBy('day')
-                ->get();
+        [$labels, $bucketKeys] = $this->invalidTrendBuckets($from, $to, $hourly);
 
-            $values = [];
-            $period = $start->copy();
-            while ($period->lte($end)) {
-                $key = $period->toDateString();
-                $row = $rows->firstWhere('day', $key);
-                $values[] = (int) ($row->invalid ?? 0);
-                $period->addDay();
-            }
+        $pageloads = $this->invalidTrendSeries($domainIds, $request, $from, $to, $bucketKeys, $hourly, 'pageloads');
+        $interactions = $this->invalidTrendSeries($domainIds, $request, $from, $to, $bucketKeys, $hourly, 'interactions');
 
-            return $values;
-        };
-
-        $thisWeek = $fetch($from, $to);
-        $lastWeek = $fetch($prevFrom, $prevTo);
-
-        $labels = [];
-        $period = $from->copy();
-        while ($period->lte($to)) {
-            $labels[] = $period->format('D');
-            $period->addDay();
-        }
-
-        $pageloads = array_sum($thisWeek);
-        $interactions = (int) $this->applyPathFilter(
-            DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->whereBetween('visited_at', [$from, $to])
-                ->where('is_invalid_traffic', true)
-                ->where('threat_group', 'malicious'),
-            $request
-        )->count();
+        $pageloadTotal = array_sum($pageloads);
+        $interactionTotal = array_sum($interactions);
 
         return response()->json([
             'labels' => $labels,
             'datasets' => [
-                ['name' => 'Invalid Pageloads', 'values' => $thisWeek, 'color' => '#6625F8'],
-                ['name' => 'Invalid Site Interaction', 'values' => $lastWeek, 'color' => '#FF4BC1', 'dashed' => true],
+                ['name' => 'Invalid Pageloads', 'values' => $pageloads, 'color' => '#6625F8'],
+                ['name' => 'Invalid Site Interaction', 'values' => $interactions, 'color' => '#FF4BC1', 'dashed' => true],
             ],
             'stats' => [
-                'pageloads' => $pageloads,
-                'interactions' => $interactions,
+                'pageloads' => $pageloadTotal,
+                'interactions' => $interactionTotal,
             ],
         ]);
+    }
+
+    /** @return array{0: list<string>, 1: list<string>} */
+    private function invalidTrendBuckets(Carbon $from, Carbon $to, bool $hourly): array
+    {
+        $labels = [];
+        $keys = [];
+
+        if ($hourly) {
+            $period = $from->copy()->startOfHour();
+            $end = $to->copy()->startOfHour();
+            if ($period->gt($end)) {
+                $end = $from->copy();
+            }
+            while ($period->lte($end)) {
+                $keys[] = $period->format('Y-m-d H:00:00');
+                $labels[] = $period->format('g A');
+                $period->addHour();
+            }
+
+            return [$labels, $keys];
+        }
+
+        $period = $from->copy()->startOfDay();
+        $endDay = $to->copy()->startOfDay();
+        while ($period->lte($endDay)) {
+            $keys[] = $period->toDateString();
+            $labels[] = $period->format('D');
+            $period->addDay();
+        }
+
+        return [$labels, $keys];
+    }
+
+    /** @param list<string> $bucketKeys */
+    private function invalidTrendSeries(
+        $domainIds,
+        Request $request,
+        Carbon $from,
+        Carbon $to,
+        array $bucketKeys,
+        bool $hourly,
+        string $metric
+    ): array {
+        if ($bucketKeys === []) {
+            return [];
+        }
+
+        $invalidExpr = 'SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END)';
+        $interactionExpr = "SUM(CASE WHEN is_invalid_traffic = 1 AND threat_group = 'malicious' THEN 1 ELSE 0 END)";
+        $valueExpr = $metric === 'interactions' ? $interactionExpr : $invalidExpr;
+
+        $bucketExpr = $hourly
+            ? "DATE_FORMAT(visited_at, '%Y-%m-%d %H:00:00')"
+            : 'DATE(visited_at)';
+
+        $query = DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('visited_at', [$from, $to]);
+        $query = $this->applyPathFilter($query, $request);
+
+        $rows = $query
+            ->selectRaw("{$bucketExpr} as bucket, {$valueExpr} as total")
+            ->groupBy('bucket')
+            ->orderBy('bucket')
+            ->get()
+            ->keyBy('bucket');
+
+        return array_map(
+            fn (string $key) => (int) ($rows->get($key)?->total ?? 0),
+            $bucketKeys
+        );
     }
 
     public function threatGroups(Request $request): JsonResponse
