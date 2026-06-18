@@ -90,7 +90,7 @@
             <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[#6400B2]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
         @endif
 
-        <div class="grid gap-[12px] xl:grid-cols-[minmax(0,720px)_minmax(320px,1fr)]">
+        <div class="grid gap-[12px] xl:grid-cols-[minmax(0,720px)_360px]">
             <section class="rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
                 <h2 class="mb-[16px] text-[24px] font-medium text-white">Connect Your Platforms</h2>
 
@@ -168,7 +168,7 @@
                 </div>
             </section>
 
-            <div class="grid gap-[12px] sm:grid-cols-2 xl:grid-cols-1">
+            <div class="grid gap-[12px] sm:grid-cols-2 xl:grid-cols-1 xl:max-w-[360px]">
                 <section class="rounded-[10px] bg-[#6706B3] p-[10px]">
                     <p class="mb-[12px] text-center text-[8px] uppercase text-white">Connection Status</p>
                     <div class="grid grid-cols-2 gap-[6px]">
@@ -193,16 +193,16 @@
                         <span x-show="requirementLive" class="rounded-full bg-emerald-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-emerald-200">Live</span>
                         <span x-show="!requirementLive" x-cloak class="rounded-full bg-amber-500/20 px-[10px] py-[3px] text-[10px] font-semibold text-amber-100">Setup in progress</span>
                     </div>
-                    <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
+                    <div class="platform-requirement-layout">
                         <div class="relative h-[84px] w-[84px] shrink-0">
                             <div class="h-full w-full rounded-full" :style="`background: conic-gradient(#7a56a9 ${requirementRingPct}%, #d9d9d9 0)`"></div>
                             <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>
                         </div>
-                        <div class="space-y-[8px]">
+                        <div class="platform-requirement-steps">
                             <template x-for="step in requirementSteps" :key="step.label">
-                                <div class="relative h-[15px] overflow-hidden rounded-full bg-[#d9d9d9]">
-                                    <div class="absolute inset-y-[2px] left-[2px] rounded-full transition-all duration-300" :class="step.done ? 'w-[calc(100%-4px)] bg-[#7a56a9]' : 'w-0 bg-[#838284]'"></div>
-                                    <span class="absolute inset-0 flex items-center justify-center text-[8px] text-white/70" x-text="step.label"></span>
+                                <div class="platform-requirement-bar">
+                                    <div class="platform-requirement-bar__fill" :class="step.done ? 'is-done' : ''"></div>
+                                    <span class="platform-requirement-bar__label" x-text="step.label"></span>
                                 </div>
                             </template>
                         </div>
