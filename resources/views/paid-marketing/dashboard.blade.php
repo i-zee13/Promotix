@@ -47,15 +47,15 @@
                         <span class="paid-dashboard-card__icon-btn text-[11px]" title="Invalid rate for selected period">i</span>
                     </div>
                 </div>
-                <div class="mt-[8px] grid grid-cols-[1fr_88px] items-center gap-[8px]">
-                    <div class="grid grid-cols-2 text-center">
-                        <div>
-                            <p class="text-[10px] text-white/75">Paid traffic</p>
-                            <p class="text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
+                <div class="mt-[8px] grid grid-cols-[minmax(0,1fr)_88px] items-center gap-[10px]">
+                    <div class="grid min-w-0 grid-cols-2 gap-x-[14px] gap-y-[6px]">
+                        <div class="min-w-0 text-left">
+                            <p class="text-[9px] leading-[1.25] text-white/75">Paid traffic</p>
+                            <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
                         </div>
-                        <div>
-                            <p class="text-[10px] text-white/75">Invalid Paid Traffic</p>
-                            <p class="text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
+                        <div class="min-w-0 text-left">
+                            <p class="text-[9px] leading-[1.25] text-white/75">Invalid clicks</p>
+                            <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
                         </div>
                     </div>
                     <div class="relative h-[72px] w-[88px]">
