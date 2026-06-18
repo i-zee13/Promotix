@@ -3434,10 +3434,46 @@ select:autofill {
     justify-content: flex-end;
 }
 
-.figma-bp-legend span {
+.figma-bp-legend span,
+.figma-bp-legend button,
+.figma-bp-invalid-legend span,
+.figma-bp-invalid-legend button,
+.chart-legend-item {
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    cursor: pointer;
+    user-select: none;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    transition: opacity 0.15s ease;
+}
+
+.figma-bp-legend span:hover,
+.figma-bp-legend button:hover,
+.figma-bp-invalid-legend span:hover,
+.figma-bp-invalid-legend button:hover,
+.chart-legend-item:hover {
+    opacity: 0.88;
+}
+
+.figma-bp-legend span.is-hidden,
+.figma-bp-legend button.is-hidden,
+.figma-bp-invalid-legend span.is-hidden,
+.figma-bp-invalid-legend button.is-hidden,
+.chart-legend-item.is-hidden {
+    opacity: 0.38;
+}
+
+.figma-bp-legend span.is-hidden i,
+.figma-bp-legend button.is-hidden i,
+.figma-bp-invalid-legend span.is-hidden i,
+.figma-bp-invalid-legend button.is-hidden i,
+.chart-legend-item.is-hidden i {
+    opacity: 0.45;
 }
 
 .figma-bp-legend i {
@@ -3594,12 +3630,6 @@ select:autofill {
     margin-top: 8px;
     font-size: 9px;
     color: rgba(255, 255, 255, 0.82);
-}
-
-.figma-bp-invalid-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
 }
 
 .figma-bp-invalid-legend i {

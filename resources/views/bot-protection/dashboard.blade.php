@@ -45,11 +45,17 @@
                         <h2 class="figma-bp-visits-title">Total Visits Breakdown</h2>
                         <div class="figma-bp-visits-head__meta">
                             <div class="figma-bp-legend figma-bp-legend--inline">
-                                <span><i style="background:#fff"></i>Valid Visits</span>
-                                <span><i style="background:#0D0D0D;border:1px solid rgba(255,255,255,.25)"></i>Bad Bots</span>
-                                <span><i style="background:#6625F8"></i>Crawler</span>
-                                <span><i style="background:#FF4BC1"></i>Invalid</span>
-                                <span><i style="background:#B893D8"></i>Total Visits</span>
+                                <template x-for="ds in areaLegendItems()" :key="ds.name">
+                                    <button
+                                        type="button"
+                                        class="chart-legend-item"
+                                        :class="{ 'is-hidden': isSeriesHidden('area', ds.name) }"
+                                        @click="toggleChartSeries('area', ds.name)"
+                                    >
+                                        <i :style="legendSwatchStyle(ds)"></i>
+                                        <span x-text="ds.name"></span>
+                                    </button>
+                                </template>
                             </div>
                             <div class="relative" x-data="{ cardMenu: false }">
                                 <button type="button" @click.stop="cardMenu = !cardMenu" class="figma-platform-kebab" aria-label="Chart options">
@@ -95,8 +101,17 @@
                 <section class="figma-bp-invalid-card min-w-0">
                     <h2 class="figma-bp-invalid-title">Invalid Traffic Breakdown</h2>
                     <div class="figma-bp-invalid-legend">
-                        <span><i style="background:#6625F8"></i>Invalid Pageloads</span>
-                        <span><i style="background:#FF4BC1"></i>Invalid Site Interaction</span>
+                        <template x-for="ds in invalidLegendItems()" :key="ds.name">
+                            <button
+                                type="button"
+                                class="chart-legend-item"
+                                :class="{ 'is-hidden': isSeriesHidden('invalid', ds.name) }"
+                                @click="toggleChartSeries('invalid', ds.name)"
+                            >
+                                <i :style="legendSwatchStyle(ds)"></i>
+                                <span x-text="ds.name"></span>
+                            </button>
+                        </template>
                     </div>
                     <div class="figma-bp-invalid-chart-wrap">
                         <div id="bp-invalid-line" class="figma-bp-invalid-canvas"></div>
@@ -114,23 +129,35 @@
                         </section>
                         <section class="figma-bp-donut-card">
                             <h3>Invalid Bot Activity</h3>
-                            <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.ib?.values)" role="img" aria-label="Invalid bot activity chart">
+                            <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.ib?.values, 'ib')" role="img" aria-label="Invalid bot activity chart">
                                 <span class="figma-bp-donut-hole"><span class="figma-bp-donut-hole__text" x-text="donutTotal(cache.ib?.values)"></span></span>
                             </div>
                             <div class="figma-bp-donut-legend">
                                 <template x-for="(label, i) in (cache.ib?.labels || []).slice(0, 3)" :key="label + i">
-                                    <div class="truncate" x-text="donutLegendLine(label, cache.ib?.values?.[i])"></div>
+                                    <button
+                                        type="button"
+                                        class="chart-legend-item truncate text-left"
+                                        :class="{ 'is-hidden': isDonutSegmentHidden('ib', i) }"
+                                        @click="toggleDonutSegment('ib', i)"
+                                        x-text="donutLegendLine(label, cache.ib?.values?.[i])"
+                                    ></button>
                                 </template>
                             </div>
                         </section>
                         <section class="figma-bp-donut-card">
                             <h3>Invalid Malicious</h3>
-                            <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.mal?.values)" role="img" aria-label="Invalid malicious chart">
+                            <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.mal?.values, 'mal')" role="img" aria-label="Invalid malicious chart">
                                 <span class="figma-bp-donut-hole"><span class="figma-bp-donut-hole__text" x-text="donutTotal(cache.mal?.values)"></span></span>
                             </div>
                             <div class="figma-bp-donut-legend" x-show="(cache.mal?.labels || []).length">
                                 <template x-for="(label, i) in (cache.mal?.labels || []).slice(0, 2)" :key="label + i">
-                                    <div class="truncate" x-text="donutLegendLine(label, cache.mal?.values?.[i])"></div>
+                                    <button
+                                        type="button"
+                                        class="chart-legend-item truncate text-left"
+                                        :class="{ 'is-hidden': isDonutSegmentHidden('mal', i) }"
+                                        @click="toggleDonutSegment('mal', i)"
+                                        x-text="donutLegendLine(label, cache.mal?.values?.[i])"
+                                    ></button>
                                 </template>
                             </div>
                         </section>
@@ -266,6 +293,8 @@ function botProtectionFigma(config = {}) {
         cache: {},
         donutPalette: ['#FFFFFF', '#B893D8', '#6625F8', '#FF4BC1'],
         charts: {},
+        hiddenSeries: { area: {}, invalid: {} },
+        hiddenDonutSegments: { ib: {}, mal: {} },
         invalidHoverIndex: null,
         fmt(n) { return new Intl.NumberFormat().format(Number(n || 0)); },
         fmtCompact(n) {
@@ -366,8 +395,70 @@ function botProtectionFigma(config = {}) {
         donutTotal(values) {
             return (values || []).reduce((a, b) => a + Number(b || 0), 0);
         },
-        donutRingStyle(values) {
-            const data = (values || []).map(v => Number(v || 0));
+        areaLegendItems() {
+            const defaults = [
+                { name: 'Valid Visits', color: '#FFFFFF' },
+                { name: 'Bad Bots', color: '#0D0D0D' },
+                { name: 'Crawler', color: '#6625F8' },
+                { name: 'Invalid', color: '#FF4BC1' },
+                { name: 'Total Visits', color: '#B893D8', line: true },
+            ];
+            const datasets = this.cache?.traffic?.datasets || [];
+            return datasets.length ? datasets : defaults;
+        },
+        invalidLegendItems() {
+            const defaults = [
+                { name: 'Invalid Pageloads', color: '#6625F8' },
+                { name: 'Invalid Site Interaction', color: '#FF4BC1', dashed: true },
+            ];
+            const datasets = this.invalidTrends?.datasets || [];
+            return datasets.length ? datasets : defaults;
+        },
+        legendSwatchStyle(ds) {
+            const color = ds?.color || '#FFFFFF';
+            if (String(color).toLowerCase() === '#0d0d0d') {
+                return 'background:#0D0D0D;border:1px solid rgba(255,255,255,.25)';
+            }
+            return `background:${color}`;
+        },
+        isSeriesHidden(chartKey, name) {
+            return Boolean(this.hiddenSeries?.[chartKey]?.[name]);
+        },
+        toggleChartSeries(chartKey, name) {
+            const chart = this.charts?.[chartKey];
+            if (!chart || !name) return;
+            if (!this.hiddenSeries[chartKey]) this.hiddenSeries[chartKey] = {};
+            this.hiddenSeries[chartKey][name] = !this.hiddenSeries[chartKey][name];
+            chart.toggleSeries(name);
+        },
+        applyHiddenSeries(chartKey) {
+            const chart = this.charts?.[chartKey];
+            const hidden = this.hiddenSeries?.[chartKey] || {};
+            if (!chart) return;
+            Object.entries(hidden).forEach(([name, isHidden]) => {
+                if (!isHidden) return;
+                const idx = chart.w?.globals?.seriesNames?.indexOf(name);
+                const collapsed = chart.w?.globals?.collapsedSeriesIndices || [];
+                if (idx >= 0 && !collapsed.includes(idx)) {
+                    chart.toggleSeries(name);
+                }
+            });
+        },
+        isDonutSegmentHidden(group, index) {
+            return Boolean(this.hiddenDonutSegments?.[group]?.[index]);
+        },
+        toggleDonutSegment(group, index) {
+            if (!this.hiddenDonutSegments[group]) this.hiddenDonutSegments[group] = {};
+            this.hiddenDonutSegments[group][index] = !this.hiddenDonutSegments[group][index];
+        },
+        visibleDonutValues(values, group) {
+            const hidden = this.hiddenDonutSegments?.[group] || {};
+            return (values || []).map((v, i) => (hidden[i] ? 0 : Number(v || 0)));
+        },
+        donutRingStyle(values, group = null) {
+            const data = group
+                ? this.visibleDonutValues(values, group)
+                : (values || []).map(v => Number(v || 0));
             const total = data.reduce((a, b) => a + b, 0);
             if (!total) {
                 return { background: 'conic-gradient(rgba(255,255,255,0.35) 0deg 360deg)' };
@@ -582,6 +673,7 @@ function botProtectionFigma(config = {}) {
                 },
             });
             this.charts.area.render();
+            this.applyHiddenSeries('area');
         },
         renderInvalidChart() {
             const el = document.getElementById('bp-invalid-line');
@@ -697,6 +789,7 @@ function botProtectionFigma(config = {}) {
                 },
             });
             this.charts.invalid.render();
+            this.applyHiddenSeries('invalid');
         },
         renderCharts() {
             if (!window.ApexCharts) return;

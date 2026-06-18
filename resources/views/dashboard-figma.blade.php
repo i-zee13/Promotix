@@ -269,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     legend: { display: false },
                     tooltip: {
                         enabled: true,
+                        filter: (item) => !item.hidden,
                         callbacks: {
                             label: (ctx) => total > 0
                                 ? `${ctx.label}: ${fmt(ctx.raw)}`
@@ -277,6 +278,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                 },
             },
+        });
+
+        if (total > 0) {
+            Object.entries(hiddenThreatSlices).forEach(([index, hidden]) => {
+                if (hidden) {
+                    threatsChart.toggleDataVisibility(Number(index));
+                }
+            });
+            threatsChart.update();
+        }
+    }
+
+    function renderThreatLegend(labels, values) {
+        lastThreatLegend = { labels: labels || [], values: values || [] };
+        const legend = document.getElementById('chart-legend');
+        if (!legend) return;
+        if (!labels?.length) {
+            legend.innerHTML = '<span class="text-white/60">No threat groups in range yet.</span>';
+            return;
+        }
+        legend.innerHTML = labels.map((label, i) => {
+            const hidden = hiddenThreatSlices[i];
+            return `<button type="button" class="chart-legend-item${hidden ? ' is-hidden' : ''}" data-slice="${i}"><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px]" style="background:${donutColors[i % donutColors.length]}"></i>${label} (${fmt((values || [])[i])})</button>`;
+        }).join('');
+        legend.querySelectorAll('[data-slice]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const i = Number(btn.dataset.slice);
+                hiddenThreatSlices[i] = !hiddenThreatSlices[i];
+                if (threatsChart) {
+                    threatsChart.toggleDataVisibility(i);
+                    threatsChart.update();
+                }
+                renderThreatLegend(lastThreatLegend.labels, lastThreatLegend.values);
+            });
         });
     }
 
@@ -359,6 +394,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let insightsTab = 'paid';
     let threatsChart = null;
+    let hiddenThreatSlices = {};
+    let lastThreatLegend = { labels: [], values: [] };
     const donutColors = ['#D9D9D9', '#FFFFFF', '#B893D8', '#8C8C8C'];
 
     function setInsightsTab(tab) {
@@ -468,6 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadCharts() {
+        hiddenThreatSlices = {};
         const params = dateParams();
         const domainId = document.getElementById('domain-filter')?.value || '';
         const path = document.getElementById('path-filter')?.value || '';
@@ -480,14 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const threats = await json(qs ? `/bot-protection/threat-groups?${qs}` : '/bot-protection/threat-groups');
             drawTrendDual(trends.labels || [], trends.datasets || []);
             renderDonut(threats.labels || [], threats.values || []);
-            const legend = document.getElementById('chart-legend');
-            if (legend && (threats.labels || []).length) {
-                legend.innerHTML = (threats.labels || []).map((label, i) =>
-                    `<span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px]" style="background:${donutColors[i % donutColors.length]}"></i>${label} (${fmt((threats.values || [])[i])})</span>`
-                ).join('');
-            } else if (legend) {
-                legend.innerHTML = '<span class="text-white/60">No threat groups in range yet.</span>';
-            }
+            renderThreatLegend(threats.labels || [], threats.values || []);
             return;
         }
 
@@ -495,14 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const threats = await json(qs ? `/analytics/threats?${qs}` : '/analytics/threats');
         drawTrend(trends.labels || [], trends.values || []);
         renderDonut(threats.labels || [], threats.values || []);
-        const legend = document.getElementById('chart-legend');
-        if (legend && (threats.labels || []).length) {
-            legend.innerHTML = (threats.labels || []).map((label, i) =>
-                `<span><i class="mr-[5px] inline-block h-[7px] w-[7px] rounded-[2px]" style="background:${donutColors[i % donutColors.length]}"></i>${label} (${fmt((threats.values || [])[i])})</span>`
-            ).join('');
-        } else if (legend) {
-            legend.innerHTML = '<span class="text-white/60">No threat groups in range yet.</span>';
-        }
+        renderThreatLegend(threats.labels || [], threats.values || []);
     }
 
     function syncHeaderDatesFromStorage() {

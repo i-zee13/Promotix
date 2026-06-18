@@ -47,45 +47,40 @@
             </div>
         </div>
 
-        <section class="overflow-hidden rounded-[12px] border border-[#6706b3]">
-            <div class="flex flex-wrap items-center justify-between gap-[10px] bg-[#6400B2] px-[16px] py-[12px]">
+        <section class="overflow-visible rounded-[12px] border border-[#6706b3]">
+            <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#6400B2] px-[16px] py-[12px]">
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
                     <label class="relative flex h-[28px] min-w-[200px] max-w-[280px] flex-1 items-center rounded-[6px] bg-white px-[10px]">
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input type="search" placeholder="Search for IP Address" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
                     </label>
-                    <button type="button" @click="toggleAdvancedFilters()" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
-                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="1.7" d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
-                        Advanced Filters
-                        <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
-                    </button>
+                    <div class="relative" @click.outside="filterMenuOpen = false">
+                        <button type="button" @click="filterMenuOpen = !filterMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                            Advanced Filter
+                            <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
+                        </button>
+                        <div x-show="filterMenuOpen" x-cloak class="paid-advanced-columns-menu promotix-slim-scroll">
+                            <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Primary columns</p>
+                            <template x-for="col in columnCatalog.filter(c => c.primary)" :key="col.key">
+                                <label class="paid-advanced-column-option is-locked">
+                                    <input type="checkbox" checked disabled>
+                                    <span x-text="col.label"></span>
+                                </label>
+                            </template>
+                            <p class="mb-[8px] mt-[10px] text-[10px] font-semibold uppercase text-white/55">Optional columns</p>
+                            <template x-for="col in columnCatalog.filter(c => !c.primary)" :key="col.key">
+                                <label class="paid-advanced-column-option">
+                                    <input type="checkbox" :value="col.key" :checked="optionalColumnKeys.includes(col.key)" @change="toggleOptionalColumn(col.key)">
+                                    <span x-text="col.label"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
                     <button type="button" @click="window.print()" class="inline-flex items-center gap-[6px] text-[12px] font-medium text-white hover:underline">
                         <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
                         Download
                     </button>
-                </div>
-            </div>
-
-            <div x-show="filtersOpen" x-cloak class="relative z-40 border-b border-[#6706b3]/40 bg-[#520090] px-[16px] py-[12px]">
-                <div class="max-w-[640px]">
-                    <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/70">Table columns</p>
-                    <div class="paid-advanced-columns-panel promotix-slim-scroll">
-                        <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Primary columns</p>
-                        <template x-for="col in columnCatalog.filter(c => c.primary)" :key="'adv-' + col.key">
-                            <label class="paid-advanced-column-option is-locked">
-                                <input type="checkbox" checked disabled>
-                                <span x-text="col.label"></span>
-                            </label>
-                        </template>
-                        <p class="mb-[8px] mt-[10px] text-[10px] font-semibold uppercase text-white/55">Optional columns</p>
-                        <template x-for="col in columnCatalog.filter(c => !c.primary)" :key="'adv-opt-' + col.key">
-                            <label class="paid-advanced-column-option">
-                                <input type="checkbox" :value="col.key" :checked="optionalColumnKeys.includes(col.key)" @change="toggleOptionalColumn(col.key)">
-                                <span x-text="col.label"></span>
-                            </label>
-                        </template>
-                    </div>
                 </div>
             </div>
 
@@ -115,14 +110,6 @@
 .pm-adv-scroll { scrollbar-width: thin; scrollbar-color: #6400B2 transparent; }
 .pm-adv-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
 .pm-adv-scroll::-webkit-scrollbar-thumb { background: #6400B2; border-radius: 4px; }
-.paid-advanced-columns-panel {
-    max-height: 280px;
-    overflow: auto;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    background: #0f0e0e;
-    padding: 10px;
-}
 </style>
 
         <section class="mt-[20px]">
@@ -311,7 +298,7 @@
             debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
             fetchTimer: null,
             loading: false,
-            filtersOpen: false,
+            filterMenuOpen: false,
             campaignMenuOpen: false,
             columnCatalog,
             optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
@@ -385,9 +372,6 @@
                     await this.loadCampaignsForDomain();
                 }
                 this.campaignMenuOpen = !this.campaignMenuOpen;
-            },
-            toggleAdvancedFilters() {
-                this.filtersOpen = !this.filtersOpen;
             },
             toggleOptionalColumn(key) {
                 if (this.optionalColumnKeys.includes(key)) {

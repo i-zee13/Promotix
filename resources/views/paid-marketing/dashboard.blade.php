@@ -127,8 +127,17 @@
                 <div class="mb-[8px] flex flex-wrap items-center justify-between gap-[8px]">
                     <div class="flex flex-wrap items-center gap-[10px]">
                         <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trends</h2>
-                        <span class="text-[12px] text-white"><i class="mr-[4px] inline-block h-[12px] w-[12px] rounded-[1px] bg-white"></i>Last Week</span>
-                        <span class="text-[12px] text-white"><i class="mr-[4px] inline-block h-[12px] w-[12px] rounded-[1px] bg-[#6625F8]"></i>This Week</span>
+                        <template x-for="item in trendsLegendItems()" :key="item.key">
+                            <button
+                                type="button"
+                                class="chart-legend-item text-[12px] text-white"
+                                :class="{ 'is-hidden': isTrendSeriesHidden(item.key) }"
+                                @click="toggleTrendSeries(item.key)"
+                            >
+                                <i class="mr-[4px] inline-block h-[12px] w-[12px] rounded-[1px]" :style="`background:${item.color}`"></i>
+                                <span x-text="item.name"></span>
+                            </button>
+                        </template>
                     </div>
                     <select x-model="filters.window" @change="setWindow()" class="h-[41px] rounded-full border border-white/30 bg-[#101010] px-[20px] text-[14px] text-white focus:border-[#9a1aff] focus:ring-1 focus:ring-[#9a1aff]/40">
                         <option value="weekly">Weekly</option>
@@ -318,6 +327,7 @@ function paidAdvertisingFigma(config = {}) {
         ipModal: { open: false, row: null },
         heatmap: { days: [], hours: [], matrix: [] },
         trendsHoverIndex: null,
+        hiddenTrendSeries: { lastWeek: false, thisWeek: false },
         cardCharts: {},
         get botRate() {
             const paid = Number(this.summary.paid_visits || 0);
@@ -558,13 +568,43 @@ function paidAdvertisingFigma(config = {}) {
             requestAnimationFrame(() => {
                 this.renderCardCharts();
                 const labels = this.trends.labels || [];
-                const datasets = this.trends.datasets || [];
+                const datasets = this.visibleTrendDatasets();
                 this.drawPaidTrendLine('paid-trends', labels, datasets, this.trendsHoverIndex);
-                this.bindPaidTrendHover('paid-trends', labels, datasets);
+                this.bindPaidTrendHover('paid-trends', labels, this.trends.datasets || []);
                 this.drawProtectionLine('invalid-protection', this.blocking.labels || [], this.blocking.datasets || []);
                 this.renderHeatmap();
                 this.renderKeywords();
                 this.renderCountries();
+            });
+        },
+        trendsLegendItems() {
+            const datasets = this.trends.datasets || [];
+            if (datasets.length) {
+                return datasets.map(ds => ({
+                    key: ds.dashed ? 'lastWeek' : 'thisWeek',
+                    name: ds.name || (ds.dashed ? 'Last Week' : 'This Week'),
+                    color: ds.color || (ds.dashed ? '#FF4BC1' : '#6625F8'),
+                }));
+            }
+            return [
+                { key: 'lastWeek', name: 'Last Week', color: '#FFFFFF' },
+                { key: 'thisWeek', name: 'This Week', color: '#6625F8' },
+            ];
+        },
+        isTrendSeriesHidden(key) {
+            return Boolean(this.hiddenTrendSeries?.[key]);
+        },
+        toggleTrendSeries(key) {
+            if (!this.hiddenTrendSeries[key]) this.hiddenTrendSeries[key] = false;
+            this.hiddenTrendSeries[key] = !this.hiddenTrendSeries[key];
+            const labels = this.trends.labels || [];
+            const datasets = this.visibleTrendDatasets();
+            this.drawPaidTrendLine('paid-trends', labels, datasets, this.trendsHoverIndex);
+        },
+        visibleTrendDatasets() {
+            return (this.trends.datasets || []).filter(ds => {
+                const key = ds.dashed ? 'lastWeek' : 'thisWeek';
+                return !this.hiddenTrendSeries[key];
             });
         },
         destroyCardChart(key) {
@@ -679,9 +719,6 @@ function paidAdvertisingFigma(config = {}) {
             if (canvas._paidHoverBound) return;
             canvas._paidHoverBound = true;
 
-            const primary = datasets.find(d => !d.dashed) || datasets[0];
-            const compare = datasets.find(d => d.dashed) || datasets[1];
-
             canvas.addEventListener('mousemove', (e) => {
                 const rect = canvas.getBoundingClientRect();
                 const left = 36, right = 14;
@@ -690,18 +727,28 @@ function paidAdvertisingFigma(config = {}) {
                 if (innerW <= 0 || labels.length === 0) return;
                 const idx = Math.max(0, Math.min(labels.length - 1, Math.round(((x - left) / innerW) * (labels.length - 1))));
                 this.trendsHoverIndex = idx;
-                const thisVal = Number(primary?.values?.[idx] || 0);
-                const lastVal = Number(compare?.values?.[idx] || 0);
+                const visible = this.visibleTrendDatasets();
+                const thisDs = visible.find(d => !d.dashed) || visible[0];
+                const lastDs = visible.find(d => d.dashed) || visible[1];
+                const thisVal = Number(thisDs?.values?.[idx] || 0);
+                const lastVal = Number(lastDs?.values?.[idx] || 0);
                 tip.hidden = false;
-                tip.innerHTML = `<strong>${labels[idx] || ''}</strong><span><i style="background:#6625F8"></i>This Week ${this.fmtCompact(thisVal)}</span><span><i style="background:#FF4BC1"></i>Last Week ${this.fmtCompact(lastVal)}</span>`;
+                const rows = [];
+                if (thisDs && !this.isTrendSeriesHidden('thisWeek')) {
+                    rows.push(`<span><i style="background:#6625F8"></i>This Week ${this.fmtCompact(thisVal)}</span>`);
+                }
+                if (lastDs && !this.isTrendSeriesHidden('lastWeek')) {
+                    rows.push(`<span><i style="background:#FF4BC1"></i>Last Week ${this.fmtCompact(lastVal)}</span>`);
+                }
+                tip.innerHTML = `<strong>${labels[idx] || ''}</strong>${rows.join('')}`;
                 tip.style.left = `${Math.min(Math.max(x, 60), rect.width - 60)}px`;
                 tip.style.top = '12px';
-                this.drawPaidTrendLine(id, labels, datasets, idx);
+                this.drawPaidTrendLine(id, labels, visible, idx);
             });
             canvas.addEventListener('mouseleave', () => {
                 this.trendsHoverIndex = null;
                 tip.hidden = true;
-                this.drawPaidTrendLine(id, labels, datasets, null);
+                this.drawPaidTrendLine(id, labels, this.visibleTrendDatasets(), null);
             });
         },
         drawPaidTrendLine(id, labels, datasets, hoverIndex = null) {
