@@ -333,10 +333,14 @@ class PaidAdvertisingDashboardController extends Controller
             ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
             : "NULLIF(TRIM(utm_campaign), '')";
 
-        return $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+        $inner = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
             ->whereRaw("{$expr} IS NOT NULL")
-            ->selectRaw("{$expr} as campaign, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
-            ->groupByRaw($expr)
+            ->selectRaw("{$expr} as campaign, is_invalid_traffic");
+
+        return DB::query()
+            ->fromSub($inner, 'resolved_visits')
+            ->selectRaw('campaign, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
+            ->groupBy('campaign')
             ->orderByDesc('total')
             ->limit(100)
             ->get()
@@ -361,12 +365,16 @@ class PaidAdvertisingDashboardController extends Controller
             ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(campaign), ''))"
             : "NULLIF(TRIM(campaign), '')";
 
-        return DB::table('paid_marketing_visits')
+        $inner = DB::table('paid_marketing_visits')
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('last_click_at', [$from, $to])
             ->whereRaw("{$nameExpr} IS NOT NULL")
-            ->selectRaw("{$nameExpr} as campaign, COUNT(*) as total")
-            ->groupByRaw($nameExpr)
+            ->selectRaw("{$nameExpr} as campaign");
+
+        return DB::query()
+            ->fromSub($inner, 'resolved_visits')
+            ->selectRaw('campaign, COUNT(*) as total')
+            ->groupBy('campaign')
             ->orderByDesc('total')
             ->limit(100)
             ->get()
