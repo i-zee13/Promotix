@@ -77,50 +77,43 @@
             </div>
         </div>
 
-        <section class="relative z-0 mt-[8px] overflow-hidden">
-            <div class="promotix-slim-scroll paid-detailed-scroll max-h-[360px]">
-                <table class="paid-detailed-table">
-                    <thead>
-                        <tr>
-                            <th class="w-[22px]"></th>
-                            <th class="w-[120px]">IP Address</th>
-                            <th class="w-[48px]">Visits</th>
-                            <th class="w-[100px]">Domain</th>
-                            <th class="w-[100px]">Campaigns</th>
-                            <th class="w-[88px]">Last Click</th>
-                            <th class="w-[100px]">Threat Group</th>
-                            <th class="w-[90px]">Threat Type</th>
-                            <th class="w-[72px]">Country</th>
-                            <th class="w-[48px]">VPN</th>
-                            <th class="w-[72px]">Data Center</th>
-                            <th class="w-[72px]">Invalid Click</th>
-                            <th class="w-[68px]">Valid Click</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-for="visit in rows" :key="visit.id">
-                            <tr @click="openClicks(visit)">
-                                <td>&gt;</td>
-                                <td class="cell-ip" :title="visit.ip">
-                                    <span x-text="ipLabel(visit)"></span>
-                                    <span x-show="visit.ip_count > 1" class="cell-ip-badge" x-text="'+' + (visit.ip_count - 1)"></span>
-                                </td>
-                                <td x-text="visit.visits"></td>
-                                <td class="cell-muted truncate" :title="visit.domain || '—'" x-text="visit.domain || '—'"></td>
-                                <td class="cell-muted truncate" :title="visit.campaign || 'N/A'" x-text="visit.campaign || 'N/A'"></td>
-                                <td class="cell-muted" x-text="visit.last_click_label"></td>
-                                <td class="cell-muted" :title="visit.threat_group || '—'" x-text="visit.threat_group || '—'"></td>
-                                <td class="cell-muted" :title="visit.threat_type || '—'" x-text="visit.threat_type || '—'"></td>
-                                <td class="cell-muted" x-text="visit.country || '—'"></td>
-                                <td x-text="visit.vpn_hits > 0 ? visit.vpn_hits : '—'"></td>
-                                <td x-text="visit.data_center_hits > 0 ? visit.data_center_hits : '—'"></td>
-                                <td x-text="visit.invalid_clicks ?? 0"></td>
-                                <td x-text="visit.valid_clicks ?? 0"></td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-                <div x-show="!loading && rows.length === 0" class="mt-[6px] rounded-[10px] border-[3px] border-white/40 px-[14px] py-[28px] text-center text-[15px] text-[#a9a9a9]">No rows match your filters.</div>
+        <section class="relative z-0 mt-[8px] overflow-hidden rounded-[12px] border border-[#6706b3]">
+            <div class="pm-adv-grid pm-adv-grid--head bg-[#1a1a1a] px-[12px] py-[10px] text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]">
+                <span>IP Address</span>
+                <span>Visits</span>
+                <span>Domain</span>
+                <span>Campaigns</span>
+                <span>Last Click</span>
+                <span>Threat Group</span>
+                <span>Threat Type</span>
+                <span>Country</span>
+                <span>VPN</span>
+                <span>Data Center</span>
+                <span>Invalid</span>
+                <span>Valid</span>
+            </div>
+
+            <div class="max-h-[420px] overflow-y-auto pm-adv-scroll px-[10px] py-[8px]">
+                <template x-for="visit in rows" :key="visit.id">
+                    <div class="pm-adv-grid pm-adv-grid--row mb-[8px] cursor-pointer rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] transition hover:bg-[#ececec] sm:text-[11px]" @click="openClicks(visit)">
+                        <span class="truncate font-medium" :title="visit.ip">
+                            <span x-text="ipLabel(visit)"></span>
+                            <span x-show="visit.ip_count > 1" class="ml-[4px] rounded-[3px] bg-[#6400b2] px-[4px] py-[1px] text-[9px] text-white" x-text="'+' + (visit.ip_count - 1)"></span>
+                        </span>
+                        <span class="truncate" x-text="visit.visits"></span>
+                        <span class="truncate" :title="visit.domain || '—'" x-text="visit.domain || '—'"></span>
+                        <span class="truncate" :title="visit.campaign || 'N/A'" x-text="visit.campaign || 'N/A'"></span>
+                        <span class="truncate" x-text="visit.last_click_label"></span>
+                        <span class="truncate" :title="visit.threat_group || '—'" x-text="visit.threat_group || '—'"></span>
+                        <span class="truncate" :title="visit.threat_type || '—'" x-text="visit.threat_type || '—'"></span>
+                        <span class="truncate" x-text="visit.country || '—'"></span>
+                        <span class="truncate" x-text="visit.vpn_hits > 0 ? visit.vpn_hits : '—'"></span>
+                        <span class="truncate" x-text="visit.data_center_hits > 0 ? visit.data_center_hits : '—'"></span>
+                        <span class="truncate" x-text="visit.invalid_clicks ?? 0"></span>
+                        <span class="truncate" x-text="visit.valid_clicks ?? 0"></span>
+                    </div>
+                </template>
+                <p x-show="!loading && rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No rows match your filters.</p>
             </div>
         </section>
 

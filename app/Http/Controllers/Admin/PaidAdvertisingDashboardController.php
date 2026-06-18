@@ -227,6 +227,7 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         $domainId = (int) $request->query('domain_id', 0);
         $forceGoogleSync = $request->boolean('force_google_sync');
+        $merged = collect();
 
         if ($domainId > 0) {
             $domain = Domain::query()
@@ -236,12 +237,9 @@ class PaidAdvertisingDashboardController extends Controller
                 ->with('googleAdsAccount.connection')
                 ->first();
 
-            $googleRows = $this->resolveGoogleCampaignRowsForDomain($domain, $from, $to, $forceGoogleSync);
-            if ($googleRows !== []) {
-                return response()->json($googleRows);
-            }
+            $merged = $merged->merge($this->resolveGoogleCampaignRowsForDomain($domain, $from, $to, $forceGoogleSync));
+            $merged = $merged->merge($this->metricCampaignRows($domainId, $from, $to));
         } else {
-            $allGoogle = [];
             $domains = Domain::query()
                 ->where('user_id', $request->user()->id)
                 ->forPaidMarketing()
@@ -249,39 +247,122 @@ class PaidAdvertisingDashboardController extends Controller
                 ->get();
 
             foreach ($domains as $domain) {
-                foreach ($this->resolveGoogleCampaignRowsForDomain($domain, $from, $to, $forceGoogleSync) as $row) {
-                    $allGoogle[] = $row;
-                }
+                $merged = $merged->merge($this->resolveGoogleCampaignRowsForDomain($domain, $from, $to, $forceGoogleSync));
+                $merged = $merged->merge($this->metricCampaignRows($domain->id, $from, $to));
             }
-            if ($allGoogle !== []) {
-                return response()->json(collect($allGoogle)->sortByDesc('clicks')->values());
-            }
-        }
-
-        if (! Schema::hasTable('visits')) {
-            return response()->json([]);
         }
 
         $domainIds = $this->scopedDomainIds($request);
-        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
-            ->whereNotNull('utm_campaign')
-            ->select(
-                'utm_campaign',
-                DB::raw('COUNT(*) as total'),
-                DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
-            )
-            ->groupBy('utm_campaign')
-            ->orderByDesc('total')
-            ->limit(20)
-            ->get();
+        $merged = $merged
+            ->merge($this->visitCampaignRows($request, $domainIds, $from, $to))
+            ->merge($this->paidMarketingCampaignRows($domainIds, $from, $to));
 
-        return response()->json($rows->map(fn ($r) => [
-            'campaign' => $r->utm_campaign,
-            'total' => (int) $r->total,
-            'invalid' => (int) $r->invalid,
-            'valid' => max(0, (int) $r->total - (int) $r->invalid),
-            'source' => 'visits',
-        ])->values());
+        $rows = $merged
+            ->filter(fn ($row) => filled(is_array($row) ? ($row['campaign'] ?? null) : null))
+            ->groupBy(fn ($row) => (string) $row['campaign'])
+            ->map(function ($group, $campaign) {
+                $best = collect($group)->sortByDesc(fn ($row) => (int) ($row['total'] ?? $row['clicks'] ?? 0))->first();
+
+                return [
+                    'campaign' => $campaign,
+                    'campaign_id' => $best['campaign_id'] ?? null,
+                    'total' => (int) ($best['total'] ?? $best['clicks'] ?? 0),
+                    'invalid' => (int) ($best['invalid'] ?? 0),
+                    'valid' => (int) ($best['valid'] ?? max(0, (int) ($best['total'] ?? $best['clicks'] ?? 0) - (int) ($best['invalid'] ?? 0))),
+                    'source' => $best['source'] ?? 'merged',
+                ];
+            })
+            ->sortByDesc('total')
+            ->values()
+            ->all();
+
+        return response()->json($rows);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function metricCampaignRows(int $domainId, Carbon $from, Carbon $to): array
+    {
+        if (! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            return [];
+        }
+
+        return DB::table('google_ads_campaign_daily_metrics')
+            ->where('domain_id', $domainId)
+            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->whereNotNull('campaign_name')
+            ->where('campaign_name', '!=', '')
+            ->selectRaw('campaign_id, MAX(campaign_name) as campaign, SUM(clicks) as total')
+            ->groupBy('campaign_id')
+            ->orderByDesc('total')
+            ->limit(100)
+            ->get()
+            ->map(fn ($row) => [
+                'campaign_id' => (string) $row->campaign_id,
+                'campaign' => (string) $row->campaign,
+                'total' => (int) $row->total,
+                'invalid' => 0,
+                'valid' => (int) $row->total,
+                'source' => 'google_ads_db',
+            ])
+            ->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function visitCampaignRows(Request $request, $domainIds, Carbon $from, Carbon $to): array
+    {
+        if (! Schema::hasTable('visits') || collect($domainIds)->isEmpty()) {
+            return [];
+        }
+
+        $expr = Schema::hasColumn('visits', 'campaign_name')
+            ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
+            : "NULLIF(TRIM(utm_campaign), '')";
+
+        return $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+            ->whereRaw("{$expr} IS NOT NULL")
+            ->selectRaw("{$expr} as campaign, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
+            ->groupBy('campaign')
+            ->orderByDesc('total')
+            ->limit(100)
+            ->get()
+            ->map(fn ($row) => [
+                'campaign' => (string) $row->campaign,
+                'total' => (int) $row->total,
+                'invalid' => (int) $row->invalid,
+                'valid' => max(0, (int) $row->total - (int) $row->invalid),
+                'source' => 'visits',
+            ])
+            ->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function paidMarketingCampaignRows($domainIds, Carbon $from, Carbon $to): array
+    {
+        if (! Schema::hasTable('paid_marketing_visits') || collect($domainIds)->isEmpty()) {
+            return [];
+        }
+
+        $nameExpr = Schema::hasColumn('paid_marketing_visits', 'campaign_name')
+            ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(campaign), ''))"
+            : "NULLIF(TRIM(campaign), '')";
+
+        return DB::table('paid_marketing_visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('last_click_at', [$from, $to])
+            ->whereRaw("{$nameExpr} IS NOT NULL")
+            ->selectRaw("{$nameExpr} as campaign, COUNT(*) as total")
+            ->groupBy('campaign')
+            ->orderByDesc('total')
+            ->limit(100)
+            ->get()
+            ->map(fn ($row) => [
+                'campaign' => (string) $row->campaign,
+                'total' => (int) $row->total,
+                'invalid' => 0,
+                'valid' => (int) $row->total,
+                'source' => 'paid_marketing_visits',
+            ])
+            ->all();
     }
 
     /**
