@@ -319,7 +319,7 @@
                 return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
             },
             get gridStyle() {
-                const cols = this.visibleColumns.map(col => `minmax(${col.min || 80}px, 1fr)`).join(' ');
+                const cols = this.visibleColumns.map(col => `${col.min || 80}px`).join(' ');
                 return `grid-template-columns: ${cols}`;
             },
             init() {

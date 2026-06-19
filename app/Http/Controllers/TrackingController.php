@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ResolvesClientIp;
 use App\Models\Domain;
+use App\Models\DomainDetectionSetting;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Services\GoogleAudienceExclusionService;
@@ -288,7 +289,13 @@ class TrackingController extends Controller
             }
         }
 
-        $clientPayload = $protection->clientPayload($detection, $enforceBlock, $captchaRequired);
+        $clientPayload = $protection->clientPayload(
+            $detection,
+            $enforceBlock,
+            $captchaRequired,
+            $this->shouldRecordSession($domain, $detection),
+            $visitId,
+        );
 
         if ($request->isMethod('get')) {
             return $this->cors(
@@ -301,6 +308,58 @@ class TrackingController extends Controller
         }
 
         return $this->cors($request, response()->json(['ok' => true] + $clientPayload));
+    }
+
+    public function sessionRecording(Request $request)
+    {
+        if ($request->isMethod('options')) {
+            return $this->cors($request, response()->noContent());
+        }
+
+        $data = Validator::make($request->all(), [
+            'domainKey' => ['required', 'string'],
+            'session_id' => ['nullable', 'string', 'max:128'],
+            'visit_id' => ['nullable', 'integer'],
+            'page_url' => ['nullable', 'string', 'max:2048'],
+            'duration_ms' => ['nullable', 'integer', 'max:15000'],
+            'threat_group' => ['nullable', 'string', 'max:40'],
+            'events' => ['required', 'array', 'max:500'],
+        ])->validate();
+
+        if (! Schema::hasTable('visit_session_recordings')) {
+            return $this->cors($request, response()->json(['ok' => true, 'skipped' => true]));
+        }
+
+        $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
+        $ip = $this->clientIp($request);
+        $events = array_slice((array) $data['events'], 0, 500);
+
+        DB::table('visit_session_recordings')->insert([
+            'domain_id' => $domain->id,
+            'visit_id' => $data['visit_id'] ?? null,
+            'session_id' => $data['session_id'] ?? null,
+            'ip' => $ip,
+            'threat_group' => $data['threat_group'] ?? null,
+            'duration_ms' => min((int) ($data['duration_ms'] ?? 0), 15000),
+            'page_url' => $data['page_url'] ?? null,
+            'events' => json_encode($events),
+            'created_at' => UserTimezone::nowUtc(),
+            'updated_at' => UserTimezone::nowUtc(),
+        ]);
+
+        return $this->cors($request, response()->json(['ok' => true]));
+    }
+
+    /** @param  array{threat_group: ?string}  $detection */
+    private function shouldRecordSession(Domain $domain, array $detection): bool
+    {
+        if (($detection['threat_group'] ?? '') !== 'malicious') {
+            return false;
+        }
+
+        $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+
+        return $settings !== null && (bool) $settings->session_recordings;
     }
 
     private function platformFromUa(string $ua): ?string

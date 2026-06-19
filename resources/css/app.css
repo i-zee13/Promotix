@@ -1678,6 +1678,38 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     pointer-events: none;
 }
 
+.figma-rightbar-edge-toggle {
+    position: fixed;
+    top: 50%;
+    z-index: 25;
+    display: flex;
+    height: 40px;
+    width: 22px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 6px 0 0 6px;
+    border-left: 2px solid #5a2a99;
+    background: #6400b2;
+    color: #ffffff;
+    cursor: pointer;
+    transform: translateY(-50%);
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.35);
+    transition: right 0.22s ease, background 0.15s ease;
+}
+
+.figma-shell:not(.figma-rightbar-collapsed) .figma-rightbar-edge-toggle {
+    right: calc(var(--figma-right) - 1px);
+}
+
+.figma-rightbar-collapsed .figma-rightbar-edge-toggle {
+    right: 0;
+}
+
+.figma-rightbar-edge-toggle:hover {
+    background: #7b13c8;
+}
+
 .figma-rightbar-toggle {
     position: absolute;
     top: 14px;
@@ -1758,7 +1790,8 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     }
 
     .figma-rightbar-toggle,
-    .figma-rightbar-reopen {
+    .figma-rightbar-reopen,
+    .figma-rightbar-edge-toggle {
         display: none;
     }
 }
@@ -2197,6 +2230,23 @@ select:autofill {
 .figma-matrix-select option {
     background-color: #101010;
     color: #ffffff;
+}
+
+.figma-geo-select {
+    min-height: 34px;
+    font-size: 12px;
+    padding: 8px 36px 8px 12px;
+    line-height: 1.4;
+}
+
+.figma-detection-right .figma-geo-select {
+    background-color: #0d0d0d;
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.figma-detection-right .figma-geo-select:disabled {
+    opacity: 0.55;
+    cursor: wait;
 }
 
 /* Paid Marketing — Detection panel (Figma v279_1155) */
@@ -4791,13 +4841,19 @@ select option, .brand-select option { background:#ffffff; color:#111827; }
 .figma-filter-select-wrap .figma-filter-control {
     appearance: none;
     -webkit-appearance: none;
+    min-height: 26px;
+    height: 26px;
+    line-height: 1.35;
+    padding-top: 3px;
+    padding-bottom: 3px;
 }
 
 .figma-filter-select-wrap::after {
     content: '';
     position: absolute;
     right: 4px;
-    bottom: 3px;
+    top: 50%;
+    transform: translateY(-50%);
     width: 16px;
     height: 16px;
     border-radius: 50%;

@@ -19,6 +19,7 @@ class TagController extends Controller
         }
 
         $collectUrl = url('/ingest/visit');
+        $sessionRecordingUrl = url('/ingest/session-recording');
 
         // Tracking tag: records visits server-side and enforces block / captcha on client.
         $trackingParams = (array) ($domain->tracking_params ?? [
@@ -36,6 +37,7 @@ class TagController extends Controller
 (function(){
   var domainKey = {$this->json($domainKey)};
   var collectUrl = {$this->json($collectUrl)};
+  var sessionRecordingUrl = {$this->json($sessionRecordingUrl)};
   var trackSource = {$trackSource};
   var trackMedium = {$trackMedium};
   var trackCampaign = {$trackCampaign};
@@ -127,6 +129,71 @@ class TagController extends Controller
     if (resp.captcha_required && !captchaPassed()) {
       showCaptcha();
     }
+    if (resp.record_session) {
+      startSessionRecording(resp);
+    }
+  }
+
+  function startSessionRecording(meta){
+    if (window.__pmRecording) return;
+    window.__pmRecording = true;
+    var events = [];
+    var started = Date.now();
+    var lastMove = 0;
+    var duration = Number(meta.recording_ms || 10000);
+
+    function push(type, data){
+      if (events.length >= 500) return;
+      events.push({ t: Date.now() - started, type: type, data: data || {} });
+    }
+
+    function onMove(e){
+      var now = Date.now();
+      if (now - lastMove < 120) return;
+      lastMove = now;
+      push('move', { x: e.clientX, y: e.clientY });
+    }
+
+    function onScroll(){
+      push('scroll', { x: window.scrollX || 0, y: window.scrollY || 0 });
+    }
+
+    function onClick(e){
+      push('click', {
+        x: e.clientX,
+        y: e.clientY,
+        tag: (e.target && e.target.tagName) ? String(e.target.tagName) : ''
+      });
+    }
+
+    document.addEventListener('mousemove', onMove, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('click', onClick, true);
+
+    setTimeout(function(){
+      document.removeEventListener('mousemove', onMove);
+      window.removeEventListener('scroll', onScroll);
+      document.removeEventListener('click', onClick, true);
+      window.__pmRecording = false;
+      try {
+        fetch(sessionRecordingUrl, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            domainKey: domainKey,
+            session_id: sessionId(),
+            visit_id: meta.visit_id || null,
+            page_url: String(location.href || ''),
+            duration_ms: Date.now() - started,
+            threat_group: meta.threat_group || null,
+            events: events
+          }),
+          mode: 'cors',
+          credentials: 'omit',
+          keepalive: true
+        });
+      } catch (e) {}
+    }, duration);
   }
 
   function send(payload, done){

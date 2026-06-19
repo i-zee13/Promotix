@@ -116,9 +116,14 @@ class VisitProtectionService
      * @param  array{threat_score: int, threat_group: ?string, action_taken: string, reasons: list<string>}  $detection
      * @return array<string, mixed>
      */
-    public function clientPayload(array $detection, bool $enforceBlock, bool $captchaRequired = false): array
-    {
-        return [
+    public function clientPayload(
+        array $detection,
+        bool $enforceBlock,
+        bool $captchaRequired = false,
+        bool $recordSession = false,
+        ?int $visitId = null,
+    ): array {
+        $payload = [
             'ok' => true,
             'blocked' => $enforceBlock,
             'captcha_required' => $captchaRequired,
@@ -126,6 +131,16 @@ class VisitProtectionService
             'threat_group' => $detection['threat_group'],
             'reasons' => $detection['reasons'],
         ];
+
+        if ($recordSession) {
+            $payload['record_session'] = true;
+            $payload['recording_ms'] = 10000;
+            if ($visitId !== null) {
+                $payload['visit_id'] = $visitId;
+            }
+        }
+
+        return $payload;
     }
 
     /** Bot protection: skip counting organic refresh in same session on same calendar day. */

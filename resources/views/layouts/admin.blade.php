@@ -198,9 +198,6 @@
     </main>
 
     <aside class="figma-rightbar px-[16px] pb-[16px] pt-[20px]">
-        <button id="figma-rightbar-toggle" type="button" class="figma-rightbar-toggle" aria-label="Hide account panel" title="Hide panel">
-            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-        </button>
         @hasSection('rightbar')
             @yield('rightbar')
         @else
@@ -263,8 +260,9 @@
         @endif
     </aside>
 
-    <button id="figma-rightbar-reopen" type="button" class="figma-rightbar-reopen" aria-label="Show account panel" title="Show panel" hidden>
-        <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    <button id="figma-rightbar-edge-toggle" type="button" class="figma-rightbar-edge-toggle" aria-label="Hide account panel" title="Hide panel">
+        <svg id="figma-rightbar-icon-close" class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <svg id="figma-rightbar-icon-open" class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" hidden><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
     </button>
 </div>
 
@@ -303,12 +301,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const collapsed = localStorage.getItem(rightbarKey) === '1';
         const desktop = isDesktopRightbar();
         shell?.classList.toggle('figma-rightbar-collapsed', desktop && collapsed);
-        const reopen = document.getElementById('figma-rightbar-reopen');
-        if (reopen) {
-            if (desktop && collapsed) reopen.removeAttribute('hidden');
-            else reopen.setAttribute('hidden', '');
+        const edgeToggle = document.getElementById('figma-rightbar-edge-toggle');
+        const iconOpen = document.getElementById('figma-rightbar-icon-open');
+        const iconClose = document.getElementById('figma-rightbar-icon-close');
+        if (!edgeToggle) return;
+        if (!desktop) {
+            edgeToggle.setAttribute('hidden', '');
+            return;
+        }
+        edgeToggle.removeAttribute('hidden');
+        if (collapsed) {
+            iconOpen?.removeAttribute('hidden');
+            iconClose?.setAttribute('hidden', '');
+            edgeToggle.setAttribute('aria-label', 'Show account panel');
+            edgeToggle.title = 'Show panel';
+        } else {
+            iconOpen?.setAttribute('hidden', '');
+            iconClose?.removeAttribute('hidden');
+            edgeToggle.setAttribute('aria-label', 'Hide account panel');
+            edgeToggle.title = 'Hide panel';
         }
     }
+
+    document.getElementById('figma-rightbar-edge-toggle')?.addEventListener('click', () => {
+        if (!isDesktopRightbar()) return;
+        const collapsed = localStorage.getItem(rightbarKey) === '1';
+        localStorage.setItem(rightbarKey, collapsed ? '0' : '1');
+        syncRightbar();
+    });
 
     sidebarToggle?.addEventListener('click', () => {
         if (isDesktopSidebar()) {
@@ -318,18 +338,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             shell?.classList.toggle('figma-sidebar-open');
         }
-    });
-
-    document.getElementById('figma-rightbar-toggle')?.addEventListener('click', () => {
-        if (!isDesktopRightbar()) return;
-        localStorage.setItem(rightbarKey, '1');
-        syncRightbar();
-    });
-
-    document.getElementById('figma-rightbar-reopen')?.addEventListener('click', () => {
-        if (!isDesktopRightbar()) return;
-        localStorage.setItem(rightbarKey, '0');
-        syncRightbar();
     });
 
     overlay?.addEventListener('click', () => shell?.classList.remove('figma-sidebar-open'));

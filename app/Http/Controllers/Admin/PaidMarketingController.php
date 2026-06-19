@@ -8,7 +8,7 @@ use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
 use App\Models\PaidMarketingVisit;
 use App\Services\IpIntel\IpIntelService;
-use App\Support\GeoAudienceCatalog;
+use App\Services\GeoCatalogService;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -398,10 +398,13 @@ class PaidMarketingController extends Controller
             );
         }
 
+        $geoCatalog = app(GeoCatalogService::class);
+
         return view('paid-marketing.detection-settings', [
             'domains' => $domains,
             'domain' => $domain,
             'settings' => $settings,
+            'geoCountries' => $geoCatalog->countries(),
         ]);
     }
 
@@ -565,24 +568,24 @@ class PaidMarketingController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function geoCountries(): JsonResponse
+    public function geoCountries(GeoCatalogService $geoCatalog): JsonResponse
     {
-        return response()->json(GeoAudienceCatalog::countries());
+        return response()->json($geoCatalog->countries());
     }
 
-    public function geoStates(Request $request): JsonResponse
+    public function geoStates(Request $request, GeoCatalogService $geoCatalog): JsonResponse
     {
         $country = strtoupper(trim((string) $request->query('country', '')));
 
-        return response()->json(GeoAudienceCatalog::states($country));
+        return response()->json($geoCatalog->states($country));
     }
 
-    public function geoCities(Request $request): JsonResponse
+    public function geoCities(Request $request, GeoCatalogService $geoCatalog): JsonResponse
     {
         $country = strtoupper(trim((string) $request->query('country', '')));
         $state = strtoupper(trim((string) $request->query('state', '')));
 
-        return response()->json(GeoAudienceCatalog::cities($country, $state));
+        return response()->json($geoCatalog->cities($country, $state));
     }
 
     private function getOrCreateDetectionSettings(Domain $domain): DomainDetectionSetting

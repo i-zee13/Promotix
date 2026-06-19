@@ -74,7 +74,7 @@
                                 </label>
                                 <label class="block">
                                     <span class="mb-[4px] block text-[10px] uppercase text-white/70">Action</span>
-                                    <select x-model="filters.action" @change="reload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white">
+                                    <select x-model="filters.action" @change="reload(true)" class="figma-panel-select w-full">
                                         <option value="">All</option>
                                         <option value="allow">Allow</option>
                                         <option value="flag">Flag</option>
@@ -83,7 +83,7 @@
                                 </label>
                                 <label class="block sm:col-span-2">
                                     <span class="mb-[4px] block text-[10px] uppercase text-white/70">Threat group</span>
-                                    <select x-model="filters.threat_group" @change="reload(true)" class="h-[32px] w-full rounded-[6px] border border-white/20 bg-[#101010] px-[10px] text-white">
+                                    <select x-model="filters.threat_group" @change="reload(true)" class="figma-panel-select w-full">
                                         <option value="">All</option>
                                         <option value="data_center">Data center</option>
                                         <option value="vpn">VPN</option>
@@ -254,7 +254,7 @@ function botProtectionAdvancedFigma() {
             return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
         },
         get gridStyle() {
-            const cols = this.visibleColumns.map(col => `minmax(${col.min || 80}px, 1fr)`).join(' ');
+            const cols = this.visibleColumns.map(col => `${col.min || 80}px`).join(' ');
             return `grid-template-columns: ${cols}`;
         },
         filters: {

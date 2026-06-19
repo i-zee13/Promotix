@@ -171,7 +171,7 @@
 
                                 <div>
                                     <h2 class="figma-detection-right-title">Marketing Optimization Rules</h2>
-                                    <div x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules]) }})">
+                                    <div x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules, 'countries' => $geoCountries]) }})">
                                     <div class="figma-detection-right-row">
                                         <span>Only allow click coming from the following Countries</span>
                                         <x-figma-toggle
@@ -185,27 +185,27 @@
                                     <input type="hidden" name="out_of_geo_audience" :value="jsonValue">
                                     <div class="mt-[8px] space-y-[8px] rounded-[8px] border border-white/15 bg-black/20 p-[10px]" x-show="true">
                                         <div class="flex flex-wrap items-end gap-[8px]">
-                                            <label class="min-w-[110px] flex-1 text-[10px] text-white/70">
+                                            <label class="min-w-[140px] flex-1 text-[10px] text-white/70">
                                                 Country
-                                                <select x-model="draft.country" @change="loadStates()" class="figma-input mt-[4px] h-[28px] w-full text-[11px]">
-                                                    <option value="">Select</option>
+                                                <select x-model="draft.country" @change="loadStates()" class="figma-panel-select figma-geo-select mt-[4px] w-full">
+                                                    <option value="">Select country</option>
                                                     <template x-for="c in countries" :key="c.code">
                                                         <option :value="c.code" x-text="c.name"></option>
                                                     </template>
                                                 </select>
                                             </label>
-                                            <label class="min-w-[110px] flex-1 text-[10px] text-white/70" x-show="states.length">
-                                                State
-                                                <select x-model="draft.state" @change="loadCities()" class="figma-input mt-[4px] h-[28px] w-full text-[11px]">
+                                            <label class="min-w-[140px] flex-1 text-[10px] text-white/70" x-show="states.length">
+                                                State / Region
+                                                <select x-model="draft.state" @change="loadCities()" class="figma-panel-select figma-geo-select mt-[4px] w-full" :disabled="loadingStates">
                                                     <option value="">All states</option>
                                                     <template x-for="s in states" :key="s.code">
                                                         <option :value="s.code" x-text="s.name"></option>
                                                     </template>
                                                 </select>
                                             </label>
-                                            <label class="min-w-[110px] flex-1 text-[10px] text-white/70" x-show="cities.length">
+                                            <label class="min-w-[140px] flex-1 text-[10px] text-white/70" x-show="cities.length">
                                                 City
-                                                <select x-model="draft.city" class="figma-input mt-[4px] h-[28px] w-full text-[11px]">
+                                                <select x-model="draft.city" class="figma-panel-select figma-geo-select mt-[4px] w-full" :disabled="loadingCities">
                                                     <option value="">All cities</option>
                                                     <template x-for="city in cities" :key="city">
                                                         <option :value="city" x-text="city"></option>
@@ -263,72 +263,4 @@
         @endif
     </section>
 </div>
-
-<script>
-function geoAudiencePicker(initial) {
-    return {
-        countries: [],
-        states: [],
-        cities: [],
-        rules: Array.isArray(initial?.rules) ? initial.rules : [],
-        draft: { country: '', state: '', city: '' },
-        get jsonValue() {
-            return JSON.stringify({ rules: this.rules });
-        },
-        async init() {
-            try {
-                this.countries = await fetch('/paid-marketing/geo/countries').then(r => r.json());
-            } catch (e) {
-                this.countries = [];
-            }
-        },
-        async loadStates() {
-            this.draft.state = '';
-            this.draft.city = '';
-            this.states = [];
-            this.cities = [];
-            if (!this.draft.country) return;
-            try {
-                this.states = await fetch('/paid-marketing/geo/states?country=' + encodeURIComponent(this.draft.country)).then(r => r.json());
-            } catch (e) {
-                this.states = [];
-            }
-        },
-        async loadCities() {
-            this.draft.city = '';
-            this.cities = [];
-            if (!this.draft.country || !this.draft.state) return;
-            try {
-                this.cities = await fetch('/paid-marketing/geo/cities?country=' + encodeURIComponent(this.draft.country) + '&state=' + encodeURIComponent(this.draft.state)).then(r => r.json());
-            } catch (e) {
-                this.cities = [];
-            }
-        },
-        addRule() {
-            if (!this.draft.country) return;
-            const rule = {
-                country: this.draft.country,
-                state: this.draft.state || null,
-                city: this.draft.city || null,
-            };
-            const exists = this.rules.some(r =>
-                r.country === rule.country && (r.state || null) === rule.state && (r.city || null) === rule.city
-            );
-            if (!exists) this.rules.push(rule);
-        },
-        removeRule(idx) {
-            this.rules.splice(idx, 1);
-        },
-        ruleLabel(rule) {
-            const country = this.countries.find(c => c.code === rule.country);
-            let label = country ? country.name : rule.country;
-            if (rule.state) label += ' · ' + rule.state;
-            if (rule.city) label += ' · ' + rule.city;
-            if (!rule.state && !rule.city) label += ' · All regions';
-            else if (!rule.city) label += ' · All cities';
-            return label;
-        },
-    };
-}
-</script>
 @endsection

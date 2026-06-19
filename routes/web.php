@@ -43,6 +43,7 @@ Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'chec
 Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::class, 'collect'])->name('t.collect');
 // GET must be allowed: the embedded tag falls back to an <img> pixel (query string) when sendBeacon/fetch fail.
 Route::match(['get', 'post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->name('ingest.visit');
+Route::match(['post', 'options'], '/ingest/session-recording', [TrackingController::class, 'sessionRecording'])->name('ingest.session-recording');
 Route::get('/tag/{domainKey}.js', [TagController::class, 'js'])->name('tag.js');
 Route::get('/tag/{domainKey}.html', [TagController::class, 'noscript'])->name('tag.noscript');
 

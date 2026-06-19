@@ -189,7 +189,7 @@
                         <select
                             x-model="filters.domain_id"
                             @change="onDomainChange()"
-                            class="h-[18px] min-w-0 flex-1 rounded-[2px] border-0 bg-[#0B0B0B] px-[8px] py-0 text-[9px] text-white focus:ring-0"
+                            class="figma-panel-select min-h-[24px] min-w-0 flex-1 !rounded-[3px] !py-[4px] !text-[10px]"
                         >
                             <option value="">All domains</option>
                             @foreach ($domains as $domain)
@@ -217,10 +217,7 @@
                             <template x-for="row in ips" :key="row.ip">
                                 <tr class="cursor-pointer align-middle transition hover:bg-white/5" @click="openIpModal(row)">
                                     <td class="max-w-0 px-[8px] py-[6px]">
-                                        <div class="flex min-w-0 items-center gap-[4px]">
-                                            <span class="min-w-0 flex-1 truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
-                                            <button type="button" class="figma-modal-copy-btn shrink-0 !px-[5px] !py-[1px] !text-[7px]" @click.stop="copyText(row.ip)" title="Copy IP">Copy</button>
-                                        </div>
+                                        <span class="block truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
                                     </td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px] text-white/85" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
