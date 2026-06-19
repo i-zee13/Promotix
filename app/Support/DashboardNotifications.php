@@ -5,7 +5,6 @@ namespace App\Support;
 use App\Models\Domain;
 use App\Models\GoogleConnection;
 use App\Models\IpLog;
-use App\Models\PaidMarketingVisit;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -22,28 +21,22 @@ class DashboardNotifications
 
         $paidVisitsToday = 0;
         $invalidToday = 0;
+        $today = Carbon::today()->toDateString();
+
+        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
+            $paidVisitsToday = (int) DB::table('google_ads_campaign_daily_metrics')
+                ->whereIn('domain_id', $domainIds)
+                ->whereDate('metric_date', $today)
+                ->sum('clicks');
+        }
 
         if (Schema::hasTable('visits')) {
-            $paidVisitsToday = (int) DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->where('is_paid_traffic', true)
-                ->whereDate('visited_at', Carbon::today())
-                ->count();
-            $invalidToday = (int) DB::table('visits')
+            $invalidQuery = DB::table('visits')
                 ->whereIn('domain_id', $domainIds)
                 ->where('is_invalid_traffic', true)
-                ->whereDate('visited_at', Carbon::today())
-                ->count();
-        } else {
-            $paidVisitsToday = (int) PaidMarketingVisit::query()
-                ->whereIn('domain_id', $domainIds)
-                ->whereDate('last_click_at', Carbon::today())
-                ->sum('visits');
-            $invalidToday = (int) PaidMarketingVisit::query()
-                ->whereIn('domain_id', $domainIds)
-                ->whereNotNull('threat_group')
-                ->whereDate('updated_at', Carbon::today())
-                ->count();
+                ->whereDate('visited_at', Carbon::today());
+            GoogleClickAttribution::applyHasClickIdFilter($invalidQuery);
+            $invalidToday = (int) $invalidQuery->count();
         }
 
         $manualDomains = Domain::query()->where('user_id', $userId)->forBotProtection()->get();
@@ -72,8 +65,8 @@ class DashboardNotifications
                 'type' => 'traffic',
                 'title' => 'Paid traffic today',
                 'body' => $paidVisitsToday > 0
-                    ? number_format($paidVisitsToday) . ' paid visit(s) recorded today.'
-                    : 'No paid visits yet today — install the tracking tag on your domain.',
+                    ? number_format($paidVisitsToday) . ' Google Ads click(s) synced for today.'
+                    : 'No Google Ads clicks synced yet today — connect and sync your ad account.',
             ],
         ];
 
@@ -81,7 +74,7 @@ class DashboardNotifications
             $items[] = [
                 'type' => 'security',
                 'title' => 'Invalid visits today',
-                'body' => number_format($invalidToday) . ' invalid visit(s) detected today.',
+                'body' => number_format($invalidToday) . ' invalid paid click visit(s) detected today.',
             ];
         }
 

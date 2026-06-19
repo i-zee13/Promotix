@@ -95,7 +95,7 @@ class TrackingController extends Controller
         $campaignAttribution = CampaignAttributionResolver::resolve($domain, $data);
 
         if ($isPaidTraffic) {
-            // Paid marketing rows only for ad traffic (gclid or utm_campaign), same as visits.is_paid_traffic.
+            // Paid marketing funnel: Google click IDs (gclid / gbraid / wbraid) only.
             $visit = PaidMarketingVisit::firstOrNew([
                 'domain_id' => $domain->id,
                 'ip' => $ip,

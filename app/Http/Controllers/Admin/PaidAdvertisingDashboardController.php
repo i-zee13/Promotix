@@ -8,6 +8,7 @@ use App\Models\GoogleAdsAccount;
 use App\Services\GoogleAdsConnectionService;
 use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
+use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -662,25 +663,7 @@ class PaidAdvertisingDashboardController extends Controller
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('visited_at', [$from, $to]);
 
-        $query->where(function ($paid): void {
-            $paid->where('is_paid_traffic', true);
-
-            if (Schema::hasColumn('visits', 'gclid')) {
-                $paid->orWhere(function ($gclid): void {
-                    $gclid->whereNotNull('gclid')->where('gclid', '!=', '');
-                });
-            }
-            if (Schema::hasColumn('visits', 'gbraid')) {
-                $paid->orWhere(function ($gbraid): void {
-                    $gbraid->whereNotNull('gbraid')->where('gbraid', '!=', '');
-                });
-            }
-            if (Schema::hasColumn('visits', 'wbraid')) {
-                $paid->orWhere(function ($wbraid): void {
-                    $wbraid->whereNotNull('wbraid')->where('wbraid', '!=', '');
-                });
-            }
-        });
+        GoogleClickAttribution::applyHasClickIdFilter($query);
 
         $path = trim((string) $request->query('path', ''));
         if ($path !== '') {
@@ -882,16 +865,7 @@ class PaidAdvertisingDashboardController extends Controller
      */
     private function applyPaidTrafficOnlyFilter($query, string $clickAlias = 'pc'): void
     {
-        $paidIdColumn = "{$clickAlias}.paid_id";
-        $campaignColumn = "{$clickAlias}.campaign";
-
-        $query->where(function ($paid) use ($paidIdColumn, $campaignColumn): void {
-            $paid->where(function ($gclid) use ($paidIdColumn): void {
-                $gclid->whereNotNull($paidIdColumn)->where($paidIdColumn, '!=', '');
-            })->orWhere(function ($utm) use ($campaignColumn): void {
-                $utm->whereNotNull($campaignColumn)->where($campaignColumn, '!=', '');
-            });
-        });
+        GoogleClickAttribution::applyPaidClickIdFilter($query, "{$clickAlias}.paid_id");
     }
 
     private function applyCampaignNameFilter($query, string $column, string $campaign): void
@@ -1471,18 +1445,11 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /**
-     * Google Ads clicks (API) plus tagged on-site paid visits from the PromoTix tag.
+     * Paid traffic card = Google Ads clicks only (tag hits are tracked separately for IPs).
      */
     private function displayPaidTrafficCount(int $tagPaid, int $googleClicks): int
     {
-        $tagPaid = max(0, $tagPaid);
-        $googleClicks = max(0, $googleClicks);
-
-        if ($googleClicks > 0) {
-            return $googleClicks + $tagPaid;
-        }
-
-        return $tagPaid;
+        return max(0, $googleClicks);
     }
 
     private function emptySummary(): array

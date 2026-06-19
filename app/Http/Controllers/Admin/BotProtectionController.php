@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
+use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -38,8 +39,7 @@ class BotProtectionController extends Controller
             return response()->json($this->emptySummary());
         }
 
-        $base = DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]);
-        $base = $this->applyPathFilter($base, $request);
+        $base = $this->baseVisitsQuery($domainIds, $from, $to, $request);
 
         $total = (clone $base)->count();
         $invalidBot = (clone $base)->where('is_invalid_traffic', true)->where(function ($q): void {
@@ -85,10 +85,7 @@ class BotProtectionController extends Controller
             ? 'SUM(CASE WHEN is_crawler = 1 THEN 1 ELSE 0 END) as crawlers'
             : '0 as crawlers';
 
-        $rows = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to]);
-        $rows = $this->applyPathFilter($rows, $request)
+        $rows = $this->baseVisitsQuery($domainIds, $from, $to, $request)
             ->selectRaw("DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid, SUM(CASE WHEN is_invalid_traffic = 1 AND threat_group IN ('data_center','vpn','abnormal_rate_limit') THEN 1 ELSE 0 END) as bad_bots, {$crawlerSql}")
             ->groupBy('day')
             ->orderBy('day')
@@ -218,12 +215,7 @@ class BotProtectionController extends Controller
             ? "DATE_FORMAT(visited_at, '%Y-%m-%d %H:00:00')"
             : 'DATE(visited_at)';
 
-        $query = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to]);
-        $query = $this->applyPathFilter($query, $request);
-
-        $rows = $query
+        $rows = $this->baseVisitsQuery($domainIds, $from, $to, $request)
             ->selectRaw("{$bucketExpr} as bucket, {$valueExpr} as total")
             ->groupBy('bucket')
             ->orderBy('bucket')
@@ -264,9 +256,7 @@ class BotProtectionController extends Controller
         }
 
         $rows = $this->applyPathFilter(
-            DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->whereBetween('visited_at', [$from, $to])
+            $this->baseVisitsQuery($domainIds, $from, $to, $request)
                 ->where('is_invalid_traffic', true)
                 ->whereNotNull('threat_group'),
             $request
@@ -333,10 +323,7 @@ class BotProtectionController extends Controller
             return response()->json([]);
         }
 
-        $rows = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to]);
-        $rows = $this->applyPathFilter($rows, $request)
+        $rows = $this->baseVisitsQuery($domainIds, $from, $to, $request)
             ->select('country', DB::raw('COUNT(*) as total'), DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'))
             ->whereNotNull('country')
             ->groupBy('country')
@@ -377,6 +364,7 @@ class BotProtectionController extends Controller
             ->leftJoin('visits', function ($join) use ($from, $to): void {
                 $join->on('domains.id', '=', 'visits.domain_id')
                     ->whereBetween('visits.visited_at', [$from, $to]);
+                GoogleClickAttribution::excludeClickIds($join, 'visits');
             })
             ->select(
                 'domains.id',
@@ -432,15 +420,11 @@ class BotProtectionController extends Controller
             ]);
         }
 
-        $base = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to]);
-        $base = $this->applyPathFilter($base, $request);
+        $base = $this->baseVisitsQuery($domainIds, $from, $to, $request);
 
         $total = max(1, (clone $base)->count());
         $blocked = (clone $base)->where('action_taken', 'block')->count();
         $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
-        $paid = (clone $base)->where('is_paid_traffic', true)->count();
         $bot = (clone $base)->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit'])->count();
         $withCountry = (clone $base)->whereNotNull('country')->where('country', '!=', '')->count();
         $valid = max(0, (clone $base)->count() - $invalid);
@@ -448,7 +432,7 @@ class BotProtectionController extends Controller
         return response()->json([
             'blocked' => (int) round(($blocked / $total) * 100),
             'invalid_traffic' => (int) round(($invalid / $total) * 100),
-            'paid_traffic' => (int) round(($paid / $total) * 100),
+            'paid_traffic' => 0,
             'bot_detection' => (int) round(($bot / $total) * 100),
             'country' => (int) round(($withCountry / $total) * 100),
             'overall' => (int) round(($valid / $total) * 100),
@@ -539,6 +523,7 @@ class BotProtectionController extends Controller
             ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
             ->whereIn('visits.domain_id', $domainIds)
             ->whereBetween('visits.visited_at', [$from, $to]);
+        GoogleClickAttribution::excludeClickIds($query, 'visits');
         $query = $this->applyPathFilter($query, $request, 'visits.url')
             ->select(
                 'visits.id',
@@ -575,9 +560,7 @@ class BotProtectionController extends Controller
         if ($request->boolean('only_invalid')) {
             $query->where('visits.is_invalid_traffic', true);
         }
-        if ($request->boolean('only_paid')) {
-            $query->where('visits.is_paid_traffic', true);
-        }
+
         if ($path = trim((string) $request->query('path', ''))) {
             $query->where('visits.url', 'like', '%' . $path . '%');
         }
@@ -654,6 +637,17 @@ class BotProtectionController extends Controller
         $code = strtoupper((string) $code);
 
         return $map[$code] ?? ($code ?: '—');
+    }
+
+    private function baseVisitsQuery($domainIds, Carbon $from, Carbon $to, Request $request)
+    {
+        $query = DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('visited_at', [$from, $to]);
+
+        GoogleClickAttribution::excludeClickIds($query);
+
+        return $this->applyPathFilter($query, $request);
     }
 
     private function applyPathFilter($query, Request $request, string $column = 'url')

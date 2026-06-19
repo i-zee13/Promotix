@@ -48,13 +48,6 @@ class GoogleAdsDomainMetricsSync
         $dailyRows = $this->fetchDailyFromGoogle($account, $from, $to);
 
         if ($dailyRows === []) {
-            $dailyRows = $this->fetchAggregateFallback($account, $from, $to);
-            if ($dailyRows !== []) {
-                $this->lastMessage = 'Saved period totals (daily breakdown was empty).';
-            }
-        }
-
-        if ($dailyRows === []) {
             $apiErr = app(GoogleAdsMetricsService::class)->lastApiError;
             $this->lastMessage = $apiErr
                 ?: ('Google returned no campaign metrics for the last ' . self::DEFAULT_SYNC_DAYS . ' days.');
@@ -330,14 +323,7 @@ class GoogleAdsDomainMetricsSync
             return false;
         }
 
-        if (! $domain->ads_synced_at) {
-            return true;
-        }
-
-        if ($domain->ads_synced_at->lt(now()->subHours(6))) {
-            return true;
-        }
-
+        // Only auto-sync when we have no stored metrics yet; scheduled job keeps data fresh.
         return ! GoogleAdsCampaignDailyMetric::query()
             ->where('domain_id', $domain->id)
             ->exists();

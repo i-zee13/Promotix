@@ -100,6 +100,10 @@
                 </div>
                 <div class="figma-dash-threats-charts__donut">
                     <canvas id="threats-chart" class="figma-dash-threats-charts__canvas figma-dash-threats-charts__canvas--donut"></canvas>
+                    <div id="threats-donut-center" class="figma-dash-threats-donut-center" aria-hidden="true">
+                        <span id="threats-donut-pct" class="figma-dash-threats-donut-center__pct">—</span>
+                        <span id="threats-donut-label" class="figma-dash-threats-donut-center__label"></span>
+                    </div>
                 </div>
             </div>
             <div id="chart-legend" class="mt-[6px] flex flex-wrap justify-center gap-x-[42px] gap-y-[5px] text-[10px] text-white/85"></div>
@@ -288,6 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             threatsChart.update();
         }
+
+        updateDonutCenter(safeLabels, safeValues);
     }
 
     function renderThreatLegend(labels, values) {
@@ -311,6 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     threatsChart.update();
                 }
                 renderThreatLegend(lastThreatLegend.labels, lastThreatLegend.values);
+                updateDonutCenter(lastThreatLegend.labels, lastThreatLegend.values);
             });
         });
     }
@@ -396,7 +403,45 @@ document.addEventListener('DOMContentLoaded', () => {
     let threatsChart = null;
     let hiddenThreatSlices = {};
     let lastThreatLegend = { labels: [], values: [] };
+    let donutCenterMeta = { pct: 0, label: '', show: false };
     const donutColors = ['#D9D9D9', '#FFFFFF', '#B893D8', '#8C8C8C'];
+
+    function updateDonutCenter(labels, values) {
+        const visible = (values || []).map((value, index) => (
+            hiddenThreatSlices[index] ? 0 : Number(value || 0)
+        ));
+        const total = visible.reduce((sum, value) => sum + value, 0);
+        const pctEl = document.getElementById('threats-donut-pct');
+        const labelEl = document.getElementById('threats-donut-label');
+        const wrapEl = document.getElementById('threats-donut-center');
+        if (!pctEl || !labelEl || !wrapEl) return;
+
+        if (total <= 0 || !labels?.length) {
+            donutCenterMeta = { pct: 0, label: '', show: false };
+            pctEl.textContent = '—';
+            labelEl.textContent = '';
+            wrapEl.classList.add('is-empty');
+            return;
+        }
+
+        let maxIdx = 0;
+        let maxVal = 0;
+        visible.forEach((value, index) => {
+            if (value > maxVal) {
+                maxVal = value;
+                maxIdx = index;
+            }
+        });
+
+        donutCenterMeta = {
+            pct: Math.round((maxVal / total) * 100),
+            label: labels[maxIdx] || '',
+            show: true,
+        };
+        pctEl.textContent = `${donutCenterMeta.pct}%`;
+        labelEl.textContent = donutCenterMeta.label.replace(/_/g, ' ');
+        wrapEl.classList.remove('is-empty');
+    }
 
     function setInsightsTab(tab) {
         insightsTab = tab;

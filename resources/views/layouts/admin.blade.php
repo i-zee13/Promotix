@@ -198,6 +198,9 @@
     </main>
 
     <aside class="figma-rightbar px-[16px] pb-[16px] pt-[20px]">
+        <button id="figma-rightbar-toggle" type="button" class="figma-rightbar-toggle" aria-label="Hide account panel" title="Hide panel">
+            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
         @hasSection('rightbar')
             @yield('rightbar')
         @else
@@ -259,6 +262,10 @@
         </div>
         @endif
     </aside>
+
+    <button id="figma-rightbar-reopen" type="button" class="figma-rightbar-reopen" aria-label="Show account panel" title="Show panel" hidden>
+        <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </button>
 </div>
 
 @include('partials.figma-notifications-script')
@@ -281,17 +288,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeToggle = document.getElementById('theme-toggle');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     const sidebarKey = 'promotix-figma-sidebar-collapsed';
+    const rightbarKey = 'promotix-figma-rightbar-collapsed';
     const themeKey = 'promotix-theme';
-    const isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
+    const isDesktopSidebar = () => window.matchMedia('(min-width: 1024px)').matches;
+    const isDesktopRightbar = () => window.matchMedia('(min-width: 1280px)').matches;
 
     function syncSidebar() {
         const collapsed = localStorage.getItem(sidebarKey) === '1';
-        shell?.classList.toggle('figma-sidebar-collapsed', isDesktop() && collapsed);
-        if (!isDesktop()) shell?.classList.remove('figma-sidebar-open');
+        shell?.classList.toggle('figma-sidebar-collapsed', isDesktopSidebar() && collapsed);
+        if (!isDesktopSidebar()) shell?.classList.remove('figma-sidebar-open');
+    }
+
+    function syncRightbar() {
+        const collapsed = localStorage.getItem(rightbarKey) === '1';
+        const desktop = isDesktopRightbar();
+        shell?.classList.toggle('figma-rightbar-collapsed', desktop && collapsed);
+        const reopen = document.getElementById('figma-rightbar-reopen');
+        if (reopen) {
+            if (desktop && collapsed) reopen.removeAttribute('hidden');
+            else reopen.setAttribute('hidden', '');
+        }
     }
 
     sidebarToggle?.addEventListener('click', () => {
-        if (isDesktop()) {
+        if (isDesktopSidebar()) {
             const next = !(localStorage.getItem(sidebarKey) === '1');
             localStorage.setItem(sidebarKey, next ? '1' : '0');
             syncSidebar();
@@ -300,9 +320,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.getElementById('figma-rightbar-toggle')?.addEventListener('click', () => {
+        if (!isDesktopRightbar()) return;
+        localStorage.setItem(rightbarKey, '1');
+        syncRightbar();
+    });
+
+    document.getElementById('figma-rightbar-reopen')?.addEventListener('click', () => {
+        if (!isDesktopRightbar()) return;
+        localStorage.setItem(rightbarKey, '0');
+        syncRightbar();
+    });
+
     overlay?.addEventListener('click', () => shell?.classList.remove('figma-sidebar-open'));
     window.matchMedia('(min-width: 1024px)').addEventListener('change', syncSidebar);
+    window.matchMedia('(min-width: 1280px)').addEventListener('change', syncRightbar);
     syncSidebar();
+    syncRightbar();
 
     function setTheme(theme) {
         document.documentElement.classList.toggle('light-mode', theme === 'light');
