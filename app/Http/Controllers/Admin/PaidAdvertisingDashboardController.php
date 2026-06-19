@@ -54,7 +54,7 @@ class PaidAdvertisingDashboardController extends Controller
         $uniqueIps = 0;
 
         if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
-            $base = $this->scopedVisitsQuery($request, $domainIds, $from, $to);
+            $base = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo);
             $tagPaid = (clone $base)->count();
             $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
             $uniqueIps = (clone $base)->distinct()->count('ip');
@@ -66,7 +66,7 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         if ($tagPaid === 0 && $domainIds->isNotEmpty()) {
-            $legacy = $this->paidMarketingTrafficStats($request, $domainIds, $from, $to);
+            $legacy = $this->paidMarketingTrafficStats($request, $domainIds, $metricFrom, $metricTo);
             $tagPaid = (int) ($legacy['total'] ?? 0);
             $invalid = (int) ($legacy['invalid'] ?? 0);
             $uniqueIps = (int) ($legacy['unique_ips'] ?? 0);
@@ -110,45 +110,41 @@ class PaidAdvertisingDashboardController extends Controller
             $this->forceGoogleSyncForDomains($request, $domainIds, $metricFrom, $metricTo);
         }
 
-        $fetchRows = function (Carbon $rangeFrom, Carbon $rangeTo) use ($request, $domainIds) {
+        $fetchRows = function (string $fromDate, string $toDate) use ($request, $domainIds) {
             $rows = collect();
             if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
-                $rows = $this->scopedVisitsQuery($request, $domainIds, $rangeFrom, $rangeTo)
-                    ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
+                $dayExpr = UserTimezone::localDateSql('visited_at', $request->user());
+                $rows = $this->scopedVisitsQuery($request, $domainIds, $fromDate, $toDate)
+                    ->selectRaw("{$dayExpr} as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
                     ->groupBy('day')
                     ->orderBy('day')
                     ->get();
             }
 
             if ($rows->isEmpty() && $domainIds->isNotEmpty()) {
-                $rows = $this->paidMarketingDailyTrendRows($request, $domainIds, $rangeFrom, $rangeTo);
+                $rows = $this->paidMarketingDailyTrendRows($request, $domainIds, $fromDate, $toDate);
             }
 
             return $rows;
         };
 
-        $rows = $fetchRows($from, $to);
+        $chartFrom = Carbon::parse($metricFrom, $userTz)->startOfDay();
+        $chartTo = Carbon::parse($metricTo, $userTz)->endOfDay();
+        $rows = $fetchRows($metricFrom, $metricTo);
 
         $googleByDay = null;
-        $chartFrom = $from;
-        $chartTo = $to;
 
         if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
             $sync = app(GoogleAdsDomainMetricsSync::class);
-            if ($domainIds->count() === 1) {
-                $domainId = (int) $domainIds->first();
-                $range = $sync->effectiveMetricRange($domainId, $metricFrom, $metricTo);
-                $chartFrom = Carbon::parse($range['from'], $userTz)->startOfDay();
-                $chartTo = Carbon::parse($range['to'], $userTz)->endOfDay();
-            }
             $googleByDay = $sync->dailyClicksByDateForDomains($domainIds, $metricFrom, $metricTo);
         }
 
-        $buildSeries = function (Carbon $rangeFrom, Carbon $rangeTo, $dayRows, $googleDays) use ($domainIds): array {
+        $buildSeries = function (string $rangeFromDate, string $rangeToDate, $dayRows, $googleDays) use ($userTz): array {
             $paid = [];
             $invalid = [];
-            $period = $rangeFrom->copy();
-            while ($period->lte($rangeTo)) {
+            $period = Carbon::parse($rangeFromDate, $userTz)->startOfDay();
+            $end = Carbon::parse($rangeToDate, $userTz)->startOfDay();
+            while ($period->lte($end)) {
                 $key = $period->toDateString();
                 $row = $dayRows->firstWhere('day', $key);
                 $visitPaid = (int) ($row->total ?? 0);
@@ -168,16 +164,14 @@ class PaidAdvertisingDashboardController extends Controller
             $period->addDay();
         }
 
-        $current = $buildSeries($chartFrom, $chartTo, $rows, $googleByDay);
+        $current = $buildSeries($metricFrom, $metricTo, $rows, $googleByDay);
         $paidSeries = $current['paid'];
         $invalidSeries = $current['invalid'];
 
         $days = max(1, $chartFrom->diffInDays($chartTo) + 1);
-        $prevFrom = $chartFrom->copy()->subDays($days);
-        $prevTo = $chartFrom->copy()->subSecond();
         $prevMetricFrom = Carbon::parse($metricFrom, $userTz)->subDays($days)->toDateString();
         $prevMetricTo = Carbon::parse($metricFrom, $userTz)->subDay()->toDateString();
-        $prevRows = $fetchRows($prevFrom, $prevTo);
+        $prevRows = $fetchRows($prevMetricFrom, $prevMetricTo);
 
         $googlePrev = null;
         if ($googleByDay !== null && $domainIds->isNotEmpty()) {
@@ -185,7 +179,7 @@ class PaidAdvertisingDashboardController extends Controller
                 ->dailyClicksByDateForDomains($domainIds, $prevMetricFrom, $prevMetricTo);
         }
 
-        $previous = $buildSeries($prevFrom, $prevTo, $prevRows, $googlePrev);
+        $previous = $buildSeries($prevMetricFrom, $prevMetricTo, $prevRows, $googlePrev);
         $lastWeekSeries = $previous['paid'];
 
         while (count($lastWeekSeries) < count($paidSeries)) {
@@ -209,21 +203,24 @@ class PaidAdvertisingDashboardController extends Controller
             return response()->json(['labels' => [], 'datasets' => []]);
         }
 
-        [$from, $to] = $this->dateRange($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
+        $userTz = UserTimezone::forUser($request->user());
         $domainIds = $this->scopedDomainIds($request);
+        $dayExpr = UserTimezone::localDateSql('visited_at', $request->user());
 
-        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
             ->whereIn('action_taken', ['block', 'flag'])
-            ->selectRaw('DATE(visited_at) as day, action_taken, COUNT(*) as total')
+            ->selectRaw("{$dayExpr} as day, action_taken, COUNT(*) as total")
             ->groupBy('day', 'action_taken')
             ->orderBy('day')
             ->get();
 
-        $period = $from->copy();
+        $period = Carbon::parse($metricFrom, $userTz)->startOfDay();
+        $end = Carbon::parse($metricTo, $userTz)->startOfDay();
         $labels = [];
         $blockSeries = [];
         $flagSeries = [];
-        while ($period->lt($to)) {
+        while ($period->lte($end)) {
             $key = $period->toDateString();
             $labels[] = $period->format('M d');
             $blockSeries[] = (int) ($rows->where('day', $key)->where('action_taken', 'block')->first()->total ?? 0);
@@ -273,8 +270,8 @@ class PaidAdvertisingDashboardController extends Controller
 
         $domainIds = $this->scopedDomainIds($request);
         $merged = $merged
-            ->merge($this->visitCampaignRows($request, $domainIds, $from, $to))
-            ->merge($this->paidMarketingCampaignRows($domainIds, $from, $to));
+            ->merge($this->visitCampaignRows($request, $domainIds, $metricFrom, $metricTo))
+            ->merge($this->paidMarketingCampaignRows($domainIds, $metricFrom, $metricTo, $request->user()));
 
         $rows = $merged
             ->filter(fn ($row) => filled(is_array($row) ? ($row['campaign'] ?? null) : null))
@@ -330,7 +327,7 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /** @return list<array<string, mixed>> */
-    private function visitCampaignRows(Request $request, $domainIds, Carbon $from, Carbon $to): array
+    private function visitCampaignRows(Request $request, $domainIds, string $fromDate, string $toDate): array
     {
         if (! Schema::hasTable('visits') || collect($domainIds)->isEmpty()) {
             return [];
@@ -340,7 +337,7 @@ class PaidAdvertisingDashboardController extends Controller
             ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
             : "NULLIF(TRIM(utm_campaign), '')";
 
-        $inner = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+        $inner = $this->scopedVisitsQuery($request, $domainIds, $fromDate, $toDate)
             ->whereRaw("{$expr} IS NOT NULL")
             ->selectRaw("{$expr} as campaign, is_invalid_traffic");
 
@@ -362,7 +359,7 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /** @return list<array<string, mixed>> */
-    private function paidMarketingCampaignRows($domainIds, Carbon $from, Carbon $to): array
+    private function paidMarketingCampaignRows($domainIds, string $fromDate, string $toDate, ?\App\Models\User $user = null): array
     {
         if (! Schema::hasTable('paid_marketing_visits') || collect($domainIds)->isEmpty()) {
             return [];
@@ -373,9 +370,9 @@ class PaidAdvertisingDashboardController extends Controller
             : "NULLIF(TRIM(campaign), '')";
 
         $inner = DB::table('paid_marketing_visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('last_click_at', [$from, $to])
-            ->whereRaw("{$nameExpr} IS NOT NULL")
+            ->whereIn('domain_id', $domainIds);
+        UserTimezone::applyCalendarDateRangeFilter($inner, 'last_click_at', $fromDate, $toDate, $user);
+        $inner->whereRaw("{$nameExpr} IS NOT NULL")
             ->selectRaw("{$nameExpr} as campaign");
 
         return DB::query()
@@ -467,10 +464,10 @@ class PaidAdvertisingDashboardController extends Controller
             return response()->json([]);
         }
 
-        [$from, $to] = $this->dateRange($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
             ->whereNotNull('utm_term')
             ->select(
                 'utm_term',
@@ -495,10 +492,10 @@ class PaidAdvertisingDashboardController extends Controller
             return response()->json([]);
         }
 
-        [$from, $to] = $this->dateRange($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
             ->whereNotNull('country')
             ->select(
                 'country',
@@ -519,25 +516,25 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function ips(Request $request): JsonResponse
     {
-        [$from, $to] = $this->dateRange($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
         if ($domainIds->isEmpty()) {
             return response()->json([]);
         }
 
-        $rows = $this->resolveIpRows($request, $domainIds, $from, $to);
+        $rows = $this->resolveIpRows($request, $domainIds, $metricFrom, $metricTo);
 
         return response()->json($rows->take(50)->values());
     }
 
     public function exportIpsCsv(Request $request): StreamedResponse
     {
-        [$from, $to] = $this->dateRange($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
         $filename = 'paid-marketing-ips-' . now()->format('YmdHis') . '.csv';
 
-        return response()->streamDownload(function () use ($request, $domainIds, $from, $to): void {
+        return response()->streamDownload(function () use ($request, $domainIds, $metricFrom, $metricTo): void {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['IP Address', 'Country', 'Campaign', 'Invalid', 'Total', 'Bot Detect', 'VPN Hits', 'Data Center Hits', 'Malicious Hits', 'Last Click']);
 
@@ -548,7 +545,7 @@ class PaidAdvertisingDashboardController extends Controller
                 return;
             }
 
-            $rows = $this->resolveIpRows($request, $domainIds, $from, $to);
+            $rows = $this->resolveIpRows($request, $domainIds, $metricFrom, $metricTo);
 
             foreach ($rows->take(5000) as $r) {
                 fputcsv($handle, [
@@ -579,25 +576,27 @@ class PaidAdvertisingDashboardController extends Controller
             return response()->json(['matrix' => [], 'days' => [], 'hours' => []]);
         }
 
-        [$from, $to] = $this->dateRange($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
+        $localVisitedAt = UserTimezone::localDateTimeSql('visited_at', $request->user());
 
         $rows = collect();
         if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
-            $rows = $this->scopedVisitsQuery($request, $domainIds, $from, $to)
-                ->selectRaw('DAYOFWEEK(visited_at) as dow, HOUR(visited_at) as hr, COUNT(*) as total')
+            $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
+                ->selectRaw("DAYOFWEEK({$localVisitedAt}) as dow, HOUR({$localVisitedAt}) as hr, COUNT(*) as total")
                 ->groupBy('dow', 'hr')
                 ->get();
         }
 
         if ($rows->isEmpty() && Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits') && $domainIds->isNotEmpty()) {
+            $localClickedAt = UserTimezone::localDateTimeSql('pc.clicked_at', $request->user());
             $pmQuery = DB::table('paid_marketing_clicks as pc')
                 ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
-                ->whereIn('pv.domain_id', $domainIds)
-                ->whereBetween('pc.clicked_at', [$from, $to]);
+                ->whereIn('pv.domain_id', $domainIds);
+            UserTimezone::applyCalendarDateRangeFilter($pmQuery, 'pc.clicked_at', $metricFrom, $metricTo, $request->user());
             $this->applyPaidTrafficOnlyFilter($pmQuery, 'pc');
             $rows = $pmQuery
-                ->selectRaw('DAYOFWEEK(pc.clicked_at) as dow, HOUR(pc.clicked_at) as hr, COUNT(*) as total')
+                ->selectRaw("DAYOFWEEK({$localClickedAt}) as dow, HOUR({$localClickedAt}) as hr, COUNT(*) as total")
                 ->groupBy('dow', 'hr')
                 ->get();
         }
@@ -663,11 +662,12 @@ class PaidAdvertisingDashboardController extends Controller
         return $userDomainIds;
     }
 
-    private function scopedVisitsQuery(Request $request, $domainIds, Carbon $from, Carbon $to)
+    private function scopedVisitsQuery(Request $request, $domainIds, string $fromDate, string $toDate)
     {
         $query = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to]);
+            ->whereIn('domain_id', $domainIds);
+
+        UserTimezone::applyCalendarDateRangeFilter($query, 'visited_at', $fromDate, $toDate, $request->user());
 
         GoogleClickAttribution::applyHasClickIdFilter($query);
 
@@ -690,13 +690,13 @@ class PaidAdvertisingDashboardController extends Controller
     /**
      * @return \Illuminate\Support\Collection<int, object>
      */
-    private function ipRowsFromVisits(Request $request, $domainIds, Carbon $from, Carbon $to)
+    private function ipRowsFromVisits(Request $request, $domainIds, string $fromDate, string $toDate)
     {
         if (! Schema::hasTable('visits')) {
             return collect();
         }
 
-        return $this->scopedVisitsQuery($request, $domainIds, $from, $to)
+        return $this->scopedVisitsQuery($request, $domainIds, $fromDate, $toDate)
             ->select(
                 'ip',
                 DB::raw('COUNT(*) as total'),
@@ -720,7 +720,7 @@ class PaidAdvertisingDashboardController extends Controller
     /**
      * @return \Illuminate\Support\Collection<int, object>
      */
-    private function ipRowsFromPaidMarketing(Request $request, $domainIds, Carbon $from, Carbon $to)
+    private function ipRowsFromPaidMarketing(Request $request, $domainIds, string $fromDate, string $toDate)
     {
         if (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits')) {
             return collect();
@@ -728,8 +728,9 @@ class PaidAdvertisingDashboardController extends Controller
 
         $query = DB::table('paid_marketing_clicks as pc')
             ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
-            ->whereIn('pv.domain_id', $domainIds)
-            ->whereBetween('pc.clicked_at', [$from, $to]);
+            ->whereIn('pv.domain_id', $domainIds);
+
+        UserTimezone::applyCalendarDateRangeFilter($query, 'pc.clicked_at', $fromDate, $toDate, $request->user());
 
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
@@ -767,14 +768,14 @@ class PaidAdvertisingDashboardController extends Controller
      *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
-    private function resolveIpRows(Request $request, $domainIds, Carbon $from, Carbon $to)
+    private function resolveIpRows(Request $request, $domainIds, string $fromDate, string $toDate)
     {
-        $rows = $this->ipRowsFromVisits($request, $domainIds, $from, $to);
+        $rows = $this->ipRowsFromVisits($request, $domainIds, $fromDate, $toDate);
         if ($rows->isEmpty()) {
-            $rows = $this->ipRowsFromPaidMarketing($request, $domainIds, $from, $to);
+            $rows = $this->ipRowsFromPaidMarketing($request, $domainIds, $fromDate, $toDate);
         }
 
-        return $this->formatIpRows($rows);
+        return $this->formatIpRows($rows, $request->user());
     }
 
     /**
@@ -782,7 +783,7 @@ class PaidAdvertisingDashboardController extends Controller
      *
      * @return array{total: int, invalid: int, unique_ips: int}
      */
-    private function paidMarketingTrafficStats(Request $request, $domainIds, Carbon $from, Carbon $to): array
+    private function paidMarketingTrafficStats(Request $request, $domainIds, string $fromDate, string $toDate): array
     {
         if (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits') || collect($domainIds)->isEmpty()) {
             return ['total' => 0, 'invalid' => 0, 'unique_ips' => 0];
@@ -790,8 +791,9 @@ class PaidAdvertisingDashboardController extends Controller
 
         $query = DB::table('paid_marketing_clicks as pc')
             ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
-            ->whereIn('pv.domain_id', $domainIds)
-            ->whereBetween('pc.clicked_at', [$from, $to]);
+            ->whereIn('pv.domain_id', $domainIds);
+
+        UserTimezone::applyCalendarDateRangeFilter($query, 'pc.clicked_at', $fromDate, $toDate, $request->user());
 
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
@@ -817,16 +819,18 @@ class PaidAdvertisingDashboardController extends Controller
     /**
      * @return \Illuminate\Support\Collection<int, object{day: string, total: int, invalid: int}>
      */
-    private function paidMarketingDailyTrendRows(Request $request, $domainIds, Carbon $from, Carbon $to)
+    private function paidMarketingDailyTrendRows(Request $request, $domainIds, string $fromDate, string $toDate)
     {
         if (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits') || collect($domainIds)->isEmpty()) {
             return collect();
         }
 
+        $dayExpr = UserTimezone::localDateSql('pc.clicked_at', $request->user());
         $query = DB::table('paid_marketing_clicks as pc')
             ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
-            ->whereIn('pv.domain_id', $domainIds)
-            ->whereBetween('pc.clicked_at', [$from, $to]);
+            ->whereIn('pv.domain_id', $domainIds);
+
+        UserTimezone::applyCalendarDateRangeFilter($query, 'pc.clicked_at', $fromDate, $toDate, $request->user());
 
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
@@ -839,7 +843,7 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         return $query
-            ->selectRaw('DATE(pc.clicked_at) as day, COUNT(*) as total, SUM(CASE WHEN pc.threat_group IS NOT NULL AND pc.threat_group != "" THEN 1 ELSE 0 END) as invalid')
+            ->selectRaw("{$dayExpr} as day, COUNT(*) as total, SUM(CASE WHEN pc.threat_group IS NOT NULL AND pc.threat_group != '' THEN 1 ELSE 0 END) as invalid")
             ->groupBy('day')
             ->orderBy('day')
             ->get();
@@ -849,7 +853,7 @@ class PaidAdvertisingDashboardController extends Controller
      * @param  \Illuminate\Support\Collection<int, object>  $rows
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
-    private function formatIpRows($rows)
+    private function formatIpRows($rows, ?\App\Models\User $user = null)
     {
         return $rows->map(fn ($row) => [
             'ip' => (string) ($row->ip ?? ''),
@@ -857,7 +861,10 @@ class PaidAdvertisingDashboardController extends Controller
             'total' => (int) ($row->total ?? 0),
             'invalid' => (int) ($row->invalid ?? 0),
             'valid' => max(0, (int) ($row->total ?? 0) - (int) ($row->invalid ?? 0)),
-            'last_seen' => $row->last_seen ?? null,
+            'last_seen' => UserTimezone::isoForUser(
+                ! empty($row->last_seen) ? Carbon::parse((string) $row->last_seen, 'UTC') : null,
+                $user
+            ),
             'campaign' => $row->campaign ?? null,
             'vpn_hits' => (int) ($row->vpn_hits ?? 0),
             'data_center_hits' => (int) ($row->data_center_hits ?? 0),

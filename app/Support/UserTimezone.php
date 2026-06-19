@@ -207,6 +207,49 @@ class UserTimezone
         return [$fromDate, $toDate];
     }
 
+    /**
+     * Strict calendar-day bounds in the user's timezone (inclusive).
+     *
+     * @param  \Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     */
+    public static function applyCalendarDateRangeFilter(
+        $query,
+        string $column,
+        string $fromDate,
+        string $toDate,
+        ?User $user = null,
+    ): void {
+        $tz = self::forUser($user);
+        $query->where(function ($days) use ($fromDate, $toDate, $tz, $column): void {
+            $cursor = Carbon::parse($fromDate, $tz)->startOfDay();
+            $end = Carbon::parse($toDate, $tz)->startOfDay();
+
+            while ($cursor->lte($end)) {
+                $days->orWhereBetween($column, [
+                    $cursor->copy()->startOfDay()->utc()->toDateTimeString(),
+                    $cursor->copy()->endOfDay()->utc()->toDateTimeString(),
+                ]);
+                $cursor->addDay();
+            }
+        });
+    }
+
+    /** SQL expression for the visit timestamp's calendar date in the user's timezone. */
+    public static function localDateSql(string $column, ?User $user = null): string
+    {
+        $offset = Carbon::now(self::forUser($user))->format('P');
+
+        return "DATE(CONVERT_TZ({$column}, '+00:00', '{$offset}'))";
+    }
+
+    /** SQL expression for the visit timestamp converted to the user's timezone. */
+    public static function localDateTimeSql(string $column, ?User $user = null): string
+    {
+        $offset = Carbon::now(self::forUser($user))->format('P');
+
+        return "CONVERT_TZ({$column}, '+00:00', '{$offset}')";
+    }
+
     public static function toUserTimezone(?Carbon $dateTime, ?User $user): ?Carbon
     {
         if ($dateTime === null) {

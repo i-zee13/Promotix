@@ -4,7 +4,7 @@
 @section('subtitle', 'Live campaign performance and detection results')
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js(['countryGetStarted' => $countryGetStarted]))" x-init="init()">
+<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js(['countryGetStarted' => $countryGetStarted, 'userTimezone' => \App\Support\UserTimezone::forUser(auth()->user())]))" x-init="init()">
     <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-[12px]">
@@ -316,6 +316,7 @@
 function paidAdvertisingFigma(config = {}) {
     return {
         countryGetStarted: Boolean(config.countryGetStarted),
+        userTimezone: config.userTimezone || 'UTC',
         filters: { domain_id: '', campaign: '', campaign_id: '', path: '', window: 'weekly', from: '', to: '' },
         summary: { paid_visits: 0, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
         trends: { labels: [], datasets: [], invalid_daily: [] },
@@ -374,7 +375,12 @@ function paidAdvertisingFigma(config = {}) {
             if (!value) return 'N/A';
             const d = new Date(value);
             if (Number.isNaN(d.getTime())) return 'N/A';
-            return d.toLocaleDateString(undefined, {month: '2-digit', day: '2-digit', year: '2-digit'});
+            return d.toLocaleDateString('en-GB', {
+                timeZone: this.userTimezone,
+                month: '2-digit',
+                day: '2-digit',
+                year: '2-digit',
+            });
         },
         setWindow() {
             const today = new Date();
