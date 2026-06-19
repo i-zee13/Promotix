@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\ResolvesGoogleAdsSyncDateRange;
 use App\Models\Domain;
 use App\Services\GoogleAdsDomainMetricsSync;
 use Illuminate\Console\Command;
@@ -9,21 +10,40 @@ use Illuminate\Support\Facades\Log;
 
 class SyncAllGoogleAdsMetrics extends Command
 {
-    protected $signature = 'google-ads:sync-all {--days=7 : How many days back to refresh}';
+    use ResolvesGoogleAdsSyncDateRange;
+
+    protected $signature = 'google-ads:sync-all
+        {--days=30 : Days back when --from/--to not set}
+        {--from= : Start date YYYY-MM-DD}
+        {--to= : End date YYYY-MM-DD}
+        {--domain= : Only sync this domain ID}
+        {--purge-all : Delete ALL stored metrics for each domain before sync}';
 
     protected $description = 'Sync Google Ads daily click metrics for all linked domains';
 
     public function handle(GoogleAdsDomainMetricsSync $sync): int
     {
-        $days = max(1, (int) $this->option('days'));
-        $to = now()->endOfDay();
-        $from = now()->subDays($days)->startOfDay();
+        $range = $this->resolveSyncDateRange();
+        if ($range === null) {
+            return self::FAILURE;
+        }
 
-        $domains = Domain::query()
+        [$from, $to] = $range;
+        $purgeAll = (bool) $this->option('purge-all');
+        $domainFilter = trim((string) $this->option('domain'));
+
+        $query = Domain::query()
             ->whereNotNull('google_ads_account_id')
             ->with('googleAdsAccount')
-            ->get()
-            ->filter(fn (Domain $domain) => $domain->googleAdsAccount && ! $domain->googleAdsAccount->is_manager);
+            ->orderBy('id');
+
+        if ($domainFilter !== '') {
+            $query->where('id', (int) $domainFilter);
+        }
+
+        $domains = $query->get()->filter(
+            fn (Domain $domain) => $domain->googleAdsAccount && ! $domain->googleAdsAccount->is_manager
+        );
 
         if ($domains->isEmpty()) {
             $this->info('No domains with linked Google Ads accounts.');
@@ -31,17 +51,41 @@ class SyncAllGoogleAdsMetrics extends Command
             return self::SUCCESS;
         }
 
+        $this->line(sprintf('Range: %s → %s', $from->toDateString(), $to->toDateString()));
+        if ($purgeAll) {
+            $this->warn('Purge-all enabled: deleting all stored metrics before import.');
+        }
+
         $savedTotal = 0;
+        $failed = 0;
+
         foreach ($domains as $domain) {
-            $result = $sync->syncDomain($domain, $from, $to);
+            if ($purgeAll) {
+                $deleted = $sync->purgeAllMetrics($domain);
+                $this->line(sprintf('Domain #%d: purged %d old row(s).', $domain->id, $deleted));
+            }
+
+            $result = $sync->syncDomain($domain, $from->toDateString(), $to->toDateString());
             $saved = (int) ($result['saved'] ?? 0);
             $savedTotal += $saved;
+
+            $suffix = '';
+            if (! empty($result['api_error'])) {
+                $suffix = ' — API: ' . $result['api_error'];
+                $failed++;
+            } elseif (! empty($result['message'])) {
+                $suffix = ' — ' . $result['message'];
+                if ($saved === 0) {
+                    $failed++;
+                }
+            }
+
             $this->line(sprintf(
                 'Domain #%d (%s): %d rows%s',
                 $domain->id,
                 $domain->hostname,
                 $saved,
-                ! empty($result['message']) ? ' — ' . $result['message'] : ''
+                $suffix
             ));
         }
 
@@ -50,9 +94,17 @@ class SyncAllGoogleAdsMetrics extends Command
             'rows_saved' => $savedTotal,
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
+            'purge_all' => $purgeAll,
         ]);
 
         $this->info("Done. {$savedTotal} metric rows saved across {$domains->count()} domain(s).");
+
+        if ($failed > 0) {
+            $this->newLine();
+            $this->warn('Some domains returned 0 rows. If you see "UNAUTHENTICATED" or token errors, reconnect Google in Integrations, then run this command again.');
+
+            return self::FAILURE;
+        }
 
         return self::SUCCESS;
     }

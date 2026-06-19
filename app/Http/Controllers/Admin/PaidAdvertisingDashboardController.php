@@ -40,10 +40,11 @@ class PaidAdvertisingDashboardController extends Controller
     public function summary(Request $request): JsonResponse
     {
         [$from, $to] = $this->dateRange($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
         if ($request->boolean('force_google_sync')) {
-            $this->forceGoogleSyncForDomains($request, $domainIds, $from, $to);
+            $this->forceGoogleSyncForDomains($request, $domainIds, $metricFrom, $metricTo);
         }
 
         $tagPaid = 0;
@@ -75,7 +76,7 @@ class PaidAdvertisingDashboardController extends Controller
         $googleClicks = 0;
         if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
             $googleAds = app(GoogleAdsDomainMetricsSync::class)
-                ->clickTotalsForDomains($domainIds, $from, $to);
+                ->clickTotalsForDomains($domainIds, $metricFrom, $metricTo);
             $googleClicks = (int) ($googleAds['clicks'] ?? 0);
         }
 
@@ -101,10 +102,12 @@ class PaidAdvertisingDashboardController extends Controller
     public function trends(Request $request): JsonResponse
     {
         [$from, $to] = $this->dateRange($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
+        $userTz = UserTimezone::forUser($request->user());
 
         if ($request->boolean('force_google_sync')) {
-            $this->forceGoogleSyncForDomains($request, $domainIds, $from, $to);
+            $this->forceGoogleSyncForDomains($request, $domainIds, $metricFrom, $metricTo);
         }
 
         $fetchRows = function (Carbon $rangeFrom, Carbon $rangeTo) use ($request, $domainIds) {
@@ -134,11 +137,11 @@ class PaidAdvertisingDashboardController extends Controller
             $sync = app(GoogleAdsDomainMetricsSync::class);
             if ($domainIds->count() === 1) {
                 $domainId = (int) $domainIds->first();
-                $range = $sync->effectiveMetricRange($domainId, $from, $to);
-                $chartFrom = $range['from'];
-                $chartTo = $range['to'];
+                $range = $sync->effectiveMetricRange($domainId, $metricFrom, $metricTo);
+                $chartFrom = Carbon::parse($range['from'], $userTz)->startOfDay();
+                $chartTo = Carbon::parse($range['to'], $userTz)->endOfDay();
             }
-            $googleByDay = $sync->dailyClicksByDateForDomains($domainIds, $from, $to);
+            $googleByDay = $sync->dailyClicksByDateForDomains($domainIds, $metricFrom, $metricTo);
         }
 
         $buildSeries = function (Carbon $rangeFrom, Carbon $rangeTo, $dayRows, $googleDays) use ($domainIds): array {
@@ -172,12 +175,14 @@ class PaidAdvertisingDashboardController extends Controller
         $days = max(1, $chartFrom->diffInDays($chartTo) + 1);
         $prevFrom = $chartFrom->copy()->subDays($days);
         $prevTo = $chartFrom->copy()->subSecond();
+        $prevMetricFrom = Carbon::parse($metricFrom, $userTz)->subDays($days)->toDateString();
+        $prevMetricTo = Carbon::parse($metricFrom, $userTz)->subDay()->toDateString();
         $prevRows = $fetchRows($prevFrom, $prevTo);
 
         $googlePrev = null;
         if ($googleByDay !== null && $domainIds->isNotEmpty()) {
             $googlePrev = app(GoogleAdsDomainMetricsSync::class)
-                ->dailyClicksByDateForDomains($domainIds, $prevFrom, $prevTo);
+                ->dailyClicksByDateForDomains($domainIds, $prevMetricFrom, $prevMetricTo);
         }
 
         $previous = $buildSeries($prevFrom, $prevTo, $prevRows, $googlePrev);
@@ -238,6 +243,7 @@ class PaidAdvertisingDashboardController extends Controller
     public function campaigns(Request $request): JsonResponse
     {
         [$from, $to] = $this->dateRange($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainId = (int) $request->query('domain_id', 0);
         $forceGoogleSync = $request->boolean('force_google_sync');
         $merged = collect();
@@ -250,8 +256,8 @@ class PaidAdvertisingDashboardController extends Controller
                 ->with('googleAdsAccount.connection')
                 ->first();
 
-            $merged = $merged->merge($this->resolveGoogleCampaignRowsForDomain($domain, $from, $to, $forceGoogleSync));
-            $merged = $merged->merge($this->metricCampaignRows($domainId, $from, $to));
+            $merged = $merged->merge($this->resolveGoogleCampaignRowsForDomain($domain, $metricFrom, $metricTo, $forceGoogleSync));
+            $merged = $merged->merge($this->metricCampaignRows($domainId, $metricFrom, $metricTo));
         } else {
             $domains = Domain::query()
                 ->where('user_id', $request->user()->id)
@@ -260,8 +266,8 @@ class PaidAdvertisingDashboardController extends Controller
                 ->get();
 
             foreach ($domains as $domain) {
-                $merged = $merged->merge($this->resolveGoogleCampaignRowsForDomain($domain, $from, $to, $forceGoogleSync));
-                $merged = $merged->merge($this->metricCampaignRows($domain->id, $from, $to));
+                $merged = $merged->merge($this->resolveGoogleCampaignRowsForDomain($domain, $metricFrom, $metricTo, $forceGoogleSync));
+                $merged = $merged->merge($this->metricCampaignRows($domain->id, $metricFrom, $metricTo));
             }
         }
 
@@ -293,18 +299,18 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /** @return list<array<string, mixed>> */
-    private function metricCampaignRows(int $domainId, Carbon $from, Carbon $to): array
+    private function metricCampaignRows(int $domainId, string $fromDate, string $toDate): array
     {
         if (! Schema::hasTable('google_ads_campaign_daily_metrics')) {
             return [];
         }
 
         $sync = app(GoogleAdsDomainMetricsSync::class);
-        $range = $sync->effectiveMetricRange($domainId, $from, $to);
+        $range = $sync->effectiveMetricRange($domainId, $fromDate, $toDate);
 
         return DB::table('google_ads_campaign_daily_metrics')
             ->where('domain_id', $domainId)
-            ->whereBetween('metric_date', [$range['from']->toDateString(), $range['to']->toDateString()])
+            ->whereBetween('metric_date', [$range['from'], $range['to']])
             ->whereNotNull('campaign_name')
             ->where('campaign_name', '!=', '')
             ->selectRaw('campaign_id, MAX(campaign_name) as campaign, SUM(clicks) as total')
@@ -392,7 +398,7 @@ class PaidAdvertisingDashboardController extends Controller
     /**
      * @return list<array<string, mixed>>
      */
-    private function resolveGoogleCampaignRowsForDomain(?Domain $domain, Carbon $from, Carbon $to, bool $forceGoogleSync = false): array
+    private function resolveGoogleCampaignRowsForDomain(?Domain $domain, string $fromDate, string $toDate, bool $forceGoogleSync = false): array
     {
         if (! $domain?->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
             return [];
@@ -401,20 +407,20 @@ class PaidAdvertisingDashboardController extends Controller
         $sync = app(GoogleAdsDomainMetricsSync::class);
 
         if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
-            if ($forceGoogleSync || $sync->shouldRefresh($domain, $from, $to)) {
-                $sync->syncDomain($domain->fresh(), $from, $to)['saved'] ?? 0;
+            if ($forceGoogleSync || $sync->shouldRefresh($domain, $fromDate, $toDate)) {
+                $sync->syncDomain($domain->fresh(), $fromDate, $toDate)['saved'] ?? 0;
             }
 
-            $dbRows = $sync->aggregatedCampaignRowsWithFallback($domain->id, $from, $to);
+            $dbRows = $sync->aggregatedCampaignRowsWithFallback($domain->id, $fromDate, $toDate);
             if ($dbRows !== []) {
                 return $dbRows;
             }
         }
 
-        $liveRows = $this->googleAdsCampaignRows($domain->googleAdsAccount, $from, $to, $domain->hostname);
+        $liveRows = $this->googleAdsCampaignRows($domain->googleAdsAccount, $fromDate, $toDate, $domain->hostname);
         if ($liveRows !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
-            $sync->syncDomain($domain->fresh(), $from, $to)['saved'] ?? 0;
-            $dbRows = $sync->aggregatedCampaignRowsWithFallback($domain->id, $from, $to);
+            $sync->syncDomain($domain->fresh(), $fromDate, $toDate)['saved'] ?? 0;
+            $dbRows = $sync->aggregatedCampaignRowsWithFallback($domain->id, $fromDate, $toDate);
 
             return $dbRows !== [] ? $dbRows : $liveRows;
         }
@@ -425,7 +431,7 @@ class PaidAdvertisingDashboardController extends Controller
     /**
      * @return list<array<string, mixed>>
      */
-    private function googleAdsCampaignRows(GoogleAdsAccount $account, Carbon $from, Carbon $to, ?string $hostname = null): array
+    private function googleAdsCampaignRows(GoogleAdsAccount $account, string $fromDate, string $toDate, ?string $hostname = null): array
     {
         $connection = $account->connection;
         if (! $connection) {
@@ -449,8 +455,8 @@ class PaidAdvertisingDashboardController extends Controller
             $account,
             $version,
             $headers,
-            $from->format('Y-m-d'),
-            $to->format('Y-m-d'),
+            $fromDate,
+            $toDate,
             $hostname
         );
     }
@@ -621,7 +627,7 @@ class PaidAdvertisingDashboardController extends Controller
         ]);
     }
 
-    private function forceGoogleSyncForDomains(Request $request, $domainIds, Carbon $from, Carbon $to): void
+    private function forceGoogleSyncForDomains(Request $request, $domainIds, string $fromDate, string $toDate): void
     {
         if (! Schema::hasTable('google_ads_campaign_daily_metrics') || $domainIds->isEmpty()) {
             return;
@@ -639,7 +645,7 @@ class PaidAdvertisingDashboardController extends Controller
             if (! $domain->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
                 continue;
             }
-            $sync->syncDomain($domain, $from, $to);
+            $sync->syncDomain($domain, $fromDate, $toDate);
         }
     }
 
@@ -1442,6 +1448,14 @@ class PaidAdvertisingDashboardController extends Controller
     private function dateRange(Request $request): array
     {
         return UserTimezone::dateRangeFromRequest($request, $request->user());
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function calendarDateRange(Request $request): array
+    {
+        return UserTimezone::calendarDateRangeFromRequest($request, $request->user());
     }
 
     /**

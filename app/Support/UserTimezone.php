@@ -183,6 +183,30 @@ class UserTimezone
         return [$from, $to];
     }
 
+    /**
+     * Calendar dates (Y-m-d) in the user's timezone — use for Google Ads daily metrics, not UTC timestamps.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public static function calendarDateRangeFromRequest(Request $request, ?User $user = null, int $defaultDays = 6): array
+    {
+        $tz = self::forUser($user);
+
+        $fromDate = $request->query('from')
+            ? Carbon::parse((string) $request->query('from'), $tz)->toDateString()
+            : Carbon::now($tz)->subDays($defaultDays)->toDateString();
+
+        $toDate = $request->query('to')
+            ? Carbon::parse((string) $request->query('to'), $tz)->toDateString()
+            : Carbon::now($tz)->toDateString();
+
+        if ($fromDate > $toDate) {
+            [$fromDate, $toDate] = [$toDate, $fromDate];
+        }
+
+        return [$fromDate, $toDate];
+    }
+
     public static function toUserTimezone(?Carbon $dateTime, ?User $user): ?Carbon
     {
         if ($dateTime === null) {

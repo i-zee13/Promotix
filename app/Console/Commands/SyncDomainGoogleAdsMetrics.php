@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\ResolvesGoogleAdsSyncDateRange;
 use App\Models\Domain;
 use App\Models\GoogleAdsCampaignDailyMetric;
 use App\Services\GoogleAdsDomainMetricsSync;
@@ -9,7 +10,14 @@ use Illuminate\Console\Command;
 
 class SyncDomainGoogleAdsMetrics extends Command
 {
-    protected $signature = 'google-ads:sync-domain-metrics {domain_id : Domain ID} {--days=30}';
+    use ResolvesGoogleAdsSyncDateRange;
+
+    protected $signature = 'google-ads:sync-domain-metrics
+        {domain_id : Domain ID}
+        {--days=30 : Days back when --from/--to not set}
+        {--from= : Start date YYYY-MM-DD}
+        {--to= : End date YYYY-MM-DD}
+        {--purge-all : Delete ALL stored metrics for this domain before sync}';
 
     protected $description = 'Pull Google Ads campaign metrics into google_ads_campaign_daily_metrics for a domain';
 
@@ -28,23 +36,38 @@ class SyncDomainGoogleAdsMetrics extends Command
             return self::FAILURE;
         }
 
-        $days = max(1, (int) $this->option('days'));
-        $to = now()->endOfDay();
-        $from = now()->subDays($days)->startOfDay();
+        $range = $this->resolveSyncDateRange();
+        if ($range === null) {
+            return self::FAILURE;
+        }
 
-        $result = $sync->syncDomain($domain, $from, $to);
+        [$from, $to] = $range;
+        $purgeAll = (bool) $this->option('purge-all');
+
+        $this->line(sprintf('Range: %s → %s', $from->toDateString(), $to->toDateString()));
+
+        if ($purgeAll) {
+            $deleted = $sync->purgeAllMetrics($domain);
+            $this->warn("Purged {$deleted} old row(s) for domain #{$domain->id}.");
+        }
+
+        $result = $sync->syncDomain($domain, $from->toDateString(), $to->toDateString());
 
         $this->info('Table: google_ads_campaign_daily_metrics');
         $this->info('Rows saved this run: ' . ($result['saved'] ?? 0));
         $this->info('Total rows for domain: ' . GoogleAdsCampaignDailyMetric::query()->where('domain_id', $domain->id)->count());
 
-        if (! empty($result['message'])) {
-            $this->warn((string) $result['message']);
-        }
+        $totalClicks = (int) GoogleAdsCampaignDailyMetric::query()
+            ->where('domain_id', $domain->id)
+            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->sum('clicks');
+        $this->info("Total clicks in range: {$totalClicks}");
 
-        $apiErr = app(\App\Services\GoogleAdsMetricsService::class)->lastApiError;
-        if ($apiErr) {
-            $this->error('Google API: ' . $apiErr);
+        if (! empty($result['api_error'])) {
+            $this->error('Google API: ' . $result['api_error']);
+            $this->warn('Reconnect Google in Integrations if the token expired, then run this command again.');
+        } elseif (! empty($result['message'])) {
+            $this->warn((string) $result['message']);
         }
 
         $this->line('Linked account: ' . ($domain->googleAdsAccount?->displayLabel() ?? 'none'));

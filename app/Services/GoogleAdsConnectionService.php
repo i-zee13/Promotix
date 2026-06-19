@@ -7,8 +7,15 @@ use Illuminate\Support\Facades\Http;
 
 class GoogleAdsConnectionService
 {
-    public function resolveAccessToken(GoogleConnection $connection): ?string
+    public function resolveAccessToken(GoogleConnection $connection, bool $forceRefresh = false): ?string
     {
+        if ($forceRefresh) {
+            $refreshed = $this->refreshAccessToken($connection);
+            if ($refreshed) {
+                return $refreshed;
+            }
+        }
+
         if ($connection->access_token) {
             return $connection->access_token;
         }
@@ -55,9 +62,9 @@ class GoogleAdsConnectionService
     /**
      * @return array<string, string>|null
      */
-    public function apiHeaders(GoogleConnection $connection): ?array
+    public function apiHeaders(GoogleConnection $connection, bool $forceRefresh = false): ?array
     {
-        $accessToken = $this->resolveAccessToken($connection);
+        $accessToken = $this->resolveAccessToken($connection, $forceRefresh);
         $developerToken = (string) config('services.google_ads.developer_token');
         if (! $accessToken || $developerToken === '') {
             return null;
