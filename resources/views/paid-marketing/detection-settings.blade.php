@@ -171,7 +171,7 @@
 
                                 <div>
                                     <h2 class="figma-detection-right-title">Marketing Optimization Rules</h2>
-                                    <div x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules, 'countries' => $geoCountries]) }})">
+                                    <div x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules]) }})" x-init="init()">
                                     <div class="figma-detection-right-row">
                                         <span>Only allow click coming from the following Countries</span>
                                         <x-figma-toggle
@@ -183,36 +183,21 @@
                                         />
                                     </div>
                                     <input type="hidden" name="out_of_geo_audience" :value="jsonValue">
-                                    <div class="mt-[8px] space-y-[8px] rounded-[8px] border border-white/15 bg-black/20 p-[10px]" x-show="true">
+                                    <div class="mt-[8px] space-y-[8px] rounded-[8px] border border-white/15 bg-black/20 p-[10px]">
                                         <div class="flex flex-wrap items-end gap-[8px]">
-                                            <label class="min-w-[140px] flex-1 text-[10px] text-white/70">
+                                            <label class="figma-geo-select2-field min-w-[160px] flex-1 text-[10px] text-white/70">
                                                 Country
-                                                <select x-model="draft.country" @change="loadStates()" class="figma-panel-select figma-geo-select mt-[4px] w-full">
-                                                    <option value="">Select country</option>
-                                                    <template x-for="c in countries" :key="c.code">
-                                                        <option :value="c.code" x-text="c.name"></option>
-                                                    </template>
-                                                </select>
+                                                <select x-ref="countrySelect" class="figma-geo-select2 mt-[4px] w-full"></select>
                                             </label>
-                                            <label class="min-w-[140px] flex-1 text-[10px] text-white/70" x-show="states.length">
-                                                State / Region
-                                                <select x-model="draft.state" @change="loadCities()" class="figma-panel-select figma-geo-select mt-[4px] w-full" :disabled="loadingStates">
-                                                    <option value="">All states</option>
-                                                    <template x-for="s in states" :key="s.code">
-                                                        <option :value="s.code" x-text="s.name"></option>
-                                                    </template>
-                                                </select>
+                                            <label class="figma-geo-select2-field min-w-[160px] flex-1 text-[10px] text-white/70" x-show="showState" x-cloak>
+                                                Region
+                                                <select x-ref="stateSelect" class="figma-geo-select2 mt-[4px] w-full" :disabled="loadingStates"></select>
                                             </label>
-                                            <label class="min-w-[140px] flex-1 text-[10px] text-white/70" x-show="cities.length">
+                                            <label class="figma-geo-select2-field min-w-[160px] flex-1 text-[10px] text-white/70" x-show="showCity" x-cloak>
                                                 City
-                                                <select x-model="draft.city" class="figma-panel-select figma-geo-select mt-[4px] w-full" :disabled="loadingCities">
-                                                    <option value="">All cities</option>
-                                                    <template x-for="city in cities" :key="city">
-                                                        <option :value="city" x-text="city"></option>
-                                                    </template>
-                                                </select>
+                                                <select x-ref="citySelect" class="figma-geo-select2 mt-[4px] w-full" :disabled="loadingCities"></select>
                                             </label>
-                                            <button type="button" @click="addRule()" class="h-[28px] rounded-[6px] bg-white px-[12px] text-[11px] font-semibold text-[#6400B2]">Add</button>
+                                            <button type="button" @click="addRule()" class="h-[34px] rounded-[6px] bg-white px-[12px] text-[11px] font-semibold text-[#6400B2]">Add</button>
                                         </div>
                                         <template x-if="rules.length">
                                             <div class="space-y-[4px]">

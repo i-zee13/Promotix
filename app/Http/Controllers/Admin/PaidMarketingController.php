@@ -398,13 +398,10 @@ class PaidMarketingController extends Controller
             );
         }
 
-        $geoCatalog = app(GeoCatalogService::class);
-
         return view('paid-marketing.detection-settings', [
             'domains' => $domains,
             'domain' => $domain,
             'settings' => $settings,
-            'geoCountries' => $geoCatalog->countries(),
         ]);
     }
 
@@ -568,24 +565,28 @@ class PaidMarketingController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function geoCountries(GeoCatalogService $geoCatalog): JsonResponse
+    public function geoCountries(Request $request, GeoCatalogService $geoCatalog): JsonResponse
     {
-        return response()->json($geoCatalog->countries());
+        $q = trim((string) $request->query('q', ''));
+
+        return response()->json($geoCatalog->countries($q !== '' ? $q : null));
     }
 
     public function geoStates(Request $request, GeoCatalogService $geoCatalog): JsonResponse
     {
         $country = strtoupper(trim((string) $request->query('country', '')));
+        $q = trim((string) $request->query('q', ''));
 
-        return response()->json($geoCatalog->states($country));
+        return response()->json($geoCatalog->states($country, $q !== '' ? $q : null));
     }
 
     public function geoCities(Request $request, GeoCatalogService $geoCatalog): JsonResponse
     {
         $country = strtoupper(trim((string) $request->query('country', '')));
         $state = strtoupper(trim((string) $request->query('state', '')));
+        $q = trim((string) $request->query('q', ''));
 
-        return response()->json($geoCatalog->cities($country, $state));
+        return response()->json($geoCatalog->cities($country, $state, $q !== '' ? $q : null));
     }
 
     private function getOrCreateDetectionSettings(Domain $domain): DomainDetectionSetting
