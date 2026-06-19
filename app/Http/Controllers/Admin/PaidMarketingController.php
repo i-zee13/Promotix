@@ -398,10 +398,18 @@ class PaidMarketingController extends Controller
             );
         }
 
+        $geoCatalog = app(GeoCatalogService::class);
+
         return view('paid-marketing.detection-settings', [
             'domains' => $domains,
             'domain' => $domain,
             'settings' => $settings,
+            'geoCountries' => $geoCatalog->countries(null, 100),
+            'geoEndpoints' => [
+                'countries' => route('paid-marketing.geo.countries'),
+                'states' => route('paid-marketing.geo.states'),
+                'cities' => route('paid-marketing.geo.cities'),
+            ],
         ]);
     }
 

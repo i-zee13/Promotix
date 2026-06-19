@@ -171,7 +171,7 @@
 
                                 <div>
                                     <h2 class="figma-detection-right-title">Marketing Optimization Rules</h2>
-                                    <div x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules]) }})" x-init="init()">
+                                    <div x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
                                     <div class="figma-detection-right-row">
                                         <span>Only allow click coming from the following Countries</span>
                                         <x-figma-toggle

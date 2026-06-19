@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 class GeoCatalogService
 {
     /** @return list<array{code: string, name: string}> */
-    public function countries(?string $query = null, int $limit = 50): array
+    public function countries(?string $query = null, int $limit = 100): array
     {
         if (! Schema::hasTable('geo_countries')) {
             return [];

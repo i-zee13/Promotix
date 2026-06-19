@@ -166,9 +166,9 @@ Route::middleware(['auth', 'admin'])
         Route::get('/paid-marketing/dashboard', [PaidAdvertisingDashboardController::class, 'index'])->name('paid-marketing.dashboard');
         Route::get('/paid-marketing/detection-settings', [PaidMarketingController::class, 'detectionSettings'])->name('paid-marketing.detection-settings');
         Route::post('/paid-marketing/detection-settings/{domain}', [PaidMarketingController::class, 'updateDetectionSettings'])->name('paid-marketing.detection-settings.update');
-        Route::get('/paid-marketing/geo/countries', [PaidMarketingController::class, 'geoCountries']);
-        Route::get('/paid-marketing/geo/states', [PaidMarketingController::class, 'geoStates']);
-        Route::get('/paid-marketing/geo/cities', [PaidMarketingController::class, 'geoCities']);
+        Route::get('/paid-marketing/geo/countries', [PaidMarketingController::class, 'geoCountries'])->name('paid-marketing.geo.countries');
+        Route::get('/paid-marketing/geo/states', [PaidMarketingController::class, 'geoStates'])->name('paid-marketing.geo.states');
+        Route::get('/paid-marketing/geo/cities', [PaidMarketingController::class, 'geoCities'])->name('paid-marketing.geo.cities');
         Route::get('/bot-protection', [BotProtectionController::class, 'dashboard'])->name('bot-protection.dashboard');
         Route::get('/bot-protection/advanced', [BotProtectionController::class, 'advancedView'])->name('bot-protection.advanced');
         Route::get('/support-system', [SupportSystemController::class, 'index'])->name('support-system');

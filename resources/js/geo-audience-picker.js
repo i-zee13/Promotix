@@ -11,8 +11,15 @@ function debounce(fn, ms = 300) {
 }
 
 export function geoAudiencePicker(initial = {}) {
+    const endpoints = initial.endpoints || {};
+
     return {
         rules: Array.isArray(initial.rules) ? initial.rules : [],
+        endpoints: {
+            countries: endpoints.countries || '/admin/paid-marketing/geo/countries',
+            states: endpoints.states || '/admin/paid-marketing/geo/states',
+            cities: endpoints.cities || '/admin/paid-marketing/geo/cities',
+        },
         draft: {
             country: '',
             country_name: '',
@@ -39,6 +46,9 @@ export function geoAudiencePicker(initial = {}) {
             return JSON.stringify({ rules: this.rules });
         },
         init() {
+            if (Array.isArray(initial.countries) && initial.countries.length > 0) {
+                this.countryItems = initial.countries;
+            }
             this.searchCountries = debounce(() => this.fetchCountries(), 280);
             this.searchCities = debounce(() => this.fetchCities(), 280);
         },
@@ -73,10 +83,16 @@ export function geoAudiencePicker(initial = {}) {
                 if (this.countryQuery.trim()) {
                     params.set('q', this.countryQuery.trim());
                 }
-                const res = await fetch('/paid-marketing/geo/countries?' + params.toString(), {
+                const res = await fetch(this.endpoints.countries + '?' + params.toString(), {
                     headers: GEO_HEADERS,
+                    credentials: 'same-origin',
                 });
-                this.countryItems = res.ok ? await res.json() : [];
+                if (!res.ok) {
+                    this.countryItems = [];
+                    return;
+                }
+                const data = await res.json();
+                this.countryItems = Array.isArray(data) ? data : [];
             } catch (e) {
                 this.countryItems = [];
             } finally {
@@ -111,8 +127,8 @@ export function geoAudiencePicker(initial = {}) {
             this.stateLoading = true;
             try {
                 const res = await fetch(
-                    '/paid-marketing/geo/states?country=' + encodeURIComponent(this.draft.country),
-                    { headers: GEO_HEADERS },
+                    this.endpoints.states + '?country=' + encodeURIComponent(this.draft.country),
+                    { headers: GEO_HEADERS, credentials: 'same-origin' },
                 );
                 const states = res.ok ? await res.json() : [];
                 if (!Array.isArray(states) || states.length === 0) {
@@ -203,8 +219,9 @@ export function geoAudiencePicker(initial = {}) {
                 if (this.cityQuery.trim()) {
                     params.set('q', this.cityQuery.trim());
                 }
-                const res = await fetch('/paid-marketing/geo/cities?' + params.toString(), {
+                const res = await fetch(this.endpoints.cities + '?' + params.toString(), {
                     headers: GEO_HEADERS,
+                    credentials: 'same-origin',
                 });
                 const cities = res.ok ? await res.json() : [];
                 this.cityItems = Array.isArray(cities) ? cities : [];
