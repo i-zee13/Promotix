@@ -1,6 +1,6 @@
 import Alpine from 'alpinejs';
 import $ from 'jquery';
-import 'select2/dist/css/select2.min.css';
+import 'select2';
 
 window.$ = window.jQuery = $;
 
@@ -11,8 +11,9 @@ function select2BaseOptions(placeholder) {
         placeholder,
         allowClear: true,
         width: '100%',
-        dropdownParent: document.body,
+        dropdownParent: $(document.body),
         minimumInputLength: 0,
+        theme: 'default',
     };
 }
 
