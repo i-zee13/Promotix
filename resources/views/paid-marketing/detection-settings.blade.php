@@ -62,6 +62,15 @@
             </form>
 
             @if ($domain && $settings)
+            @php
+                $geoAudienceRules = $settings->out_of_geo_audience['rules'] ?? null;
+                if (! is_array($geoAudienceRules) || $geoAudienceRules === []) {
+                    $geoAudienceRules = collect($settings->out_of_geo_countries ?? [])
+                        ->map(fn ($c) => ['country' => $c, 'state' => null, 'city' => null])
+                        ->values()
+                        ->all();
+                }
+            @endphp
                 <form method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
                     @csrf
 
@@ -162,6 +171,7 @@
 
                                 <div>
                                     <h2 class="figma-detection-right-title">Marketing Optimization Rules</h2>
+                                    <div x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules]) }})">
                                     <div class="figma-detection-right-row">
                                         <span>Only allow click coming from the following Countries</span>
                                         <x-figma-toggle
@@ -172,7 +182,51 @@
                                             label-off="Off"
                                         />
                                     </div>
-                                    <input name="out_of_geo_countries" value="{{ implode(', ', $settings->out_of_geo_countries ?? []) }}" placeholder="US, UK, AE" class="figma-input mt-[8px] h-[28px] text-[11px]">
+                                    <input type="hidden" name="out_of_geo_audience" :value="jsonValue">
+                                    <div class="mt-[8px] space-y-[8px] rounded-[8px] border border-white/15 bg-black/20 p-[10px]" x-show="true">
+                                        <div class="flex flex-wrap items-end gap-[8px]">
+                                            <label class="min-w-[110px] flex-1 text-[10px] text-white/70">
+                                                Country
+                                                <select x-model="draft.country" @change="loadStates()" class="figma-input mt-[4px] h-[28px] w-full text-[11px]">
+                                                    <option value="">Select</option>
+                                                    <template x-for="c in countries" :key="c.code">
+                                                        <option :value="c.code" x-text="c.name"></option>
+                                                    </template>
+                                                </select>
+                                            </label>
+                                            <label class="min-w-[110px] flex-1 text-[10px] text-white/70" x-show="states.length">
+                                                State
+                                                <select x-model="draft.state" @change="loadCities()" class="figma-input mt-[4px] h-[28px] w-full text-[11px]">
+                                                    <option value="">All states</option>
+                                                    <template x-for="s in states" :key="s.code">
+                                                        <option :value="s.code" x-text="s.name"></option>
+                                                    </template>
+                                                </select>
+                                            </label>
+                                            <label class="min-w-[110px] flex-1 text-[10px] text-white/70" x-show="cities.length">
+                                                City
+                                                <select x-model="draft.city" class="figma-input mt-[4px] h-[28px] w-full text-[11px]">
+                                                    <option value="">All cities</option>
+                                                    <template x-for="city in cities" :key="city">
+                                                        <option :value="city" x-text="city"></option>
+                                                    </template>
+                                                </select>
+                                            </label>
+                                            <button type="button" @click="addRule()" class="h-[28px] rounded-[6px] bg-white px-[12px] text-[11px] font-semibold text-[#6400B2]">Add</button>
+                                        </div>
+                                        <template x-if="rules.length">
+                                            <div class="space-y-[4px]">
+                                                <template x-for="(rule, idx) in rules" :key="idx">
+                                                    <div class="flex items-center justify-between rounded-[6px] bg-white/10 px-[8px] py-[6px] text-[11px] text-white">
+                                                        <span x-text="ruleLabel(rule)"></span>
+                                                        <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)">×</button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <p x-show="!rules.length" class="text-[10px] text-white/50">No audience locations added yet.</p>
+                                    </div>
+                                    </div>
                                 </div>
 
                                 <div>
@@ -209,4 +263,72 @@
         @endif
     </section>
 </div>
+
+<script>
+function geoAudiencePicker(initial) {
+    return {
+        countries: [],
+        states: [],
+        cities: [],
+        rules: Array.isArray(initial?.rules) ? initial.rules : [],
+        draft: { country: '', state: '', city: '' },
+        get jsonValue() {
+            return JSON.stringify({ rules: this.rules });
+        },
+        async init() {
+            try {
+                this.countries = await fetch('/paid-marketing/geo/countries').then(r => r.json());
+            } catch (e) {
+                this.countries = [];
+            }
+        },
+        async loadStates() {
+            this.draft.state = '';
+            this.draft.city = '';
+            this.states = [];
+            this.cities = [];
+            if (!this.draft.country) return;
+            try {
+                this.states = await fetch('/paid-marketing/geo/states?country=' + encodeURIComponent(this.draft.country)).then(r => r.json());
+            } catch (e) {
+                this.states = [];
+            }
+        },
+        async loadCities() {
+            this.draft.city = '';
+            this.cities = [];
+            if (!this.draft.country || !this.draft.state) return;
+            try {
+                this.cities = await fetch('/paid-marketing/geo/cities?country=' + encodeURIComponent(this.draft.country) + '&state=' + encodeURIComponent(this.draft.state)).then(r => r.json());
+            } catch (e) {
+                this.cities = [];
+            }
+        },
+        addRule() {
+            if (!this.draft.country) return;
+            const rule = {
+                country: this.draft.country,
+                state: this.draft.state || null,
+                city: this.draft.city || null,
+            };
+            const exists = this.rules.some(r =>
+                r.country === rule.country && (r.state || null) === rule.state && (r.city || null) === rule.city
+            );
+            if (!exists) this.rules.push(rule);
+        },
+        removeRule(idx) {
+            this.rules.splice(idx, 1);
+        },
+        ruleLabel(rule) {
+            const country = this.countries.find(c => c.code === rule.country);
+            let label = country ? country.name : rule.country;
+            if (rule.state) label += ' · ' + rule.state;
+            if (rule.city) label += ' · ' + rule.city;
+            if (!rule.state && !rule.city) label += ' · All regions';
+            else if (!rule.city) label += ' · All cities';
+            return label;
+        },
+    };
+}
+</script>
 @endsection

@@ -5,6 +5,7 @@ namespace App\Services\IpIntel;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
+use App\Support\GeoAudienceMatcher;
 
 class IpFraudEvaluator
 {
@@ -163,17 +164,21 @@ class IpFraudEvaluator
         }
 
         $resolvedCountry = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: '')));
-        if ($settings->out_of_geo_enabled && $resolvedCountry !== '') {
-            $allowedCountries = collect((array) ($settings->out_of_geo_countries ?? []))
-                ->map(fn ($value) => strtoupper(trim((string) $value)))
-                ->filter()
-                ->all();
+        if ($settings->out_of_geo_enabled) {
+            $raw = (array) ($ipLog->ipdetails_raw ?? []);
+            $allowed = GeoAudienceMatcher::isAllowed(
+                $settings,
+                $resolvedCountry,
+                $raw['region'] ?? $raw['state'] ?? null,
+                $raw['city'] ?? null,
+                $ipLog,
+            );
 
-            if ($allowedCountries !== [] && ! in_array($resolvedCountry, $allowedCountries, true)) {
+            if (! $allowed) {
                 $signals[] = [
                     'group' => 'out_of_geo',
                     'score' => 55,
-                    'action' => $botAction === 'allow' ? 'flag' : $botAction,
+                    'action' => 'block',
                     'reason' => 'out_of_geo',
                 ];
             }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ResolvesClientIp;
 use App\Models\Domain;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
+use App\Services\GoogleAudienceExclusionService;
 use App\Services\IpIntel\VisitProtectionService;
 use App\Support\CampaignAttributionResolver;
 use App\Support\CountryValue;
@@ -77,6 +78,8 @@ class TrackingController extends Controller
         $ipLog = $assessment['ipLog'];
         $detection = $assessment['detection'];
         $enforceBlock = $assessment['enforce_block'];
+        $captchaRequired = $protection->shouldEnforceCaptcha($domain, $detection);
+        $skipVisitLog = $protection->shouldSkipOrganicRepeatVisit($domain, $sessionId, $isPaidTraffic, $visitedAt);
 
         $resolvedCountry = $country ?? $ipLog->intel_country_code ?? $ipLog->intel_country_name;
         $visitCountryCode = CountryValue::forVisitsTable($ipLog, $country);
@@ -145,7 +148,7 @@ class TrackingController extends Controller
         }
 
         $visitId = null;
-        if (Schema::hasTable('visits')) {
+        if (Schema::hasTable('visits') && ! $skipVisitLog) {
             $visitPayload = [
                 'domain_id' => $domain->id,
                 'session_id' => $sessionId,
@@ -203,7 +206,7 @@ class TrackingController extends Controller
             $visitId = DB::table('visits')->insertGetId($visitPayload);
         }
 
-        if ($sessionId !== null && Schema::hasTable('ip_sessions')) {
+        if ($sessionId !== null && Schema::hasTable('ip_sessions') && ! $skipVisitLog) {
             $existingSession = DB::table('ip_sessions')
                 ->where('domain_id', $domain->id)
                 ->where('session_id', $sessionId)
@@ -231,7 +234,7 @@ class TrackingController extends Controller
             }
         }
 
-        if (Schema::hasTable('analytics_hourly')) {
+        if (Schema::hasTable('analytics_hourly') && ! $skipVisitLog) {
             $domain->loadMissing('user');
             $ownerTz = UserTimezone::forUser($domain->user);
             $bucketHour = $visitedAt->copy()->timezone($ownerTz)->startOfHour()->utc();
@@ -262,7 +265,7 @@ class TrackingController extends Controller
             }
         }
 
-        if (Schema::hasTable('detection_logs') && $detection['action_taken'] !== 'allow') {
+        if (Schema::hasTable('detection_logs') && $detection['action_taken'] !== 'allow' && ! $skipVisitLog) {
             DB::table('detection_logs')->insert([
                 'domain_id' => $domain->id,
                 'visit_id' => $visitId,
@@ -277,7 +280,15 @@ class TrackingController extends Controller
             ]);
         }
 
-        $clientPayload = $protection->clientPayload($detection, false);
+        if ($detection['action_taken'] === 'block') {
+            $settings = \App\Models\DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+            $exclusion = app(GoogleAudienceExclusionService::class);
+            if ($settings && $exclusion->shouldQueue((string) ($detection['threat_group'] ?? ''), 'block', $settings)) {
+                $exclusion->queueIp($domain, $ip, $detection['threat_group'] ?? null);
+            }
+        }
+
+        $clientPayload = $protection->clientPayload($detection, $enforceBlock, $captchaRequired);
 
         if ($request->isMethod('get')) {
             return $this->cors(

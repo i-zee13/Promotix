@@ -20,6 +20,7 @@ class DomainDetectionSetting extends Model
         'frequency_capping',
         'out_of_geo_enabled',
         'out_of_geo_countries',
+        'out_of_geo_audience',
         'allow_list_enabled',
         'allow_list_ips',
         'audience_exclusion_event',
@@ -34,6 +35,7 @@ class DomainDetectionSetting extends Model
             'frequency_capping' => 'boolean',
             'out_of_geo_enabled' => 'boolean',
             'out_of_geo_countries' => 'array',
+            'out_of_geo_audience' => 'array',
             'allow_list_enabled' => 'boolean',
         ];
     }

@@ -8,6 +8,7 @@ use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
 use App\Models\PaidMarketingVisit;
 use App\Services\IpIntel\IpIntelService;
+use App\Support\GeoAudienceCatalog;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -420,6 +421,7 @@ class PaidMarketingController extends Controller
             'frequency_capping' => ['nullable', 'boolean'],
             'out_of_geo_enabled' => ['nullable', 'boolean'],
             'out_of_geo_countries' => ['nullable', 'string'],
+            'out_of_geo_audience' => ['nullable', 'string'],
             'allow_list_enabled' => ['nullable', 'boolean'],
             'allow_list_ips' => ['nullable', 'string'],
             'audience_exclusion_event' => ['required', 'in:exclude_all_threat_groups_auto,exclude_bot_malicious_only,disable_auto_exclusions'],
@@ -430,6 +432,20 @@ class PaidMarketingController extends Controller
             ->filter()
             ->values()
             ->all();
+
+        $audience = null;
+        if (! empty($data['out_of_geo_audience'])) {
+            $decoded = json_decode((string) $data['out_of_geo_audience'], true);
+            if (is_array($decoded)) {
+                $audience = $decoded;
+                $countries = collect($decoded['rules'] ?? [])
+                    ->pluck('country')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+            }
+        }
 
         DomainDetectionSetting::updateOrCreate(
             ['domain_id' => $domain->id],
@@ -447,6 +463,7 @@ class PaidMarketingController extends Controller
                 'frequency_capping' => (bool) ($data['frequency_capping'] ?? false),
                 'out_of_geo_enabled' => (bool) ($data['out_of_geo_enabled'] ?? false),
                 'out_of_geo_countries' => $countries,
+                'out_of_geo_audience' => $audience,
                 'allow_list_enabled' => (bool) ($data['allow_list_enabled'] ?? false),
                 'allow_list_ips' => $data['allow_list_ips'] ?? null,
                 'audience_exclusion_event' => $data['audience_exclusion_event'],
@@ -546,6 +563,26 @@ class PaidMarketingController extends Controller
         );
 
         return response()->json(['ok' => true]);
+    }
+
+    public function geoCountries(): JsonResponse
+    {
+        return response()->json(GeoAudienceCatalog::countries());
+    }
+
+    public function geoStates(Request $request): JsonResponse
+    {
+        $country = strtoupper(trim((string) $request->query('country', '')));
+
+        return response()->json(GeoAudienceCatalog::states($country));
+    }
+
+    public function geoCities(Request $request): JsonResponse
+    {
+        $country = strtoupper(trim((string) $request->query('country', '')));
+        $state = strtoupper(trim((string) $request->query('state', '')));
+
+        return response()->json(GeoAudienceCatalog::cities($country, $state));
     }
 
     private function getOrCreateDetectionSettings(Domain $domain): DomainDetectionSetting

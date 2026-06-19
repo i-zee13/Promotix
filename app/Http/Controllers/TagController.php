@@ -20,7 +20,7 @@ class TagController extends Controller
 
         $collectUrl = url('/ingest/visit');
 
-        // Tracking-only tag: records visits server-side. No client-side IP block / page hide.
+        // Tracking tag: records visits server-side and enforces block / captcha on client.
         $trackingParams = (array) ($domain->tracking_params ?? [
             'utm_source' => true,
             'utm_medium' => true,
@@ -63,7 +63,73 @@ class TagController extends Controller
     }catch(e){}
   }
 
-  function send(payload){
+  function captchaKey(){ return 'pm_captcha_' + domainKey; }
+
+  function captchaPassed(){
+    try {
+      var raw = localStorage.getItem(captchaKey());
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      return data && data.until && Date.now() < Number(data.until);
+    } catch (e) { return false; }
+  }
+
+  function markCaptchaPassed(){
+    try {
+      localStorage.setItem(captchaKey(), JSON.stringify({ until: Date.now() + 86400000 }));
+    } catch (e) {}
+  }
+
+  function hidePage(){
+    try {
+      var overlay = document.createElement('div');
+      overlay.id = 'pm-block-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#0d0d0d;color:#fff;display:flex;align-items:center;justify-content:center;font:16px/1.4 system-ui,sans-serif;text-align:center;padding:24px;';
+      overlay.innerHTML = '<div><p style="font-size:20px;font-weight:600;margin:0 0 8px;">Access restricted</p><p style="opacity:.75;margin:0;">This visit was blocked by PromoTix protection.</p></div>';
+      (document.body || document.documentElement).appendChild(overlay);
+      document.documentElement.style.overflow = 'hidden';
+    } catch (e) {}
+  }
+
+  function showCaptcha(){
+    if (captchaPassed() || document.getElementById('pm-captcha-overlay')) return;
+    try {
+      var a = Math.floor(Math.random() * 8) + 2;
+      var b = Math.floor(Math.random() * 8) + 2;
+      var overlay = document.createElement('div');
+      overlay.id = 'pm-captcha-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483645;background:rgba(13,13,13,.92);display:flex;align-items:center;justify-content:center;padding:24px;';
+      overlay.innerHTML = '<div style="width:min(360px,100%);background:#1a1a1a;border:1px solid #6400B2;border-radius:12px;padding:20px;color:#fff;font:14px system-ui,sans-serif;"><p style="margin:0 0 12px;font-weight:600;">Verify you are human</p><p style="margin:0 0 12px;opacity:.8;">Solve: <strong>' + a + ' + ' + b + '</strong></p><input id="pm-captcha-input" type="text" inputmode="numeric" style="width:100%;height:36px;border-radius:6px;border:1px solid #6400B2;background:#101010;color:#fff;padding:0 10px;margin-bottom:10px;"><button id="pm-captcha-submit" type="button" style="width:100%;height:36px;border:0;border-radius:6px;background:#6400B2;color:#fff;font-weight:600;cursor:pointer;">Continue</button><p id="pm-captcha-error" style="display:none;color:#f87171;margin:10px 0 0;">Incorrect answer</p></div>';
+      (document.body || document.documentElement).appendChild(overlay);
+      var input = document.getElementById('pm-captcha-input');
+      var btn = document.getElementById('pm-captcha-submit');
+      var err = document.getElementById('pm-captcha-error');
+      function submit(){
+        if (String(input.value || '').trim() === String(a + b)) {
+          markCaptchaPassed();
+          overlay.remove();
+        } else if (err) {
+          err.style.display = 'block';
+        }
+      }
+      btn.addEventListener('click', submit);
+      input.addEventListener('keydown', function(e){ if (e.key === 'Enter') submit(); });
+      if (input) input.focus();
+    } catch (e) {}
+  }
+
+  function applyProtection(resp){
+    if (!resp || typeof resp !== 'object') return;
+    if (resp.blocked) {
+      hidePage();
+      return;
+    }
+    if (resp.captcha_required && !captchaPassed()) {
+      showCaptcha();
+    }
+  }
+
+  function send(payload, done){
     try {
       fetch(collectUrl, {
         method: 'POST',
@@ -72,13 +138,10 @@ class TagController extends Controller
         mode: 'cors',
         credentials: 'omit',
         keepalive: true
+      }).then(function(r){ return r.json(); }).then(function(resp){
+        applyProtection(resp);
+        if (done) done(resp);
       }).catch(function(){
-        try {
-          if (navigator.sendBeacon){
-            navigator.sendBeacon(collectUrl, new Blob([JSON.stringify(payload)], {type: 'application/json'}));
-            return;
-          }
-        } catch (e) {}
         pixel(payload);
       });
       return;

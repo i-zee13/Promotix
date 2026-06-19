@@ -103,19 +103,56 @@ class VisitProtectionService
         return $detection['action_taken'] === 'block';
     }
 
+    public function shouldEnforceCaptcha(Domain $domain, array $detection): bool
+    {
+        if ($domain->monitoring_only_mode) {
+            return false;
+        }
+
+        return $detection['action_taken'] === 'flag';
+    }
+
     /**
      * @param  array{threat_score: int, threat_group: ?string, action_taken: string, reasons: list<string>}  $detection
      * @return array<string, mixed>
      */
-    public function clientPayload(array $detection, bool $enforceBlock): array
+    public function clientPayload(array $detection, bool $enforceBlock, bool $captchaRequired = false): array
     {
         return [
             'ok' => true,
             'blocked' => $enforceBlock,
+            'captcha_required' => $captchaRequired,
             'action' => $detection['action_taken'],
             'threat_group' => $detection['threat_group'],
             'reasons' => $detection['reasons'],
         ];
+    }
+
+    /** Bot protection: skip counting organic refresh in same session on same calendar day. */
+    public function shouldSkipOrganicRepeatVisit(
+        Domain $domain,
+        ?string $sessionId,
+        bool $isPaidTraffic,
+        Carbon $visitedAt,
+    ): bool {
+        if ($isPaidTraffic || $sessionId === null || ! Schema::hasTable('visits')) {
+            return false;
+        }
+
+        $domain->loadMissing('user');
+        $tz = UserTimezone::forUser($domain->user);
+        $day = $visitedAt->copy()->timezone($tz)->toDateString();
+        $from = Carbon::parse($day, $tz)->startOfDay()->utc()->toDateTimeString();
+        $to = Carbon::parse($day, $tz)->endOfDay()->utc()->toDateTimeString();
+
+        $query = DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('session_id', $sessionId)
+            ->whereBetween('visited_at', [$from, $to]);
+
+        GoogleClickAttribution::excludeClickIds($query);
+
+        return $query->exists();
     }
 
     private function sessionHits(Domain $domain, ?string $sessionId): int

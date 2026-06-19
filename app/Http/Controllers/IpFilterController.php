@@ -56,9 +56,10 @@ class IpFilterController extends Controller
         $isCrawler = $this->isCrawlerUa($userAgent);
         $assessment = $protection->assess($domain, $ipLog, $country, null, $isCrawler);
         $enforceBlock = $assessment['enforce_block'];
+        $captchaRequired = $protection->shouldEnforceCaptcha($domain, $assessment['detection']);
 
         return $this->cors($request, response()->json(array_merge(
-            $protection->clientPayload($assessment['detection'], $enforceBlock),
+            $protection->clientPayload($assessment['detection'], $enforceBlock, $captchaRequired),
             [
                 'allowed' => ! $enforceBlock,
             ],
