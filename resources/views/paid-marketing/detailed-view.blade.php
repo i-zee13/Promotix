@@ -187,7 +187,14 @@
                                     </div>
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">Country</p>
-                                        <p class="figma-modal-value" x-text="activeClick.country || modal.visit?.country || '—'"></p>
+                                        <p class="figma-modal-value inline-flex items-center gap-2">
+                                            <img x-show="countryFlagUrl(activeClick.country || modal.visit?.country)"
+                                                 :src="countryFlagUrl(activeClick.country || modal.visit?.country)"
+                                                 :alt="countryLabel(activeClick.country || modal.visit?.country)"
+                                                 class="h-[10px] w-[14px] shrink-0 rounded-[2px] object-cover"
+                                                 loading="lazy">
+                                            <span x-text="countryLabel(activeClick.country || modal.visit?.country)"></span>
+                                        </p>
                                     </div>
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">Browser version</p>
@@ -466,6 +473,31 @@
                 const first = parts[0] || raw || '—';
                 if (first.length > 20) return first.slice(0, 18) + '…';
                 return first;
+            },
+            countryCode(value) {
+                const raw = String(value || '').trim();
+                if (/^[a-z]{2}$/i.test(raw)) return raw.toUpperCase();
+                const names = {
+                    'united states': 'US', 'usa': 'US', 'pakistan': 'PK', 'dominican republic': 'DO',
+                    'united kingdom': 'GB', 'canada': 'CA', 'germany': 'DE', 'france': 'FR',
+                    'india': 'IN', 'uae': 'AE', 'united arab emirates': 'AE', 'mexico': 'MX',
+                };
+                return names[raw.toLowerCase()] || '';
+            },
+            countryLabel(value) {
+                const labels = {
+                    US: 'United States', PK: 'Pakistan', DO: 'Dominican Republic', GB: 'United Kingdom',
+                    CA: 'Canada', DE: 'Germany', FR: 'France', IN: 'India', AE: 'UAE', MX: 'Mexico',
+                };
+                const code = this.countryCode(value);
+                if (code && labels[code]) return labels[code];
+                const raw = String(value || '').trim();
+                return raw || '—';
+            },
+            countryFlagUrl(value) {
+                const code = this.countryCode(value).toLowerCase();
+                if (!/^[a-z]{2}$/.test(code)) return '';
+                return `https://flagcdn.com/w20/${code}.png`;
             },
             async copyText(value) {
                 const text = String(value || '').trim();

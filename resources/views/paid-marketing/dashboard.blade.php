@@ -216,7 +216,12 @@
                         <tbody class="divide-y divide-white/15">
                             <template x-for="row in ips" :key="row.ip">
                                 <tr class="cursor-pointer align-middle transition hover:bg-white/5" @click="openIpModal(row)">
-                                    <td class="max-w-0 truncate px-[8px] py-[6px] font-mono text-[10px] text-white" :title="row.ip" x-text="row.ip"></td>
+                                    <td class="max-w-0 px-[8px] py-[6px]">
+                                        <div class="flex min-w-0 items-center gap-[4px]">
+                                            <span class="min-w-0 flex-1 truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
+                                            <button type="button" class="figma-modal-copy-btn shrink-0 !px-[5px] !py-[1px] !text-[7px]" @click.stop="copyText(row.ip)" title="Copy IP">Copy</button>
+                                        </div>
+                                    </td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px] text-white/85" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.invalid)"></td>
@@ -287,27 +292,123 @@
     <div class="figma-modal-overlay"
          x-show="ipModal.open" x-cloak x-transition
          @keydown.escape.window="closeIpModal()" @click.self="closeIpModal()">
-        <div class="figma-modal max-w-lg">
-            <header class="mb-[14px] flex items-center justify-between gap-3">
-                <h3 class="figma-modal-title">IP Details</h3>
+        <div class="figma-modal figma-modal--click-details">
+            <header class="mb-4 flex items-center justify-between gap-3">
+                <h3 class="figma-modal-title">Click Details</h3>
                 <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeIpModal()" aria-label="Close">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </header>
-            <template x-if="ipModal.row">
-                <div class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-                    <div><p class="figma-modal-label">IP Address</p><p class="figma-modal-value font-mono" x-text="ipModal.row.ip"></p></div>
-                    <div><p class="figma-modal-label">Campaign</p><p class="figma-modal-value" x-text="ipModal.row.campaign || '—'"></p></div>
-                    <div><p class="figma-modal-label">Country</p><p class="figma-modal-value" x-text="ipModal.row.country || '—'"></p></div>
-                    <div><p class="figma-modal-label">Invalid Clicks</p><p class="figma-modal-value" x-text="fmt(ipModal.row.invalid)"></p></div>
-                    <div><p class="figma-modal-label">Valid Clicks</p><p class="figma-modal-value" x-text="fmt(ipModal.row.valid ?? Math.max(0, Number(ipModal.row.total || 0) - Number(ipModal.row.invalid || 0)))"></p></div>
-                    <div><p class="figma-modal-label">Bot Detect</p><p class="figma-modal-value capitalize" x-text="threatLabel(ipModal.row.top_threat)"></p></div>
-                    <div><p class="figma-modal-label">VPN Hits</p><p class="figma-modal-value" x-text="ipModal.row.vpn_hits > 0 ? fmt(ipModal.row.vpn_hits) : '—'"></p></div>
-                    <div><p class="figma-modal-label">Data Center</p><p class="figma-modal-value" x-text="ipModal.row.data_center_hits > 0 ? fmt(ipModal.row.data_center_hits) : '—'"></p></div>
-                    <div><p class="figma-modal-label">Malicious</p><p class="figma-modal-value" x-text="ipModal.row.malicious_hits > 0 ? fmt(ipModal.row.malicious_hits) : '—'"></p></div>
-                    <div><p class="figma-modal-label">Last Click</p><p class="figma-modal-value" x-text="dateLabel(ipModal.row.last_seen)"></p></div>
+
+            <div class="figma-click-modal-layout">
+                <aside class="figma-click-modal-sidebar">
+                    <template x-if="ipModal.loading">
+                        <p class="text-sm text-white/50">Loading clicks…</p>
+                    </template>
+                    <template x-for="(c, idx) in ipModal.clicks" :key="idx">
+                        <button type="button"
+                                class="figma-click-modal-tab"
+                                :class="idx === ipModal.activeIndex ? 'is-active' : ''"
+                                @click="ipModal.activeIndex = idx">
+                            <p class="text-sm font-semibold text-white" x-text="`Click ${idx + 1}`"></p>
+                            <p class="text-xs text-white/50" x-text="formatDateTime(c.clicked_at || c.last_click_at)"></p>
+                        </button>
+                    </template>
+                    <template x-if="!ipModal.loading && ipModal.clicks.length === 0">
+                        <p class="text-sm text-white/50">No clicks for this IP.</p>
+                    </template>
+                </aside>
+
+                <div class="figma-click-modal-body" x-show="ipModal.clicks.length > 0">
+                    <template x-if="activeIpClick">
+                        <div class="figma-click-modal-fields">
+                            <div class="figma-click-modal-compact">
+                                <div class="figma-modal-field figma-modal-field--full">
+                                    <div class="figma-modal-field__head">
+                                        <p class="figma-modal-label">IP</p>
+                                        <button type="button" class="figma-modal-copy-btn" @click="copyText(ipModal.row?.ip || activeIpClick.ip)">Copy</button>
+                                    </div>
+                                    <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm"
+                                       :title="ipModal.row?.ip || activeIpClick.ip"
+                                       x-text="ipLabel(ipModal.row?.ip || activeIpClick.ip)"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Status</p>
+                                    <p class="figma-modal-value" :class="activeIpClick.is_invalid ? 'text-rose-400' : 'text-emerald-400'" x-text="activeIpClick.is_invalid ? 'Invalid' : 'Valid'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Invalid Clicks</p>
+                                    <p class="figma-modal-value" x-text="fmt(ipModal.row?.invalid ?? 0)"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Valid Clicks</p>
+                                    <p class="figma-modal-value" x-text="fmt(ipModal.row?.valid ?? Math.max(0, Number(ipModal.row?.total || 0) - Number(ipModal.row?.invalid || 0)))"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">VPN Hits</p>
+                                    <p class="figma-modal-value" x-text="ipModal.row?.vpn_hits > 0 ? fmt(ipModal.row.vpn_hits) : '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Data Center</p>
+                                    <p class="figma-modal-value" x-text="ipModal.row?.data_center_hits > 0 ? fmt(ipModal.row.data_center_hits) : '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Browser</p>
+                                    <p class="figma-modal-value" x-text="activeIpClick.browser_name || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Country</p>
+                                    <p class="figma-modal-value inline-flex items-center gap-2">
+                                        <img x-show="countryFlagUrl(activeIpClick.country || ipModal.row?.country)"
+                                             :src="countryFlagUrl(activeIpClick.country || ipModal.row?.country)"
+                                             :alt="countryLabel(activeIpClick.country || ipModal.row?.country)"
+                                             class="h-[10px] w-[14px] shrink-0 rounded-[2px] object-cover"
+                                             loading="lazy">
+                                        <span x-text="countryLabel(activeIpClick.country || ipModal.row?.country)"></span>
+                                    </p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Last Click</p>
+                                    <p class="figma-modal-value" x-text="formatDateTime(activeIpClick.last_click_at)"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">OS</p>
+                                    <p class="figma-modal-value" x-text="activeIpClick.os || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Threat Group</p>
+                                    <p class="figma-modal-value" x-text="activeIpClick.threat_group || 'N/A'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Campaign</p>
+                                    <p class="figma-modal-value" x-text="activeIpClick.campaign || ipModal.row?.campaign || 'N/A'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Keyword</p>
+                                    <p class="figma-modal-value" x-text="activeIpClick.keyword || 'N/A'"></p>
+                                </div>
+                            </div>
+
+                            <div class="figma-click-modal-wide">
+                                <div class="figma-modal-field figma-modal-field--full">
+                                    <div class="figma-modal-field__head">
+                                        <p class="figma-modal-label">Paid ID</p>
+                                        <button type="button" class="figma-modal-copy-btn" @click="copyText(activeIpClick.paid_id)" x-show="activeIpClick.paid_id">Copy</button>
+                                    </div>
+                                    <p class="figma-modal-value figma-modal-value--long" x-text="activeIpClick.paid_id || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field figma-modal-field--full">
+                                    <div class="figma-modal-field__head">
+                                        <p class="figma-modal-label">Path</p>
+                                        <button type="button" class="figma-modal-copy-btn" @click="copyText(activeIpClick.path)" x-show="activeIpClick.path">Copy</button>
+                                    </div>
+                                    <p class="figma-modal-value figma-modal-value--long" x-text="activeIpClick.path || '—'"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
-            </template>
+            </div>
         </div>
     </div>
 </div>
@@ -325,7 +426,8 @@ function paidAdvertisingFigma(config = {}) {
         keywords: [],
         countries: [],
         ips: [],
-        ipModal: { open: false, row: null },
+        ipModal: { open: false, row: null, clicks: [], activeIndex: 0, loading: false },
+        get activeIpClick() { return this.ipModal.clicks[this.ipModal.activeIndex] || null; },
         heatmap: { days: [], hours: [], matrix: [] },
         trendsHoverIndex: null,
         hiddenTrendSeries: { lastWeek: false, thisWeek: false },
@@ -364,6 +466,36 @@ function paidAdvertisingFigma(config = {}) {
             const v = Number(n || 0);
             if (v >= 1000) return `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k`;
             return this.fmt(v);
+        },
+        countryCode(value) {
+            const raw = String(value || '').trim();
+            if (/^[a-z]{2}$/i.test(raw)) return raw.toUpperCase();
+            const names = {
+                'united states': 'US', 'usa': 'US', 'pakistan': 'PK', 'dominican republic': 'DO',
+                'united kingdom': 'GB', 'canada': 'CA', 'germany': 'DE', 'france': 'FR',
+                'india': 'IN', 'uae': 'AE', 'united arab emirates': 'AE', 'mexico': 'MX',
+            };
+            return names[raw.toLowerCase()] || '';
+        },
+        countryLabel(value) {
+            const labels = {
+                US: 'United States', PK: 'Pakistan', DO: 'Dominican Republic', GB: 'United Kingdom',
+                CA: 'Canada', DE: 'Germany', FR: 'France', IN: 'India', AE: 'UAE', MX: 'Mexico',
+            };
+            const code = this.countryCode(value);
+            if (code && labels[code]) return labels[code];
+            return String(value || 'Unknown');
+        },
+        countryFlagUrl(value) {
+            const code = this.countryCode(value).toLowerCase();
+            if (!/^[a-z]{2}$/.test(code)) return '';
+            return `https://flagcdn.com/w20/${code}.png`;
+        },
+        ipLabel(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '—';
+            if (raw.length > 22) return raw.slice(0, 20) + '…';
+            return raw;
         },
         threatLabel(key) {
             const map = { vpn: 'VPN', data_center: 'Data center', malicious: 'Malicious', abnormal_rate_limit: 'Rate limit' };
@@ -536,11 +668,60 @@ function paidAdvertisingFigma(config = {}) {
         },
         openIpModal(row) {
             this.ipModal.row = row;
+            this.ipModal.clicks = [];
+            this.ipModal.activeIndex = 0;
             this.ipModal.open = true;
+            this.loadIpClicks(row);
+        },
+        async loadIpClicks(row) {
+            if (!row?.ip) return;
+            this.ipModal.loading = true;
+            try {
+                const p = new URLSearchParams(this.qs());
+                p.set('ip', row.ip);
+                this.ipModal.clicks = await fetch(`/paid-marketing/ip-clicks?${p}`).then(r => r.json());
+            } catch (e) {
+                this.ipModal.clicks = [];
+            } finally {
+                this.ipModal.loading = false;
+            }
         },
         closeIpModal() {
             this.ipModal.open = false;
             this.ipModal.row = null;
+            this.ipModal.clicks = [];
+            this.ipModal.activeIndex = 0;
+            this.ipModal.loading = false;
+        },
+        formatDateTime(value) {
+            if (!value) return '—';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return String(value);
+            return date.toLocaleString('en-GB', {
+                timeZone: this.userTimezone,
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
+        },
+        async copyText(value) {
+            const text = String(value || '').trim();
+            if (!text) return;
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
         },
         exportIpsCsv() {
             const qs = this.ipsQueryString();
@@ -884,9 +1065,13 @@ function paidAdvertisingFigma(config = {}) {
                 const invalid = Number(row.invalid || 0);
                 const total = Number(row.total || 0);
                 const rate = total ? Math.round((invalid / total) * 100) : 0;
-                const label = row.country || 'Unknown';
+                const label = this.countryLabel(row.country);
+                const flag = this.countryFlagUrl(row.country);
+                const flagHtml = flag
+                    ? `<img src="${flag}" alt="${label}" class="inline-block h-[10px] w-[14px] shrink-0 rounded-[2px] object-cover" loading="lazy">`
+                    : `<span class="inline-block h-[10px] w-[14px] shrink-0 rounded-[2px] bg-white/25"></span>`;
                 return `<tr>
-                    <td class="px-[10px] py-[9px]"><span class="inline-flex items-center gap-[8px]"><span class="inline-block h-[10px] w-[14px] rounded-[2px] bg-white/40"></span>${label}</span></td>
+                    <td class="px-[10px] py-[9px]"><span class="inline-flex items-center gap-[8px]">${flagHtml}<span>${label}</span></span></td>
                     <td class="px-[10px] py-[9px] text-center">${this.fmt(invalid)}</td>
                     <td class="px-[10px] py-[9px] text-right">${rate}%</td>
                 </tr>`;

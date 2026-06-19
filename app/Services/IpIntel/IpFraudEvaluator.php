@@ -12,6 +12,9 @@ class IpFraudEvaluator
 
     private const IP_RATE_THRESHOLD = 10;
 
+    /** Paid marketing: max valid paid clicks per IP per calendar day (3rd+ is blocked). */
+    public const PAID_DAILY_VALID_CLICK_LIMIT = 2;
+
     public function __construct(private readonly IpIntelService $intel)
     {
     }
@@ -31,6 +34,8 @@ class IpFraudEvaluator
         int $sessionHits = 1,
         int $ipRecentHits = 0,
         bool $isCrawler = false,
+        bool $isPaidTraffic = false,
+        int $paidClicksToday = 0,
     ): array {
         $settings = DomainDetectionSetting::firstOrCreate(
             ['domain_id' => $domain->id],
@@ -142,6 +147,18 @@ class IpFraudEvaluator
                 'score' => min(100, 50 + ($ipRecentHits * 3)),
                 'action' => $matrix['abnormal_rate_limit'] ?? $botAction,
                 'reason' => 'ip_rate_limit',
+            ];
+        }
+
+        if (
+            $isPaidTraffic
+            && $paidClicksToday >= self::PAID_DAILY_VALID_CLICK_LIMIT
+        ) {
+            $signals[] = [
+                'group' => 'abnormal_rate_limit',
+                'score' => 85,
+                'action' => $matrix['abnormal_rate_limit'] ?? $botAction,
+                'reason' => 'paid_daily_click_limit',
             ];
         }
 

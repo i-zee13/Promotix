@@ -153,7 +153,9 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 }
 
 .figma-click-modal-tab.is-active {
-    box-shadow: 0 0 0 2px #6400b2;
+    background: linear-gradient(135deg, #6400b2 0%, #6625f8 100%);
+    border-color: rgba(255, 255, 255, 0.28);
+    box-shadow: 0 4px 16px rgba(100, 0, 178, 0.42);
 }
 
 .figma-click-modal-body {
@@ -207,6 +209,16 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     line-height: 1.45;
     word-break: break-all;
     overflow-wrap: anywhere;
+}
+
+.figma-modal-value--mono-sm {
+    font-size: 10px;
+    line-height: 1.35;
+    word-break: normal;
+    overflow-wrap: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .figma-modal-value--long {
@@ -2325,7 +2337,7 @@ select:autofill {
 .figma-detection-matrix-head,
 .figma-detection-matrix-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 58px;
+    grid-template-columns: 1fr 1fr;
     align-items: center;
     gap: 8px;
     padding: 6px 10px;

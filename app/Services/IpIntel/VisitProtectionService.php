@@ -5,6 +5,9 @@ namespace App\Services\IpIntel;
 use App\Jobs\EnrichIpIntelJob;
 use App\Models\Domain;
 use App\Models\IpLog;
+use App\Support\GoogleClickAttribution;
+use App\Support\UserTimezone;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -30,6 +33,8 @@ class VisitProtectionService
         ?string $country,
         ?string $sessionId,
         bool $isCrawler = false,
+        bool $isPaidTraffic = false,
+        ?Carbon $visitedAt = null,
     ): array {
         if ($ipLog->is_blocked) {
             return $this->blockedResult($ipLog, $domain, true);
@@ -40,6 +45,9 @@ class VisitProtectionService
 
         $sessionHits = $this->sessionHits($domain, $sessionId);
         $ipRecentHits = $this->ipRecentHits($domain, $ipLog->ip);
+        $paidClicksToday = $isPaidTraffic
+            ? $this->paidClicksTodayForIp($domain, $ipLog->ip, $visitedAt ?? UserTimezone::nowUtc())
+            : 0;
 
         $resolvedCountry = $country ?? $ipLog->intel_country_code ?? $ipLog->intel_country_name;
         $detection = $this->evaluator->evaluate(
@@ -49,6 +57,8 @@ class VisitProtectionService
             $sessionHits,
             $ipRecentHits,
             $isCrawler,
+            $isPaidTraffic,
+            $paidClicksToday,
         );
 
         if ($detection['action_taken'] === 'block') {
@@ -131,6 +141,33 @@ class VisitProtectionService
             ->where('ip', $ip)
             ->where('visited_at', '>=', now()->subMinutes(5))
             ->count();
+    }
+
+    /** Paid clicks from this IP today (calendar day, domain owner TZ) — before the current hit is saved. */
+    private function paidClicksTodayForIp(Domain $domain, string $ip, Carbon $visitedAt): int
+    {
+        if (! Schema::hasTable('visits')) {
+            return 0;
+        }
+
+        $domain->loadMissing('user');
+        $tz = UserTimezone::forUser($domain->user);
+        $day = $visitedAt->copy()->timezone($tz)->toDateString();
+        $from = Carbon::parse($day, $tz)->startOfDay()->utc()->toDateTimeString();
+        $to = Carbon::parse($day, $tz)->endOfDay()->utc()->toDateTimeString();
+
+        $query = DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('ip', $ip)
+            ->whereBetween('visited_at', [$from, $to]);
+
+        GoogleClickAttribution::applyHasClickIdFilter($query);
+
+        if (Schema::hasColumn('visits', 'is_invalid_traffic')) {
+            $query->where('is_invalid_traffic', 0);
+        }
+
+        return (int) $query->count();
     }
 
     /**

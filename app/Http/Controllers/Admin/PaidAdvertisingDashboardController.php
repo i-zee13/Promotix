@@ -528,6 +528,80 @@ class PaidAdvertisingDashboardController extends Controller
         return response()->json($rows->take(50)->values());
     }
 
+    public function ipClicks(Request $request): JsonResponse
+    {
+        $ip = trim((string) $request->query('ip', ''));
+        if ($ip === '') {
+            return response()->json([]);
+        }
+
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
+        $domainIds = $this->scopedDomainIds($request);
+        $user = $request->user();
+
+        if ($domainIds->isEmpty() || ! Schema::hasTable('visits')) {
+            return response()->json([]);
+        }
+
+        $campaignExpr = Schema::hasColumn('visits', 'campaign_name')
+            ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
+            : "NULLIF(TRIM(utm_campaign), '')";
+        $paidIdExpr = Schema::hasColumn('visits', 'gclid')
+            ? "COALESCE(NULLIF(TRIM(gclid), ''), NULLIF(TRIM(gbraid), ''), NULLIF(TRIM(wbraid), ''))"
+            : "NULL";
+
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
+            ->where('ip', $ip)
+            ->orderBy('visited_at')
+            ->limit(100)
+            ->get([
+                'visited_at',
+                'url',
+                'country',
+                'browser',
+                'os',
+                'is_invalid_traffic',
+                'threat_group',
+                'action_taken',
+                'detection_reasons',
+                DB::raw("{$campaignExpr} as campaign"),
+                DB::raw("{$paidIdExpr} as paid_id"),
+                DB::raw(Schema::hasColumn('visits', 'utm_term') ? 'utm_term as keyword' : "NULL as keyword"),
+            ]);
+
+        return response()->json($rows->map(function ($row) use ($user, $ip) {
+            $reasons = [];
+            if (! empty($row->detection_reasons)) {
+                $decoded = json_decode((string) $row->detection_reasons, true);
+                $reasons = is_array($decoded) ? $decoded : [];
+            }
+
+            return [
+                'clicked_at' => UserTimezone::isoForUser(
+                    ! empty($row->visited_at) ? Carbon::parse((string) $row->visited_at, 'UTC') : null,
+                    $user
+                ),
+                'last_click_at' => UserTimezone::isoForUser(
+                    ! empty($row->visited_at) ? Carbon::parse((string) $row->visited_at, 'UTC') : null,
+                    $user
+                ),
+                'ip' => $ip,
+                'country' => $row->country,
+                'campaign' => $row->campaign,
+                'path' => $row->url,
+                'paid_id' => $row->paid_id,
+                'keyword' => $row->keyword ?? null,
+                'browser_name' => $row->browser,
+                'browser_version' => null,
+                'os' => $row->os,
+                'threat_group' => $row->threat_group,
+                'is_invalid' => (bool) $row->is_invalid_traffic,
+                'action_taken' => $row->action_taken,
+                'detection_reasons' => $reasons,
+            ];
+        })->values());
+    }
+
     public function exportIpsCsv(Request $request): StreamedResponse
     {
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);

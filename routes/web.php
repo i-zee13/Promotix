@@ -252,6 +252,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/paid-marketing/keywords', [PaidAdvertisingDashboardController::class, 'keywords']);
     Route::get('/paid-marketing/countries', [PaidAdvertisingDashboardController::class, 'countries']);
     Route::get('/paid-marketing/ips', [PaidAdvertisingDashboardController::class, 'ips']);
+    Route::get('/paid-marketing/ip-clicks', [PaidAdvertisingDashboardController::class, 'ipClicks']);
     Route::get('/paid-marketing/ips/export.csv', [PaidAdvertisingDashboardController::class, 'exportIpsCsv'])->name('paid-marketing.ips.export');
     Route::get('/paid-marketing/heatmap', [PaidAdvertisingDashboardController::class, 'heatmap']);
 

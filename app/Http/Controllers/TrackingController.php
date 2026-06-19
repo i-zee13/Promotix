@@ -73,7 +73,7 @@ class TrackingController extends Controller
         // Log IP and run fraud protection (sync intel + block repeat offenders).
         $protection = app(VisitProtectionService::class);
         $ipLog = $protection->touchIpLog($ip, $ua, $data['path'] ?? null, $data['referrer'] ?? null);
-        $assessment = $protection->assess($domain, $ipLog, $country, $sessionId, $isCrawler);
+        $assessment = $protection->assess($domain, $ipLog, $country, $sessionId, $isCrawler, $isPaidTraffic, $visitedAt);
         $ipLog = $assessment['ipLog'];
         $detection = $assessment['detection'];
         $enforceBlock = $assessment['enforce_block'];

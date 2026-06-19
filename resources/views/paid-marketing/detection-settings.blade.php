@@ -110,7 +110,6 @@
                                     <div class="figma-detection-matrix-head">
                                         <span>Activity</span>
                                         <span>Audience Exclusion</span>
-                                        <span>Edit</span>
                                     </div>
                                     @foreach ($matrixRows as [$key, $label, $current])
                                         <div class="figma-detection-matrix-row">
@@ -120,7 +119,6 @@
                                                 <option value="flag" @selected($current === 'flag')>Flag</option>
                                                 <option value="block" @selected($current === 'block')>Block</option>
                                             </select>
-                                            <span class="figma-detection-matrix-edit">Edit</span>
                                         </div>
                                     @endforeach
                                 </div>

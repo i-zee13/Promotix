@@ -35,10 +35,32 @@
             </div>
         </div>
 
-        <section class="overflow-hidden rounded-[12px] border border-[#6706b3]">
-            <div class="flex flex-wrap items-center justify-between gap-[10px] bg-[#6400B2] px-[16px] py-[12px]">
+        <section class="overflow-visible rounded-[12px] border border-[#6706b3]">
+            <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#6400B2] px-[16px] py-[12px]">
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
+                    <div class="relative" @click.outside="filterMenuOpen = false">
+                        <button type="button" @click="filterMenuOpen = !filterMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                            Advanced Filter
+                            <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
+                        </button>
+                        <div x-show="filterMenuOpen" x-cloak class="paid-advanced-columns-menu promotix-slim-scroll">
+                            <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Primary columns</p>
+                            <template x-for="col in columnCatalog.filter(c => c.primary)" :key="col.key">
+                                <label class="paid-advanced-column-option is-locked">
+                                    <input type="checkbox" checked disabled>
+                                    <span x-text="col.label"></span>
+                                </label>
+                            </template>
+                            <p class="mb-[8px] mt-[10px] text-[10px] font-semibold uppercase text-white/55">Optional columns</p>
+                            <template x-for="col in columnCatalog.filter(c => !c.primary)" :key="col.key">
+                                <label class="paid-advanced-column-option">
+                                    <input type="checkbox" :value="col.key" :checked="optionalColumnKeys.includes(col.key)" @change="toggleOptionalColumn(col.key)">
+                                    <span x-text="col.label"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
                     <div class="relative" @click.outside="moreFiltersOpen = false">
                         <button type="button" @click="moreFiltersOpen = !moreFiltersOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
                             More filters
@@ -92,38 +114,25 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-[minmax(100px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(120px,1.2fr)] gap-[8px] bg-[#1a1a1a] px-[12px] py-[10px] text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]">
-                <span>IP Address</span>
-                <span>Last Seen</span>
-                <span>Threat Group</span>
-                <span>Threat Type</span>
-                <span>Action Taken</span>
-                <span>Country</span>
-                <span>Domain Url</span>
-            </div>
-
-            <div class="max-h-[420px] overflow-y-auto bp-adv-scroll px-[10px] py-[8px]">
-                <template x-for="row in rows" :key="row.id">
-                    <div class="mb-[8px] grid grid-cols-[minmax(100px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_minmax(120px,1.2fr)] gap-[8px] rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] sm:text-[11px]">
-                        <span class="truncate font-medium" x-text="row.ip"></span>
-                        <span class="truncate" x-text="row.visited_at"></span>
-                        <span class="truncate" x-text="row.threat_group_label"></span>
-                        <span class="truncate" x-text="row.threat_type_label"></span>
-                        <span class="truncate capitalize" x-text="row.action_taken"></span>
-                        <span class="flex min-w-0 items-center gap-[5px] truncate">
-                            <img
-                                x-show="countryFlagUrl(row.country)"
-                                :src="countryFlagUrl(row.country)"
-                                :alt="row.country_label"
-                                class="h-[10px] w-[14px] shrink-0 rounded-[1px] object-cover"
-                                loading="lazy"
-                            >
-                            <span class="truncate" x-text="row.country_label"></span>
-                        </span>
-                        <span class="truncate" x-text="row.domain_url || row.hostname || '-'"></span>
+            <div class="overflow-x-auto">
+                <div class="min-w-max">
+                    <div class="grid gap-[8px] bg-[#1a1a1a] px-[12px] py-[10px] text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
+                        <template x-for="col in visibleColumns" :key="'head-' + col.key">
+                            <span class="truncate" x-text="col.label"></span>
+                        </template>
                     </div>
-                </template>
-                <p x-show="rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No matching visits in this window.</p>
+
+                    <div class="max-h-[420px] overflow-y-auto bp-adv-scroll px-[10px] py-[8px]">
+                        <template x-for="row in rows" :key="row.id">
+                            <div class="mb-[8px] grid gap-[8px] rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] sm:text-[11px]" :style="gridStyle">
+                                <template x-for="col in visibleColumns" :key="row.id + '-' + col.key">
+                                    <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(row, col.key)" x-text="cellValue(row, col.key)"></span>
+                                </template>
+                            </div>
+                        </template>
+                        <p x-show="rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No matching visits in this window.</p>
+                    </div>
+                </div>
             </div>
 
             <div class="flex items-center justify-between border-t border-[#6706b3]/40 px-[14px] py-[10px] text-[10px] text-[#a9a9a9]">
@@ -181,7 +190,73 @@
 
 <script>
 function botProtectionAdvancedFigma() {
+    const columnCatalog = [
+        { key: 'ip', label: 'IP Address', primary: true, min: 120 },
+        { key: 'visits', label: 'Visits', primary: true, min: 44 },
+        { key: 'domain', label: 'Domain', primary: true, min: 100 },
+        { key: 'path', label: 'Path', primary: true, min: 100 },
+        { key: 'last_seen_label', label: 'Last Seen', primary: true, min: 76 },
+        { key: 'threat_group', label: 'Threat Group', primary: true, min: 84 },
+        { key: 'threat_type', label: 'Threat Type', primary: true, min: 76 },
+        { key: 'action_taken', label: 'Action Taken', primary: true, min: 76 },
+        { key: 'country', label: 'Country', primary: true, min: 72 },
+        { key: 'invalid_visits', label: 'Invalid', primary: true, min: 52 },
+        { key: 'valid_visits', label: 'Valid', primary: true, min: 52 },
+        { key: 'status', label: 'Status', primary: false, min: 72 },
+        { key: 'browser', label: 'Browser', primary: false, min: 80 },
+        { key: 'os', label: 'OS', primary: false, min: 72 },
+        { key: 'referrer', label: 'Referrer', primary: false, min: 100 },
+        { key: 'threat_score', label: 'Threat Score', primary: false, min: 72 },
+        { key: 'utm_source', label: 'UTM Source', primary: false, min: 80 },
+        { key: 'utm_medium', label: 'UTM Medium', primary: false, min: 80 },
+        { key: 'utm_campaign', label: 'UTM Campaign', primary: false, min: 90 },
+        { key: 'intel_region', label: 'Region', primary: false, min: 80 },
+        { key: 'intel_city', label: 'City', primary: false, min: 80 },
+        { key: 'intel_latitude', label: 'Latitude', primary: false, min: 72 },
+        { key: 'intel_longitude', label: 'Longitude', primary: false, min: 72 },
+        { key: 'intel_asn', label: 'ASN', primary: false, min: 64 },
+        { key: 'intel_asn_org', label: 'ASN Organization', primary: false, min: 110 },
+        { key: 'intel_isp', label: 'ISP', primary: false, min: 90 },
+        { key: 'intel_network_range', label: 'Network Range', primary: false, min: 100 },
+        { key: 'intel_routed_prefix', label: 'Routed Prefix', primary: false, min: 100 },
+        { key: 'intel_allocated_range', label: 'Allocated Range', primary: false, min: 100 },
+        { key: 'intel_range_note', label: 'Range Note', primary: false, min: 90 },
+        { key: 'intel_vpn', label: 'VPN', primary: false, min: 48 },
+        { key: 'intel_proxy', label: 'Proxy', primary: false, min: 48 },
+        { key: 'intel_tor', label: 'Tor', primary: false, min: 48 },
+        { key: 'intel_datacenter', label: 'Datacenter', primary: false, min: 72 },
+        { key: 'intel_risk_score', label: 'Risk Score', primary: false, min: 72 },
+        { key: 'intel_risk_level', label: 'Risk Level', primary: false, min: 72 },
+        { key: 'intel_confidence', label: 'Confidence', primary: false, min: 72 },
+        { key: 'intel_evidence', label: 'Evidence', primary: false, min: 90 },
+        { key: 'intel_checked_at', label: 'Checked At', primary: false, min: 100 },
+        { key: 'intel_error', label: 'Error', primary: false, min: 56 },
+        { key: 'intel_ip_need_blockation', label: 'IP Need Blockation', primary: false, min: 110 },
+        { key: 'intel_blockation_type', label: 'Blockation Type', primary: false, min: 100 },
+        { key: 'intel_block_reason', label: 'Block Reason', primary: false, min: 100 },
+        { key: 'intel_device_action', label: 'Device Action', primary: false, min: 90 },
+        { key: 'intel_provider_type', label: 'Provider Type', primary: false, min: 90 },
+        { key: 'intel_matched_provider', label: 'Matched Provider', primary: false, min: 110 },
+        { key: 'intel_matched_dataset', label: 'Matched Dataset', primary: false, min: 110 },
+        { key: 'intel_cloud_provider', label: 'Cloud Provider', primary: false, min: 100 },
+    ];
+
+    let savedOptional = [];
+    try {
+        savedOptional = JSON.parse(localStorage.getItem('bp-adv-optional-columns') || '[]');
+    } catch (e) {}
+
     return {
+        columnCatalog,
+        optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
+        filterMenuOpen: false,
+        get visibleColumns() {
+            return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
+        },
+        get gridStyle() {
+            const cols = this.visibleColumns.map(col => `minmax(${col.min || 80}px, 1fr)`).join(' ');
+            return `grid-template-columns: ${cols}`;
+        },
         filters: {
             domain_id: '', path: '', ip: '', country: '', action: '', threat_group: '',
             only_invalid: false, only_paid: false, from: '', to: '',
@@ -272,6 +347,36 @@ function botProtectionAdvancedFigma() {
             const start = this.rows.length ? ((this.meta.page - 1) * this.meta.per_page + 1) : 0;
             const end = Math.min(this.meta.total, this.meta.page * this.meta.per_page);
             return `${start}-${end} of ${this.meta.total}`;
+        },
+        toggleOptionalColumn(key) {
+            if (this.optionalColumnKeys.includes(key)) {
+                this.optionalColumnKeys = this.optionalColumnKeys.filter(k => k !== key);
+            } else {
+                this.optionalColumnKeys = [...this.optionalColumnKeys, key];
+            }
+            try {
+                localStorage.setItem('bp-adv-optional-columns', JSON.stringify(this.optionalColumnKeys));
+            } catch (e) {}
+        },
+        cellValue(row, key) {
+            if (key === 'ip') return this.ipLabel(row);
+            if (key === 'threat_group') return row.threat_group_label || row.threat_group || '—';
+            if (key === 'threat_type') return row.threat_type || row.threat_type_label || '—';
+            if (key === 'country') return row.country_label || row.country || '—';
+            if (key === 'action_taken') {
+                const v = row.action_taken;
+                return v ? String(v).charAt(0).toUpperCase() + String(v).slice(1) : '—';
+            }
+            const value = row[key];
+            if (value === 0) return '0';
+            if (value === null || value === undefined || value === '') return '—';
+            return String(value);
+        },
+        ipLabel(row) {
+            const raw = String(row?.ip || '');
+            if (!raw) return '—';
+            if (raw.length > 20) return raw.slice(0, 18) + '…';
+            return raw;
         },
         countryFlagUrl(code) {
             const c = String(code || '').trim().toLowerCase();
