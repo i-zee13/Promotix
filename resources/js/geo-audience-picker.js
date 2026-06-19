@@ -1,31 +1,13 @@
 import Alpine from 'alpinejs';
-import $ from 'jquery';
-import 'select2';
-
-window.$ = window.jQuery = $;
 
 const GEO_HEADERS = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
 
-function select2BaseOptions(placeholder) {
-    return {
-        placeholder,
-        allowClear: true,
-        width: '100%',
-        dropdownParent: $(document.body),
-        minimumInputLength: 0,
-        theme: 'default',
+function debounce(fn, ms = 300) {
+    let timer = null;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), ms);
     };
-}
-
-function destroySelect2(el) {
-    if (!el) {
-        return;
-    }
-    const $el = $(el);
-    if ($el.hasClass('select2-hidden-accessible')) {
-        $el.off('change.geo');
-        $el.select2('destroy');
-    }
 }
 
 export function geoAudiencePicker(initial = {}) {
@@ -37,58 +19,96 @@ export function geoAudiencePicker(initial = {}) {
             state: '',
             state_name: '',
             city: '',
+            city_name: '',
         },
         showState: false,
         showCity: false,
-        loadingStates: false,
-        loadingCities: false,
+        countryOpen: false,
+        stateOpen: false,
+        cityOpen: false,
+        countryQuery: '',
+        stateQuery: '',
+        cityQuery: '',
+        countryItems: [],
+        stateItems: [],
+        cityItems: [],
+        countryLoading: false,
+        stateLoading: false,
+        cityLoading: false,
         get jsonValue() {
             return JSON.stringify({ rules: this.rules });
         },
-        async init() {
-            await this.$nextTick();
-            this.initCountrySelect();
+        init() {
+            this.searchCountries = debounce(() => this.fetchCountries(), 280);
+            this.searchCities = debounce(() => this.fetchCities(), 280);
         },
-        initCountrySelect() {
-            const el = this.$refs.countrySelect;
-            if (!el) {
-                return;
+        get filteredStates() {
+            const q = this.stateQuery.trim().toLowerCase();
+            if (!q) {
+                return this.stateItems;
             }
-
-            destroySelect2(el);
-
-            $(el).select2({
-                ...select2BaseOptions('Search country…'),
-                ajax: {
-                    url: '/paid-marketing/geo/countries',
-                    delay: 250,
-                    cache: true,
-                    data: (params) => ({ q: params.term || '' }),
-                    processResults: (data) => ({
-                        results: (Array.isArray(data) ? data : []).map((c) => ({
-                            id: c.code,
-                            text: c.name,
-                        })),
-                    }),
-                },
-            }).on('change.geo', () => {
-                const selected = $(el).select2('data')[0];
-                this.draft.country = selected?.id || '';
-                this.draft.country_name = selected?.text || '';
-                this.onCountryChange();
-            });
+            return this.stateItems.filter((s) =>
+                s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
+            );
         },
-        async onCountryChange() {
-            this.resetStateSelect();
-            this.resetCitySelect();
+        async toggleCountry() {
+            this.countryOpen = !this.countryOpen;
+            if (this.countryOpen) {
+                this.stateOpen = false;
+                this.cityOpen = false;
+                if (this.countryItems.length === 0) {
+                    await this.fetchCountries();
+                }
+                await this.$nextTick();
+                this.$refs.countrySearch?.focus();
+            }
+        },
+        closeCountry() {
+            this.countryOpen = false;
+        },
+        async fetchCountries() {
+            this.countryLoading = true;
+            try {
+                const params = new URLSearchParams();
+                if (this.countryQuery.trim()) {
+                    params.set('q', this.countryQuery.trim());
+                }
+                const res = await fetch('/paid-marketing/geo/countries?' + params.toString(), {
+                    headers: GEO_HEADERS,
+                });
+                this.countryItems = res.ok ? await res.json() : [];
+            } catch (e) {
+                this.countryItems = [];
+            } finally {
+                this.countryLoading = false;
+            }
+        },
+        pickCountry(item) {
+            this.draft.country = item.code;
+            this.draft.country_name = item.name;
+            this.countryOpen = false;
+            this.countryQuery = '';
+            this.onCountryChange();
+        },
+        clearCountry() {
+            this.draft.country = '';
+            this.draft.country_name = '';
+            this.countryQuery = '';
+            this.countryItems = [];
+            this.resetState();
+            this.resetCity();
             this.showState = false;
             this.showCity = false;
-
+        },
+        async onCountryChange() {
+            this.resetState();
+            this.resetCity();
+            this.showState = false;
+            this.showCity = false;
             if (!this.draft.country) {
                 return;
             }
-
-            this.loadingStates = true;
+            this.stateLoading = true;
             try {
                 const res = await fetch(
                     '/paid-marketing/geo/states?country=' + encodeURIComponent(this.draft.country),
@@ -98,117 +118,124 @@ export function geoAudiencePicker(initial = {}) {
                 if (!Array.isArray(states) || states.length === 0) {
                     return;
                 }
+                this.stateItems = states;
                 this.showState = true;
-                await this.$nextTick();
-                this.initStateSelect(states);
             } catch (e) {
                 this.showState = false;
             } finally {
-                this.loadingStates = false;
+                this.stateLoading = false;
             }
         },
-        initStateSelect(states) {
-            const el = this.$refs.stateSelect;
-            if (!el) {
+        toggleState() {
+            if (this.stateLoading || !this.showState) {
                 return;
             }
-
-            destroySelect2(el);
-            el.innerHTML = '';
-
-            $(el).select2({
-                ...select2BaseOptions('All regions'),
-                data: [{ id: '', text: 'All regions' }].concat(
-                    states.map((s) => ({ id: s.code, text: s.name })),
-                ),
-            }).on('change.geo', () => {
-                const selected = $(el).select2('data')[0];
-                this.draft.state = selected?.id || '';
-                this.draft.state_name = selected?.id ? (selected.text || '') : '';
-                this.onStateChange();
-            });
+            this.stateOpen = !this.stateOpen;
+            if (this.stateOpen) {
+                this.countryOpen = false;
+                this.cityOpen = false;
+                this.stateQuery = '';
+                this.$nextTick(() => this.$refs.stateSearch?.focus());
+            }
+        },
+        closeState() {
+            this.stateOpen = false;
+        },
+        pickState(item) {
+            if (!item) {
+                this.draft.state = '';
+                this.draft.state_name = '';
+            } else {
+                this.draft.state = item.code;
+                this.draft.state_name = item.name;
+            }
+            this.stateOpen = false;
+            this.stateQuery = '';
+            this.onStateChange();
+        },
+        resetState() {
+            this.stateOpen = false;
+            this.stateQuery = '';
+            this.stateItems = [];
+            this.draft.state = '';
+            this.draft.state_name = '';
         },
         async onStateChange() {
-            this.resetCitySelect();
+            this.resetCity();
             this.showCity = false;
-
             if (!this.draft.country || !this.draft.state) {
                 return;
             }
-
-            this.loadingCities = true;
+            await this.fetchCities();
+            if (this.cityItems.length > 0) {
+                this.showCity = true;
+            }
+        },
+        async toggleCity() {
+            if (this.cityLoading || !this.showCity) {
+                return;
+            }
+            this.cityOpen = !this.cityOpen;
+            if (this.cityOpen) {
+                this.countryOpen = false;
+                this.stateOpen = false;
+                if (this.cityItems.length === 0) {
+                    await this.fetchCities();
+                }
+                await this.$nextTick();
+                this.$refs.citySearch?.focus();
+            }
+        },
+        closeCity() {
+            this.cityOpen = false;
+        },
+        async fetchCities() {
+            if (!this.draft.country || !this.draft.state) {
+                this.cityItems = [];
+                return;
+            }
+            this.cityLoading = true;
             try {
                 const params = new URLSearchParams({
                     country: this.draft.country,
                     state: this.draft.state,
                 });
+                if (this.cityQuery.trim()) {
+                    params.set('q', this.cityQuery.trim());
+                }
                 const res = await fetch('/paid-marketing/geo/cities?' + params.toString(), {
                     headers: GEO_HEADERS,
                 });
                 const cities = res.ok ? await res.json() : [];
-                if (!Array.isArray(cities) || cities.length === 0) {
-                    return;
-                }
-                this.showCity = true;
-                await this.$nextTick();
-                this.initCitySelect();
+                this.cityItems = Array.isArray(cities) ? cities : [];
             } catch (e) {
-                this.showCity = false;
+                this.cityItems = [];
             } finally {
-                this.loadingCities = false;
+                this.cityLoading = false;
             }
         },
-        initCitySelect() {
-            const el = this.$refs.citySelect;
-            if (!el) {
-                return;
+        pickCity(name) {
+            if (!name) {
+                this.draft.city = '';
+                this.draft.city_name = '';
+            } else {
+                this.draft.city = name;
+                this.draft.city_name = name;
             }
-
-            destroySelect2(el);
-
-            $(el).select2({
-                ...select2BaseOptions('All cities'),
-                ajax: {
-                    url: '/paid-marketing/geo/cities',
-                    delay: 250,
-                    cache: true,
-                    data: (params) => ({
-                        country: this.draft.country,
-                        state: this.draft.state,
-                        q: params.term || '',
-                    }),
-                    processResults: (data) => ({
-                        results: (Array.isArray(data) ? data : []).map((name) => ({
-                            id: name,
-                            text: name,
-                        })),
-                    }),
-                },
-            }).on('change.geo', () => {
-                const selected = $(el).select2('data')[0];
-                this.draft.city = selected?.id || '';
-            });
+            this.cityOpen = false;
+            this.cityQuery = '';
         },
-        resetStateSelect() {
-            destroySelect2(this.$refs.stateSelect);
-            if (this.$refs.stateSelect) {
-                this.$refs.stateSelect.innerHTML = '<option value=""></option>';
-            }
-            this.draft.state = '';
-            this.draft.state_name = '';
-        },
-        resetCitySelect() {
-            destroySelect2(this.$refs.citySelect);
-            if (this.$refs.citySelect) {
-                this.$refs.citySelect.innerHTML = '<option value=""></option>';
-            }
+        resetCity() {
+            this.cityOpen = false;
+            this.cityQuery = '';
+            this.cityItems = [];
             this.draft.city = '';
+            this.draft.city_name = '';
         },
         addRule() {
             if (!this.draft.country) {
                 return;
             }
-
             const rule = {
                 country: this.draft.country,
                 country_name: this.draft.country_name || this.draft.country,
@@ -216,13 +243,11 @@ export function geoAudiencePicker(initial = {}) {
                 state_name: this.draft.state ? (this.draft.state_name || this.draft.state) : null,
                 city: this.draft.city || null,
             };
-
             const exists = this.rules.some((r) =>
                 r.country === rule.country
                 && (r.state || null) === rule.state
                 && (r.city || null) === rule.city
             );
-
             if (!exists) {
                 this.rules.push(rule);
             }

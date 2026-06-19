@@ -185,25 +185,8 @@
                                     <input type="hidden" name="out_of_geo_audience" :value="jsonValue">
                                     <div class="mt-[8px] space-y-[8px] rounded-[8px] border border-white/15 bg-black/20 p-[10px]">
                                         <div class="flex flex-wrap items-end gap-[8px]">
-                                            <div class="figma-geo-select2-field">
-                                                <span class="figma-geo-select2-label">Country</span>
-                                                <div class="figma-geo-select2-mount">
-                                                    <select x-ref="countrySelect" class="figma-geo-select2 w-full"></select>
-                                                </div>
-                                            </div>
-                                            <div class="figma-geo-select2-field" x-show="showState" x-cloak>
-                                                <span class="figma-geo-select2-label">Region</span>
-                                                <div class="figma-geo-select2-mount">
-                                                    <select x-ref="stateSelect" class="figma-geo-select2 w-full" :disabled="loadingStates"></select>
-                                                </div>
-                                            </div>
-                                            <div class="figma-geo-select2-field" x-show="showCity" x-cloak>
-                                                <span class="figma-geo-select2-label">City</span>
-                                                <div class="figma-geo-select2-mount">
-                                                    <select x-ref="citySelect" class="figma-geo-select2 w-full" :disabled="loadingCities"></select>
-                                                </div>
-                                            </div>
-                                            <button type="button" @click="addRule()" class="h-[34px] rounded-[6px] bg-white px-[12px] text-[11px] font-semibold text-[#6400B2]">Add</button>
+                                        @include('paid-marketing.partials.geo-audience-comboboxes')
+                                            <button type="button" @click="addRule()" class="h-[32px] rounded-[6px] bg-white px-[12px] text-[11px] font-semibold text-[#6400B2]">Add</button>
                                         </div>
                                         <template x-if="rules.length">
                                             <div class="space-y-[4px]">
