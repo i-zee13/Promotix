@@ -399,7 +399,6 @@ function paidAdvertisingFigma(config = {}) {
         livePollOn: true,
         livePollMs: 30000,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
-        metricDateSyncDone: false,
         scheduleReload() {
             clearTimeout(this.reloadTimer);
             this.reloadTimer = setTimeout(() => this.reload(), this.debounceMs);
@@ -450,25 +449,6 @@ function paidAdvertisingFigma(config = {}) {
                 return;
             }
             this.filters.campaign_id = row.campaign_id ? String(row.campaign_id) : '';
-        },
-        maybeSyncMetricDates(summary) {
-            if (this.metricDateSyncDone) return false;
-            const g = summary?.google_ads;
-            if (!g?.used_stored_bounds || !g.from || !g.to) return false;
-            if (this.filters.from === g.from && this.filters.to === g.to) return false;
-            this.filters.from = g.from;
-            this.filters.to = g.to;
-            this.metricDateSyncDone = true;
-            try {
-                localStorage.setItem('promotix-date-range', JSON.stringify({
-                    from: g.from,
-                    to: g.to,
-                }));
-            } catch (e) {}
-            window.dispatchEvent(new CustomEvent('promotix:date-range', {
-                detail: { from: g.from, to: g.to },
-            }));
-            return true;
         },
         ipsQueryString() {
             const p = new URLSearchParams(this.qs());
@@ -535,10 +515,6 @@ function paidAdvertisingFigma(config = {}) {
                     fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
                 ]);
                 this.summary = summary;
-                if (this.maybeSyncMetricDates(summary)) {
-                    await this.reload(forceGoogle, false);
-                    return;
-                }
                 this.trends = trends;
                 this.blocking = blocking;
                 this.campaigns = campaigns;

@@ -186,34 +186,16 @@ class GoogleAdsDomainMetricsSync
     }
 
     /**
-     * Use header date range when it overlaps DB rows; otherwise use all stored dates for this domain.
+     * Always honour the dashboard date filter — never expand to all stored metric dates.
      *
      * @return array{from: string, to: string, used_stored_bounds: bool}
      */
     public function effectiveMetricRange(int $domainId, string $fromDate, string $toDate): array
     {
-        $hasInRange = GoogleAdsCampaignDailyMetric::query()
-            ->where('domain_id', $domainId)
-            ->whereBetween('metric_date', [$fromDate, $toDate])
-            ->exists();
-
-        if ($hasInRange) {
-            return ['from' => $fromDate, 'to' => $toDate, 'used_stored_bounds' => false];
-        }
-
-        $bounds = GoogleAdsCampaignDailyMetric::query()
-            ->where('domain_id', $domainId)
-            ->selectRaw('MIN(metric_date) as min_date, MAX(metric_date) as max_date')
-            ->first();
-
-        if (! $bounds?->min_date || ! $bounds?->max_date) {
-            return ['from' => $fromDate, 'to' => $toDate, 'used_stored_bounds' => false];
-        }
-
         return [
-            'from' => Carbon::parse($bounds->min_date)->toDateString(),
-            'to' => Carbon::parse($bounds->max_date)->toDateString(),
-            'used_stored_bounds' => true,
+            'from' => $fromDate,
+            'to' => $toDate,
+            'used_stored_bounds' => false,
         ];
     }
 
@@ -295,23 +277,6 @@ class GoogleAdsDomainMetricsSync
             ->whereBetween('metric_date', [$fromDate, $toDate])
             ->selectRaw('COALESCE(SUM(clicks), 0) as clicks, COALESCE(SUM(cost), 0) as cost, COALESCE(SUM(impressions), 0) as impressions')
             ->first();
-
-        if ((int) ($agg->clicks ?? 0) === 0) {
-            $totals = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0, 'used_stored_bounds' => false];
-            foreach ($ids as $domainId) {
-                $part = $this->clickTotalsForDomain((int) $domainId, $fromDate, $toDate);
-                $totals['clicks'] += (int) ($part['clicks'] ?? 0);
-                $totals['cost'] += (float) ($part['cost'] ?? 0);
-                $totals['impressions'] += (int) ($part['impressions'] ?? 0);
-                $totals['used_stored_bounds'] = $totals['used_stored_bounds'] || (bool) ($part['used_stored_bounds'] ?? false);
-            }
-            $totals['cost'] = round($totals['cost'], 2);
-
-            return array_merge($totals, [
-                'from' => $fromDate,
-                'to' => $toDate,
-            ]);
-        }
 
         return [
             'clicks' => (int) ($agg->clicks ?? 0),
