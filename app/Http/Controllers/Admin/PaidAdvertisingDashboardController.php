@@ -301,7 +301,11 @@ class PaidAdvertisingDashboardController extends Controller
             ->when($domainId > 0, fn ($q) => $q->where('id', $domainId))
             ->orderBy('hostname')
             ->get(['id', 'hostname'])
-            ->map(fn (Domain $d) => ['id' => $d->id, 'hostname' => $d->hostname])
+            ->map(fn (Domain $d) => [
+                'id' => $d->id,
+                'hostname' => $d->hostname,
+                'setup_url' => route('domains.setup', $d),
+            ])
             ->values()
             ->all();
 

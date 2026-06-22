@@ -111,21 +111,24 @@
                             <path d="M12 3l2.2 6.8H21l-5.5 4 2.1 6.8L12 16.6 6.4 20.6l2.1-6.8L3 9.8h6.8L12 3z" stroke="currentColor" stroke-width="1.4" fill="rgba(255,255,255,0.12)"/>
                         </svg>
                     </div>
-                    <template x-if="topCampaign">
-                        <p class="max-w-full truncate px-[6px] text-[10px] text-white/85" x-text="topCampaign.campaign"></p>
-                    </template>
-                    <template x-if="!topCampaign && untaggedDomains.length === 0">
-                        <p class="text-[10px] text-white/55">No campaign data yet</p>
-                    </template>
                     <template x-if="untaggedDomains.length > 0">
                         <div class="w-full space-y-[4px] px-[6px] text-left">
-                            <p class="text-[9px] font-semibold uppercase text-white/60">Untagged domains</p>
                             <template x-for="d in untaggedDomains.slice(0, 3)" :key="d.id">
                                 <p class="truncate text-[10px] text-white/85" x-text="d.hostname"></p>
                             </template>
                         </div>
                     </template>
-                    <a href="{{ route('domains.index') }}" class="paid-campaign-link" x-text="untaggedDomains.length ? 'Tag Management' : 'Set Tracking Parameter'"></a>
+                    <template x-if="untaggedDomains.length === 0 && topCampaign">
+                        <p class="max-w-full truncate px-[6px] text-[10px] text-white/85" x-text="topCampaign.campaign"></p>
+                    </template>
+                    <template x-if="untaggedDomains.length === 0 && !topCampaign">
+                        <p class="text-[10px] text-white/55">No campaign data yet</p>
+                    </template>
+                    <a
+                        :href="campaignBreakdownLink()"
+                        class="paid-campaign-link"
+                        x-text="untaggedDomains.length ? 'Add Tag Management' : (topCampaign ? 'Set Tracking Parameter' : 'Add Tag Management')"
+                    ></a>
                 </div>
             </article>
         </div>
@@ -472,6 +475,16 @@ function paidAdvertisingFigma(config = {}) {
         },
         get topCampaign() {
             return (this.campaigns || []).find(r => r.campaign) || null;
+        },
+        campaignBreakdownLink() {
+            if ((this.untaggedDomains || []).length > 0) {
+                const first = this.untaggedDomains[0];
+                return first.setup_url || `/domains/${first.id}/setup`;
+            }
+            if (this.topCampaign) {
+                return @js(route('paid-marketing.detection-settings'));
+            }
+            return @js(route('domains.index'));
         },
         get campaignOptions() {
             return (this.campaigns || []).filter(r => r.campaign);
