@@ -110,14 +110,14 @@
                                         @else
                                             <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
                                         @endif
-                                        <span class="inline-flex items-center gap-[6px] text-[10px] text-[#d9d9d9]">
+                                        <span class="inline-flex items-center gap-[6px] text-[10px] text-[#d9d9d9]" title="Monitoring only — detection and stats continue; site blocking and CAPTCHA are disabled.">
                                             <x-figma-toggle
                                                 size="sm"
                                                 :show-labels="false"
                                                 :checked="$d->monitoring_only_mode"
                                                 @change="toggleMode({{ $d->id }}, $event.target.checked)"
                                             />
-                                            Mode on
+                                            Monitoring only
                                         </span>
                                     </div>
                                 </td>

@@ -127,6 +127,8 @@ Route::middleware(['auth', 'admin'])
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/paid-marketing/detailed-view', [PaidMarketingController::class, 'detailedView'])->name('paid-marketing.detailed');
         Route::get('/paid-marketing/detailed-visits', [PaidMarketingController::class, 'detailedVisits'])->name('paid-marketing.detailed-visits');
+        Route::get('/paid-marketing/detailed-export.csv', [PaidMarketingController::class, 'exportDetailedCsv'])->name('paid-marketing.detailed-export');
+        Route::get('/paid-marketing/session-recording/{recording}', [PaidMarketingController::class, 'showSessionRecording'])->name('paid-marketing.session-recording');
         Route::get('/domains', [DomainManagementController::class, 'index'])->name('domains.index');
         Route::post('/domains', [DomainManagementController::class, 'store'])->name('domains.store');
         Route::put('/domains/{domain}', [DomainManagementController::class, 'update'])->name('domains.update');
@@ -244,6 +246,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/bot-protection/threat-groups', [BotProtectionController::class, 'threatGroups']);
     Route::get('/bot-protection/invalid-breakdown', [BotProtectionController::class, 'invalidBreakdown']);
     Route::get('/bot-protection/countries', [BotProtectionController::class, 'countries']);
+    Route::get('/bot-protection/country-ips', [BotProtectionController::class, 'countryIps']);
     Route::get('/bot-protection/domains-summary', [BotProtectionController::class, 'domainsSummary']);
     Route::get('/bot-protection/bot-stats', [BotProtectionController::class, 'botStats']);
     Route::get('/bot-protection/visits', [BotProtectionController::class, 'visits']);
@@ -255,6 +258,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/paid-marketing/campaigns', [PaidAdvertisingDashboardController::class, 'campaigns']);
     Route::get('/paid-marketing/keywords', [PaidAdvertisingDashboardController::class, 'keywords']);
     Route::get('/paid-marketing/countries', [PaidAdvertisingDashboardController::class, 'countries']);
+    Route::get('/paid-marketing/country-ips', [PaidAdvertisingDashboardController::class, 'countryIps']);
     Route::get('/paid-marketing/ips', [PaidAdvertisingDashboardController::class, 'ips']);
     Route::get('/paid-marketing/ip-clicks', [PaidAdvertisingDashboardController::class, 'ipClicks']);
     Route::get('/paid-marketing/ips/export.csv', [PaidAdvertisingDashboardController::class, 'exportIpsCsv'])->name('paid-marketing.ips.export');

@@ -68,6 +68,9 @@ return [
     'route_permission' => [
         'dashboard'        => 'dashboard',
         'paid-marketing.detailed' => 'paid-marketing-detailed',
+        'paid-marketing.detailed-visits' => 'paid-marketing-detailed',
+        'paid-marketing.detailed-export' => 'paid-marketing-detailed',
+        'paid-marketing.session-recording' => 'paid-marketing-detailed',
         'paid-marketing.dashboard' => 'paid-marketing-dashboard',
         'paid-marketing.detection-settings' => 'paid-marketing-detection-settings',
         'paid-marketing.detection-settings.update' => 'paid-marketing-detection-settings',

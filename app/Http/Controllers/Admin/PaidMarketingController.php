@@ -18,6 +18,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PaidMarketingController extends Controller
 {
@@ -46,16 +47,95 @@ class PaidMarketingController extends Controller
             ->get()
             ->keyBy('ip');
 
+        $recordings = $this->latestRecordingsForIps($request, $visits->pluck('ip')->unique()->filter()->values());
+
         $rows = $visits->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit(
             $visit,
             $request->user(),
-            $ipLogs->get($visit->ip)
+            $ipLogs->get($visit->ip),
+            $recordings->get($visit->ip),
         ));
 
         return response()->json([
             'rows' => $rows->values(),
             'stats' => $this->computeDetailedStatsFromArrays($rows),
             'total' => $rows->count(),
+        ]);
+    }
+
+    public function exportDetailedCsv(Request $request): StreamedResponse
+    {
+        $filename = 'paid-marketing-advanced-' . now()->format('YmdHis') . '.csv';
+
+        return response()->streamDownload(function () use ($request): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'IP Address',
+                'Visits',
+                'Domain',
+                'Campaign',
+                'Last Click',
+                'Threat Group',
+                'Threat Type',
+                'Country',
+                'Invalid Clicks',
+                'Valid Clicks',
+                'Status',
+                'Last Path',
+            ]);
+
+            $this->detailedVisitQuery($request)
+                ->orderByDesc('last_click_at')
+                ->limit(50000)
+                ->get()
+                ->each(function (PaidMarketingVisit $visit) use ($handle, $request): void {
+                    $visit->loadMissing(['domain', 'clicks']);
+                    $ipLog = IpLog::query()->where('ip', $visit->ip)->first();
+                    $row = $this->formatDetailedVisit($visit, $request->user(), $ipLog);
+                    fputcsv($handle, [
+                        $row['ip'],
+                        $row['visits'],
+                        $row['domain'],
+                        $row['campaign'],
+                        $row['last_click_label'],
+                        $row['threat_group'],
+                        $row['threat_type'],
+                        $row['country'],
+                        $row['invalid_clicks'],
+                        $row['valid_clicks'],
+                        $row['status'] ?? '',
+                        $row['last_path'],
+                    ]);
+                });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
+    }
+
+    public function showSessionRecording(Request $request, int $recording): JsonResponse
+    {
+        abort_unless(Schema::hasTable('visit_session_recordings'), 404);
+
+        $row = DB::table('visit_session_recordings as r')
+            ->join('domains as d', 'd.id', '=', 'r.domain_id')
+            ->where('d.user_id', $request->user()->id)
+            ->where('r.id', $recording)
+            ->select('r.*')
+            ->first();
+
+        abort_unless($row, 404);
+
+        return response()->json([
+            'id' => (int) $row->id,
+            'ip' => $row->ip,
+            'page_url' => $row->page_url,
+            'duration_ms' => (int) $row->duration_ms,
+            'threat_group' => $row->threat_group,
+            'events' => json_decode((string) $row->events, true) ?: [],
+            'created_at' => $row->created_at,
         ]);
     }
 
@@ -113,7 +193,7 @@ class PaidMarketingController extends Controller
         return $query;
     }
 
-    private function formatDetailedVisit(PaidMarketingVisit $visit, ?\App\Models\User $user = null, ?IpLog $ipLog = null): array
+    private function formatDetailedVisit(PaidMarketingVisit $visit, ?\App\Models\User $user = null, ?IpLog $ipLog = null, ?object $recording = null): array
     {
         $clicks = $visit->clicks;
         $clickCount = max($clicks->count(), (int) ($visit->visits ?? 1));
@@ -163,6 +243,8 @@ class PaidMarketingController extends Controller
             'data_center_hits' => $dataCenterHits,
             'invalid_clicks' => $invalidClicks,
             'valid_clicks' => $validClicks,
+            'has_session_recording' => $recording !== null,
+            'session_recording_id' => $recording ? (int) $recording->id : null,
             'clicks' => $clicks->map(fn ($c) => [
                 'id' => $c->id,
                 'clicked_at' => UserTimezone::isoForUser($c->clicked_at, $user),
@@ -244,6 +326,29 @@ class PaidMarketingController extends Controller
             'intel_matched_dataset' => $raw['dataset'] ?? null,
             'intel_cloud_provider' => $raw['cloud_provider'] ?? null,
         ];
+    }
+
+    /** @param Collection<int, string> $ips */
+    private function latestRecordingsForIps(Request $request, Collection $ips): Collection
+    {
+        if (! Schema::hasTable('visit_session_recordings') || $ips->isEmpty()) {
+            return collect();
+        }
+
+        $query = DB::table('visit_session_recordings')
+            ->whereIn('ip', $ips)
+            ->orderByDesc('id');
+
+        $domainId = (int) $request->query('domain_id', 0);
+        if ($domainId > 0) {
+            $query->where('domain_id', $domainId);
+        } else {
+            $query->whereIn('domain_id', Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->pluck('id'));
+        }
+
+        return $query->get()->groupBy('ip')->map->first();
     }
 
     /** @param Collection<int, array<string, mixed>> $rows */
@@ -433,6 +538,14 @@ class PaidMarketingController extends Controller
             'allow_list_enabled' => ['nullable', 'boolean'],
             'allow_list_ips' => ['nullable', 'string'],
             'audience_exclusion_event' => ['required', 'in:exclude_all_threat_groups_auto,exclude_bot_malicious_only,disable_auto_exclusions'],
+            'google_exclusion_enabled' => ['nullable', 'boolean'],
+            'google_exclude_invalid' => ['nullable', 'boolean'],
+            'google_exclude_malicious' => ['nullable', 'boolean'],
+            'google_exclude_vpn' => ['nullable', 'boolean'],
+            'google_exclude_data_center' => ['nullable', 'boolean'],
+            'google_exclude_proxy' => ['nullable', 'boolean'],
+            'google_exclude_rate_limit' => ['nullable', 'boolean'],
+            'google_exclude_out_of_geo' => ['nullable', 'boolean'],
         ]);
 
         $countries = collect(explode(',', (string) ($data['out_of_geo_countries'] ?? '')))
@@ -475,6 +588,16 @@ class PaidMarketingController extends Controller
                 'allow_list_enabled' => (bool) ($data['allow_list_enabled'] ?? false),
                 'allow_list_ips' => $data['allow_list_ips'] ?? null,
                 'audience_exclusion_event' => $data['audience_exclusion_event'],
+                'google_exclusion_rules' => [
+                    'enabled' => (bool) ($data['google_exclusion_enabled'] ?? true),
+                    'exclude_invalid' => (bool) ($data['google_exclude_invalid'] ?? true),
+                    'exclude_malicious' => (bool) ($data['google_exclude_malicious'] ?? true),
+                    'exclude_vpn' => (bool) ($data['google_exclude_vpn'] ?? true),
+                    'exclude_data_center' => (bool) ($data['google_exclude_data_center'] ?? true),
+                    'exclude_proxy' => (bool) ($data['google_exclude_proxy'] ?? true),
+                    'exclude_rate_limit' => (bool) ($data['google_exclude_rate_limit'] ?? true),
+                    'exclude_out_of_geo' => (bool) ($data['google_exclude_out_of_geo'] ?? true),
+                ],
             ]
         );
 

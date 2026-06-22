@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
+use App\Models\DomainDetectionSetting;
 use App\Models\GoogleAdsAccount;
 use App\Services\GoogleAdsConnectionService;
 use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
+use App\Services\IpIntel\IpFraudEvaluator;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
@@ -292,7 +294,21 @@ class PaidAdvertisingDashboardController extends Controller
             ->values()
             ->all();
 
-        return response()->json($rows);
+        $untaggedDomains = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forPaidMarketing()
+            ->where('tag_connected', false)
+            ->when($domainId > 0, fn ($q) => $q->where('id', $domainId))
+            ->orderBy('hostname')
+            ->get(['id', 'hostname'])
+            ->map(fn (Domain $d) => ['id' => $d->id, 'hostname' => $d->hostname])
+            ->values()
+            ->all();
+
+        return response()->json([
+            'campaigns' => $rows,
+            'untagged_domains' => $untaggedDomains,
+        ]);
     }
 
     /** @return list<array<string, mixed>> */
@@ -511,6 +527,40 @@ class PaidAdvertisingDashboardController extends Controller
             'country' => $r->country,
             'total' => (int) $r->total,
             'invalid' => (int) $r->invalid,
+        ])->values());
+    }
+
+    public function countryIps(Request $request): JsonResponse
+    {
+        $country = strtoupper(trim((string) $request->query('country', '')));
+        if ($country === '' || ! Schema::hasTable('visits')) {
+            return response()->json([]);
+        }
+
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
+        $domainIds = $this->scopedDomainIds($request);
+
+        $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
+            ->where('country', $country)
+            ->select(
+                'ip',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
+                DB::raw('MAX(visited_at) as last_seen')
+            )
+            ->groupBy('ip')
+            ->orderByDesc('total')
+            ->limit(100)
+            ->get();
+
+        return response()->json($rows->map(fn ($r) => [
+            'ip' => $r->ip,
+            'total' => (int) $r->total,
+            'invalid' => (int) $r->invalid,
+            'last_seen' => UserTimezone::isoForUser(
+                ! empty($r->last_seen) ? Carbon::parse((string) $r->last_seen, 'UTC') : null,
+                $request->user()
+            ),
         ])->values());
     }
 
@@ -849,7 +899,38 @@ class PaidAdvertisingDashboardController extends Controller
             $rows = $this->ipRowsFromPaidMarketing($request, $domainIds, $fromDate, $toDate);
         }
 
-        return $this->formatIpRows($rows, $request->user());
+        return $this->formatIpRows($rows, $request->user(), $this->resolveActiveAllowListIps($request));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveActiveAllowListIps(Request $request): array
+    {
+        $domainIds = collect($this->scopedDomainIds($request));
+        if ($domainIds->isEmpty()) {
+            return [];
+        }
+
+        $domainId = (int) $request->query('domain_id', 0);
+        $query = DomainDetectionSetting::query()
+            ->where('allow_list_enabled', true)
+            ->whereNotNull('allow_list_ips')
+            ->where('allow_list_ips', '!=', '');
+
+        if ($domainId > 0) {
+            $query->where('domain_id', $domainId);
+        } else {
+            $query->whereIn('domain_id', $domainIds);
+        }
+
+        return $query->pluck('allow_list_ips')
+            ->flatMap(fn ($list) => preg_split('/[\s,]+/', (string) $list) ?: [])
+            ->map(fn ($ip) => trim((string) $ip))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -927,7 +1008,7 @@ class PaidAdvertisingDashboardController extends Controller
      * @param  \Illuminate\Support\Collection<int, object>  $rows
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
-    private function formatIpRows($rows, ?\App\Models\User $user = null)
+    private function formatIpRows($rows, ?\App\Models\User $user = null, array $allowListIps = [])
     {
         return $rows->map(fn ($row) => [
             'ip' => (string) ($row->ip ?? ''),
@@ -944,6 +1025,7 @@ class PaidAdvertisingDashboardController extends Controller
             'data_center_hits' => (int) ($row->data_center_hits ?? 0),
             'malicious_hits' => (int) ($row->malicious_hits ?? 0),
             'top_threat' => $row->top_threat ?? null,
+            'is_allowlisted' => IpFraudEvaluator::isIpAllowListed((string) ($row->ip ?? ''), implode("\n", $allowListIps)),
         ])->values();
     }
 

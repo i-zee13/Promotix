@@ -13,6 +13,9 @@ class IpFraudEvaluator
 
     private const IP_RATE_THRESHOLD = 10;
 
+    /** Hide site when the same IP opens pages this many times within one minute. */
+    public const IP_MINUTE_VISIT_THRESHOLD = 4;
+
     /** Paid marketing: max valid paid clicks per IP per calendar day (3rd+ is blocked). */
     public const PAID_DAILY_VALID_CLICK_LIMIT = 2;
 
@@ -37,6 +40,7 @@ class IpFraudEvaluator
         bool $isCrawler = false,
         bool $isPaidTraffic = false,
         int $paidClicksToday = 0,
+        int $ipMinuteHits = 0,
     ): array {
         $settings = DomainDetectionSetting::firstOrCreate(
             ['domain_id' => $domain->id],
@@ -55,7 +59,7 @@ class IpFraudEvaluator
             ]
         );
 
-        if ($settings->allow_list_enabled && $this->ipInAllowList($ipLog->ip, (string) $settings->allow_list_ips)) {
+        if ($settings->allow_list_enabled && self::isIpAllowListed($ipLog->ip, (string) $settings->allow_list_ips)) {
             return $this->allowResult(['allow_list']);
         }
 
@@ -131,6 +135,15 @@ class IpFraudEvaluator
                     'reason' => 'ipdetails_abuser_medium',
                 ];
             }
+        }
+
+        if ($settings->frequency_capping && $ipMinuteHits >= self::IP_MINUTE_VISIT_THRESHOLD) {
+            $signals[] = [
+                'group' => 'abnormal_rate_limit',
+                'score' => 92,
+                'action' => $matrix['abnormal_rate_limit'] ?? $botAction,
+                'reason' => 'rapid_page_opens',
+            ];
         }
 
         if ($settings->frequency_capping && $sessionHits > 5) {
@@ -228,7 +241,7 @@ class IpFraudEvaluator
         return 'allow';
     }
 
-    private function ipInAllowList(string $ip, string $allowList): bool
+    public static function isIpAllowListed(string $ip, string $allowList): bool
     {
         $items = preg_split('/[\s,]+/', $allowList) ?: [];
         foreach ($items as $item) {

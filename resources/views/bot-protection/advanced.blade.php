@@ -5,10 +5,10 @@
 @section('content')
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="botProtectionAdvancedFigma()" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
-        <div class="mb-[18px] flex flex-col gap-[14px] lg:flex-row lg:items-center lg:justify-between">
-            <div class="flex flex-wrap items-center gap-[12px]">
+        <div class="mb-[23px] flex flex-col gap-[10px] lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex flex-wrap items-center gap-[8px]">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Bot Protection</h1>
-                <span class="hidden h-[34px] w-[2px] bg-[#a9a9a9] sm:block sm:h-[44px]"></span>
+                <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
             </div>
 
@@ -109,7 +109,7 @@
                     </label>
                     <a :href="csvHref()" class="inline-flex items-center gap-[6px] text-[12px] font-medium text-white hover:underline">
                         <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
-                        Download
+                        Download CSV
                     </a>
                 </div>
             </div>
@@ -126,7 +126,17 @@
                         <template x-for="row in rows" :key="row.id">
                             <div class="mb-[8px] grid gap-[8px] rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] sm:text-[11px]" :style="gridStyle">
                                 <template x-for="col in visibleColumns" :key="row.id + '-' + col.key">
-                                    <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(row, col.key)" x-text="cellValue(row, col.key)"></span>
+                                    <template x-if="col.key !== 'session_recording'">
+                                        <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(row, col.key)" x-text="cellValue(row, col.key)"></span>
+                                    </template>
+                                    <template x-if="col.key === 'session_recording'">
+                                        <span class="flex items-center justify-center">
+                                            <button type="button" x-show="row.has_session_recording" @click.stop="openRecording(row)" class="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#6400B2] text-white hover:bg-[#7B13C8]" title="Watch session recording">
+                                                <svg class="h-[11px] w-[11px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                            </button>
+                                            <span x-show="!row.has_session_recording" class="text-[#8c8787]">—</span>
+                                        </span>
+                                    </template>
                                 </template>
                             </div>
                         </template>
@@ -143,6 +153,23 @@
                 </div>
             </div>
         </section>
+
+        <div class="figma-modal-overlay"
+             x-show="recordingModal.open" x-cloak x-transition
+             @keydown.escape.window="closeRecording()" @click.self="closeRecording()">
+            <div class="figma-modal max-w-[640px]">
+                <header class="mb-4 flex items-center justify-between gap-3">
+                    <h3 class="figma-modal-title">Session Recording</h3>
+                    <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeRecording()" aria-label="Close">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </header>
+                <p class="mb-3 text-[12px] text-white/70" x-text="recordingModal.ip ? `IP: ${recordingModal.ip}` : ''"></p>
+                <div class="overflow-hidden rounded-[8px] border border-white/20 bg-[#101010]">
+                    <canvas x-ref="recordingCanvas" width="600" height="320" class="h-auto w-full"></canvas>
+                </div>
+            </div>
+        </div>
 
         <section class="mt-[28px]">
             <h2 class="mb-[20px] text-center text-[24px] font-semibold leading-none text-[#a9a9a9]">Bot Stats</h2>
@@ -202,6 +229,7 @@ function botProtectionAdvancedFigma() {
         { key: 'country', label: 'Country', primary: true, min: 72 },
         { key: 'invalid_visits', label: 'Invalid', primary: true, min: 52 },
         { key: 'valid_visits', label: 'Valid', primary: true, min: 52 },
+        { key: 'session_recording', label: 'Recording', primary: false, min: 64 },
         { key: 'status', label: 'Status', primary: false, min: 72 },
         { key: 'browser', label: 'Browser', primary: false, min: 80 },
         { key: 'os', label: 'OS', primary: false, min: 72 },
@@ -245,10 +273,14 @@ function botProtectionAdvancedFigma() {
     try {
         savedOptional = JSON.parse(localStorage.getItem('bp-adv-optional-columns') || '[]');
     } catch (e) {}
+    if (!savedOptional.includes('session_recording')) {
+        savedOptional = [...savedOptional, 'session_recording'];
+    }
 
     return {
         columnCatalog,
         optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
+        recordingModal: { open: false, ip: '', page_url: '', events: [] },
         filterMenuOpen: false,
         get visibleColumns() {
             return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
@@ -382,6 +414,39 @@ function botProtectionAdvancedFigma() {
             const c = String(code || '').trim().toLowerCase();
             if (!/^[a-z]{2}$/.test(c)) return '';
             return `https://flagcdn.com/w20/${c}.png`;
+        },
+        async openRecording(row) {
+            if (!row?.session_recording_id) return;
+            try {
+                const res = await fetch(`{{ route('paid-marketing.session-recording', ['recording' => '__ID__']) }}`.replace('__ID__', row.session_recording_id), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!res.ok) throw new Error('recording fetch failed');
+                const data = await res.json();
+                this.recordingModal = { open: true, ip: data.ip || row.ip, page_url: data.page_url || '', events: data.events || [] };
+                this.$nextTick(() => this.renderRecording(data.events || []));
+            } catch (e) { console.error(e); }
+        },
+        closeRecording() {
+            this.recordingModal = { open: false, ip: '', page_url: '', events: [] };
+        },
+        renderRecording(events) {
+            const canvas = this.$refs.recordingCanvas;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width; const h = canvas.height;
+            ctx.fillStyle = '#0d0d0d'; ctx.fillRect(0, 0, w, h);
+            const moves = events.filter(e => e.type === 'mousemove' && typeof e.x === 'number');
+            if (!moves.length) { ctx.fillStyle = '#a9a9a9'; ctx.fillText('No movement captured', 20, 40); return; }
+            const maxX = Math.max(...moves.map(e => e.x), 1);
+            const maxY = Math.max(...moves.map(e => e.y), 1);
+            ctx.strokeStyle = '#B893D8'; ctx.lineWidth = 2; ctx.beginPath();
+            moves.forEach((e, i) => {
+                const x = (e.x / maxX) * (w - 20) + 10;
+                const y = (e.y / maxY) * (h - 20) + 10;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
         },
     };
 }

@@ -172,7 +172,7 @@
                         </div>
                         <div class="figma-bp-table-body figma-bp-table-body--country promotix-slim-scroll">
                             <template x-for="row in countries" :key="row.country">
-                                <div class="figma-bp-table-row--country">
+                                <div class="figma-bp-table-row--country cursor-pointer transition hover:bg-white/5" @click="openCountryIps(row.country)">
                                     <span class="flex min-w-0 items-center gap-[4px] truncate">
                                         <img
                                             x-show="countryFlagUrl(row.country)"
@@ -211,7 +211,7 @@
                                 <span class="text-center" x-text="fmt(row.valid_visits)"></span>
                                 <span class="text-center" x-text="fmt(row.invalid_visits)"></span>
                                 <span class="text-center" x-text="fmt(row.known_crawlers)"></span>
-                                <a :href="`{{ url('/domains') }}/${row.id}/setup`" class="figma-bp-protect-btn">Get Protected</a>
+                                <a href="{{ route('paid-marketing.detection-settings') }}" class="figma-bp-protect-btn">Get Protected</a>
                             </div>
                         </template>
                         <p x-show="domainsList.length === 0" class="px-[14px] py-[20px] text-center text-[11px] text-[#a9a9a9]">No domains in this window.</p>
@@ -223,6 +223,29 @@
         <p class="mt-[12px] text-right">
             <a href="{{ route('bot-protection.advanced') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">Open Advanced View →</a>
         </p>
+
+        <div class="figma-modal-overlay"
+             x-show="countryModal.open" x-cloak x-transition
+             @keydown.escape.window="closeCountryModal()" @click.self="closeCountryModal()">
+            <div class="figma-modal max-w-[520px]">
+                <header class="mb-4 flex items-center justify-between gap-3">
+                    <h3 class="figma-modal-title" x-text="`IPs from ${countryLabel(countryModal.country)}`"></h3>
+                    <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeCountryModal()" aria-label="Close">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </header>
+                <p x-show="countryModal.loading" class="text-[12px] text-white/60">Loading IPs…</p>
+                <div class="max-h-[320px] overflow-y-auto promotix-slim-scroll" x-show="!countryModal.loading">
+                    <template x-for="row in countryModal.rows" :key="row.ip">
+                        <div class="mb-[6px] flex items-center justify-between rounded-[6px] bg-white/5 px-[10px] py-[8px] text-[11px] text-white">
+                            <span class="font-mono" x-text="row.ip"></span>
+                            <span class="text-white/60" x-text="`${fmt(row.invalid)} invalid / ${fmt(row.total)} total`"></span>
+                        </div>
+                    </template>
+                    <p x-show="!countryModal.rows.length" class="text-[12px] text-white/50">No IPs for this country.</p>
+                </div>
+            </div>
+        </div>
     </section>
 </div>
 
@@ -294,6 +317,7 @@ function botProtectionFigma(config = {}) {
         filters: { domain_id: '', path: '', from: '', to: '' },
         summary: { total_visits: 0, valid_visits: 0, invalid_bot_visits: 0, known_crawlers: 0 },
         countries: [],
+        countryModal: { open: false, country: '', rows: [], loading: false },
         domainsList: [],
         invalidTrends: { labels: [], datasets: [], stats: { pageloads: 0, interactions: 0 } },
         cache: {},
@@ -313,6 +337,22 @@ function botProtectionFigma(config = {}) {
             const c = String(code || '').trim().toLowerCase();
             if (!/^[a-z]{2}$/.test(c)) return '';
             return `https://flagcdn.com/w20/${c}.png`;
+        },
+        async openCountryIps(country) {
+            if (!country) return;
+            this.countryModal = { open: true, country, rows: [], loading: true };
+            try {
+                const p = new URLSearchParams(this.qs());
+                p.set('country', country);
+                this.countryModal.rows = await fetch(`/bot-protection/country-ips?${p}`).then(r => r.json());
+            } catch (e) {
+                this.countryModal.rows = [];
+            } finally {
+                this.countryModal.loading = false;
+            }
+        },
+        closeCountryModal() {
+            this.countryModal = { open: false, country: '', rows: [], loading: false };
         },
         threatLabel(key) {
             const map = { vpn: 'VPN', data_center: 'Data center', abnormal_rate_limit: 'Rate limit', malicious: 'Malicious' };

@@ -64,6 +64,10 @@
             @if ($domain && $settings)
             @php
                 $geoAudienceRules = $settings->out_of_geo_audience['rules'] ?? null;
+                $exclusionRules = array_merge(
+                    (new \App\Services\GoogleAudienceExclusionService())->defaultRules(),
+                    is_array($settings->google_exclusion_rules) ? $settings->google_exclusion_rules : []
+                );
                 if (! is_array($geoAudienceRules) || $geoAudienceRules === []) {
                     $geoAudienceRules = collect($settings->out_of_geo_countries ?? [])
                         ->map(fn ($c) => ['country' => $c, 'state' => null, 'city' => null])
@@ -224,6 +228,44 @@
                                         <option value="exclude_bot_malicious_only" @selected($settings->audience_exclusion_event === 'exclude_bot_malicious_only')>Exclude only Bot and Malicious Threat Groups</option>
                                         <option value="disable_auto_exclusions" @selected($settings->audience_exclusion_event === 'disable_auto_exclusions')>Disable automatic exclusions</option>
                                     </select>
+
+                                    <div class="mt-[12px] rounded-[8px] border border-white/15 bg-black/20 p-[12px] space-y-[10px]" x-data="{ open: {{ $settings->audience_exclusion_event !== 'disable_auto_exclusions' ? 'true' : 'false' }} }">
+                                        <div class="flex items-center justify-between gap-[8px]">
+                                            <span class="text-[12px] text-white">Google Ads exclusion filters</span>
+                                            <x-figma-toggle name="google_exclusion_enabled" value="1" :checked="$exclusionRules['enabled'] ?? true" label-on="On" label-off="Off" />
+                                        </div>
+                                        <div class="grid grid-cols-1 gap-[8px] sm:grid-cols-2">
+                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="checkbox" name="google_exclude_invalid" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_invalid'] ?? true)>
+                                                Exclude invalid IPs
+                                            </label>
+                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="checkbox" name="google_exclude_malicious" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_malicious'] ?? true)>
+                                                Exclude malicious IPs
+                                            </label>
+                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="checkbox" name="google_exclude_vpn" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_vpn'] ?? true)>
+                                                Exclude VPN
+                                            </label>
+                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="checkbox" name="google_exclude_data_center" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_data_center'] ?? true)>
+                                                Exclude data center
+                                            </label>
+                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="checkbox" name="google_exclude_proxy" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_proxy'] ?? true)>
+                                                Exclude proxy
+                                            </label>
+                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="checkbox" name="google_exclude_rate_limit" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_rate_limit'] ?? true)>
+                                                Exclude rate limit
+                                            </label>
+                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90 sm:col-span-2">
+                                                <input type="checkbox" name="google_exclude_out_of_geo" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_out_of_geo'] ?? true)>
+                                                Exclude out-of-geo
+                                            </label>
+                                        </div>
+                                        <p class="text-[10px] text-white/50">Checked threat types are queued to your Google Ads IP exclusion list when a visit is blocked.</p>
+                                    </div>
                                 </div>
 
                                 <div class="figma-detection-save-row flex justify-end pt-[4px]">

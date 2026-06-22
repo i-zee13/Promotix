@@ -2,10 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class GoogleAudienceExclusionService
 {
@@ -21,22 +18,38 @@ class GoogleAudienceExclusionService
             return false;
         }
 
+        $rules = $this->normalizedRules($settings);
+        if (! ($rules['enabled'] ?? true)) {
+            return false;
+        }
+
         $group = strtolower(trim($threatGroup));
 
-        if ($settings->audience_exclusion_event === 'exclude_bot_malicious_only') {
-            return in_array($group, self::BOT_MALICIOUS_GROUPS, true);
+        if ($settings->audience_exclusion_event === 'exclude_bot_malicious_only'
+            && ! in_array($group, self::BOT_MALICIOUS_GROUPS, true)) {
+            return false;
         }
 
-        if ($settings->audience_exclusion_event === 'exclude_all_threat_groups_auto') {
-            return in_array($group, self::ALL_EXCLUSION_GROUPS, true);
+        if ($group === '' || $group === 'blocked') {
+            return (bool) ($rules['exclude_invalid'] ?? true);
         }
 
-        return false;
+        $ruleKey = match ($group) {
+            'malicious' => 'exclude_malicious',
+            'vpn' => 'exclude_vpn',
+            'proxy' => 'exclude_proxy',
+            'data_center', 'datacenter' => 'exclude_data_center',
+            'abnormal_rate_limit' => 'exclude_rate_limit',
+            'out_of_geo' => 'exclude_out_of_geo',
+            default => 'exclude_invalid',
+        };
+
+        return (bool) ($rules[$ruleKey] ?? $rules['exclude_invalid'] ?? true);
     }
 
-    public function queueIp(Domain $domain, string $ip, ?string $threatGroup): void
+    public function queueIp(\App\Models\Domain $domain, string $ip, ?string $threatGroup): void
     {
-        if (! Schema::hasTable('google_ads_ip_exclusions') || $ip === '') {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('google_ads_ip_exclusions') || $ip === '') {
             return;
         }
 
@@ -45,7 +58,7 @@ class GoogleAudienceExclusionService
             return;
         }
 
-        DB::table('google_ads_ip_exclusions')->updateOrInsert(
+        \Illuminate\Support\Facades\DB::table('google_ads_ip_exclusions')->updateOrInsert(
             ['domain_id' => $domain->id, 'ip' => $ip],
             [
                 'threat_group' => $threatGroup,
@@ -55,5 +68,28 @@ class GoogleAudienceExclusionService
                 'created_at' => now(),
             ]
         );
+    }
+
+    /** @return array<string, bool> */
+    public function defaultRules(): array
+    {
+        return [
+            'enabled' => true,
+            'exclude_invalid' => true,
+            'exclude_malicious' => true,
+            'exclude_vpn' => true,
+            'exclude_data_center' => true,
+            'exclude_proxy' => true,
+            'exclude_rate_limit' => true,
+            'exclude_out_of_geo' => true,
+        ];
+    }
+
+    /** @return array<string, bool> */
+    private function normalizedRules(DomainDetectionSetting $settings): array
+    {
+        $stored = is_array($settings->google_exclusion_rules) ? $settings->google_exclusion_rules : [];
+
+        return array_merge($this->defaultRules(), $stored);
     }
 }

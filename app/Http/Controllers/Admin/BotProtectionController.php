@@ -347,6 +347,40 @@ class BotProtectionController extends Controller
         ])->values());
     }
 
+    public function countryIps(Request $request): JsonResponse
+    {
+        $country = strtoupper(trim((string) $request->query('country', '')));
+        $domainIds = $this->scopedDomainIds($request);
+        [$from, $to] = $this->dateRange($request);
+
+        if ($country === '' || ! Schema::hasTable('visits')) {
+            return response()->json([]);
+        }
+
+        $rows = $this->baseVisitsQuery($domainIds, $from, $to, $request)
+            ->where('country', $country)
+            ->select(
+                'ip',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
+                DB::raw('MAX(visited_at) as last_seen')
+            )
+            ->groupBy('ip')
+            ->orderByDesc('total')
+            ->limit(100)
+            ->get();
+
+        return response()->json($rows->map(fn ($r) => [
+            'ip' => $r->ip,
+            'total' => (int) $r->total,
+            'invalid' => (int) $r->invalid,
+            'last_seen' => UserTimezone::isoForUser(
+                ! empty($r->last_seen) ? Carbon::parse((string) $r->last_seen, 'UTC') : null,
+                $request->user()
+            ),
+        ])->values());
+    }
+
     public function domainsSummary(Request $request): JsonResponse
     {
         $domainIds = $this->scopedDomainIds($request);
@@ -466,8 +500,24 @@ class BotProtectionController extends Controller
             ->get()
             ->keyBy('ip');
 
+        $recordings = collect();
+        if (Schema::hasTable('visit_session_recordings') && $rows->isNotEmpty()) {
+            $recordings = DB::table('visit_session_recordings')
+                ->whereIn('ip', $rows->pluck('ip')->unique())
+                ->whereIn('domain_id', $domainIds)
+                ->orderByDesc('id')
+                ->get()
+                ->groupBy('ip')
+                ->map->first();
+        }
+
         return response()->json([
-            'data' => $rows->map(fn ($v) => $this->formatVisit($v, $ipLogs->get($v->ip), $request->user()))->values(),
+            'data' => $rows->map(fn ($v) => $this->formatVisit(
+                $v,
+                $ipLogs->get($v->ip),
+                $request->user(),
+                $recordings->get($v->ip),
+            ))->values(),
             'meta' => [
                 'total' => $total,
                 'page' => $page,
@@ -575,7 +625,7 @@ class BotProtectionController extends Controller
         return $query;
     }
 
-    private function formatVisit(object $v, ?IpLog $ipLog = null, ?\App\Models\User $user = null): array
+    private function formatVisit(object $v, ?IpLog $ipLog = null, ?\App\Models\User $user = null, ?object $recording = null): array
     {
         $visitedAt = ! empty($v->visited_at) ? Carbon::parse((string) $v->visited_at, 'UTC') : null;
         $isInvalid = (bool) $v->is_invalid_traffic;
@@ -608,6 +658,8 @@ class BotProtectionController extends Controller
             'invalid_visits' => $isInvalid ? 1 : 0,
             'valid_visits' => $isInvalid ? 0 : 1,
             'ip_is_blocked' => (bool) ($ipLog?->is_blocked ?? false),
+            'has_session_recording' => $recording !== null,
+            'session_recording_id' => $recording ? (int) $recording->id : null,
             'last_seen_label' => UserTimezone::formatForUser($visitedAt, $user, 'm/d/y H:i') ?? '—',
             'visited_at' => UserTimezone::formatForUser($visitedAt, $user, 'm/d/Y H:i') ?? '',
             ...$this->intelFieldsForVisit($v, $ipLog, $user),

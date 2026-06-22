@@ -114,10 +114,18 @@
                     <template x-if="topCampaign">
                         <p class="max-w-full truncate px-[6px] text-[10px] text-white/85" x-text="topCampaign.campaign"></p>
                     </template>
-                    <template x-if="!topCampaign">
+                    <template x-if="!topCampaign && untaggedDomains.length === 0">
                         <p class="text-[10px] text-white/55">No campaign data yet</p>
                     </template>
-                    <a href="{{ route('paid-marketing.detection-settings') }}" class="paid-campaign-link">Set Tracking Parameter</a>
+                    <template x-if="untaggedDomains.length > 0">
+                        <div class="w-full space-y-[4px] px-[6px] text-left">
+                            <p class="text-[9px] font-semibold uppercase text-white/60">Untagged domains</p>
+                            <template x-for="d in untaggedDomains.slice(0, 3)" :key="d.id">
+                                <p class="truncate text-[10px] text-white/85" x-text="d.hostname"></p>
+                            </template>
+                        </div>
+                    </template>
+                    <a href="{{ route('domains.index') }}" class="paid-campaign-link" x-text="untaggedDomains.length ? 'Tag Management' : 'Set Tracking Parameter'"></a>
                 </div>
             </article>
         </div>
@@ -217,7 +225,10 @@
                             <template x-for="row in ips" :key="row.ip">
                                 <tr class="cursor-pointer align-middle transition hover:bg-white/5" @click="openIpModal(row)">
                                     <td class="max-w-0 px-[8px] py-[6px]">
-                                        <span class="block truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
+                                        <span class="flex items-center gap-[4px]">
+                                            <span class="block truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
+                                            <span x-show="row.is_allowlisted" class="shrink-0 rounded-[3px] bg-emerald-500/20 px-[4px] py-[1px] text-[8px] font-semibold uppercase text-emerald-300">Allow list</span>
+                                        </span>
                                     </td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px] text-white/85" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
@@ -407,6 +418,29 @@
                 </div>
             </div>
         </div>
+
+        <div class="figma-modal-overlay"
+             x-show="countryModal.open" x-cloak x-transition
+             @keydown.escape.window="closeCountryModal()" @click.self="closeCountryModal()">
+            <div class="figma-modal max-w-[520px]">
+                <header class="mb-4 flex items-center justify-between gap-3">
+                    <h3 class="figma-modal-title" x-text="`IPs from ${countryLabel(countryModal.country)}`"></h3>
+                    <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeCountryModal()" aria-label="Close">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </header>
+                <p x-show="countryModal.loading" class="text-[12px] text-white/60">Loading IPs…</p>
+                <div class="max-h-[320px] overflow-y-auto promotix-slim-scroll" x-show="!countryModal.loading">
+                    <template x-for="row in countryModal.rows" :key="row.ip">
+                        <div class="mb-[6px] flex items-center justify-between rounded-[6px] bg-white/5 px-[10px] py-[8px] text-[11px] text-white">
+                            <span class="font-mono" x-text="row.ip"></span>
+                            <span class="text-white/60" x-text="`${fmt(row.invalid)} invalid / ${fmt(row.total)} total`"></span>
+                        </div>
+                    </template>
+                    <p x-show="!countryModal.rows.length" class="text-[12px] text-white/50">No IPs for this country.</p>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -420,10 +454,12 @@ function paidAdvertisingFigma(config = {}) {
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [] },
         campaigns: [],
+        untaggedDomains: [],
         keywords: [],
         countries: [],
         ips: [],
         ipModal: { open: false, row: null, clicks: [], activeIndex: 0, loading: false },
+        countryModal: { open: false, country: '', rows: [], loading: false },
         get activeIpClick() { return this.ipModal.clicks[this.ipModal.activeIndex] || null; },
         heatmap: { days: [], hours: [], matrix: [] },
         trendsHoverIndex: null,
@@ -611,6 +647,7 @@ function paidAdvertisingFigma(config = {}) {
             }, this.livePollMs);
         },
         async init() {
+            window.__paidAdvertisingDash = this;
             this.applyDomainFromUrl();
             this.syncHeaderDates();
             if (!this.filters.from || !this.filters.to) {
@@ -652,7 +689,8 @@ function paidAdvertisingFigma(config = {}) {
                 this.summary = summary;
                 this.trends = trends;
                 this.blocking = blocking;
-                this.campaigns = campaigns;
+                this.campaigns = Array.isArray(campaigns) ? campaigns : (campaigns.campaigns || []);
+                this.untaggedDomains = Array.isArray(campaigns) ? [] : (campaigns.untagged_domains || []);
                 this.syncCampaignFilter();
                 this.keywords = keywords;
                 this.countries = countries;
@@ -689,6 +727,22 @@ function paidAdvertisingFigma(config = {}) {
             this.ipModal.clicks = [];
             this.ipModal.activeIndex = 0;
             this.ipModal.loading = false;
+        },
+        async openCountryIps(country) {
+            if (!country) return;
+            this.countryModal = { open: true, country, rows: [], loading: true };
+            try {
+                const p = new URLSearchParams(this.qs());
+                p.set('country', country);
+                this.countryModal.rows = await fetch(`/paid-marketing/country-ips?${p}`).then(r => r.json());
+            } catch (e) {
+                this.countryModal.rows = [];
+            } finally {
+                this.countryModal.loading = false;
+            }
+        },
+        closeCountryModal() {
+            this.countryModal = { open: false, country: '', rows: [], loading: false };
         },
         formatDateTime(value) {
             if (!value) return '—';
@@ -1067,7 +1121,7 @@ function paidAdvertisingFigma(config = {}) {
                 const flagHtml = flag
                     ? `<img src="${flag}" alt="${label}" class="inline-block h-[10px] w-[14px] shrink-0 rounded-[2px] object-cover" loading="lazy">`
                     : `<span class="inline-block h-[10px] w-[14px] shrink-0 rounded-[2px] bg-white/25"></span>`;
-                return `<tr>
+                return `<tr class="cursor-pointer transition hover:bg-white/5" onclick="window.__paidAdvertisingDash?.openCountryIps('${row.country}')">
                     <td class="px-[10px] py-[9px]"><span class="inline-flex items-center gap-[8px]">${flagHtml}<span>${label}</span></span></td>
                     <td class="px-[10px] py-[9px] text-center">${this.fmt(invalid)}</td>
                     <td class="px-[10px] py-[9px] text-right">${rate}%</td>

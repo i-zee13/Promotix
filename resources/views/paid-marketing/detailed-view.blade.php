@@ -5,8 +5,8 @@
 @section('content')
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidMarketingDetailed()" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
-        <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex flex-wrap items-center gap-[12px]">
+        <div class="mb-[23px] flex flex-col gap-[10px] sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-wrap items-center gap-[8px]">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
@@ -77,10 +77,10 @@
                             </template>
                         </div>
                     </div>
-                    <button type="button" @click="window.print()" class="inline-flex items-center gap-[6px] text-[12px] font-medium text-white hover:underline">
+                    <a :href="csvHref()" class="inline-flex items-center gap-[6px] text-[12px] font-medium text-white hover:underline">
                         <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
-                        Download
-                    </button>
+                        Download CSV
+                    </a>
                 </div>
             </div>
 
@@ -96,7 +96,17 @@
                         <template x-for="visit in rows" :key="visit.id">
                             <div class="mb-[8px] grid cursor-pointer gap-[8px] rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] transition hover:bg-[#ececec] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
                                 <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
-                                    <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(visit, col.key)" x-text="cellValue(visit, col.key)"></span>
+                                    <template x-if="col.key !== 'session_recording'">
+                                        <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(visit, col.key)" x-text="cellValue(visit, col.key)"></span>
+                                    </template>
+                                    <template x-if="col.key === 'session_recording'">
+                                        <span class="flex items-center justify-center">
+                                            <button type="button" x-show="visit.has_session_recording" @click.stop="openRecording(visit)" class="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#6400B2] text-white hover:bg-[#7B13C8]" title="Watch session recording">
+                                                <svg class="h-[11px] w-[11px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                            </button>
+                                            <span x-show="!visit.has_session_recording" class="text-[#8c8787]">—</span>
+                                        </span>
+                                    </template>
                                 </template>
                             </div>
                         </template>
@@ -113,7 +123,7 @@
 </style>
 
         <section class="mt-[20px]">
-            <h2 class="mx-auto mb-[18px] flex h-[36px] w-[184px] items-center justify-center rounded-[4px] bg-[#6706B3] text-[24px] font-semibold text-[#a9a9a9]">Paid Stats</h2>
+            <h2 class="mb-[20px] text-center text-[24px] font-semibold leading-none text-[#a9a9a9]">Paid Stats</h2>
             <div class="grid grid-cols-2 gap-[14px] sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
                 <template x-for="card in statCards" :key="card.label">
                     <article class="relative h-[228px] overflow-hidden rounded-[10px] border border-white/40 bg-[#6400B2]">
@@ -248,6 +258,24 @@
                 </div>
             </div>
         </div>
+
+        <div class="figma-modal-overlay"
+             x-show="recordingModal.open" x-cloak x-transition
+             @keydown.escape.window="closeRecording()" @click.self="closeRecording()">
+            <div class="figma-modal max-w-[640px]">
+                <header class="mb-4 flex items-center justify-between gap-3">
+                    <h3 class="figma-modal-title">Session Recording</h3>
+                    <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeRecording()" aria-label="Close">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </header>
+                <p class="mb-3 text-[12px] text-white/70" x-text="recordingModal.ip ? `IP: ${recordingModal.ip}` : ''"></p>
+                <div class="overflow-hidden rounded-[8px] border border-white/20 bg-[#101010]">
+                    <canvas x-ref="recordingCanvas" width="600" height="320" class="h-auto w-full"></canvas>
+                </div>
+                <p class="mt-3 text-[11px] text-white/50" x-text="recordingModal.page_url || ''"></p>
+            </div>
+        </div>
     </section>
 </div>
 
@@ -264,6 +292,7 @@
             { key: 'country', label: 'Country', primary: true, min: 72 },
             { key: 'invalid_clicks', label: 'Invalid', primary: true, min: 52 },
             { key: 'valid_clicks', label: 'Valid', primary: true, min: 52 },
+            { key: 'session_recording', label: 'Recording', primary: false, min: 64 },
             { key: 'status', label: 'Status', primary: false, min: 72 },
             { key: 'intel_region', label: 'Region', primary: false, min: 80 },
             { key: 'intel_city', label: 'City', primary: false, min: 80 },
@@ -300,6 +329,9 @@
         try {
             savedOptional = JSON.parse(localStorage.getItem('pm-adv-optional-columns') || '[]');
         } catch (e) {}
+        if (!savedOptional.includes('session_recording')) {
+            savedOptional = [...savedOptional, 'session_recording'];
+        }
 
         return {
             debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
@@ -314,6 +346,7 @@
             rows: [],
             statCards: [],
             modal: { open: false, visit: null, clicks: [], activeIndex: 0 },
+            recordingModal: { open: false, ip: '', page_url: '', events: [] },
             get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
             get visibleColumns() {
                 return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
@@ -416,7 +449,8 @@
                     const rows = await fetch(`/paid-marketing/campaigns?${params}`, {
                         headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     }).then(r => r.json());
-                    this.campaignOptions = [...new Set((rows || []).map(r => r.campaign).filter(Boolean))].sort();
+                    const list = Array.isArray(rows) ? rows : (rows.campaigns || []);
+                    this.campaignOptions = [...new Set(list.map(r => r.campaign).filter(Boolean))].sort();
                 } catch (e) {
                     this.campaignOptions = [];
                 }
@@ -427,6 +461,10 @@
                     if (v !== '' && v != null) p.set(k, v);
                 });
                 return p.toString();
+            },
+            csvHref() {
+                const qs = this.queryString();
+                return `{{ route('paid-marketing.detailed-export') }}${qs ? '?' + qs : ''}`;
             },
             async fetchNow() {
                 this.loading = true;
@@ -457,6 +495,67 @@
                 this.modal.visit = null;
                 this.modal.clicks = [];
                 this.modal.activeIndex = 0;
+            },
+            async openRecording(visit) {
+                if (!visit?.session_recording_id) return;
+                try {
+                    const res = await fetch(`{{ route('paid-marketing.session-recording', ['recording' => '__ID__']) }}`.replace('__ID__', visit.session_recording_id), {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    if (!res.ok) throw new Error('recording fetch failed');
+                    const data = await res.json();
+                    this.recordingModal = {
+                        open: true,
+                        ip: data.ip || visit.ip,
+                        page_url: data.page_url || '',
+                        events: data.events || [],
+                    };
+                    this.$nextTick(() => this.renderRecording(data.events || []));
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+            closeRecording() {
+                this.recordingModal = { open: false, ip: '', page_url: '', events: [] };
+            },
+            renderRecording(events) {
+                const canvas = this.$refs.recordingCanvas;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width;
+                const h = canvas.height;
+                ctx.fillStyle = '#0d0d0d';
+                ctx.fillRect(0, 0, w, h);
+                ctx.strokeStyle = 'rgba(100,0,178,0.35)';
+                ctx.lineWidth = 1;
+                for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+                for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+                const moves = events.filter(e => e.type === 'mousemove' && typeof e.x === 'number' && typeof e.y === 'number');
+                if (!moves.length) {
+                    ctx.fillStyle = '#a9a9a9';
+                    ctx.font = '13px sans-serif';
+                    ctx.fillText('No movement captured', 20, 40);
+                    return;
+                }
+                const maxX = Math.max(...moves.map(e => e.x), 1);
+                const maxY = Math.max(...moves.map(e => e.y), 1);
+                ctx.strokeStyle = '#B893D8';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                moves.forEach((e, i) => {
+                    const x = (e.x / maxX) * (w - 20) + 10;
+                    const y = (e.y / maxY) * (h - 20) + 10;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+                const last = moves[moves.length - 1];
+                const lx = (last.x / maxX) * (w - 20) + 10;
+                const ly = (last.y / maxY) * (h - 20) + 10;
+                ctx.fillStyle = '#6400B2';
+                ctx.beginPath();
+                ctx.arc(lx, ly, 6, 0, Math.PI * 2);
+                ctx.fill();
             },
             formatDateTime(value) {
                 if (!value) return '-';

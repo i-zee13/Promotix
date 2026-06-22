@@ -24,6 +24,7 @@ class DomainDetectionSetting extends Model
         'allow_list_enabled',
         'allow_list_ips',
         'audience_exclusion_event',
+        'google_exclusion_rules',
     ];
 
     protected function casts(): array
@@ -37,6 +38,7 @@ class DomainDetectionSetting extends Model
             'out_of_geo_countries' => 'array',
             'out_of_geo_audience' => 'array',
             'allow_list_enabled' => 'boolean',
+            'google_exclusion_rules' => 'array',
         ];
     }
 

@@ -4,6 +4,7 @@ namespace App\Services\IpIntel;
 
 use App\Jobs\EnrichIpIntelJob;
 use App\Models\Domain;
+use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
@@ -37,6 +38,14 @@ class VisitProtectionService
         ?Carbon $visitedAt = null,
     ): array {
         if ($ipLog->is_blocked) {
+            $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+            if (
+                $settings?->allow_list_enabled
+                && IpFraudEvaluator::isIpAllowListed($ipLog->ip, (string) $settings->allow_list_ips)
+            ) {
+                return $this->allowListedBlockedOverride($domain, $ipLog, $isPaidTraffic);
+            }
+
             return $this->blockedResult($ipLog, $domain, true, $isPaidTraffic);
         }
 
@@ -45,6 +54,7 @@ class VisitProtectionService
 
         $sessionHits = $this->sessionHits($domain, $sessionId);
         $ipRecentHits = $this->ipRecentHits($domain, $ipLog->ip);
+        $ipMinuteHits = $this->ipMinuteHits($domain, $ipLog->ip);
         $paidClicksToday = $isPaidTraffic
             ? $this->paidClicksTodayForIp($domain, $ipLog->ip, $visitedAt ?? UserTimezone::nowUtc())
             : 0;
@@ -59,6 +69,7 @@ class VisitProtectionService
             $isCrawler,
             $isPaidTraffic,
             $paidClicksToday,
+            $ipMinuteHits,
         );
 
         if ($detection['action_taken'] === 'block') {
@@ -200,6 +211,19 @@ class VisitProtectionService
             ->count();
     }
 
+    private function ipMinuteHits(Domain $domain, string $ip): int
+    {
+        if (! Schema::hasTable('visits')) {
+            return 0;
+        }
+
+        return (int) DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('ip', $ip)
+            ->where('visited_at', '>=', now()->subMinute())
+            ->count();
+    }
+
     /** Paid clicks from this IP today (calendar day, domain owner TZ) — before the current hit is saved. */
     private function paidClicksTodayForIp(Domain $domain, string $ip, Carbon $visitedAt): int
     {
@@ -225,6 +249,26 @@ class VisitProtectionService
         }
 
         return (int) $query->count();
+    }
+
+    /**
+     * @return array{ipLog: IpLog, detection: array, enforce_block: bool, prior_blocked: bool}
+     */
+    private function allowListedBlockedOverride(Domain $domain, IpLog $ipLog, bool $isPaidTraffic): array
+    {
+        $detection = [
+            'threat_score' => 0,
+            'threat_group' => null,
+            'action_taken' => 'allow',
+            'reasons' => ['allow_list_override'],
+        ];
+
+        return [
+            'ipLog' => $ipLog,
+            'detection' => $detection,
+            'enforce_block' => false,
+            'prior_blocked' => true,
+        ];
     }
 
     /**

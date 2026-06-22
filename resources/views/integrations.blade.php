@@ -189,8 +189,9 @@
                 </section>
 
                 <section class="rounded-[10px] bg-[#3c3c3c] p-[16px]">
-                    <div class="mb-[20px] flex items-center justify-between gap-[8px]">
+                    <div class="mb-[20px] text-center">
                         <h2 class="text-[16px] font-medium text-[#d9d9d9]">Connection Requirement</h2>
+                        <div class="mt-[10px] flex items-center justify-center gap-[8px]">
                         <span x-show="requirementLive" class="platform-requirement-status platform-requirement-status--live">
                             <span class="platform-requirement-status__dot"></span>
                             Live
@@ -199,8 +200,9 @@
                             <span class="platform-requirement-status__dot"></span>
                             Setup in progress
                         </span>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-[84px_1fr] items-center gap-[18px]">
+                    <div class="grid grid-cols-[84px_1fr] items-center gap-[18px] xl:gap-[24px]">
                         <div class="relative h-[84px] w-[84px] shrink-0">
                             <div class="h-full w-full rounded-full" :style="`background: conic-gradient(#7a56a9 ${requirementRingPct}%, #ffffff 0)`"></div>
                             <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>
