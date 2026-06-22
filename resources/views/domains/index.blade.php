@@ -15,7 +15,7 @@
                         <select x-model="domainFilter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All domains</option>
                             @foreach ($domains as $d)
-                                <option value="{{ $d->id }}">{{ $d->hostname }}</option>
+                                <option value="{{ $d->id }}">#{{ $d->id }} · {{ $d->hostname }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -71,7 +71,10 @@
                             >
                                 <td class="px-[16px] py-[14px]">
                                     <div class="min-w-0">
-                                        <p class="text-[13px] font-medium text-white">{{ $d->hostname }}</p>
+                                        <p class="flex flex-wrap items-center gap-[8px] text-[13px] font-medium text-white">
+                                            <span class="rounded-[4px] bg-white/10 px-[6px] py-[2px] font-mono text-[10px] font-normal text-[#c4b5fd]" title="Domain ID for CLI commands">#{{ $d->id }}</span>
+                                            <span>{{ $d->hostname }}</span>
+                                        </p>
                                         <p class="mt-[2px] text-[10px] text-[#a9a9a9]">
                                             @if ($d->google_ads_account_id)
                                                 Paid: {{ $d->googleAdsAccount?->displayLabel() ?? 'Google Ads linked' }}

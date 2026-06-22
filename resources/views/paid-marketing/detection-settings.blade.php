@@ -28,7 +28,7 @@
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/70">Domains</span>
                         <select name="domain_id" onchange="this.form.submit()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[11px] text-[#8c8787] focus:ring-0" aria-label="Domains">
                             @foreach ($domains as $d)
-                                <option value="{{ $d->id }}" @selected($domain && $domain->id === $d->id)>{{ $d->hostname }}</option>
+                                <option value="{{ $d->id }}" @selected($domain && $domain->id === $d->id)>#{{ $d->id }} · {{ $d->hostname }}</option>
                             @endforeach
                         </select>
                     </label>
@@ -52,12 +52,12 @@
                     <span>Domain</span>
                     <select name="domain_id" onchange="this.form.submit()" class="figma-detection-domain-select">
                         @foreach ($domains as $d)
-                            <option value="{{ $d->id }}" @selected($domain && $domain->id === $d->id)>{{ $d->hostname }}</option>
+                            <option value="{{ $d->id }}" @selected($domain && $domain->id === $d->id)>#{{ $d->id }} · {{ $d->hostname }}</option>
                         @endforeach
                     </select>
                 </label>
                 @if ($domain)
-                    <span class="figma-detection-domain-host">{{ $domain->hostname }}</span>
+                    <span class="figma-detection-domain-host">#{{ $domain->id }} · {{ $domain->hostname }}</span>
                 @endif
             </form>
 
