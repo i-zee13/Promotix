@@ -37,7 +37,7 @@ class VisitProtectionService
         ?Carbon $visitedAt = null,
     ): array {
         if ($ipLog->is_blocked) {
-            return $this->blockedResult($ipLog, $domain, true);
+            return $this->blockedResult($ipLog, $domain, true, $isPaidTraffic);
         }
 
         $ipLog = $this->intel->enrichIfStale($ipLog);
@@ -69,7 +69,7 @@ class VisitProtectionService
         return [
             'ipLog' => $ipLog->fresh(),
             'detection' => $detection,
-            'enforce_block' => $this->shouldEnforceBlock($domain, $detection),
+            'enforce_block' => $this->shouldEnforceBlock($domain, $detection, $isPaidTraffic),
             'prior_blocked' => false,
         ];
     }
@@ -94,9 +94,14 @@ class VisitProtectionService
     /**
      * @param  array{threat_score: int, threat_group: ?string, action_taken: string, reasons: list<string>}  $detection
      */
-    public function shouldEnforceBlock(Domain $domain, array $detection): bool
+    public function shouldEnforceBlock(Domain $domain, array $detection, bool $isPaidTraffic = false): bool
     {
         if ($domain->monitoring_only_mode) {
+            return false;
+        }
+
+        // Black-screen block is paid marketing only; bot protection still detects and logs.
+        if (! $isPaidTraffic) {
             return false;
         }
 
@@ -225,7 +230,7 @@ class VisitProtectionService
     /**
      * @return array{ipLog: IpLog, detection: array, enforce_block: bool, prior_blocked: bool}
      */
-    private function blockedResult(IpLog $ipLog, Domain $domain, bool $priorBlocked): array
+    private function blockedResult(IpLog $ipLog, Domain $domain, bool $priorBlocked, bool $isPaidTraffic = false): array
     {
         $detection = [
             'threat_score' => 100,
@@ -237,7 +242,7 @@ class VisitProtectionService
         return [
             'ipLog' => $ipLog,
             'detection' => $detection,
-            'enforce_block' => ! $domain->monitoring_only_mode,
+            'enforce_block' => $this->shouldEnforceBlock($domain, $detection, $isPaidTraffic),
             'prior_blocked' => $priorBlocked,
         ];
     }
