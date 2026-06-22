@@ -242,12 +242,78 @@ class GoogleAdsIpExclusionSyncService
                 ?? $row['campaign_criterion']['ip_block']
                 ?? [];
             $existing = (string) ($block['ipAddress'] ?? $block['ip_address'] ?? '');
-            if ($existing === $ip) {
+            if ($this->ipsMatch($existing, $ip)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function ipsMatch(string $a, string $b): bool
+    {
+        return $this->normalizeIpForCompare($a) === $this->normalizeIpForCompare($b);
+    }
+
+    private function normalizeIpForCompare(string $ip): string
+    {
+        $ip = trim($ip);
+        if (preg_match('/^(.+)\/32$/', $ip, $m) && filter_var($m[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return $m[1];
+        }
+
+        return $ip;
+    }
+
+    /**
+     * Check whether an IP is blocked on any campaign for this domain (live Google Ads API).
+     *
+     * @return list<array{campaign_id: string, ip_address: string}>
+     */
+    public function verifyIpOnCampaigns(Domain $domain, string $ip): array
+    {
+        $domain->loadMissing('googleAdsAccount.connection');
+        $account = $domain->googleAdsAccount;
+        if (! $account || (bool) $account->is_manager) {
+            return [];
+        }
+
+        $headers = $this->headersForAccount($account);
+        if ($headers === null) {
+            return [];
+        }
+
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+        $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
+        $campaignIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
+        $found = [];
+
+        foreach ($campaignIds as $campaignId) {
+            $query = "SELECT campaign.id, campaign_criterion.ip_block.ip_address FROM campaign_criterion WHERE campaign_criterion.type = IP_BLOCK AND campaign_criterion.negative = TRUE AND campaign.id = {$campaignId}";
+
+            $response = Http::timeout(30)
+                ->withHeaders($headers)
+                ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                    'query' => $query,
+                ]);
+
+            if (! $response->successful()) {
+                continue;
+            }
+
+            foreach ($this->parseRows($response->json()) as $row) {
+                $block = $row['campaignCriterion']['ipBlock'] ?? $row['campaign_criterion']['ip_block'] ?? [];
+                $existing = (string) ($block['ipAddress'] ?? $block['ip_address'] ?? '');
+                if ($this->ipsMatch($existing, $ip)) {
+                    $found[] = [
+                        'campaign_id' => (string) ($row['campaign']['id'] ?? $campaignId),
+                        'ip_address' => $existing,
+                    ];
+                }
+            }
+        }
+
+        return $found;
     }
 
     private function markRow(int $domainId, string $ip, string $status, ?string $error, ?\Illuminate\Support\Carbon $syncedAt = null): void
