@@ -6,14 +6,17 @@ use App\Models\Domain;
 use App\Models\IpLog;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
+use App\Services\GoogleAudienceExclusionService;
 use App\Support\CountryValue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class IpFraudReconciler
 {
-    public function __construct(private readonly IpFraudEvaluator $evaluator)
-    {
+    public function __construct(
+        private readonly IpFraudEvaluator $evaluator,
+        private readonly GoogleAudienceExclusionService $googleExclusions,
+    ) {
     }
 
     /**
@@ -33,17 +36,32 @@ class IpFraudReconciler
 
     private function reconcileVisits(IpLog $ipLog, string $ip, \Illuminate\Support\Carbon $since): void
     {
+        $visitColumns = ['id', 'domain_id', 'country'];
+        if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+            $visitColumns[] = 'is_paid_traffic';
+        }
+        foreach (['gclid', 'gbraid', 'wbraid'] as $clickColumn) {
+            if (Schema::hasColumn('visits', $clickColumn)) {
+                $visitColumns[] = $clickColumn;
+            }
+        }
+
         $rows = DB::table('visits')
             ->where('ip', $ip)
             ->where('visited_at', '>=', $since)
             ->orderBy('id')
-            ->get(['id', 'domain_id', 'country']);
+            ->get($visitColumns);
 
         foreach ($rows as $row) {
             $domain = Domain::find($row->domain_id);
             if (! $domain) {
                 continue;
             }
+
+            $isPaidTraffic = (bool) ($row->is_paid_traffic ?? false)
+                || ! empty($row->gclid ?? null)
+                || ! empty($row->gbraid ?? null)
+                || ! empty($row->wbraid ?? null);
 
             $detection = $this->evaluator->evaluate($domain, $ipLog, $row->country);
 
@@ -53,6 +71,15 @@ class IpFraudReconciler
             ) {
                 $ipLog->is_blocked = true;
                 $ipLog->save();
+
+                if ($isPaidTraffic && ! AllowListMatcher::isAllowListed($domain, $ip)) {
+                    $this->googleExclusions->queueBlockedIpIfEligible(
+                        $domain,
+                        $ip,
+                        $detection['threat_group'] ?? null,
+                        isPaidTraffic: true,
+                    );
+                }
             } elseif (AllowListMatcher::isAllowListed($domain, $ip)) {
                 $ipLog->is_blocked = false;
                 $ipLog->save();

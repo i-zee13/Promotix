@@ -31,30 +31,45 @@ class GoogleAudienceExclusionService
             return false;
         }
 
-        if ($group === '' || $group === 'blocked') {
-            return (bool) ($rules['exclude_invalid'] ?? true);
-        }
-
-        $ruleKey = match ($group) {
-            'malicious' => 'exclude_malicious',
-            'vpn' => 'exclude_vpn',
-            'proxy' => 'exclude_proxy',
-            'data_center', 'datacenter' => 'exclude_data_center',
-            'abnormal_rate_limit' => 'exclude_rate_limit',
-            'out_of_geo' => 'exclude_out_of_geo',
-            default => 'exclude_invalid',
-        };
-
-        return (bool) ($rules[$ruleKey] ?? $rules['exclude_invalid'] ?? true);
+        return $this->ruleAllowsThreatGroup($group, $rules);
     }
 
-    public function queueIp(\App\Models\Domain $domain, string $ip, ?string $threatGroup): void
-    {
+    /**
+     * Queue a blocked IP for Google Ads campaign exclusion when detection-settings rules allow it.
+     * Site blocking is handled separately; this only controls the Google exclusion list.
+     */
+    public function queueBlockedIpIfEligible(
+        Domain $domain,
+        string $ip,
+        ?string $threatGroup,
+        ?DomainDetectionSetting $settings = null,
+        bool $isPaidTraffic = true,
+    ): bool {
+        if ($ip === '' || ! $isPaidTraffic) {
+            return false;
+        }
+
+        $settings ??= DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        if (! $settings || ! $this->shouldQueue((string) ($threatGroup ?? ''), 'block', $settings)) {
+            return false;
+        }
+
+        $this->queueIp($domain, $ip, $threatGroup, $settings);
+
+        return true;
+    }
+
+    public function queueIp(
+        Domain $domain,
+        string $ip,
+        ?string $threatGroup,
+        ?DomainDetectionSetting $settings = null,
+    ): void {
         if (! \Illuminate\Support\Facades\Schema::hasTable('google_ads_ip_exclusions') || $ip === '') {
             return;
         }
 
-        $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        $settings ??= DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
         if (! $settings) {
             return;
         }
@@ -72,6 +87,28 @@ class GoogleAudienceExclusionService
         );
 
         SyncGoogleAdsIpExclusionJob::dispatch($domain->id, $ip);
+    }
+
+    /** @param  array<string, bool>  $rules */
+    public function ruleAllowsThreatGroup(string $threatGroup, array $rules): bool
+    {
+        $group = strtolower(trim($threatGroup));
+
+        if ($group === '' || $group === 'blocked') {
+            return (bool) ($rules['exclude_invalid'] ?? true);
+        }
+
+        $ruleKey = match ($group) {
+            'malicious' => 'exclude_malicious',
+            'vpn' => 'exclude_vpn',
+            'proxy' => 'exclude_proxy',
+            'data_center', 'datacenter' => 'exclude_data_center',
+            'abnormal_rate_limit' => 'exclude_rate_limit',
+            'out_of_geo' => 'exclude_out_of_geo',
+            default => 'exclude_invalid',
+        };
+
+        return (bool) ($rules[$ruleKey] ?? $rules['exclude_invalid'] ?? true);
     }
 
     /** @return array<string, bool> */

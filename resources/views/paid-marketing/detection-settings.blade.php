@@ -271,7 +271,7 @@
                                                 Exclude out-of-geo
                                             </label>
                                         </div>
-                                        <p class="text-[10px] text-white/50">Checked threat types are queued to your Google Ads IP exclusion list when a visit is blocked.</p>
+                                        <p class="text-[10px] text-white/50">When a paid visit is blocked, matching checked types are sent to Google Ads campaign IP exclusions. Unchecked types are blocked on-site only.</p>
                                     </div>
 
                                     <div

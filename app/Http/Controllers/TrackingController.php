@@ -284,12 +284,14 @@ class TrackingController extends Controller
         if (
             $detection['action_taken'] === 'block'
             && ! $protection->isAllowListed($domain, $ip)
+            && $isPaidTraffic
         ) {
-            $settings = \App\Models\DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
-            $exclusion = app(GoogleAudienceExclusionService::class);
-            if ($settings && $exclusion->shouldQueue((string) ($detection['threat_group'] ?? ''), 'block', $settings)) {
-                $exclusion->queueIp($domain, $ip, $detection['threat_group'] ?? null);
-            }
+            app(GoogleAudienceExclusionService::class)->queueBlockedIpIfEligible(
+                $domain,
+                $ip,
+                $detection['threat_group'] ?? null,
+                isPaidTraffic: true,
+            );
         }
 
         $clientPayload = $protection->clientPayload(
