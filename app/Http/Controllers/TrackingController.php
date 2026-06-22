@@ -353,16 +353,22 @@ class TrackingController extends Controller
         return $this->cors($request, response()->json(['ok' => true]));
     }
 
-    /** @param  array{threat_group: ?string}  $detection */
+    /** @param  array{threat_group: ?string, action_taken?: string}  $detection */
     private function shouldRecordSession(Domain $domain, array $detection): bool
     {
-        if (($detection['threat_group'] ?? '') !== 'malicious') {
+        $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        if ($settings === null || ! $settings->session_recordings) {
             return false;
         }
 
-        $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        if (($detection['action_taken'] ?? 'allow') === 'allow') {
+            return false;
+        }
 
-        return $settings !== null && (bool) $settings->session_recordings;
+        $group = strtolower((string) ($detection['threat_group'] ?? ''));
+
+        return $group === 'malicious'
+            || in_array($group, ['vpn', 'proxy', 'data_center', 'datacenter', 'abnormal_rate_limit'], true);
     }
 
     private function platformFromUa(string $ua): ?string

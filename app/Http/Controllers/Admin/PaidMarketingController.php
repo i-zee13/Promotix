@@ -10,6 +10,7 @@ use App\Models\PaidMarketingVisit;
 use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
 use App\Services\GeoCatalogService;
+use App\Support\SessionRecordingNormalizer;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -135,7 +136,7 @@ class PaidMarketingController extends Controller
             'page_url' => $row->page_url,
             'duration_ms' => (int) $row->duration_ms,
             'threat_group' => $row->threat_group,
-            'events' => json_decode((string) $row->events, true) ?: [],
+            'events' => SessionRecordingNormalizer::normalize(json_decode((string) $row->events, true) ?: []),
             'created_at' => $row->created_at,
         ]);
     }

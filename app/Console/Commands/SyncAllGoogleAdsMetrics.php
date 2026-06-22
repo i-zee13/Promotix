@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Console\Concerns\ResolvesGoogleAdsSyncDateRange;
 use App\Models\Domain;
 use App\Services\GoogleAdsDomainMetricsSync;
+use App\Services\GoogleAdsIpExclusionSyncService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -21,7 +22,7 @@ class SyncAllGoogleAdsMetrics extends Command
 
     protected $description = 'Sync Google Ads daily click metrics for all linked domains';
 
-    public function handle(GoogleAdsDomainMetricsSync $sync): int
+    public function handle(GoogleAdsDomainMetricsSync $sync, GoogleAdsIpExclusionSyncService $exclusionSync): int
     {
         $range = $this->resolveSyncDateRange();
         if ($range === null) {
@@ -58,6 +59,7 @@ class SyncAllGoogleAdsMetrics extends Command
 
         $savedTotal = 0;
         $failed = 0;
+        $exclusionsSynced = 0;
 
         foreach ($domains as $domain) {
             if ($purgeAll) {
@@ -87,6 +89,12 @@ class SyncAllGoogleAdsMetrics extends Command
                 $saved,
                 $suffix
             ));
+
+            $pendingExclusions = $exclusionSync->syncPendingForDomain($domain, 50);
+            if ($pendingExclusions > 0) {
+                $exclusionsSynced += $pendingExclusions;
+                $this->line(sprintf('  → %d pending IP exclusion(s) pushed to Google Ads campaigns.', $pendingExclusions));
+            }
         }
 
         Log::info('Google Ads sync-all finished', [
@@ -98,6 +106,9 @@ class SyncAllGoogleAdsMetrics extends Command
         ]);
 
         $this->info("Done. {$savedTotal} metric rows saved across {$domains->count()} domain(s).");
+        if ($exclusionsSynced > 0) {
+            $this->info("{$exclusionsSynced} blocked IP(s) synced to Google Ads campaign exclusion lists.");
+        }
 
         if ($failed > 0) {
             $this->newLine();

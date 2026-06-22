@@ -111,7 +111,7 @@ class GoogleAdsMetricsService
         }
 
         if ($hostnameFilter !== null && $hostnameFilter !== '') {
-            $hostRows = $this->campaignIdsForHostname($customerId, $apiVersion, $headers, $hostnameFilter, $fromDate, $toDate);
+            $hostRows = $this->campaignIdsForHostnameQuery($customerId, $apiVersion, $headers, $hostnameFilter, $fromDate, $toDate);
             if ($hostRows !== []) {
                 $rows = array_values(array_filter($rows, fn ($r) => in_array($r['campaign_id'], $hostRows, true)));
             }
@@ -130,9 +130,32 @@ class GoogleAdsMetricsService
     }
 
     /**
+     * Campaign IDs whose landing pages include the given hostname.
+     *
+     * @param  array<string, string>  $headers
      * @return list<string>
      */
-    private function campaignIdsForHostname(
+    public function campaignIdsForHostname(
+        GoogleAdsAccount $account,
+        string $apiVersion,
+        array $headers,
+        string $hostname,
+        string $fromDate,
+        string $toDate,
+    ): array {
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+        if ($customerId === '' || (bool) $account->is_manager) {
+            return [];
+        }
+
+        return $this->campaignIdsForHostnameQuery($customerId, $apiVersion, $headers, $hostname, $fromDate, $toDate);
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     * @return list<string>
+     */
+    private function campaignIdsForHostnameQuery(
         string $customerId,
         string $apiVersion,
         array $headers,

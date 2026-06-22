@@ -280,6 +280,8 @@
     </section>
 </div>
 
+@include('partials.session-recording-player')
+
 <script>
     function paidMarketingDetailed() {
         const columnCatalog = [
@@ -348,6 +350,7 @@
             statCards: [],
             modal: { open: false, visit: null, clicks: [], activeIndex: 0 },
             recordingModal: { open: false, ip: '', page_url: '', events: [] },
+            recordingStop: null,
             get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
             get visibleColumns() {
                 return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
@@ -534,46 +537,22 @@
                 }
             },
             closeRecording() {
+                if (this.recordingStop) {
+                    this.recordingStop();
+                    this.recordingStop = null;
+                }
                 this.recordingModal = { open: false, ip: '', page_url: '', events: [] };
             },
             renderRecording(events) {
-                const canvas = this.$refs.recordingCanvas;
-                if (!canvas) return;
-                const ctx = canvas.getContext('2d');
-                const w = canvas.width;
-                const h = canvas.height;
-                ctx.fillStyle = '#0d0d0d';
-                ctx.fillRect(0, 0, w, h);
-                ctx.strokeStyle = 'rgba(100,0,178,0.35)';
-                ctx.lineWidth = 1;
-                for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-                for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-                const moves = events.filter(e => e.type === 'mousemove' && typeof e.x === 'number' && typeof e.y === 'number');
-                if (!moves.length) {
-                    ctx.fillStyle = '#a9a9a9';
-                    ctx.font = '13px sans-serif';
-                    ctx.fillText('No movement captured', 20, 40);
-                    return;
+                if (this.recordingStop) {
+                    this.recordingStop();
+                    this.recordingStop = null;
                 }
-                const maxX = Math.max(...moves.map(e => e.x), 1);
-                const maxY = Math.max(...moves.map(e => e.y), 1);
-                ctx.strokeStyle = '#B893D8';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                moves.forEach((e, i) => {
-                    const x = (e.x / maxX) * (w - 20) + 10;
-                    const y = (e.y / maxY) * (h - 20) + 10;
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
+                const canvas = this.$refs.recordingCanvas;
+                if (!canvas || !window.PromotixSessionRecordingPlayer) return;
+                this.recordingStop = window.PromotixSessionRecordingPlayer.play(canvas, events, () => {
+                    this.recordingStop = null;
                 });
-                ctx.stroke();
-                const last = moves[moves.length - 1];
-                const lx = (last.x / maxX) * (w - 20) + 10;
-                const ly = (last.y / maxY) * (h - 20) + 10;
-                ctx.fillStyle = '#6400B2';
-                ctx.beginPath();
-                ctx.arc(lx, ly, 6, 0, Math.PI * 2);
-                ctx.fill();
             },
             formatDateTime(value) {
                 if (!value) return '-';

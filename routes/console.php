@@ -17,6 +17,7 @@ Schedule::command('analytics:aggregate-hourly --hours=2')
 Schedule::command('google-ads:sync-all --days=7')
     ->twiceDaily(6, 18)
     ->appendOutputTo(storage_path('logs/cron.log'));
+
 $queueConnection = config('queue.default', 'database');
 $queueMaxTime = (int) config('queue.worker_max_time', 55);
 $queueWorkers = (int) config('queue.scheduled_workers', 3);

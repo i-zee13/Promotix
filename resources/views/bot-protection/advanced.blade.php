@@ -216,6 +216,8 @@
 }
 </style>
 
+@include('partials.session-recording-player')
+
 <script>
 function botProtectionAdvancedFigma() {
     const columnCatalog = [
@@ -282,6 +284,7 @@ function botProtectionAdvancedFigma() {
         columnCatalog,
         optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
         recordingModal: { open: false, ip: '', page_url: '', events: [] },
+        recordingStop: null,
         filterMenuOpen: false,
         get visibleColumns() {
             return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
@@ -446,25 +449,22 @@ function botProtectionAdvancedFigma() {
             } catch (e) { console.error(e); }
         },
         closeRecording() {
+            if (this.recordingStop) {
+                this.recordingStop();
+                this.recordingStop = null;
+            }
             this.recordingModal = { open: false, ip: '', page_url: '', events: [] };
         },
         renderRecording(events) {
+            if (this.recordingStop) {
+                this.recordingStop();
+                this.recordingStop = null;
+            }
             const canvas = this.$refs.recordingCanvas;
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            const w = canvas.width; const h = canvas.height;
-            ctx.fillStyle = '#0d0d0d'; ctx.fillRect(0, 0, w, h);
-            const moves = events.filter(e => e.type === 'mousemove' && typeof e.x === 'number');
-            if (!moves.length) { ctx.fillStyle = '#a9a9a9'; ctx.fillText('No movement captured', 20, 40); return; }
-            const maxX = Math.max(...moves.map(e => e.x), 1);
-            const maxY = Math.max(...moves.map(e => e.y), 1);
-            ctx.strokeStyle = '#B893D8'; ctx.lineWidth = 2; ctx.beginPath();
-            moves.forEach((e, i) => {
-                const x = (e.x / maxX) * (w - 20) + 10;
-                const y = (e.y / maxY) * (h - 20) + 10;
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            if (!canvas || !window.PromotixSessionRecordingPlayer) return;
+            this.recordingStop = window.PromotixSessionRecordingPlayer.play(canvas, events, () => {
+                this.recordingStop = null;
             });
-            ctx.stroke();
         },
     };
 }

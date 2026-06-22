@@ -142,16 +142,27 @@ class TagController extends Controller
     var lastMove = 0;
     var duration = Number(meta.recording_ms || 10000);
 
-    function push(type, data){
+    function push(type, payload){
       if (events.length >= 500) return;
-      events.push({ t: Date.now() - started, type: type, data: data || {} });
+      var row = { t: Date.now() - started, type: type };
+      if (payload && typeof payload === 'object') {
+        for (var k in payload) {
+          if (Object.prototype.hasOwnProperty.call(payload, k)) row[k] = payload[k];
+        }
+      }
+      events.push(row);
     }
+
+    push('meta', {
+      vw: window.innerWidth || 0,
+      vh: window.innerHeight || 0
+    });
 
     function onMove(e){
       var now = Date.now();
-      if (now - lastMove < 120) return;
+      if (now - lastMove < 80) return;
       lastMove = now;
-      push('move', { x: e.clientX, y: e.clientY });
+      push('mousemove', { x: e.clientX, y: e.clientY });
     }
 
     function onScroll(){

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SyncGoogleAdsIpExclusionJob;
 use App\Models\DomainDetectionSetting;
 
 class GoogleAudienceExclusionService
@@ -64,10 +65,13 @@ class GoogleAudienceExclusionService
                 'threat_group' => $threatGroup,
                 'exclusion_mode' => $settings->audience_exclusion_event,
                 'sync_status' => 'pending',
+                'sync_error' => null,
                 'updated_at' => now(),
                 'created_at' => now(),
             ]
         );
+
+        SyncGoogleAdsIpExclusionJob::dispatch($domain->id, $ip);
     }
 
     /** @return array<string, bool> */
