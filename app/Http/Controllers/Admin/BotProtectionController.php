@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
 use App\Models\IpLog;
+use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
@@ -511,12 +512,18 @@ class BotProtectionController extends Controller
                 ->map->first();
         }
 
+        $domainsById = Domain::query()
+            ->whereIn('id', $rows->pluck('domain_id')->unique()->filter()->values())
+            ->get(['id', 'user_id', 'hostname', 'monitoring_only_mode'])
+            ->keyBy('id');
+
         return response()->json([
             'data' => $rows->map(fn ($v) => $this->formatVisit(
                 $v,
                 $ipLogs->get($v->ip),
                 $request->user(),
                 $recordings->get($v->ip),
+                $domainsById->get($v->domain_id),
             ))->values(),
             'meta' => [
                 'total' => $total,
@@ -584,6 +591,7 @@ class BotProtectionController extends Controller
         $query = $this->applyPathFilter($query, $request, 'visits.url')
             ->select(
                 'visits.id',
+                'visits.domain_id',
                 'domains.hostname',
                 'visits.ip',
                 'visits.country',
@@ -625,10 +633,13 @@ class BotProtectionController extends Controller
         return $query;
     }
 
-    private function formatVisit(object $v, ?IpLog $ipLog = null, ?\App\Models\User $user = null, ?object $recording = null): array
+    private function formatVisit(object $v, ?IpLog $ipLog = null, ?\App\Models\User $user = null, ?object $recording = null, ?Domain $domain = null): array
     {
         $visitedAt = ! empty($v->visited_at) ? Carbon::parse((string) $v->visited_at, 'UTC') : null;
         $isInvalid = (bool) $v->is_invalid_traffic;
+        $isAllowListed = $domain !== null
+            && $ipLog !== null
+            && AllowListMatcher::isAllowListed($domain, $ipLog->ip);
 
         return [
             'id' => (int) $v->id,
@@ -657,17 +668,18 @@ class BotProtectionController extends Controller
             'is_paid_traffic' => (bool) $v->is_paid_traffic,
             'invalid_visits' => $isInvalid ? 1 : 0,
             'valid_visits' => $isInvalid ? 0 : 1,
-            'ip_is_blocked' => (bool) ($ipLog?->is_blocked ?? false),
+            'ip_is_blocked' => $isAllowListed ? false : (bool) ($ipLog?->is_blocked ?? false),
+            'is_allowlisted' => $isAllowListed,
             'has_session_recording' => $recording !== null,
             'session_recording_id' => $recording ? (int) $recording->id : null,
             'last_seen_label' => UserTimezone::formatForUser($visitedAt, $user, 'm/d/y H:i') ?? '—',
             'visited_at' => UserTimezone::formatForUser($visitedAt, $user, 'm/d/Y H:i') ?? '',
-            ...$this->intelFieldsForVisit($v, $ipLog, $user),
+            ...$this->intelFieldsForVisit($v, $ipLog, $user, $domain),
         ];
     }
 
     /** @return array<string, mixed> */
-    private function intelFieldsForVisit(object $visit, ?IpLog $ipLog, ?\App\Models\User $user = null): array
+    private function intelFieldsForVisit(object $visit, ?IpLog $ipLog, ?\App\Models\User $user = null, ?Domain $domain = null): array
     {
         $raw = (array) ($ipLog?->ipdetails_raw ?? []);
         $abuser = $ipLog?->ipdetails_abuser_score;
@@ -688,7 +700,13 @@ class BotProtectionController extends Controller
         $isProxy = $ipLog ? app(IpIntelService::class)->isProxySuspect($ipLog) : false;
 
         $status = 'Valid';
-        if ($ipLog?->is_blocked) {
+        $isAllowListed = $domain !== null
+            && $ipLog !== null
+            && AllowListMatcher::isAllowListed($domain, $ipLog->ip);
+
+        if ($isAllowListed) {
+            $status = 'Valid';
+        } elseif ($ipLog?->is_blocked) {
             $status = 'Blocked';
         } elseif ((bool) ($visit->is_invalid_traffic ?? false)) {
             $status = 'Invalid';
@@ -696,6 +714,7 @@ class BotProtectionController extends Controller
 
         return [
             'status' => $status,
+            'is_allowlisted' => $isAllowListed,
             'intel_region' => $raw['region'] ?? $raw['state'] ?? null,
             'intel_city' => $raw['city'] ?? null,
             'intel_latitude' => $raw['latitude'] ?? null,
@@ -717,7 +736,7 @@ class BotProtectionController extends Controller
             'intel_evidence' => $ipLog?->abuse_total_reports ? ($ipLog->abuse_total_reports . ' reports') : null,
             'intel_checked_at' => UserTimezone::formatForUser($ipLog?->intel_checked_at, $user, 'm/d/y H:i'),
             'intel_error' => $ipLog?->intel_status === 'error' ? 'Yes' : null,
-            'intel_ip_need_blockation' => $ipLog?->is_blocked ? 'Yes' : 'No',
+            'intel_ip_need_blockation' => ($isAllowListed || ! $ipLog?->is_blocked) ? 'No' : 'Yes',
             'intel_blockation_type' => is_array($ipLog?->iphub_proxy_type)
                 ? implode(', ', $ipLog->iphub_proxy_type)
                 : ($ipLog?->iphub_proxy_type ?? null),

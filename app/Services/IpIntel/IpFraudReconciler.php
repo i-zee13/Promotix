@@ -47,8 +47,14 @@ class IpFraudReconciler
 
             $detection = $this->evaluator->evaluate($domain, $ipLog, $row->country);
 
-            if ($detection['action_taken'] === 'block') {
+            if (
+                $detection['action_taken'] === 'block'
+                && ! AllowListMatcher::reasonsIndicateAllowList($detection['reasons'])
+            ) {
                 $ipLog->is_blocked = true;
+                $ipLog->save();
+            } elseif (AllowListMatcher::isAllowListed($domain, $ip)) {
+                $ipLog->is_blocked = false;
                 $ipLog->save();
             }
 

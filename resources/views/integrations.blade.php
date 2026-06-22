@@ -202,7 +202,7 @@
                         </span>
                         </div>
                     </div>
-                    <div class="grid grid-cols-[84px_1fr] items-center gap-[18px] xl:gap-[24px]">
+                    <div class="platform-requirement-layout flex items-center justify-center gap-[18px] xl:gap-[24px]">
                         <div class="relative h-[84px] w-[84px] shrink-0">
                             <div class="h-full w-full rounded-full" :style="`background: conic-gradient(#7a56a9 ${requirementRingPct}%, #ffffff 0)`"></div>
                             <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>

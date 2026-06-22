@@ -18,7 +18,7 @@ class GeoSeeder extends Seeder
         $statesPath = database_path('data/geo_states.json');
 
         if (! is_readable($countriesPath) || ! is_readable($statesPath)) {
-            $this->command?->warn('Missing database/data/geo_countries.json or geo_states.json — run geo download first.');
+            $this->command?->warn('Missing database/data/geo_countries.json or geo_states.json — run geo:seed first.');
 
             return;
         }
@@ -77,7 +77,84 @@ class GeoSeeder extends Seeder
             }
         }
 
+        $cityCount = $this->importCitiesFromCsv($now);
+        if ($cityCount === 0) {
+            $cityCount = $this->importFallbackCities($countries, $now);
+        }
+
+        $this->command?->info('Geo catalog seeded: ' . DB::table('geo_countries')->count() . ' countries, '
+            . DB::table('geo_states')->count() . ' states, '
+            . $cityCount . ' cities.');
+    }
+
+    private function importCitiesFromCsv(\DateTimeInterface $now): int
+    {
+        $path = database_path('data/geo_cities.csv');
+        if (! is_readable($path)) {
+            $this->command?->warn('Missing database/data/geo_cities.csv — only capitals will be imported. Run: php artisan geo:seed');
+
+            return 0;
+        }
+
+        $handle = fopen($path, 'r');
+        if ($handle === false) {
+            return 0;
+        }
+
+        $header = fgetcsv($handle);
+        if (! is_array($header)) {
+            fclose($handle);
+
+            return 0;
+        }
+
+        $columns = array_flip(array_map('strtolower', $header));
+        $nameIdx = $columns['name'] ?? 1;
+        $stateCodeIdx = $columns['state_code'] ?? 3;
+        $countryCodeIdx = $columns['country_code'] ?? 6;
+
+        $batch = [];
+        $total = 0;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $countryCode = strtoupper(trim((string) ($row[$countryCodeIdx] ?? '')));
+            $stateCode = strtoupper(trim((string) ($row[$stateCodeIdx] ?? '')));
+            $name = trim((string) ($row[$nameIdx] ?? ''));
+
+            if ($countryCode === '' || $stateCode === '' || $name === '') {
+                continue;
+            }
+
+            $batch[] = [
+                'country_code' => $countryCode,
+                'state_code' => $stateCode,
+                'name' => $name,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            if (count($batch) >= 500) {
+                DB::table('geo_cities')->insert($batch);
+                $total += count($batch);
+                $batch = [];
+            }
+        }
+
+        fclose($handle);
+
+        if ($batch !== []) {
+            DB::table('geo_cities')->insert($batch);
+            $total += count($batch);
+        }
+
+        return $total;
+    }
+
+    /** @param  array<int, array<string, mixed>>  $countries */
+    private function importFallbackCities(array $countries, \DateTimeInterface $now): int
+    {
         $cityRows = [];
+
         foreach ($countries as $country) {
             $countryCode = strtoupper(trim((string) ($country['iso2'] ?? '')));
             $capital = trim((string) ($country['capital'] ?? ''));
@@ -101,9 +178,7 @@ class GeoSeeder extends Seeder
             DB::table('geo_cities')->insert($chunk);
         }
 
-        $this->command?->info('Geo catalog seeded: ' . DB::table('geo_countries')->count() . ' countries, '
-            . DB::table('geo_states')->count() . ' states, '
-            . DB::table('geo_cities')->count() . ' cities.');
+        return count($cityRows);
     }
 
     /** @return list<array{country_code: string, state_code: string, name: string}> */

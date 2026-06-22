@@ -87,7 +87,7 @@ class GeoCatalogService
         }
 
         return $builder
-            ->limit(max(1, min($limit, 100)))
+            ->limit(max(1, min($limit, 200)))
             ->pluck('name')
             ->map(fn ($name) => (string) $name)
             ->all();

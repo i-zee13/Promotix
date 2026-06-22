@@ -4,9 +4,7 @@ namespace App\Services\IpIntel;
 
 use App\Jobs\EnrichIpIntelJob;
 use App\Models\Domain;
-use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
-use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -37,15 +35,16 @@ class VisitProtectionService
         bool $isPaidTraffic = false,
         ?Carbon $visitedAt = null,
     ): array {
-        if ($ipLog->is_blocked) {
-            $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
-            if (
-                $settings?->allow_list_enabled
-                && IpFraudEvaluator::isIpAllowListed($ipLog->ip, (string) $settings->allow_list_ips)
-            ) {
-                return $this->allowListedBlockedOverride($domain, $ipLog, $isPaidTraffic);
+        if (AllowListMatcher::isAllowListed($domain, $ipLog->ip)) {
+            if ($ipLog->is_blocked) {
+                $ipLog->is_blocked = false;
+                $ipLog->save();
             }
 
+            return $this->allowListedResult($domain, $ipLog, $isPaidTraffic);
+        }
+
+        if ($ipLog->is_blocked) {
             return $this->blockedResult($ipLog, $domain, true, $isPaidTraffic);
         }
 
@@ -72,7 +71,7 @@ class VisitProtectionService
             $ipMinuteHits,
         );
 
-        if ($detection['action_taken'] === 'block') {
+        if ($detection['action_taken'] === 'block' && ! AllowListMatcher::reasonsIndicateAllowList($detection['reasons'])) {
             $ipLog->is_blocked = true;
             $ipLog->save();
         }
@@ -80,9 +79,14 @@ class VisitProtectionService
         return [
             'ipLog' => $ipLog->fresh(),
             'detection' => $detection,
-            'enforce_block' => $this->shouldEnforceBlock($domain, $detection, $isPaidTraffic),
+            'enforce_block' => $this->shouldEnforceBlock($domain, $detection, $isPaidTraffic, $ipLog->ip),
             'prior_blocked' => false,
         ];
+    }
+
+    public function isAllowListed(Domain $domain, string $ip): bool
+    {
+        return AllowListMatcher::isAllowListed($domain, $ip);
     }
 
     public function touchIpLog(string $ip, string $userAgent, ?string $path, ?string $referrer): IpLog
@@ -105,9 +109,17 @@ class VisitProtectionService
     /**
      * @param  array{threat_score: int, threat_group: ?string, action_taken: string, reasons: list<string>}  $detection
      */
-    public function shouldEnforceBlock(Domain $domain, array $detection, bool $isPaidTraffic = false): bool
+    public function shouldEnforceBlock(Domain $domain, array $detection, bool $isPaidTraffic = false, ?string $ip = null): bool
     {
         if ($domain->monitoring_only_mode) {
+            return false;
+        }
+
+        if (AllowListMatcher::reasonsIndicateAllowList($detection['reasons'] ?? [])) {
+            return false;
+        }
+
+        if ($ip !== null && AllowListMatcher::isAllowListed($domain, $ip)) {
             return false;
         }
 
@@ -119,9 +131,17 @@ class VisitProtectionService
         return $detection['action_taken'] === 'block';
     }
 
-    public function shouldEnforceCaptcha(Domain $domain, array $detection): bool
+    public function shouldEnforceCaptcha(Domain $domain, array $detection, ?string $ip = null): bool
     {
         if ($domain->monitoring_only_mode) {
+            return false;
+        }
+
+        if (AllowListMatcher::reasonsIndicateAllowList($detection['reasons'] ?? [])) {
+            return false;
+        }
+
+        if ($ip !== null && AllowListMatcher::isAllowListed($domain, $ip)) {
             return false;
         }
 
@@ -254,20 +274,20 @@ class VisitProtectionService
     /**
      * @return array{ipLog: IpLog, detection: array, enforce_block: bool, prior_blocked: bool}
      */
-    private function allowListedBlockedOverride(Domain $domain, IpLog $ipLog, bool $isPaidTraffic): array
+    private function allowListedResult(Domain $domain, IpLog $ipLog, bool $isPaidTraffic): array
     {
         $detection = [
             'threat_score' => 0,
             'threat_group' => null,
             'action_taken' => 'allow',
-            'reasons' => ['allow_list_override'],
+            'reasons' => ['allow_list'],
         ];
 
         return [
             'ipLog' => $ipLog,
             'detection' => $detection,
             'enforce_block' => false,
-            'prior_blocked' => true,
+            'prior_blocked' => false,
         ];
     }
 
@@ -286,7 +306,7 @@ class VisitProtectionService
         return [
             'ipLog' => $ipLog,
             'detection' => $detection,
-            'enforce_block' => $this->shouldEnforceBlock($domain, $detection, $isPaidTraffic),
+            'enforce_block' => $this->shouldEnforceBlock($domain, $detection, $isPaidTraffic, $ipLog->ip),
             'prior_blocked' => $priorBlocked,
         ];
     }

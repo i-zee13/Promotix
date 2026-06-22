@@ -7,6 +7,7 @@ use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
 use App\Models\PaidMarketingVisit;
+use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
 use App\Services\GeoCatalogService;
 use App\Support\UserTimezone;
@@ -238,7 +239,9 @@ class PaidMarketingController extends Controller
             'threat_type' => $visit->threat_type,
             'country' => $visit->country,
             'last_path' => $visit->last_path,
-            'ip_is_blocked' => (bool) $visit->ip_is_blocked,
+            'ip_is_blocked' => ($visit->domain && $ipLog && AllowListMatcher::isAllowListed($visit->domain, $ipLog->ip))
+                ? false
+                : (bool) $visit->ip_is_blocked,
             'vpn_hits' => $vpnHits,
             'data_center_hits' => $dataCenterHits,
             'invalid_clicks' => $invalidClicks,
@@ -260,13 +263,14 @@ class PaidMarketingController extends Controller
                 'browser_version' => $c->browser_version,
                 'os' => $c->os,
             ])->values()->all(),
-            ...$this->intelFieldsForVisit($visit, $ipLog, $user),
+            ...$this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain),
         ];
     }
 
     /** @return array<string, mixed> */
-    private function intelFieldsForVisit(PaidMarketingVisit $visit, ?IpLog $ipLog, ?\App\Models\User $user = null): array
+    private function intelFieldsForVisit(PaidMarketingVisit $visit, ?IpLog $ipLog, ?\App\Models\User $user = null, ?Domain $domain = null): array
     {
+        $domain ??= $visit->domain;
         $raw = (array) ($ipLog?->ipdetails_raw ?? []);
         $abuser = $ipLog?->ipdetails_abuser_score;
         $riskLevel = null;
@@ -286,7 +290,13 @@ class PaidMarketingController extends Controller
         $isProxy = $ipLog ? app(IpIntelService::class)->isProxySuspect($ipLog) : false;
 
         $status = 'Valid';
-        if ($ipLog?->is_blocked) {
+        $isAllowListed = $domain !== null
+            && $ipLog !== null
+            && AllowListMatcher::isAllowListed($domain, $ipLog->ip);
+
+        if ($isAllowListed) {
+            $status = 'Valid';
+        } elseif ($ipLog?->is_blocked) {
             $status = 'Blocked';
         } elseif (filled($visit->threat_group) || filled($visit->threat_type)) {
             $status = 'Invalid';
@@ -294,6 +304,7 @@ class PaidMarketingController extends Controller
 
         return [
             'status' => $status,
+            'is_allowlisted' => $isAllowListed,
             'intel_region' => $raw['region'] ?? $raw['state'] ?? null,
             'intel_city' => $raw['city'] ?? null,
             'intel_latitude' => $raw['latitude'] ?? null,
@@ -315,7 +326,7 @@ class PaidMarketingController extends Controller
             'intel_evidence' => $ipLog?->abuse_total_reports ? ($ipLog->abuse_total_reports . ' reports') : null,
             'intel_checked_at' => UserTimezone::formatForUser($ipLog?->intel_checked_at, $user, 'm/d/y H:i'),
             'intel_error' => $ipLog?->intel_status === 'error' ? 'Yes' : null,
-            'intel_ip_need_blockation' => $ipLog?->is_blocked ? 'Yes' : 'No',
+            'intel_ip_need_blockation' => ($isAllowListed || ! $ipLog?->is_blocked) ? 'No' : 'Yes',
             'intel_blockation_type' => is_array($ipLog?->iphub_proxy_type)
                 ? implode(', ', $ipLog->iphub_proxy_type)
                 : ($ipLog?->iphub_proxy_type ?? null),
@@ -589,14 +600,14 @@ class PaidMarketingController extends Controller
                 'allow_list_ips' => $data['allow_list_ips'] ?? null,
                 'audience_exclusion_event' => $data['audience_exclusion_event'],
                 'google_exclusion_rules' => [
-                    'enabled' => (bool) ($data['google_exclusion_enabled'] ?? true),
-                    'exclude_invalid' => (bool) ($data['google_exclude_invalid'] ?? true),
-                    'exclude_malicious' => (bool) ($data['google_exclude_malicious'] ?? true),
-                    'exclude_vpn' => (bool) ($data['google_exclude_vpn'] ?? true),
-                    'exclude_data_center' => (bool) ($data['google_exclude_data_center'] ?? true),
-                    'exclude_proxy' => (bool) ($data['google_exclude_proxy'] ?? true),
-                    'exclude_rate_limit' => (bool) ($data['google_exclude_rate_limit'] ?? true),
-                    'exclude_out_of_geo' => (bool) ($data['google_exclude_out_of_geo'] ?? true),
+                    'enabled' => $request->boolean('google_exclusion_enabled'),
+                    'exclude_invalid' => $request->boolean('google_exclude_invalid'),
+                    'exclude_malicious' => $request->boolean('google_exclude_malicious'),
+                    'exclude_vpn' => $request->boolean('google_exclude_vpn'),
+                    'exclude_data_center' => $request->boolean('google_exclude_data_center'),
+                    'exclude_proxy' => $request->boolean('google_exclude_proxy'),
+                    'exclude_rate_limit' => $request->boolean('google_exclude_rate_limit'),
+                    'exclude_out_of_geo' => $request->boolean('google_exclude_out_of_geo'),
                 ],
             ]
         );

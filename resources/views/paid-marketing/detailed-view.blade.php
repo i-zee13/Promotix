@@ -84,17 +84,17 @@
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
-                <div class="min-w-max">
-                    <div class="grid gap-[8px] bg-[#1a1a1a] px-[12px] py-[10px] text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
+            <div class="w-full overflow-x-auto">
+                <div class="w-full min-w-0">
+                    <div class="pm-adv-table-grid grid w-full gap-[8px] bg-[#1a1a1a] px-[12px] py-[10px] text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
                         <template x-for="col in visibleColumns" :key="'head-' + col.key">
                             <span class="truncate" x-text="col.label"></span>
                         </template>
                     </div>
 
-                    <div class="max-h-[420px] overflow-y-auto pm-adv-scroll px-[10px] py-[8px]">
+                    <div class="max-h-[420px] overflow-y-auto pm-adv-scroll px-[12px] py-[8px]">
                         <template x-for="visit in rows" :key="visit.id">
-                            <div class="mb-[8px] grid cursor-pointer gap-[8px] rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] transition hover:bg-[#ececec] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
+                            <div class="pm-adv-table-grid mb-[8px] grid w-full cursor-pointer gap-[8px] rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] transition hover:bg-[#ececec] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
                                 <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
                                     <template x-if="col.key !== 'session_recording'">
                                         <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(visit, col.key)" x-text="cellValue(visit, col.key)"></span>
@@ -120,6 +120,7 @@
 .pm-adv-scroll { scrollbar-width: thin; scrollbar-color: #6400B2 transparent; }
 .pm-adv-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
 .pm-adv-scroll::-webkit-scrollbar-thumb { background: #6400B2; border-radius: 4px; }
+.pm-adv-table-grid > * { min-width: 0; }
 </style>
 
         <section class="mt-[20px]">
@@ -292,7 +293,7 @@
             { key: 'country', label: 'Country', primary: true, min: 72 },
             { key: 'invalid_clicks', label: 'Invalid', primary: true, min: 52 },
             { key: 'valid_clicks', label: 'Valid', primary: true, min: 52 },
-            { key: 'session_recording', label: 'Recording', primary: false, min: 64 },
+            { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
             { key: 'status', label: 'Status', primary: false, min: 72 },
             { key: 'intel_region', label: 'Region', primary: false, min: 80 },
             { key: 'intel_city', label: 'City', primary: false, min: 80 },
@@ -352,8 +353,25 @@
                 return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
             },
             get gridStyle() {
-                const cols = this.visibleColumns.map(col => `${col.min || 80}px`).join(' ');
+                const cols = this.visibleColumns.map(col => this.columnTrack(col)).join(' ');
                 return `grid-template-columns: ${cols}`;
+            },
+            columnTrack(col) {
+                const min = col.min || 72;
+                const key = col.key;
+                if (key === 'session_recording') return '40px';
+                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits'].includes(key)) {
+                    return `minmax(40px, 0.45fr)`;
+                }
+                if (key === 'ip') return `minmax(${min}px, 1.5fr)`;
+                if (key === 'domain' || key === 'campaign' || key === 'path') return `minmax(${min}px, 1.15fr)`;
+                if (key === 'country' || key === 'last_click_label' || key === 'last_seen_label') {
+                    return `minmax(${min}px, 0.95fr)`;
+                }
+                if (key === 'threat_group' || key === 'threat_type' || key === 'action_taken' || key === 'status') {
+                    return `minmax(${min}px, 0.85fr)`;
+                }
+                return `minmax(${min}px, 1fr)`;
             },
             init() {
                 const id = new URLSearchParams(window.location.search).get('domain_id');

@@ -79,7 +79,7 @@ class TrackingController extends Controller
         $ipLog = $assessment['ipLog'];
         $detection = $assessment['detection'];
         $enforceBlock = $assessment['enforce_block'];
-        $captchaRequired = $protection->shouldEnforceCaptcha($domain, $detection);
+        $captchaRequired = $protection->shouldEnforceCaptcha($domain, $detection, $ip);
         $skipVisitLog = $protection->shouldSkipOrganicRepeatVisit($domain, $sessionId, $isPaidTraffic, $visitedAt);
 
         $resolvedCountry = $country ?? $ipLog->intel_country_code ?? $ipLog->intel_country_name;
@@ -281,7 +281,10 @@ class TrackingController extends Controller
             ]);
         }
 
-        if ($detection['action_taken'] === 'block') {
+        if (
+            $detection['action_taken'] === 'block'
+            && ! $protection->isAllowListed($domain, $ip)
+        ) {
             $settings = \App\Models\DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
             $exclusion = app(GoogleAudienceExclusionService::class);
             if ($settings && $exclusion->shouldQueue((string) ($detection['threat_group'] ?? ''), 'block', $settings)) {

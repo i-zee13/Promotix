@@ -178,14 +178,12 @@ export function geoAudiencePicker(initial = {}) {
         },
         async onStateChange() {
             this.resetCity();
-            this.showCity = false;
             if (!this.draft.country || !this.draft.state) {
+                this.showCity = false;
                 return;
             }
+            this.showCity = true;
             await this.fetchCities();
-            if (this.cityItems.length > 0) {
-                this.showCity = true;
-            }
         },
         async toggleCity() {
             if (this.cityLoading || !this.showCity) {

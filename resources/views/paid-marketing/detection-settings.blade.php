@@ -236,30 +236,37 @@
                                         </div>
                                         <div class="grid grid-cols-1 gap-[8px] sm:grid-cols-2">
                                             <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="hidden" name="google_exclude_invalid" value="0">
                                                 <input type="checkbox" name="google_exclude_invalid" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_invalid'] ?? true)>
                                                 Exclude invalid IPs
                                             </label>
                                             <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="hidden" name="google_exclude_malicious" value="0">
                                                 <input type="checkbox" name="google_exclude_malicious" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_malicious'] ?? true)>
                                                 Exclude malicious IPs
                                             </label>
                                             <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="hidden" name="google_exclude_vpn" value="0">
                                                 <input type="checkbox" name="google_exclude_vpn" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_vpn'] ?? true)>
                                                 Exclude VPN
                                             </label>
                                             <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="hidden" name="google_exclude_data_center" value="0">
                                                 <input type="checkbox" name="google_exclude_data_center" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_data_center'] ?? true)>
                                                 Exclude data center
                                             </label>
                                             <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="hidden" name="google_exclude_proxy" value="0">
                                                 <input type="checkbox" name="google_exclude_proxy" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_proxy'] ?? true)>
                                                 Exclude proxy
                                             </label>
                                             <label class="flex items-center gap-[8px] text-[11px] text-white/90">
+                                                <input type="hidden" name="google_exclude_rate_limit" value="0">
                                                 <input type="checkbox" name="google_exclude_rate_limit" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_rate_limit'] ?? true)>
                                                 Exclude rate limit
                                             </label>
                                             <label class="flex items-center gap-[8px] text-[11px] text-white/90 sm:col-span-2">
+                                                <input type="hidden" name="google_exclude_out_of_geo" value="0">
                                                 <input type="checkbox" name="google_exclude_out_of_geo" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_out_of_geo'] ?? true)>
                                                 Exclude out-of-geo
                                             </label>
