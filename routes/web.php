@@ -166,6 +166,8 @@ Route::middleware(['auth', 'admin'])
         Route::get('/domains/{domain}/google-ads/pick-accounts', [IntegrationsController::class, 'pickAccountsJson'])->name('domains.google.pick-accounts');
         Route::post('/domains/{domain}/google-ads/link', [IntegrationsController::class, 'linkDomainPaidAccount'])->name('domains.google.link-account');
         Route::get('/paid-marketing/dashboard', [PaidAdvertisingDashboardController::class, 'index'])->name('paid-marketing.dashboard');
+        Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/push', [PaidMarketingController::class, 'pushGoogleExclusionIp'])->name('paid-marketing.detection-settings.google-exclusion.push');
+        Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/sync', [PaidMarketingController::class, 'syncGoogleExclusionIps'])->name('paid-marketing.detection-settings.google-exclusion.sync');
         Route::get('/paid-marketing/detection-settings', [PaidMarketingController::class, 'detectionSettings'])->name('paid-marketing.detection-settings');
         Route::post('/paid-marketing/detection-settings/{domain}', [PaidMarketingController::class, 'updateDetectionSettings'])->name('paid-marketing.detection-settings.update');
         Route::get('/paid-marketing/geo/countries', [PaidMarketingController::class, 'geoCountries'])->name('paid-marketing.geo.countries');

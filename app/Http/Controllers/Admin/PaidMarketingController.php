@@ -10,6 +10,8 @@ use App\Models\PaidMarketingVisit;
 use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
 use App\Services\GeoCatalogService;
+use App\Services\GoogleAdsIpExclusionSyncService;
+use App\Services\GoogleAudienceExclusionService;
 use App\Support\SessionRecordingNormalizer;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
@@ -521,6 +523,7 @@ class PaidMarketingController extends Controller
             'domains' => $domains,
             'domain' => $domain,
             'settings' => $settings,
+            'ipExclusions' => $domain ? $this->googleExclusionRowsForDomain($domain->id) : [],
             'geoCountries' => $geoCatalog->countries(null, 100),
             'geoEndpoints' => [
                 'countries' => route('paid-marketing.geo.countries'),
@@ -616,6 +619,102 @@ class PaidMarketingController extends Controller
         return redirect()
             ->route('paid-marketing.detection-settings', ['domain_id' => $domain->id])
             ->with('status', 'Detection settings saved.');
+    }
+
+    public function pushGoogleExclusionIp(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        $data = $request->validate([
+            'ip' => ['required', 'string', 'max:45'],
+        ]);
+
+        $ip = trim($data['ip']);
+        if (! filter_var($ip, FILTER_VALIDATE_IP)) {
+            return response()->json(['ok' => false, 'message' => 'Enter a valid IPv4 or IPv6 address.'], 422);
+        }
+
+        if (! Schema::hasTable('google_ads_ip_exclusions')) {
+            return response()->json(['ok' => false, 'message' => 'Exclusion table not available. Run migrations first.'], 503);
+        }
+
+        DB::table('google_ads_ip_exclusions')->updateOrInsert(
+            ['domain_id' => $domain->id, 'ip' => $ip],
+            [
+                'threat_group' => 'manual',
+                'exclusion_mode' => 'manual_test',
+                'sync_status' => 'pending',
+                'sync_error' => null,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        $synced = $sync->syncRow($domain, $ip);
+        $row = DB::table('google_ads_ip_exclusions')
+            ->where('domain_id', $domain->id)
+            ->where('ip', $ip)
+            ->first();
+
+        return response()->json([
+            'ok' => $synced,
+            'message' => $synced
+                ? "IP {$ip} added to Google Ads campaign exclusions for {$domain->hostname}."
+                : (string) ($row->sync_error ?? 'Could not push IP to Google Ads. Check Google Ads link and campaign sync.'),
+            'row' => $row ? $this->formatGoogleExclusionRow($row) : null,
+            'rows' => $this->googleExclusionRowsForDomain($domain->id),
+        ], $synced ? 200 : 422);
+    }
+
+    public function syncGoogleExclusionIps(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        if (! Schema::hasTable('google_ads_ip_exclusions')) {
+            return response()->json(['ok' => false, 'message' => 'Exclusion table not available.'], 503);
+        }
+
+        $limit = min(200, max(1, (int) $request->input('limit', 100)));
+        $synced = $sync->syncPendingForDomain($domain, $limit);
+
+        return response()->json([
+            'ok' => true,
+            'message' => $synced > 0
+                ? "Pushed {$synced} IP(s) to Google Ads campaign exclusions."
+                : 'No pending IPs to push (or all pushes failed — see list below).',
+            'synced' => $synced,
+            'rows' => $this->googleExclusionRowsForDomain($domain->id),
+        ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function googleExclusionRowsForDomain(int $domainId): array
+    {
+        if (! Schema::hasTable('google_ads_ip_exclusions')) {
+            return [];
+        }
+
+        return DB::table('google_ads_ip_exclusions')
+            ->where('domain_id', $domainId)
+            ->orderByDesc('updated_at')
+            ->limit(50)
+            ->get()
+            ->map(fn ($row) => $this->formatGoogleExclusionRow($row))
+            ->values()
+            ->all();
+    }
+
+    /** @return array<string, mixed> */
+    private function formatGoogleExclusionRow(object $row): array
+    {
+        return [
+            'ip' => (string) $row->ip,
+            'threat_group' => (string) ($row->threat_group ?? ''),
+            'sync_status' => (string) ($row->sync_status ?? 'pending'),
+            'sync_error' => $row->sync_error ? (string) $row->sync_error : null,
+            'synced_at' => $row->synced_at ? (string) $row->synced_at : null,
+            'updated_at' => (string) ($row->updated_at ?? ''),
+        ];
     }
 
     public function getRulesApi(Request $request, Domain $domain): JsonResponse

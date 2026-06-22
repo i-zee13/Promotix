@@ -273,6 +273,83 @@
                                         </div>
                                         <p class="text-[10px] text-white/50">Checked threat types are queued to your Google Ads IP exclusion list when a visit is blocked.</p>
                                     </div>
+
+                                    <div
+                                        class="mt-[12px] rounded-[8px] border border-white/15 bg-black/20 p-[12px] space-y-[10px]"
+                                        x-data="googleExclusionPanel(@js([
+                                            'pushUrl' => route('paid-marketing.detection-settings.google-exclusion.push', $domain),
+                                            'syncUrl' => route('paid-marketing.detection-settings.google-exclusion.sync', $domain),
+                                            'csrf' => csrf_token(),
+                                            'rows' => $ipExclusions,
+                                        ]))"
+                                    >
+                                        <h3 class="text-[12px] font-semibold text-white">Google Ads IP exclusion (manual test)</h3>
+                                        <p class="text-[10px] text-white/55">Add an IP directly to this domain's Google Ads campaign exclusion list. Use this to verify the connection before automatic blocking runs.</p>
+                                        <div class="flex flex-wrap items-end gap-[8px]">
+                                            <label class="min-w-[180px] flex-1">
+                                                <span class="mb-[4px] block text-[10px] text-white/70">IP address</span>
+                                                <input
+                                                    type="text"
+                                                    x-model="ip"
+                                                    placeholder="203.0.113.50"
+                                                    class="figma-textarea !mt-0 h-[36px] !py-[8px] text-[12px]"
+                                                    @keydown.enter.prevent="pushIp()"
+                                                >
+                                            </label>
+                                            <button
+                                                type="button"
+                                                class="rounded-[6px] bg-white px-[16px] py-[9px] text-[12px] font-semibold text-[#6400B2] disabled:opacity-50"
+                                                :disabled="loading || !ip.trim()"
+                                                @click="pushIp()"
+                                            >
+                                                Add to campaigns
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="rounded-[6px] border border-white/30 px-[14px] py-[9px] text-[12px] text-white disabled:opacity-50"
+                                                :disabled="loading"
+                                                @click="syncPending()"
+                                            >
+                                                Push all pending
+                                            </button>
+                                        </div>
+                                        <p x-show="message" x-text="message" class="text-[11px]" :class="ok ? 'text-emerald-300' : 'text-rose-300'"></p>
+                                        <div class="max-h-[160px] overflow-y-auto rounded-[6px] border border-white/10">
+                                            <table class="w-full text-left text-[10px] text-white/85">
+                                                <thead class="sticky top-0 bg-[#101010] text-white/60">
+                                                    <tr>
+                                                        <th class="px-[8px] py-[6px] font-normal">IP</th>
+                                                        <th class="px-[8px] py-[6px] font-normal">Type</th>
+                                                        <th class="px-[8px] py-[6px] font-normal">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template x-if="!rows.length">
+                                                        <tr><td colspan="3" class="px-[8px] py-[8px] text-white/45">No blocked IPs queued yet.</td></tr>
+                                                    </template>
+                                                    <template x-for="row in rows" :key="row.ip + row.updated_at">
+                                                        <tr class="border-t border-white/10">
+                                                            <td class="px-[8px] py-[6px] font-mono" x-text="row.ip"></td>
+                                                            <td class="px-[8px] py-[6px] capitalize" x-text="row.threat_group || '—'"></td>
+                                                            <td class="px-[8px] py-[6px]">
+                                                                <span
+                                                                    class="rounded-[3px] px-[6px] py-[2px] text-[9px] uppercase"
+                                                                    :class="{
+                                                                        'bg-emerald-500/20 text-emerald-300': row.sync_status === 'synced',
+                                                                        'bg-amber-500/20 text-amber-200': row.sync_status === 'pending',
+                                                                        'bg-rose-500/20 text-rose-300': row.sync_status === 'failed',
+                                                                        'bg-white/10 text-white/60': row.sync_status === 'skipped',
+                                                                    }"
+                                                                    x-text="row.sync_status"
+                                                                ></span>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p class="text-[9px] text-white/40">CLI: <code class="text-white/60">php artisan google-ads:sync-ip-exclusions --list</code> · <code class="text-white/60">php artisan google-ads:sync-ip-exclusions --retry-failed</code></p>
+                                    </div>
                                 </div>
 
                                 <div class="figma-detection-save-row flex justify-end pt-[4px]">
@@ -286,4 +363,73 @@
         @endif
     </section>
 </div>
+
+<script>
+function googleExclusionPanel(config) {
+    return {
+        ip: '',
+        rows: config.rows || [],
+        pushUrl: config.pushUrl,
+        syncUrl: config.syncUrl,
+        csrf: config.csrf,
+        loading: false,
+        message: '',
+        ok: true,
+        async pushIp() {
+            const ip = this.ip.trim();
+            if (!ip || this.loading) return;
+            this.loading = true;
+            this.message = '';
+            try {
+                const res = await fetch(this.pushUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ ip }),
+                });
+                const data = await res.json().catch(() => ({}));
+                this.ok = !!data.ok;
+                this.message = data.message || (this.ok ? 'IP pushed.' : 'Push failed.');
+                if (Array.isArray(data.rows)) this.rows = data.rows;
+                if (this.ok) this.ip = '';
+            } catch (e) {
+                this.ok = false;
+                this.message = 'Request failed. Check console or try again.';
+            } finally {
+                this.loading = false;
+            }
+        },
+        async syncPending() {
+            if (this.loading) return;
+            this.loading = true;
+            this.message = '';
+            try {
+                const res = await fetch(this.syncUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ limit: 100 }),
+                });
+                const data = await res.json().catch(() => ({}));
+                this.ok = !!data.ok;
+                this.message = data.message || 'Sync finished.';
+                if (Array.isArray(data.rows)) this.rows = data.rows;
+            } catch (e) {
+                this.ok = false;
+                this.message = 'Sync request failed.';
+            } finally {
+                this.loading = false;
+            }
+        },
+    };
+}
+</script>
 @endsection
