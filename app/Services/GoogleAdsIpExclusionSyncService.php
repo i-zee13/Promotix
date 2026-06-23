@@ -78,18 +78,8 @@ class GoogleAdsIpExclusionSyncService
         }
 
         $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
+        $googleIp = $this->formatIpForGoogle($ip);
         $campaignIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
-
-        if ($campaignIds === []) {
-            $this->markRow(
-                $domain->id,
-                $ip,
-                'skipped',
-                'No editable Google Ads campaigns found for this domain. Run metrics sync, or check Integrations access level (Standard required).'
-            );
-
-            return false;
-        }
 
         $failures = [];
         $skipped = [];
@@ -110,7 +100,7 @@ class GoogleAdsIpExclusionSyncService
                             'campaign' => "customers/{$customerId}/campaigns/{$campaignId}",
                             'negative' => true,
                             'ipBlock' => [
-                                'ipAddress' => $ip,
+                                'ipAddress' => $googleIp,
                             ],
                         ],
                     ]],
@@ -145,6 +135,24 @@ class GoogleAdsIpExclusionSyncService
             $failures[] = "campaign {$campaignId}: " . Str::limit($error, 300);
         }
 
+        if ($successes === 0) {
+            $accountResult = $this->syncIpAtAccountLevel($customerId, $ip, $googleIp, $version, $headers);
+            if ($accountResult['ok']) {
+                $note = 'Added at Google Ads account level (covers Performance Max / Demand Gen campaigns that do not support campaign-level IP exclusions).';
+                $extra = array_merge($skipped, $failures);
+                if ($extra !== []) {
+                    $note .= ' Skipped campaign-level: ' . implode(' | ', $extra);
+                }
+                $this->markRow($domain->id, $ip, 'synced', $note, now());
+
+                return true;
+            }
+
+            if ($accountResult['error']) {
+                $failures[] = $accountResult['error'];
+            }
+        }
+
         if ($successes > 0) {
             $notes = array_merge($skipped, $failures);
             $this->markRow($domain->id, $ip, 'synced', $notes === [] ? null : implode(' | ', $notes), now());
@@ -153,7 +161,7 @@ class GoogleAdsIpExclusionSyncService
         }
 
         $combined = array_merge($failures, $skipped);
-        $message = $combined !== [] ? implode(' | ', $combined) : 'Could not add IP to any campaign.';
+        $message = $combined !== [] ? implode(' | ', $combined) : 'Could not add IP to any campaign or account exclusion list.';
         if ($this->allPermissionErrors($combined)) {
             $message .= ' Reconnect Google Ads in Integrations with Standard access, or ensure campaigns belong to this linked account.';
         }
@@ -161,6 +169,92 @@ class GoogleAdsIpExclusionSyncService
         $this->markRow($domain->id, $ip, 'failed', $message);
 
         return false;
+    }
+
+    /** @return array{ok: bool, error: ?string} */
+    private function syncIpAtAccountLevel(
+        string $customerId,
+        string $rawIp,
+        string $googleIp,
+        string $version,
+        array $headers,
+    ): array {
+        if ($this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $rawIp)) {
+            return ['ok' => true, 'error' => null];
+        }
+
+        $response = Http::timeout(30)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($version, "customers/{$customerId}/customerNegativeCriteria:mutate"), [
+                'operations' => [[
+                    'create' => [
+                        'ipBlock' => [
+                            'ipAddress' => $googleIp,
+                        ],
+                    ],
+                ]],
+            ]);
+
+        if ($response->successful()) {
+            Log::info('Google Ads account-level IP exclusion synced', [
+                'customer_id' => $customerId,
+                'ip' => $rawIp,
+            ]);
+
+            return ['ok' => true, 'error' => null];
+        }
+
+        $error = $this->extractErrorMessage((string) $response->body());
+        if ($this->isBenignDuplicate($error)) {
+            return ['ok' => true, 'error' => null];
+        }
+
+        return ['ok' => false, 'error' => 'Account-level: ' . Str::limit($error, 300)];
+    }
+
+    /** @param  array<string, string>  $headers */
+    private function ipAlreadyBlockedOnAccount(
+        string $customerId,
+        string $version,
+        array $headers,
+        string $ip,
+    ): bool {
+        $query = 'SELECT customer_negative_criterion.resource_name, customer_negative_criterion.ip_block.ip_address FROM customer_negative_criterion WHERE customer_negative_criterion.type = IP_BLOCK';
+
+        $response = Http::timeout(30)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if (! $response->successful()) {
+            return false;
+        }
+
+        foreach ($this->parseRows($response->json()) as $row) {
+            $block = $row['customerNegativeCriterion']['ipBlock']
+                ?? $row['customer_negative_criterion']['ip_block']
+                ?? [];
+            $existing = (string) ($block['ipAddress'] ?? $block['ip_address'] ?? '');
+            if ($this->ipsMatch($existing, $ip)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function formatIpForGoogle(string $ip): string
+    {
+        $ip = trim($ip);
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return str_contains($ip, '/') ? $ip : $ip . '/32';
+        }
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            return str_contains($ip, '/') ? $ip : $ip . '/128';
+        }
+
+        return $ip;
     }
 
     /**
@@ -302,7 +396,12 @@ class GoogleAdsIpExclusionSyncService
 
     private function channelLikelyUnsupportedForIpBlock(string $channel): bool
     {
+        // Google Ads UI: campaign-level IP exclusions are NOT supported for these types.
         $unsupported = [
+            'PERFORMANCE_MAX',
+            'VIDEO',
+            'DEMAND_GEN',
+            'APP',
             'LOCAL',
             'LOCAL_SERVICES',
             'HOTEL',
@@ -325,6 +424,10 @@ class GoogleAdsIpExclusionSyncService
             'CANNOT_MODIFY',
             'Criterion type is not supported',
             'not supported for this campaign',
+            'invalid argument',
+            'INVALID_ARGUMENT',
+            'OPERATION_NOT_PERMITTED_FOR_CAMPAIGN_TYPE',
+            'CRITERION_NOT_SUPPORTED',
         ];
 
         foreach ($needles as $needle) {
