@@ -635,7 +635,7 @@ class PaidMarketingController extends Controller
             return response()->json(['ok' => false, 'message' => 'Enter a valid IPv4 or IPv6 address.'], 422);
         }
 
-        return $this->pushGoogleExclusionIpsResponse($domain, $sync, [$ip], "IP {$ip} added to Google Ads campaign exclusions for {$domain->hostname}.");
+        return $this->pushGoogleExclusionIpsResponse($domain, $sync, [$ip], '');
     }
 
     public function pushGoogleExclusionBulk(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
@@ -726,11 +726,13 @@ class PaidMarketingController extends Controller
             ->where('ip', $ip)
             ->first();
 
+        $detail = $row?->sync_error ? (string) $row->sync_error : null;
+
         return response()->json([
             'ok' => $synced,
             'message' => $synced
-                ? $successMessage
-                : (string) ($row->sync_error ?? 'Could not push IP to Google Ads. Check Google Ads link and campaign sync.'),
+                ? ($detail ?: "IP {$ip} confirmed in Google Ads exclusions for {$domain->hostname}.")
+                : ($detail ?: 'Could not push IP to Google Ads. Check Google Ads link and campaign sync.'),
             'row' => $row ? $this->formatGoogleExclusionRow($row) : null,
             'rows' => $this->googleExclusionRowsForDomain($domain->id),
         ], $synced ? 200 : 422);

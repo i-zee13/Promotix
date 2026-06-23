@@ -126,6 +126,12 @@ class GoogleAdsIpExclusionSyncService
                 continue;
             }
 
+            if ($this->isCampaignLimitError($error)) {
+                $failures[] = "campaign {$campaignId}: IP exclusion list is full (500/500 max per campaign).";
+
+                continue;
+            }
+
             if ($this->isSkippableCampaignError($error)) {
                 $skipped[] = "campaign {$campaignId}: " . Str::limit($error, 200);
 
@@ -135,33 +141,43 @@ class GoogleAdsIpExclusionSyncService
             $failures[] = "campaign {$campaignId}: " . Str::limit($error, 300);
         }
 
-        if ($successes === 0) {
+        $onCampaigns = $this->verifyIpOnCampaigns($domain, $ip);
+        $onAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $ip);
+
+        if ($onCampaigns === [] && ! $onAccount) {
             $accountResult = $this->syncIpAtAccountLevel($customerId, $ip, $googleIp, $version, $headers);
             if ($accountResult['ok']) {
-                $note = 'Added at Google Ads account level (covers Performance Max / Demand Gen campaigns that do not support campaign-level IP exclusions).';
-                $extra = array_merge($skipped, $failures);
-                if ($extra !== []) {
-                    $note .= ' Skipped campaign-level: ' . implode(' | ', $extra);
-                }
-                $this->markRow($domain->id, $ip, 'synced', $note, now());
-
-                return true;
-            }
-
-            if ($accountResult['error']) {
+                $onAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $ip);
+            } elseif ($accountResult['error']) {
                 $failures[] = $accountResult['error'];
             }
         }
 
-        if ($successes > 0) {
-            $notes = array_merge($skipped, $failures);
-            $this->markRow($domain->id, $ip, 'synced', $notes === [] ? null : implode(' | ', $notes), now());
+        if ($onCampaigns !== []) {
+            $campaignList = implode(', ', array_unique(array_column($onCampaigns, 'campaign_id')));
+            $note = "Confirmed on campaign(s): {$campaignList}";
+            $extra = array_merge($skipped, $failures);
+            if ($extra !== []) {
+                $note .= ' | ' . implode(' | ', $extra);
+            }
+            $this->markRow($domain->id, $ip, 'synced', $note, now());
+
+            return true;
+        }
+
+        if ($onAccount) {
+            $note = 'Confirmed at Google Ads account level (not in campaign list — campaign may be full at 500/500 or unsupported type).';
+            $extra = array_merge($skipped, $failures);
+            if ($extra !== []) {
+                $note .= ' | ' . implode(' | ', $extra);
+            }
+            $this->markRow($domain->id, $ip, 'synced', $note, now());
 
             return true;
         }
 
         $combined = array_merge($failures, $skipped);
-        $message = $combined !== [] ? implode(' | ', $combined) : 'Could not add IP to any campaign or account exclusion list.';
+        $message = $combined !== [] ? implode(' | ', $combined) : 'Google did not confirm the IP on campaign or account exclusions.';
         if ($this->allPermissionErrors($combined)) {
             $message .= ' Reconnect Google Ads in Integrations with Standard access, or ensure campaigns belong to this linked account.';
         }
@@ -410,6 +426,24 @@ class GoogleAdsIpExclusionSyncService
         ];
 
         return in_array(strtoupper(trim($channel)), $unsupported, true);
+    }
+
+    private function isCampaignLimitError(string $error): bool
+    {
+        $needles = [
+            'Exceeded entity limit',
+            'RESOURCE_LIMIT',
+            'negative IP blocks per campaign',
+            'Limit: 500',
+        ];
+
+        foreach ($needles as $needle) {
+            if (stripos($error, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isSkippableCampaignError(string $error): bool
