@@ -81,12 +81,18 @@ class GoogleAdsIpExclusionSyncService
         $campaignIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
 
         if ($campaignIds === []) {
-            $this->markRow($domain->id, $ip, 'skipped', 'No Google Ads campaigns found for this domain hostname yet. Run metrics sync first.');
+            $this->markRow(
+                $domain->id,
+                $ip,
+                'skipped',
+                'No editable Google Ads campaigns found for this domain. Run metrics sync, or check Integrations access level (Standard required).'
+            );
 
             return false;
         }
 
         $failures = [];
+        $skipped = [];
         $successes = 0;
 
         foreach ($campaignIds as $campaignId) {
@@ -130,18 +136,69 @@ class GoogleAdsIpExclusionSyncService
                 continue;
             }
 
+            if ($this->isSkippableCampaignError($error)) {
+                $skipped[] = "campaign {$campaignId}: " . Str::limit($error, 200);
+
+                continue;
+            }
+
             $failures[] = "campaign {$campaignId}: " . Str::limit($error, 300);
         }
 
         if ($successes > 0) {
-            $this->markRow($domain->id, $ip, 'synced', $failures === [] ? null : implode(' | ', $failures), now());
+            $notes = array_merge($skipped, $failures);
+            $this->markRow($domain->id, $ip, 'synced', $notes === [] ? null : implode(' | ', $notes), now());
 
             return true;
         }
 
-        $this->markRow($domain->id, $ip, 'failed', implode(' | ', $failures) ?: 'Could not add IP to any campaign.');
+        $combined = array_merge($failures, $skipped);
+        $message = $combined !== [] ? implode(' | ', $combined) : 'Could not add IP to any campaign.';
+        if ($this->allPermissionErrors($combined)) {
+            $message .= ' Reconnect Google Ads in Integrations with Standard access, or ensure campaigns belong to this linked account.';
+        }
+
+        $this->markRow($domain->id, $ip, 'failed', $message);
 
         return false;
+    }
+
+    /**
+     * @param  list<string>  $ips
+     * @return array{synced: int, failed: int, invalid: list<string>, errors: list<string>}
+     */
+    public function syncManyIps(Domain $domain, array $ips, int $limit = 200): array
+    {
+        $ips = array_values(array_unique(array_filter(array_map('trim', $ips))));
+        $ips = array_slice($ips, 0, max(1, $limit));
+
+        $synced = 0;
+        $failed = 0;
+        $invalid = [];
+        $errors = [];
+
+        foreach ($ips as $ip) {
+            if (! filter_var($ip, FILTER_VALIDATE_IP)) {
+                $invalid[] = $ip;
+
+                continue;
+            }
+
+            if ($this->syncRow($domain, $ip)) {
+                $synced++;
+            } else {
+                $failed++;
+                $row = DB::table('google_ads_ip_exclusions')
+                    ->where('domain_id', $domain->id)
+                    ->where('ip', $ip)
+                    ->first();
+                if ($row?->sync_error) {
+                    $errors[] = "{$ip}: {$row->sync_error}";
+                }
+            }
+        }
+
+        return compact('synced', 'failed', 'invalid', 'errors');
     }
 
     /**
@@ -156,10 +213,17 @@ class GoogleAdsIpExclusionSyncService
         string $version,
         array $headers,
     ): array {
-        $ids = [];
+        $hostname = strtolower(trim((string) $domain->hostname));
+        $to = Carbon::now()->toDateString();
+        $from = Carbon::now()->subDays(30)->toDateString();
 
+        $hostnameIds = $hostname !== ''
+            ? $this->metrics->campaignIdsForHostname($account, $version, $headers, $hostname, $from, $to)
+            : [];
+
+        $metricIds = [];
         if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
-            $ids = DB::table('google_ads_campaign_daily_metrics')
+            $metricIds = DB::table('google_ads_campaign_daily_metrics')
                 ->where('domain_id', $domain->id)
                 ->whereNotNull('campaign_id')
                 ->where('campaign_id', '!=', '')
@@ -171,26 +235,121 @@ class GoogleAdsIpExclusionSyncService
                 ->all();
         }
 
-        if ($ids !== []) {
-            return array_values(array_unique($ids));
+        $candidateIds = $hostnameIds !== []
+            ? array_values(array_unique($hostnameIds))
+            : array_values(array_unique($metricIds));
+
+        if ($hostnameIds !== [] && $metricIds !== []) {
+            $overlap = array_values(array_intersect($hostnameIds, $metricIds));
+            if ($overlap !== []) {
+                $candidateIds = $overlap;
+            }
         }
 
-        $hostname = strtolower(trim((string) $domain->hostname));
-        if ($hostname === '') {
+        return $this->filterEligibleCampaignIds($customerId, $candidateIds, $version, $headers);
+    }
+
+    /**
+     * Keep only active campaigns the API can read (drops removed / inaccessible IDs).
+     *
+     * @param  list<string>  $campaignIds
+     * @return list<string>
+     */
+    private function filterEligibleCampaignIds(
+        string $customerId,
+        array $campaignIds,
+        string $version,
+        array $headers,
+    ): array {
+        $campaignIds = array_values(array_unique(array_filter(array_map(
+            fn ($id) => preg_replace('/\D+/', '', (string) $id),
+            $campaignIds,
+        ))));
+
+        if ($campaignIds === []) {
             return [];
         }
 
-        $to = Carbon::now()->toDateString();
-        $from = Carbon::now()->subDays(30)->toDateString();
+        $chunks = array_chunk($campaignIds, 50);
+        $eligible = [];
 
-        return $this->metrics->campaignIdsForHostname(
-            $account,
-            $version,
-            $headers,
-            $hostname,
-            $from,
-            $to,
-        );
+        foreach ($chunks as $chunk) {
+            $inList = implode(',', array_map('intval', $chunk));
+            $query = "SELECT campaign.id, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.id IN ({$inList}) AND campaign.status IN ('ENABLED', 'PAUSED')";
+
+            $response = Http::timeout(30)
+                ->withHeaders($headers)
+                ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                    'query' => $query,
+                ]);
+
+            if (! $response->successful()) {
+                continue;
+            }
+
+            foreach ($this->parseRows($response->json()) as $row) {
+                $id = (string) ($row['campaign']['id'] ?? '');
+                $channel = (string) ($row['campaign']['advertisingChannelType'] ?? $row['campaign']['advertising_channel_type'] ?? '');
+                if ($id === '' || $this->channelLikelyUnsupportedForIpBlock($channel)) {
+                    continue;
+                }
+                $eligible[] = $id;
+            }
+        }
+
+        return array_values(array_unique($eligible));
+    }
+
+    private function channelLikelyUnsupportedForIpBlock(string $channel): bool
+    {
+        $unsupported = [
+            'LOCAL',
+            'LOCAL_SERVICES',
+            'HOTEL',
+            'TRAVEL',
+            'SMART',
+        ];
+
+        return in_array(strtoupper(trim($channel)), $unsupported, true);
+    }
+
+    private function isSkippableCampaignError(string $error): bool
+    {
+        $needles = [
+            'does not have permission',
+            'PERMISSION_DENIED',
+            'USER_PERMISSION_DENIED',
+            'AUTHORIZATION_ERROR',
+            'OPERATION_NOT_PERMITTED',
+            'NOT_PERMITTED',
+            'CANNOT_MODIFY',
+            'Criterion type is not supported',
+            'not supported for this campaign',
+        ];
+
+        foreach ($needles as $needle) {
+            if (stripos($error, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @param  list<string>  $messages */
+    private function allPermissionErrors(array $messages): bool
+    {
+        if ($messages === []) {
+            return false;
+        }
+
+        foreach ($messages as $message) {
+            if (! $this->isSkippableCampaignError($message)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** @return array<string, string>|null */

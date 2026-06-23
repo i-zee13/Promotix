@@ -278,6 +278,7 @@
                                         class="mt-[12px] rounded-[8px] border border-white/15 bg-black/20 p-[12px] space-y-[10px]"
                                         x-data="googleExclusionPanel(@js([
                                             'pushUrl' => route('paid-marketing.detection-settings.google-exclusion.push', $domain),
+                                            'bulkUrl' => route('paid-marketing.detection-settings.google-exclusion.push-bulk', $domain),
                                             'syncUrl' => route('paid-marketing.detection-settings.google-exclusion.sync', $domain),
                                             'csrf' => csrf_token(),
                                             'rows' => $ipExclusions,
@@ -312,6 +313,31 @@
                                             >
                                                 Push all pending
                                             </button>
+                                        </div>
+                                        <div class="rounded-[6px] border border-white/10 bg-black/25 p-[10px] space-y-[8px]">
+                                            <p class="text-[11px] font-semibold text-white">Bulk IP upload</p>
+                                            <p class="text-[10px] text-white/50">One IP per line, or comma-separated. Upload .txt / .csv (max 200 IPs).</p>
+                                            <textarea
+                                                x-model="bulkIps"
+                                                rows="4"
+                                                placeholder="203.0.113.1&#10;203.0.113.2&#10;2001:db8::1"
+                                                class="figma-textarea w-full text-[11px]"
+                                            ></textarea>
+                                            <div class="flex flex-wrap items-center gap-[8px]">
+                                                <label class="cursor-pointer rounded-[6px] border border-white/30 px-[12px] py-[8px] text-[11px] text-white hover:bg-white/10">
+                                                    <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onBulkFile($event)">
+                                                    Choose file
+                                                </label>
+                                                <span class="text-[10px] text-white/50" x-text="bulkFileName || 'No file chosen'"></span>
+                                                <button
+                                                    type="button"
+                                                    class="rounded-[6px] bg-white px-[14px] py-[8px] text-[11px] font-semibold text-[#6400B2] disabled:opacity-50"
+                                                    :disabled="loading || (!bulkIps.trim() && !bulkFileName)"
+                                                    @click="pushBulk()"
+                                                >
+                                                    Upload &amp; add to campaigns
+                                                </button>
+                                            </div>
                                         </div>
                                         <p x-show="message" x-text="message" class="text-[11px]" :class="ok ? 'text-emerald-300' : 'text-rose-300'"></p>
                                         <div class="max-h-[160px] overflow-y-auto rounded-[6px] border border-white/10">
@@ -368,13 +394,59 @@
 function googleExclusionPanel(config) {
     return {
         ip: '',
+        bulkIps: '',
+        bulkFile: null,
+        bulkFileName: '',
         rows: config.rows || [],
         pushUrl: config.pushUrl,
+        bulkUrl: config.bulkUrl,
         syncUrl: config.syncUrl,
         csrf: config.csrf,
         loading: false,
         message: '',
         ok: true,
+        onBulkFile(event) {
+            const file = event.target.files?.[0];
+            this.bulkFile = file || null;
+            this.bulkFileName = file ? file.name : '';
+        },
+        async pushBulk() {
+            if (this.loading || (!this.bulkIps.trim() && !this.bulkFile)) return;
+            this.loading = true;
+            this.message = '';
+            try {
+                const form = new FormData();
+                if (this.bulkIps.trim()) {
+                    form.append('ips', this.bulkIps.trim());
+                }
+                if (this.bulkFile) {
+                    form.append('file', this.bulkFile);
+                }
+                const res = await fetch(this.bulkUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: form,
+                });
+                const data = await res.json().catch(() => ({}));
+                this.ok = !!data.ok;
+                this.message = data.message || (this.ok ? 'Bulk upload finished.' : 'Bulk upload failed.');
+                if (Array.isArray(data.rows)) this.rows = data.rows;
+                if (this.ok) {
+                    this.bulkIps = '';
+                    this.bulkFile = null;
+                    this.bulkFileName = '';
+                }
+            } catch (e) {
+                this.ok = false;
+                this.message = 'Bulk upload request failed.';
+            } finally {
+                this.loading = false;
+            }
+        },
         async pushIp() {
             const ip = this.ip.trim();
             if (!ip || this.loading) return;

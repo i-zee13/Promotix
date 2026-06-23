@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -634,22 +635,91 @@ class PaidMarketingController extends Controller
             return response()->json(['ok' => false, 'message' => 'Enter a valid IPv4 or IPv6 address.'], 422);
         }
 
+        return $this->pushGoogleExclusionIpsResponse($domain, $sync, [$ip], "IP {$ip} added to Google Ads campaign exclusions for {$domain->hostname}.");
+    }
+
+    public function pushGoogleExclusionBulk(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        $data = $request->validate([
+            'ips' => ['nullable', 'string', 'max:100000'],
+            'file' => ['nullable', 'file', 'mimes:txt,csv', 'max:5120'],
+        ]);
+
+        $raw = trim((string) ($data['ips'] ?? ''));
+        if ($request->hasFile('file')) {
+            $raw .= ($raw !== '' ? "\n" : '') . (string) $request->file('file')->get();
+        }
+
+        $ips = $this->parseIpList($raw);
+        if ($ips === []) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No valid IPs found. Enter one IP per line, or upload a .txt / .csv file.',
+            ], 422);
+        }
+
+        if (count($ips) > 200) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Maximum 200 IPs per upload. Split your list and try again.',
+            ], 422);
+        }
+
+        return $this->pushGoogleExclusionIpsResponse($domain, $sync, $ips, '', isBulk: true);
+    }
+
+    /** @param  list<string>  $ips */
+    private function pushGoogleExclusionIpsResponse(
+        Domain $domain,
+        GoogleAdsIpExclusionSyncService $sync,
+        array $ips,
+        string $successMessage,
+        bool $isBulk = false,
+    ): JsonResponse {
         if (! Schema::hasTable('google_ads_ip_exclusions')) {
             return response()->json(['ok' => false, 'message' => 'Exclusion table not available. Run migrations first.'], 503);
         }
 
-        DB::table('google_ads_ip_exclusions')->updateOrInsert(
-            ['domain_id' => $domain->id, 'ip' => $ip],
-            [
-                'threat_group' => 'manual',
-                'exclusion_mode' => 'manual_test',
-                'sync_status' => 'pending',
-                'sync_error' => null,
-                'updated_at' => now(),
-                'created_at' => now(),
-            ]
-        );
+        foreach ($ips as $ip) {
+            if (! filter_var($ip, FILTER_VALIDATE_IP)) {
+                continue;
+            }
+            DB::table('google_ads_ip_exclusions')->updateOrInsert(
+                ['domain_id' => $domain->id, 'ip' => $ip],
+                [
+                    'threat_group' => 'manual',
+                    'exclusion_mode' => 'manual_bulk',
+                    'sync_status' => 'pending',
+                    'sync_error' => null,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
 
+        if ($isBulk) {
+            $result = $sync->syncManyIps($domain, $ips, 200);
+            $message = sprintf(
+                'Bulk upload: %d synced, %d failed, %d invalid skipped.',
+                $result['synced'],
+                $result['failed'],
+                count($result['invalid']),
+            );
+            if ($result['errors'] !== []) {
+                $message .= ' First error: ' . Str::limit((string) $result['errors'][0], 180);
+            }
+
+            return response()->json([
+                'ok' => $result['synced'] > 0,
+                'message' => $message,
+                'summary' => $result,
+                'rows' => $this->googleExclusionRowsForDomain($domain->id),
+            ], $result['synced'] > 0 ? 200 : 422);
+        }
+
+        $ip = $ips[0];
         $synced = $sync->syncRow($domain, $ip);
         $row = DB::table('google_ads_ip_exclusions')
             ->where('domain_id', $domain->id)
@@ -659,11 +729,29 @@ class PaidMarketingController extends Controller
         return response()->json([
             'ok' => $synced,
             'message' => $synced
-                ? "IP {$ip} added to Google Ads campaign exclusions for {$domain->hostname}."
+                ? $successMessage
                 : (string) ($row->sync_error ?? 'Could not push IP to Google Ads. Check Google Ads link and campaign sync.'),
             'row' => $row ? $this->formatGoogleExclusionRow($row) : null,
             'rows' => $this->googleExclusionRowsForDomain($domain->id),
         ], $synced ? 200 : 422);
+    }
+
+    /** @return list<string> */
+    private function parseIpList(string $raw): array
+    {
+        $parts = preg_split('/[\s,;]+/', $raw) ?: [];
+        $ips = [];
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+            if (filter_var($part, FILTER_VALIDATE_IP)) {
+                $ips[] = $part;
+            }
+        }
+
+        return array_values(array_unique($ips));
     }
 
     public function syncGoogleExclusionIps(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
