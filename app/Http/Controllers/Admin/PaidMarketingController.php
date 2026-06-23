@@ -12,6 +12,7 @@ use App\Services\IpIntel\IpIntelService;
 use App\Services\GeoCatalogService;
 use App\Services\GoogleAdsIpExclusionSyncService;
 use App\Services\GoogleAudienceExclusionService;
+use App\Support\GoogleIpBlockFormatter;
 use App\Support\SessionRecordingNormalizer;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
@@ -627,12 +628,12 @@ class PaidMarketingController extends Controller
         abort_unless($domain->user_id === $request->user()->id, 403);
 
         $data = $request->validate([
-            'ip' => ['required', 'string', 'max:45'],
+            'ip' => ['required', 'string', 'max:128'],
         ]);
 
         $ip = trim($data['ip']);
-        if (! filter_var($ip, FILTER_VALIDATE_IP)) {
-            return response()->json(['ok' => false, 'message' => 'Enter a valid IPv4 or IPv6 address.'], 422);
+        if (! GoogleIpBlockFormatter::isSupported($ip)) {
+            return response()->json(['ok' => false, 'message' => 'Enter a valid IP, CIDR range, or wildcard (e.g. 216.67.176.*).'], 422);
         }
 
         return $this->pushGoogleExclusionIpsResponse($domain, $sync, [$ip], '');
@@ -652,7 +653,7 @@ class PaidMarketingController extends Controller
             $raw .= ($raw !== '' ? "\n" : '') . (string) $request->file('file')->get();
         }
 
-        $ips = $this->parseIpList($raw);
+        $ips = GoogleIpBlockFormatter::parseList($raw);
         if ($ips === []) {
             return response()->json([
                 'ok' => false,
@@ -683,11 +684,12 @@ class PaidMarketingController extends Controller
         }
 
         foreach ($ips as $ip) {
-            if (! filter_var($ip, FILTER_VALIDATE_IP)) {
+            $normalized = GoogleIpBlockFormatter::normalize($ip);
+            if ($normalized === null) {
                 continue;
             }
             DB::table('google_ads_ip_exclusions')->updateOrInsert(
-                ['domain_id' => $domain->id, 'ip' => $ip],
+                ['domain_id' => $domain->id, 'ip' => $normalized],
                 [
                     'threat_group' => 'manual',
                     'exclusion_mode' => 'manual_bulk',
@@ -741,19 +743,7 @@ class PaidMarketingController extends Controller
     /** @return list<string> */
     private function parseIpList(string $raw): array
     {
-        $parts = preg_split('/[\s,;]+/', $raw) ?: [];
-        $ips = [];
-        foreach ($parts as $part) {
-            $part = trim($part);
-            if ($part === '') {
-                continue;
-            }
-            if (filter_var($part, FILTER_VALIDATE_IP)) {
-                $ips[] = $part;
-            }
-        }
-
-        return array_values(array_unique($ips));
+        return GoogleIpBlockFormatter::parseList($raw);
     }
 
     public function syncGoogleExclusionIps(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse

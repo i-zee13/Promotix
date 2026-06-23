@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Domain;
 use App\Services\GoogleAdsIpExclusionSyncService;
+use App\Support\GoogleIpBlockFormatter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -21,12 +22,19 @@ class DiagnoseGoogleAdsIpExclusion extends Command
     {
         $domainId = (int) $this->argument('domain');
         $ip = trim((string) $this->argument('ip'));
+        $googleIp = GoogleIpBlockFormatter::normalize($ip);
 
-        if (! filter_var($ip, FILTER_VALIDATE_IP)) {
-            $this->error('Invalid IP address.');
+        if ($googleIp === null) {
+            $this->error('Invalid IP, CIDR, or wildcard (e.g. 216.67.176.*).');
 
             return self::FAILURE;
         }
+
+        if ($googleIp !== $ip) {
+            $this->line("Normalized for Google Ads: {$googleIp}");
+        }
+
+        $ip = $googleIp;
 
         $domain = Domain::with('googleAdsAccount.connection')->find($domainId);
         if (! $domain) {

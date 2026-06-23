@@ -285,7 +285,7 @@
                                         ]))"
                                     >
                                         <h3 class="text-[12px] font-semibold text-white">Google Ads IP exclusion (manual test)</h3>
-                                        <p class="text-[10px] text-white/55">Add an IP directly to this domain's Google Ads campaign exclusion list. Use this to verify the connection before automatic blocking runs.</p>
+                                        <p class="text-[10px] text-white/55">Add an IP, CIDR range, or wildcard (e.g. 216.67.176.*) to campaign exclusions. Wildcards are converted to CIDR for Google Ads.</p>
                                         <div class="flex flex-wrap items-end gap-[8px]">
                                             <label class="min-w-[180px] flex-1">
                                                 <span class="mb-[4px] block text-[10px] text-white/70">IP address</span>
@@ -316,11 +316,11 @@
                                         </div>
                                         <div class="rounded-[6px] border border-white/10 bg-black/25 p-[10px] space-y-[8px]">
                                             <p class="text-[11px] font-semibold text-white">Bulk IP upload</p>
-                                            <p class="text-[10px] text-white/50">One IP per line, or comma-separated. Upload .txt / .csv (max 200 IPs).</p>
+                                            <p class="text-[10px] text-white/50">One per line or comma-separated. Supports single IP, CIDR (13.0.0.0/8), and wildcards (216.67.176.*). Max 200 per upload.</p>
                                             <textarea
                                                 x-model="bulkIps"
                                                 rows="4"
-                                                placeholder="203.0.113.1&#10;203.0.113.2&#10;2001:db8::1"
+                                                placeholder="216.67.176.*&#10;54.202.0.0/15&#10;74.7.229.22"
                                                 class="figma-textarea w-full text-[11px]"
                                             ></textarea>
                                             <div class="flex flex-wrap items-center gap-[8px]">

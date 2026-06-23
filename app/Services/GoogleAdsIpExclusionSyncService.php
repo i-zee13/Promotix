@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Domain;
 use App\Models\GoogleAdsAccount;
+use App\Support\GoogleIpBlockFormatter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -49,11 +50,14 @@ class GoogleAdsIpExclusionSyncService
         }
 
         $ip = trim($ip);
-        if ($ip === '' || ! filter_var($ip, FILTER_VALIDATE_IP)) {
-            $this->markRow($domain->id, $ip, 'failed', 'Invalid IP address.');
+        $googleIp = GoogleIpBlockFormatter::normalize($ip);
+        if ($ip === '' || $googleIp === null) {
+            $this->markRow($domain->id, $ip, 'failed', 'Invalid IP or range. Use single IP, CIDR (e.g. 13.0.0.0/8), or wildcard (e.g. 216.67.176.* → converted to /24).');
 
             return false;
         }
+
+        $ip = $googleIp;
 
         $domain->loadMissing('googleAdsAccount.connection');
         $account = $domain->googleAdsAccount;
@@ -78,7 +82,6 @@ class GoogleAdsIpExclusionSyncService
         }
 
         $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
-        $googleIp = $this->formatIpForGoogle($ip);
         $campaignIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
 
         $failures = [];
@@ -86,7 +89,7 @@ class GoogleAdsIpExclusionSyncService
         $successes = 0;
 
         foreach ($campaignIds as $campaignId) {
-            if ($this->ipAlreadyBlockedOnCampaign($customerId, $campaignId, $version, $headers, $ip)) {
+            if ($this->ipAlreadyBlockedOnCampaign($customerId, $campaignId, $version, $headers, $googleIp)) {
                 $successes++;
 
                 continue;
@@ -141,13 +144,13 @@ class GoogleAdsIpExclusionSyncService
             $failures[] = "campaign {$campaignId}: " . Str::limit($error, 300);
         }
 
-        $onCampaigns = $this->verifyIpOnCampaigns($domain, $ip);
-        $onAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $ip);
+        $onCampaigns = $this->verifyIpOnCampaigns($domain, $googleIp);
+        $onAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $googleIp);
 
         if ($onCampaigns === [] && ! $onAccount) {
             $accountResult = $this->syncIpAtAccountLevel($customerId, $ip, $googleIp, $version, $headers);
             if ($accountResult['ok']) {
-                $onAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $ip);
+                $onAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $googleIp);
             } elseif ($accountResult['error']) {
                 $failures[] = $accountResult['error'];
             }
@@ -262,15 +265,7 @@ class GoogleAdsIpExclusionSyncService
 
     private function formatIpForGoogle(string $ip): string
     {
-        $ip = trim($ip);
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            return str_contains($ip, '/') ? $ip : $ip . '/32';
-        }
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            return str_contains($ip, '/') ? $ip : $ip . '/128';
-        }
-
-        return $ip;
+        return GoogleIpBlockFormatter::normalize($ip) ?? $ip;
     }
 
     /**
@@ -288,7 +283,7 @@ class GoogleAdsIpExclusionSyncService
         $errors = [];
 
         foreach ($ips as $ip) {
-            if (! filter_var($ip, FILTER_VALIDATE_IP)) {
+            if (GoogleIpBlockFormatter::normalize($ip) === null) {
                 $invalid[] = $ip;
 
                 continue;
@@ -548,17 +543,12 @@ class GoogleAdsIpExclusionSyncService
 
     private function ipsMatch(string $a, string $b): bool
     {
-        return $this->normalizeIpForCompare($a) === $this->normalizeIpForCompare($b);
+        return GoogleIpBlockFormatter::matches($a, $b);
     }
 
     private function normalizeIpForCompare(string $ip): string
     {
-        $ip = trim($ip);
-        if (preg_match('/^(.+)\/32$/', $ip, $m) && filter_var($m[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            return $m[1];
-        }
-
-        return $ip;
+        return GoogleIpBlockFormatter::normalize($ip) ?? trim($ip);
     }
 
     /**
