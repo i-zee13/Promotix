@@ -10,6 +10,14 @@ function debounce(fn, ms = 300) {
     };
 }
 
+function stateKey(countryCode, stateCode) {
+    return `${countryCode}|${stateCode}`;
+}
+
+function cityKey(countryCode, stateCode, cityName) {
+    return `${countryCode}|${stateCode}|${cityName}`;
+}
+
 export function geoAudiencePicker(initial = {}) {
     const endpoints = initial.endpoints || {};
 
@@ -20,14 +28,11 @@ export function geoAudiencePicker(initial = {}) {
             states: endpoints.states || '/admin/paid-marketing/geo/states',
             cities: endpoints.cities || '/admin/paid-marketing/geo/cities',
         },
-        draft: {
-            country: '',
-            country_name: '',
-            state: '',
-            state_name: '',
-            city: '',
-            city_name: '',
-        },
+        selectedCountries: [],
+        selectedStates: [],
+        selectedCities: [],
+        stateGroups: [],
+        cityGroups: [],
         showState: false,
         showCity: false,
         countryOpen: false,
@@ -37,8 +42,6 @@ export function geoAudiencePicker(initial = {}) {
         stateQuery: '',
         cityQuery: '',
         countryItems: [],
-        stateItems: [],
-        cityItems: [],
         countryLoading: false,
         stateLoading: false,
         cityLoading: false,
@@ -50,16 +53,78 @@ export function geoAudiencePicker(initial = {}) {
                 this.countryItems = initial.countries;
             }
             this.searchCountries = debounce(() => this.fetchCountries(), 280);
-            this.searchCities = debounce(() => this.fetchCities(), 280);
+            this.searchCities = debounce(() => this.rebuildCityGroups(), 280);
         },
-        get filteredStates() {
+        get filteredCountryItems() {
+            const q = this.countryQuery.trim().toLowerCase();
+            if (!q) {
+                return this.countryItems;
+            }
+            return this.countryItems.filter((item) =>
+                item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q)
+            );
+        },
+        get filteredStateGroups() {
             const q = this.stateQuery.trim().toLowerCase();
             if (!q) {
-                return this.stateItems;
+                return this.stateGroups;
             }
-            return this.stateItems.filter((s) =>
-                s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
-            );
+            return this.stateGroups
+                .map((group) => ({
+                    ...group,
+                    states: group.states.filter((state) =>
+                        state.name.toLowerCase().includes(q) || state.code.toLowerCase().includes(q)
+                    ),
+                }))
+                .filter((group) => group.states.length > 0 || group.country_name.toLowerCase().includes(q));
+        },
+        get filteredCityGroups() {
+            const q = this.cityQuery.trim().toLowerCase();
+            if (!q) {
+                return this.cityGroups;
+            }
+            return this.cityGroups
+                .map((group) => ({
+                    ...group,
+                    cities: group.cities.filter((city) => city.toLowerCase().includes(q)),
+                }))
+                .filter((group) => group.cities.length > 0 || group.state_name.toLowerCase().includes(q));
+        },
+        countryTriggerLabel() {
+            if (!this.selectedCountries.length) {
+                return 'Select countries';
+            }
+            if (this.selectedCountries.length <= 2) {
+                return this.selectedCountries.map((c) => c.name).join(', ');
+            }
+            return `${this.selectedCountries.length} countries selected`;
+        },
+        stateTriggerLabel() {
+            if (!this.selectedStates.length) {
+                return 'All regions';
+            }
+            if (this.selectedStates.length <= 2) {
+                return this.selectedStates.map((s) => s.name).join(', ');
+            }
+            return `${this.selectedStates.length} regions selected`;
+        },
+        cityTriggerLabel() {
+            if (!this.selectedCities.length) {
+                return 'All cities';
+            }
+            if (this.selectedCities.length <= 2) {
+                return this.selectedCities.map((c) => c.name).join(', ');
+            }
+            return `${this.selectedCities.length} cities selected`;
+        },
+        isCountrySelected(code) {
+            return this.selectedCountries.some((c) => c.code === code);
+        },
+        isStateSelected(countryCode, stateCode) {
+            return this.selectedStates.some((s) => s.country_code === countryCode && s.code === stateCode);
+        },
+        isCitySelected(countryCode, stateCode, cityName) {
+            return this.selectedCities.some((c) => c.key === cityKey(countryCode, stateCode, cityName));
         },
         async toggleCountry() {
             this.countryOpen = !this.countryOpen;
@@ -99,46 +164,64 @@ export function geoAudiencePicker(initial = {}) {
                 this.countryLoading = false;
             }
         },
-        pickCountry(item) {
-            this.draft.country = item.code;
-            this.draft.country_name = item.name;
-            this.countryOpen = false;
-            this.countryQuery = '';
-            this.onCountryChange();
+        async toggleCountryItem(item) {
+            const idx = this.selectedCountries.findIndex((c) => c.code === item.code);
+            if (idx >= 0) {
+                this.selectedCountries.splice(idx, 1);
+            } else {
+                this.selectedCountries.push({ code: item.code, name: item.name });
+            }
+            await this.onCountriesChange();
         },
-        clearCountry() {
-            this.draft.country = '';
-            this.draft.country_name = '';
-            this.countryQuery = '';
-            this.countryItems = [];
-            this.resetState();
-            this.resetCity();
-            this.showState = false;
-            this.showCity = false;
-        },
-        async onCountryChange() {
-            this.resetState();
-            this.resetCity();
-            this.showState = false;
-            this.showCity = false;
-            if (!this.draft.country) {
+        async onCountriesChange() {
+            const codes = new Set(this.selectedCountries.map((c) => c.code));
+            this.selectedStates = this.selectedStates.filter((s) => codes.has(s.country_code));
+            this.selectedCities = this.selectedCities.filter((c) => codes.has(c.country_code));
+            this.showState = this.selectedCountries.length > 0;
+            this.showCity = this.selectedStates.length > 0;
+            if (!this.showState) {
+                this.stateGroups = [];
+                this.cityGroups = [];
+                this.selectedStates = [];
+                this.selectedCities = [];
                 return;
             }
+            await this.fetchAllStateGroups();
+            if (this.selectedStates.length > 0) {
+                await this.fetchAllCityGroups();
+            } else {
+                this.cityGroups = [];
+                this.selectedCities = [];
+                this.showCity = false;
+            }
+        },
+        async fetchAllStateGroups() {
             this.stateLoading = true;
+            const groups = [];
             try {
-                const res = await fetch(
-                    this.endpoints.states + '?country=' + encodeURIComponent(this.draft.country),
-                    { headers: GEO_HEADERS, credentials: 'same-origin' },
+                const results = await Promise.all(
+                    this.selectedCountries.map(async (country) => {
+                        const res = await fetch(
+                            this.endpoints.states + '?country=' + encodeURIComponent(country.code),
+                            { headers: GEO_HEADERS, credentials: 'same-origin' },
+                        );
+                        const states = res.ok ? await res.json() : [];
+                        return {
+                            country_code: country.code,
+                            country_name: country.name,
+                            states: Array.isArray(states) ? states : [],
+                        };
+                    }),
                 );
-                const states = res.ok ? await res.json() : [];
-                if (!Array.isArray(states) || states.length === 0) {
-                    return;
+                for (const group of results) {
+                    if (group.states.length > 0) {
+                        groups.push(group);
+                    }
                 }
-                this.stateItems = states;
-                this.showState = true;
             } catch (e) {
-                this.showState = false;
+                // keep empty groups
             } finally {
+                this.stateGroups = groups;
                 this.stateLoading = false;
             }
         },
@@ -157,33 +240,80 @@ export function geoAudiencePicker(initial = {}) {
         closeState() {
             this.stateOpen = false;
         },
-        pickState(item) {
-            if (!item) {
-                this.draft.state = '';
-                this.draft.state_name = '';
+        async toggleStateItem(state, group) {
+            const idx = this.selectedStates.findIndex(
+                (s) => s.country_code === group.country_code && s.code === state.code,
+            );
+            if (idx >= 0) {
+                this.selectedStates.splice(idx, 1);
             } else {
-                this.draft.state = item.code;
-                this.draft.state_name = item.name;
+                this.selectedStates.push({
+                    code: state.code,
+                    name: state.name,
+                    country_code: group.country_code,
+                    country_name: group.country_name,
+                });
             }
-            this.stateOpen = false;
-            this.stateQuery = '';
-            this.onStateChange();
+            await this.onStatesChange();
         },
-        resetState() {
-            this.stateOpen = false;
-            this.stateQuery = '';
-            this.stateItems = [];
-            this.draft.state = '';
-            this.draft.state_name = '';
+        clearAllStates() {
+            this.selectedStates = [];
+            this.onStatesChange();
         },
-        async onStateChange() {
-            this.resetCity();
-            if (!this.draft.country || !this.draft.state) {
-                this.showCity = false;
+        async onStatesChange() {
+            const keys = new Set(this.selectedStates.map((s) => stateKey(s.country_code, s.code)));
+            this.selectedCities = this.selectedCities.filter((c) => keys.has(stateKey(c.country_code, c.state_code)));
+            this.showCity = this.selectedStates.length > 0;
+            if (!this.showCity) {
+                this.cityGroups = [];
+                this.selectedCities = [];
                 return;
             }
-            this.showCity = true;
-            await this.fetchCities();
+            await this.fetchAllCityGroups();
+        },
+        async fetchAllCityGroups() {
+            this.cityLoading = true;
+            const groups = [];
+            try {
+                const results = await Promise.all(
+                    this.selectedStates.map(async (state) => {
+                        const params = new URLSearchParams({
+                            country: state.country_code,
+                            state: state.code,
+                        });
+                        if (this.cityQuery.trim()) {
+                            params.set('q', this.cityQuery.trim());
+                        }
+                        const res = await fetch(this.endpoints.cities + '?' + params.toString(), {
+                            headers: GEO_HEADERS,
+                            credentials: 'same-origin',
+                        });
+                        const cities = res.ok ? await res.json() : [];
+                        return {
+                            country_code: state.country_code,
+                            country_name: state.country_name,
+                            state_code: state.code,
+                            state_name: state.name,
+                            cities: Array.isArray(cities) ? cities : [],
+                        };
+                    }),
+                );
+                for (const group of results) {
+                    if (group.cities.length > 0) {
+                        groups.push(group);
+                    }
+                }
+            } catch (e) {
+                // keep empty
+            } finally {
+                this.cityGroups = groups;
+                this.cityLoading = false;
+            }
+        },
+        async rebuildCityGroups() {
+            if (this.selectedStates.length > 0) {
+                await this.fetchAllCityGroups();
+            }
         },
         async toggleCity() {
             if (this.cityLoading || !this.showCity) {
@@ -193,8 +323,8 @@ export function geoAudiencePicker(initial = {}) {
             if (this.cityOpen) {
                 this.countryOpen = false;
                 this.stateOpen = false;
-                if (this.cityItems.length === 0) {
-                    await this.fetchCities();
+                if (this.cityGroups.length === 0) {
+                    await this.fetchAllCityGroups();
                 }
                 await this.$nextTick();
                 this.$refs.citySearch?.focus();
@@ -203,69 +333,83 @@ export function geoAudiencePicker(initial = {}) {
         closeCity() {
             this.cityOpen = false;
         },
-        async fetchCities() {
-            if (!this.draft.country || !this.draft.state) {
-                this.cityItems = [];
-                return;
-            }
-            this.cityLoading = true;
-            try {
-                const params = new URLSearchParams({
-                    country: this.draft.country,
-                    state: this.draft.state,
-                });
-                if (this.cityQuery.trim()) {
-                    params.set('q', this.cityQuery.trim());
-                }
-                const res = await fetch(this.endpoints.cities + '?' + params.toString(), {
-                    headers: GEO_HEADERS,
-                    credentials: 'same-origin',
-                });
-                const cities = res.ok ? await res.json() : [];
-                this.cityItems = Array.isArray(cities) ? cities : [];
-            } catch (e) {
-                this.cityItems = [];
-            } finally {
-                this.cityLoading = false;
-            }
-        },
-        pickCity(name) {
-            if (!name) {
-                this.draft.city = '';
-                this.draft.city_name = '';
+        toggleCityItem(cityName, group) {
+            const key = cityKey(group.country_code, group.state_code, cityName);
+            const idx = this.selectedCities.findIndex((c) => c.key === key);
+            if (idx >= 0) {
+                this.selectedCities.splice(idx, 1);
             } else {
-                this.draft.city = name;
-                this.draft.city_name = name;
+                this.selectedCities.push({
+                    key,
+                    name: cityName,
+                    country_code: group.country_code,
+                    country_name: group.country_name,
+                    state_code: group.state_code,
+                    state_name: group.state_name,
+                });
             }
-            this.cityOpen = false;
-            this.cityQuery = '';
         },
-        resetCity() {
-            this.cityOpen = false;
-            this.cityQuery = '';
-            this.cityItems = [];
-            this.draft.city = '';
-            this.draft.city_name = '';
+        clearAllCities() {
+            this.selectedCities = [];
         },
         addRule() {
-            if (!this.draft.country) {
+            const toAdd = [];
+
+            if (this.selectedCities.length > 0) {
+                for (const city of this.selectedCities) {
+                    toAdd.push({
+                        country: city.country_code,
+                        country_name: city.country_name,
+                        state: city.state_code,
+                        state_name: city.state_name,
+                        city: city.name,
+                    });
+                }
+            } else if (this.selectedStates.length > 0) {
+                for (const state of this.selectedStates) {
+                    toAdd.push({
+                        country: state.country_code,
+                        country_name: state.country_name,
+                        state: state.code,
+                        state_name: state.name,
+                        city: null,
+                    });
+                }
+            } else if (this.selectedCountries.length > 0) {
+                for (const country of this.selectedCountries) {
+                    toAdd.push({
+                        country: country.code,
+                        country_name: country.name,
+                        state: null,
+                        state_name: null,
+                        city: null,
+                    });
+                }
+            } else {
                 return;
             }
-            const rule = {
-                country: this.draft.country,
-                country_name: this.draft.country_name || this.draft.country,
-                state: this.draft.state || null,
-                state_name: this.draft.state ? (this.draft.state_name || this.draft.state) : null,
-                city: this.draft.city || null,
-            };
-            const exists = this.rules.some((r) =>
-                r.country === rule.country
-                && (r.state || null) === rule.state
-                && (r.city || null) === rule.city
-            );
-            if (!exists) {
-                this.rules.push(rule);
+
+            for (const rule of toAdd) {
+                const exists = this.rules.some((r) =>
+                    r.country === rule.country
+                    && (r.state || null) === rule.state
+                    && (r.city || null) === rule.city
+                );
+                if (!exists) {
+                    this.rules.push(rule);
+                }
             }
+
+            this.selectedCountries = [];
+            this.selectedStates = [];
+            this.selectedCities = [];
+            this.stateGroups = [];
+            this.cityGroups = [];
+            this.showState = false;
+            this.showCity = false;
+            this.countryQuery = '';
+            this.stateQuery = '';
+            this.cityQuery = '';
         },
         removeRule(idx) {
             this.rules.splice(idx, 1);
