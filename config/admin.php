@@ -75,6 +75,7 @@ return [
         'paid-marketing.detection-settings' => 'paid-marketing-detection-settings',
         'paid-marketing.detection-settings.update' => 'paid-marketing-detection-settings',
         'paid-marketing.detection-settings.google-exclusion.push' => 'paid-marketing-detection-settings',
+        'paid-marketing.detection-settings.google-exclusion.push-row' => 'paid-marketing-detection-settings',
         'paid-marketing.detection-settings.google-exclusion.push-bulk' => 'paid-marketing-detection-settings',
         'paid-marketing.detection-settings.google-exclusion.sync' => 'paid-marketing-detection-settings',
         'bot-protection.dashboard' => 'bot-protection',

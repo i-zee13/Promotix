@@ -207,18 +207,26 @@
                                     </div>
                                 </div>
 
-                                <div>
-                                    <div class="figma-detection-right-row">
-                                        <span>Ensure predefined IPs will always be able to see your ads</span>
-                                        <x-figma-toggle
-                                            name="allow_list_enabled"
-                                            value="1"
-                                            :checked="$settings->allow_list_enabled"
-                                            label-on="On"
-                                            label-off="Off"
-                                        />
+                                <div x-data="allowListUpload()">
+                                    <div class="figma-detection-right-row flex-wrap gap-[8px]">
+                                        <span class="min-w-0 flex-1">Ensure predefined IPs will always be able to see your ads</span>
+                                        <div class="flex shrink-0 flex-wrap items-center gap-[8px]">
+                                            <label class="cursor-pointer rounded-[6px] border border-white/30 px-[10px] py-[6px] text-[10px] text-white hover:bg-white/10">
+                                                <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onAllowListFile($event)">
+                                                Choose file
+                                            </label>
+                                            <span class="max-w-[120px] truncate text-[9px] text-white/45" x-text="fileName || ''"></span>
+                                            <x-figma-toggle
+                                                name="allow_list_enabled"
+                                                value="1"
+                                                :checked="$settings->allow_list_enabled"
+                                                label-on="On"
+                                                label-off="Off"
+                                            />
+                                        </div>
                                     </div>
-                                    <textarea name="allow_list_ips" rows="3" placeholder="Add IPs or ranges" class="figma-textarea mt-[8px] text-[11px]">{{ $settings->allow_list_ips }}</textarea>
+                                    <p class="mt-[6px] text-[9px] text-white/45">Upload .txt / .csv (one IP per line). IPs are merged into the list below — click Save changes to apply.</p>
+                                    <textarea id="allow_list_ips" name="allow_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="figma-textarea mt-[8px] text-[11px]">{{ $settings->allow_list_ips }}</textarea>
                                 </div>
 
                                 <div>
@@ -278,6 +286,7 @@
                                         class="mt-[12px] rounded-[8px] border border-white/15 bg-black/20 p-[12px] space-y-[10px]"
                                         x-data="googleExclusionPanel(@js([
                                             'pushUrl' => route('paid-marketing.detection-settings.google-exclusion.push', $domain),
+                                            'pushRowUrl' => route('paid-marketing.detection-settings.google-exclusion.push-row', $domain),
                                             'bulkUrl' => route('paid-marketing.detection-settings.google-exclusion.push-bulk', $domain),
                                             'syncUrl' => route('paid-marketing.detection-settings.google-exclusion.sync', $domain),
                                             'csrf' => csrf_token(),
@@ -347,11 +356,12 @@
                                                         <th class="px-[8px] py-[6px] font-normal">IP</th>
                                                         <th class="px-[8px] py-[6px] font-normal">Type</th>
                                                         <th class="px-[8px] py-[6px] font-normal">Status</th>
+                                                        <th class="px-[8px] py-[6px] font-normal text-right">Action</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     <template x-if="!rows.length">
-                                                        <tr><td colspan="3" class="px-[8px] py-[8px] text-white/45">No blocked IPs queued yet.</td></tr>
+                                                        <tr><td colspan="4" class="px-[8px] py-[8px] text-white/45">No blocked IPs queued yet.</td></tr>
                                                     </template>
                                                     <template x-for="row in rows" :key="row.ip + row.updated_at">
                                                         <tr class="border-t border-white/10">
@@ -368,6 +378,15 @@
                                                                     }"
                                                                     x-text="row.sync_status"
                                                                 ></span>
+                                                            </td>
+                                                            <td class="px-[8px] py-[6px] text-right">
+                                                                <button
+                                                                    type="button"
+                                                                    class="rounded-[4px] border border-white/25 px-[8px] py-[3px] text-[9px] font-semibold text-white hover:bg-white/10 disabled:opacity-40"
+                                                                    :disabled="loading || pushingIp === row.ip"
+                                                                    @click="pushRow(row.ip)"
+                                                                    x-text="pushingIp === row.ip ? '…' : (row.sync_status === 'synced' ? 'Re-push' : 'Push')"
+                                                                ></button>
                                                             </td>
                                                         </tr>
                                                     </template>
@@ -391,6 +410,32 @@
 </div>
 
 <script>
+function allowListUpload() {
+    return {
+        fileName: '',
+        async onAllowListFile(event) {
+            const file = event.target.files?.[0];
+            if (!file) {
+                this.fileName = '';
+                return;
+            }
+            this.fileName = file.name;
+            try {
+                const text = await file.text();
+                const textarea = document.getElementById('allow_list_ips');
+                if (!textarea) return;
+                const existing = textarea.value.trim();
+                const incoming = text.trim();
+                if (!incoming) return;
+                textarea.value = existing ? existing + '\n' + incoming : incoming;
+            } catch (e) {
+                this.fileName = 'Read failed';
+            }
+            event.target.value = '';
+        },
+    };
+}
+
 function googleExclusionPanel(config) {
     return {
         ip: '',
@@ -399,10 +444,12 @@ function googleExclusionPanel(config) {
         bulkFileName: '',
         rows: config.rows || [],
         pushUrl: config.pushUrl,
+        pushRowUrl: config.pushRowUrl,
         bulkUrl: config.bulkUrl,
         syncUrl: config.syncUrl,
         csrf: config.csrf,
         loading: false,
+        pushingIp: '',
         message: '',
         ok: true,
         onBulkFile(event) {
@@ -473,6 +520,34 @@ function googleExclusionPanel(config) {
                 this.message = 'Request failed. Check console or try again.';
             } finally {
                 this.loading = false;
+            }
+        },
+        async pushRow(ip) {
+            if (!ip || this.loading) return;
+            this.loading = true;
+            this.pushingIp = ip;
+            this.message = '';
+            try {
+                const res = await fetch(this.pushRowUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ ip }),
+                });
+                const data = await res.json().catch(() => ({}));
+                this.ok = !!data.ok;
+                this.message = data.message || (this.ok ? `IP ${ip} pushed to Google Ads.` : 'Push failed.');
+                if (Array.isArray(data.rows)) this.rows = data.rows;
+            } catch (e) {
+                this.ok = false;
+                this.message = 'Push request failed.';
+            } finally {
+                this.loading = false;
+                this.pushingIp = '';
             }
         },
         async syncPending() {

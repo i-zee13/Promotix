@@ -161,18 +161,23 @@
         {{-- Direct Installation --}}
         <div class="figma-domain-setup__panel figma-domain-setup__panel--instructions" x-show="tab === 'manual'" x-cloak>
             <h2 class="figma-domain-setup__instructions-title">Instructions</h2>
-            <p class="figma-domain-setup__instruction-step">1. Paste the code at the beginning of the <strong>&lt;Head&gt;</strong></p>
+            <p class="figma-domain-setup__instruction-step text-white/70">
+                Paste the snippets in your site’s <strong>header tags</strong> and <strong>body tags</strong> areas (e.g. WPCode, Insert Headers and Footers, theme Header Scripts, or your CMS head/body HTML fields).
+                <strong>Do not edit theme files</strong> such as <code class="text-white/80">header.php</code> — page builders (Elementor, etc.) often skip those files.
+            </p>
+            <p class="figma-domain-setup__instruction-step mt-[14px]">1. In <strong>Header tags</strong> (or “Scripts in Header”), paste this at the top:</p>
             <div class="figma-domain-setup__dotted-box">{{ $headSnippet }}</div>
             <button type="button" class="figma-domain-setup__copy-link" @click="copyText(@js($headSnippet))">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 Copy
             </button>
-            <p class="figma-domain-setup__instruction-step mt-[20px]">2. Paste the code at the beginning of the <strong>&lt;body&gt;</strong></p>
+            <p class="figma-domain-setup__instruction-step mt-[20px]">2. In <strong>Body tags</strong> (or “Scripts in Body”), paste this at the top:</p>
             <div class="figma-domain-setup__dotted-box">{{ $bodySnippet }}</div>
             <button type="button" class="figma-domain-setup__copy-link" @click="copyText(@js($bodySnippet))">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 Copy
             </button>
+            <p class="mt-[12px] text-[10px] text-white/50">After saving, clear any cache (LiteSpeed, WP Rocket, Hostinger, etc.), open your homepage, then verify below.</p>
             <div class="mt-[20px]">
                 <button type="button" class="figma-domain-setup__btn-primary" @click="verifyInstallation('{{ $domain->id }}')">Verify installation</button>
             </div>

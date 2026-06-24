@@ -287,8 +287,9 @@ class DomainManagementController extends Controller
         $noscriptUrl = url('/tag/' . $domain->domain_key . '.html');
 
         return response()->json([
-            'head_script' => '<script async src="' . $scriptUrl . '" class="pm_tag"></script>',
+            'head_script' => '<script src="' . $scriptUrl . '" class="pm_tag"></script>',
             'body_script' => '<noscript><iframe src="' . $noscriptUrl . '" width="0" height="0" style="display:none"></iframe></noscript>',
+            'instructions' => 'Paste head_script into Header tags and body_script into Body tags. Do not edit header.php.',
         ]);
     }
 
@@ -339,8 +340,11 @@ class DomainManagementController extends Controller
         $noscriptUrl = url('/tag/' . $domain->domain_key . '.html');
 
         $body = "Install tracking for {$domain->hostname}\n\n"
-            . "Head script:\n<script async src=\"{$scriptUrl}\" class=\"pm_tag\"></script>\n\n"
-            . "Body script:\n<noscript><iframe src=\"{$noscriptUrl}\" width=\"0\" height=\"0\" style=\"display:none\"></iframe></noscript>\n\n"
+            . "Use your site's Header tags / Body tags areas (WPCode, Insert Headers and Footers, theme Header Scripts, etc.).\n"
+            . "Do NOT edit theme files like header.php — page builders may not load them.\n\n"
+            . "1) Header tags — paste at the top:\n<script src=\"{$scriptUrl}\" class=\"pm_tag\"></script>\n\n"
+            . "2) Body tags — paste at the top:\n<noscript><iframe src=\"{$noscriptUrl}\" width=\"0\" height=\"0\" style=\"display:none\"></iframe></noscript>\n\n"
+            . "Clear cache after saving, then verify in PromoTix.\n\n"
             . "Domain key: {$domain->domain_key}\nSecret key: {$domain->secret_key}\nAuth key: {$domain->authentication_key}\n";
 
         Mail::raw($body, function ($message) use ($data, $domain) {
