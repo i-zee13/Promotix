@@ -235,6 +235,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/domains/{domain}/tracking-params', [DomainManagementController::class, 'updateTrackingParams']);
     Route::post('/domains/{domain}/email-developer', [DomainManagementController::class, 'emailDeveloper']);
     Route::post('/domains/{domain}/verify-wordpress', [DomainManagementController::class, 'verifyWordpress']);
+    Route::post('/domains/{domain}/check-connectivity', [DomainManagementController::class, 'checkTagConnectivity']);
     Route::get('/domains/{domain}/google-ads/pick-accounts', [IntegrationsController::class, 'pickAccountsJson']);
     Route::post('/domains/{domain}/google-ads/link', [IntegrationsController::class, 'linkDomainPaidAccount']);
     Route::get('/tracking/wordpress-plugin', [DomainManagementController::class, 'wordpressPlugin']);

@@ -9,7 +9,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -402,6 +404,87 @@ class DomainManagementController extends Controller
             'verified' => $verified,
             'message' => $message,
             'method' => $method,
+        ]);
+    }
+
+    public function checkTagConnectivity(Request $request, Domain $domain): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        $wpResult = $this->verifyWordpressPlugin($domain);
+        $htmlResult = $this->verifyTagInPageSource($domain);
+        $activityResult = $this->verifyRecentTagActivity($domain);
+
+        $recentVisitCount = 0;
+        if (Schema::hasTable('visits')) {
+            $recentVisitCount = (int) DB::table('visits')
+                ->where('domain_id', $domain->id)
+                ->where('visited_at', '>=', now()->subDays(7))
+                ->count();
+        }
+
+        $tagInstalled = $wpResult['verified'] || $htmlResult['verified'];
+        $receivingTraffic = $activityResult['verified'] || $recentVisitCount > 0;
+
+        $checks = [
+            [
+                'id' => 'html',
+                'label' => 'Tag in page HTML',
+                'passed' => $htmlResult['verified'],
+                'detail' => $htmlResult['message'],
+            ],
+            [
+                'id' => 'plugin',
+                'label' => 'WordPress plugin',
+                'passed' => $wpResult['verified'],
+                'detail' => $wpResult['message'],
+            ],
+            [
+                'id' => 'activity',
+                'label' => 'Receiving visits (last 7 days)',
+                'passed' => $receivingTraffic,
+                'detail' => $receivingTraffic
+                    ? ($recentVisitCount > 0
+                        ? "{$recentVisitCount} visit(s) recorded in the last 7 days."
+                        : $activityResult['message'])
+                    : ($domain->last_seen_at
+                        ? 'Last tag ping: ' . $domain->last_seen_at->diffForHumans() . '. No visits in the last 7 days.'
+                        : 'No visits recorded yet. Install the tag and open the site.'),
+            ],
+        ];
+
+        if ($tagInstalled && $receivingTraffic) {
+            $status = 'working';
+            $message = 'Tag is installed and actively receiving visits.';
+        } elseif ($tagInstalled) {
+            $status = 'installed_no_traffic';
+            $message = 'Tag appears installed on the site, but PromoTix has not received visits recently. Clear site cache and open the homepage, or check Header tags / plugin settings.';
+        } elseif ($receivingTraffic) {
+            $status = 'traffic_stale_install';
+            $message = 'Recent visits exist but the tag was not found in live page HTML. Re-install via Header tags or the WordPress plugin.';
+        } else {
+            $status = 'not_connected';
+            $message = 'Tag not detected and no recent visits. Install the tracking tag from Setup.';
+        }
+
+        $working = $status === 'working';
+
+        if ($working) {
+            $domain->tag_connected = true;
+            $domain->status = 'connected';
+            $domain->save();
+        }
+
+        return response()->json([
+            'ok' => true,
+            'working' => $working,
+            'status' => $status,
+            'message' => $message,
+            'checks' => $checks,
+            'last_seen_at' => $domain->last_seen_at?->toIso8601String(),
+            'recent_visit_count' => $recentVisitCount,
+            'tag_connected' => (bool) $domain->tag_connected,
+            'setup_url' => route('domains.setup', $domain),
         ]);
     }
 

@@ -138,6 +138,10 @@
                                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" stroke-width="1.8"/></svg>
                                             See plugin keys
                                         </button>
+                                        <button type="button" @click="checkConnectivity(@js(['id' => $d->id, 'hostname' => $d->hostname]))" class="flex w-full items-center gap-[8px] px-[12px] py-[8px] hover:bg-white/60">
+                                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                                            Check tag connectivity
+                                        </button>
                                         <a href="{{ route('paid-marketing.detection-settings', ['domain_id' => $d->id]) }}" class="flex w-full items-center gap-[8px] px-[12px] py-[8px] hover:bg-white/60">
                                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
                                             Set tracking parameters
@@ -288,6 +292,52 @@
         </div>
     </div>
 
+    {{-- Tag connectivity modal --}}
+    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-[16px]" x-show="modal === 'connectivity'" x-cloak x-transition @click.self="modal = null">
+        <div class="w-full max-w-[520px] overflow-hidden rounded-[12px] bg-[#d9d9d9] text-[#101010] shadow-2xl" @click.stop>
+            <header class="border-b border-black/10 px-[22px] py-[16px]">
+                <h2 class="text-[18px] font-bold">Tag connectivity</h2>
+                <p class="mt-[4px] text-[12px] text-black/60" x-text="connectivity.hostname || ''"></p>
+            </header>
+            <div class="px-[22px] py-[18px]">
+                <div x-show="connectivity.loading" class="py-[24px] text-center text-[13px] text-black/60">Checking live site and recent visits…</div>
+                <template x-if="!connectivity.loading && connectivity.message">
+                    <div>
+                        <div
+                            class="mb-[14px] rounded-[8px] border px-[14px] py-[12px] text-[12px]"
+                            :class="connectivity.working ? 'border-emerald-600/30 bg-emerald-50 text-emerald-900' : 'border-amber-600/30 bg-amber-50 text-amber-950'"
+                            x-text="connectivity.message"
+                        ></div>
+                        <ul class="space-y-[10px]">
+                            <template x-for="check in connectivity.checks" :key="check.id">
+                                <li class="flex gap-[10px] rounded-[6px] border border-black/10 bg-white px-[12px] py-[10px]">
+                                    <span
+                                        class="mt-[2px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                                        :class="check.passed ? 'bg-emerald-600' : 'bg-rose-500'"
+                                        x-text="check.passed ? '✓' : '✕'"
+                                    ></span>
+                                    <div class="min-w-0">
+                                        <p class="text-[12px] font-semibold" x-text="check.label"></p>
+                                        <p class="mt-[2px] text-[11px] text-black/65" x-text="check.detail"></p>
+                                    </div>
+                                </li>
+                            </template>
+                        </ul>
+                        <p class="mt-[12px] text-[10px] text-black/50" x-show="connectivity.last_seen_at">
+                            Last tag ping: <span x-text="connectivity.last_seen_human || connectivity.last_seen_at"></span>
+                            · Visits (7d): <span x-text="connectivity.recent_visit_count ?? 0"></span>
+                        </p>
+                    </div>
+                </template>
+            </div>
+            <footer class="flex flex-wrap justify-end gap-[10px] border-t border-black/10 px-[22px] py-[14px]">
+                <a :href="connectivity.setup_url || '#'" class="mr-auto text-[12px] font-medium text-[#6400B2] underline">Tracking setup →</a>
+                <button type="button" @click="modal = null" class="text-[13px] font-medium text-[#6400B2]">Close</button>
+                <button type="button" @click="checkConnectivity(connectivity)" :disabled="connectivity.loading" class="rounded-[6px] bg-[#6400B2] px-[18px] py-[8px] text-[13px] font-semibold text-white disabled:opacity-50">Re-check</button>
+            </footer>
+        </div>
+    </div>
+
     {{-- Google Ads account picker (ClickCease-style) --}}
     <div class="fixed inset-0 z-[85] flex items-center justify-center overflow-y-auto bg-black/75 p-[16px] py-[5vh]" x-show="paidPick.open" x-cloak x-transition @click.self="paidPick.open = false">
         <div class="my-auto flex max-h-[min(90vh,720px)] w-full max-w-[520px] min-h-0 flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#101010] shadow-2xl" @click.stop>
@@ -366,6 +416,18 @@ function siteManagementFigma() {
             accounts: [],
             selectedId: null,
             syncError: '',
+        },
+        connectivity: {
+            id: null,
+            hostname: '',
+            loading: false,
+            working: false,
+            message: '',
+            checks: [],
+            last_seen_at: null,
+            last_seen_human: '',
+            recent_visit_count: 0,
+            setup_url: '#',
         },
         applyTableSearch() {
             clearTimeout(this.tableSearchTimer);
@@ -474,6 +536,49 @@ function siteManagementFigma() {
                 admin: base + '/wp-login.php?redirect_to=' + encodeURIComponent(base + '/wp-admin/'),
                 settings: base + '/wp-login.php?redirect_to=' + encodeURIComponent(base + '/wp-admin/options-general.php?page=promotix-tag'),
             };
+        },
+        async checkConnectivity(row) {
+            if (!row?.id) return;
+            this.connectivity = {
+                ...this.connectivity,
+                id: row.id,
+                hostname: row.hostname,
+                loading: true,
+                message: '',
+                checks: [],
+            };
+            this.modal = 'connectivity';
+            this.openMenuId = null;
+            try {
+                const res = await fetch(`/domains/${row.id}/check-connectivity`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify({}),
+                });
+                const data = await res.json();
+                this.connectivity.loading = false;
+                this.connectivity.working = !!data.working;
+                this.connectivity.message = data.message || 'Check complete.';
+                this.connectivity.checks = Array.isArray(data.checks) ? data.checks : [];
+                this.connectivity.last_seen_at = data.last_seen_at || null;
+                this.connectivity.recent_visit_count = data.recent_visit_count ?? 0;
+                this.connectivity.setup_url = data.setup_url || `/domains/${row.id}/setup`;
+                if (data.last_seen_at) {
+                    try {
+                        this.connectivity.last_seen_human = new Date(data.last_seen_at).toLocaleString();
+                    } catch (_) {
+                        this.connectivity.last_seen_human = data.last_seen_at;
+                    }
+                }
+            } catch (_) {
+                this.connectivity.loading = false;
+                this.connectivity.working = false;
+                this.connectivity.message = 'Connectivity check failed. Try again.';
+            }
         },
         async openKeys(row) {
             this.keysForm = row;
