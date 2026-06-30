@@ -52,8 +52,9 @@ class VisitProtectionService
         EnrichIpIntelJob::dispatch($ipLog->id);
 
         $sessionHits = $this->sessionHits($domain, $sessionId);
-        $ipRecentHits = $this->ipRecentHits($domain, $ipLog->ip);
-        $ipMinuteHits = $this->ipMinuteHits($domain, $ipLog->ip);
+        $at = $visitedAt ?? UserTimezone::nowUtc();
+        $ipRecentHits = $this->ipRecentHits($domain, $ipLog->ip, $at);
+        $ipMinuteHits = $this->ipMinuteHits($domain, $ipLog->ip, $at);
         $paidClicksToday = $isPaidTraffic
             ? $this->paidClicksTodayForIp($domain, $ipLog->ip, $visitedAt ?? UserTimezone::nowUtc())
             : 0;
@@ -218,7 +219,7 @@ class VisitProtectionService
             ->value('hits') ?? 0) + 1;
     }
 
-    private function ipRecentHits(Domain $domain, string $ip): int
+    private function ipRecentHits(Domain $domain, string $ip, Carbon $visitedAt): int
     {
         if (! Schema::hasTable('visits')) {
             return 0;
@@ -227,11 +228,11 @@ class VisitProtectionService
         return (int) DB::table('visits')
             ->where('domain_id', $domain->id)
             ->where('ip', $ip)
-            ->where('visited_at', '>=', now()->subMinutes(5))
+            ->where('visited_at', '>=', $visitedAt->copy()->subMinutes(5))
             ->count();
     }
 
-    private function ipMinuteHits(Domain $domain, string $ip): int
+    private function ipMinuteHits(Domain $domain, string $ip, Carbon $visitedAt): int
     {
         if (! Schema::hasTable('visits')) {
             return 0;
@@ -240,7 +241,7 @@ class VisitProtectionService
         return (int) DB::table('visits')
             ->where('domain_id', $domain->id)
             ->where('ip', $ip)
-            ->where('visited_at', '>=', now()->subMinute())
+            ->where('visited_at', '>=', $visitedAt->copy()->subMinute())
             ->count();
     }
 

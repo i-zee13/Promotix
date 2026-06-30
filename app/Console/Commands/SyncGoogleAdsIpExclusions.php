@@ -91,8 +91,13 @@ class SyncGoogleAdsIpExclusions extends Command
         }
 
         $pendingQuery = DB::table('google_ads_ip_exclusions')
-            ->where('sync_status', 'pending')
-            ->orderBy('id');
+            ->where('sync_status', 'pending');
+
+        if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+            $pendingQuery->where('is_active', true);
+        }
+
+        $pendingQuery->orderBy('id');
 
         if ($domainId > 0) {
             $pendingQuery->where('domain_id', $domainId);

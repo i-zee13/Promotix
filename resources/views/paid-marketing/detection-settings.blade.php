@@ -153,17 +153,16 @@
 
                             <div class="figma-detection-section" x-data="ipListFileUpload('block_list_ips')">
                                 <h2 class="figma-detection-section-title">Block IP addresses</h2>
-                                <div class="figma-detection-card">
-                                    <div class="mb-[8px] flex flex-wrap items-center justify-between gap-[8px]">
-                                        <p class="figma-detection-card-text min-w-0 flex-1">Always block these IP addresses from seeing your site and ads</p>
-                                        <div class="flex shrink-0 flex-wrap items-center gap-[8px]">
-                                            <label class="cursor-pointer rounded-[4px] border border-black/25 bg-white px-[10px] py-[5px] text-[10px] font-medium text-[#101010] hover:bg-black/5">
+                                <div class="figma-detection-card figma-detection-block-ips">
+                                    <div class="figma-detection-block-ips-header">
+                                        <p class="figma-detection-card-text">Always block these IP addresses from seeing your site and ads</p>
+                                        <div class="figma-detection-block-ips-actions">
+                                            <label class="figma-detection-block-ips-file">
                                                 <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onFile($event)">
                                                 Choose file
                                             </label>
-                                            <span class="max-w-[100px] truncate text-[9px] text-black/50" x-text="fileName || ''"></span>
+                                            <span class="figma-detection-block-ips-filename" x-text="fileName || ''"></span>
                                             <x-figma-toggle
-                                                variant="on-light"
                                                 name="block_list_enabled"
                                                 value="1"
                                                 :checked="$settings->block_list_enabled"
@@ -172,8 +171,8 @@
                                             />
                                         </div>
                                     </div>
-                                    <p class="mb-[8px] text-[10px] text-black/55">Upload .txt / .csv (one IP per line). IPs are merged into the list below — click Save changes to apply.</p>
-                                    <textarea id="block_list_ips" name="block_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="w-full rounded-[4px] border border-black/20 bg-white px-[10px] py-[8px] text-[11px] text-[#101010] placeholder:text-black/40">{{ $settings->block_list_ips }}</textarea>
+                                    <p class="figma-detection-block-ips-hint">Upload .txt / .csv (one IP per line). IPs are merged into the list below — click Save changes to apply.</p>
+                                    <textarea id="block_list_ips" name="block_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="figma-detection-block-ips-textarea">{{ $settings->block_list_ips }}</textarea>
                                 </div>
                             </div>
 
@@ -313,6 +312,7 @@
                                         x-data="googleExclusionPanel(@js([
                                             'pushUrl' => route('paid-marketing.detection-settings.google-exclusion.push', $domain),
                                             'pushRowUrl' => route('paid-marketing.detection-settings.google-exclusion.push-row', $domain),
+                                            'toggleRowUrl' => route('paid-marketing.detection-settings.google-exclusion.toggle-row', $domain),
                                             'bulkUrl' => route('paid-marketing.detection-settings.google-exclusion.push-bulk', $domain),
                                             'syncUrl' => route('paid-marketing.detection-settings.google-exclusion.sync', $domain),
                                             'csrf' => csrf_token(),
@@ -321,20 +321,20 @@
                                     >
                                         <h3 class="text-[12px] font-semibold text-white">Google Ads IP exclusion (manual test)</h3>
                                         <p class="text-[10px] text-white/55">Add an IP, CIDR range, or wildcard (e.g. 216.67.176.*) to campaign exclusions. Wildcards are converted to CIDR for Google Ads.</p>
-                                        <div class="flex flex-wrap items-end gap-[8px]">
-                                            <label class="min-w-[180px] flex-1">
-                                                <span class="mb-[4px] block text-[10px] text-white/70">IP address</span>
+                                        <div class="figma-google-exclusion-actions">
+                                            <label class="figma-google-exclusion-field">
+                                                <span class="figma-google-exclusion-label">IP address</span>
                                                 <input
                                                     type="text"
                                                     x-model="ip"
                                                     placeholder="203.0.113.50"
-                                                    class="figma-textarea !mt-0 h-[36px] !py-[8px] text-[12px]"
+                                                    class="figma-textarea figma-google-exclusion-input"
                                                     @keydown.enter.prevent="pushIp()"
                                                 >
                                             </label>
                                             <button
                                                 type="button"
-                                                class="rounded-[6px] bg-white px-[16px] py-[9px] text-[12px] font-semibold text-[#6400B2] disabled:opacity-50"
+                                                class="figma-google-exclusion-btn figma-google-exclusion-btn--primary"
                                                 :disabled="loading || !ip.trim()"
                                                 @click="pushIp()"
                                             >
@@ -342,7 +342,7 @@
                                             </button>
                                             <button
                                                 type="button"
-                                                class="rounded-[6px] border border-white/30 px-[14px] py-[9px] text-[12px] text-white disabled:opacity-50"
+                                                class="figma-google-exclusion-btn figma-google-exclusion-btn--ghost"
                                                 :disabled="loading"
                                                 @click="syncPending()"
                                             >
@@ -382,7 +382,7 @@
                                                         <th class="px-[8px] py-[6px] font-normal">IP</th>
                                                         <th class="px-[8px] py-[6px] font-normal">Type</th>
                                                         <th class="px-[8px] py-[6px] font-normal">Status</th>
-                                                        <th class="px-[8px] py-[6px] font-normal text-right">Action</th>
+                                                        <th class="px-[8px] py-[6px] font-normal text-right">Blocked</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -397,22 +397,32 @@
                                                                 <span
                                                                     class="rounded-[3px] px-[6px] py-[2px] text-[9px] uppercase"
                                                                     :class="{
-                                                                        'bg-emerald-500/20 text-emerald-300': row.sync_status === 'synced',
+                                                                        'bg-emerald-500/20 text-emerald-300': row.sync_status === 'synced' && row.is_active !== false,
                                                                         'bg-amber-500/20 text-amber-200': row.sync_status === 'pending',
                                                                         'bg-rose-500/20 text-rose-300': row.sync_status === 'failed',
+                                                                        'bg-white/10 text-white/50': row.sync_status === 'disabled' || row.is_active === false,
                                                                         'bg-white/10 text-white/60': row.sync_status === 'skipped',
                                                                     }"
-                                                                    x-text="row.sync_status"
+                                                                    x-text="row.sync_status === 'disabled' || row.is_active === false ? 'off' : row.sync_status"
                                                                 ></span>
                                                             </td>
                                                             <td class="px-[8px] py-[6px] text-right">
-                                                                <button
-                                                                    type="button"
-                                                                    class="rounded-[4px] border border-white/25 px-[8px] py-[3px] text-[9px] font-semibold text-white hover:bg-white/10 disabled:opacity-40"
-                                                                    :disabled="loading || pushingIp === row.ip"
-                                                                    @click="pushRow(row.ip)"
-                                                                    x-text="pushingIp === row.ip ? '…' : (row.sync_status === 'synced' ? 'Re-push' : 'Push')"
-                                                                ></button>
+                                                                <label
+                                                                    class="figma-toggle figma-toggle--sm figma-toggle--no-labels ml-auto inline-flex"
+                                                                    :class="{ 'figma-toggle--disabled': loading || togglingIp === row.ip }"
+                                                                    :title="row.is_active === false ? 'Enable Google Ads block' : 'Disable Google Ads block'"
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        class="figma-toggle-input"
+                                                                        :checked="row.is_active !== false"
+                                                                        :disabled="loading || togglingIp === row.ip"
+                                                                        @change="toggleRow(row, $event.target.checked)"
+                                                                    >
+                                                                    <span class="figma-toggle-track pointer-events-none" aria-hidden="true">
+                                                                        <span class="figma-toggle-thumb"></span>
+                                                                    </span>
+                                                                </label>
                                                             </td>
                                                         </tr>
                                                     </template>
@@ -471,11 +481,13 @@ function googleExclusionPanel(config) {
         rows: config.rows || [],
         pushUrl: config.pushUrl,
         pushRowUrl: config.pushRowUrl,
+        toggleRowUrl: config.toggleRowUrl,
         bulkUrl: config.bulkUrl,
         syncUrl: config.syncUrl,
         csrf: config.csrf,
         loading: false,
         pushingIp: '',
+        togglingIp: '',
         message: '',
         ok: true,
         onBulkFile(event) {
@@ -574,6 +586,46 @@ function googleExclusionPanel(config) {
             } finally {
                 this.loading = false;
                 this.pushingIp = '';
+            }
+        },
+        async toggleRow(row, active) {
+            const ip = row?.ip;
+            if (!ip || this.loading) return;
+            this.loading = true;
+            this.togglingIp = ip;
+            this.message = '';
+            const previous = row.is_active !== false;
+            row.is_active = active;
+            try {
+                const res = await fetch(this.toggleRowUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ ip, active }),
+                });
+                const data = await res.json().catch(() => ({}));
+                this.ok = !!data.ok;
+                this.message = data.message || (this.ok
+                    ? (active ? `IP ${ip} block enabled in Google Ads.` : `IP ${ip} block removed from Google Ads.`)
+                    : 'Toggle failed.');
+                if (Array.isArray(data.rows)) {
+                    this.rows = data.rows;
+                } else if (data.row) {
+                    const idx = this.rows.findIndex(r => r.ip === ip);
+                    if (idx >= 0) this.rows[idx] = data.row;
+                }
+                if (!this.ok) row.is_active = previous;
+            } catch (e) {
+                this.ok = false;
+                this.message = 'Toggle request failed.';
+                row.is_active = previous;
+            } finally {
+                this.loading = false;
+                this.togglingIp = '';
             }
         },
         async syncPending() {

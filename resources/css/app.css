@@ -2611,6 +2611,137 @@ select:autofill {
     margin-top: 4px;
 }
 
+.figma-detection-block-ips {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 15px;
+}
+
+.figma-detection-block-ips-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.figma-detection-block-ips-actions {
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.figma-detection-block-ips-file {
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background-color: rgba(255, 255, 255, 0.08);
+    padding: 5px 10px;
+    font-size: 10px;
+    font-weight: 500;
+    color: #ffffff;
+}
+
+.figma-detection-block-ips-file:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+.figma-detection-block-ips-filename {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.figma-detection-block-ips-hint {
+    font-size: 10px;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.figma-detection-block-ips-textarea {
+    width: 100%;
+    min-height: 72px;
+    resize: vertical;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background-color: #ffffff;
+    padding: 8px 10px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: #101010;
+}
+
+.figma-detection-block-ips-textarea::placeholder {
+    color: rgba(16, 16, 16, 0.4);
+}
+
+.figma-google-exclusion-actions {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto auto;
+    gap: 8px;
+    align-items: end;
+}
+
+@media (max-width: 640px) {
+    .figma-google-exclusion-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+.figma-google-exclusion-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.figma-google-exclusion-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.figma-google-exclusion-input {
+    margin-top: 0 !important;
+    height: 36px;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    font-size: 12px !important;
+}
+
+.figma-google-exclusion-btn {
+    height: 36px;
+    border-radius: 6px;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.figma-google-exclusion-btn--primary {
+    background-color: #ffffff;
+    color: #6400b2;
+}
+
+.figma-google-exclusion-btn--primary:disabled {
+    opacity: 0.5;
+}
+
+.figma-google-exclusion-btn--ghost {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    background: transparent;
+}
+
+.figma-google-exclusion-btn--ghost:disabled {
+    opacity: 0.5;
+}
+
 .figma-detection-add-domain {
     display: inline-block;
     margin-top: auto;

@@ -74,16 +74,21 @@ class GoogleAudienceExclusionService
             return;
         }
 
+        $payload = [
+            'threat_group' => $threatGroup,
+            'exclusion_mode' => $settings->audience_exclusion_event,
+            'sync_status' => 'pending',
+            'sync_error' => null,
+            'updated_at' => now(),
+            'created_at' => now(),
+        ];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+            $payload['is_active'] = true;
+        }
+
         \Illuminate\Support\Facades\DB::table('google_ads_ip_exclusions')->updateOrInsert(
             ['domain_id' => $domain->id, 'ip' => $ip],
-            [
-                'threat_group' => $threatGroup,
-                'exclusion_mode' => $settings->audience_exclusion_event,
-                'sync_status' => 'pending',
-                'sync_error' => null,
-                'updated_at' => now(),
-                'created_at' => now(),
-            ]
+            $payload
         );
 
         SyncGoogleAdsIpExclusionJob::dispatch($domain->id, $ip);

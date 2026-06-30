@@ -688,6 +688,73 @@ class PaidMarketingController extends Controller
         ], $synced ? 200 : 422);
     }
 
+    public function toggleGoogleExclusionRow(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        if (! Schema::hasTable('google_ads_ip_exclusions')) {
+            return response()->json(['ok' => false, 'message' => 'Exclusion table not available.'], 503);
+        }
+
+        $data = $request->validate([
+            'ip' => ['required', 'string', 'max:128'],
+            'active' => ['required', 'boolean'],
+        ]);
+
+        $ip = trim($data['ip']);
+        $normalized = GoogleIpBlockFormatter::normalize($ip);
+        if ($normalized === null) {
+            return response()->json(['ok' => false, 'message' => 'Invalid IP or range.'], 422);
+        }
+
+        $row = DB::table('google_ads_ip_exclusions')
+            ->where('domain_id', $domain->id)
+            ->get()
+            ->first(fn ($candidate) => GoogleIpBlockFormatter::matches((string) $candidate->ip, $normalized));
+
+        if (! $row) {
+            return response()->json(['ok' => false, 'message' => 'IP not found in exclusion list.'], 404);
+        }
+
+        if ($data['active']) {
+            $update = [
+                'sync_status' => 'pending',
+                'sync_error' => null,
+                'updated_at' => now(),
+            ];
+            if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+                $update['is_active'] = true;
+            }
+            DB::table('google_ads_ip_exclusions')->where('id', $row->id)->update($update);
+
+            $synced = $sync->syncRow($domain, (string) $row->ip, (int) $row->id);
+            $row = DB::table('google_ads_ip_exclusions')->where('id', $row->id)->first();
+            $detail = $row?->sync_error ? (string) $row->sync_error : null;
+
+            return response()->json([
+                'ok' => $synced,
+                'message' => $synced
+                    ? ($detail ?: 'IP block enabled in Google Ads.')
+                    : ($detail ?: 'Could not enable IP block in Google Ads.'),
+                'row' => $row ? $this->formatGoogleExclusionRow($row) : null,
+                'rows' => $this->googleExclusionRowsForDomain($domain->id),
+            ], $synced ? 200 : 422);
+        }
+
+        $removed = $sync->removeRow($domain, (string) $row->ip, (int) $row->id);
+        $row = DB::table('google_ads_ip_exclusions')->where('id', $row->id)->first();
+        $detail = $row?->sync_error ? (string) $row->sync_error : null;
+
+        return response()->json([
+            'ok' => $removed,
+            'message' => $removed
+                ? ($detail ?: 'IP block removed from Google Ads.')
+                : ($detail ?: 'Could not fully remove IP block from Google Ads.'),
+            'row' => $row ? $this->formatGoogleExclusionRow($row) : null,
+            'rows' => $this->googleExclusionRowsForDomain($domain->id),
+        ], $removed ? 200 : 422);
+    }
+
     public function pushGoogleExclusionBulk(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
     {
         abort_unless($domain->user_id === $request->user()->id, 403);
@@ -737,16 +804,20 @@ class PaidMarketingController extends Controller
             if ($normalized === null) {
                 continue;
             }
+            $payload = [
+                'threat_group' => 'manual',
+                'exclusion_mode' => 'manual_bulk',
+                'sync_status' => 'pending',
+                'sync_error' => null,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ];
+            if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+                $payload['is_active'] = true;
+            }
             DB::table('google_ads_ip_exclusions')->updateOrInsert(
                 ['domain_id' => $domain->id, 'ip' => $normalized],
-                [
-                    'threat_group' => 'manual',
-                    'exclusion_mode' => 'manual_bulk',
-                    'sync_status' => 'pending',
-                    'sync_error' => null,
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
+                $payload
             );
         }
 
@@ -838,9 +909,13 @@ class PaidMarketingController extends Controller
     private function formatGoogleExclusionRow(object $row): array
     {
         return [
+            'id' => (int) $row->id,
             'ip' => (string) $row->ip,
             'threat_group' => (string) ($row->threat_group ?? ''),
             'sync_status' => (string) ($row->sync_status ?? 'pending'),
+            'is_active' => Schema::hasColumn('google_ads_ip_exclusions', 'is_active')
+                ? (bool) ($row->is_active ?? true)
+                : ($row->sync_status ?? '') !== 'disabled',
             'sync_error' => $row->sync_error ? (string) $row->sync_error : null,
             'synced_at' => $row->synced_at ? (string) $row->synced_at : null,
             'updated_at' => (string) ($row->updated_at ?? ''),

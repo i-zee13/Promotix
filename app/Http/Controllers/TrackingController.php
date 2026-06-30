@@ -98,6 +98,27 @@ class TrackingController extends Controller
 
         $campaignAttribution = CampaignAttributionResolver::resolve($domain, $data);
 
+        $visitId = null;
+        DB::transaction(function () use (
+            &$visitId,
+            $domain,
+            $data,
+            $ip,
+            $ua,
+            $browser,
+            $os,
+            $device,
+            $isCrawler,
+            $isPaidTraffic,
+            $googleClick,
+            $visitedAt,
+            $sessionId,
+            $skipVisitLog,
+            $detection,
+            $displayCountry,
+            $visitCountryCode,
+            $campaignAttribution,
+        ): void {
         if ($isPaidTraffic) {
             // Paid marketing funnel: Google click IDs (gclid / gbraid / wbraid) only.
             $visit = PaidMarketingVisit::firstOrNew([
@@ -148,7 +169,6 @@ class TrackingController extends Controller
             PaidMarketingClick::create($clickPayload);
         }
 
-        $visitId = null;
         if (Schema::hasTable('visits') && ! $skipVisitLog) {
             $visitPayload = [
                 'domain_id' => $domain->id,
@@ -206,6 +226,7 @@ class TrackingController extends Controller
 
             $visitId = DB::table('visits')->insertGetId($visitPayload);
         }
+        });
 
         if ($sessionId !== null && Schema::hasTable('ip_sessions') && ! $skipVisitLog) {
             $existingSession = DB::table('ip_sessions')

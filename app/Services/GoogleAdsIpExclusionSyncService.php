@@ -28,8 +28,13 @@ class GoogleAdsIpExclusionSyncService
 
         $rows = DB::table('google_ads_ip_exclusions')
             ->where('domain_id', $domain->id)
-            ->where('sync_status', 'pending')
-            ->orderBy('id')
+            ->where('sync_status', 'pending');
+
+        if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+            $rows->where('is_active', true);
+        }
+
+        $rows = $rows->orderBy('id')
             ->limit($limit)
             ->get();
 
@@ -58,6 +63,13 @@ class GoogleAdsIpExclusionSyncService
         }
 
         $ip = $googleIp;
+
+        if ($rowId !== null && Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+            $activeRow = DB::table('google_ads_ip_exclusions')->where('id', $rowId)->first();
+            if ($activeRow && ! (bool) ($activeRow->is_active ?? true)) {
+                return false;
+            }
+        }
 
         $domain->loadMissing('googleAdsAccount.connection');
         $account = $domain->googleAdsAccount;
@@ -602,40 +614,209 @@ class GoogleAdsIpExclusionSyncService
         return $found;
     }
 
+    /**
+     * Remove an IP block from Google Ads campaigns and account-level exclusions.
+     */
+    public function removeRow(Domain $domain, string $ip, ?int $rowId = null): bool
+    {
+        if (! Schema::hasTable('google_ads_ip_exclusions')) {
+            return false;
+        }
+
+        $googleIp = GoogleIpBlockFormatter::normalize(trim($ip));
+        if ($googleIp === null) {
+            return false;
+        }
+
+        $domain->loadMissing('googleAdsAccount.connection');
+        $account = $domain->googleAdsAccount;
+        if (! $account || (bool) $account->is_manager) {
+            $this->markRowDisabled($domain->id, $googleIp, $rowId, 'Domain has no linked Google Ads customer account.');
+
+            return false;
+        }
+
+        $headers = $this->headersForAccount($account);
+        if ($headers === null) {
+            $this->markRowDisabled($domain->id, $googleIp, $rowId, 'Google Ads API credentials unavailable.');
+
+            return false;
+        }
+
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+        if ($customerId === '') {
+            $this->markRowDisabled($domain->id, $googleIp, $rowId, 'Missing Google Ads customer id.');
+
+            return false;
+        }
+
+        $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
+        $campaignIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
+        $removed = 0;
+        $errors = [];
+
+        foreach ($campaignIds as $campaignId) {
+            $resourceNames = $this->campaignIpBlockResourceNames($customerId, $campaignId, $version, $headers, $googleIp);
+            foreach ($resourceNames as $resourceName) {
+                $response = Http::timeout(30)
+                    ->withHeaders($headers)
+                    ->post($this->googleAdsUrl($version, "customers/{$customerId}/campaignCriteria:mutate"), [
+                        'operations' => [['remove' => $resourceName]],
+                    ]);
+
+                if ($response->successful() || $this->isBenignDuplicate($this->extractErrorMessage((string) $response->body()))) {
+                    $removed++;
+                } else {
+                    $errors[] = 'campaign ' . $campaignId . ': ' . Str::limit($this->extractErrorMessage((string) $response->body()), 200);
+                }
+            }
+        }
+
+        foreach ($this->accountIpBlockResourceNames($customerId, $version, $headers, $googleIp) as $resourceName) {
+            $response = Http::timeout(30)
+                ->withHeaders($headers)
+                ->post($this->googleAdsUrl($version, "customers/{$customerId}/customerNegativeCriteria:mutate"), [
+                    'operations' => [['remove' => $resourceName]],
+                ]);
+
+            if ($response->successful() || $this->isBenignDuplicate($this->extractErrorMessage((string) $response->body()))) {
+                $removed++;
+            } else {
+                $errors[] = 'account: ' . Str::limit($this->extractErrorMessage((string) $response->body()), 200);
+            }
+        }
+
+        $stillOnCampaigns = $this->verifyIpOnCampaigns($domain, $googleIp);
+        $stillOnAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $googleIp);
+
+        if ($stillOnCampaigns === [] && ! $stillOnAccount) {
+            $this->markRowDisabled($domain->id, $googleIp, $rowId, $removed > 0 ? 'Removed from Google Ads.' : 'Block disabled locally.');
+
+            return true;
+        }
+
+        $message = $errors !== []
+            ? implode(' | ', $errors)
+            : 'IP may still be blocked on Google Ads — try again or remove manually in Google Ads.';
+
+        $this->markRow($domain->id, $googleIp, 'failed', $message);
+
+        return false;
+    }
+
+    /** @return list<string> */
+    private function campaignIpBlockResourceNames(
+        string $customerId,
+        string $campaignId,
+        string $version,
+        array $headers,
+        string $ip,
+    ): array {
+        $query = "SELECT campaign_criterion.resource_name, campaign_criterion.ip_block.ip_address FROM campaign_criterion WHERE campaign_criterion.type = IP_BLOCK AND campaign_criterion.negative = TRUE AND campaign.id = {$campaignId}";
+
+        $response = Http::timeout(30)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if (! $response->successful()) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($this->parseRows($response->json()) as $row) {
+            $block = $row['campaignCriterion']['ipBlock'] ?? $row['campaign_criterion']['ip_block'] ?? [];
+            $existing = (string) ($block['ipAddress'] ?? $block['ip_address'] ?? '');
+            $resourceName = (string) ($row['campaignCriterion']['resourceName'] ?? $row['campaign_criterion']['resource_name'] ?? '');
+            if ($resourceName !== '' && $this->ipsMatch($existing, $ip)) {
+                $names[] = $resourceName;
+            }
+        }
+
+        return $names;
+    }
+
+    /** @return list<string> */
+    private function accountIpBlockResourceNames(
+        string $customerId,
+        string $version,
+        array $headers,
+        string $ip,
+    ): array {
+        $query = 'SELECT customer_negative_criterion.resource_name, customer_negative_criterion.ip_block.ip_address FROM customer_negative_criterion WHERE customer_negative_criterion.type = IP_BLOCK';
+
+        $response = Http::timeout(30)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if (! $response->successful()) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($this->parseRows($response->json()) as $row) {
+            $block = $row['customerNegativeCriterion']['ipBlock'] ?? $row['customer_negative_criterion']['ip_block'] ?? [];
+            $existing = (string) ($block['ipAddress'] ?? $block['ip_address'] ?? '');
+            $resourceName = (string) ($row['customerNegativeCriterion']['resourceName'] ?? $row['customer_negative_criterion']['resource_name'] ?? '');
+            if ($resourceName !== '' && $this->ipsMatch($existing, $ip)) {
+                $names[] = $resourceName;
+            }
+        }
+
+        return $names;
+    }
+
+    private function markRowDisabled(int $domainId, string $ip, ?int $rowId, ?string $note = null): void
+    {
+        if (! Schema::hasTable('google_ads_ip_exclusions')) {
+            return;
+        }
+
+        $payload = [
+            'sync_status' => 'disabled',
+            'sync_error' => $note,
+            'synced_at' => null,
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+            $payload['is_active'] = false;
+        }
+
+        $query = DB::table('google_ads_ip_exclusions')->where('domain_id', $domainId);
+        if ($rowId !== null) {
+            $query->where('id', $rowId);
+        } else {
+            $query->where('ip', $ip);
+        }
+
+        $query->update($payload);
+    }
+
     private function markRow(int $domainId, string $ip, string $status, ?string $error, ?\Illuminate\Support\Carbon $syncedAt = null): void
     {
         if (! Schema::hasTable('google_ads_ip_exclusions')) {
             return;
         }
 
+        $payload = [
+            'sync_status' => $status,
+            'sync_error' => $error,
+            'synced_at' => $syncedAt,
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active') && $status === 'synced') {
+            $payload['is_active'] = true;
+        }
+
         DB::table('google_ads_ip_exclusions')
             ->where('domain_id', $domainId)
             ->where('ip', $ip)
-            ->update([
-                'sync_status' => $status,
-                'sync_error' => $error,
-                'synced_at' => $syncedAt,
-                'updated_at' => now(),
-            ]);
-    }
-
-    private function isBenignDuplicate(string $error): bool
-    {
-        $needles = [
-            'DUPLICATE',
-            'ALREADY_EXISTS',
-            'already exists',
-            'CRITERION_ALREADY_EXISTS',
-            'Resource has been deleted',
-        ];
-
-        foreach ($needles as $needle) {
-            if (stripos($error, $needle) !== false) {
-                return true;
-            }
-        }
-
-        return false;
+            ->update($payload);
     }
 
     private function extractErrorMessage(string $body): string
@@ -662,6 +843,25 @@ class GoogleAdsIpExclusionSyncService
         }
 
         return $body;
+    }
+
+    private function isBenignDuplicate(string $error): bool
+    {
+        $needles = [
+            'DUPLICATE',
+            'ALREADY_EXISTS',
+            'already exists',
+            'CRITERION_ALREADY_EXISTS',
+            'Resource has been deleted',
+        ];
+
+        foreach ($needles as $needle) {
+            if (stripos($error, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return list<array<string, mixed>> */

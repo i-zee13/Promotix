@@ -168,6 +168,7 @@ Route::middleware(['auth', 'admin'])
         Route::get('/paid-marketing/dashboard', [PaidAdvertisingDashboardController::class, 'index'])->name('paid-marketing.dashboard');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/push', [PaidMarketingController::class, 'pushGoogleExclusionIp'])->name('paid-marketing.detection-settings.google-exclusion.push');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/push-row', [PaidMarketingController::class, 'pushGoogleExclusionRow'])->name('paid-marketing.detection-settings.google-exclusion.push-row');
+        Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/toggle-row', [PaidMarketingController::class, 'toggleGoogleExclusionRow'])->name('paid-marketing.detection-settings.google-exclusion.toggle-row');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/push-bulk', [PaidMarketingController::class, 'pushGoogleExclusionBulk'])->name('paid-marketing.detection-settings.google-exclusion.push-bulk');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/sync', [PaidMarketingController::class, 'syncGoogleExclusionIps'])->name('paid-marketing.detection-settings.google-exclusion.sync');
         Route::get('/paid-marketing/detection-settings', [PaidMarketingController::class, 'detectionSettings'])->name('paid-marketing.detection-settings');

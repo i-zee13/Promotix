@@ -37,6 +37,17 @@
         </div>
 
         <div class="paid-dashboard-cards">
+            <div
+                x-show="summary.tag_gap_warning"
+                x-cloak
+                class="col-span-full rounded-[8px] border border-amber-400/40 bg-amber-500/15 px-[14px] py-[10px] text-[11px] text-amber-100"
+            >
+                <strong>Tag coverage low:</strong>
+                Google Ads reports <span x-text="fmt(summary.google_clicks)"></span> clicks but your site tag captured only
+                <span x-text="fmt(summary.tag_paid_visits)"></span>
+                (<span x-text="summary.tag_capture_pct"></span>%).
+                Most IPs are missing because the tracking tag is not firing on every landing page — use WP Header/Body tags plugin, not theme <code class="text-[10px]">header.php</code>.
+            </div>
             <article class="paid-dashboard-card">
                 <div class="flex items-start justify-between">
                     <h2 class="paid-dashboard-card__title">Paid Traffic</h2>
@@ -52,6 +63,9 @@
                         <div class="min-w-0 text-left">
                             <p class="text-[9px] leading-[1.25] text-white/75">Paid traffic</p>
                             <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
+                            <p class="mt-[4px] text-[8px] leading-tight text-white/50" x-show="summary.google_clicks > 0">
+                                Google: <span x-text="fmt(summary.google_clicks)"></span> · Tag: <span x-text="fmt(summary.tag_paid_visits)"></span>
+                            </p>
                         </div>
                         <div class="min-w-0 text-left">
                             <p class="text-[9px] leading-[1.25] text-white/75">Invalid clicks</p>
@@ -453,7 +467,7 @@ function paidAdvertisingFigma(config = {}) {
         countryGetStarted: Boolean(config.countryGetStarted),
         userTimezone: config.userTimezone || 'UTC',
         filters: { domain_id: '', campaign: '', campaign_id: '', path: '', window: 'weekly', from: '', to: '' },
-        summary: { paid_visits: 0, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
+        summary: { paid_visits: 0, tag_paid_visits: 0, google_clicks: 0, tag_capture_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [] },
         campaigns: [],

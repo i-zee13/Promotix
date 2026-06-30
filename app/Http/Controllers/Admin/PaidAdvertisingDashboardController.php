@@ -67,11 +67,13 @@ class PaidAdvertisingDashboardController extends Controller
             }
         }
 
-        if ($tagPaid === 0 && $domainIds->isNotEmpty()) {
+        if ($domainIds->isNotEmpty()) {
             $legacy = $this->paidMarketingTrafficStats($request, $domainIds, $metricFrom, $metricTo);
-            $tagPaid = (int) ($legacy['total'] ?? 0);
-            $invalid = (int) ($legacy['invalid'] ?? 0);
-            $uniqueIps = (int) ($legacy['unique_ips'] ?? 0);
+            $tagPaid = max($tagPaid, (int) ($legacy['total'] ?? 0));
+            if ($invalid === 0) {
+                $invalid = (int) ($legacy['invalid'] ?? 0);
+            }
+            $uniqueIps = max($uniqueIps, (int) ($legacy['unique_ips'] ?? 0));
         }
 
         $googleAds = null;
@@ -83,11 +85,16 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         $paid = $this->displayPaidTrafficCount($tagPaid, $googleClicks);
+        $tagCapturePct = $googleClicks > 0
+            ? (int) round(min(100, ($tagPaid / $googleClicks) * 100))
+            : ($tagPaid > 0 ? 100 : 0);
 
         return response()->json([
             'paid_visits' => $paid,
             'tag_paid_visits' => $tagPaid,
             'google_clicks' => $googleClicks,
+            'tag_capture_pct' => $tagCapturePct,
+            'tag_gap_warning' => $googleClicks > 0 && $tagPaid < (int) floor($googleClicks * 0.5),
             'invalid_paid_visits' => $invalid,
             'blocked_paid_visits' => $blocked,
             'flagged_paid_visits' => $flagged,
@@ -623,6 +630,10 @@ class PaidAdvertisingDashboardController extends Controller
                 DB::raw(Schema::hasColumn('visits', 'utm_term') ? 'utm_term as keyword' : "NULL as keyword"),
             ]);
 
+        if ($rows->isEmpty()) {
+            return response()->json($this->ipClicksFromPaidMarketing($request, $domainIds, $metricFrom, $metricTo, $ip));
+        }
+
         return response()->json($rows->map(function ($row) use ($user, $ip) {
             $reasons = [];
             if (! empty($row->detection_reasons)) {
@@ -654,6 +665,74 @@ class PaidAdvertisingDashboardController extends Controller
                 'detection_reasons' => $reasons,
             ];
         })->values());
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function ipClicksFromPaidMarketing(Request $request, $domainIds, string $fromDate, string $toDate, string $ip): array
+    {
+        if (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits')) {
+            return [];
+        }
+
+        $user = $request->user();
+        $query = DB::table('paid_marketing_clicks as pc')
+            ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+            ->whereIn('pv.domain_id', $domainIds)
+            ->where('pc.ip', $ip);
+
+        UserTimezone::applyCalendarDateRangeFilter($query, 'pc.clicked_at', $fromDate, $toDate, $user);
+        $this->applyPaidTrafficOnlyFilter($query, 'pc');
+
+        if ($this->hasCampaignFilter($request)) {
+            if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
+                $this->applyDirectCampaignFilter($query, $request, 'pc.campaign_name', 'pc.google_campaign_id', 'pc.campaign');
+            } else {
+                $this->applyDirectCampaignFilter($query, $request, 'pc.campaign', 'pc.google_campaign_id');
+            }
+        }
+
+        return $query
+            ->orderBy('pc.clicked_at')
+            ->limit(100)
+            ->get([
+                'pc.clicked_at',
+                'pc.path',
+                'pc.country',
+                'pc.browser_name',
+                'pc.browser_version',
+                'pc.os',
+                'pc.threat_group',
+                'pc.campaign',
+                'pc.paid_id',
+                'pc.keyword',
+            ])
+            ->map(function ($row) use ($user, $ip) {
+                $clickedAt = ! empty($row->clicked_at)
+                    ? Carbon::parse((string) $row->clicked_at, 'UTC')
+                    : null;
+
+                return [
+                    'clicked_at' => UserTimezone::isoForUser($clickedAt, $user),
+                    'last_click_at' => UserTimezone::isoForUser($clickedAt, $user),
+                    'ip' => $ip,
+                    'country' => $row->country,
+                    'campaign' => $row->campaign,
+                    'path' => $row->path,
+                    'paid_id' => $row->paid_id,
+                    'keyword' => $row->keyword ?? null,
+                    'browser_name' => $row->browser_name,
+                    'browser_version' => $row->browser_version,
+                    'os' => $row->os,
+                    'threat_group' => $row->threat_group,
+                    'is_invalid' => filled($row->threat_group),
+                    'action_taken' => filled($row->threat_group) ? 'block' : 'allow',
+                    'detection_reasons' => [],
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public function exportIpsCsv(Request $request): StreamedResponse
@@ -898,12 +977,57 @@ class PaidAdvertisingDashboardController extends Controller
      */
     private function resolveIpRows(Request $request, $domainIds, string $fromDate, string $toDate)
     {
-        $rows = $this->ipRowsFromVisits($request, $domainIds, $fromDate, $toDate);
-        if ($rows->isEmpty()) {
-            $rows = $this->ipRowsFromPaidMarketing($request, $domainIds, $fromDate, $toDate);
-        }
+        $rows = $this->mergeIpRowSources(
+            $this->ipRowsFromVisits($request, $domainIds, $fromDate, $toDate),
+            $this->ipRowsFromPaidMarketing($request, $domainIds, $fromDate, $toDate),
+        );
 
         return $this->formatIpRows($rows, $request->user(), $this->resolveActiveAllowListIps($request));
+    }
+
+    /**
+     * Prefer visits for threat metadata; use the higher click totals when sources diverge.
+     *
+     * @param  \Illuminate\Support\Collection<int, object>  $visitRows
+     * @param  \Illuminate\Support\Collection<int, object>  $paidRows
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    private function mergeIpRowSources($visitRows, $paidRows)
+    {
+        $byIp = [];
+
+        foreach ($visitRows as $row) {
+            $byIp[(string) $row->ip] = $row;
+        }
+
+        foreach ($paidRows as $row) {
+            $ip = (string) $row->ip;
+            if (! isset($byIp[$ip])) {
+                $byIp[$ip] = $row;
+                continue;
+            }
+
+            $existing = $byIp[$ip];
+            $byIp[$ip] = (object) [
+                'ip' => $ip,
+                'total' => max((int) ($existing->total ?? 0), (int) ($row->total ?? 0)),
+                'invalid' => max((int) ($existing->invalid ?? 0), (int) ($row->invalid ?? 0)),
+                'country' => $existing->country ?? $row->country ?? null,
+                'last_seen' => max(
+                    (string) ($existing->last_seen ?? ''),
+                    (string) ($row->last_seen ?? '')
+                ) ?: null,
+                'campaign' => $existing->campaign ?? $row->campaign ?? null,
+                'vpn_hits' => max((int) ($existing->vpn_hits ?? 0), (int) ($row->vpn_hits ?? 0)),
+                'data_center_hits' => max((int) ($existing->data_center_hits ?? 0), (int) ($row->data_center_hits ?? 0)),
+                'malicious_hits' => max((int) ($existing->malicious_hits ?? 0), (int) ($row->malicious_hits ?? 0)),
+                'top_threat' => $existing->top_threat ?? $row->top_threat ?? null,
+            ];
+        }
+
+        return collect($byIp)
+            ->sortByDesc(fn ($row) => (int) ($row->total ?? 0))
+            ->values();
     }
 
     /**
