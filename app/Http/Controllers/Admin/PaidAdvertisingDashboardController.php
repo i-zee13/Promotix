@@ -1750,11 +1750,12 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /**
-     * Paid traffic card = Google Ads clicks only (tag hits are tracked separately for IPs).
+     * Paid traffic card = tag-captured visits (gclid). Google clicks are stored on
+     * domain link for history/campaigns but are not used for this headline count.
      */
     private function displayPaidTrafficCount(int $tagPaid, int $googleClicks): int
     {
-        return max(0, $googleClicks);
+        return max(0, $tagPaid);
     }
 
     private function emptySummary(): array

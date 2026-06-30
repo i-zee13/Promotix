@@ -63,8 +63,8 @@
                         <div class="min-w-0 text-left">
                             <p class="text-[9px] leading-[1.25] text-white/75">Paid traffic</p>
                             <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
-                            <p class="mt-[4px] text-[8px] leading-tight text-white/50" x-show="summary.google_clicks > 0">
-                                Google: <span x-text="fmt(summary.google_clicks)"></span> · Tag: <span x-text="fmt(summary.tag_paid_visits)"></span>
+                            <p class="mt-[4px] text-[8px] leading-tight text-white/50" x-show="summary.google_clicks > summary.tag_paid_visits">
+                                Google Ads: <span x-text="fmt(summary.google_clicks)"></span> (reference only)
                             </p>
                         </div>
                         <div class="min-w-0 text-left">
