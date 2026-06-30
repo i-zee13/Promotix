@@ -5,6 +5,7 @@ namespace App\Services\IpIntel;
 use App\Jobs\EnrichIpIntelJob;
 use App\Models\Domain;
 use App\Models\IpLog;
+use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
