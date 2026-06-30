@@ -62,9 +62,7 @@
                         <div class="mt-[10px]">
                             <h3 class="paid-dashboard-card__title">Total click count</h3>
                             <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.total_click_count)"></p>
-                            <p class="mt-[2px] text-[8px] leading-tight text-white/50">
-                                Google <span x-text="fmt(summary.google_clicks)"></span> + Tag <span x-text="fmt(summary.tag_paid_visits)"></span> (valid &amp; invalid)
-                            </p>
+                            <p class="mt-[2px] text-[8px] leading-tight text-white/50">Google Ads clicks for selected dates</p>
                         </div>
                     </div>
                     <div class="relative h-[72px] w-[88px] self-end">
@@ -478,9 +476,9 @@ function paidAdvertisingFigma(config = {}) {
         hiddenTrendSeries: { lastWeek: false, thisWeek: false },
         cardCharts: {},
         get botRate() {
-            const paid = Number(this.summary.paid_visits || 0);
+            const tagTotal = Number(this.summary.tag_paid_visits || 0);
             const invalid = Number(this.summary.invalid_paid_visits || 0);
-            return paid ? Math.round((invalid / paid) * 100) : 0;
+            return tagTotal ? Math.round((invalid / tagTotal) * 100) : 0;
         },
         get topCampaign() {
             return (this.campaigns || []).find(r => r.campaign) || null;
@@ -858,29 +856,61 @@ function paidAdvertisingFigma(config = {}) {
                 ...extra,
             };
         },
-        renderCardCharts() {
-            if (!window.Chart) return;
+        renderCardCharts(retry = 0) {
+            if (!window.Chart) {
+                if (retry < 20) {
+                    requestAnimationFrame(() => this.renderCardCharts(retry + 1));
+                }
+                return;
+            }
             this.renderInvalidDonut();
             this.renderBotBars();
         },
-        renderInvalidDonut() {
+        renderInvalidDonut(retry = 0) {
             const el = document.getElementById('paid-invalid-donut');
             if (!el) return;
+            const rect = el.getBoundingClientRect();
+            if ((rect.width < 2 || rect.height < 2) && retry < 12) {
+                requestAnimationFrame(() => this.renderInvalidDonut(retry + 1));
+                return;
+            }
             this.destroyCardChart('invalidDonut');
             const valid = Number(this.summary.valid_paid_visits || 0);
             const invalid = Number(this.summary.invalid_paid_visits || 0);
-            const paid = Number(this.summary.paid_visits || 0);
-            const rate = paid ? Math.round((invalid / paid) * 100) : 0;
-            const hasData = valid + invalid > 0;
+            const tagTotal = Number(this.summary.tag_paid_visits || 0);
+            const rate = tagTotal ? Math.round((invalid / tagTotal) * 100) : 0;
+            const hasData = tagTotal > 0;
             const fmt = (n) => this.fmt(n);
+            const validColor = 'rgba(255,255,255,0.42)';
+            const emptyColor = 'rgba(255,255,255,0.14)';
+            const ringBorder = 'rgba(255,255,255,0.55)';
+            let labels = ['Invalid', 'Valid'];
+            let values = [invalid, valid];
+            let colors = ['#FF4BC1', validColor];
+
+            if (!hasData) {
+                labels = ['Empty'];
+                values = [1];
+                colors = [emptyColor];
+            } else if (invalid <= 0) {
+                labels = ['Valid'];
+                values = [valid];
+                colors = [validColor];
+            } else if (valid <= 0) {
+                labels = ['Invalid'];
+                values = [invalid];
+                colors = ['#FF4BC1'];
+            }
+
             this.cardCharts.invalidDonut = new Chart(el, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Invalid', 'Valid'],
+                    labels,
                     datasets: [{
-                        data: hasData ? [invalid, valid] : [0, 1],
-                        backgroundColor: ['#FF4BC1', 'rgba(255,255,255,0.18)'],
-                        borderWidth: 0,
+                        data: values,
+                        backgroundColor: colors,
+                        borderColor: ringBorder,
+                        borderWidth: 2,
                         hoverOffset: hasData ? 2 : 0,
                     }],
                 },

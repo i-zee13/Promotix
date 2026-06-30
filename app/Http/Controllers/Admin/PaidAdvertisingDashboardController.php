@@ -85,7 +85,8 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         $paid = $this->displayPaidTrafficCount($tagPaid, $googleClicks);
-        $totalClickCount = $googleClicks + $tagPaid;
+        $validTagPaid = max(0, $tagPaid - $invalid);
+        $totalClickCount = $googleClicks;
         $tagCapturePct = $googleClicks > 0
             ? (int) round(min(100, ($tagPaid / $googleClicks) * 100))
             : ($tagPaid > 0 ? 100 : 0);
@@ -101,7 +102,7 @@ class PaidAdvertisingDashboardController extends Controller
             'blocked_paid_visits' => $blocked,
             'flagged_paid_visits' => $flagged,
             'unique_ips' => $uniqueIps,
-            'valid_paid_visits' => max(0, $paid - $invalid),
+            'valid_paid_visits' => $validTagPaid,
             'google_ads' => $googleAds,
             'window' => [
                 'from' => $from->toIso8601String(),
