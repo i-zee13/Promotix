@@ -85,6 +85,7 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         $paid = $this->displayPaidTrafficCount($tagPaid, $googleClicks);
+        $totalClickCount = $googleClicks + $tagPaid;
         $tagCapturePct = $googleClicks > 0
             ? (int) round(min(100, ($tagPaid / $googleClicks) * 100))
             : ($tagPaid > 0 ? 100 : 0);
@@ -93,6 +94,7 @@ class PaidAdvertisingDashboardController extends Controller
             'paid_visits' => $paid,
             'tag_paid_visits' => $tagPaid,
             'google_clicks' => $googleClicks,
+            'total_click_count' => $totalClickCount,
             'tag_capture_pct' => $tagCapturePct,
             'tag_gap_warning' => $googleClicks > 0 && $tagPaid < (int) floor($googleClicks * 0.5),
             'invalid_paid_visits' => $invalid,

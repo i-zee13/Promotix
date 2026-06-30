@@ -48,20 +48,26 @@
                     </div>
                 </div>
                 <div class="mt-[8px] grid grid-cols-[minmax(0,1fr)_88px] items-center gap-[10px]">
-                    <div class="grid min-w-0 grid-cols-2 gap-x-[14px] gap-y-[6px]">
-                        <div class="min-w-0 text-left">
-                            <p class="text-[9px] leading-[1.25] text-white/75">Paid traffic</p>
-                            <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
-                            <p class="mt-[4px] text-[8px] leading-tight text-white/50" x-show="summary.google_clicks > summary.tag_paid_visits">
-                                Google Ads: <span x-text="fmt(summary.google_clicks)"></span> (reference only)
+                    <div class="min-w-0">
+                        <div class="grid grid-cols-2 gap-x-[14px] gap-y-[6px]">
+                            <div class="min-w-0 text-left">
+                                <p class="text-[9px] leading-[1.25] text-white/75">Paid traffic</p>
+                                <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
+                            </div>
+                            <div class="min-w-0 text-left">
+                                <p class="text-[9px] leading-[1.25] text-white/75">Invalid clicks</p>
+                                <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
+                            </div>
+                        </div>
+                        <div class="mt-[10px]">
+                            <h3 class="paid-dashboard-card__title">Total click count</h3>
+                            <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.total_click_count)"></p>
+                            <p class="mt-[2px] text-[8px] leading-tight text-white/50">
+                                Google <span x-text="fmt(summary.google_clicks)"></span> + Tag <span x-text="fmt(summary.tag_paid_visits)"></span> (valid &amp; invalid)
                             </p>
                         </div>
-                        <div class="min-w-0 text-left">
-                            <p class="text-[9px] leading-[1.25] text-white/75">Invalid clicks</p>
-                            <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
-                        </div>
                     </div>
-                    <div class="relative h-[72px] w-[88px]">
+                    <div class="relative h-[72px] w-[88px] self-end">
                         <canvas id="paid-invalid-donut" class="h-full w-full" aria-label="Invalid traffic rate"></canvas>
                     </div>
                 </div>
@@ -456,7 +462,7 @@ function paidAdvertisingFigma(config = {}) {
         countryGetStarted: Boolean(config.countryGetStarted),
         userTimezone: config.userTimezone || 'UTC',
         filters: { domain_id: '', campaign: '', campaign_id: '', path: '', window: 'weekly', from: '', to: '' },
-        summary: { paid_visits: 0, tag_paid_visits: 0, google_clicks: 0, tag_capture_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
+        summary: { paid_visits: 0, tag_paid_visits: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [] },
         campaigns: [],
@@ -866,6 +872,7 @@ function paidAdvertisingFigma(config = {}) {
             const paid = Number(this.summary.paid_visits || 0);
             const rate = paid ? Math.round((invalid / paid) * 100) : 0;
             const hasData = valid + invalid > 0;
+            const fmt = (n) => this.fmt(n);
             this.cardCharts.invalidDonut = new Chart(el, {
                 type: 'doughnut',
                 data: {
@@ -874,17 +881,16 @@ function paidAdvertisingFigma(config = {}) {
                         data: hasData ? [invalid, valid] : [0, 1],
                         backgroundColor: ['#FF4BC1', 'rgba(255,255,255,0.18)'],
                         borderWidth: 0,
+                        hoverOffset: hasData ? 2 : 0,
                     }],
                 },
                 options: this.miniChartOptions({
                     cutout: '70%',
+                    events: hasData ? undefined : [],
+                    interaction: { mode: 'nearest', intersect: true },
                     plugins: {
                         legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => `${ctx.label}: ${this.fmt(ctx.raw)}`,
-                            },
-                        },
+                        tooltip: { enabled: false },
                     },
                 }),
                 plugins: [{
@@ -894,15 +900,31 @@ function paidAdvertisingFigma(config = {}) {
                         if (!chartArea) return;
                         const cx = (chartArea.left + chartArea.right) / 2;
                         const cy = (chartArea.top + chartArea.bottom) / 2;
+                        const active = hasData ? chart.getActiveElements() : [];
+
                         ctx.save();
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = '600 12px Inter, sans-serif';
-                        ctx.fillText(`${rate}%`, cx, cy - 5);
-                        ctx.fillStyle = 'rgba(255,255,255,0.65)';
-                        ctx.font = '8px Inter, sans-serif';
-                        ctx.fillText('Invalid Rate', cx, cy + 9);
+
+                        if (active.length > 0) {
+                            const idx = active[0].index;
+                            const label = chart.data.labels[idx] || '';
+                            const value = chart.data.datasets[0].data[idx] ?? 0;
+                            ctx.fillStyle = '#ffffff';
+                            ctx.font = '600 12px Inter, sans-serif';
+                            ctx.fillText(fmt(value), cx, cy - 5);
+                            ctx.fillStyle = 'rgba(255,255,255,0.65)';
+                            ctx.font = '8px Inter, sans-serif';
+                            ctx.fillText(label, cx, cy + 9);
+                        } else {
+                            ctx.fillStyle = '#ffffff';
+                            ctx.font = '600 12px Inter, sans-serif';
+                            ctx.fillText(`${rate}%`, cx, cy - 5);
+                            ctx.fillStyle = 'rgba(255,255,255,0.65)';
+                            ctx.font = '8px Inter, sans-serif';
+                            ctx.fillText('Invalid Rate', cx, cy + 9);
+                        }
+
                         ctx.restore();
                     },
                 }],
