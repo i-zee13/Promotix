@@ -54,7 +54,7 @@ echo "Tag visits all (visits table): {$visitsAll}\n";
 echo "Unique IPs (paid visits): {$uniqueIps}\n";
 echo "Invalid paid visits: {$invalid}\n";
 echo "paid_marketing_clicks rows: {$pmClicks}\n";
-echo "Dashboard Paid Traffic card uses: tag visits = {$tagPaid} (Google reference = {$googleClicks})\n\n";
+echo "Dashboard Paid Traffic card uses: tag visits = {$visitsPaid} (Google reference = {$googleClicks})\n\n";
 
 echo "--- IPs on {$date} (paid visits) ---\n";
 $ips = DB::table('visits')

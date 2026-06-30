@@ -37,17 +37,6 @@
         </div>
 
         <div class="paid-dashboard-cards">
-            <div
-                x-show="summary.tag_gap_warning"
-                x-cloak
-                class="col-span-full rounded-[8px] border border-amber-400/40 bg-amber-500/15 px-[14px] py-[10px] text-[11px] text-amber-100"
-            >
-                <strong>Tag coverage low:</strong>
-                Google Ads reports <span x-text="fmt(summary.google_clicks)"></span> clicks but your site tag captured only
-                <span x-text="fmt(summary.tag_paid_visits)"></span>
-                (<span x-text="summary.tag_capture_pct"></span>%).
-                Most IPs are missing because the tracking tag is not firing on every landing page — use WP Header/Body tags plugin, not theme <code class="text-[10px]">header.php</code>.
-            </div>
             <article class="paid-dashboard-card">
                 <div class="flex items-start justify-between">
                     <h2 class="paid-dashboard-card__title">Paid Traffic</h2>
