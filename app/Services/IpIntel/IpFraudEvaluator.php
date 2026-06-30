@@ -257,7 +257,7 @@ class IpFraudEvaluator
 
     public static function isIpInList(string $ip, string $list): bool
     {
-        $items = preg_split('/[\s,]+/', $allowList) ?: [];
+        $items = preg_split('/[\s,]+/', $list) ?: [];
         foreach ($items as $item) {
             $item = trim($item);
             if ($item === '') {
