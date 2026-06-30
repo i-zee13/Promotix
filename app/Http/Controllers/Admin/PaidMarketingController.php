@@ -554,6 +554,8 @@ class PaidMarketingController extends Controller
             'out_of_geo_audience' => ['nullable', 'string'],
             'allow_list_enabled' => ['nullable', 'boolean'],
             'allow_list_ips' => ['nullable', 'string'],
+            'block_list_enabled' => ['nullable', 'boolean'],
+            'block_list_ips' => ['nullable', 'string'],
             'audience_exclusion_event' => ['required', 'in:exclude_all_threat_groups_auto,exclude_bot_malicious_only,disable_auto_exclusions'],
             'google_exclusion_enabled' => ['nullable', 'boolean'],
             'google_exclude_invalid' => ['nullable', 'boolean'],
@@ -604,6 +606,8 @@ class PaidMarketingController extends Controller
                 'out_of_geo_audience' => $audience,
                 'allow_list_enabled' => (bool) ($data['allow_list_enabled'] ?? false),
                 'allow_list_ips' => $data['allow_list_ips'] ?? null,
+                'block_list_enabled' => (bool) ($data['block_list_enabled'] ?? false),
+                'block_list_ips' => $data['block_list_ips'] ?? null,
                 'audience_exclusion_event' => $data['audience_exclusion_event'],
                 'google_exclusion_rules' => [
                     'enabled' => $request->boolean('google_exclusion_enabled'),

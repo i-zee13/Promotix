@@ -59,8 +59,17 @@ class IpFraudEvaluator
             ]
         );
 
-        if ($settings->allow_list_enabled && self::isIpAllowListed($ipLog->ip, (string) $settings->allow_list_ips)) {
+        if ($settings->allow_list_enabled && IpFraudEvaluator::isIpInList($ipLog->ip, (string) $settings->allow_list_ips)) {
             return $this->allowResult(['allow_list']);
+        }
+
+        if ($settings->block_list_enabled && IpFraudEvaluator::isIpInList($ipLog->ip, (string) $settings->block_list_ips)) {
+            return [
+                'threat_score' => 100,
+                'threat_group' => 'blocked',
+                'action_taken' => 'block',
+                'reasons' => ['block_list'],
+            ];
         }
 
         if (! $settings->suspicious_enabled) {
@@ -242,6 +251,11 @@ class IpFraudEvaluator
     }
 
     public static function isIpAllowListed(string $ip, string $allowList): bool
+    {
+        return self::isIpInList($ip, $allowList);
+    }
+
+    public static function isIpInList(string $ip, string $list): bool
     {
         $items = preg_split('/[\s,]+/', $allowList) ?: [];
         foreach ($items as $item) {

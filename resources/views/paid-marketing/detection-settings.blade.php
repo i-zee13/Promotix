@@ -151,6 +151,32 @@
                                 </div>
                             </div>
 
+                            <div class="figma-detection-section" x-data="ipListFileUpload('block_list_ips')">
+                                <h2 class="figma-detection-section-title">Block IP addresses</h2>
+                                <div class="figma-detection-card">
+                                    <div class="mb-[8px] flex flex-wrap items-center justify-between gap-[8px]">
+                                        <p class="figma-detection-card-text min-w-0 flex-1">Always block these IP addresses from seeing your site and ads</p>
+                                        <div class="flex shrink-0 flex-wrap items-center gap-[8px]">
+                                            <label class="cursor-pointer rounded-[4px] border border-black/25 bg-white px-[10px] py-[5px] text-[10px] font-medium text-[#101010] hover:bg-black/5">
+                                                <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onFile($event)">
+                                                Choose file
+                                            </label>
+                                            <span class="max-w-[100px] truncate text-[9px] text-black/50" x-text="fileName || ''"></span>
+                                            <x-figma-toggle
+                                                variant="on-light"
+                                                name="block_list_enabled"
+                                                value="1"
+                                                :checked="$settings->block_list_enabled"
+                                                label-on="On"
+                                                label-off="Off"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p class="mb-[8px] text-[10px] text-black/55">Upload .txt / .csv (one IP per line). IPs are merged into the list below — click Save changes to apply.</p>
+                                    <textarea id="block_list_ips" name="block_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="w-full rounded-[4px] border border-black/20 bg-white px-[10px] py-[8px] text-[11px] text-[#101010] placeholder:text-black/40">{{ $settings->block_list_ips }}</textarea>
+                                </div>
+                            </div>
+
                             <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-detection-add-domain">ADD DOMAIN</a>
                         </div>
 
@@ -207,12 +233,12 @@
                                     </div>
                                 </div>
 
-                                <div x-data="allowListUpload()">
+                                <div x-data="ipListFileUpload('allow_list_ips')">
                                     <div class="figma-detection-right-row flex-wrap gap-[8px]">
                                         <span class="min-w-0 flex-1">Ensure predefined IPs will always be able to see your ads</span>
                                         <div class="flex shrink-0 flex-wrap items-center gap-[8px]">
                                             <label class="cursor-pointer rounded-[6px] border border-white/30 px-[10px] py-[6px] text-[10px] text-white hover:bg-white/10">
-                                                <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onAllowListFile($event)">
+                                                <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onFile($event)">
                                                 Choose file
                                             </label>
                                             <span class="max-w-[120px] truncate text-[9px] text-white/45" x-text="fileName || ''"></span>
@@ -410,10 +436,10 @@
 </div>
 
 <script>
-function allowListUpload() {
+function ipListFileUpload(textareaId) {
     return {
         fileName: '',
-        async onAllowListFile(event) {
+        async onFile(event) {
             const file = event.target.files?.[0];
             if (!file) {
                 this.fileName = '';
@@ -422,7 +448,7 @@ function allowListUpload() {
             this.fileName = file.name;
             try {
                 const text = await file.text();
-                const textarea = document.getElementById('allow_list_ips');
+                const textarea = document.getElementById(textareaId);
                 if (!textarea) return;
                 const existing = textarea.value.trim();
                 const incoming = text.trim();
