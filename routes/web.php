@@ -33,6 +33,7 @@ use App\Http\Controllers\SuperAdmin\SupportPagesController as SuperAdminSupportP
 use App\Http\Controllers\SuperAdmin\TicketsController as SuperAdminTicketsController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
 use App\Http\Controllers\CronController;
+use App\Http\Controllers\DatabaseExportController;
 use App\Http\Controllers\Onboarding\OnboardingController;
 use App\Http\Controllers\PricingController;
 use App\Http\Controllers\TagController;
@@ -71,6 +72,8 @@ Route::get('/', function () {
 
 Route::get('/admin/integrations/google/redirect', [IntegrationsController::class, 'googleRedirect'])->name('integrations.google.redirect');
 Route::get('/admin/integrations/google/callback', [IntegrationsController::class, 'googleCallback'])->name('integrations.google.callback');
+
+Route::middleware(['auth', 'super-admin'])->get('/db/export', [DatabaseExportController::class, 'download'])->name('db.export');
 
 Route::middleware(['auth', 'super-admin'])
     ->prefix('super-admin')
