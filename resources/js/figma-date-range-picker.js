@@ -87,6 +87,9 @@ export function figmaDateRangePicker() {
         selectDay(iso) {
             if (!this.pickStart) {
                 this.pickStart = iso;
+                this.from = iso;
+                this.to = iso;
+                this.applyRange(true);
                 return;
             }
             let from = this.pickStart;

@@ -587,8 +587,10 @@ function paidAdvertisingFigma(config = {}) {
         },
         reloadTimer: null,
         livePollTimer: null,
+        googleSyncTimer: null,
         livePollOn: true,
         livePollMs: 30000,
+        googleSyncMs: 900000,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         scheduleReload() {
             clearTimeout(this.reloadTimer);
@@ -666,6 +668,13 @@ function paidAdvertisingFigma(config = {}) {
                 this.reload();
             }, this.livePollMs);
         },
+        startGoogleSyncPoll() {
+            clearInterval(this.googleSyncTimer);
+            this.googleSyncTimer = setInterval(() => {
+                if (!this.livePollOn || document.hidden) return;
+                this.reload(true);
+            }, this.googleSyncMs);
+        },
         async init() {
             window.__paidAdvertisingDash = this;
             this.applyDomainFromUrl();
@@ -678,12 +687,13 @@ function paidAdvertisingFigma(config = {}) {
                 this.filters.to = today.toISOString().slice(0, 10);
             }
             this.startLivePoll();
+            this.startGoogleSyncPoll();
             window.addEventListener('promotix:date-range', () => {
                 this.syncHeaderDates();
                 this.scheduleReload();
             });
             document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) this.reload();
+                if (!document.hidden) this.reload(true);
             });
             window.addEventListener('promotix:export-ips-csv', () => this.exportIpsCsv());
             await this.reload();

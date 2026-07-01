@@ -15,7 +15,7 @@ Schedule::command('analytics:aggregate-hourly --hours=2')
     ->appendOutputTo(storage_path('logs/cron.log'));
 
 Schedule::command('google-ads:sync-all --days=7')
-    ->twiceDaily(6, 18)
+    ->hourly()
     ->appendOutputTo(storage_path('logs/cron.log'));
 
 $queueConnection = config('queue.default', 'database');

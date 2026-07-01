@@ -45,9 +45,13 @@ class PaidAdvertisingDashboardController extends Controller
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
-        if ($request->boolean('force_google_sync')) {
-            $this->forceGoogleSyncForDomains($request, $domainIds, $metricFrom, $metricTo);
-        }
+        $this->syncGoogleMetricsForDomains(
+            $request,
+            $domainIds,
+            $metricFrom,
+            $metricTo,
+            $request->boolean('force_google_sync')
+        );
 
         $tagPaid = 0;
         $invalid = 0;
@@ -118,9 +122,13 @@ class PaidAdvertisingDashboardController extends Controller
         $domainIds = $this->scopedDomainIds($request);
         $userTz = UserTimezone::forUser($request->user());
 
-        if ($request->boolean('force_google_sync')) {
-            $this->forceGoogleSyncForDomains($request, $domainIds, $metricFrom, $metricTo);
-        }
+        $this->syncGoogleMetricsForDomains(
+            $request,
+            $domainIds,
+            $metricFrom,
+            $metricTo,
+            $request->boolean('force_google_sync')
+        );
 
         $fetchRows = function (string $fromDate, string $toDate) use ($request, $domainIds) {
             $rows = collect();
@@ -836,7 +844,7 @@ class PaidAdvertisingDashboardController extends Controller
         ]);
     }
 
-    private function forceGoogleSyncForDomains(Request $request, $domainIds, string $fromDate, string $toDate): void
+    private function syncGoogleMetricsForDomains(Request $request, $domainIds, string $fromDate, string $toDate, bool $force = false): void
     {
         if (! Schema::hasTable('google_ads_campaign_daily_metrics') || $domainIds->isEmpty()) {
             return;
@@ -854,7 +862,10 @@ class PaidAdvertisingDashboardController extends Controller
             if (! $domain->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
                 continue;
             }
-            $sync->syncDomain($domain, $fromDate, $toDate);
+
+            if ($force || $sync->shouldRefresh($domain, $fromDate, $toDate)) {
+                $sync->syncDomain($domain, $fromDate, $toDate);
+            }
         }
     }
 

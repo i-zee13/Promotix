@@ -320,10 +320,22 @@ class GoogleAdsDomainMetricsSync
             return false;
         }
 
-        // Only auto-sync when we have no stored metrics yet; scheduled job keeps data fresh.
-        return ! GoogleAdsCampaignDailyMetric::query()
-            ->where('domain_id', $domain->id)
-            ->exists();
+        if (! GoogleAdsCampaignDailyMetric::query()->where('domain_id', $domain->id)->exists()) {
+            return true;
+        }
+
+        $staleMinutes = max(5, (int) config('promotix.google_ads_sync_stale_minutes', 15));
+
+        if (! $domain->ads_synced_at) {
+            return true;
+        }
+
+        $today = Carbon::now()->toDateString();
+        if ($today >= $fromDate && $today <= $toDate && $domain->ads_synced_at->toDateString() < $today) {
+            return true;
+        }
+
+        return $domain->ads_synced_at->lt(now()->subMinutes($staleMinutes));
     }
 
     /**

@@ -12,6 +12,7 @@ use App\Services\IpIntel\IpIntelService;
 use App\Services\GeoCatalogService;
 use App\Services\GoogleAdsIpExclusionSyncService;
 use App\Services\GoogleAudienceExclusionService;
+use App\Support\GoogleClickAttribution;
 use App\Support\GoogleIpBlockFormatter;
 use App\Support\SessionRecordingNormalizer;
 use App\Support\UserTimezone;
@@ -147,9 +148,31 @@ class PaidMarketingController extends Controller
 
     private function detailedVisitQuery(Request $request): Builder
     {
+        $user = $request->user();
+        [$metricFrom, $metricTo] = UserTimezone::calendarDateRangeFromRequest($request, $user);
+
         $query = PaidMarketingVisit::query()
-            ->with(['domain', 'clicks' => fn ($q) => $q->orderBy('clicked_at')])
-            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id)->forPaidMarketing())
+            ->with([
+                'domain',
+                'clicks' => function ($clickQuery) use ($metricFrom, $metricTo, $user, $request): void {
+                    $clickQuery->orderBy('clicked_at');
+                    UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user);
+                    GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
+
+                    if ($path = trim((string) $request->query('path', ''))) {
+                        $clickQuery->where('path', 'like', '%' . $path . '%');
+                    }
+                },
+            ])
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id)->forPaidMarketing())
+            ->whereHas('clicks', function ($clickQuery) use ($metricFrom, $metricTo, $user, $request): void {
+                UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user);
+                GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
+
+                if ($path = trim((string) $request->query('path', ''))) {
+                    $clickQuery->where('path', 'like', '%' . $path . '%');
+                }
+            })
             ->select('paid_marketing_visits.*')
             ->selectSub(
                 IpLog::query()
@@ -191,11 +214,6 @@ class PaidMarketingController extends Controller
             }
         }
 
-        if ($request->query('from') || $request->query('to')) {
-            [$fromUtc, $toUtc] = UserTimezone::dateRangeFromRequest($request, $request->user());
-            $query->whereBetween('last_click_at', [$fromUtc, $toUtc]);
-        }
-
         return $query;
     }
 
@@ -224,6 +242,7 @@ class PaidMarketingController extends Controller
         }
 
         $validClicks = max($clickCount - $invalidClicks, 0);
+        $lastClickAt = $clicks->max('clicked_at') ?? $visit->last_click_at;
         $ipParts = collect(preg_split('/\s*,\s*/', (string) $visit->ip))
             ->map(fn ($part) => trim($part))
             ->filter()
@@ -238,8 +257,8 @@ class PaidMarketingController extends Controller
             'visits' => (int) ($visit->visits ?? $clicks->count() ?: 1),
             'domain' => $visit->domain?->hostname,
             'campaign' => $visit->campaign_name ?: $visit->campaign,
-            'last_click_at' => UserTimezone::isoForUser($visit->last_click_at, $user),
-            'last_click_label' => UserTimezone::formatForUser($visit->last_click_at, $user, 'm/d/y') ?? '-',
+            'last_click_at' => UserTimezone::isoForUser($lastClickAt, $user),
+            'last_click_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y') ?? '-',
             'threat_group' => $visit->threat_group,
             'threat_type' => $visit->threat_type,
             'country' => $visit->country,
