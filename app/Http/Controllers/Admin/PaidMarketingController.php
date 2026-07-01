@@ -242,7 +242,10 @@ class PaidMarketingController extends Controller
         }
 
         $validClicks = max($clickCount - $invalidClicks, 0);
-        $lastClickAt = $clicks->max('clicked_at') ?? $visit->last_click_at;
+        $lastClickAt = $clicks
+            ->map(fn ($c) => UserTimezone::parseUtcInstant($c->getRawOriginal('clicked_at') ?? $c->clicked_at))
+            ->filter()
+            ->max() ?? UserTimezone::parseUtcInstant($visit->getRawOriginal('last_click_at') ?? $visit->last_click_at);
         $ipParts = collect(preg_split('/\s*,\s*/', (string) $visit->ip))
             ->map(fn ($part) => trim($part))
             ->filter()
@@ -272,10 +275,14 @@ class PaidMarketingController extends Controller
             'valid_clicks' => $validClicks,
             'has_session_recording' => $recording !== null,
             'session_recording_id' => $recording ? (int) $recording->id : null,
-            'clicks' => $clicks->map(fn ($c) => [
+            'clicks' => $clicks->map(function ($c) use ($user) {
+                $clickedAt = UserTimezone::parseUtcInstant($c->getRawOriginal('clicked_at') ?? $c->clicked_at);
+                $lastClick = UserTimezone::parseUtcInstant($c->getRawOriginal('last_click_at') ?? $c->last_click_at);
+
+                return [
                 'id' => $c->id,
-                'clicked_at' => UserTimezone::isoForUser($c->clicked_at, $user),
-                'last_click_at' => UserTimezone::isoForUser($c->last_click_at, $user),
+                'clicked_at' => UserTimezone::isoForUser($clickedAt, $user),
+                'last_click_at' => UserTimezone::isoForUser($lastClick, $user),
                 'ip' => $c->ip,
                 'country' => $c->country,
                 'threat_group' => $c->threat_group,
@@ -286,7 +293,8 @@ class PaidMarketingController extends Controller
                 'browser_name' => $c->browser_name,
                 'browser_version' => $c->browser_version,
                 'os' => $c->os,
-            ])->values()->all(),
+            ];
+            })->values()->all(),
             ...$this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain),
         ];
     }

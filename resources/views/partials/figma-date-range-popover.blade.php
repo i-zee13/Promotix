@@ -25,5 +25,5 @@
             ></button>
         </template>
     </div>
-    <p class="figma-date-range-hint" x-text="pickStart ? 'Now select end date' : 'Select start date, then end date'"></p>
+    <p class="figma-date-range-hint" x-text="pickStart ? 'Select end date for range' : 'Click a day, or click twice for a range'"></p>
 </div>

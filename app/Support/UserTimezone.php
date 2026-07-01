@@ -268,4 +268,30 @@ class UserTimezone
     {
         return self::toUserTimezone($dateTime, $user)?->toIso8601String();
     }
+
+    /**
+     * Parse a UTC instant stored in the database (not wall-clock in the user's timezone).
+     */
+    public static function parseUtcInstant(mixed $value): ?Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value->copy()->utc();
+        }
+
+        return Carbon::parse((string) $value, 'UTC');
+    }
+
+    public static function formatUtcInstantForUser(mixed $value, ?User $user, string $format): ?string
+    {
+        return self::formatForUser(self::parseUtcInstant($value), $user, $format);
+    }
+
+    public static function isoUtcInstantForUser(mixed $value, ?User $user): ?string
+    {
+        return self::isoForUser(self::parseUtcInstant($value), $user);
+    }
 }

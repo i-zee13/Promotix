@@ -381,10 +381,12 @@
                 if (id) this.filters.domain_id = id;
                 this.syncHeaderDates();
                 if (!this.filters.from || !this.filters.to) {
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
                     const today = new Date();
-                    const start = new Date(today.getTime() - 6 * 86400000);
-                    this.filters.from = start.toISOString().slice(0, 10);
-                    this.filters.to = today.toISOString().slice(0, 10);
+                    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
+                    this.filters.from = fmt(start);
+                    this.filters.to = fmt(today);
                 }
                 if (this.filters.domain_id) {
                     this.loadCampaignsForDomain();
