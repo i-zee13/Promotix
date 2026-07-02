@@ -140,7 +140,7 @@ class PaidAdvertisingDashboardController extends Controller
             $request->boolean('force_google_sync')
         );
 
-        $fetchRows = function (string $fromDate, string $toDate) use ($request, $domainIds) {
+        $fetchRows = function (string $fromDate, string $toDate) use ($request, $domainIds, $userTz) {
             $rows = collect();
             if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
                 $dayExpr = UserTimezone::localDateSql('visited_at', $request->user(), $userTz);
@@ -1174,7 +1174,7 @@ class PaidAdvertisingDashboardController extends Controller
             return collect();
         }
 
-        $dayExpr = UserTimezone::localDateSql('pc.clicked_at', $request->user());
+        $dayExpr = UserTimezone::localDateSql('pc.clicked_at', $request->user(), $this->reportingTimezone($request, $domainIds));
         $query = DB::table('paid_marketing_clicks as pc')
             ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
             ->whereIn('pv.domain_id', $domainIds);
