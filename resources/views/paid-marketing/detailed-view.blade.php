@@ -84,44 +84,39 @@
                 </div>
             </div>
 
-            <div class="w-full overflow-x-auto">
-                <div class="w-full min-w-0">
-                    <div class="pm-adv-table-grid grid w-full gap-[8px] bg-[#1a1a1a] px-[12px] py-[10px] text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
-                        <template x-for="col in visibleColumns" :key="'head-' + col.key">
-                            <span class="truncate" x-text="col.label"></span>
-                        </template>
-                    </div>
+            <div class="pm-adv-table-shell">
+                <div class="pm-adv-table-x-scroll">
+                    <div class="pm-adv-table-sync" :style="syncStyle">
+                        <div class="pm-adv-table-grid pm-adv-table-grid--head text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
+                            <template x-for="col in visibleColumns" :key="'head-' + col.key">
+                                <span class="truncate" x-text="col.label"></span>
+                            </template>
+                        </div>
 
-                    <div class="max-h-[420px] overflow-y-auto pm-adv-scroll px-[12px] py-[8px]">
-                        <template x-for="visit in rows" :key="visit.id">
-                            <div class="pm-adv-table-grid mb-[8px] grid w-full cursor-pointer gap-[8px] rounded-[10px] bg-[#d9d9d9] px-[12px] py-[10px] text-[10px] text-[#121212] transition hover:bg-[#ececec] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
-                                <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
-                                    <template x-if="col.key !== 'session_recording'">
-                                        <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(visit, col.key)" x-text="cellValue(visit, col.key)"></span>
+                        <div class="pm-adv-table-body-scroll">
+                            <template x-for="visit in rows" :key="visit.id">
+                                <div class="pm-adv-table-grid pm-adv-table-grid--row cursor-pointer text-[10px] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
+                                    <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
+                                        <template x-if="col.key !== 'session_recording'">
+                                            <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(visit, col.key)" x-text="cellValue(visit, col.key)"></span>
+                                        </template>
+                                        <template x-if="col.key === 'session_recording'">
+                                            <span class="flex items-center justify-center">
+                                                <button type="button" x-show="visit.has_session_recording" @click.stop="openRecording(visit)" class="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#6400B2] text-white hover:bg-[#7B13C8]" title="Watch session recording">
+                                                    <svg class="h-[11px] w-[11px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                </button>
+                                                <span x-show="!visit.has_session_recording" class="text-[#8c8787]">—</span>
+                                            </span>
+                                        </template>
                                     </template>
-                                    <template x-if="col.key === 'session_recording'">
-                                        <span class="flex items-center justify-center">
-                                            <button type="button" x-show="visit.has_session_recording" @click.stop="openRecording(visit)" class="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#6400B2] text-white hover:bg-[#7B13C8]" title="Watch session recording">
-                                                <svg class="h-[11px] w-[11px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                            </button>
-                                            <span x-show="!visit.has_session_recording" class="text-[#8c8787]">—</span>
-                                        </span>
-                                    </template>
-                                </template>
-                            </div>
-                        </template>
-                        <p x-show="!loading && rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No rows match your filters.</p>
+                                </div>
+                            </template>
+                            <p x-show="!loading && rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No rows match your filters.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
-
-<style>
-.pm-adv-scroll { scrollbar-width: thin; scrollbar-color: #6400B2 transparent; }
-.pm-adv-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-.pm-adv-scroll::-webkit-scrollbar-thumb { background: #6400B2; border-radius: 4px; }
-.pm-adv-table-grid > * { min-width: 0; }
-</style>
 
         <section class="mt-[20px]">
             <h2 class="mb-[20px] text-center text-[24px] font-semibold leading-none text-[#a9a9a9]">Paid Stats</h2>
@@ -359,14 +354,32 @@
                 const cols = this.visibleColumns.map(col => this.columnTrack(col)).join(' ');
                 return `grid-template-columns: ${cols}`;
             },
-            columnTrack(col) {
-                const min = col.min || 72;
+            get syncStyle() {
+                return `min-width: ${this.tableMinWidth}px`;
+            },
+            get tableMinWidth() {
+                const gap = 8;
+                const pad = 24;
+                const cols = this.visibleColumns.length;
+                const colWidths = this.visibleColumns.reduce((sum, col) => sum + this.columnMinPx(col), 0);
+                return colWidths + Math.max(0, cols - 1) * gap + pad;
+            },
+            columnMinPx(col) {
                 const key = col.key;
-                if (key === 'session_recording') return '40px';
+                if (key === 'session_recording') return 40;
                 if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits'].includes(key)) {
-                    return `minmax(40px, 0.45fr)`;
+                    return 52;
                 }
-                if (key === 'ip') return `minmax(${min}px, 1.5fr)`;
+                return col.min || 72;
+            },
+            columnTrack(col) {
+                const min = this.columnMinPx(col);
+                const key = col.key;
+                if (key === 'session_recording') return `${min}px`;
+                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits'].includes(key)) {
+                    return `${min}px`;
+                }
+                if (key === 'ip') return `minmax(${min}px, 1.6fr)`;
                 if (key === 'domain' || key === 'campaign' || key === 'path') return `minmax(${min}px, 1.15fr)`;
                 if (key === 'country' || key === 'last_click_label' || key === 'last_seen_label') {
                     return `minmax(${min}px, 0.95fr)`;

@@ -359,9 +359,85 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     overflow-y: auto;
 }
 
-.pm-adv-grid--head span,
-.pm-adv-grid--row span {
+.pm-adv-table-shell {
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
+    overflow: hidden;
+}
+
+.pm-adv-table-x-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #6400b2 transparent;
+}
+
+.pm-adv-table-x-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
+.pm-adv-table-x-scroll::-webkit-scrollbar-thumb {
+    background: #6400b2;
+    border-radius: 4px;
+}
+
+.pm-adv-table-sync {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.pm-adv-table-grid {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.pm-adv-table-grid--head {
+    padding: 10px 12px;
+    background: #1a1a1a;
+}
+
+.pm-adv-table-grid--row {
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #d9d9d9;
+    color: #121212;
+    transition: background-color 0.15s ease;
+}
+
+.pm-adv-table-grid--row:hover {
+    background: #ececec;
+}
+
+.pm-adv-table-body-scroll {
+    max-height: 420px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 8px 12px;
+    scrollbar-width: thin;
+    scrollbar-color: #6400b2 transparent;
+}
+
+.pm-adv-table-body-scroll::-webkit-scrollbar {
+    width: 5px;
+}
+
+.pm-adv-table-body-scroll::-webkit-scrollbar-thumb {
+    background: #6400b2;
+    border-radius: 4px;
+}
+
+.pm-adv-table-grid > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .paid-detailed-table {
