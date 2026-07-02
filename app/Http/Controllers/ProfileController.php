@@ -37,6 +37,10 @@ class ProfileController extends Controller
             unset($validated['timezone']);
         }
 
+        if (empty($validated['reporting_timezone']) || ! in_array($validated['reporting_timezone'], UserTimezone::REPORTING_MODES, true)) {
+            unset($validated['reporting_timezone']);
+        }
+
         $user->fill($validated);
 
         if ($user->isDirty('email')) {

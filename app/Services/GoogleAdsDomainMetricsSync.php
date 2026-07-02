@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Domain;
 use App\Models\GoogleAdsAccount;
 use App\Models\GoogleAdsCampaignDailyMetric;
+use App\Support\UserTimezone;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class GoogleAdsDomainMetricsSync
@@ -32,6 +34,11 @@ class GoogleAdsDomainMetricsSync
 
         $domain->loadMissing('googleAdsAccount.connection');
         $account = $domain->googleAdsAccount;
+
+        if ($account && ! $account->time_zone && ! (bool) $account->is_manager) {
+            app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($account);
+            $account->refresh();
+        }
 
         if (! $account || (bool) $account->is_manager) {
             $this->lastMessage = 'No client Google Ads account linked.';
@@ -286,6 +293,113 @@ class GoogleAdsDomainMetricsSync
             'to' => $toDate,
             'used_stored_bounds' => false,
         ];
+    }
+
+    /**
+     * @param  iterable<int>  $domainIds
+     * @param  Collection<int, Domain>|null  $domains
+     * @return array{clicks: int, cost: float, impressions: int, from: string, to: string, used_stored_bounds: bool}
+     */
+    public function clickTotalsForDomainsReporting(
+        iterable $domainIds,
+        string $reportingFrom,
+        string $reportingTo,
+        string $reportingTz,
+        ?Collection $domains = null,
+    ): array {
+        $ids = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [
+                'clicks' => 0,
+                'cost' => 0.0,
+                'impressions' => 0,
+                'from' => $reportingFrom,
+                'to' => $reportingTo,
+                'used_stored_bounds' => false,
+            ];
+        }
+
+        $domains ??= Domain::query()
+            ->whereIn('id', $ids)
+            ->with('googleAdsAccount')
+            ->get()
+            ->keyBy('id');
+
+        $clicks = 0;
+        $cost = 0.0;
+        $impressions = 0;
+        $googleFrom = $reportingFrom;
+        $googleTo = $reportingTo;
+
+        foreach ($ids as $domainId) {
+            $domain = $domains->get($domainId);
+            $googleTz = UserTimezone::isValid($domain?->googleAdsAccount?->time_zone)
+                ? $domain->googleAdsAccount->time_zone
+                : $reportingTz;
+            [$fromDate, $toDate] = UserTimezone::googleMetricDateBounds($reportingFrom, $reportingTo, $reportingTz, $googleTz);
+            $googleFrom = min($googleFrom, $fromDate);
+            $googleTo = max($googleTo, $toDate);
+            $totals = $this->clickTotalsForDomain((int) $domainId, $fromDate, $toDate);
+            $clicks += (int) ($totals['clicks'] ?? 0);
+            $cost += (float) ($totals['cost'] ?? 0);
+            $impressions += (int) ($totals['impressions'] ?? 0);
+        }
+
+        return [
+            'clicks' => $clicks,
+            'cost' => round($cost, 2),
+            'impressions' => $impressions,
+            'from' => $googleFrom,
+            'to' => $googleTo,
+            'used_stored_bounds' => false,
+        ];
+    }
+
+    /**
+     * @param  iterable<int>  $domainIds
+     * @param  Collection<int, Domain>|null  $domains
+     * @return \Illuminate\Support\Collection<string, object{metric_date: string, clicks: int}>
+     */
+    public function dailyClicksByDateForDomainsReporting(
+        iterable $domainIds,
+        string $reportingFrom,
+        string $reportingTo,
+        string $reportingTz,
+        ?Collection $domains = null,
+    ) {
+        $ids = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $domains ??= Domain::query()
+            ->whereIn('id', $ids)
+            ->with('googleAdsAccount')
+            ->get()
+            ->keyBy('id');
+
+        $merged = collect();
+
+        foreach ($ids as $domainId) {
+            $domain = $domains->get($domainId);
+            $googleTz = UserTimezone::isValid($domain?->googleAdsAccount?->time_zone)
+                ? $domain->googleAdsAccount->time_zone
+                : $reportingTz;
+            [$fromDate, $toDate] = UserTimezone::googleMetricDateBounds($reportingFrom, $reportingTo, $reportingTz, $googleTz);
+            $rows = $this->dailyClicksByDate((int) $domainId, $fromDate, $toDate);
+
+            foreach ($rows as $date => $row) {
+                $existing = $merged->get($date);
+                $merged->put($date, (object) [
+                    'metric_date' => $date,
+                    'clicks' => (int) ($existing->clicks ?? 0) + (int) ($row->clicks ?? 0),
+                ]);
+            }
+        }
+
+        return $merged;
     }
 
     /**

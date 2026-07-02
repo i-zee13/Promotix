@@ -16,6 +16,7 @@ class GoogleAdsAccount extends Model
         'customer_id',
         'display_customer_id',
         'account_name',
+        'time_zone',
         'manager_customer_id',
         'is_manager',
         'google_tag_id',

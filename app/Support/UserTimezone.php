@@ -38,6 +38,114 @@ class UserTimezone
         'SG' => 'Asia/Singapore',
     ];
 
+    public const REPORTING_PROFILE = 'profile';
+
+    public const REPORTING_UTC = 'utc';
+
+    public const REPORTING_GOOGLE = 'google';
+
+    /** @var list<string> */
+    public const REPORTING_MODES = [
+        self::REPORTING_PROFILE,
+        self::REPORTING_UTC,
+        self::REPORTING_GOOGLE,
+    ];
+
+    public static function reportingMode(?User $user): string
+    {
+        $mode = (string) ($user?->reporting_timezone ?? self::REPORTING_PROFILE);
+
+        return in_array($mode, self::REPORTING_MODES, true) ? $mode : self::REPORTING_PROFILE;
+    }
+
+    public static function reportingModeLabel(?User $user): string
+    {
+        return match (self::reportingMode($user)) {
+            self::REPORTING_UTC => 'UTC',
+            self::REPORTING_GOOGLE => 'Google Ads account',
+            default => 'My profile timezone',
+        };
+    }
+
+    public static function reportingTimezoneForUser(?User $user, ?string $googleAccountTimezone = null): string
+    {
+        return match (self::reportingMode($user)) {
+            self::REPORTING_UTC => 'UTC',
+            self::REPORTING_GOOGLE => self::isValid($googleAccountTimezone)
+                ? $googleAccountTimezone
+                : self::forUser($user),
+            default => self::forUser($user),
+        };
+    }
+
+    /**
+     * Map reporting-calendar dates to Google Ads metric_date bounds (account timezone).
+     *
+     * @return array{0: string, 1: string}
+     */
+    public static function googleMetricDateBounds(
+        string $fromDate,
+        string $toDate,
+        string $reportingTz,
+        string $googleTz,
+    ): array {
+        if ($reportingTz === $googleTz) {
+            return [$fromDate, $toDate];
+        }
+
+        $dates = self::googleMetricDatesForReportingRange($fromDate, $toDate, $reportingTz, $googleTz);
+        sort($dates);
+
+        return [$dates[0], $dates[count($dates) - 1]];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function googleMetricDatesForReportingRange(
+        string $fromDate,
+        string $toDate,
+        string $reportingTz,
+        string $googleTz,
+    ): array {
+        $dates = [];
+        $cursor = Carbon::parse($fromDate, $reportingTz)->startOfDay();
+        $end = Carbon::parse($toDate, $reportingTz)->startOfDay();
+
+        while ($cursor->lte($end)) {
+            $dates[$cursor->copy()->startOfDay()->utc()->timezone($googleTz)->toDateString()] = true;
+            $dates[$cursor->copy()->endOfDay()->utc()->timezone($googleTz)->toDateString()] = true;
+            $cursor->addDay();
+        }
+
+        return array_keys($dates);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function dashboardContext(
+        ?User $user,
+        ?string $googleAccountTimezone,
+        string $fromDate,
+        string $toDate,
+    ): array {
+        $reportingTz = self::reportingTimezoneForUser($user, $googleAccountTimezone);
+        [$googleFrom, $googleTo] = self::isValid($googleAccountTimezone)
+            ? self::googleMetricDateBounds($fromDate, $toDate, $reportingTz, $googleAccountTimezone)
+            : [$fromDate, $toDate];
+
+        return [
+            'reporting_mode' => self::reportingMode($user),
+            'reporting_mode_label' => self::reportingModeLabel($user),
+            'reporting_timezone' => $reportingTz,
+            'profile_timezone' => self::forUser($user),
+            'google_timezone' => $googleAccountTimezone,
+            'visit_dates' => ['from' => $fromDate, 'to' => $toDate],
+            'google_dates' => ['from' => $googleFrom, 'to' => $googleTo],
+        ];
+    }
+
     public static function isValid(?string $timezone): bool
     {
         if ($timezone === null || $timezone === '') {
@@ -161,9 +269,9 @@ class UserTimezone
      *
      * @return array{0: Carbon, 1: Carbon}
      */
-    public static function dateRangeFromRequest(Request $request, ?User $user = null, int $defaultDays = 6): array
+    public static function dateRangeFromRequest(Request $request, ?User $user = null, int $defaultDays = 6, ?string $timezone = null): array
     {
-        $tz = self::forUser($user);
+        $tz = $timezone && self::isValid($timezone) ? $timezone : self::reportingTimezoneForUser($user);
 
         $from = $request->query('from')
             ? Carbon::parse((string) $request->query('from'), $tz)->startOfDay()->utc()
@@ -188,9 +296,9 @@ class UserTimezone
      *
      * @return array{0: string, 1: string}
      */
-    public static function calendarDateRangeFromRequest(Request $request, ?User $user = null, int $defaultDays = 6): array
+    public static function calendarDateRangeFromRequest(Request $request, ?User $user = null, int $defaultDays = 6, ?string $timezone = null): array
     {
-        $tz = self::forUser($user);
+        $tz = $timezone && self::isValid($timezone) ? $timezone : self::reportingTimezoneForUser($user);
 
         $fromDate = $request->query('from')
             ? Carbon::parse((string) $request->query('from'), $tz)->toDateString()
@@ -218,8 +326,9 @@ class UserTimezone
         string $fromDate,
         string $toDate,
         ?User $user = null,
+        ?string $timezone = null,
     ): void {
-        $tz = self::forUser($user);
+        $tz = $timezone && self::isValid($timezone) ? $timezone : self::reportingTimezoneForUser($user);
         $query->where(function ($days) use ($fromDate, $toDate, $tz, $column): void {
             $cursor = Carbon::parse($fromDate, $tz)->startOfDay();
             $end = Carbon::parse($toDate, $tz)->startOfDay();
@@ -235,38 +344,38 @@ class UserTimezone
     }
 
     /** SQL expression for the visit timestamp's calendar date in the user's timezone. */
-    public static function localDateSql(string $column, ?User $user = null): string
+    public static function localDateSql(string $column, ?User $user = null, ?string $timezone = null): string
     {
-        $offset = Carbon::now(self::forUser($user))->format('P');
+        $offset = Carbon::now($timezone && self::isValid($timezone) ? $timezone : self::reportingTimezoneForUser($user))->format('P');
 
         return "DATE(CONVERT_TZ({$column}, '+00:00', '{$offset}'))";
     }
 
     /** SQL expression for the visit timestamp converted to the user's timezone. */
-    public static function localDateTimeSql(string $column, ?User $user = null): string
+    public static function localDateTimeSql(string $column, ?User $user = null, ?string $timezone = null): string
     {
-        $offset = Carbon::now(self::forUser($user))->format('P');
+        $offset = Carbon::now($timezone && self::isValid($timezone) ? $timezone : self::reportingTimezoneForUser($user))->format('P');
 
         return "CONVERT_TZ({$column}, '+00:00', '{$offset}')";
     }
 
-    public static function toUserTimezone(?Carbon $dateTime, ?User $user): ?Carbon
+    public static function toUserTimezone(?Carbon $dateTime, ?User $user, ?string $googleAccountTimezone = null): ?Carbon
     {
         if ($dateTime === null) {
             return null;
         }
 
-        return $dateTime->copy()->timezone(self::forUser($user));
+        return $dateTime->copy()->timezone(self::reportingTimezoneForUser($user, $googleAccountTimezone));
     }
 
-    public static function formatForUser(?Carbon $dateTime, ?User $user, string $format): ?string
+    public static function formatForUser(?Carbon $dateTime, ?User $user, string $format, ?string $googleAccountTimezone = null): ?string
     {
-        return self::toUserTimezone($dateTime, $user)?->format($format);
+        return self::toUserTimezone($dateTime, $user, $googleAccountTimezone)?->format($format);
     }
 
-    public static function isoForUser(?Carbon $dateTime, ?User $user): ?string
+    public static function isoForUser(?Carbon $dateTime, ?User $user, ?string $googleAccountTimezone = null): ?string
     {
-        return self::toUserTimezone($dateTime, $user)?->toIso8601String();
+        return self::toUserTimezone($dateTime, $user, $googleAccountTimezone)?->toIso8601String();
     }
 
     /**

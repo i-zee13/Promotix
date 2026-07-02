@@ -33,6 +33,7 @@ class User extends Authenticatable
         'ui_preferences',
         'timezone',
         'timezone_source',
+        'reporting_timezone',
         'last_login_at',
     ];
 

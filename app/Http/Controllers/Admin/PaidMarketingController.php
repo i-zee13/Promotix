@@ -44,6 +44,8 @@ class PaidMarketingController extends Controller
 
     public function detailedVisits(Request $request): JsonResponse
     {
+        [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
+
         $visits = $this->detailedVisitQuery($request)
             ->orderByDesc('last_click_at')
             ->limit(100)
@@ -67,6 +69,12 @@ class PaidMarketingController extends Controller
             'rows' => $rows->values(),
             'stats' => $this->computeDetailedStatsFromArrays($rows),
             'total' => $rows->count(),
+            'timezone_context' => UserTimezone::dashboardContext(
+                $request->user(),
+                $googleTz ?? null,
+                $metricFrom,
+                $metricTo,
+            ),
         ]);
     }
 
@@ -148,15 +156,15 @@ class PaidMarketingController extends Controller
 
     private function detailedVisitQuery(Request $request): Builder
     {
+        [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
         $user = $request->user();
-        [$metricFrom, $metricTo] = UserTimezone::calendarDateRangeFromRequest($request, $user);
 
         $query = PaidMarketingVisit::query()
             ->with([
                 'domain',
-                'clicks' => function ($clickQuery) use ($metricFrom, $metricTo, $user, $request): void {
+                'clicks' => function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user, $request): void {
                     $clickQuery->orderBy('clicked_at');
-                    UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user);
+                    UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
                     GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
 
                     if ($path = trim((string) $request->query('path', ''))) {
@@ -165,8 +173,8 @@ class PaidMarketingController extends Controller
                 },
             ])
             ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id)->forPaidMarketing())
-            ->whereHas('clicks', function ($clickQuery) use ($metricFrom, $metricTo, $user, $request): void {
-                UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user);
+            ->whereHas('clicks', function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user, $request): void {
+                UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
                 GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
 
                 if ($path = trim((string) $request->query('path', ''))) {
@@ -1086,6 +1094,29 @@ class PaidMarketingController extends Controller
                 'audience_exclusion_event' => 'exclude_all_threat_groups_auto',
             ]
         );
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: ?string, 3: string}
+     */
+    private function reportingWindow(Request $request): array
+    {
+        $user = $request->user();
+        $googleTz = null;
+
+        if ($domainId = (int) $request->query('domain_id', 0)) {
+            $googleTz = Domain::query()
+                ->where('user_id', $user->id)
+                ->with('googleAdsAccount')
+                ->find($domainId)
+                ?->googleAdsAccount
+                ?->time_zone;
+        }
+
+        $reportingTz = UserTimezone::reportingTimezoneForUser($user, $googleTz);
+        [$metricFrom, $metricTo] = UserTimezone::calendarDateRangeFromRequest($request, $user, 6, $reportingTz);
+
+        return [$metricFrom, $metricTo, $googleTz, $reportingTz];
     }
 }
 

@@ -26,6 +26,7 @@ class ProfileUpdateRequest extends FormRequest
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
             'timezone' => ['nullable', 'timezone:all'],
+            'reporting_timezone' => ['nullable', 'string', Rule::in(\App\Support\UserTimezone::REPORTING_MODES)],
         ];
     }
 }

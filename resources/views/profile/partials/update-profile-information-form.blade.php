@@ -42,7 +42,7 @@
         </div>
 
         <div id="timezone-settings">
-            <label for="profile-timezone" class="mb-[6px] block text-[12px] font-semibold text-[#a9a9a9]">Timezone</label>
+            <label for="profile-timezone" class="mb-[6px] block text-[12px] font-semibold text-[#a9a9a9]">Profile timezone</label>
             @php
                 $selectedTimezone = old('timezone', $user->timezone ?: \App\Support\UserTimezone::forUser($user));
                 $groupedTimezones = \App\Support\UserTimezone::groupedOptions();
@@ -69,6 +69,30 @@
                 @endif
             </p>
             @foreach ($errors->get('timezone') as $message)
+                <p class="mt-[6px] text-[12px] text-rose-300">{{ $message }}</p>
+            @endforeach
+        </div>
+
+        <div>
+            <label for="profile-reporting-timezone" class="mb-[6px] block text-[12px] font-semibold text-[#a9a9a9]">Dashboard reporting timezone</label>
+            @php
+                $selectedReporting = old('reporting_timezone', $user->reporting_timezone ?: \App\Support\UserTimezone::REPORTING_PROFILE);
+            @endphp
+            <select id="profile-reporting-timezone" name="reporting_timezone" class="figma-input">
+                <option value="{{ \App\Support\UserTimezone::REPORTING_PROFILE }}" @selected($selectedReporting === \App\Support\UserTimezone::REPORTING_PROFILE)>
+                    My profile timezone (visits &amp; calendar)
+                </option>
+                <option value="{{ \App\Support\UserTimezone::REPORTING_UTC }}" @selected($selectedReporting === \App\Support\UserTimezone::REPORTING_UTC)>
+                    UTC
+                </option>
+                <option value="{{ \App\Support\UserTimezone::REPORTING_GOOGLE }}" @selected($selectedReporting === \App\Support\UserTimezone::REPORTING_GOOGLE)>
+                    Google Ads account timezone (best match with Google clicks)
+                </option>
+            </select>
+            <p class="mt-[6px] text-[11px] text-[#8c8787]">
+                Google click totals always use your linked Google Ads account timezone. Visit/tag data uses the option above.
+            </p>
+            @foreach ($errors->get('reporting_timezone') as $message)
                 <p class="mt-[6px] text-[12px] text-rose-300">{{ $message }}</p>
             @endforeach
         </div>

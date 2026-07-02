@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\GoogleAdsConnectionService;
+use App\Services\GoogleAdsAccountTimezoneService;
 use App\Services\GoogleAdsDomainSync;
 use App\Services\GoogleAdsMetricsService;
 use App\Models\DirectAdsIntegration;
@@ -421,7 +422,7 @@ class IntegrationsController extends Controller
             $detailRes = $this->googleAdsSearchStream(
                 (string) $usedVersion,
                 $customerId,
-                'SELECT customer.id, customer.descriptive_name, customer.manager FROM customer LIMIT 1',
+                'SELECT customer.id, customer.descriptive_name, customer.manager, customer.time_zone FROM customer LIMIT 1',
                 $baseDetailHeaders,
                 $loginCustomerId !== '' ? $loginCustomerId : null
             );
@@ -451,6 +452,8 @@ class IntegrationsController extends Controller
                 $name = 'Google Ads ' . $display;
             }
             $isManager = (bool) ($customer['manager'] ?? false);
+            $timeZone = trim((string) ($customer['timeZone'] ?? $customer['time_zone'] ?? ''));
+            $timeZone = UserTimezone::isValid($timeZone) ? $timeZone : null;
 
             $adsAccount = GoogleAdsAccount::updateOrCreate(
                 [
@@ -460,6 +463,7 @@ class IntegrationsController extends Controller
                 [
                     'display_customer_id' => $display,
                     'account_name' => $name,
+                    'time_zone' => $timeZone,
                     'is_manager' => $isManager,
                     'manager_customer_id' => null,
                     'google_tag_id' => $display,
@@ -467,6 +471,10 @@ class IntegrationsController extends Controller
                 ]
             );
             $synced++;
+
+            if (! $timeZone) {
+                app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($adsAccount, (string) $usedVersion, $baseDetailHeaders);
+            }
 
             if ($isManager) {
                 $childResult = $this->syncManagerChildAccounts(
@@ -763,6 +771,10 @@ class IntegrationsController extends Controller
                 ]
             );
             $synced++;
+
+            if (! $adsAccount->time_zone) {
+                app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($adsAccount, $apiVersion, $managerHeaders);
+            }
 
             $domains += $domainSync->syncForAccount(
                 $userId,

@@ -44,10 +44,13 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
+        $reportingTz = $this->reportingTimezone($request, $domainIds);
+        $googleTz = $this->resolveGoogleTimezone($request, $domainIds);
+        $domains = $this->scopedDomains($request, $domainIds);
 
         $this->syncGoogleMetricsForDomains(
             $request,
-            $domainIds,
+            $domains,
             $metricFrom,
             $metricTo,
             $request->boolean('force_google_sync')
@@ -84,7 +87,7 @@ class PaidAdvertisingDashboardController extends Controller
         $googleClicks = 0;
         if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
             $googleAds = app(GoogleAdsDomainMetricsSync::class)
-                ->clickTotalsForDomains($domainIds, $metricFrom, $metricTo);
+                ->clickTotalsForDomainsReporting($domainIds, $metricFrom, $metricTo, $reportingTz, $domains);
             $googleClicks = (int) ($googleAds['clicks'] ?? 0);
         }
 
@@ -108,6 +111,12 @@ class PaidAdvertisingDashboardController extends Controller
             'unique_ips' => $uniqueIps,
             'valid_paid_visits' => $validTagPaid,
             'google_ads' => $googleAds,
+            'timezone_context' => UserTimezone::dashboardContext(
+                $request->user(),
+                $googleTz,
+                $metricFrom,
+                $metricTo,
+            ),
             'window' => [
                 'from' => $from->toIso8601String(),
                 'to' => $to->toIso8601String(),
@@ -120,11 +129,12 @@ class PaidAdvertisingDashboardController extends Controller
         [$from, $to] = $this->dateRange($request);
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
-        $userTz = UserTimezone::forUser($request->user());
+        $userTz = $this->reportingTimezone($request, $domainIds);
+        $domains = $this->scopedDomains($request, $domainIds);
 
         $this->syncGoogleMetricsForDomains(
             $request,
-            $domainIds,
+            $domains,
             $metricFrom,
             $metricTo,
             $request->boolean('force_google_sync')
@@ -133,7 +143,7 @@ class PaidAdvertisingDashboardController extends Controller
         $fetchRows = function (string $fromDate, string $toDate) use ($request, $domainIds) {
             $rows = collect();
             if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
-                $dayExpr = UserTimezone::localDateSql('visited_at', $request->user());
+                $dayExpr = UserTimezone::localDateSql('visited_at', $request->user(), $userTz);
                 $rows = $this->scopedVisitsQuery($request, $domainIds, $fromDate, $toDate)
                     ->selectRaw("{$dayExpr} as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
                     ->groupBy('day')
@@ -156,7 +166,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
             $sync = app(GoogleAdsDomainMetricsSync::class);
-            $googleByDay = $sync->dailyClicksByDateForDomains($domainIds, $metricFrom, $metricTo);
+            $googleByDay = $sync->dailyClicksByDateForDomainsReporting($domainIds, $metricFrom, $metricTo, $userTz, $domains);
         }
 
         $buildSeries = function (string $rangeFromDate, string $rangeToDate, $dayRows, $googleDays) use ($userTz): array {
@@ -224,9 +234,9 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
-        $userTz = UserTimezone::forUser($request->user());
         $domainIds = $this->scopedDomainIds($request);
-        $dayExpr = UserTimezone::localDateSql('visited_at', $request->user());
+        $userTz = $this->reportingTimezone($request, $domainIds);
+        $dayExpr = UserTimezone::localDateSql('visited_at', $request->user(), $userTz);
 
         $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
             ->whereIn('action_taken', ['block', 'flag'])
@@ -409,7 +419,14 @@ class PaidAdvertisingDashboardController extends Controller
 
         $inner = DB::table('paid_marketing_visits')
             ->whereIn('domain_id', $domainIds);
-        UserTimezone::applyCalendarDateRangeFilter($inner, 'last_click_at', $fromDate, $toDate, $user);
+        UserTimezone::applyCalendarDateRangeFilter(
+            $inner,
+            'last_click_at',
+            $fromDate,
+            $toDate,
+            $user,
+            UserTimezone::reportingTimezoneForUser($user),
+        );
         $inner->whereRaw("{$nameExpr} IS NOT NULL")
             ->selectRaw("{$nameExpr} as campaign");
 
@@ -693,7 +710,14 @@ class PaidAdvertisingDashboardController extends Controller
             ->whereIn('pv.domain_id', $domainIds)
             ->where('pc.ip', $ip);
 
-        UserTimezone::applyCalendarDateRangeFilter($query, 'pc.clicked_at', $fromDate, $toDate, $user);
+        UserTimezone::applyCalendarDateRangeFilter(
+            $query,
+            'pc.clicked_at',
+            $fromDate,
+            $toDate,
+            $user,
+            $this->reportingTimezone($request, $domainIds),
+        );
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
         if ($this->hasCampaignFilter($request)) {
@@ -796,7 +820,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
-        $localVisitedAt = UserTimezone::localDateTimeSql('visited_at', $request->user());
+        $localVisitedAt = UserTimezone::localDateTimeSql('visited_at', $request->user(), $this->reportingTimezone($request, $domainIds));
 
         $rows = collect();
         if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
@@ -807,11 +831,18 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         if ($rows->isEmpty() && Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('paid_marketing_visits') && $domainIds->isNotEmpty()) {
-            $localClickedAt = UserTimezone::localDateTimeSql('pc.clicked_at', $request->user());
+            $localClickedAt = UserTimezone::localDateTimeSql('pc.clicked_at', $request->user(), $this->reportingTimezone($request, $domainIds));
             $pmQuery = DB::table('paid_marketing_clicks as pc')
                 ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
                 ->whereIn('pv.domain_id', $domainIds);
-            UserTimezone::applyCalendarDateRangeFilter($pmQuery, 'pc.clicked_at', $metricFrom, $metricTo, $request->user());
+            UserTimezone::applyCalendarDateRangeFilter(
+                $pmQuery,
+                'pc.clicked_at',
+                $metricFrom,
+                $metricTo,
+                $request->user(),
+                $this->reportingTimezone($request, $domainIds),
+            );
             $this->applyPaidTrafficOnlyFilter($pmQuery, 'pc');
             $rows = $pmQuery
                 ->selectRaw("DAYOFWEEK({$localClickedAt}) as dow, HOUR({$localClickedAt}) as hr, COUNT(*) as total")
@@ -844,27 +875,27 @@ class PaidAdvertisingDashboardController extends Controller
         ]);
     }
 
-    private function syncGoogleMetricsForDomains(Request $request, $domainIds, string $fromDate, string $toDate, bool $force = false): void
+    private function syncGoogleMetricsForDomains(Request $request, $domains, string $fromDate, string $toDate, bool $force = false): void
     {
-        if (! Schema::hasTable('google_ads_campaign_daily_metrics') || $domainIds->isEmpty()) {
+        if (! Schema::hasTable('google_ads_campaign_daily_metrics') || $domains->isEmpty()) {
             return;
         }
 
         $sync = app(GoogleAdsDomainMetricsSync::class);
-        $domains = Domain::query()
-            ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
-            ->whereIn('id', $domainIds)
-            ->with('googleAdsAccount')
-            ->get();
+        $reportingTz = $this->reportingTimezone($request, $domains->pluck('id'));
 
         foreach ($domains as $domain) {
             if (! $domain->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
                 continue;
             }
 
-            if ($force || $sync->shouldRefresh($domain, $fromDate, $toDate)) {
-                $sync->syncDomain($domain, $fromDate, $toDate);
+            $googleTz = UserTimezone::isValid($domain->googleAdsAccount->time_zone)
+                ? $domain->googleAdsAccount->time_zone
+                : $reportingTz;
+            [$syncFrom, $syncTo] = UserTimezone::googleMetricDateBounds($fromDate, $toDate, $reportingTz, $googleTz);
+
+            if ($force || $sync->shouldRefresh($domain, $syncFrom, $syncTo)) {
+                $sync->syncDomain($domain, $syncFrom, $syncTo);
             }
         }
     }
@@ -888,7 +919,14 @@ class PaidAdvertisingDashboardController extends Controller
         $query = DB::table('visits')
             ->whereIn('domain_id', $domainIds);
 
-        UserTimezone::applyCalendarDateRangeFilter($query, 'visited_at', $fromDate, $toDate, $request->user());
+        UserTimezone::applyCalendarDateRangeFilter(
+            $query,
+            'visited_at',
+            $fromDate,
+            $toDate,
+            $request->user(),
+            $this->reportingTimezone($request, $domainIds),
+        );
 
         GoogleClickAttribution::applyHasClickIdFilter($query);
 
@@ -951,7 +989,14 @@ class PaidAdvertisingDashboardController extends Controller
             ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
             ->whereIn('pv.domain_id', $domainIds);
 
-        UserTimezone::applyCalendarDateRangeFilter($query, 'pc.clicked_at', $fromDate, $toDate, $request->user());
+        UserTimezone::applyCalendarDateRangeFilter(
+            $query,
+            'pc.clicked_at',
+            $fromDate,
+            $toDate,
+            $request->user(),
+            $this->reportingTimezone($request, $domainIds),
+        );
 
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
@@ -1090,7 +1135,14 @@ class PaidAdvertisingDashboardController extends Controller
             ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
             ->whereIn('pv.domain_id', $domainIds);
 
-        UserTimezone::applyCalendarDateRangeFilter($query, 'pc.clicked_at', $fromDate, $toDate, $request->user());
+        UserTimezone::applyCalendarDateRangeFilter(
+            $query,
+            'pc.clicked_at',
+            $fromDate,
+            $toDate,
+            $request->user(),
+            $this->reportingTimezone($request, $domainIds),
+        );
 
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
@@ -1127,7 +1179,14 @@ class PaidAdvertisingDashboardController extends Controller
             ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
             ->whereIn('pv.domain_id', $domainIds);
 
-        UserTimezone::applyCalendarDateRangeFilter($query, 'pc.clicked_at', $fromDate, $toDate, $request->user());
+        UserTimezone::applyCalendarDateRangeFilter(
+            $query,
+            'pc.clicked_at',
+            $fromDate,
+            $toDate,
+            $request->user(),
+            $this->reportingTimezone($request, $domainIds),
+        );
 
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
@@ -1752,7 +1811,14 @@ class PaidAdvertisingDashboardController extends Controller
 
     private function dateRange(Request $request): array
     {
-        return UserTimezone::dateRangeFromRequest($request, $request->user());
+        $domainIds = $this->scopedDomainIds($request);
+
+        return UserTimezone::dateRangeFromRequest(
+            $request,
+            $request->user(),
+            6,
+            $this->reportingTimezone($request, $domainIds),
+        );
     }
 
     /**
@@ -1760,7 +1826,51 @@ class PaidAdvertisingDashboardController extends Controller
      */
     private function calendarDateRange(Request $request): array
     {
-        return UserTimezone::calendarDateRangeFromRequest($request, $request->user());
+        $domainIds = $this->scopedDomainIds($request);
+
+        return UserTimezone::calendarDateRangeFromRequest(
+            $request,
+            $request->user(),
+            6,
+            $this->reportingTimezone($request, $domainIds),
+        );
+    }
+
+    private function reportingTimezone(Request $request, $domainIds = null): string
+    {
+        return UserTimezone::reportingTimezoneForUser(
+            $request->user(),
+            $this->resolveGoogleTimezone($request, $domainIds),
+        );
+    }
+
+    private function resolveGoogleTimezone(Request $request, $domainIds = null): ?string
+    {
+        $domainIds ??= $this->scopedDomainIds($request);
+        if ($domainIds->isEmpty()) {
+            return null;
+        }
+
+        $domain = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forPaidMarketing()
+            ->whereIn('id', $domainIds)
+            ->with('googleAdsAccount')
+            ->orderBy('id')
+            ->get()
+            ->first(fn (Domain $row) => UserTimezone::isValid($row->googleAdsAccount?->time_zone));
+
+        return $domain?->googleAdsAccount?->time_zone;
+    }
+
+    private function scopedDomains(Request $request, $domainIds)
+    {
+        return Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forPaidMarketing()
+            ->whereIn('id', $domainIds)
+            ->with('googleAdsAccount')
+            ->get();
     }
 
     /**

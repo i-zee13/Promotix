@@ -36,6 +36,13 @@
             </div>
         </div>
 
+        <p
+            x-show="timezoneBannerText"
+            x-cloak
+            class="mb-[14px] rounded-[8px] border border-[#6400B2]/35 bg-[#151515] px-[12px] py-[8px] text-[11px] leading-relaxed text-[#a9a9a9]"
+            x-text="timezoneBannerText"
+        ></p>
+
         <div class="paid-dashboard-cards">
             <article class="paid-dashboard-card">
                 <div class="flex items-start justify-between">
@@ -479,6 +486,19 @@ function paidAdvertisingFigma(config = {}) {
             const tagTotal = Number(this.summary.tag_paid_visits || 0);
             const invalid = Number(this.summary.invalid_paid_visits || 0);
             return tagTotal ? Math.round((invalid / tagTotal) * 100) : 0;
+        },
+        get timezoneBannerText() {
+            const ctx = this.summary?.timezone_context;
+            if (!ctx) return '';
+            const visit = ctx.visit_dates || {};
+            const google = ctx.google_dates || {};
+            const visitRange = visit.from === visit.to ? visit.from : `${visit.from} – ${visit.to}`;
+            const parts = [`Visits: ${ctx.reporting_timezone} (${visitRange})`];
+            if (ctx.google_timezone) {
+                const googleRange = google.from === google.to ? google.from : `${google.from} – ${google.to}`;
+                parts.push(`Google: ${ctx.google_timezone} (${googleRange})`);
+            }
+            return parts.join(' · ');
         },
         get topCampaign() {
             return (this.campaigns || []).find(r => r.campaign) || null;
