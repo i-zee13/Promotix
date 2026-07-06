@@ -290,6 +290,7 @@
             { key: 'country', label: 'Country', primary: true, min: 72 },
             { key: 'invalid_clicks', label: 'Invalid', primary: true, min: 52 },
             { key: 'valid_clicks', label: 'Valid', primary: true, min: 52 },
+            { key: 'google_verified_label', label: 'Google Verified', primary: false, min: 88 },
             { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
             { key: 'status', label: 'Status', primary: false, min: 72 },
             { key: 'intel_region', label: 'Region', primary: false, min: 80 },
@@ -329,6 +330,9 @@
         } catch (e) {}
         if (!savedOptional.includes('session_recording')) {
             savedOptional = [...savedOptional, 'session_recording'];
+        }
+        if (!savedOptional.includes('google_verified_label')) {
+            savedOptional = [...savedOptional, 'google_verified_label'];
         }
 
         return {
@@ -462,6 +466,10 @@
             cellValue(visit, key) {
                 if (key === 'ip') return this.ipLabel(visit);
                 if (key === 'campaign') return visit.campaign || 'N/A';
+                if (key === 'google_verified_label') {
+                    const label = visit.google_verified_label || '—';
+                    return label;
+                }
                 const value = visit[key];
                 if (value === 0) return '0';
                 if (value === null || value === undefined || value === '') return '—';

@@ -14,6 +14,8 @@ use App\Services\GoogleAdsIpExclusionSyncService;
 use App\Services\GoogleAudienceExclusionService;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleIpBlockFormatter;
+use App\Support\GoogleVerifiedCampaignLookup;
+use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\SessionRecordingNormalizer;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
@@ -58,11 +60,29 @@ class PaidMarketingController extends Controller
 
         $recordings = $this->latestRecordingsForIps($request, $visits->pluck('ip')->unique()->filter()->values());
 
+        $domains = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forPaidMarketing()
+            ->when($request->query('domain_id'), fn ($q, $id) => $q->where('id', (int) $id))
+            ->with('googleAdsAccount')
+            ->get();
+
+        $verificationLookup = app(GoogleVerifiedPaidTraffic::class)->buildLookup(
+            $domains->pluck('id'),
+            $metricFrom,
+            $metricTo,
+            $request->user(),
+            $reportingTz,
+            $domains,
+        );
+
         $rows = $visits->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit(
             $visit,
             $request->user(),
             $ipLogs->get($visit->ip),
             $recordings->get($visit->ip),
+            $verificationLookup,
+            $reportingTz,
         ));
 
         return response()->json([
@@ -95,18 +115,37 @@ class PaidMarketingController extends Controller
                 'Country',
                 'Invalid Clicks',
                 'Valid Clicks',
+                'Google Verified',
                 'Status',
                 'Last Path',
             ]);
+
+            [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
+
+            $domains = Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->forPaidMarketing()
+                ->when($request->query('domain_id'), fn ($q, $id) => $q->where('id', (int) $id))
+                ->with('googleAdsAccount')
+                ->get();
+
+            $verificationLookup = app(GoogleVerifiedPaidTraffic::class)->buildLookup(
+                $domains->pluck('id'),
+                $metricFrom,
+                $metricTo,
+                $request->user(),
+                $reportingTz,
+                $domains,
+            );
 
             $this->detailedVisitQuery($request)
                 ->orderByDesc('last_click_at')
                 ->limit(50000)
                 ->get()
-                ->each(function (PaidMarketingVisit $visit) use ($handle, $request): void {
+                ->each(function (PaidMarketingVisit $visit) use ($handle, $request, $verificationLookup, $reportingTz): void {
                     $visit->loadMissing(['domain', 'clicks']);
                     $ipLog = IpLog::query()->where('ip', $visit->ip)->first();
-                    $row = $this->formatDetailedVisit($visit, $request->user(), $ipLog);
+                    $row = $this->formatDetailedVisit($visit, $request->user(), $ipLog, null, $verificationLookup, $reportingTz);
                     fputcsv($handle, [
                         $row['ip'],
                         $row['visits'],
@@ -118,6 +157,7 @@ class PaidMarketingController extends Controller
                         $row['country'],
                         $row['invalid_clicks'],
                         $row['valid_clicks'],
+                        $row['google_verified_label'] ?? '',
                         $row['status'] ?? '',
                         $row['last_path'],
                     ]);
@@ -225,8 +265,14 @@ class PaidMarketingController extends Controller
         return $query;
     }
 
-    private function formatDetailedVisit(PaidMarketingVisit $visit, ?\App\Models\User $user = null, ?IpLog $ipLog = null, ?object $recording = null): array
-    {
+    private function formatDetailedVisit(
+        PaidMarketingVisit $visit,
+        ?\App\Models\User $user = null,
+        ?IpLog $ipLog = null,
+        ?object $recording = null,
+        ?GoogleVerifiedCampaignLookup $verificationLookup = null,
+        ?string $reportingTz = null,
+    ): array {
         $clicks = $visit->clicks;
         $clickCount = max($clicks->count(), (int) ($visit->visits ?? 1));
 
@@ -260,6 +306,19 @@ class PaidMarketingController extends Controller
             ->values()
             ->all();
 
+        $firstClick = $clicks->first();
+        $campaignId = GoogleVerifiedPaidTraffic::resolveCampaignId((object) [
+            'url' => $firstClick?->path,
+            'google_campaign_id' => $visit->google_campaign_id ?? $firstClick?->google_campaign_id,
+        ]);
+        $verificationInstant = $lastClickAt ?? $firstClick?->getRawOriginal('clicked_at') ?? $firstClick?->clicked_at;
+        $googleVerified = $verificationLookup && $reportingTz
+            ? $verificationLookup->isVerified((int) $visit->domain_id, $campaignId, $verificationInstant, $reportingTz)
+            : null;
+        $googleVerifiedLabel = $verificationLookup && $reportingTz
+            ? $verificationLookup->statusLabel((int) $visit->domain_id, $campaignId, $verificationInstant, $reportingTz)
+            : '—';
+
         return [
             'id' => $visit->id,
             'ip' => $visit->ip,
@@ -281,6 +340,8 @@ class PaidMarketingController extends Controller
             'data_center_hits' => $dataCenterHits,
             'invalid_clicks' => $invalidClicks,
             'valid_clicks' => $validClicks,
+            'google_verified' => $googleVerified,
+            'google_verified_label' => $googleVerifiedLabel,
             'has_session_recording' => $recording !== null,
             'session_recording_id' => $recording ? (int) $recording->id : null,
             'clicks' => $clicks->map(function ($c) use ($user) {

@@ -11,6 +11,7 @@ use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
 use App\Services\IpIntel\IpFraudEvaluator;
 use App\Support\GoogleClickAttribution;
+use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -57,10 +58,21 @@ class PaidAdvertisingDashboardController extends Controller
         );
 
         $tagPaid = 0;
+        $verifiedPaid = 0;
+        $unverifiedPaid = 0;
         $invalid = 0;
         $blocked = 0;
         $flagged = 0;
         $uniqueIps = 0;
+
+        $verificationLookup = app(GoogleVerifiedPaidTraffic::class)->buildLookup(
+            $domainIds,
+            $metricFrom,
+            $metricTo,
+            $request->user(),
+            $reportingTz,
+            $domains,
+        );
 
         if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
             $base = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo);
@@ -72,6 +84,22 @@ class PaidAdvertisingDashboardController extends Controller
                 $blocked = (clone $base)->where('action_taken', 'block')->count();
                 $flagged = (clone $base)->where('action_taken', 'flag')->count();
             }
+
+            $visitRows = (clone $base)->get([
+                'domain_id',
+                'url',
+                'google_campaign_id',
+                'visited_at',
+            ]);
+            if ($visitRows->isNotEmpty()) {
+                $verificationCounts = app(GoogleVerifiedPaidTraffic::class)->countRows(
+                    $visitRows,
+                    $verificationLookup,
+                    $reportingTz,
+                );
+                $verifiedPaid = (int) ($verificationCounts['verified'] ?? 0);
+                $unverifiedPaid = (int) ($verificationCounts['unverified'] ?? 0);
+            }
         }
 
         if ($domainIds->isNotEmpty()) {
@@ -81,6 +109,17 @@ class PaidAdvertisingDashboardController extends Controller
                 $invalid = (int) ($legacy['invalid'] ?? 0);
             }
             $uniqueIps = max($uniqueIps, (int) ($legacy['unique_ips'] ?? 0));
+
+            if ($verifiedPaid === 0 && $unverifiedPaid === 0 && (int) ($legacy['total'] ?? 0) > 0) {
+                $legacyRows = $this->paidMarketingRowsForVerification($request, $domainIds, $metricFrom, $metricTo);
+                $verificationCounts = app(GoogleVerifiedPaidTraffic::class)->countRows(
+                    $legacyRows,
+                    $verificationLookup,
+                    $reportingTz,
+                );
+                $verifiedPaid = (int) ($verificationCounts['verified'] ?? 0);
+                $unverifiedPaid = (int) ($verificationCounts['unverified'] ?? 0);
+            }
         }
 
         $googleAds = null;
@@ -91,20 +130,22 @@ class PaidAdvertisingDashboardController extends Controller
             $googleClicks = (int) ($googleAds['clicks'] ?? 0);
         }
 
-        $paid = $this->displayPaidTrafficCount($tagPaid, $googleClicks);
+        $paid = $this->displayPaidTrafficCount($verifiedPaid, $tagPaid, $googleClicks);
         $validTagPaid = max(0, $tagPaid - $invalid);
         $totalClickCount = $googleClicks;
         $tagCapturePct = $googleClicks > 0
-            ? (int) round(min(100, ($tagPaid / $googleClicks) * 100))
-            : ($tagPaid > 0 ? 100 : 0);
+            ? (int) round(min(100, ($verifiedPaid / $googleClicks) * 100))
+            : ($verifiedPaid > 0 ? 100 : 0);
 
         return response()->json([
             'paid_visits' => $paid,
+            'verified_paid_visits' => $verifiedPaid,
+            'unverified_paid_visits' => $unverifiedPaid,
             'tag_paid_visits' => $tagPaid,
             'google_clicks' => $googleClicks,
             'total_click_count' => $totalClickCount,
             'tag_capture_pct' => $tagCapturePct,
-            'tag_gap_warning' => $googleClicks > 0 && $tagPaid < (int) floor($googleClicks * 0.5),
+            'tag_gap_warning' => $googleClicks > 0 && $verifiedPaid < (int) floor($googleClicks * 0.5),
             'invalid_paid_visits' => $invalid,
             'blocked_paid_visits' => $blocked,
             'flagged_paid_visits' => $flagged,
@@ -179,7 +220,8 @@ class PaidAdvertisingDashboardController extends Controller
                 $row = $dayRows->firstWhere('day', $key);
                 $visitPaid = (int) ($row->total ?? 0);
                 $googlePaid = (int) ($googleDays?->get($key)?->clicks ?? 0);
-                $paid[] = $this->displayPaidTrafficCount($visitPaid, $googlePaid);
+                $estimatedVerified = $googlePaid > 0 ? $visitPaid : 0;
+                $paid[] = $this->displayPaidTrafficCount($estimatedVerified, $visitPaid, $googlePaid);
                 $invalid[] = (int) ($row->invalid ?? 0);
                 $period->addDay();
             }
@@ -1874,12 +1916,52 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /**
-     * Paid traffic card = tag-captured visits (gclid). Google clicks are stored on
-     * domain link for history/campaigns but are not used for this headline count.
+     * Paid traffic headline = Google-verified visits (campaign match + clicks that day).
      */
-    private function displayPaidTrafficCount(int $tagPaid, int $googleClicks): int
+    private function displayPaidTrafficCount(int $verifiedPaid, int $tagPaid, int $googleClicks): int
     {
-        return max(0, $tagPaid);
+        return max(0, $verifiedPaid);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>  $domainIds
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    private function paidMarketingRowsForVerification(Request $request, $domainIds, string $fromDate, string $toDate)
+    {
+        if (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits')) {
+            return collect();
+        }
+
+        $query = DB::table('paid_marketing_clicks as pc')
+            ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+            ->whereIn('pv.domain_id', $domainIds);
+
+        UserTimezone::applyCalendarDateRangeFilter(
+            $query,
+            'pc.clicked_at',
+            $fromDate,
+            $toDate,
+            $request->user(),
+            $this->reportingTimezone($request, $domainIds),
+        );
+
+        $this->applyPaidTrafficOnlyFilter($query, 'pc');
+
+        $columns = [
+            'pv.domain_id',
+            'pc.path as url',
+            'pc.clicked_at as visited_at',
+        ];
+        if (Schema::hasColumn('paid_marketing_clicks', 'google_campaign_id')) {
+            $columns[] = 'pc.google_campaign_id';
+        } elseif (Schema::hasColumn('paid_marketing_visits', 'google_campaign_id')) {
+            $columns[] = 'pv.google_campaign_id';
+        } else {
+            $columns[] = DB::raw('NULL as google_campaign_id');
+        }
+
+        return $query->get($columns);
     }
 
     private function emptySummary(): array

@@ -58,8 +58,12 @@
                     <div class="min-w-0">
                         <div class="grid grid-cols-2 gap-x-[14px] gap-y-[6px]">
                             <div class="min-w-0 text-left">
-                                <p class="text-[9px] leading-[1.25] text-white/75">Paid traffic</p>
+                                <p class="text-[9px] leading-[1.25] text-white/75">Verified paid</p>
                                 <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
+                                <p class="mt-[4px] text-[8px] leading-tight text-white/45">
+                                    Tag: <span x-text="fmt(summary.tag_paid_visits)"></span>
+                                    · Unverified: <span x-text="fmt(summary.unverified_paid_visits)"></span>
+                                </p>
                             </div>
                             <div class="min-w-0 text-left">
                                 <p class="text-[9px] leading-[1.25] text-white/75">Invalid clicks</p>
@@ -467,7 +471,7 @@ function paidAdvertisingFigma(config = {}) {
         countryGetStarted: Boolean(config.countryGetStarted),
         userTimezone: config.userTimezone || 'UTC',
         filters: { domain_id: '', campaign: '', campaign_id: '', path: '', window: 'weekly', from: '', to: '' },
-        summary: { paid_visits: 0, tag_paid_visits: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
+        summary: { paid_visits: 0, verified_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [] },
         campaigns: [],
