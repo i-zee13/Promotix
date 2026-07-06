@@ -265,6 +265,12 @@
                                 <td class="px-[12px] py-[10px] text-[12px]">
                                     <span class="block truncate font-medium" title="{{ $mapping->account->displayLabel() }}">{{ $mapping->account->displayLabel() }}</span>
                                     <span class="block truncate text-[10px] text-[#121212]/65">{{ $mapping->account->display_customer_id ?: $mapping->account->customer_id }}</span>
+                                    @if ($mapping->account->time_zone)
+                                        <span class="mt-[3px] inline-flex items-center gap-[4px] rounded-[4px] bg-[#6706B3]/10 px-[6px] py-[2px] text-[9px] font-medium text-[#4a0088]">
+                                            <svg class="h-[10px] w-[10px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            {{ \App\Support\UserTimezone::formatDisplay($mapping->account->time_zone) }}
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="truncate px-[12px] py-[10px] text-[12px]" title="{{ $mapping->domain->hostname }}">{{ $mapping->domain->hostname }}</td>
                                 <td class="px-[12px] py-[10px] text-[11px] font-medium text-[#6706B3]">

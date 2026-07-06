@@ -176,21 +176,82 @@ class UserTimezone
         ?string $googleAccountTimezone,
         string $fromDate,
         string $toDate,
+        ?Domain $domain = null,
     ): array {
         $reportingTz = self::reportingTimezoneForUser($user, $googleAccountTimezone);
         [$googleFrom, $googleTo] = self::isValid($googleAccountTimezone)
             ? self::googleMetricDateBounds($fromDate, $toDate, $reportingTz, $googleAccountTimezone)
             : [$fromDate, $toDate];
 
-        return [
+        $context = [
             'reporting_mode' => self::reportingMode($user),
             'reporting_mode_label' => self::reportingModeLabel($user),
             'reporting_timezone' => $reportingTz,
+            'reporting_timezone_label' => self::formatDisplay($reportingTz),
             'profile_timezone' => self::forUser($user),
             'google_timezone' => $googleAccountTimezone,
+            'google_timezone_label' => self::formatDisplay($googleAccountTimezone),
             'visit_dates' => ['from' => $fromDate, 'to' => $toDate],
             'google_dates' => ['from' => $googleFrom, 'to' => $googleTo],
         ];
+
+        if ($domain !== null) {
+            $context['domain'] = self::domainTimezoneEntry($domain);
+        }
+
+        return $context;
+    }
+
+    public static function formatDisplay(?string $timezone): ?string
+    {
+        if (! self::isValid($timezone)) {
+            return null;
+        }
+
+        try {
+            $abbr = now($timezone)->format('T');
+
+            return "{$timezone} ({$abbr})";
+        } catch (\Throwable) {
+            return $timezone;
+        }
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function domainTimezoneEntry(Domain $domain): ?array
+    {
+        $domain->loadMissing('googleAdsAccount');
+        $googleTz = self::isValid($domain->googleAdsAccount?->time_zone)
+            ? $domain->googleAdsAccount->time_zone
+            : null;
+
+        return [
+            'id' => (int) $domain->id,
+            'hostname' => $domain->hostname,
+            'google_account_name' => $domain->googleAdsAccount?->displayLabel(),
+            'google_timezone' => $googleTz,
+            'google_timezone_label' => self::formatDisplay($googleTz),
+        ];
+    }
+
+    /**
+     * @param  iterable<Domain>  $domains
+     * @return array<int, array<string, mixed>>
+     */
+    public static function domainCatalog(iterable $domains): array
+    {
+        $catalog = [];
+
+        foreach ($domains as $domain) {
+            $entry = self::domainTimezoneEntry($domain);
+            if ($entry !== null) {
+                $catalog[(int) $domain->id] = $entry;
+            }
+        }
+
+        return $catalog;
     }
 
     public static function isValid(?string $timezone): bool

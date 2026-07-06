@@ -9,6 +9,9 @@
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidMarketingDetailed(@js([
     'reportingTimezone' => $initialReportingTz,
     'googleAccountTimezone' => $googleAccountTimezone ?? null,
+    'domainCatalog' => $domainCatalog ?? [],
+    'reportingMode' => $reportingMode ?? 'profile',
+    'profileTimezone' => $profileTimezone ?? \App\Support\UserTimezone::forUser(auth()->user()),
 ]))" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[10px] sm:flex-row sm:items-center sm:justify-between">
@@ -53,12 +56,7 @@
             </div>
         </div>
 
-        <p
-            x-show="timezoneBannerText"
-            x-cloak
-            class="mb-[14px] rounded-[8px] border border-[#6400B2]/35 bg-[#151515] px-[12px] py-[8px] text-[11px] leading-relaxed text-[#a9a9a9]"
-            x-text="timezoneBannerText"
-        ></p>
+        @include('partials.paid-marketing-timezone-panel')
 
         <section class="overflow-visible rounded-[12px] border border-[#6706b3]">
             <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#6400B2] px-[16px] py-[12px]">
@@ -369,6 +367,9 @@
             campaignMenuOpen: false,
             reportingTimezone: config.reportingTimezone || 'UTC',
             timezoneContext: null,
+            domainCatalog: config.domainCatalog || {},
+            reportingMode: config.reportingMode || 'profile',
+            profileTimezone: config.profileTimezone || 'UTC',
             columnCatalog,
             optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
             filters: { ip: '', path: '', domain_id: '', campaign: '', from: '', to: '' },
@@ -379,18 +380,68 @@
             recordingModal: { open: false, ip: '', page_url: '', events: [] },
             recordingStop: null,
             get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
-            get timezoneBannerText() {
+            resolveReportingTimezone(googleTz) {
+                if (this.reportingMode === 'google' && googleTz) return googleTz;
+                if (this.reportingMode === 'utc') return 'UTC';
+                return this.profileTimezone;
+            },
+            applyDomainTimezoneFromCatalog() {
+                const id = String(this.filters.domain_id || '');
+                const entry = id ? this.domainCatalog[id] : null;
+                this.reportingTimezone = this.resolveReportingTimezone(entry?.google_timezone || null);
+            },
+            get domainTimezoneChip() {
+                const id = String(this.filters.domain_id || '');
+                if (id) {
+                    const d = this.domainCatalog[id];
+                    if (d) {
+                        return {
+                            hostname: d.hostname,
+                            timezone: d.google_timezone_label || 'Timezone not synced — run Sync Ads in Integrations',
+                            account: d.google_account_name || null,
+                            hasTimezone: !!d.google_timezone,
+                        };
+                    }
+                    const domainCtx = this.timezoneContext?.domain;
+                    if (domainCtx && String(domainCtx.id) === id) {
+                        return {
+                            hostname: domainCtx.hostname,
+                            timezone: domainCtx.google_timezone_label || domainCtx.google_timezone || 'Timezone not synced — run Sync Ads in Integrations',
+                            account: domainCtx.google_account_name || null,
+                            hasTimezone: !!domainCtx.google_timezone,
+                        };
+                    }
+                }
                 const ctx = this.timezoneContext;
-                if (!ctx) return '';
+                if (!id && ctx?.google_timezone_label) {
+                    return {
+                        hostname: 'All domains',
+                        timezone: ctx.google_timezone_label,
+                        account: ctx.domain?.google_account_name || null,
+                        hasTimezone: true,
+                    };
+                }
+                return null;
+            },
+            get timezoneContextPanel() {
+                const ctx = this.timezoneContext;
+                if (!ctx) return null;
                 const visit = ctx.visit_dates || {};
                 const google = ctx.google_dates || {};
                 const visitRange = visit.from === visit.to ? visit.from : `${visit.from} – ${visit.to}`;
-                const parts = [`Visits: ${ctx.reporting_timezone} (${visitRange})`];
+                const visitTz = ctx.reporting_timezone_label || ctx.reporting_timezone;
+                const visitLine = `${visitTz} · ${visitRange}`;
+                let googleLine = null;
                 if (ctx.google_timezone) {
                     const googleRange = google.from === google.to ? google.from : `${google.from} – ${google.to}`;
-                    parts.push(`Google: ${ctx.google_timezone} (${googleRange})`);
+                    const googleTz = ctx.google_timezone_label || ctx.google_timezone;
+                    googleLine = `${googleTz} · ${googleRange}`;
                 }
-                return parts.join(' · ');
+                return {
+                    visitLine,
+                    googleLine,
+                    modeLabel: ctx.reporting_mode_label,
+                };
             },
             get visibleColumns() {
                 return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
@@ -437,6 +488,7 @@
             init() {
                 const id = new URLSearchParams(window.location.search).get('domain_id');
                 if (id) this.filters.domain_id = id;
+                this.applyDomainTimezoneFromCatalog();
                 this.syncHeaderDates();
                 if (!this.filters.from || !this.filters.to) {
                     const pad = (n) => String(n).padStart(2, '0');
@@ -483,6 +535,7 @@
                 this.filters.campaign = '';
                 this.campaignOptions = [];
                 this.campaignMenuOpen = false;
+                this.applyDomainTimezoneFromCatalog();
                 if (this.filters.domain_id) {
                     await this.loadCampaignsForDomain();
                 }

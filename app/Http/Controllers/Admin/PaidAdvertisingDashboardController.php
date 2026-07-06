@@ -28,6 +28,7 @@ class PaidAdvertisingDashboardController extends Controller
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
             ->forPaidMarketing()
+            ->with('googleAdsAccount')
             ->orderBy('hostname')
             ->get(['id', 'hostname', 'paid_marketing_connected', 'source', 'google_ads_account_id']);
 
@@ -36,6 +37,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         return view('paid-marketing.dashboard', [
             'domains' => $domains,
+            'domainCatalog' => UserTimezone::domainCatalog($domains),
             'countryGetStarted' => $countryGetStarted,
         ]);
     }
@@ -141,6 +143,10 @@ class PaidAdvertisingDashboardController extends Controller
             ? (int) round(min(100, ($verifiedValidPaid / $googleClicks) * 100))
             : ($verifiedValidPaid > 0 ? 100 : 0);
 
+        $selectedDomain = $request->filled('domain_id') && $domains->count() === 1
+            ? $domains->first()
+            : null;
+
         return response()->json([
             'paid_visits' => $paid,
             'verified_paid_visits' => $verifiedPaid,
@@ -162,6 +168,7 @@ class PaidAdvertisingDashboardController extends Controller
                 $googleTz,
                 $metricFrom,
                 $metricTo,
+                $selectedDomain,
             ),
             'window' => [
                 'from' => $from->toIso8601String(),

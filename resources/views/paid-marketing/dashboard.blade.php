@@ -10,6 +10,9 @@
         auth()->user(),
         \App\Support\UserTimezone::resolveGoogleAccountTimezone(auth()->user(), (int) request('domain_id', 0) ?: null)
     ),
+    'domainCatalog' => $domainCatalog ?? [],
+    'reportingMode' => \App\Support\UserTimezone::reportingMode(auth()->user()),
+    'profileTimezone' => \App\Support\UserTimezone::forUser(auth()->user()),
 ]))" x-init="init()">
     <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
@@ -42,12 +45,7 @@
             </div>
         </div>
 
-        <p
-            x-show="timezoneBannerText"
-            x-cloak
-            class="mb-[14px] rounded-[8px] border border-[#6400B2]/35 bg-[#151515] px-[12px] py-[8px] text-[11px] leading-relaxed text-[#a9a9a9]"
-            x-text="timezoneBannerText"
-        ></p>
+        @include('partials.paid-marketing-timezone-panel')
 
         <div class="paid-dashboard-cards">
             <article class="paid-dashboard-card">
@@ -476,6 +474,9 @@ function paidAdvertisingFigma(config = {}) {
     return {
         countryGetStarted: Boolean(config.countryGetStarted),
         userTimezone: config.userTimezone || 'UTC',
+        domainCatalog: config.domainCatalog || {},
+        reportingMode: config.reportingMode || 'profile',
+        profileTimezone: config.profileTimezone || 'UTC',
         filters: { domain_id: '', campaign: '', campaign_id: '', path: '', window: 'weekly', from: '', to: '' },
         summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
         trends: { labels: [], datasets: [], invalid_daily: [] },
@@ -497,18 +498,68 @@ function paidAdvertisingFigma(config = {}) {
             const invalid = Number(this.summary.invalid_paid_visits || 0);
             return tagTotal ? Math.round((invalid / tagTotal) * 100) : 0;
         },
-        get timezoneBannerText() {
+        resolveReportingTimezone(googleTz) {
+            if (this.reportingMode === 'google' && googleTz) return googleTz;
+            if (this.reportingMode === 'utc') return 'UTC';
+            return this.profileTimezone;
+        },
+        applyDomainTimezoneFromCatalog() {
+            const id = String(this.filters.domain_id || '');
+            const entry = id ? this.domainCatalog[id] : null;
+            this.userTimezone = this.resolveReportingTimezone(entry?.google_timezone || null);
+        },
+        get domainTimezoneChip() {
+            const id = String(this.filters.domain_id || '');
+            if (id) {
+                const d = this.domainCatalog[id];
+                if (d) {
+                    return {
+                        hostname: d.hostname,
+                        timezone: d.google_timezone_label || 'Timezone not synced — run Sync Ads in Integrations',
+                        account: d.google_account_name || null,
+                        hasTimezone: !!d.google_timezone,
+                    };
+                }
+                const domainCtx = this.summary?.timezone_context?.domain;
+                if (domainCtx && String(domainCtx.id) === id) {
+                    return {
+                        hostname: domainCtx.hostname,
+                        timezone: domainCtx.google_timezone_label || domainCtx.google_timezone || 'Timezone not synced — run Sync Ads in Integrations',
+                        account: domainCtx.google_account_name || null,
+                        hasTimezone: !!domainCtx.google_timezone,
+                    };
+                }
+            }
             const ctx = this.summary?.timezone_context;
-            if (!ctx) return '';
+            if (!id && ctx?.google_timezone_label) {
+                return {
+                    hostname: 'All domains',
+                    timezone: ctx.google_timezone_label,
+                    account: ctx.domain?.google_account_name || null,
+                    hasTimezone: true,
+                };
+            }
+            return null;
+        },
+        get timezoneContextPanel() {
+            const ctx = this.summary?.timezone_context;
+            if (!ctx) return null;
             const visit = ctx.visit_dates || {};
             const google = ctx.google_dates || {};
             const visitRange = visit.from === visit.to ? visit.from : `${visit.from} – ${visit.to}`;
-            const parts = [`Visits: ${ctx.reporting_timezone} (${visitRange})`];
+            const visitTz = ctx.reporting_timezone_label || ctx.reporting_timezone;
+            const visitLine = `${visitTz} · ${visitRange}`;
+            let googleLine = null;
             if (ctx.google_timezone) {
                 const googleRange = google.from === google.to ? google.from : `${google.from} – ${google.to}`;
-                parts.push(`Google: ${ctx.google_timezone} (${googleRange})`);
+                const googleTz = ctx.google_timezone_label || ctx.google_timezone;
+                googleLine = `${googleTz} · ${googleRange}`;
             }
-            return parts.join(' · ');
+            return {
+                visitLine,
+                googleLine,
+                modeLabel: ctx.reporting_mode_label,
+            };
         },
         get topCampaign() {
             return (this.campaigns || []).find(r => r.campaign) || null;
@@ -653,6 +704,7 @@ function paidAdvertisingFigma(config = {}) {
         onDomainChange() {
             this.filters.campaign = '';
             this.filters.campaign_id = '';
+            this.applyDomainTimezoneFromCatalog();
             window.promotixPageLoader?.show('Loading data…');
             this.reload();
         },
@@ -708,6 +760,7 @@ function paidAdvertisingFigma(config = {}) {
         async init() {
             window.__paidAdvertisingDash = this;
             this.applyDomainFromUrl();
+            this.applyDomainTimezoneFromCatalog();
             this.syncHeaderDates();
             if (!this.filters.from || !this.filters.to) {
                 const today = new Date();

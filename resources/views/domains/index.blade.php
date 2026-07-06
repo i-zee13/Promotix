@@ -78,6 +78,11 @@
                                         <p class="mt-[2px] text-[10px] text-[#a9a9a9]">
                                             @if ($d->google_ads_account_id)
                                                 Paid: {{ $d->googleAdsAccount?->displayLabel() ?? 'Google Ads linked' }}
+                                                @if ($d->googleAdsAccount?->time_zone)
+                                                    <span class="ml-[4px] inline-flex items-center gap-[3px] rounded-[3px] bg-[#6400B2]/20 px-[5px] py-[1px] text-[9px] text-[#c4b5fd]">
+                                                        {{ \App\Support\UserTimezone::formatDisplay($d->googleAdsAccount->time_zone) }}
+                                                    </span>
+                                                @endif
                                             @else
                                                 Last seen: {{ $d->last_seen_at?->diffForHumans() ?? '—' }}
                                             @endif

@@ -36,8 +36,9 @@ class PaidMarketingController extends Controller
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
             ->forPaidMarketing()
+            ->with('googleAdsAccount')
             ->orderBy('hostname')
-            ->get(['id', 'hostname']);
+            ->get(['id', 'hostname', 'google_ads_account_id']);
 
         $domainId = (int) $request->query('domain_id', 0);
         $googleTz = UserTimezone::resolveGoogleAccountTimezone(
@@ -48,8 +49,11 @@ class PaidMarketingController extends Controller
 
         return view('paid-marketing.detailed-view', [
             'domains' => $domains,
+            'domainCatalog' => UserTimezone::domainCatalog($domains),
             'reportingTimezone' => $reportingTz,
             'googleAccountTimezone' => $googleTz,
+            'reportingMode' => UserTimezone::reportingMode($request->user()),
+            'profileTimezone' => UserTimezone::forUser($request->user()),
         ]);
     }
 
@@ -94,6 +98,10 @@ class PaidMarketingController extends Controller
             $reportingTz,
         ));
 
+        $selectedDomain = $request->filled('domain_id') && $domains->count() === 1
+            ? $domains->first()
+            : null;
+
         return response()->json([
             'rows' => $rows->values(),
             'stats' => $this->computeDetailedStatsFromArrays($rows),
@@ -103,6 +111,7 @@ class PaidMarketingController extends Controller
                 $googleTz ?? null,
                 $metricFrom,
                 $metricTo,
+                $selectedDomain,
             ),
         ]);
     }

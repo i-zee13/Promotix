@@ -260,13 +260,14 @@ class IntegrationsController extends Controller
 
         $connection = $this->upsertGoogleConnection($user->id, $email, $sub, $token, $accessToken);
 
+        $syncResult = $this->syncGoogleAdsAccountsForConnection($connection, $user->id);
+
         if ($isPaidDomainFlow) {
             $request->session()->put('pick_google_ads_accounts', [
                 'domain_id' => $paidDomainId,
                 'connection_id' => $connection->id,
             ]);
 
-            $syncResult = $this->syncGoogleAdsAccountsForConnection($connection, $user->id);
             $status = $syncResult['error']
                 ?? ($syncResult['synced'] > 0
                     ? "Google connected. Found {$syncResult['synced']} ad account(s)—pick one for this domain."
@@ -277,7 +278,10 @@ class IntegrationsController extends Controller
                 ->with('status', $status);
         }
 
-        return $this->redirectAfterGoogleOAuth($request, $oauthContext, 'Google account connected successfully.');
+        $status = $syncResult['error']
+            ?? $this->googleAdsSyncStatusMessage($syncResult, 'Google account connected successfully.');
+
+        return $this->redirectAfterGoogleOAuth($request, $oauthContext, $status);
     }
 
     public function disconnect(Request $request, GoogleConnection $connection): RedirectResponse
@@ -298,23 +302,7 @@ class IntegrationsController extends Controller
             return back()->with('status', $result['error']);
         }
 
-        $synced = $result['synced'];
-        $skipped = $result['skipped'];
-        $domainsSynced = $result['domains'];
-
-        $domainNote = $domainsSynced > 0
-            ? " Discovered {$domainsSynced} advertised hostname(s) from Google Ads (link manual domains on Site Management)."
-            : '';
-
-        if ($synced === 0 && $skipped > 0) {
-            return back()->with('status', "No accessible Google Ads accounts were synced. {$skipped} account(s) were skipped (disabled, deactivated, or no permission). Check GOOGLE_ADS_LOGIN_CUSTOMER_ID if you use an MCC.{$domainNote}");
-        }
-
-        if ($skipped > 0) {
-            return back()->with('status', "Synced {$synced} Google Ads account(s) with names. {$skipped} inaccessible account(s) were skipped.{$domainNote}");
-        }
-
-        return back()->with('status', "Synced {$synced} Google Ads account(s).{$domainNote}");
+        return back()->with('status', $this->googleAdsSyncStatusMessage($result, 'Google Ads accounts synced.'));
     }
 
     /**
@@ -455,24 +443,28 @@ class IntegrationsController extends Controller
             $timeZone = trim((string) ($customer['timeZone'] ?? $customer['time_zone'] ?? ''));
             $timeZone = UserTimezone::isValid($timeZone) ? $timeZone : null;
 
+            $accountAttributes = [
+                'display_customer_id' => $display,
+                'account_name' => $name,
+                'is_manager' => $isManager,
+                'manager_customer_id' => null,
+                'google_tag_id' => $display,
+                'is_active' => true,
+            ];
+            if ($timeZone !== null) {
+                $accountAttributes['time_zone'] = $timeZone;
+            }
+
             $adsAccount = GoogleAdsAccount::updateOrCreate(
                 [
                     'google_connection_id' => $connection->id,
                     'customer_id' => $customerId,
                 ],
-                [
-                    'display_customer_id' => $display,
-                    'account_name' => $name,
-                    'time_zone' => $timeZone,
-                    'is_manager' => $isManager,
-                    'manager_customer_id' => null,
-                    'google_tag_id' => $display,
-                    'is_active' => true,
-                ]
+                $accountAttributes
             );
             $synced++;
 
-            if (! $timeZone) {
+            if (! $adsAccount->time_zone) {
                 app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($adsAccount, (string) $usedVersion, $baseDetailHeaders);
             }
 
@@ -541,6 +533,15 @@ class IntegrationsController extends Controller
                 'is_active' => true,
             ]
         );
+
+        $account = GoogleAdsAccount::query()
+            ->where('google_connection_id', $connection->id)
+            ->where('customer_id', $data['customer_id'])
+            ->first();
+
+        if ($account && ! $account->time_zone && ! $account->is_manager) {
+            app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($account);
+        }
 
         return back()->with('status', 'Google Ads account saved.');
     }
@@ -1038,6 +1039,11 @@ class IntegrationsController extends Controller
             ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
             ->firstOrFail();
 
+        if (! $account->time_zone && ! $account->is_manager) {
+            app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($account);
+            $account->refresh();
+        }
+
         $domain->google_ads_account_id = $account->id;
         $domain->paid_marketing_connected = true;
         $domain->ads_synced_at = now();
@@ -1116,6 +1122,34 @@ class IntegrationsController extends Controller
                 'connected_at' => now(),
             ]
         );
+    }
+
+    /**
+     * @param array{synced: int, skipped: int, domains: int, error: ?string} $result
+     */
+    private function googleAdsSyncStatusMessage(array $result, string $fallback): string
+    {
+        $synced = (int) ($result['synced'] ?? 0);
+        $skipped = (int) ($result['skipped'] ?? 0);
+        $domainsSynced = (int) ($result['domains'] ?? 0);
+
+        $domainNote = $domainsSynced > 0
+            ? " Discovered {$domainsSynced} advertised hostname(s) from Google Ads (link manual domains on Site Management)."
+            : '';
+
+        if ($synced === 0 && $skipped === 0) {
+            return $fallback;
+        }
+
+        if ($synced === 0 && $skipped > 0) {
+            return "No accessible Google Ads accounts were synced. {$skipped} account(s) were skipped (disabled, deactivated, or no permission). Check GOOGLE_ADS_LOGIN_CUSTOMER_ID if you use an MCC.{$domainNote}";
+        }
+
+        if ($skipped > 0) {
+            return "Synced {$synced} Google Ads account(s) with names and timezones. {$skipped} inaccessible account(s) were skipped.{$domainNote}";
+        }
+
+        return "Synced {$synced} Google Ads account(s) with timezones.{$domainNote}";
     }
 
     private function redirectAfterGoogleOAuth(Request $request, string $context, string $message): RedirectResponse
