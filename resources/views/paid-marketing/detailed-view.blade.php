@@ -3,7 +3,13 @@
 @section('title', 'Paid Advertising | Advanced View')
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidMarketingDetailed()" x-init="init()">
+@php
+    $initialReportingTz = $reportingTimezone ?? \App\Support\UserTimezone::reportingTimezoneForUser(auth()->user(), $googleAccountTimezone ?? null);
+@endphp
+<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidMarketingDetailed(@js([
+    'reportingTimezone' => $initialReportingTz,
+    'googleAccountTimezone' => $googleAccountTimezone ?? null,
+]))" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[10px] sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-[8px]">
@@ -47,6 +53,13 @@
             </div>
         </div>
 
+        <p
+            x-show="timezoneBannerText"
+            x-cloak
+            class="mb-[14px] rounded-[8px] border border-[#6400B2]/35 bg-[#151515] px-[12px] py-[8px] text-[11px] leading-relaxed text-[#a9a9a9]"
+            x-text="timezoneBannerText"
+        ></p>
+
         <section class="overflow-visible rounded-[12px] border border-[#6706b3]">
             <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#6400B2] px-[16px] py-[12px]">
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
@@ -69,6 +82,7 @@
                                 </label>
                             </template>
                             <p class="mb-[8px] mt-[10px] text-[10px] font-semibold uppercase text-white/55">Optional columns</p>
+                            <p class="mb-[6px] text-[9px] leading-snug text-white/40">IP detection fields show PromoTix intel (VPN, proxy, risk). Enable below or use Advanced Filter.</p>
                             <template x-for="col in columnCatalog.filter(c => !c.primary)" :key="col.key">
                                 <label class="paid-advanced-column-option">
                                     <input type="checkbox" :value="col.key" :checked="optionalColumnKeys.includes(col.key)" @change="toggleOptionalColumn(col.key)">
@@ -278,7 +292,7 @@
 @include('partials.session-recording-player')
 
 <script>
-    function paidMarketingDetailed() {
+    function paidMarketingDetailed(config = {}) {
         const columnCatalog = [
             { key: 'ip', label: 'IP Address', primary: true, min: 120 },
             { key: 'visits', label: 'Visits', primary: true, min: 44 },
@@ -328,12 +342,24 @@
         try {
             savedOptional = JSON.parse(localStorage.getItem('pm-adv-optional-columns') || '[]');
         } catch (e) {}
-        if (!savedOptional.includes('session_recording')) {
-            savedOptional = [...savedOptional, 'session_recording'];
-        }
-        if (!savedOptional.includes('google_verified_label')) {
-            savedOptional = [...savedOptional, 'google_verified_label'];
-        }
+        const defaultOptionalColumns = [
+            'session_recording',
+            'google_verified_label',
+            'status',
+            'intel_vpn',
+            'intel_proxy',
+            'intel_tor',
+            'intel_datacenter',
+            'intel_risk_level',
+            'intel_risk_score',
+            'intel_ip_need_blockation',
+            'intel_block_reason',
+        ];
+        defaultOptionalColumns.forEach((key) => {
+            if (!savedOptional.includes(key)) {
+                savedOptional.push(key);
+            }
+        });
 
         return {
             debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
@@ -341,6 +367,8 @@
             loading: false,
             filterMenuOpen: false,
             campaignMenuOpen: false,
+            reportingTimezone: config.reportingTimezone || 'UTC',
+            timezoneContext: null,
             columnCatalog,
             optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
             filters: { ip: '', path: '', domain_id: '', campaign: '', from: '', to: '' },
@@ -351,6 +379,19 @@
             recordingModal: { open: false, ip: '', page_url: '', events: [] },
             recordingStop: null,
             get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
+            get timezoneBannerText() {
+                const ctx = this.timezoneContext;
+                if (!ctx) return '';
+                const visit = ctx.visit_dates || {};
+                const google = ctx.google_dates || {};
+                const visitRange = visit.from === visit.to ? visit.from : `${visit.from} – ${visit.to}`;
+                const parts = [`Visits: ${ctx.reporting_timezone} (${visitRange})`];
+                if (ctx.google_timezone) {
+                    const googleRange = google.from === google.to ? google.from : `${google.from} – ${google.to}`;
+                    parts.push(`Google: ${ctx.google_timezone} (${googleRange})`);
+                }
+                return parts.join(' · ');
+            },
             get visibleColumns() {
                 return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
             },
@@ -521,6 +562,10 @@
                     const data = await res.json();
                     this.rows = data.rows || [];
                     this.statCards = data.stats?.cards || [];
+                    this.timezoneContext = data.timezone_context || null;
+                    if (this.timezoneContext?.reporting_timezone) {
+                        this.reportingTimezone = this.timezoneContext.reporting_timezone;
+                    }
                 } catch (e) {
                     console.error(e);
                 } finally {
@@ -581,7 +626,7 @@
                 if (!value) return '-';
                 const date = new Date(value);
                 if (Number.isNaN(date.getTime())) return String(value);
-                const tz = document.querySelector('meta[name="user-timezone"]')?.content || undefined;
+                const tz = this.reportingTimezone || document.querySelector('meta[name="user-timezone"]')?.content || undefined;
                 return date.toLocaleString(undefined, tz ? { timeZone: tz } : undefined);
             },
             ipLabel(visit) {

@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Domain;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -76,6 +77,52 @@ class UserTimezone
                 : self::forUser($user),
             default => self::forUser($user),
         };
+    }
+
+    /**
+     * Linked Google Ads account timezone for the selected domain(s), if any.
+     *
+     * @param  iterable<int, int>|null  $domainIds
+     */
+    public static function resolveGoogleAccountTimezone(?User $user, ?int $domainId = null, ?iterable $domainIds = null): ?string
+    {
+        if (! $user) {
+            return null;
+        }
+
+        $query = Domain::query()
+            ->where('user_id', $user->id)
+            ->forPaidMarketing()
+            ->with('googleAdsAccount');
+
+        if ($domainId !== null && $domainId > 0) {
+            $query->where('id', $domainId);
+        } elseif ($domainIds !== null) {
+            $ids = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values();
+            if ($ids->isNotEmpty()) {
+                $query->whereIn('id', $ids);
+            }
+        }
+
+        $domain = $query->orderBy('id')->get()
+            ->first(fn (Domain $row) => self::isValid($row->googleAdsAccount?->time_zone));
+
+        $tz = $domain?->googleAdsAccount?->time_zone;
+
+        return self::isValid($tz) ? $tz : null;
+    }
+
+    /**
+     * Reporting timezone for paid marketing views (respects profile reporting mode + domain Google TZ).
+     *
+     * @param  iterable<int, int>|null  $domainIds
+     */
+    public static function reportingTimezoneForRequest(?User $user, ?int $domainId = null, ?iterable $domainIds = null): string
+    {
+        return self::reportingTimezoneForUser(
+            $user,
+            self::resolveGoogleAccountTimezone($user, $domainId, $domainIds),
+        );
     }
 
     /**

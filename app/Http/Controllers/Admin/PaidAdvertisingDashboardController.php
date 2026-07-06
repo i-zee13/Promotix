@@ -350,7 +350,7 @@ class PaidAdvertisingDashboardController extends Controller
         $domainIds = $this->scopedDomainIds($request);
         $merged = $merged
             ->merge($this->visitCampaignRows($request, $domainIds, $metricFrom, $metricTo))
-            ->merge($this->paidMarketingCampaignRows($domainIds, $metricFrom, $metricTo, $request->user()));
+            ->merge($this->paidMarketingCampaignRows($domainIds, $metricFrom, $metricTo, $request->user(), $this->reportingTimezone($request, $domainIds)));
 
         $rows = $merged
             ->filter(fn ($row) => filled(is_array($row) ? ($row['campaign'] ?? null) : null))
@@ -456,11 +456,15 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /** @return list<array<string, mixed>> */
-    private function paidMarketingCampaignRows($domainIds, string $fromDate, string $toDate, ?\App\Models\User $user = null): array
+    private function paidMarketingCampaignRows($domainIds, string $fromDate, string $toDate, ?\App\Models\User $user = null, ?string $reportingTz = null): array
     {
         if (! Schema::hasTable('paid_marketing_visits') || collect($domainIds)->isEmpty()) {
             return [];
         }
+
+        $reportingTz = $reportingTz && UserTimezone::isValid($reportingTz)
+            ? $reportingTz
+            : UserTimezone::reportingTimezoneForUser($user);
 
         $nameExpr = Schema::hasColumn('paid_marketing_visits', 'campaign_name')
             ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(campaign), ''))"
@@ -474,7 +478,7 @@ class PaidAdvertisingDashboardController extends Controller
             $fromDate,
             $toDate,
             $user,
-            UserTimezone::reportingTimezoneForUser($user),
+            $reportingTz,
         );
         $inner->whereRaw("{$nameExpr} IS NOT NULL")
             ->selectRaw("{$nameExpr} as campaign");
@@ -1896,20 +1900,13 @@ class PaidAdvertisingDashboardController extends Controller
     private function resolveGoogleTimezone(Request $request, $domainIds = null): ?string
     {
         $domainIds ??= $this->scopedDomainIds($request);
-        if ($domainIds->isEmpty()) {
-            return null;
-        }
+        $domainId = (int) $request->query('domain_id', 0);
 
-        $domain = Domain::query()
-            ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
-            ->whereIn('id', $domainIds)
-            ->with('googleAdsAccount')
-            ->orderBy('id')
-            ->get()
-            ->first(fn (Domain $row) => UserTimezone::isValid($row->googleAdsAccount?->time_zone));
-
-        return $domain?->googleAdsAccount?->time_zone;
+        return UserTimezone::resolveGoogleAccountTimezone(
+            $request->user(),
+            $domainId > 0 ? $domainId : null,
+            $domainIds,
+        );
     }
 
     private function scopedDomains(Request $request, $domainIds)

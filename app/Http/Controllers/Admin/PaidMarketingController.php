@@ -39,8 +39,17 @@ class PaidMarketingController extends Controller
             ->orderBy('hostname')
             ->get(['id', 'hostname']);
 
+        $domainId = (int) $request->query('domain_id', 0);
+        $googleTz = UserTimezone::resolveGoogleAccountTimezone(
+            $request->user(),
+            $domainId > 0 ? $domainId : null,
+        );
+        $reportingTz = UserTimezone::reportingTimezoneForUser($request->user(), $googleTz);
+
         return view('paid-marketing.detailed-view', [
             'domains' => $domains,
+            'reportingTimezone' => $reportingTz,
+            'googleAccountTimezone' => $googleTz,
         ]);
     }
 
@@ -384,11 +393,12 @@ class PaidMarketingController extends Controller
         }
 
         $threatGroup = strtolower((string) $visit->threat_group);
-        $isVpn = $threatGroup === 'vpn';
+        $intel = $ipLog ? app(IpIntelService::class) : null;
+        $isVpn = $threatGroup === 'vpn' || ($intel && $intel->isVpnSuspect($ipLog));
         $isDc = in_array($threatGroup, ['data_center', 'datacenter'], true);
         $isTor = (bool) ($ipLog?->abuse_is_tor ?? false);
-        $isHosting = $ipLog ? app(IpIntelService::class)->isHostingType($ipLog) : false;
-        $isProxy = $ipLog ? app(IpIntelService::class)->isProxySuspect($ipLog) : false;
+        $isHosting = $intel ? $intel->isHostingType($ipLog) : false;
+        $isProxy = $intel ? $intel->isProxySuspect($ipLog) : false;
 
         $status = 'Valid';
         $isAllowListed = $domain !== null
@@ -1163,17 +1173,11 @@ class PaidMarketingController extends Controller
     private function reportingWindow(Request $request): array
     {
         $user = $request->user();
-        $googleTz = null;
-
-        if ($domainId = (int) $request->query('domain_id', 0)) {
-            $googleTz = Domain::query()
-                ->where('user_id', $user->id)
-                ->with('googleAdsAccount')
-                ->find($domainId)
-                ?->googleAdsAccount
-                ?->time_zone;
-        }
-
+        $domainId = (int) $request->query('domain_id', 0);
+        $googleTz = UserTimezone::resolveGoogleAccountTimezone(
+            $user,
+            $domainId > 0 ? $domainId : null,
+        );
         $reportingTz = UserTimezone::reportingTimezoneForUser($user, $googleTz);
         [$metricFrom, $metricTo] = UserTimezone::calendarDateRangeFromRequest($request, $user, 6, $reportingTz);
 

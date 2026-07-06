@@ -4,7 +4,13 @@
 @section('subtitle', 'Live campaign performance and detection results')
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js(['countryGetStarted' => $countryGetStarted, 'userTimezone' => \App\Support\UserTimezone::forUser(auth()->user())]))" x-init="init()">
+<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js([
+    'countryGetStarted' => $countryGetStarted,
+    'userTimezone' => \App\Support\UserTimezone::reportingTimezoneForUser(
+        auth()->user(),
+        \App\Support\UserTimezone::resolveGoogleAccountTimezone(auth()->user(), (int) request('domain_id', 0) ?: null)
+    ),
+]))" x-init="init()">
     <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-[12px]">
@@ -741,6 +747,9 @@ function paidAdvertisingFigma(config = {}) {
                     fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
                 ]);
                 this.summary = summary;
+                if (summary?.timezone_context?.reporting_timezone) {
+                    this.userTimezone = summary.timezone_context.reporting_timezone;
+                }
                 this.trends = trends;
                 this.blocking = blocking;
                 this.campaigns = Array.isArray(campaigns) ? campaigns : (campaigns.campaigns || []);
