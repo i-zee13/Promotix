@@ -51,8 +51,10 @@ class GoogleAdsAccountTimezoneService
 
     private function fetchCustomerTimezone(string $apiVersion, string $customerId, array $headers): ?string
     {
-        $developerToken = config('services.google.ads_developer_token');
-        if (! $developerToken) {
+        $developerToken = (string) config('services.google_ads.developer_token');
+        if ($developerToken === '') {
+            Log::warning('Google Ads customer timezone fetch skipped: missing GOOGLE_ADS_DEVELOPER_TOKEN');
+
             return null;
         }
 

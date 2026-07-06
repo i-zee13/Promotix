@@ -56,12 +56,25 @@ class SyncGoogleAdsAccountTimezones extends Command
         $failed = 0;
         $skipped = 0;
 
+        if ((string) config('services.google_ads.developer_token') === '') {
+            $this->error('Missing GOOGLE_ADS_DEVELOPER_TOKEN in .env');
+
+            return self::FAILURE;
+        }
+
         foreach ($accounts as $account) {
             $label = $account->displayLabel() . ' (' . ($account->display_customer_id ?: $account->customer_id) . ')';
 
             if (! $account->connection) {
                 $this->warn("Skipped {$label}: no Google connection.");
                 $skipped++;
+
+                continue;
+            }
+
+            if (! $account->connection->refresh_token) {
+                $this->error("✗ {$label}: OAuth refresh token missing — reconnect Google in Integrations.");
+                $failed++;
 
                 continue;
             }
