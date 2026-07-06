@@ -2,6 +2,10 @@
 
 @section('title', 'Paid Advertising | Advanced View')
 
+@section('header-toolbar')
+    @include('partials.paid-marketing-header-timezone')
+@endsection
+
 @section('content')
 @php
     $initialReportingTz = $reportingTimezone ?? \App\Support\UserTimezone::reportingTimezoneForUser(auth()->user(), $googleAccountTimezone ?? null);
@@ -55,8 +59,6 @@
                 @include('partials.figma-filter-date-fields')
             </div>
         </div>
-
-        @include('partials.paid-marketing-timezone-panel')
 
         <section class="overflow-visible rounded-[12px] border border-[#6706b3]">
             <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#6400B2] px-[16px] py-[12px]">
@@ -389,6 +391,10 @@
                 const id = String(this.filters.domain_id || '');
                 const entry = id ? this.domainCatalog[id] : null;
                 this.reportingTimezone = this.resolveReportingTimezone(entry?.google_timezone || null);
+                this.syncPaidTimezoneHeader();
+            },
+            syncPaidTimezoneHeader() {
+                window.promotixSyncPaidTimezoneHeader?.(this.domainTimezoneChip, this.timezoneContextPanel);
             },
             get domainTimezoneChip() {
                 const id = String(this.filters.domain_id || '');
@@ -619,6 +625,7 @@
                     if (this.timezoneContext?.reporting_timezone) {
                         this.reportingTimezone = this.timezoneContext.reporting_timezone;
                     }
+                    this.syncPaidTimezoneHeader();
                 } catch (e) {
                     console.error(e);
                 } finally {

@@ -3,6 +3,10 @@
 @section('title', 'Paid Advertising | Dashboard')
 @section('subtitle', 'Live campaign performance and detection results')
 
+@section('header-toolbar')
+    @include('partials.paid-marketing-header-timezone')
+@endsection
+
 @section('content')
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js([
     'countryGetStarted' => $countryGetStarted,
@@ -44,8 +48,6 @@
                 @include('partials.figma-filter-date-fields')
             </div>
         </div>
-
-        @include('partials.paid-marketing-timezone-panel')
 
         <div class="paid-dashboard-cards">
             <article class="paid-dashboard-card">
@@ -507,6 +509,10 @@ function paidAdvertisingFigma(config = {}) {
             const id = String(this.filters.domain_id || '');
             const entry = id ? this.domainCatalog[id] : null;
             this.userTimezone = this.resolveReportingTimezone(entry?.google_timezone || null);
+            this.syncPaidTimezoneHeader();
+        },
+        syncPaidTimezoneHeader() {
+            window.promotixSyncPaidTimezoneHeader?.(this.domainTimezoneChip, this.timezoneContextPanel);
         },
         get domainTimezoneChip() {
             const id = String(this.filters.domain_id || '');
@@ -803,6 +809,7 @@ function paidAdvertisingFigma(config = {}) {
                 if (summary?.timezone_context?.reporting_timezone) {
                     this.userTimezone = summary.timezone_context.reporting_timezone;
                 }
+                this.syncPaidTimezoneHeader();
                 this.trends = trends;
                 this.blocking = blocking;
                 this.campaigns = Array.isArray(campaigns) ? campaigns : (campaigns.campaigns || []);

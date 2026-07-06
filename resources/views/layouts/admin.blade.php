@@ -152,7 +152,11 @@
 
             @include('partials.portal-switch')
 
-            @include('partials.header-timezone')
+            @hasSection('header-toolbar')
+                @yield('header-toolbar')
+            @else
+                @include('partials.header-timezone')
+            @endif
 
             @if ($usesDashboardDateRange)
             <div class="relative hidden sm:block" x-data="figmaDateRangePicker" x-init="init()" @click.outside="calendarOpen = false" title="Date range for dashboards">
