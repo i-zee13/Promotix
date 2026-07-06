@@ -59,6 +59,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         $tagPaid = 0;
         $verifiedPaid = 0;
+        $verifiedValidPaid = 0;
         $unverifiedPaid = 0;
         $invalid = 0;
         $blocked = 0;
@@ -90,6 +91,7 @@ class PaidAdvertisingDashboardController extends Controller
                 'url',
                 'google_campaign_id',
                 'visited_at',
+                'is_invalid_traffic',
             ]);
             if ($visitRows->isNotEmpty()) {
                 $verificationCounts = app(GoogleVerifiedPaidTraffic::class)->countRows(
@@ -98,6 +100,7 @@ class PaidAdvertisingDashboardController extends Controller
                     $reportingTz,
                 );
                 $verifiedPaid = (int) ($verificationCounts['verified'] ?? 0);
+                $verifiedValidPaid = (int) ($verificationCounts['verified_valid'] ?? 0);
                 $unverifiedPaid = (int) ($verificationCounts['unverified'] ?? 0);
             }
         }
@@ -118,6 +121,7 @@ class PaidAdvertisingDashboardController extends Controller
                     $reportingTz,
                 );
                 $verifiedPaid = (int) ($verificationCounts['verified'] ?? 0);
+                $verifiedValidPaid = (int) ($verificationCounts['verified_valid'] ?? 0);
                 $unverifiedPaid = (int) ($verificationCounts['unverified'] ?? 0);
             }
         }
@@ -130,22 +134,23 @@ class PaidAdvertisingDashboardController extends Controller
             $googleClicks = (int) ($googleAds['clicks'] ?? 0);
         }
 
-        $paid = $this->displayPaidTrafficCount($verifiedPaid, $tagPaid, $googleClicks);
+        $paid = $this->displayPaidTrafficCount($verifiedValidPaid, $tagPaid, $googleClicks);
         $validTagPaid = max(0, $tagPaid - $invalid);
         $totalClickCount = $googleClicks;
         $tagCapturePct = $googleClicks > 0
-            ? (int) round(min(100, ($verifiedPaid / $googleClicks) * 100))
-            : ($verifiedPaid > 0 ? 100 : 0);
+            ? (int) round(min(100, ($verifiedValidPaid / $googleClicks) * 100))
+            : ($verifiedValidPaid > 0 ? 100 : 0);
 
         return response()->json([
             'paid_visits' => $paid,
             'verified_paid_visits' => $verifiedPaid,
+            'verified_valid_paid_visits' => $verifiedValidPaid,
             'unverified_paid_visits' => $unverifiedPaid,
             'tag_paid_visits' => $tagPaid,
             'google_clicks' => $googleClicks,
             'total_click_count' => $totalClickCount,
             'tag_capture_pct' => $tagCapturePct,
-            'tag_gap_warning' => $googleClicks > 0 && $verifiedPaid < (int) floor($googleClicks * 0.5),
+            'tag_gap_warning' => $googleClicks > 0 && $verifiedValidPaid < (int) floor($googleClicks * 0.5),
             'invalid_paid_visits' => $invalid,
             'blocked_paid_visits' => $blocked,
             'flagged_paid_visits' => $flagged,
@@ -219,8 +224,10 @@ class PaidAdvertisingDashboardController extends Controller
                 $key = $period->toDateString();
                 $row = $dayRows->firstWhere('day', $key);
                 $visitPaid = (int) ($row->total ?? 0);
+                $invalidDay = (int) ($row->invalid ?? 0);
                 $googlePaid = (int) ($googleDays?->get($key)?->clicks ?? 0);
-                $estimatedVerified = $googlePaid > 0 ? $visitPaid : 0;
+                $validVisitPaid = max(0, $visitPaid - $invalidDay);
+                $estimatedVerified = $googlePaid > 0 ? $validVisitPaid : 0;
                 $paid[] = $this->displayPaidTrafficCount($estimatedVerified, $visitPaid, $googlePaid);
                 $invalid[] = (int) ($row->invalid ?? 0);
                 $period->addDay();
@@ -1916,11 +1923,11 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /**
-     * Paid traffic headline = Google-verified visits (campaign match + clicks that day).
+     * Paid traffic headline = Google-verified visits that are not invalid/bot traffic.
      */
-    private function displayPaidTrafficCount(int $verifiedPaid, int $tagPaid, int $googleClicks): int
+    private function displayPaidTrafficCount(int $verifiedValidPaid, int $tagPaid, int $googleClicks): int
     {
-        return max(0, $verifiedPaid);
+        return max(0, $verifiedValidPaid);
     }
 
     /**
@@ -1959,6 +1966,11 @@ class PaidAdvertisingDashboardController extends Controller
             $columns[] = 'pv.google_campaign_id';
         } else {
             $columns[] = DB::raw('NULL as google_campaign_id');
+        }
+        if (Schema::hasColumn('paid_marketing_clicks', 'threat_group')) {
+            $columns[] = 'pc.threat_group';
+        } else {
+            $columns[] = DB::raw('NULL as threat_group');
         }
 
         return $query->get($columns);

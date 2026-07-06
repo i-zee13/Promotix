@@ -76,6 +76,41 @@ class GoogleVerifiedPaidTrafficTest extends TestCase
 
         $this->assertSame(1, $counts['verified']);
         $this->assertSame(1, $counts['unverified']);
+        $this->assertSame(1, $counts['verified_valid']);
+    }
+
+    public function test_count_rows_excludes_invalid_from_verified_valid(): void
+    {
+        $lookup = new GoogleVerifiedCampaignLookup(
+            ['1|100|2026-07-01' => true],
+            [1 => 'UTC'],
+        );
+
+        $service = new GoogleVerifiedPaidTraffic();
+        $counts = $service->countRows([
+            (object) [
+                'domain_id' => 1,
+                'url' => 'https://x.test/?gad_campaignid=100&gclid=a',
+                'visited_at' => '2026-07-01 10:00:00',
+                'is_invalid_traffic' => true,
+            ],
+            (object) [
+                'domain_id' => 1,
+                'url' => 'https://x.test/?gad_campaignid=100&gclid=b',
+                'visited_at' => '2026-07-01 11:00:00',
+                'is_invalid_traffic' => false,
+            ],
+        ], $lookup, 'UTC');
+
+        $this->assertSame(2, $counts['verified']);
+        $this->assertSame(1, $counts['verified_valid']);
+    }
+
+    public function test_is_invalid_row_uses_threat_group_for_legacy_clicks(): void
+    {
+        $this->assertTrue(GoogleVerifiedPaidTraffic::isInvalidRow(['threat_group' => 'vpn']));
+        $this->assertFalse(GoogleVerifiedPaidTraffic::isInvalidRow(['threat_group' => '']));
+        $this->assertTrue(GoogleVerifiedPaidTraffic::isInvalidRow(['is_invalid_traffic' => 1]));
     }
 
     public function test_campaign_attribution_resolver_extracts_gad_campaignid(): void

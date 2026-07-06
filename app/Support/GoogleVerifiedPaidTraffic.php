@@ -91,8 +91,20 @@ final class GoogleVerifiedPaidTraffic
     }
 
     /**
+     * @param  array<string, mixed>  $data
+     */
+    public static function isInvalidRow(array $data): bool
+    {
+        if (array_key_exists('is_invalid_traffic', $data)) {
+            return (bool) $data['is_invalid_traffic'];
+        }
+
+        return filled($data['threat_group'] ?? null);
+    }
+
+    /**
      * @param  iterable<int, object|array<string, mixed>>  $rows
-     * @return array{verified: int, unverified: int}
+     * @return array{verified: int, unverified: int, verified_valid: int}
      */
     public function countRows(
         iterable $rows,
@@ -101,20 +113,29 @@ final class GoogleVerifiedPaidTraffic
     ): array {
         $verified = 0;
         $unverified = 0;
+        $verifiedValid = 0;
 
         foreach ($rows as $row) {
             $data = (array) $row;
             $domainId = (int) ($data['domain_id'] ?? 0);
             $campaignId = self::resolveCampaignId($row);
             $clickedAt = $data['visited_at'] ?? $data['clicked_at'] ?? null;
+            $invalid = self::isInvalidRow($data);
 
             if ($lookup->isVerified($domainId, $campaignId, $clickedAt, $reportingTz)) {
                 $verified++;
+                if (! $invalid) {
+                    $verifiedValid++;
+                }
             } else {
                 $unverified++;
             }
         }
 
-        return ['verified' => $verified, 'unverified' => $unverified];
+        return [
+            'verified' => $verified,
+            'unverified' => $unverified,
+            'verified_valid' => $verifiedValid,
+        ];
     }
 }
