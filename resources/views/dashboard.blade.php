@@ -4,6 +4,7 @@
 @section('subtitle', 'Live snapshot of your traffic, threats, and campaigns')
 
 @section('content')
+<div class="figma-brand-page space-y-6">
     <x-ui.page-header
         title="Overview"
         subtitle="Live snapshot of your traffic, threats, and campaigns">
@@ -146,6 +147,7 @@
             </x-ui.card>
         </aside>
     </div>
+</div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {

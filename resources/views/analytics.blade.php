@@ -4,6 +4,7 @@
 
 @section('content')
     <div class="space-y-6">
+        <x-ui.page-header title="Analytics" subtitle="Usage and traffic analytics across your domains" />
         {{-- Filter row --}}
         <section class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
             <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">

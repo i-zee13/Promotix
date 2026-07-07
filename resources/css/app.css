@@ -1723,6 +1723,127 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     padding-top: 49px;
 }
 
+/* Shared customer-portal canvas: typography, page inset, legacy token harmonization */
+.figma-customer-canvas {
+    font-family: 'Inter', Figtree, system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+.figma-customer-canvas > .space-y-6,
+.figma-customer-canvas > .figma-brand-page {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1180px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 28px 12px 32px;
+}
+
+@media (min-width: 640px) {
+    .figma-customer-canvas > .space-y-6,
+    .figma-customer-canvas > .figma-brand-page {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+}
+
+@media (min-width: 1280px) {
+    .figma-customer-canvas > .space-y-6,
+    .figma-customer-canvas > .figma-brand-page {
+        padding-top: 56px;
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+/* Figma product pages (paid marketing, domains, etc.) manage their own layout */
+.figma-customer-canvas > [class*='min-h-[calc(100vh-49px)]'] {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+.figma-customer-canvas .brand-page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1;
+    color: #a9a9a9;
+}
+
+@media (min-width: 640px) {
+    .figma-customer-canvas .brand-page-title {
+        font-size: 2rem;
+    }
+}
+
+.figma-customer-canvas .brand-page-subtitle {
+    color: #8c8787;
+}
+
+.figma-customer-canvas .bg-dark-card {
+    background-color: #10142a !important;
+}
+
+.figma-customer-canvas .border-dark-border {
+    border-color: rgba(37, 42, 77, 0.8) !important;
+}
+
+.figma-customer-canvas .text-gray-500,
+.figma-customer-canvas input.placeholder-gray-500::placeholder,
+.figma-customer-canvas textarea.placeholder-gray-500::placeholder {
+    color: #9fa1c2 !important;
+}
+
+.figma-customer-canvas .text-gray-400 {
+    color: #7b7da3 !important;
+}
+
+.figma-customer-canvas .bg-gray-800 {
+    background-color: #171b36 !important;
+}
+
+.figma-customer-canvas .bg-gray-800:hover {
+    background-color: #252a4d !important;
+}
+
+.figma-customer-canvas input.border-dark-border,
+.figma-customer-canvas select.border-dark-border,
+.figma-customer-canvas textarea.border-dark-border {
+    border-radius: 0.75rem;
+    border-color: rgba(37, 42, 77, 0.8);
+    background-color: #10142a;
+    color: #fff;
+}
+
+.figma-customer-canvas input.border-dark-border:focus,
+.figma-customer-canvas select.border-dark-border:focus,
+.figma-customer-canvas textarea.border-dark-border:focus {
+    border-color: #8b4ddb;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(100, 0, 178, 0.3);
+}
+
+/* Super Admin tokens inside shared canvas */
+.figma-customer-canvas .figma-sa-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #8c8787;
+}
+
+.figma-customer-canvas .figma-sa-table thead th {
+    color: #a9a9a9;
+}
+
+.figma-customer-canvas .figma-sa-table tbody tr {
+    background: #10142a;
+}
+
+.figma-customer-canvas .figma-sa-dash-kpi {
+    border-color: rgba(90, 42, 153, 0.45);
+}
+
 .figma-rightbar {
     position: fixed;
     inset: 0 0 0 auto;

@@ -4,7 +4,7 @@
     <section class="figma-sa-page mx-auto w-full px-[12px] pb-[32px] pt-[28px] sm:px-[18px] xl:px-[24px] xl:pt-[56px]">
         @if ($title)
             <div class="mb-[20px]">
-                <h1 class="text-[28px] font-semibold text-[#a9a9a9] sm:text-[32px]">{{ $title }}</h1>
+                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">{{ $title }}</h1>
                 @if ($subtitle)
                     <p class="mt-[6px] text-[13px] text-[#8c8787]">{{ $subtitle }}</p>
                 @endif

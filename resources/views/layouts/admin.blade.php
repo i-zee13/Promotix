@@ -197,7 +197,7 @@
         </div>
     </header>
 
-    <main class="figma-main">
+    <main class="figma-main figma-customer-canvas">
         @yield('content')
     </main>
 

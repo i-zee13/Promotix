@@ -4,6 +4,7 @@
 
 @section('content')
     <div class="space-y-6">
+        <x-ui.page-header title="Payments" subtitle="Subscription charges and billing history" />
         {{-- Filter row --}}
         <section class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
