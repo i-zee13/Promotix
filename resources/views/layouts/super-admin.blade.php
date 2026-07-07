@@ -15,7 +15,18 @@
 @php
     $user = auth()->user();
     $menu = config('super-admin.menu', []);
-    $isDashboard = request()->routeIs('super-admin.dashboard');
+    $navGroups = collect(config('super-admin.groups', []))
+        ->map(fn ($slugs, $label) => [
+            'label' => $label,
+            'items' => collect($slugs)
+                ->map(fn ($slug) => array_merge(['slug' => $slug], $menu[$slug] ?? []))
+                ->filter(fn ($item) => isset($item['route']))
+                ->values()
+                ->all(),
+        ])
+        ->filter(fn ($group) => count($group['items']) > 0)
+        ->values()
+        ->all();
 @endphp
 
 <div id="figma-shell" class="figma-shell figma-shell-super">
@@ -23,44 +34,51 @@
         <div class="figma-sidebar-inner flex min-h-[100dvh] flex-col">
             <a href="{{ route('super-admin.dashboard') }}" class="figma-sidebar-brand mb-[8px] mt-[2px] flex shrink-0 items-center gap-[8px]">
                 <span class="h-[26px] w-[26px] shrink-0 rounded-[6px] bg-[#6400B2] shadow-[0_0_18px_rgba(100,0,179,.7)]"></span>
-                <span class="figma-sidebar-brand-text truncate text-[16px] font-bold leading-none">Super Admin</span>
+                <span class="figma-sidebar-brand-text truncate text-[16px] font-bold leading-none">Digital Promotix</span>
             </a>
 
             <div class="relative mb-[10px] shrink-0">
                 <span class="figma-sidebar-search-icon absolute left-[11px] top-1/2 -translate-y-1/2 text-white/70">
                     <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </span>
-                <input type="search" placeholder="Search menu" class="figma-sidebar-search h-[32px] w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[#6400B2] focus:ring-[#6400B2]/30">
+                <input type="search" id="super-admin-sidebar-search" placeholder="Search" class="figma-sidebar-search h-[32px] w-full max-w-[188px] rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[#6400B2] focus:ring-[#6400B2]/30" autocomplete="off">
             </div>
 
-            <nav class="figma-nav-scrollless min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-[2px]" aria-label="Super admin navigation">
-                <div class="space-y-[4px]">
-                    @foreach ($menu as $slug => $item)
-                        @php
-                            $routePrefix = str($item['route'])->beforeLast('.');
-                            $active = request()->routeIs($item['route'])
-                                || ($slug !== 'dashboard' && request()->routeIs($routePrefix.'.*'));
-                        @endphp
-                        <a href="{{ route($item['route']) }}" @class([
-                            'figma-nav-link group relative flex h-[30px] items-center gap-[9px] rounded-[7px] px-[7px] text-[14px] leading-none transition',
-                            'is-active bg-[#6400B2] text-white shadow-[0_0_0_1px_rgba(100,0,179,.55)]' => $active,
-                            'hover:bg-[#6400B2]/55 hover:text-white' => ! $active,
-                        ])>
-                            @include('partials.sidebar-icon', ['name' => $item['icon'] ?? 'home', 'class' => 'h-[17px] w-[17px] shrink-0'])
-                            <span>{{ $item['label'] }}</span>
-                        </a>
-                    @endforeach
-                </div>
+            <nav class="figma-nav-scrollless mt-[4px] min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-[2px]" aria-label="Super admin navigation" id="super-admin-sidebar-nav">
+                @foreach ($navGroups as $group)
+                    <div class="mb-[14px]" data-nav-group>
+                        <p class="figma-nav-label mb-[8px] text-[11px] font-bold uppercase leading-none">{{ $group['label'] }}</p>
+                        <div class="space-y-[4px]">
+                            @foreach ($group['items'] as $item)
+                                @php
+                                    $slug = $item['slug'];
+                                    $routePrefix = str($item['route'])->beforeLast('.').'.*';
+                                    $active = request()->routeIs($item['route'])
+                                        || ($slug !== 'dashboard' && request()->routeIs($routePrefix));
+                                @endphp
+                                <a href="{{ route($item['route']) }}"
+                                   data-nav-label="{{ strtolower($item['label']) }}"
+                                   @class([
+                                       'figma-nav-link group relative flex h-[30px] max-w-[188px] items-center gap-[9px] rounded-[7px] px-[7px] text-[14px] leading-none transition',
+                                       'is-active bg-[#6400B2] text-white shadow-[0_0_0_1px_rgba(100,0,179,.55)]' => $active,
+                                       'hover:bg-[#6400B2]/55 hover:text-white' => ! $active,
+                                   ])>
+                                    @include('partials.sidebar-icon', ['name' => $item['icon'] ?? 'home', 'class' => 'h-[17px] w-[17px] shrink-0'])
+                                    <span class="truncate">{{ $item['label'] }}</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
             </nav>
 
             <footer class="figma-sidebar-footer mt-auto shrink-0 border-t border-white/10 pt-[10px] pb-[2px]">
-                <div class="figma-sidebar-controls mb-[8px] flex items-center justify-between gap-[8px]">
+                <div class="figma-sidebar-controls mb-[6px] flex max-w-[188px] items-center justify-between gap-[8px]">
                     <div>
                         <span id="theme-toggle-label" class="figma-sidebar-theme-label mb-[3px] block text-[9px] leading-none">Dark Mode</span>
                         <button id="theme-toggle" type="button" class="figma-theme-toggle" aria-label="Theme toggle">
                             <span class="figma-toggle-track"><span class="figma-toggle-thumb"></span></span>
                         </button>
-                    
                     </div>
                     <a href="{{ route('profile.edit') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" aria-label="Settings">
                         @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
@@ -82,9 +100,6 @@
             <a href="{{ route('integrations') }}" class="hidden h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L11 4.93"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 11a5 5 0 00-7.07 0L4.8 13.12a5 5 0 007.07 7.07L13 19.07"/></svg>
             </a>
-            @if ($isDashboard)
-                <span class="hidden text-[24px] font-semibold leading-none text-[#a9a9a9] sm:inline sm:text-[32px]">Dashboard</span>
-            @endif
         </div>
 
         <div class="relative flex items-center gap-[8px]" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
@@ -152,6 +167,22 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             await fetch('/user/preferences', { method: 'PUT', headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'}, body: JSON.stringify({dark_mode: nextTheme === 'dark'}) });
         } catch (e) {}
+    });
+
+    const sidebarSearch = document.getElementById('super-admin-sidebar-search');
+    const nav = document.getElementById('super-admin-sidebar-nav');
+    sidebarSearch?.addEventListener('input', () => {
+        const q = sidebarSearch.value.trim().toLowerCase();
+        nav?.querySelectorAll('[data-nav-group]').forEach((group) => {
+            let visible = 0;
+            group.querySelectorAll('[data-nav-label]').forEach((link) => {
+                const label = link.getAttribute('data-nav-label') || '';
+                const show = !q || label.includes(q);
+                link.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+            group.style.display = visible > 0 ? '' : 'none';
+        });
     });
 });
 </script>

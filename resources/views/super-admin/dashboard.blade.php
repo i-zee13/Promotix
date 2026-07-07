@@ -16,7 +16,7 @@
     });
 @endphp
 
-<x-super-admin.page>
+<x-super-admin.page title="Dashboard">
     <div class="figma-sa-dashboard space-y-[18px]" x-data="superDashboard()" x-init="init()">
         <div class="figma-sa-dashboard-top">
             <section class="figma-sa-dashboard-kpis grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-3">

@@ -31,6 +31,7 @@ use App\Http\Controllers\SuperAdmin\ProductsController as SuperAdminProductsCont
 use App\Http\Controllers\SuperAdmin\SubscriptionsController as SuperAdminSubscriptionsController;
 use App\Http\Controllers\SuperAdmin\SupportPagesController as SuperAdminSupportPagesController;
 use App\Http\Controllers\SuperAdmin\TicketsController as SuperAdminTicketsController;
+use App\Http\Controllers\SuperAdmin\RolesController as SuperAdminRolesController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\DatabaseExportController;
@@ -89,6 +90,7 @@ Route::middleware(['auth', 'super-admin'])
         Route::post('/users/{user}/reset-password', [SuperAdminUsersController::class, 'resetPassword'])->name('users.reset-password');
         Route::delete('/users/{user}', [SuperAdminUsersController::class, 'destroy'])->name('users.destroy');
         Route::post('/users/{user}/impersonate', [SuperAdminUsersController::class, 'impersonate'])->name('users.impersonate');
+        Route::resource('roles', SuperAdminRolesController::class)->except(['show']);
         Route::resource('products', SuperAdminProductsController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::post('/products/{product}/duplicate', [SuperAdminProductsController::class, 'duplicate'])->name('products.duplicate');
         Route::resource('plans', SuperAdminPlansController::class)->only(['index', 'store', 'update', 'destroy']);
@@ -103,6 +105,10 @@ Route::middleware(['auth', 'super-admin'])
         Route::post('/billing-automation', [BillingAutomationController::class, 'update'])->name('billing-automation.update');
         Route::post('/users/invite', [SuperAdminUsersController::class, 'invite'])->name('users.invite');
         Route::get('/domains', [SuperAdminSupportPagesController::class, 'domains'])->name('domains.index');
+        Route::patch('/domains/{domain}/tracking', [SuperAdminSupportPagesController::class, 'toggleDomainTracking'])->name('domains.toggle-tracking');
+        Route::patch('/domains/{domain}/force-verify', [SuperAdminSupportPagesController::class, 'forceVerifyDomain'])->name('domains.force-verify');
+        Route::patch('/domains/{domain}/regenerate-tracker', [SuperAdminSupportPagesController::class, 'regenerateDomainTracker'])->name('domains.regenerate-tracker');
+        Route::delete('/domains/{domain}', [SuperAdminSupportPagesController::class, 'destroyDomain'])->name('domains.destroy');
         Route::get('/analytics', [SuperAdminSupportPagesController::class, 'analytics'])->name('analytics.index');
         Route::get('/security', [SuperAdminSupportPagesController::class, 'security'])->name('security.index');
         Route::get('/settings', [SuperAdminSupportPagesController::class, 'settings'])->name('settings.index');
@@ -112,6 +118,9 @@ Route::middleware(['auth', 'super-admin'])
         Route::post('/tickets/{ticket}/assign', [SuperAdminTicketsController::class, 'assign'])->name('tickets.assign');
         Route::post('/feature-flags', [SuperAdminSupportPagesController::class, 'storeFeatureFlag'])->name('feature-flags.store');
         Route::patch('/feature-flags/{featureFlag}/toggle', [SuperAdminSupportPagesController::class, 'toggleFeatureFlag'])->name('feature-flags.toggle');
+        Route::get('/traffic-bot-logs', [SuperAdminSupportPagesController::class, 'trafficBotLogs'])->name('traffic.index');
+        Route::get('/automation', [SuperAdminSupportPagesController::class, 'automation'])->name('automation.index');
+        Route::get('/integrations', [SuperAdminSupportPagesController::class, 'integrations'])->name('integrations.index');
     });
 
 Route::middleware(['auth', 'admin'])
@@ -126,7 +135,7 @@ Route::middleware(['auth', 'admin'])
             }
             abort(403, 'Your role has no menu permissions.');
         })->name('admin');
-        Route::middleware('permission')->group(function () {
+        Route::middleware(['permission', 'redirect-super-admin'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/paid-marketing/detailed-view', [PaidMarketingController::class, 'detailedView'])->name('paid-marketing.detailed');
         Route::get('/paid-marketing/detailed-visits', [PaidMarketingController::class, 'detailedVisits'])->name('paid-marketing.detailed-visits');

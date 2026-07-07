@@ -25,44 +25,49 @@ class AdminOperationsApiController extends Controller
         $domainIds = $this->domainIds($request);
         $query = $this->trafficQuery($domainIds);
 
+        if ($request->filled('domain_id')) {
+            $query->where('visits.domain_id', (int) $request->integer('domain_id'));
+        }
+
         if ($request->filled('search')) {
-            $search = '%' . $request->string('search')->toString() . '%';
+            $search = '%'.$request->string('search')->toString().'%';
             $query->where(function ($q) use ($search): void {
-                $q->where('ip', 'like', $search)
-                    ->orWhere('url', 'like', $search)
-                    ->orWhere('referrer', 'like', $search)
-                    ->orWhere('utm_campaign', 'like', $search)
-                    ->orWhere('threat_group', 'like', $search);
+                $q->where('visits.ip', 'like', $search)
+                    ->orWhere('visits.url', 'like', $search)
+                    ->orWhere('visits.referrer', 'like', $search)
+                    ->orWhere('visits.utm_campaign', 'like', $search)
+                    ->orWhere('visits.threat_group', 'like', $search)
+                    ->orWhere('domains.hostname', 'like', $search);
             });
         }
 
         foreach (['country', 'threat_group', 'action_taken'] as $field) {
             if ($request->filled($field)) {
-                $query->where($field, $request->string($field)->toString());
+                $query->where('visits.'.$field, $request->string($field)->toString());
             }
         }
 
-        if ($request->boolean('blocked_only')) {
-            $query->where('action_taken', 'block');
+        if ($request->filled('source')) {
+            $source = $request->string('source')->toString();
+            $query->where(function ($q) use ($source): void {
+                $q->where('visits.referrer', 'like', '%'.$source.'%')
+                    ->orWhere('visits.utm_campaign', 'like', '%'.$source.'%')
+                    ->orWhere('visits.utm_source', 'like', '%'.$source.'%');
+            });
         }
 
-        $rows = $query->orderByDesc('visited_at')
-            ->paginate((int) $request->integer('per_page', 25))
-            ->through(fn ($row) => [
-                'id' => $row->id,
-                'domain_id' => $row->domain_id,
-                'ip' => $row->ip,
-                'country' => $row->country,
-                'url' => $row->url,
-                'referrer' => $row->referrer,
-                'utm_campaign' => $row->utm_campaign,
-                'bot_score' => (int) ($row->threat_score ?? 0),
-                'threat_group' => $row->threat_group,
-                'action_taken' => $row->action_taken,
-                'is_paid_traffic' => (bool) $row->is_paid_traffic,
-                'is_invalid_traffic' => (bool) $row->is_invalid_traffic,
-                'visited_at' => $row->visited_at,
-            ]);
+        if ($request->filled('date')) {
+            $day = Carbon::parse($request->string('date')->toString())->startOfDay();
+            $query->whereBetween('visits.visited_at', [$day, $day->copy()->endOfDay()]);
+        }
+
+        if ($request->boolean('blocked_only')) {
+            $query->where('visits.action_taken', 'block');
+        }
+
+        $rows = $query->orderByDesc('visits.visited_at')
+            ->paginate((int) $request->integer('per_page', 10))
+            ->through(fn ($row) => $this->trafficRow($row));
 
         return response()->json($rows);
     }
@@ -77,11 +82,14 @@ class AdminOperationsApiController extends Controller
 
         return response()->json([
             'total_requests' => (clone $traffic)->count(),
-            'paid_requests' => (clone $traffic)->where('is_paid_traffic', true)->count(),
-            'invalid_requests' => (clone $traffic)->where('is_invalid_traffic', true)->count(),
-            'blocked_requests' => (clone $traffic)->where('action_taken', 'block')->count(),
-            'threat_groups' => $detections ? (clone $detections)->whereNotNull('threat_group')->distinct('threat_group')->count('threat_group') : 0,
-            'countries' => (clone $traffic)->whereNotNull('country')->distinct('country')->count('country'),
+            'paid_requests' => (clone $traffic)->where('visits.is_paid_traffic', true)->count(),
+            'invalid_requests' => (clone $traffic)->where('visits.is_invalid_traffic', true)->count(),
+            'blocked_traffic' => (clone $traffic)->where('visits.action_taken', 'block')->count(),
+            'threat_groups' => $detections
+                ? (clone $detections)->whereNotNull('threat_group')->distinct('threat_group')->count('threat_group')
+                : (clone $traffic)->whereNotNull('visits.threat_group')->distinct('visits.threat_group')->count('visits.threat_group'),
+            'allow_lists' => IpLog::query()->where('is_blocked', false)->count(),
+            'countries' => (clone $traffic)->whereNotNull('visits.country')->distinct('visits.country')->count('visits.country'),
         ]);
     }
 
@@ -385,26 +393,87 @@ class AdminOperationsApiController extends Controller
         }
 
         return DB::table('visits')
+            ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
             ->select([
-                'id',
-                'domain_id',
-                'ip',
-                'country',
-                'url',
-                'referrer',
-                'utm_campaign',
-                'is_paid_traffic',
-                'is_invalid_traffic',
-                'threat_score',
-                'threat_group',
-                'action_taken',
-                'visited_at',
+                'visits.id',
+                'visits.domain_id',
+                'visits.ip',
+                'visits.country',
+                'visits.url',
+                'visits.referrer',
+                'visits.utm_campaign',
+                'visits.is_paid_traffic',
+                'visits.is_invalid_traffic',
+                'visits.threat_score',
+                'visits.threat_group',
+                'visits.action_taken',
+                'visits.visited_at',
+                'domains.hostname as domain_hostname',
             ])
-            ->whereIn('domain_id', $domainIds);
+            ->whereIn('visits.domain_id', $domainIds);
+    }
+
+    private function trafficRow(object $row): array
+    {
+        $action = $row->action_taken ?? 'allow';
+        $statusLabel = match ($action) {
+            'block' => 'Blocked',
+            'flag', 'challenge' => 'Flagged',
+            default => ($row->is_invalid_traffic ?? false) ? 'Flagged' : 'Allowed',
+        };
+        $statusClass = match ($statusLabel) {
+            'Blocked' => 'is-cancelled',
+            'Flagged' => 'is-past_due',
+            default => 'is-active',
+        };
+        $score = (int) ($row->threat_score ?? 0);
+        $scoreTier = $score >= 70 ? 'High risk' : ($score >= 40 ? 'Medium risk' : 'Low risk');
+
+        return [
+            'id' => $row->id,
+            'domain_id' => $row->domain_id,
+            'ip' => $row->ip,
+            'domain_hostname' => $row->domain_hostname,
+            'country' => $row->country,
+            'country_flag' => $this->countryFlag($row->country),
+            'url' => $row->url,
+            'referrer' => $row->referrer,
+            'utm_campaign' => $row->utm_campaign,
+            'bot_score' => $score,
+            'bot_score_tier' => $scoreTier,
+            'threat_group' => $row->threat_group,
+            'action_taken' => $action,
+            'status_label' => $statusLabel,
+            'status_class' => $statusClass,
+            'is_paid_traffic' => (bool) $row->is_paid_traffic,
+            'is_invalid_traffic' => (bool) $row->is_invalid_traffic,
+            'visited_at' => $row->visited_at,
+            'visited_label' => $row->visited_at
+                ? Carbon::parse($row->visited_at)->format('M d, Y')
+                : '—',
+            'avatar_initial' => strtoupper(substr((string) ($row->ip ?: '?'), 0, 1)),
+            'display_name' => $row->ip ?: 'Unknown visitor',
+            'display_sub' => $row->domain_hostname ?: \Illuminate\Support\Str::limit((string) ($row->url ?? '—'), 42),
+        ];
+    }
+
+    private function countryFlag(?string $country): string
+    {
+        if (! $country || strlen($country) !== 2) {
+            return '🌐';
+        }
+
+        $country = strtoupper($country);
+
+        return mb_chr(0x1F1E6 + ord($country[0]) - 65).mb_chr(0x1F1E6 + ord($country[1]) - 65);
     }
 
     private function domainIds(Request $request)
     {
+        if ($request->user()->is_super_admin ?? false) {
+            return Domain::query()->pluck('id');
+        }
+
         return Domain::query()->where('user_id', $request->user()->id)->pluck('id');
     }
 

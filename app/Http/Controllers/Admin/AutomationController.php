@@ -43,6 +43,20 @@ class AutomationController extends Controller
         return view('automation', compact('items', 'total', 'from', 'to'));
     }
 
+    public function superAdminIndex(Request $request): View
+    {
+        $this->ensureDefaultJobs($request->user()->id);
+
+        $jobs = AdminAutomationJob::query()
+            ->withCount('runs')
+            ->orderBy('name')
+            ->get();
+
+        return view('super-admin.automation.index', [
+            'jobs' => $jobs,
+        ]);
+    }
+
     public function show(Request $request, AdminAutomationJob $job): View
     {
         abort_unless($job->user_id === $request->user()->id || $job->user_id === null, 403);
@@ -59,6 +73,8 @@ class AutomationController extends Controller
             ['slug' => 'retry-failed-jobs', 'name' => 'Retry Failed Jobs', 'description' => 'Retry failed queue jobs and capture output.', 'schedule_label' => 'Every 30 minutes', 'schedule_cron' => '*/30 * * * *'],
             ['slug' => 'rotate-api-keys', 'name' => 'Rotate API Keys', 'description' => 'Rotate tenant integration keys on schedule.', 'schedule_label' => 'Monthly', 'schedule_cron' => '0 3 1 * *'],
             ['slug' => 'cleanup-old-logs', 'name' => 'Cleanup Old Logs', 'description' => 'Trim old request logs beyond retention.', 'schedule_label' => 'Daily at 03:00', 'schedule_cron' => '0 3 * * *'],
+            ['slug' => 'suspend-unpaid-users', 'name' => 'Suspend Unpaid Users', 'description' => 'Suspend users with unpaid invoices.', 'schedule_label' => 'Daily at 02:00', 'schedule_cron' => '0 2 * * *'],
+            ['slug' => 'auto-delete-old-data', 'name' => 'Auto-Delete Old Data', 'description' => 'Purge stale analytics and log data past retention.', 'schedule_label' => 'Weekly', 'schedule_cron' => '0 4 * * 0'],
         ] as $job) {
             AdminAutomationJob::query()->firstOrCreate(
                 ['user_id' => $userId, 'slug' => $job['slug']],

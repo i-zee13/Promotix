@@ -14,13 +14,18 @@ class SubscriptionsController extends Controller
     {
         $subscriptions = Subscription::with(['user', 'plan'])
             ->when($request->string('status')->toString(), fn ($q, string $status) => $q->where('status', $status))
+            ->when($request->string('plan_id')->toString(), fn ($q, string $planId) => $q->where('plan_id', $planId))
+            ->when($request->string('search')->toString(), function ($q, string $search) {
+                $q->whereHas('user', fn ($uq) => $uq->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
+            })
             ->latest('id')
-            ->paginate(20)
+            ->paginate(10)
             ->withQueryString();
 
         return view('super-admin.subscriptions.index', [
             'subscriptions' => $subscriptions,
             'statuses' => ['active', 'pending', 'past_due', 'cancelled', 'paused', 'trialing'],
+            'plans' => \App\Models\Plan::orderBy('name')->get(['id', 'name']),
         ]);
     }
 

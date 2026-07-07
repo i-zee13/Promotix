@@ -1,8 +1,8 @@
 @extends('layouts.super-admin')
 
-@section('title', 'Support Tickets')
+@section('title', 'Support System')
 @section('content')
-<x-super-admin.page title="Support Tickets">
+<x-super-admin.page title="Support System">
 <div class="space-y-5">
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-super-admin.kpi label="Open tickets" :value="$stats['open']" />

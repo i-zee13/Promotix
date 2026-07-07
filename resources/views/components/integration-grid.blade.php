@@ -1,5 +1,5 @@
 @props(['total' => 56, 'from' => 1, 'to' => 10])
-<section class="rounded-xl border border-dark-border bg-dark-card p-6" aria-labelledby="integration-grid-heading">
+<section class="figma-sa-integration-grid rounded-xl border border-dark-border bg-dark-card p-6" aria-labelledby="integration-grid-heading">
     <h2 id="integration-grid-heading" class="sr-only">Integrations</h2>
     <div class="grid grid-cols-12 gap-6">
         {{-- Row 1: Stripe --}}

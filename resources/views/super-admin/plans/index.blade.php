@@ -2,8 +2,59 @@
 
 @section('title', 'Plans & Pricing')
 @section('content')
-<x-super-admin.page title="Plans & Pricing" subtitle="Inline plan editing, limits, feature flags, and trial eligibility">
-    <div class="space-y-6">
+<x-super-admin.page title="Plans & Pricing" subtitle="Pricing cards and plan management">
+    <div class="space-y-6" x-data="{ showAdmin: false }">
+        <div class="grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-3">
+            @foreach ($plans as $plan)
+                @php
+                    $features = collect($plan->feature_limits ?? [])->take(5);
+                    $monthly = $plan->is_custom ? 'Custom' : strtoupper($plan->currency).' '.number_format($plan->price_cents / 100, 0);
+                @endphp
+                <article @class([
+                    'figma-sa-plan-card',
+                    'is-highlighted' => $plan->is_highlighted,
+                    'opacity-60' => ! $plan->is_active,
+                ])>
+                    @if ($plan->is_highlighted)
+                        <span class="figma-sa-plan-badge">Popular</span>
+                    @endif
+                    <p class="figma-sa-plan-tier">{{ ucfirst($plan->tier) }}</p>
+                    <h3 class="figma-sa-plan-name">{{ $plan->name }}</h3>
+                    <p class="figma-sa-plan-price">
+                        <span>{{ $monthly }}</span>
+                        @unless ($plan->is_custom)
+                            <small>/{{ $plan->billing_interval === 'yearly' ? 'yr' : 'mo' }}</small>
+                        @endunless
+                    </p>
+                    @if ($plan->short_description)
+                        <p class="figma-sa-plan-desc">{{ $plan->short_description }}</p>
+                    @endif
+                    <ul class="figma-sa-plan-features">
+                        @forelse ($features as $key => $value)
+                            <li>{{ is_string($key) ? ucwords(str_replace('_', ' ', $key)).': '.$value : $value }}</li>
+                        @empty
+                            <li>{{ $plan->trial_days ? $plan->trial_days.'-day trial' : 'Standard features' }}</li>
+                        @endforelse
+                    </ul>
+                    <p class="figma-sa-plan-cta">{{ $plan->cta_label ?: 'Get started' }}</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span @class(['figma-sa-pill', $plan->is_active ? 'figma-sa-pill-success' : 'figma-sa-pill-neutral'])>
+                            {{ $plan->is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                        @if ($plan->product)
+                            <span class="figma-sa-pill figma-sa-pill-purple">{{ $plan->product->name }}</span>
+                        @endif
+                    </div>
+                </article>
+            @endforeach
+        </div>
+
+        <div class="flex justify-end">
+            <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="showAdmin = !showAdmin"
+                x-text="showAdmin ? 'Hide plan editor' : 'Manage plans'"></button>
+        </div>
+
+        <div x-show="showAdmin" x-cloak class="space-y-6">
         <x-super-admin.card>
             <h2 class="text-base font-semibold text-white">Create Plan</h2>
             <form method="POST" action="{{ route('super-admin.plans.store') }}" class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-4">
@@ -190,6 +241,7 @@
             </div>
             <div class="figma-sa-pagination px-4 py-3">{{ $plans->links() }}</div>
         </x-super-admin.card>
+        </div>
     </div>
 </x-super-admin.page>
 @endsection
