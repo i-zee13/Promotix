@@ -223,8 +223,7 @@
             <h2 class="text-[15px] font-semibold text-white">Google Ads tracking template</h2>
             <p class="mt-[8px] text-[12px] leading-relaxed text-white/75">
                 Put this in Google Ads → Campaign → Settings → <strong>Tracking template</strong>.
-                Auto-tagging must be <strong>ON</strong>. Google sends the click to PromoTix first; we capture IP + click ID and return <strong>204</strong> immediately (no login, no blocking).
-                Set your ad <strong>Final URL</strong> to the landing page below so visitors still reach your site.
+                Auto-tagging must be <strong>ON</strong>. Google sends the click here first; we capture IP + click ID (no login, no blocking), then <strong>redirect</strong> to your Final URL.
             </p>
             <p class="mt-[12px] text-[11px] font-medium uppercase tracking-wide text-white/55">Final URL</p>
             <div class="mt-[6px] flex flex-wrap items-center gap-2">

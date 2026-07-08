@@ -29,42 +29,39 @@ class TrackingController extends Controller
     private const TRACKING_PIXEL_GIF = "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b";
 
     /**
-     * Google Ads tracking template beacon (public GET).
-     * Captures paid click IDs server-side and returns 204 immediately — no login, no blocking.
+     * Google Ads tracking template entry (ClickRonix-style).
+     * Public GET, no login, never blocks Google: capture → redirect to Final URL.
+     * Saves only when gclid / gbraid / wbraid is present.
      */
     public function googleAdsClick(Request $request): Response
     {
-        if (! $request->isMethod('GET')) {
-            return response('', Response::HTTP_METHOD_NOT_ALLOWED);
-        }
-
         $params = GoogleAdsClickRedirect::parseClickRequest($request);
-
-        if (! GoogleClickAttribution::isPaidTraffic($params)) {
-            return response('', Response::HTTP_NO_CONTENT);
-        }
-
         $finalUrl = (string) ($params['final_url'] ?? '');
+
         if ($finalUrl === '') {
-            return response('', Response::HTTP_NO_CONTENT);
+            return response('Missing final_url', 400);
         }
 
-        $domain = GoogleAdsClickRedirect::resolveDomainFromFinalUrl($finalUrl);
-        if (
-            ! $domain
-            || ! GoogleAdsClickRedirect::isAllowedFinalUrl($finalUrl, $domain)
-            || ($domain->status ?? 'pending') === 'disabled'
-        ) {
-            return response('', Response::HTTP_NO_CONTENT);
+        $redirectUrl = GoogleAdsClickRedirect::buildRedirectUrl($finalUrl, $params);
+
+        // Rule: save only if a real Google click ID exists (auto-tagging).
+        if (GoogleClickAttribution::isPaidTraffic($params)) {
+            $domain = GoogleAdsClickRedirect::resolveDomainFromFinalUrl($finalUrl);
+            if (
+                $domain
+                && GoogleAdsClickRedirect::isAllowedFinalUrl($finalUrl, $domain)
+                && ($domain->status ?? 'pending') !== 'disabled'
+            ) {
+                try {
+                    $this->ingestGoogleAdsServerClick($request, $domain, $params, $finalUrl);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
         }
 
-        try {
-            $this->ingestGoogleAdsServerClick($request, $domain, $params, $finalUrl);
-        } catch (\Throwable $e) {
-            report($e);
-        }
-
-        return response('', Response::HTTP_NO_CONTENT);
+        // Always send the visitor to the landing page (never block Google / never 204 here).
+        return redirect()->away($redirectUrl, 302);
     }
 
     /**
