@@ -37,6 +37,7 @@ class EnsureOnboardingComplete
         'onboarding.start-trial',
         'pricing',
         'impersonate.stop',
+        'google-ads.click',
     ];
 
     public function handle(Request $request, Closure $next): Response

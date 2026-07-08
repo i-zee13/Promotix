@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             '/ip-check',
             '/t/collect',
             '/ingest/visit',
+            '/click',
             '/api/admin/*',
         ]);
 

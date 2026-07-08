@@ -29,45 +29,66 @@ class TrackingController extends Controller
     private const TRACKING_PIXEL_GIF = "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b";
 
     /**
-     * Google Ads tracking template entry point (ClickRonix-style).
-     * Captures click server-side, then redirects to the advertiser landing page.
+     * Google Ads tracking template beacon (public GET).
+     * Captures paid click IDs server-side and returns 204 immediately — no login, no blocking.
      */
     public function googleAdsClick(Request $request): Response
     {
-        $params = GoogleAdsClickRedirect::parseClickRequest($request);
-        $finalUrl = (string) ($params['final_url'] ?? '');
+        if (! $request->isMethod('GET')) {
+            return response('', Response::HTTP_METHOD_NOT_ALLOWED);
+        }
 
+        $params = GoogleAdsClickRedirect::parseClickRequest($request);
+
+        if (! GoogleClickAttribution::isPaidTraffic($params)) {
+            return response('', Response::HTTP_NO_CONTENT);
+        }
+
+        $finalUrl = (string) ($params['final_url'] ?? '');
         if ($finalUrl === '') {
-            return response('Missing final_url', 400);
+            return response('', Response::HTTP_NO_CONTENT);
         }
 
         $domain = GoogleAdsClickRedirect::resolveDomainFromFinalUrl($finalUrl);
-        if (! $domain) {
-            return response('Unknown landing domain', 404);
+        if (
+            ! $domain
+            || ! GoogleAdsClickRedirect::isAllowedFinalUrl($finalUrl, $domain)
+            || ($domain->status ?? 'pending') === 'disabled'
+        ) {
+            return response('', Response::HTTP_NO_CONTENT);
         }
 
-        if (! GoogleAdsClickRedirect::isAllowedFinalUrl($finalUrl, $domain)) {
-            return response('Landing URL not allowed for domain', 403);
+        try {
+            $this->ingestGoogleAdsServerClick($request, $domain, $params, $finalUrl);
+        } catch (\Throwable $e) {
+            report($e);
         }
 
-        if (($domain->status ?? 'pending') === 'disabled') {
-            return redirect()->away($finalUrl, 302);
-        }
+        return response('', Response::HTTP_NO_CONTENT);
+    }
 
-        $redirectUrl = GoogleAdsClickRedirect::buildRedirectUrl($finalUrl, $params);
+    /**
+     * Fast paid-only server capture for /click — skips fraud blocks and bot gates.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    private function ingestGoogleAdsServerClick(Request $request, Domain $domain, array $params, string $finalUrl): void
+    {
+        $landingUrl = GoogleAdsClickRedirect::buildRedirectUrl($finalUrl, $params);
         $path = (string) (parse_url($finalUrl, PHP_URL_PATH) ?: '/');
 
-        $ingestPayload = [
-            'domainKey' => $domain->domain_key,
-            'type' => 'google_ads_click',
-            'url' => $redirectUrl,
-            'path' => $path,
-            'referrer' => 'https://www.google.com/',
+        $data = [
             'gclid' => $params['gclid'] ?: null,
             'gbraid' => $params['gbraid'] ?: null,
             'wbraid' => $params['wbraid'] ?: null,
             'gad_campaignid' => $params['gad_campaignid'] ?: null,
+            'campaign_id' => $params['campaign_id'] ?: null,
+            'adgroup_id' => $params['adgroup_id'] ?: null,
             'keyword' => $params['keyword'] ?: null,
+            'device' => $params['device'] ?: null,
+            'network' => $params['network'] ?: null,
+            'url' => $landingUrl,
+            'path' => $path,
             'utm_term' => $params['keyword'] ?: null,
             'utm_source' => ($params['source'] ?? '') === 'google_ads' ? 'google' : null,
             'utm_medium' => ($params['source'] ?? '') === 'google_ads' ? 'cpc' : null,
@@ -75,16 +96,157 @@ class TrackingController extends Controller
             'ad_click_meta' => GoogleAdsClickRedirect::adClickMeta($params),
         ];
 
-        $ingest = $request->duplicate(null, $ingestPayload);
-        $ingest->setMethod('POST');
+        $ip = $this->clientIp($request);
+        $ua = $request->userAgent() ?? '';
+        $browser = $this->browserFromUa($ua);
+        $os = $this->osFromUa($ua);
+        $device = $this->platformFromUa($ua);
+        $countryHeader = $request->headers->get('CF-IPCountry') ?: null;
+        $googleClick = GoogleClickAttribution::resolve($data);
+        $paidId = (string) ($googleClick['id'] ?? '');
+        $visitedAt = UserTimezone::nowUtc();
+        $campaignAttribution = CampaignAttributionResolver::resolve($domain, $data);
+        $displayCountry = CountryValue::forDisplay(null, $countryHeader);
+        $visitCountryCode = CountryValue::forVisitsTable(null, $countryHeader);
 
-        try {
-            $this->collect($ingest);
-        } catch (\Throwable $e) {
-            report($e);
+        $domain->last_seen_at = $visitedAt;
+        $domain->paid_marketing_connected = true;
+        if (($domain->status ?? 'pending') !== 'disabled') {
+            $domain->status = 'connected';
         }
+        $domain->save();
 
-        return redirect()->away($redirectUrl, 302);
+        DB::transaction(function () use (
+            $domain,
+            $data,
+            $ip,
+            $ua,
+            $browser,
+            $os,
+            $device,
+            $googleClick,
+            $paidId,
+            $visitedAt,
+            $displayCountry,
+            $visitCountryCode,
+            $campaignAttribution,
+        ): void {
+            $skipPaidClickRow = $paidId !== '' && $this->paidClickIdExists($domain->id, $paidId);
+
+            $visit = PaidMarketingVisit::firstOrNew([
+                'domain_id' => $domain->id,
+                'ip' => $ip,
+            ]);
+            if (! $visit->exists) {
+                $visit->visits = 0;
+            }
+            $visit->visits = ($visit->visits ?? 0) + 1;
+            $visit->last_click_at = $visitedAt;
+            $visit->last_path = $data['path'] ?? null;
+            $visit->campaign = $campaignAttribution['campaign'];
+            $visit->platform = $device;
+            $visit->country = $displayCountry;
+            $visit->threat_group = null;
+            $visit->threat_type = null;
+            if (Schema::hasColumn('paid_marketing_visits', 'google_campaign_id')) {
+                $visit->google_campaign_id = $campaignAttribution['google_campaign_id'];
+            }
+            if (Schema::hasColumn('paid_marketing_visits', 'campaign_name')) {
+                $visit->campaign_name = $campaignAttribution['campaign_name'];
+            }
+            $visit->save();
+
+            if (! $skipPaidClickRow) {
+                $clickPayload = [
+                    'paid_marketing_visit_id' => $visit->id,
+                    'clicked_at' => $visitedAt,
+                    'ip' => $ip,
+                    'country' => $displayCountry,
+                    'last_click_at' => $visitedAt,
+                    'threat_group' => null,
+                    'campaign' => $campaignAttribution['campaign'],
+                    'paid_id' => $paidId,
+                    'path' => $data['url'] ?? ($data['path'] ?? null),
+                    'keyword' => $data['keyword'] ?? null,
+                    'browser_name' => $browser['name'],
+                    'browser_version' => $browser['version'],
+                    'os' => $os,
+                ];
+                if (Schema::hasColumn('paid_marketing_clicks', 'google_campaign_id')) {
+                    $clickPayload['google_campaign_id'] = $campaignAttribution['google_campaign_id'];
+                }
+                if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
+                    $clickPayload['campaign_name'] = $campaignAttribution['campaign_name'];
+                }
+                if (Schema::hasColumn('paid_marketing_clicks', 'click_source')) {
+                    $clickPayload['click_source'] = 'server';
+                }
+
+                PaidMarketingClick::create($clickPayload);
+            }
+
+            if (Schema::hasTable('visits')) {
+                $visitPayload = [
+                    'domain_id' => $domain->id,
+                    'session_id' => null,
+                    'ip' => $ip,
+                    'country' => $visitCountryCode,
+                    'device' => $device,
+                    'browser' => $browser['name'],
+                    'os' => $os,
+                    'url' => $data['url'] ?? null,
+                    'referrer' => 'https://www.google.com/',
+                    'utm_source' => $data['utm_source'] ?? null,
+                    'utm_medium' => $data['utm_medium'] ?? null,
+                    'utm_campaign' => null,
+                    'utm_term' => $data['utm_term'] ?? ($data['keyword'] ?? null),
+                    'is_paid_traffic' => true,
+                    'is_invalid_traffic' => false,
+                    'visited_at' => $visitedAt,
+                    'created_at' => UserTimezone::nowUtc(),
+                    'updated_at' => UserTimezone::nowUtc(),
+                ];
+
+                if (Schema::hasColumn('visits', 'gclid')) {
+                    $visitPayload['gclid'] = $data['gclid'] ?? null;
+                }
+                if (Schema::hasColumn('visits', 'gbraid')) {
+                    $visitPayload['gbraid'] = $data['gbraid'] ?? null;
+                }
+                if (Schema::hasColumn('visits', 'wbraid')) {
+                    $visitPayload['wbraid'] = $data['wbraid'] ?? null;
+                }
+                if (Schema::hasColumn('visits', 'google_click_type')) {
+                    $visitPayload['google_click_type'] = $googleClick['type'] ?? null;
+                }
+                if (Schema::hasColumn('visits', 'google_campaign_id')) {
+                    $visitPayload['google_campaign_id'] = $campaignAttribution['google_campaign_id'];
+                }
+                if (Schema::hasColumn('visits', 'campaign_name')) {
+                    $visitPayload['campaign_name'] = $campaignAttribution['campaign_name'];
+                }
+                if (Schema::hasColumn('visits', 'threat_score')) {
+                    $visitPayload['threat_score'] = 0;
+                    $visitPayload['threat_group'] = null;
+                    $visitPayload['action_taken'] = 'allow';
+                    $visitPayload['detection_reasons'] = json_encode([]);
+                }
+                if (Schema::hasColumn('visits', 'user_agent')) {
+                    $visitPayload['user_agent'] = $ua;
+                }
+                if (Schema::hasColumn('visits', 'is_crawler')) {
+                    $visitPayload['is_crawler'] = false;
+                }
+                if (Schema::hasColumn('visits', 'click_source')) {
+                    $visitPayload['click_source'] = 'server';
+                }
+                if (Schema::hasColumn('visits', 'ad_click_meta') && ($data['ad_click_meta'] ?? []) !== []) {
+                    $visitPayload['ad_click_meta'] = json_encode($data['ad_click_meta']);
+                }
+
+                DB::table('visits')->insert($visitPayload);
+            }
+        });
     }
 
     public function collect(Request $request)
