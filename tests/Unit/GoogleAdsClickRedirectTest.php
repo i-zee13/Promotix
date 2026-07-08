@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Support\GoogleAdsClickRedirect;
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class GoogleAdsClickRedirectTest extends TestCase
@@ -35,5 +36,18 @@ class GoogleAdsClickRedirectTest extends TestCase
         $this->assertStringContainsString('gad_campaignid=23997382536', $redirect);
         $this->assertStringContainsString('keyword=insurance+quotes', $redirect);
         $this->assertStringContainsString('adgroup_id=123456789', $redirect);
+    }
+
+    public function test_parse_click_reads_gclid_from_encoded_final_url(): void
+    {
+        $request = Request::create(
+            '/click?final_url=' . urlencode('https://insuranceforme.online/?gclid=inside_final_url') . '&campaign_id=123',
+            'GET'
+        );
+
+        $params = GoogleAdsClickRedirect::parseClickRequest($request);
+
+        $this->assertSame('inside_final_url', $params['gclid']);
+        $this->assertSame('123', $params['campaign_id']);
     }
 }

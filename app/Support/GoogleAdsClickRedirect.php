@@ -76,10 +76,42 @@ final class GoogleAdsClickRedirect
             'matchtype' => trim((string) $request->query('matchtype', '')),
             'creative' => trim((string) $request->query('creative', '')),
             'placement' => trim((string) $request->query('placement', '')),
-            'gclid' => trim((string) $request->query('gclid', '')),
-            'gbraid' => trim((string) $request->query('gbraid', '')),
-            'wbraid' => trim((string) $request->query('wbraid', '')),
+            'gclid' => self::firstNonEmpty(
+                trim((string) $request->query('gclid', '')),
+                self::queryParamFromUrl($finalUrl, 'gclid'),
+            ),
+            'gbraid' => self::firstNonEmpty(
+                trim((string) $request->query('gbraid', '')),
+                self::queryParamFromUrl($finalUrl, 'gbraid'),
+            ),
+            'wbraid' => self::firstNonEmpty(
+                trim((string) $request->query('wbraid', '')),
+                self::queryParamFromUrl($finalUrl, 'wbraid'),
+            ),
         ];
+    }
+
+    private static function firstNonEmpty(string ...$values): string
+    {
+        foreach ($values as $value) {
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    private static function queryParamFromUrl(string $url, string $key): string
+    {
+        $queryString = (string) parse_url($url, PHP_URL_QUERY);
+        if ($queryString === '') {
+            return '';
+        }
+
+        parse_str($queryString, $query);
+
+        return trim((string) ($query[$key] ?? ''));
     }
 
     public static function resolveDomainFromFinalUrl(string $finalUrl): ?Domain
