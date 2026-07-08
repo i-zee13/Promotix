@@ -8,6 +8,9 @@ use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Services\GoogleAudienceExclusionService;
 use App\Support\CountryValue;
+use App\Support\GoogleClickAttribution;
+use App\Support\UserTimezone;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -36,7 +39,7 @@ class IpFraudReconciler
 
     private function reconcileVisits(IpLog $ipLog, string $ip, \Illuminate\Support\Carbon $since): void
     {
-        $visitColumns = ['id', 'domain_id', 'country'];
+        $visitColumns = ['id', 'domain_id', 'country', 'session_id', 'visited_at'];
         if (Schema::hasColumn('visits', 'is_paid_traffic')) {
             $visitColumns[] = 'is_paid_traffic';
         }
@@ -63,7 +66,23 @@ class IpFraudReconciler
                 || ! empty($row->gbraid ?? null)
                 || ! empty($row->wbraid ?? null);
 
-            $detection = $this->evaluator->evaluate($domain, $ipLog, $row->country);
+            $visitedAt = $row->visited_at
+                ? Carbon::parse($row->visited_at)
+                : now();
+
+            $detection = $this->evaluator->evaluate(
+                $domain,
+                $ipLog,
+                $row->country,
+                $this->sessionHitsAt($domain, $row->session_id ?? null, $visitedAt),
+                $this->ipRecentHitsAt($domain, $ip, $visitedAt),
+                false,
+                $isPaidTraffic,
+                $isPaidTraffic
+                    ? $this->paidClicksBeforeVisit($domain, $ip, $visitedAt, (int) $row->id)
+                    : 0,
+                $this->ipMinuteHitsAt($domain, $ip, $visitedAt),
+            );
 
             if (
                 $detection['action_taken'] === 'block'
@@ -134,5 +153,73 @@ class IpFraudReconciler
                     'threat_group' => $detection['threat_group'],
                 ]);
         }
+    }
+
+    private function sessionHitsAt(Domain $domain, ?string $sessionId, Carbon $visitedAt): int
+    {
+        if ($sessionId === null || ! Schema::hasTable('ip_sessions')) {
+            return 1;
+        }
+
+        return (int) (DB::table('ip_sessions')
+            ->where('domain_id', $domain->id)
+            ->where('session_id', $sessionId)
+            ->where('last_seen_at', '<=', $visitedAt)
+            ->value('hits') ?? 0) + 1;
+    }
+
+    private function ipRecentHitsAt(Domain $domain, string $ip, Carbon $visitedAt): int
+    {
+        if (! Schema::hasTable('visits')) {
+            return 0;
+        }
+
+        return (int) DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('ip', $ip)
+            ->where('visited_at', '>=', $visitedAt->copy()->subMinutes(5))
+            ->where('visited_at', '<', $visitedAt)
+            ->count();
+    }
+
+    private function ipMinuteHitsAt(Domain $domain, string $ip, Carbon $visitedAt): int
+    {
+        if (! Schema::hasTable('visits')) {
+            return 0;
+        }
+
+        return (int) DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('ip', $ip)
+            ->where('visited_at', '>=', $visitedAt->copy()->subMinute())
+            ->where('visited_at', '<', $visitedAt)
+            ->count();
+    }
+
+    private function paidClicksBeforeVisit(Domain $domain, string $ip, Carbon $visitedAt, int $visitId): int
+    {
+        if (! Schema::hasTable('visits')) {
+            return 0;
+        }
+
+        $domain->loadMissing('user');
+        $tz = UserTimezone::forUser($domain->user);
+        $day = $visitedAt->copy()->timezone($tz)->toDateString();
+        $from = Carbon::parse($day, $tz)->startOfDay()->utc()->toDateTimeString();
+        $to = Carbon::parse($day, $tz)->endOfDay()->utc()->toDateTimeString();
+
+        $query = DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('ip', $ip)
+            ->whereBetween('visited_at', [$from, $to])
+            ->where('id', '<', $visitId);
+
+        GoogleClickAttribution::applyHasClickIdFilter($query);
+
+        if (Schema::hasColumn('visits', 'is_invalid_traffic')) {
+            $query->where('is_invalid_traffic', 0);
+        }
+
+        return (int) $query->count();
     }
 }

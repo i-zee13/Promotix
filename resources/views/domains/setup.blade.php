@@ -5,6 +5,7 @@
 
 @section('content')
 @php
+    use App\Support\GoogleAdsClickRedirect;
     $scriptUrl = url('/tag/' . $domain->domain_key . '.js');
     $noscriptUrl = url('/tag/' . $domain->domain_key . '.html');
     $headSnippet = '<script src="' . $scriptUrl . '" class="pm_tag"></script>';
@@ -16,6 +17,8 @@
     $wpIconPath = public_path('images/wordpress.svg');
     $gtmIconSrc = url('/images/google-tag-manager.svg') . (is_file($gtmIconPath) ? '?v=' . filemtime($gtmIconPath) : '');
     $wpIconSrc = url('/images/wordpress.svg') . (is_file($wpIconPath) ? '?v=' . filemtime($wpIconPath) : '');
+    $googleAdsTrackingTemplate = GoogleAdsClickRedirect::trackingTemplateUrl();
+    $googleAdsFinalUrl = 'https://' . $domain->hostname . '/';
     $methods = [
         ['key' => 'gtm', 'title' => 'Google Tag Manager', 'icon' => 'gtm'],
         ['key' => 'wp', 'title' => 'WordPress Plugin', 'icon' => 'wp'],
@@ -215,6 +218,27 @@
             </div>
             <button type="button" class="figma-domain-setup__btn-primary mt-[14px]" @click="saveTrackingParams('{{ $domain->id }}')">Save tracking params</button>
         </details>
+
+        <div class="figma-domain-setup__panel mt-[22px] rounded-[12px] border border-[#6400B2]/40 bg-[#141018] p-[18px] sm:p-[22px]">
+            <h2 class="text-[15px] font-semibold text-white">Google Ads tracking template</h2>
+            <p class="mt-[8px] text-[12px] leading-relaxed text-white/75">
+                Put this in Google Ads → Campaign → Settings → <strong>Tracking template</strong>.
+                Auto-tagging must be <strong>ON</strong>. Google sends the click to PromoTix first; we capture IP + click ID, then redirect to your site.
+            </p>
+            <p class="mt-[12px] text-[11px] font-medium uppercase tracking-wide text-white/55">Final URL</p>
+            <div class="mt-[6px] flex flex-wrap items-center gap-2">
+                <code class="block flex-1 break-all rounded-[8px] border border-white/10 bg-black/40 px-3 py-2 text-[11px] text-white/90">{{ $googleAdsFinalUrl }}</code>
+                <button type="button" class="figma-domain-setup__copy-btn shrink-0" @click="copyText(@js($googleAdsFinalUrl))">Copy</button>
+            </div>
+            <p class="mt-[14px] text-[11px] font-medium uppercase tracking-wide text-white/55">Tracking template</p>
+            <div class="mt-[6px] flex flex-wrap items-start gap-2">
+                <code class="block flex-1 break-all rounded-[8px] border border-white/10 bg-black/40 px-3 py-2 text-[11px] text-white/90">{{ $googleAdsTrackingTemplate }}</code>
+                <button type="button" class="figma-domain-setup__copy-btn shrink-0" @click="copyText(@js($googleAdsTrackingTemplate))">Copy</button>
+            </div>
+            <p class="mt-[12px] text-[11px] text-white/55">
+                Dashboard rule: <strong>1 unique gclid / gbraid / wbraid = 1 Google Ads click</strong> (duplicate pageviews are not counted as extra clicks).
+            </p>
+        </div>
 
         <div class="mt-[28px] flex justify-end">
             <a href="{{ route('domains.index') }}" class="figma-domain-setup__btn-done">Done</a>

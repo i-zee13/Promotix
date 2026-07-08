@@ -11,6 +11,7 @@ use App\Services\GoogleAudienceExclusionService;
 use App\Services\IpIntel\VisitProtectionService;
 use App\Support\CampaignAttributionResolver;
 use App\Support\CountryValue;
+use App\Support\GoogleAdsClickRedirect;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
@@ -18,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\Response;
 
 class TrackingController extends Controller
 {
@@ -25,6 +27,60 @@ class TrackingController extends Controller
 
     /** 1×1 transparent GIF for GET pixel fallback (see TagController::pixel). */
     private const TRACKING_PIXEL_GIF = "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b";
+
+    /**
+     * Google Ads tracking template entry point (ClickRonix-style).
+     * Captures click server-side, then redirects to the advertiser landing page.
+     */
+    public function googleAdsClick(Request $request): Response
+    {
+        $params = GoogleAdsClickRedirect::parseClickRequest($request);
+        $finalUrl = (string) ($params['final_url'] ?? '');
+
+        if ($finalUrl === '') {
+            return response('Missing final_url', 400);
+        }
+
+        $domain = GoogleAdsClickRedirect::resolveDomainFromFinalUrl($finalUrl);
+        if (! $domain) {
+            return response('Unknown landing domain', 404);
+        }
+
+        if (! GoogleAdsClickRedirect::isAllowedFinalUrl($finalUrl, $domain)) {
+            return response('Landing URL not allowed for domain', 403);
+        }
+
+        if (($domain->status ?? 'pending') === 'disabled') {
+            return redirect()->away($finalUrl, 302);
+        }
+
+        $redirectUrl = GoogleAdsClickRedirect::buildRedirectUrl($finalUrl, $params);
+        $path = (string) (parse_url($finalUrl, PHP_URL_PATH) ?: '/');
+
+        $ingestPayload = [
+            'domainKey' => $domain->domain_key,
+            'type' => 'google_ads_click',
+            'url' => $redirectUrl,
+            'path' => $path,
+            'referrer' => 'https://www.google.com/',
+            'gclid' => $params['gclid'] ?: null,
+            'gbraid' => $params['gbraid'] ?: null,
+            'wbraid' => $params['wbraid'] ?: null,
+            'gad_campaignid' => $params['gad_campaignid'] ?: null,
+            'keyword' => $params['keyword'] ?: null,
+            'utm_term' => $params['keyword'] ?: null,
+            'utm_source' => ($params['source'] ?? '') === 'google_ads' ? 'google' : null,
+            'utm_medium' => ($params['source'] ?? '') === 'google_ads' ? 'cpc' : null,
+            'click_source' => 'server',
+            'ad_click_meta' => GoogleAdsClickRedirect::adClickMeta($params),
+        ];
+
+        $ingest = $request->duplicate(null, $ingestPayload);
+        $ingest->setMethod('POST');
+        $this->collect($ingest);
+
+        return redirect()->away($redirectUrl, 302);
+    }
 
     public function collect(Request $request)
     {
@@ -50,7 +106,20 @@ class TrackingController extends Controller
             'keyword' => ['nullable', 'string'],
             'session_id' => ['nullable', 'string', 'max:128'],
             'ts' => ['nullable', 'numeric'],
+            'click_source' => ['nullable', 'string', 'max:16'],
+            'ad_click_meta' => ['nullable'],
         ])->validate();
+
+        if (isset($data['ad_click_meta']) && is_string($data['ad_click_meta'])) {
+            $decoded = json_decode($data['ad_click_meta'], true);
+            $data['ad_click_meta'] = is_array($decoded) ? $decoded : [];
+        }
+        if (! isset($data['ad_click_meta']) || ! is_array($data['ad_click_meta'])) {
+            $data['ad_click_meta'] = [];
+        }
+        if (! filled($data['click_source'] ?? null)) {
+            $data['click_source'] = 'tag';
+        }
 
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
         if (($domain->status ?? 'pending') === 'disabled') {
@@ -121,6 +190,9 @@ class TrackingController extends Controller
         ): void {
         if ($isPaidTraffic) {
             // Paid marketing funnel: Google click IDs (gclid / gbraid / wbraid) only.
+            $paidId = (string) ($googleClick['id'] ?? '');
+            $skipPaidClickRow = $paidId !== '' && $this->paidClickIdExists($domain->id, $paidId);
+
             $visit = PaidMarketingVisit::firstOrNew([
                 'domain_id' => $domain->id,
                 'ip' => $ip,
@@ -144,29 +216,34 @@ class TrackingController extends Controller
             }
             $visit->save();
 
-            $clickPayload = [
-                'paid_marketing_visit_id' => $visit->id,
-                'clicked_at' => $visitedAt,
-                'ip' => $ip,
-                'country' => $displayCountry,
-                'last_click_at' => $visitedAt,
-                'threat_group' => $detection['threat_group'],
-                'campaign' => $campaignAttribution['campaign'],
-                'paid_id' => $googleClick['id'] ?? ($data['gclid'] ?? null),
-                'path' => $data['url'] ?? ($data['path'] ?? null),
-                'keyword' => $data['utm_term'] ?? ($data['keyword'] ?? null),
-                'browser_name' => $browser['name'],
-                'browser_version' => $browser['version'],
-                'os' => $os,
-            ];
-            if (Schema::hasColumn('paid_marketing_clicks', 'google_campaign_id')) {
-                $clickPayload['google_campaign_id'] = $campaignAttribution['google_campaign_id'];
-            }
-            if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
-                $clickPayload['campaign_name'] = $campaignAttribution['campaign_name'];
-            }
+            if (! $skipPaidClickRow) {
+                $clickPayload = [
+                    'paid_marketing_visit_id' => $visit->id,
+                    'clicked_at' => $visitedAt,
+                    'ip' => $ip,
+                    'country' => $displayCountry,
+                    'last_click_at' => $visitedAt,
+                    'threat_group' => $detection['threat_group'],
+                    'campaign' => $campaignAttribution['campaign'],
+                    'paid_id' => $paidId !== '' ? $paidId : ($data['gclid'] ?? null),
+                    'path' => $data['url'] ?? ($data['path'] ?? null),
+                    'keyword' => $data['utm_term'] ?? ($data['keyword'] ?? null),
+                    'browser_name' => $browser['name'],
+                    'browser_version' => $browser['version'],
+                    'os' => $os,
+                ];
+                if (Schema::hasColumn('paid_marketing_clicks', 'google_campaign_id')) {
+                    $clickPayload['google_campaign_id'] = $campaignAttribution['google_campaign_id'];
+                }
+                if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
+                    $clickPayload['campaign_name'] = $campaignAttribution['campaign_name'];
+                }
+                if (Schema::hasColumn('paid_marketing_clicks', 'click_source')) {
+                    $clickPayload['click_source'] = $data['click_source'] ?? 'tag';
+                }
 
-            PaidMarketingClick::create($clickPayload);
+                PaidMarketingClick::create($clickPayload);
+            }
         }
 
         if (Schema::hasTable('visits') && ! $skipVisitLog) {
@@ -222,6 +299,12 @@ class TrackingController extends Controller
             }
             if (Schema::hasColumn('visits', 'is_crawler')) {
                 $visitPayload['is_crawler'] = $isCrawler;
+            }
+            if (Schema::hasColumn('visits', 'click_source')) {
+                $visitPayload['click_source'] = $data['click_source'] ?? 'tag';
+            }
+            if (Schema::hasColumn('visits', 'ad_click_meta') && ($data['ad_click_meta'] ?? []) !== []) {
+                $visitPayload['ad_click_meta'] = json_encode($data['ad_click_meta']);
             }
 
             $visitId = DB::table('visits')->insertGetId($visitPayload);
@@ -448,6 +531,19 @@ class TrackingController extends Controller
             }
         }
         return ['name' => null, 'version' => null];
+    }
+
+    private function paidClickIdExists(int $domainId, string $paidId): bool
+    {
+        if ($paidId === '' || ! Schema::hasTable('paid_marketing_clicks')) {
+            return false;
+        }
+
+        return DB::table('paid_marketing_clicks as pc')
+            ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+            ->where('pv.domain_id', $domainId)
+            ->where('pc.paid_id', $paidId)
+            ->exists();
     }
 
 }

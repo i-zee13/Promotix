@@ -47,7 +47,7 @@ final class CampaignAttributionResolver
      */
     public static function extractGoogleCampaignId(array $data): string
     {
-        foreach (['gad_campaignid', 'google_campaign_id', 'campaignid'] as $key) {
+        foreach (['gad_campaignid', 'google_campaign_id', 'campaign_id', 'campaignid'] as $key) {
             $value = trim((string) ($data[$key] ?? ''));
             if ($value !== '') {
                 return preg_replace('/\D+/', '', $value) ?? $value;
@@ -66,7 +66,7 @@ final class CampaignAttributionResolver
 
         parse_str($queryString, $query);
 
-        foreach (['gad_campaignid', 'campaignid'] as $key) {
+        foreach (['gad_campaignid', 'campaign_id', 'campaignid'] as $key) {
             $value = trim((string) ($query[$key] ?? ''));
             if ($value !== '') {
                 return preg_replace('/\D+/', '', $value) ?? $value;

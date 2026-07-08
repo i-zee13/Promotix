@@ -93,4 +93,45 @@ final class GoogleClickAttribution
     {
         $query->whereNotNull($paidIdColumn)->where($paidIdColumn, '!=', '');
     }
+
+    /**
+     * SQL expression for the resolved Google click ID on a visits row.
+     */
+    public static function distinctClickIdSql(string $prefix = ''): string
+    {
+        $p = $prefix !== '' ? $prefix . '.' : '';
+        $parts = [];
+
+        foreach (self::CLICK_ID_COLUMNS as $column) {
+            if (Schema::hasColumn('visits', $column)) {
+                $parts[] = "NULLIF({$p}{$column}, '')";
+            }
+        }
+
+        if ($parts === []) {
+            return "''";
+        }
+
+        return 'COALESCE(' . implode(', ', $parts) . ')';
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public static function clickIdValue(array $data): string
+    {
+        $resolved = self::resolve($data);
+
+        return $resolved['id'] ?? '';
+    }
+
+    public static function countDistinctClickIds(Builder $query, string $prefix = ''): int
+    {
+        $expr = self::distinctClickIdSql($prefix);
+
+        return (int) (clone $query)
+            ->whereRaw("{$expr} IS NOT NULL")
+            ->selectRaw("COUNT(DISTINCT {$expr}) as aggregate")
+            ->value('aggregate');
+    }
 }

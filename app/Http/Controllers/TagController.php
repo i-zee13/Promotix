@@ -253,6 +253,25 @@ class TagController extends Controller
     }
   }
 
+  function searchParamsFromUrl(u){
+    var params = {};
+    try {
+      u.searchParams.forEach(function(v, k){ params[k] = v; });
+      var hash = String(u.hash || '');
+      if (hash.indexOf('?') !== -1) {
+        var hashQuery = hash.split('?').slice(1).join('?').split('#')[0];
+        new URLSearchParams(hashQuery).forEach(function(v, k){
+          if (!params[k]) params[k] = v;
+        });
+      } else if (hash.indexOf('=') !== -1 && hash.charAt(1) !== '/') {
+        new URLSearchParams(hash.replace(/^#/, '')).forEach(function(v, k){
+          if (!params[k]) params[k] = v;
+        });
+      }
+    } catch (e) {}
+    return params;
+  }
+
   function readAttribution(u){
     var out = {
       gclid: null,
@@ -262,22 +281,46 @@ class TagController extends Controller
       utm_medium: null,
       utm_campaign: null,
       utm_term: null,
-      gad_campaignid: null
+      gad_campaignid: null,
+      campaign_id: null,
+      adgroup_id: null,
+      keyword: null,
+      device: null,
+      network: null,
+      matchtype: null,
+      creative: null,
+      placement: null,
+      source: null
     };
     try {
-      out.gclid = storedAttribution('gclid', u.searchParams.get('gclid'));
-      out.gbraid = storedAttribution('gbraid', u.searchParams.get('gbraid'));
-      out.wbraid = storedAttribution('wbraid', u.searchParams.get('wbraid'));
-      out.gad_campaignid = storedAttribution('gad_campaignid', u.searchParams.get('gad_campaignid'));
-      if (trackSource) out.utm_source = storedAttribution('utm_source', u.searchParams.get('utm_source'));
-      if (trackMedium) out.utm_medium = storedAttribution('utm_medium', u.searchParams.get('utm_medium'));
-      if (trackCampaign) out.utm_campaign = storedAttribution('utm_campaign', u.searchParams.get('utm_campaign'));
-      if (trackTerm) out.utm_term = storedAttribution('utm_term', u.searchParams.get('utm_term'));
+      var params = searchParamsFromUrl(u);
+      out.gclid = storedAttribution('gclid', params.gclid || null);
+      out.gbraid = storedAttribution('gbraid', params.gbraid || null);
+      out.wbraid = storedAttribution('wbraid', params.wbraid || null);
+      out.gad_campaignid = storedAttribution('gad_campaignid', params.gad_campaignid || params.campaign_id || null);
+      out.campaign_id = storedAttribution('campaign_id', params.campaign_id || params.gad_campaignid || null);
+      out.adgroup_id = storedAttribution('adgroup_id', params.adgroup_id || null);
+      out.keyword = storedAttribution('keyword', params.keyword || null);
+      out.device = storedAttribution('pm_device', params.device || null);
+      out.network = storedAttribution('pm_network', params.network || null);
+      out.matchtype = storedAttribution('pm_matchtype', params.matchtype || null);
+      out.creative = storedAttribution('pm_creative', params.creative || null);
+      out.placement = storedAttribution('pm_placement', params.placement || null);
+      out.source = storedAttribution('pm_source', params.source || null);
+      if (trackSource) out.utm_source = storedAttribution('utm_source', params.utm_source || null);
+      if (trackMedium) out.utm_medium = storedAttribution('utm_medium', params.utm_medium || null);
+      if (trackCampaign) out.utm_campaign = storedAttribution('utm_campaign', params.utm_campaign || null);
+      if (trackTerm) out.utm_term = storedAttribution('utm_term', params.utm_term || null);
     } catch (e) {}
     return out;
   }
 
-  function pageview(){
+  var lastTrackedUrl = '';
+  function pageview(force){
+    var currentUrl = String(location.href || '');
+    if (!force && currentUrl === lastTrackedUrl) return;
+    lastTrackedUrl = currentUrl;
+
     var payload = {
       domainKey: domainKey,
       type: 'pageview',
@@ -297,13 +340,50 @@ class TagController extends Controller
       payload.utm_medium = attr.utm_medium;
       payload.utm_campaign = attr.utm_campaign;
       payload.utm_term = attr.utm_term;
-      payload.gad_campaignid = attr.gad_campaignid;
+      payload.gad_campaignid = attr.gad_campaignid || attr.campaign_id;
+      payload.campaign_id = attr.campaign_id;
+      payload.adgroup_id = attr.adgroup_id;
+      payload.keyword = attr.keyword || attr.utm_term;
+      if (attr.keyword && !payload.utm_term) payload.utm_term = attr.keyword;
+      if (attr.source === 'google_ads') {
+        payload.utm_source = payload.utm_source || 'google';
+        payload.utm_medium = payload.utm_medium || 'cpc';
+      }
+      payload.ad_click_meta = {
+        source: attr.source,
+        adgroup_id: attr.adgroup_id,
+        keyword: attr.keyword,
+        device: attr.device,
+        network: attr.network,
+        matchtype: attr.matchtype,
+        creative: attr.creative,
+        placement: attr.placement
+      };
     } catch (e) {}
 
     send(payload);
   }
 
-  pageview();
+  function hookSpaNavigation(){
+    var pushState = history.pushState;
+    var replaceState = history.replaceState;
+    function onRouteChange(){
+      if (location.href === lastTrackedUrl) return;
+      pageview(true);
+    }
+    history.pushState = function(){
+      pushState.apply(history, arguments);
+      onRouteChange();
+    };
+    history.replaceState = function(){
+      replaceState.apply(history, arguments);
+      onRouteChange();
+    };
+    window.addEventListener('popstate', onRouteChange);
+  }
+
+  pageview(true);
+  hookSpaNavigation();
 })();
 JS;
 

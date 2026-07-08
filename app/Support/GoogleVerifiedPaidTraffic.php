@@ -114,9 +114,19 @@ final class GoogleVerifiedPaidTraffic
         $verified = 0;
         $unverified = 0;
         $verifiedValid = 0;
+        $seenClickIds = [];
 
         foreach ($rows as $row) {
             $data = (array) $row;
+            $clickId = GoogleClickAttribution::clickIdValue($data);
+            if ($clickId !== '') {
+                $dedupeKey = (int) ($data['domain_id'] ?? 0) . '|' . $clickId;
+                if (isset($seenClickIds[$dedupeKey])) {
+                    continue;
+                }
+                $seenClickIds[$dedupeKey] = true;
+            }
+
             $domainId = (int) ($data['domain_id'] ?? 0);
             $campaignId = self::resolveCampaignId($row);
             $clickedAt = $data['visited_at'] ?? $data['clicked_at'] ?? null;

@@ -67,6 +67,8 @@ class PaidAdvertisingDashboardController extends Controller
         $blocked = 0;
         $flagged = 0;
         $uniqueIps = 0;
+        $uniquePaidClicks = 0;
+        $uniqueValidPaidClicks = 0;
 
         $verificationLookup = app(GoogleVerifiedPaidTraffic::class)->buildLookup(
             $domainIds,
@@ -80,7 +82,12 @@ class PaidAdvertisingDashboardController extends Controller
         if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
             $base = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo);
             $tagPaid = (clone $base)->count();
+            $uniquePaidClicks = GoogleClickAttribution::countDistinctClickIds(clone $base);
             $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
+            $uniqueInvalidPaidClicks = GoogleClickAttribution::countDistinctClickIds(
+                (clone $base)->where('is_invalid_traffic', true)
+            );
+            $uniqueValidPaidClicks = max(0, $uniquePaidClicks - $uniqueInvalidPaidClicks);
             $uniqueIps = (clone $base)->distinct()->count('ip');
 
             if (Schema::hasColumn('visits', 'action_taken')) {
@@ -94,6 +101,9 @@ class PaidAdvertisingDashboardController extends Controller
                 'google_campaign_id',
                 'visited_at',
                 'is_invalid_traffic',
+                'gclid',
+                'gbraid',
+                'wbraid',
             ]);
             if ($visitRows->isNotEmpty()) {
                 $verificationCounts = app(GoogleVerifiedPaidTraffic::class)->countRows(
@@ -136,12 +146,12 @@ class PaidAdvertisingDashboardController extends Controller
             $googleClicks = (int) ($googleAds['clicks'] ?? 0);
         }
 
-        $paid = $this->displayPaidTrafficCount($verifiedValidPaid, $tagPaid, $googleClicks);
-        $validTagPaid = max(0, $tagPaid - $invalid);
+        $paid = $this->displayPaidTrafficCount($verifiedValidPaid, $uniqueValidPaidClicks, $googleClicks);
+        $validTagPaid = max(0, $uniqueValidPaidClicks);
         $totalClickCount = $googleClicks;
         $tagCapturePct = $googleClicks > 0
-            ? (int) round(min(100, ($verifiedValidPaid / $googleClicks) * 100))
-            : ($verifiedValidPaid > 0 ? 100 : 0);
+            ? (int) round(min(100, ($uniqueValidPaidClicks / $googleClicks) * 100))
+            : ($uniqueValidPaidClicks > 0 ? 100 : 0);
 
         $selectedDomain = $request->filled('domain_id') && $domains->count() === 1
             ? $domains->first()
@@ -156,11 +166,13 @@ class PaidAdvertisingDashboardController extends Controller
             'google_clicks' => $googleClicks,
             'total_click_count' => $totalClickCount,
             'tag_capture_pct' => $tagCapturePct,
-            'tag_gap_warning' => $googleClicks > 0 && $verifiedValidPaid < (int) floor($googleClicks * 0.5),
+            'tag_gap_warning' => $googleClicks > 0 && $uniqueValidPaidClicks < (int) floor($googleClicks * 0.5),
             'invalid_paid_visits' => $invalid,
             'blocked_paid_visits' => $blocked,
             'flagged_paid_visits' => $flagged,
             'unique_ips' => $uniqueIps,
+            'unique_paid_clicks' => $uniquePaidClicks,
+            'unique_valid_paid_clicks' => $uniqueValidPaidClicks,
             'valid_paid_visits' => $validTagPaid,
             'google_ads' => $googleAds,
             'timezone_context' => UserTimezone::dashboardContext(
@@ -1929,9 +1941,13 @@ class PaidAdvertisingDashboardController extends Controller
     /**
      * Paid traffic headline = Google-verified visits that are not invalid/bot traffic.
      */
-    private function displayPaidTrafficCount(int $verifiedValidPaid, int $tagPaid, int $googleClicks): int
+    private function displayPaidTrafficCount(int $verifiedValidPaid, int $uniqueValidPaidClicks, int $googleClicks): int
     {
-        return max(0, $verifiedValidPaid);
+        if ($verifiedValidPaid > 0) {
+            return max(0, $verifiedValidPaid);
+        }
+
+        return max(0, $uniqueValidPaidClicks);
     }
 
     /**
