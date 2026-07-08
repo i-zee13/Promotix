@@ -77,7 +77,12 @@ class TrackingController extends Controller
 
         $ingest = $request->duplicate(null, $ingestPayload);
         $ingest->setMethod('POST');
-        $this->collect($ingest);
+
+        try {
+            $this->collect($ingest);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return redirect()->away($redirectUrl, 302);
     }

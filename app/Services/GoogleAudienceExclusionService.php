@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SyncGoogleAdsIpExclusionJob;
+use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 
 class GoogleAudienceExclusionService
