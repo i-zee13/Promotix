@@ -675,9 +675,12 @@ function paidAdvertisingFigma(config = {}) {
         reloadTimer: null,
         livePollTimer: null,
         googleSyncTimer: null,
+        watermarkTimer: null,
+        lastWatermarkId: null,
         livePollOn: true,
         livePollMs: 30000,
-        googleSyncMs: 900000,
+        googleSyncMs: 300000,
+        watermarkMs: 15000,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         scheduleReload() {
             clearTimeout(this.reloadTimer);
@@ -763,6 +766,20 @@ function paidAdvertisingFigma(config = {}) {
                 this.reload(true);
             }, this.googleSyncMs);
         },
+        async checkWatermark() {
+            if (!this.livePollOn || document.hidden) return;
+            try {
+                const data = await fetch(`/paid-marketing/watermark?${this.qs()}`).then(r => r.json());
+                if (this.lastWatermarkId !== null && data.last_id > this.lastWatermarkId) {
+                    this.reload();
+                }
+                this.lastWatermarkId = data.last_id;
+            } catch (e) { /* silent — next tick retries */ }
+        },
+        startWatermarkPoll() {
+            clearInterval(this.watermarkTimer);
+            this.watermarkTimer = setInterval(() => this.checkWatermark(), this.watermarkMs);
+        },
         async init() {
             window.__paidAdvertisingDash = this;
             this.applyDomainFromUrl();
@@ -777,6 +794,7 @@ function paidAdvertisingFigma(config = {}) {
             }
             this.startLivePoll();
             this.startGoogleSyncPoll();
+            this.startWatermarkPoll();
             window.addEventListener('promotix:date-range', () => {
                 this.syncHeaderDates();
                 this.scheduleReload();

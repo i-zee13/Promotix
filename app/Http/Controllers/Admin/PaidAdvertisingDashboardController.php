@@ -189,6 +189,28 @@ class PaidAdvertisingDashboardController extends Controller
         ]);
     }
 
+    /**
+     * Cheap poll target: returns the latest paid-traffic visit id + count for the
+     * current filters, with no Google API calls. The dashboard polls this frequently
+     * and only runs a full reload() when the watermark actually changes.
+     */
+    public function watermark(Request $request): JsonResponse
+    {
+        $domainIds = $this->scopedDomainIds($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
+
+        if (! Schema::hasTable('visits') || $domainIds->isEmpty()) {
+            return response()->json(['last_id' => 0, 'count' => 0]);
+        }
+
+        $query = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo);
+
+        return response()->json([
+            'last_id' => (int) (clone $query)->max('id'),
+            'count' => (clone $query)->count(),
+        ]);
+    }
+
     public function trends(Request $request): JsonResponse
     {
         [$from, $to] = $this->dateRange($request);

@@ -279,6 +279,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/bot-protection/export.csv', [BotProtectionController::class, 'exportCsv'])->name('bot-protection.export');
 
     Route::get('/paid-marketing/summary', [PaidAdvertisingDashboardController::class, 'summary']);
+    Route::get('/paid-marketing/watermark', [PaidAdvertisingDashboardController::class, 'watermark']);
     Route::get('/paid-marketing/trends', [PaidAdvertisingDashboardController::class, 'trends']);
     Route::get('/paid-marketing/blocking-activity', [PaidAdvertisingDashboardController::class, 'blockingActivity']);
     Route::get('/paid-marketing/campaigns', [PaidAdvertisingDashboardController::class, 'campaigns']);
