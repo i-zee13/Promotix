@@ -1,118 +1,182 @@
 @extends('layouts.super-admin')
 
 @section('title', 'Payments')
+
 @section('content')
-<x-super-admin.page title="Payments" subtitle="Verify bank-transfer receipts and activate plans">
-<div class="space-y-[16px]">
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-super-admin.kpi label="Pending verification" :value="$stats['pending']" hint="Awaiting super-admin review" />
-        <x-super-admin.kpi label="Paid payments" :value="$stats['paid']" />
-        <x-super-admin.kpi label="Rejected" :value="$stats['rejected']" />
-        <x-super-admin.kpi label="Total collected" :value="format_money_cents($stats['total_paid_cents'])" />
-    </div>
+<x-super-admin.page title="Payments">
+    <div class="figma-sa-subs">
+        <section class="grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-4">
+            <x-super-admin.kpi label="Successful Payments" :value="number_format($stats['paid'])" />
+            <x-super-admin.kpi label="Failed Payments" :value="number_format($stats['failed'])" />
+            <x-super-admin.kpi label="Refunds" :value="number_format($stats['refunded'])" />
+            <x-super-admin.kpi label="Total Revenue" :value="format_money_cents($stats['total_paid_cents'])" />
+        </section>
 
-    <x-super-admin.card>
-        <form method="GET" class="flex flex-wrap items-center gap-3">
-            <input name="search" value="{{ request('search') }}" placeholder="Search invoice or user" class="figma-input min-w-64 flex-1">
-            <select name="status" class="figma-select">
-                <option value="">All statuses</option>
+        <form method="GET" action="{{ route('super-admin.payments.index') }}" class="figma-sa-subs-filters" id="payments-filter-form">
+            <input type="hidden" name="status" id="filter-payments-status" value="{{ request('status') }}">
+
+            <label class="figma-sa-subs-search">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="search" name="search" value="{{ request('search') }}" placeholder="Search invoice or user" autocomplete="off">
+            </label>
+
+            <x-super-admin.dashboard-dropdown align="left">
+                <x-slot:trigger>
+                    <button type="button" class="figma-sa-subs-filter-chip figma-sa-subs-filter-chip--wide">
+                        <span>{{ request('status') ? ucfirst(request('status')) : 'All Statuses' }}</span>
+                        <span class="figma-sa-subs-chip-chevron">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </span>
+                    </button>
+                </x-slot:trigger>
+                <button type="button" class="figma-sa-users-action-item" onclick="document.getElementById('filter-payments-status').value=''; document.getElementById('payments-filter-form').submit();">All Statuses</button>
                 @foreach ($statuses as $status)
-                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
+                    <button type="button" class="figma-sa-users-action-item" onclick="document.getElementById('filter-payments-status').value='{{ $status }}'; document.getElementById('payments-filter-form').submit();">{{ ucfirst($status) }}</button>
                 @endforeach
-            </select>
-            <button type="submit" class="figma-sa-btn figma-sa-btn-primary">Filter</button>
-        </form>
-    </x-super-admin.card>
+            </x-super-admin.dashboard-dropdown>
 
-    <x-super-admin.card class="!p-0 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="figma-sa-table min-w-[1100px]">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Plan</th>
-                        <th>Amount</th>
-                        <th>Submitted</th>
-                        <th>Status</th>
-                        <th>Reference</th>
-                        <th>Receipt</th>
-                        <th class="text-right pr-4">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($payments as $payment)
+            <div class="figma-sa-subs-actions">
+                @if ($stats['pending'] > 0)
+                    <span class="figma-sa-subs-status-pill is-past_due" style="min-width:auto;cursor:default;">{{ $stats['pending'] }} awaiting verification</span>
+                @endif
+                <a href="{{ route('super-admin.payments.index', request()->query()) }}" class="figma-sa-subs-export-btn">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 17h8M12 4v9m0 0l-3-3m3 3l3-3M5 19h14a1 1 0 001-1v-4"/></svg>
+                    Export
+                </a>
+            </div>
+        </form>
+
+        @foreach ($payments as $payment)
+            <form id="pay-verify-{{ $payment->id }}" method="POST" action="{{ route('super-admin.payments.verify', $payment) }}" class="hidden">@csrf</form>
+            <form id="pay-reject-{{ $payment->id }}" method="POST" action="{{ route('super-admin.payments.reject', $payment) }}" class="hidden" onsubmit="return confirm('Reject this receipt? The customer will need to re-submit.');">
+                @csrf
+                <input type="hidden" name="rejection_reason" value="Receipt could not be verified.">
+            </form>
+            <form id="pay-failed-{{ $payment->id }}" method="POST" action="{{ route('super-admin.payments.mark-failed', $payment) }}" class="hidden" onsubmit="return confirm('Mark as failed and start grace period?');">@csrf</form>
+        @endforeach
+
+        <div class="figma-sa-subs-panel">
+            <div class="figma-sa-subs-table-scroll">
+                <table class="figma-sa-subs-table">
+                    <thead>
                         <tr>
-                            <td>
-                                <p class="font-semibold text-white">{{ $payment->user?->name ?? 'Deleted user' }}</p>
-                                <p class="text-xs text-[#8c8787]">{{ $payment->user?->email }}</p>
-                            </td>
-                            <td>
-                                {{ $payment->plan?->name ?? $payment->subscription?->plan?->name ?? '—' }}
-                            </td>
-                            <td class="font-semibold">{{ format_money_cents($payment->amount_cents, $payment->currency) }}</td>
-                            <td>{{ optional($payment->created_at)->format('M d, Y H:i') }}</td>
-                            <td>
-                                @php
-                                    $status = strtolower($payment->status ?? '');
-                                    $cls = match (true) {
-                                        in_array($status, ['paid','success','succeeded','completed']) => 'figma-sa-pill-success',
-                                        in_array($status, ['failed','declined','error','rejected']) => 'figma-sa-pill-danger',
-                                        in_array($status, ['pending','processing']) => 'figma-sa-pill-warning',
-                                        default => 'figma-sa-pill-neutral',
-                                    };
-                                @endphp
-                                <span class="figma-sa-pill {{ $cls }}">{{ ucfirst($payment->status) }}</span>
-                                @if ($payment->status === 'rejected' && $payment->rejection_reason)
-                                    <p class="mt-1 text-xs text-rose-300/80">{{ $payment->rejection_reason }}</p>
-                                @endif
-                            </td>
-                            <td>
-                                <p class="font-mono text-xs text-white">{{ $payment->invoice_number ?? '—' }}</p>
-                                @if ($payment->bank_reference)
-                                    <p class="text-xs text-[#8c8787]">ref: {{ $payment->bank_reference }}</p>
-                                @endif
-                            </td>
-                            <td>
-                                @if ($payment->receipt_path)
-                                    <a href="{{ route('super-admin.payments.receipt', $payment) }}" class="text-[#c4b5fd] hover:underline text-sm">
-                                        Download ({{ $payment->receipt_original_name ?? 'receipt' }})
-                                    </a>
-                                @else
-                                    <span class="text-xs text-[#8c8787]">No file</span>
-                                @endif
-                            </td>
-                            <td class="text-right pr-4">
-                                @if ($payment->status === 'pending')
-                                    <div class="flex justify-end gap-2">
-                                        <form method="POST" action="{{ route('super-admin.payments.verify', $payment) }}">
-                                            @csrf
-                                            <button type="submit" class="figma-sa-btn figma-sa-btn-primary">Verify & activate</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('super-admin.payments.reject', $payment) }}">
-                                            @csrf
-                                            <input type="hidden" name="rejection_reason" value="Receipt could not be verified.">
-                                            <button type="submit" onclick="return confirm('Reject this receipt? The customer will need to re-submit.')" class="figma-sa-btn figma-sa-btn-danger">Reject</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('super-admin.payments.mark-failed', $payment) }}">
-                                            @csrf
-                                            <button type="submit" onclick="return confirm('Mark as failed and start grace period?')" class="figma-sa-btn figma-sa-btn-outline text-sm">Mark failed</button>
-                                        </form>
-                                    </div>
-                                @else
-                                    @if ($payment->verified_at)
-                                        <span class="text-xs text-[#8c8787]">Verified {{ $payment->verified_at->diffForHumans() }}</span>
-                                    @endif
-                                @endif
-                            </td>
+                            <th class="figma-sa-subs-th-check"><input type="checkbox" class="figma-sa-subs-checkbox" aria-label="Select all"></th>
+                            <th>User</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>Reference</th>
+                            <th>Date</th>
+                            <th class="figma-sa-subs-th-action">Action</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="8" class="px-4 py-12 text-center text-[#a9a9a9]">No payments yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @forelse ($payments as $payment)
+                            @php
+                                $status = strtolower($payment->status ?? '');
+                                $statusClass = match ($status) {
+                                    'paid' => 'is-active',
+                                    'failed', 'rejected' => 'is-cancelled',
+                                    'refunded' => 'is-paused',
+                                    default => 'is-pending',
+                                };
+                            @endphp
+                            <tr class="figma-sa-subs-row">
+                                <td class="figma-sa-subs-td-check">
+                                    <input type="checkbox" class="figma-sa-subs-checkbox" aria-label="Select row">
+                                </td>
+                                <td>
+                                    <div class="figma-sa-subs-user">
+                                        <span class="figma-sa-subs-avatar" aria-hidden="true"></span>
+                                        <span class="figma-sa-subs-user-text">
+                                            <span class="figma-sa-subs-user-name">{{ $payment->user?->name ?? 'Deleted user' }}</span>
+                                            <span class="figma-sa-subs-user-email">{{ $payment->user?->email }}</span>
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="figma-sa-subs-plan-tier">{{ $payment->plan?->name ?? $payment->subscription?->plan?->name ?? '—' }}</span>
+                                    <span class="figma-sa-subs-plan-detail">{{ format_money_cents($payment->amount_cents, $payment->currency) }}</span>
+                                </td>
+                                <td>
+                                    <span class="figma-sa-subs-status-pill {{ $statusClass }}">{{ ucfirst($payment->status) }}</span>
+                                    @if ($status === 'rejected' && $payment->rejection_reason)
+                                        <span class="figma-sa-subs-plan-detail">{{ $payment->rejection_reason }}</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <span class="figma-sa-subs-plan-tier">{{ $payment->invoice_number ?? '—' }}</span>
+                                    <span class="figma-sa-subs-plan-detail">{{ $payment->bank_reference ? 'Bank •••• '.substr($payment->bank_reference, -4) : 'Bank Transfer' }}</span>
+                                </td>
+                                <td><span class="figma-sa-subs-date">{{ optional($payment->created_at)->format('M d, Y') }}</span></td>
+                                <td class="figma-sa-subs-td-action">
+                                    <x-super-admin.dashboard-dropdown align="right">
+                                        <x-slot:trigger>
+                                            <button type="button" class="figma-sa-subs-kebab" aria-label="Row actions">
+                                                <svg fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4z"/></svg>
+                                            </button>
+                                        </x-slot:trigger>
+                                        @if ($payment->receipt_path)
+                                            <a href="{{ route('super-admin.payments.receipt', $payment) }}" class="figma-sa-users-action-item">Download receipt</a>
+                                        @endif
+                                        @if ($status === 'pending')
+                                            <button form="pay-verify-{{ $payment->id }}" type="submit" class="figma-sa-users-action-item w-full text-left">Verify &amp; activate</button>
+                                            <button form="pay-reject-{{ $payment->id }}" type="submit" class="figma-sa-users-action-item figma-sa-users-action-item--danger w-full text-left">Reject</button>
+                                        @endif
+                                        @if (in_array($status, ['pending', 'paid'], true))
+                                            <button form="pay-failed-{{ $payment->id }}" type="submit" class="figma-sa-users-action-item figma-sa-users-action-item--warn w-full text-left">Mark failed</button>
+                                        @endif
+                                        @if ($payment->verified_at)
+                                            <span class="figma-sa-users-action-item" style="cursor:default;opacity:.6;">Verified {{ $payment->verified_at->diffForHumans() }}</span>
+                                        @endif
+                                    </x-super-admin.dashboard-dropdown>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="figma-sa-subs-empty">No payments yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <div class="figma-sa-subs-pagination">
+                <p class="figma-sa-subs-pagination-meta">
+                    @if ($payments->total())
+                        Showing {{ $payments->firstItem() }}–{{ $payments->lastItem() }} of {{ $payments->total() }}
+                    @else
+                        Showing 0 of 0
+                    @endif
+                </p>
+                <div class="figma-sa-subs-pagination-controls">
+                    <form method="GET" class="figma-sa-subs-perpage-form">
+                        @foreach (request()->except(['per_page', 'page']) as $key => $val)
+                            <input type="hidden" name="{{ $key }}" value="{{ $val }}">
+                        @endforeach
+                        <label class="sr-only" for="payments-per-page">Rows per page</label>
+                        <select id="payments-per-page" name="per_page" class="figma-sa-subs-perpage-select" onchange="this.form.submit()">
+                            @foreach ([10, 25, 50] as $n)
+                                <option value="{{ $n }}" @selected(request()->integer('per_page', 10) === $n)>{{ $n }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                    @if ($payments->hasPages())
+                        <div class="figma-sa-subs-page-btns">
+                            @if ($payments->onFirstPage())
+                                <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--disabled" aria-hidden="true">&lt;</span>
+                            @else
+                                <a href="{{ $payments->previousPageUrl() }}" class="figma-sa-subs-page-btn" aria-label="Previous page">&lt;</a>
+                            @endif
+                            <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--current">{{ $payments->currentPage() }}</span>
+                            @if ($payments->hasMorePages())
+                                <a href="{{ $payments->nextPageUrl() }}" class="figma-sa-subs-page-btn" aria-label="Next page">&gt;</a>
+                            @else
+                                <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--disabled" aria-hidden="true">&gt;</span>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
         </div>
-        <div class="figma-sa-pagination px-4 py-3">{{ $payments->links() }}</div>
-    </x-super-admin.card>
-</div>
+    </div>
 </x-super-admin.page>
 @endsection

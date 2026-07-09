@@ -19,11 +19,12 @@ class SubscriptionsController extends Controller
                 $q->whereHas('user', fn ($uq) => $uq->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
             })
             ->latest('id')
-            ->paginate(10)
+            ->paginate(min(50, max(10, $request->integer('per_page', 10))))
             ->withQueryString();
 
         return view('super-admin.subscriptions.index', [
             'subscriptions' => $subscriptions,
+            'perPage' => min(50, max(10, $request->integer('per_page', 10))),
             'statuses' => ['active', 'pending', 'past_due', 'cancelled', 'paused', 'trialing'],
             'plans' => \App\Models\Plan::orderBy('name')->get(['id', 'name']),
         ]);

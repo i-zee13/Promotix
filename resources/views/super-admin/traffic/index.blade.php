@@ -20,7 +20,6 @@
 
     <div class="flex flex-wrap items-center gap-[10px]">
         <label class="figma-sa-traffic-date">
-            <svg class="h-[16px] w-[16px] shrink-0 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             <input type="date" class="figma-sa-traffic-date-input" x-model="filters.date" @change="loadTraffic(1)">
         </label>
         <a href="{{ route('super-admin.domains.index') }}" class="figma-sa-traffic-add-btn ml-auto">
@@ -110,7 +109,7 @@
 
         <label class="figma-sa-users-filter-btn !min-w-[150px]">
             <span class="sr-only">Source filter</span>
-            <input type="text" placeholder="Source Filter" class="w-full bg-transparent text-[14px] text-white placeholder:text-white/55 focus:outline-none" x-model="filters.source" @input="scheduleLoadTraffic()">
+            <input type="text" placeholder="Source Filter" class="figma-sa-traffic-source-input" x-model="filters.source" @input="scheduleLoadTraffic()">
         </label>
 
         <x-super-admin.dashboard-dropdown align="right">
@@ -126,86 +125,81 @@
         </x-super-admin.dashboard-dropdown>
     </div>
 
-    <div class="figma-sa-subs-panel overflow-hidden rounded-[6px] bg-[#6400b3]">
-        <div class="overflow-x-auto">
-            <table class="figma-sa-subs-table min-w-[960px] w-full">
+    <div class="figma-sa-subs-panel">
+        <div class="figma-sa-subs-table-scroll">
+            <table class="figma-sa-subs-table">
                 <thead>
                     <tr>
-                        <th class="w-[48px]"></th>
+                        <th class="figma-sa-subs-th-check"><input type="checkbox" class="figma-sa-subs-checkbox" aria-label="Select all"></th>
                         <th>User</th>
                         <th>Bot Score</th>
                         <th>Status</th>
                         <th>Country</th>
                         <th>Threat Group</th>
-                        <th class="text-right">Actions</th>
+                        <th class="figma-sa-subs-th-action">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <template x-for="(row, index) in traffic" :key="row.id">
-                        <tr :class="index % 2 === 1 ? 'figma-sa-subs-row is-alt' : 'figma-sa-subs-row'">
-                            <td><input type="checkbox" class="figma-sa-checkbox rounded" :aria-label="'Select '+row.display_name"></td>
+                    <template x-for="row in traffic" :key="row.id">
+                        <tr class="figma-sa-subs-row">
+                            <td class="figma-sa-subs-td-check"><input type="checkbox" class="figma-sa-subs-checkbox" :aria-label="'Select '+row.display_name"></td>
                             <td>
-                                <div class="flex items-center gap-[10px]">
-                                    <span class="figma-sa-subs-avatar" x-text="row.avatar_initial"></span>
-                                    <div class="min-w-0">
-                                        <p class="truncate text-[16px] font-medium text-white" x-text="row.display_name"></p>
-                                        <p class="truncate text-[13px] font-medium text-white/80" x-text="row.display_sub"></p>
-                                    </div>
+                                <div class="figma-sa-subs-user">
+                                    <span class="figma-sa-subs-avatar" aria-hidden="true"></span>
+                                    <span class="figma-sa-subs-user-text">
+                                        <span class="figma-sa-subs-user-name" x-text="row.display_name"></span>
+                                        <span class="figma-sa-subs-user-email" x-text="row.display_sub"></span>
+                                    </span>
                                 </div>
                             </td>
                             <td>
-                                <p class="text-[16px] font-medium text-white" x-text="row.bot_score"></p>
-                                <p class="text-[13px] text-white/75" x-text="row.bot_score_tier"></p>
+                                <span class="figma-sa-subs-plan-tier" x-text="row.bot_score"></span>
+                                <span class="figma-sa-subs-plan-detail" x-text="row.bot_score_tier"></span>
                             </td>
-                            <td><span class="figma-sa-subs-status" :class="row.status_class" x-text="row.status_label"></span></td>
+                            <td><span class="figma-sa-subs-status-pill" :class="row.status_class" x-text="row.status_label"></span></td>
+                            <td><span class="figma-sa-traffic-country" x-text="row.country || 'Unknown'"></span></td>
                             <td>
-                                <span class="figma-sa-traffic-country">
-                                    <span x-text="row.country_flag"></span>
-                                    <span x-text="row.country || 'Unknown'"></span>
-                                </span>
+                                <span class="figma-sa-subs-billing" x-text="row.threat_group || '—'"></span>
+                                <span class="figma-sa-subs-date" x-text="row.visited_label"></span>
                             </td>
-                            <td>
-                                <p class="text-[14px] font-medium text-white" x-text="row.threat_group || '—'"></p>
-                                <p class="text-[12px] text-white/75" x-text="row.visited_label"></p>
-                            </td>
-                            <td class="text-right">
+                            <td class="figma-sa-subs-td-action">
                                 <x-super-admin.dashboard-dropdown align="right">
                                     <x-slot:trigger>
-                                        <button type="button" @click="open = !open" class="figma-sa-dash-row-menu" aria-label="Row actions">⋯</button>
+                                        <button type="button" class="figma-sa-subs-kebab" aria-label="Row actions">
+                                            <svg fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4z"/></svg>
+                                        </button>
                                     </x-slot:trigger>
-                                    <button type="button" class="figma-sa-dash-dropdown-item block w-full text-left" @click="blockIp(row.ip, true)">Block IP</button>
-                                    <button type="button" class="figma-sa-dash-dropdown-item block w-full text-left" @click="blockIp(row.ip, false)">Unblock IP</button>
-                                    <button type="button" class="figma-sa-dash-dropdown-item block w-full text-left" x-show="row.url" @click="navigator.clipboard.writeText(row.url)">Copy URL</button>
+                                    <button type="button" class="figma-sa-users-action-item w-full text-left" @click="blockIp(row.ip, true)">Block IP</button>
+                                    <button type="button" class="figma-sa-users-action-item w-full text-left" @click="blockIp(row.ip, false)">Unblock IP</button>
+                                    <button type="button" class="figma-sa-users-action-item w-full text-left" x-show="row.url" @click="navigator.clipboard.writeText(row.url)">Copy URL</button>
                                 </x-super-admin.dashboard-dropdown>
                             </td>
                         </tr>
                     </template>
                     <tr x-show="!loading.traffic && traffic.length === 0">
-                        <td colspan="7" class="px-4 py-12 text-center text-white/70">No requests match these filters yet.</td>
+                        <td colspan="7" class="figma-sa-subs-empty">No requests match these filters yet.</td>
                     </tr>
                     <tr x-show="loading.traffic">
-                        <td colspan="7" class="px-4 py-12 text-center text-white/70">Loading…</td>
+                        <td colspan="7" class="figma-sa-subs-empty">Loading…</td>
                     </tr>
                 </tbody>
             </table>
         </div>
-        <div class="figma-sa-subs-pagination flex flex-wrap items-center justify-between gap-[10px] px-[24px] py-[16px]">
-            <p class="text-[16px] font-medium text-white/90">
-                Showing <span x-text="meta.from || 0"></span>-<span x-text="meta.to || 0"></span> of <span x-text="meta.total || 0"></span>
+        <div class="figma-sa-subs-pagination">
+            <p class="figma-sa-subs-pagination-meta">
+                Showing <span x-text="meta.from || 0"></span>–<span x-text="meta.to || 0"></span> of <span x-text="meta.total || 0"></span>
             </p>
-            <div class="flex flex-wrap items-center gap-[10px]">
-                <label class="flex items-center gap-2 text-[14px] text-white/90">
-                    <span>Rows per page</span>
-                    <select class="figma-sa-traffic-per-page" x-model.number="perPage" @change="loadTraffic(1)">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                    </select>
-                </label>
-                <div class="flex items-center gap-1">
-                    <button type="button" class="figma-sa-traffic-page-btn" :disabled="meta.current_page <= 1" @click="goToPage(meta.current_page - 1)" aria-label="Previous page">‹</button>
-                    <span class="figma-sa-traffic-page-current" x-text="meta.current_page || 1"></span>
-                    <button type="button" class="figma-sa-traffic-page-btn" :disabled="meta.current_page >= meta.last_page" @click="goToPage(meta.current_page + 1)" aria-label="Next page">›</button>
+            <div class="figma-sa-subs-pagination-controls">
+                <label class="sr-only" for="traffic-per-page">Rows per page</label>
+                <select id="traffic-per-page" class="figma-sa-subs-perpage-select" x-model.number="perPage" @change="loadTraffic(1)">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                </select>
+                <div class="figma-sa-subs-page-btns">
+                    <button type="button" class="figma-sa-subs-page-btn" :class="{ 'figma-sa-subs-page-btn--disabled': meta.current_page <= 1 }" :disabled="meta.current_page <= 1" @click="goToPage(meta.current_page - 1)" aria-label="Previous page">&lt;</button>
+                    <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--current" x-text="meta.current_page || 1"></span>
+                    <button type="button" class="figma-sa-subs-page-btn" :class="{ 'figma-sa-subs-page-btn--disabled': meta.current_page >= meta.last_page }" :disabled="meta.current_page >= meta.last_page" @click="goToPage(meta.current_page + 1)" aria-label="Next page">&gt;</button>
                 </div>
             </div>
         </div>

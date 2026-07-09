@@ -439,8 +439,8 @@
     @endif
 
     @php
-        $logoPath = public_path('images/logo.png');
-        $logoUrl = url('/images/logo.png') . (is_file($logoPath) ? '?v=' . filemtime($logoPath) : '');
+        $logoPath = public_path('images/logo-dark.png');
+        $logoUrl = url('/images/logo-dark.png') . (is_file($logoPath) ? '?v=' . filemtime($logoPath) : '');
         $heroPath = public_path('images/login-hero.png');
         $heroUrl = is_file($heroPath)
             ? asset('images/login-hero.png') . '?v=' . filemtime($heroPath)

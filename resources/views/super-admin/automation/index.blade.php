@@ -16,7 +16,7 @@
         'runs_count' => $job->runs_count,
         'next_run' => $job->next_run_at?->diffForHumans() ?? '—',
         'href' => route('automation.show', $job),
-        'icon' => str_contains($job->slug, 'google') ? 'google' : (str_contains($job->slug, 'delete') ? 'trash' : (str_contains($job->slug, 'retry') ? 'refresh' : 'exclamation')),
+        'icon' => str_contains($job->slug, 'google') ? 'google' : (str_contains($job->slug, 'delete') ? 'trash' : (str_contains($job->slug, 'retry') ? 'refresh' : (str_contains($job->slug, 'suspend') ? 'warning' : (str_contains($job->slug, 'key') ? 'key' : 'exclamation')))),
     ])->values();
     $total = $jobs->count();
 @endphp
@@ -42,49 +42,43 @@
 
         <div class="space-y-[14px]">
             <template x-for="job in filteredJobs" :key="job.id">
-                <div class="grid grid-cols-1 gap-[14px] xl:grid-cols-12">
-                    <article class="figma-sa-dash-kpi xl:col-span-7 !min-h-0 p-[18px]">
-                        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                            <div class="flex gap-4">
-                                <span class="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-[8px] bg-[#6400B2] text-white text-lg font-bold">
-                                    <span x-show="job.icon === 'google'">G</span>
-                                    <span x-show="job.icon === 'trash'">🗑</span>
-                                    <span x-show="job.icon === 'refresh'">↻</span>
-                                    <span x-show="job.icon === 'exclamation'">!</span>
-                                </span>
-                                <div>
-                                    <h3 class="text-[18px] font-medium text-[#d9d9d9]" x-text="job.name"></h3>
-                                    <p class="mt-1 text-[14px] text-[#8c8787]" x-text="job.description"></p>
-                                    <p class="mt-2 text-[13px] text-[#a9a9a9]" x-text="job.schedule"></p>
-                                    <span class="figma-sa-pill figma-sa-pill-purple mt-2 inline-flex" x-text="job.queue_badge"></span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 flex-col items-end gap-2">
-                                <button type="button" class="relative inline-flex h-6 w-11 rounded-full transition"
-                                    :class="job.status === 'active' ? 'bg-[#6400B2]' : 'bg-[#5c5c5c]'"
-                                    @click="toggleJob(job)"
-                                    :aria-pressed="job.status === 'active'">
-                                    <span class="inline-block h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition"
-                                        :class="job.status === 'active' ? 'translate-x-6' : 'translate-x-1'"></span>
-                                </button>
-                                <span class="figma-sa-pill"
-                                    :class="job.status === 'active' ? 'figma-sa-pill-success' : 'figma-sa-pill-warning'"
-                                    x-text="job.status === 'active' ? 'Active' : 'Paused'"></span>
+                <div class="figma-sa-automation-row">
+                    <div class="figma-sa-automation-card">
+                        <span class="figma-sa-automation-icon" aria-hidden="true">
+                            <svg x-show="job.icon === 'trash'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-8 0v12a2 2 0 002 2h6a2 2 0 002-2V7"/></svg>
+                            <svg x-show="job.icon === 'refresh'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0114-5M20 15a8 8 0 01-14 5"/></svg>
+                            <svg x-show="job.icon === 'warning'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.29 3.86l-8.18 14.18A1.5 1.5 0 003.5 20.5h17a1.5 1.5 0 001.39-2.46L13.7 3.86a1.5 1.5 0 00-2.42 0z"/></svg>
+                            <svg x-show="job.icon === 'key'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 7a4 4 0 11-4 4M11 11L3 19v2h2l8-8"/></svg>
+                            <svg x-show="job.icon === 'google'" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c5.52 0 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                            <svg x-show="job.icon === 'exclamation'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4m0 4h.01M12 21a9 9 0 100-18 9 9 0 000 18z"/></svg>
+                        </span>
+                        <div class="figma-sa-automation-body">
+                            <h3 class="figma-sa-automation-title" x-text="job.name"></h3>
+                            <p class="figma-sa-automation-desc" x-text="job.description"></p>
+                            <div class="figma-sa-automation-meta">
+                                <span class="figma-sa-automation-schedule" x-text="job.schedule"></span>
+                                <span class="figma-sa-automation-queue-pill" :class="{ 'is-paused': job.status !== 'active' }" x-text="job.queue_badge"></span>
                             </div>
                         </div>
-                    </article>
-                    <article class="figma-sa-dash-kpi xl:col-span-3 !min-h-0 p-[16px]">
-                        <p class="figma-sa-label">Last run</p>
-                        <div class="mt-2 flex flex-wrap gap-2">
-                            <span class="figma-sa-pill figma-sa-pill-neutral" x-text="job.last_run"></span>
-                            <span class="figma-sa-pill figma-sa-pill-neutral" x-text="job.runs_count + ' runs'"></span>
+                        <div class="figma-sa-automation-side">
+                            <button type="button" class="figma-sa-automation-toggle" :class="{ 'is-on': job.status === 'active' }" @click="toggleJob(job)" :aria-pressed="job.status === 'active'" aria-label="Toggle automation">
+                                <span class="figma-sa-automation-toggle-dot"></span>
+                            </button>
+                            <span class="figma-sa-automation-status" :class="{ 'is-paused': job.status !== 'active' }" x-text="job.status === 'active' ? 'Active' : 'Paused'"></span>
                         </div>
-                    </article>
-                    <article class="figma-sa-dash-kpi xl:col-span-2 !min-h-0 p-[16px]">
-                        <p class="figma-sa-label">Next run</p>
-                        <p class="mt-2 text-[14px] text-[#d9d9d9]" x-text="job.next_run"></p>
-                        <a :href="job.href" class="figma-sa-btn figma-sa-btn-outline mt-3 w-full text-xs">View</a>
-                    </article>
+                    </div>
+                    <div class="figma-sa-automation-stat">
+                        <p class="figma-sa-automation-stat-label">Last run</p>
+                        <div class="figma-sa-automation-stat-badges">
+                            <span class="figma-sa-automation-stat-badge" x-text="job.last_run"></span>
+                            <span class="figma-sa-automation-stat-badge" x-text="job.runs_count + ' runs'"></span>
+                        </div>
+                    </div>
+                    <div class="figma-sa-automation-stat">
+                        <p class="figma-sa-automation-stat-label">Next run</p>
+                        <p class="figma-sa-automation-stat-value" x-text="job.next_run"></p>
+                        <a :href="job.href" class="figma-sa-automation-view-btn">View</a>
+                    </div>
                 </div>
             </template>
         </div>

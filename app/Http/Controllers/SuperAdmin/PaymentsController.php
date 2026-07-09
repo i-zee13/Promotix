@@ -26,13 +26,14 @@ class PaymentsController extends Controller
                 });
             })
             ->latest('id')
-            ->paginate(20)
+            ->paginate(min(50, max(10, $request->integer('per_page', 10))))
             ->withQueryString();
 
         $stats = [
             'pending'  => Payment::where('status', 'pending')->count(),
             'paid'     => Payment::where('status', 'paid')->count(),
-            'rejected' => Payment::where('status', 'rejected')->count(),
+            'failed'   => Payment::whereIn('status', ['failed', 'rejected'])->count(),
+            'refunded' => Payment::where('status', 'refunded')->count(),
             'total_paid_cents' => (int) Payment::where('status', 'paid')->sum('amount_cents'),
         ];
 

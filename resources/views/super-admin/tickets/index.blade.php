@@ -1,106 +1,186 @@
 @extends('layouts.super-admin')
 
 @section('title', 'Support System')
+
 @section('content')
 <x-super-admin.page title="Support System">
-<div class="space-y-5">
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-super-admin.kpi label="Open tickets" :value="$stats['open']" />
-        <x-super-admin.kpi label="Waiting on customer" :value="$stats['waiting']" />
-        <x-super-admin.kpi label="Closed" :value="$stats['closed']" />
-        <x-super-admin.kpi label="SLA breached" :value="$stats['sla_breached']" />
-    </div>
-
-    <x-super-admin.card>
-        <form method="GET" class="flex flex-wrap items-center gap-3">
-            <input name="search" value="{{ request('search') }}" placeholder="Search subject, number, or email" class="figma-input min-w-64 flex-1">
-            <select name="status" class="figma-select">
-                <option value="">All statuses</option>
-                @foreach ($statuses as $status)
-                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
-                @endforeach
-            </select>
-            <select name="priority" class="figma-select">
-                <option value="">All priorities</option>
-                @foreach ($priorities as $priority)
-                    <option value="{{ $priority }}" @selected(request('priority') === $priority)>{{ ucfirst($priority) }}</option>
-                @endforeach
-            </select>
-            <button class="figma-sa-btn figma-sa-btn-primary">Filter</button>
-        </form>
-    </x-super-admin.card>
-
-    <x-super-admin.card class="!p-0 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="figma-sa-table min-w-[1000px]">
-                <thead>
-                    <tr>
-                        <th>Ticket</th>
-                        <th>Tenant</th>
-                        <th>Requester</th>
-                        <th>Priority</th>
-                        <th>Status</th>
-                        <th>SLA</th>
-                        <th class="text-right pr-4">Open</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($tickets as $ticket)
-                        <tr>
-                            <td>
-                                <p class="font-semibold text-white">{{ $ticket->subject }}</p>
-                                <p class="text-xs text-[#8c8787]">#{{ $ticket->ticket_number ?? $ticket->id }} · {{ $ticket->category ?? 'general' }}</p>
-                            </td>
-                            <td>{{ $ticket->owner?->email ?? '—' }}</td>
-                            <td>
-                                <p class="text-sm text-white">{{ $ticket->requester?->name ?? '—' }}</p>
-                                <p class="text-xs text-[#8c8787]">{{ $ticket->requester?->email }}</p>
-                            </td>
-                            <td>
-                                @php
-                                    $pri = $ticket->priority ?? 'normal';
-                                    $priCls = match ($pri) {
-                                        'urgent' => 'figma-sa-pill-danger',
-                                        'high'   => 'figma-sa-pill-warning',
-                                        'low'    => 'figma-sa-pill-neutral',
-                                        default  => 'figma-sa-pill-purple',
-                                    };
-                                @endphp
-                                <span class="figma-sa-pill {{ $priCls }}">{{ ucfirst($pri) }}</span>
-                            </td>
-                            <td>
-                                @php
-                                    $statusCls = match (strtolower($ticket->status ?? '')) {
-                                        'open'     => 'figma-sa-pill-warning',
-                                        'waiting'  => 'figma-sa-pill-neutral',
-                                        'resolved' => 'figma-sa-pill-success',
-                                        'closed'   => 'figma-sa-pill-success',
-                                        default    => 'figma-sa-pill-neutral',
-                                    };
-                                @endphp
-                                <span class="figma-sa-pill {{ $statusCls }}">{{ ucfirst($ticket->status) }}</span>
-                            </td>
-                            <td>
-                                @if ($ticket->sla_due_at)
-                                    <span class="text-xs {{ $ticket->sla_due_at->isPast() && ! in_array($ticket->status, ['closed','resolved']) ? 'text-rose-300' : 'text-[#d9d9d9]' }}">
-                                        {{ $ticket->sla_due_at->diffForHumans() }}
-                                    </span>
-                                @else
-                                    <span class="text-xs text-[#8c8787]">—</span>
-                                @endif
-                            </td>
-                            <td class="text-right pr-4">
-                                <a href="{{ route('super-admin.tickets.show', $ticket) }}" class="figma-sa-btn figma-sa-btn-outline">Open</a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="7" class="px-4 py-12 text-center text-[#a9a9a9]">No tickets yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+    <div class="figma-sa-subs">
+        <div class="grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-5">
+            <article class="figma-sa-traffic-stat">
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">🎫</div>
+                <p class="figma-sa-traffic-stat-label">Total Tickets</p>
+                <p class="figma-sa-traffic-stat-value">{{ number_format($stats['total']) }}</p>
+                <span class="figma-sa-traffic-stat-line" aria-hidden="true"></span>
+            </article>
+            <article class="figma-sa-traffic-stat">
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">✅</div>
+                <p class="figma-sa-traffic-stat-label">Open</p>
+                <p class="figma-sa-traffic-stat-value">{{ number_format($stats['open']) }}</p>
+                <span class="figma-sa-traffic-stat-line is-green" aria-hidden="true"></span>
+            </article>
+            <article class="figma-sa-traffic-stat">
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">👥</div>
+                <p class="figma-sa-traffic-stat-label">Assigned</p>
+                <p class="figma-sa-traffic-stat-value">{{ number_format($stats['assigned']) }}</p>
+                <span class="figma-sa-traffic-stat-line is-blue" aria-hidden="true"></span>
+            </article>
+            <article class="figma-sa-traffic-stat">
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">⚠️</div>
+                <p class="figma-sa-traffic-stat-label">SLA Breaches</p>
+                <p class="figma-sa-traffic-stat-value">{{ number_format($stats['sla_breached']) }}</p>
+                <span class="figma-sa-traffic-stat-line is-red" aria-hidden="true"></span>
+            </article>
+            <article class="figma-sa-traffic-stat">
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">⏳</div>
+                <p class="figma-sa-traffic-stat-label">Overdue</p>
+                <p class="figma-sa-traffic-stat-value">{{ number_format($stats['overdue']) }}</p>
+                <span class="figma-sa-traffic-stat-line is-yellow" aria-hidden="true"></span>
+            </article>
         </div>
-        <div class="figma-sa-pagination px-4 py-3">{{ $tickets->links() }}</div>
-    </x-super-admin.card>
-</div>
+
+        <form method="GET" action="{{ route('super-admin.tickets.index') }}" class="figma-sa-subs-filters">
+            <label class="figma-sa-subs-search">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="search" name="search" value="{{ request('search') }}" placeholder="Search subject, number, or email" autocomplete="off">
+            </label>
+
+            <x-super-admin.dashboard-dropdown align="left">
+                <x-slot:trigger>
+                    <button type="button" class="figma-sa-subs-filter-chip">
+                        <span>{{ request('priority') ? ucfirst(request('priority')) : 'All Priorities' }}</span>
+                        <span class="figma-sa-subs-chip-chevron">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </span>
+                    </button>
+                </x-slot:trigger>
+                <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['priority', 'page']), [])) }}" class="figma-sa-users-action-item">All Priorities</a>
+                @foreach ($priorities as $priority)
+                    <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['priority', 'page']), ['priority' => $priority])) }}" class="figma-sa-users-action-item">{{ ucfirst($priority) }}</a>
+                @endforeach
+            </x-super-admin.dashboard-dropdown>
+
+            <x-super-admin.dashboard-dropdown align="left">
+                <x-slot:trigger>
+                    <button type="button" class="figma-sa-subs-filter-chip figma-sa-subs-filter-chip--wide">
+                        <span>{{ request('status') ? ucfirst(request('status')) : 'All Statuses' }}</span>
+                        <span class="figma-sa-subs-chip-chevron">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </span>
+                    </button>
+                </x-slot:trigger>
+                <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['status', 'page']), [])) }}" class="figma-sa-users-action-item">All Statuses</a>
+                @foreach ($statuses as $status)
+                    <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['status', 'page']), ['status' => $status])) }}" class="figma-sa-users-action-item">{{ ucfirst($status) }}</a>
+                @endforeach
+            </x-super-admin.dashboard-dropdown>
+
+            <button type="submit" class="figma-sa-btn figma-sa-btn-outline !px-4 !py-2 text-[13px]">Filter</button>
+        </form>
+
+        <div class="figma-sa-subs-panel">
+            <div class="figma-sa-subs-table-scroll">
+                <table class="figma-sa-subs-table">
+                    <thead>
+                        <tr>
+                            <th class="figma-sa-subs-th-check"><input type="checkbox" class="figma-sa-subs-checkbox" aria-label="Select all"></th>
+                            <th>Ticket</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Agent</th>
+                            <th>Last Update</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($tickets as $ticket)
+                            @php
+                                $pri = $ticket->priority ?? 'normal';
+                                $priClass = match ($pri) {
+                                    'urgent' => 'is-cancelled',
+                                    'high' => 'is-past_due',
+                                    'low' => 'is-paused',
+                                    default => 'is-active',
+                                };
+                                $statusClass = match (strtolower($ticket->status ?? '')) {
+                                    'open' => 'is-past_due',
+                                    'waiting' => 'is-pending',
+                                    'resolved', 'closed' => 'is-active',
+                                    default => 'is-pending',
+                                };
+                                $slaBreached = $ticket->sla_due_at && $ticket->sla_due_at->isPast() && ! in_array($ticket->status, ['closed', 'resolved'], true);
+                            @endphp
+                            <tr class="figma-sa-subs-row">
+                                <td class="figma-sa-subs-td-check">
+                                    <input type="checkbox" class="figma-sa-subs-checkbox" aria-label="Select ticket {{ $ticket->ticket_number ?? $ticket->id }}">
+                                </td>
+                                <td>
+                                    <a href="{{ route('super-admin.tickets.show', $ticket) }}" class="figma-sa-subs-user">
+                                        <span class="figma-sa-subs-avatar" aria-hidden="true"></span>
+                                        <span class="figma-sa-subs-user-text">
+                                            <span class="figma-sa-subs-user-name">#{{ $ticket->ticket_number ?? $ticket->id }} · {{ $ticket->subject }}</span>
+                                            <span class="figma-sa-subs-user-email">{{ $ticket->requester?->name ?? 'Deleted user' }} · {{ $ticket->requester?->email }}</span>
+                                        </span>
+                                    </a>
+                                </td>
+                                <td><span class="figma-sa-subs-status-pill {{ $priClass }}">{{ ucfirst($pri) }}</span></td>
+                                <td><span class="figma-sa-subs-status-pill {{ $statusClass }}">{{ ucfirst($ticket->status) }}</span></td>
+                                <td>
+                                    <span class="figma-sa-subs-plan-tier">{{ $ticket->assignee?->name ?? 'Unassigned' }}</span>
+                                </td>
+                                <td>
+                                    <span class="figma-sa-subs-date">{{ $ticket->updated_at?->diffForHumans() }}</span>
+                                    @if ($ticket->sla_due_at)
+                                        <span class="figma-sa-subs-plan-detail" style="{{ $slaBreached ? 'color:#ff8686;' : '' }}">
+                                            {{ $slaBreached ? 'SLA breached' : 'SLA '.$ticket->sla_due_at->diffForHumans(null, true).' left' }}
+                                        </span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="figma-sa-subs-empty">No tickets yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <div class="figma-sa-subs-pagination">
+                <p class="figma-sa-subs-pagination-meta">
+                    @if ($tickets->total())
+                        Showing {{ $tickets->firstItem() }}–{{ $tickets->lastItem() }} of {{ $tickets->total() }}
+                    @else
+                        Showing 0 of 0
+                    @endif
+                </p>
+                <div class="figma-sa-subs-pagination-controls">
+                    <form method="GET" class="figma-sa-subs-perpage-form">
+                        @foreach (request()->except(['per_page', 'page']) as $key => $val)
+                            <input type="hidden" name="{{ $key }}" value="{{ $val }}">
+                        @endforeach
+                        <label class="sr-only" for="tickets-per-page">Rows per page</label>
+                        <select id="tickets-per-page" name="per_page" class="figma-sa-subs-perpage-select" onchange="this.form.submit()">
+                            @foreach ([10, 25, 50] as $n)
+                                <option value="{{ $n }}" @selected(request()->integer('per_page', 10) === $n)>{{ $n }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                    @if ($tickets->hasPages())
+                        <div class="figma-sa-subs-page-btns">
+                            @if ($tickets->onFirstPage())
+                                <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--disabled" aria-hidden="true">&lt;</span>
+                            @else
+                                <a href="{{ $tickets->previousPageUrl() }}" class="figma-sa-subs-page-btn" aria-label="Previous page">&lt;</a>
+                            @endif
+                            <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--current">{{ $tickets->currentPage() }}</span>
+                            @if ($tickets->hasMorePages())
+                                <a href="{{ $tickets->nextPageUrl() }}" class="figma-sa-subs-page-btn" aria-label="Next page">&gt;</a>
+                            @else
+                                <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--disabled" aria-hidden="true">&gt;</span>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
 </x-super-admin.page>
 @endsection

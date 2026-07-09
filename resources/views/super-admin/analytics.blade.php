@@ -5,51 +5,58 @@
 @section('content')
 <x-super-admin.page title="Analytics">
     <div class="figma-sa-analytics space-y-[14px]" x-data="superAnalytics()" x-init="init()">
-        <div class="figma-sa-analytics-filterbar flex flex-wrap items-center gap-[10px]">
-            <label class="figma-sa-dash-search !min-w-[220px]">
-                <svg class="h-[18px] w-[18px] shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="search" x-model="filters.domain" placeholder="Search Domain" class="figma-sa-dash-search-input">
+        <div class="figma-sa-subs-filters">
+            <label class="figma-sa-subs-search">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="search" x-model="filters.domain" placeholder="Search Domain" autocomplete="off">
             </label>
 
             <x-super-admin.dashboard-dropdown>
                 <x-slot:trigger>
-                    <button type="button" @click="open = !open" class="figma-sa-dash-filters">
+                    <button type="button" @click="open = !open" class="figma-sa-subs-filter-chip">
                         <span x-text="filters.range"></span>
-                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        <span class="figma-sa-subs-chip-chevron">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </span>
                     </button>
                 </x-slot:trigger>
-                <button type="button" class="figma-sa-dash-dropdown-item" @click="filters.range = 'All Time'">All Time</button>
-                <button type="button" class="figma-sa-dash-dropdown-item" @click="filters.range = 'Last 7 Days'">Last 7 Days</button>
-                <button type="button" class="figma-sa-dash-dropdown-item" @click="filters.range = 'Last 30 Days'">Last 30 Days</button>
+                <button type="button" class="figma-sa-users-action-item" @click="filters.range = 'All Time'">All Time</button>
+                <button type="button" class="figma-sa-users-action-item" @click="filters.range = 'Last 7 Days'">Last 7 Days</button>
+                <button type="button" class="figma-sa-users-action-item" @click="filters.range = 'Last 30 Days'">Last 30 Days</button>
             </x-super-admin.dashboard-dropdown>
 
             <x-super-admin.dashboard-dropdown>
                 <x-slot:trigger>
-                    <button type="button" @click="open = !open" class="figma-sa-dash-filters">
+                    <button type="button" @click="open = !open" class="figma-sa-subs-filter-chip figma-sa-subs-filter-chip--wide">
                         <span x-text="filters.status"></span>
-                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        <span class="figma-sa-subs-chip-chevron">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </span>
                     </button>
                 </x-slot:trigger>
-                <button type="button" class="figma-sa-dash-dropdown-item" @click="filters.status = 'All Statuses'">All Statuses</button>
-                <button type="button" class="figma-sa-dash-dropdown-item" @click="filters.status = 'Active'">Active</button>
-                <button type="button" class="figma-sa-dash-dropdown-item" @click="filters.status = 'Cancelled'">Cancelled</button>
-                <button type="button" class="figma-sa-dash-dropdown-item" @click="filters.status = 'Paused'">Paused</button>
+                <button type="button" class="figma-sa-users-action-item" @click="filters.status = 'All Statuses'">All Statuses</button>
+                <button type="button" class="figma-sa-users-action-item" @click="filters.status = 'Active'">Active</button>
+                <button type="button" class="figma-sa-users-action-item" @click="filters.status = 'Cancelled'">Cancelled</button>
+                <button type="button" class="figma-sa-users-action-item" @click="filters.status = 'Paused'">Paused</button>
             </x-super-admin.dashboard-dropdown>
 
-            <div class="ml-auto flex items-center gap-[8px]">
+            <div class="figma-sa-subs-actions">
                 <x-super-admin.dashboard-dropdown align="right">
                     <x-slot:trigger>
-                        <button type="button" @click="open = !open" class="figma-sa-dash-select-trigger rounded-[6px] bg-[#6706b3] px-[16px] py-[8px] text-[13px] text-white">
+                        <button type="button" @click="open = !open" class="figma-sa-subs-filter-chip">
                             <span>Last 30 Days</span>
-                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            <span class="figma-sa-subs-chip-chevron">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </span>
                         </button>
                     </x-slot:trigger>
-                    <button type="button" class="figma-sa-dash-dropdown-item">Last 7 Days</button>
-                    <button type="button" class="figma-sa-dash-dropdown-item">Last 30 Days</button>
-                    <button type="button" class="figma-sa-dash-dropdown-item">This Year</button>
+                    <button type="button" class="figma-sa-users-action-item">Last 7 Days</button>
+                    <button type="button" class="figma-sa-users-action-item">Last 30 Days</button>
+                    <button type="button" class="figma-sa-users-action-item">This Year</button>
                 </x-super-admin.dashboard-dropdown>
-                <button type="button" onclick="window.print()" class="flex h-[34px] w-[34px] items-center justify-center rounded-[6px] bg-[#6706b3] text-white" aria-label="Export" title="Export">
-                    <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+                <button type="button" onclick="window.print()" class="figma-sa-subs-export-btn" title="Export">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+                    Export
                 </button>
             </div>
         </div>

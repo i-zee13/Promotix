@@ -1,9 +1,9 @@
 @php
-    $darkLogoPath = public_path('images/logo.png');
-    $lightLogoPath = public_path('images/logo-light.svg');
-    $darkLogoUrl = url('/images/logo.png') . (is_file($darkLogoPath) ? '?v=' . filemtime($darkLogoPath) : '');
+    $darkLogoPath = public_path('images/logo-dark.png');
+    $lightLogoPath = public_path('images/logo-light.png');
+    $darkLogoUrl = url('/images/logo-dark.png') . (is_file($darkLogoPath) ? '?v=' . filemtime($darkLogoPath) : '');
     $lightLogoUrl = is_file($lightLogoPath)
-        ? url('/images/logo-light.svg') . '?v=' . filemtime($lightLogoPath)
+        ? url('/images/logo-light.png') . '?v=' . filemtime($lightLogoPath)
         : $darkLogoUrl;
 @endphp
 <img

@@ -192,40 +192,58 @@ class SupportPagesController extends Controller
 
     public function security(Request $request): View
     {
-        $loginRows = \App\Models\LoginHistory::with('user')->latest('id')->limit(150)->get()->map(function ($r) {
+        $blockedIps = Schema::hasTable('ip_logs')
+            ? DB::table('ip_logs')->where('is_blocked', true)->pluck('ip')->all()
+            : [];
+
+        $loginRows = \App\Models\LoginHistory::with('user')->latest('id')->limit(150)->get()->map(function ($r) use ($blockedIps) {
             $isSuccess = $r->status === 'success';
 
             return [
+                'id' => null,
                 'type' => 'Login',
+                'icon' => $isSuccess ? 'check' : 'warning',
                 'user_name' => $r->user?->name,
                 'user_email' => $r->user?->email,
-                'details' => ($isSuccess ? 'Login Success' : 'Suspicious Login'),
+                'details' => $isSuccess ? 'Login Success' : 'Suspicious Login',
                 'ip' => $r->ip_address,
+                'country' => null,
                 'time' => $r->created_at,
                 'status' => $isSuccess ? 'Successful' : 'Suspicious',
                 'variant' => $isSuccess ? 'success' : 'suspicious',
+                'blocked' => in_array($r->ip_address, $blockedIps, true),
             ];
         });
 
         $detectionRows = Schema::hasTable('detection_logs')
-            ? DB::table('detection_logs')->orderByDesc('detected_at')->limit(150)->get()->map(function ($r) {
-                $variant = match ($r->action_taken) {
-                    'block' => 'banned',
-                    'flag', 'challenge' => 'suspicious',
-                    default => 'success',
-                };
+            ? DB::table('detection_logs')
+                ->leftJoin('visits', 'visits.id', '=', 'detection_logs.visit_id')
+                ->orderByDesc('detection_logs.detected_at')
+                ->limit(150)
+                ->select('detection_logs.*', 'visits.country as visit_country')
+                ->get()
+                ->map(function ($r) use ($blockedIps) {
+                    $variant = match ($r->action_taken) {
+                        'block' => 'banned',
+                        'flag', 'challenge' => 'suspicious',
+                        default => 'success',
+                    };
 
-                return [
-                    'type' => 'Detection',
-                    'user_name' => null,
-                    'user_email' => null,
-                    'details' => $r->threat_group ? ucwords(str_replace(['_', '-'], ' ', $r->threat_group)) : ucfirst($r->action_taken),
-                    'ip' => $r->ip,
-                    'time' => Carbon::parse($r->detected_at),
-                    'status' => match ($variant) { 'banned' => 'Banned', 'suspicious' => 'Suspicious', default => 'Successful' },
-                    'variant' => $variant,
-                ];
-            })
+                    return [
+                        'id' => $r->id,
+                        'type' => 'Detection',
+                        'icon' => match ($variant) { 'banned' => 'ban', 'suspicious' => 'warning', default => 'code' },
+                        'user_name' => null,
+                        'user_email' => null,
+                        'details' => $r->threat_group ? ucwords(str_replace(['_', '-'], ' ', $r->threat_group)) : ucfirst($r->action_taken),
+                        'ip' => $r->ip,
+                        'country' => $r->visit_country,
+                        'time' => Carbon::parse($r->detected_at),
+                        'status' => match ($variant) { 'banned' => 'Banned', 'suspicious' => 'Suspicious', default => 'Successful' },
+                        'variant' => $variant,
+                        'blocked' => in_array($r->ip, $blockedIps, true),
+                    ];
+                })
             : collect();
 
         $all = $loginRows->concat($detectionRows)->sortByDesc('time')->values();
@@ -244,6 +262,11 @@ class SupportPagesController extends Controller
             $all = $all->where('status', $result)->values();
         }
 
+        if ($date = $request->string('date')->toString()) {
+            $day = Carbon::parse($date)->startOfDay();
+            $all = $all->filter(fn ($row) => $row['time'] && $row['time']->between($day, $day->copy()->endOfDay()))->values();
+        }
+
         $perPage = 10;
         $page = (int) $request->get('page', 1);
         $slice = $all->slice(($page - 1) * $perPage, $perPage)->values();
@@ -260,6 +283,39 @@ class SupportPagesController extends Controller
         ]);
     }
 
+    public function blockIp(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate(['ip' => ['required', 'ip']]);
+
+        $log = \App\Models\IpLog::query()->firstOrCreate(
+            ['ip' => $data['ip']],
+            ['hits' => 0, 'last_seen_at' => now()]
+        );
+        $log->forceFill(['is_blocked' => true, 'intel_status' => 'manual_block'])->save();
+
+        return response()->json(['message' => "IP {$log->ip} blocked.", 'is_blocked' => true]);
+    }
+
+    public function unblockIp(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate(['ip' => ['required', 'ip']]);
+
+        $log = \App\Models\IpLog::query()->firstOrCreate(
+            ['ip' => $data['ip']],
+            ['hits' => 0, 'last_seen_at' => now()]
+        );
+        $log->forceFill(['is_blocked' => false, 'intel_status' => 'manual_unblock'])->save();
+
+        return response()->json(['message' => "IP {$log->ip} unblocked.", 'is_blocked' => false]);
+    }
+
+    public function flagDetection(int $id): \Illuminate\Http\JsonResponse
+    {
+        DB::table('detection_logs')->where('id', $id)->update(['action_taken' => 'flag']);
+
+        return response()->json(['message' => 'Event flagged as suspicious.']);
+    }
+
     public function settings(): View
     {
         $settings = AppSetting::query()->orderBy('group')->orderBy('key')->get();
@@ -268,8 +324,81 @@ class SupportPagesController extends Controller
         return view('super-admin.simple.settings', [
             'featureFlags' => FeatureFlag::orderBy('name')->get(),
             'settingsByGroup' => $grouped,
-            'plans' => \App\Models\Plan::where('is_active', true)->orderBy('price_cents')->get(['id', 'slug', 'name']),
+            'plans' => \App\Models\Plan::where('is_active', true)->orderBy('price_cents')->get(['id', 'slug', 'name', 'feature_flags', 'feature_limits']),
+            'emailTemplates' => \App\Models\EmailTemplate::orderBy('name')->get(),
         ]);
+    }
+
+    public function updatePlanToggles(Request $request, \App\Models\Plan $plan): RedirectResponse
+    {
+        $data = $request->validate([
+            'auto_block_allowed' => ['nullable', 'boolean'],
+            'export_enabled' => ['nullable', 'boolean'],
+            'export_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'advanced_filters_enabled' => ['nullable', 'boolean'],
+        ]);
+
+        $plan->update([
+            'feature_flags' => array_merge($plan->feature_flags ?? [], [
+                'auto_block_allowed' => (bool) ($data['auto_block_allowed'] ?? false),
+                'export_enabled' => (bool) ($data['export_enabled'] ?? false),
+                'advanced_filters_enabled' => (bool) ($data['advanced_filters_enabled'] ?? false),
+            ]),
+            'feature_limits' => array_merge($plan->feature_limits ?? [], [
+                'export_days' => (int) ($data['export_days'] ?? 30),
+            ]),
+        ]);
+
+        return back()->with('status', "Toggles saved for {$plan->name}.");
+    }
+
+    public function updateEmailTemplate(Request $request, \App\Models\EmailTemplate $emailTemplate): RedirectResponse
+    {
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $emailTemplate->update([
+            'subject' => $data['subject'],
+            'body' => $data['body'],
+            'is_active' => (bool) ($data['is_active'] ?? false),
+        ]);
+
+        return back()->with('status', "\"{$emailTemplate->name}\" template saved.");
+    }
+
+    public function restoreEmailTemplate(\App\Models\EmailTemplate $emailTemplate): RedirectResponse
+    {
+        $default = \App\Support\EmailTemplateDefaults::forKey($emailTemplate->key);
+
+        if (! $default) {
+            return back()->withErrors(['email' => 'No default found for this template.']);
+        }
+
+        $emailTemplate->update([
+            'subject' => $default['subject'],
+            'body' => $default['body'],
+            'is_active' => true,
+        ]);
+
+        return back()->with('status', 'Template restored to default.');
+    }
+
+    public function sendTestEmailTemplate(Request $request, \App\Models\EmailTemplate $emailTemplate): RedirectResponse
+    {
+        $to = $request->user()->email;
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw($emailTemplate->body, function ($message) use ($to, $emailTemplate): void {
+                $message->to($to)->subject($emailTemplate->subject);
+            });
+
+            return back()->with('status', "Test email sent to {$to}.");
+        } catch (\Throwable $e) {
+            return back()->withErrors(['email' => 'Could not send test email: '.$e->getMessage()]);
+        }
     }
 
     public function saveSettings(Request $request): RedirectResponse

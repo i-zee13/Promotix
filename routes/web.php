@@ -112,8 +112,15 @@ Route::middleware(['auth', 'super-admin'])
         Route::delete('/domains/{domain}', [SuperAdminSupportPagesController::class, 'destroyDomain'])->name('domains.destroy');
         Route::get('/analytics', [SuperAdminSupportPagesController::class, 'analytics'])->name('analytics.index');
         Route::get('/security', [SuperAdminSupportPagesController::class, 'security'])->name('security.index');
+        Route::post('/security/block-ip', [SuperAdminSupportPagesController::class, 'blockIp'])->name('security.block-ip');
+        Route::post('/security/unblock-ip', [SuperAdminSupportPagesController::class, 'unblockIp'])->name('security.unblock-ip');
+        Route::post('/security/{id}/flag', [SuperAdminSupportPagesController::class, 'flagDetection'])->name('security.flag');
         Route::get('/settings', [SuperAdminSupportPagesController::class, 'settings'])->name('settings.index');
         Route::post('/settings', [SuperAdminSupportPagesController::class, 'saveSettings'])->name('settings.save');
+        Route::put('/email-templates/{emailTemplate}', [SuperAdminSupportPagesController::class, 'updateEmailTemplate'])->name('email-templates.update');
+        Route::post('/email-templates/{emailTemplate}/restore', [SuperAdminSupportPagesController::class, 'restoreEmailTemplate'])->name('email-templates.restore');
+        Route::post('/email-templates/{emailTemplate}/send-test', [SuperAdminSupportPagesController::class, 'sendTestEmailTemplate'])->name('email-templates.send-test');
+        Route::post('/plans/{plan}/toggles', [SuperAdminSupportPagesController::class, 'updatePlanToggles'])->name('plans.toggles');
         Route::get('/tickets', [SuperAdminTicketsController::class, 'index'])->name('tickets.index');
         Route::get('/tickets/{ticket}', [SuperAdminTicketsController::class, 'show'])->name('tickets.show');
         Route::post('/tickets/{ticket}/assign', [SuperAdminTicketsController::class, 'assign'])->name('tickets.assign');

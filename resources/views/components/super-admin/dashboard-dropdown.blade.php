@@ -4,8 +4,28 @@
     class="figma-sa-dash-dropdown inline-block"
     x-data="{
         open: false,
+        dropdownId: null,
         align: @js($align),
         menuStyle: '',
+        toggle() {
+            const next = !this.open;
+            if (next) {
+                this.$dispatch('figma-sa-dropdown-open', { id: this.dropdownId });
+            }
+            this.open = next;
+        },
+        closeIfOutside(event) {
+            if (!this.open) {
+                return;
+            }
+            if (this.$refs.trigger?.contains(event.target)) {
+                return;
+            }
+            if (this.$refs.menu?.contains(event.target)) {
+                return;
+            }
+            this.open = false;
+        },
         positionMenu() {
             const btn = this.$refs.trigger?.querySelector('button, [type=button], summary');
             if (! btn) return;
@@ -19,16 +39,19 @@
             }
         },
     }"
+    x-init="dropdownId = 'fd-' + Math.random().toString(36).slice(2)"
     x-effect="if (open) { $nextTick(() => positionMenu()); }"
+    @figma-sa-dropdown-open.window="if ($event.detail.id !== dropdownId) open = false"
     @keydown.escape.window="open = false"
-    @click.outside="if (!$refs.trigger.contains($event.target)) open = false"
+    @click.window="closeIfOutside($event)"
 >
-    <div class="figma-sa-dash-dropdown-trigger" x-ref="trigger" @click.stop>
+    <div class="figma-sa-dash-dropdown-trigger" x-ref="trigger" @click.capture.stop="toggle()">
         {{ $trigger }}
     </div>
 
     <template x-teleport="body">
         <div
+            x-ref="menu"
             x-show="open"
             x-cloak
             :style="menuStyle"

@@ -24,14 +24,15 @@ class TicketsController extends Controller
                 });
             })
             ->latest('id')
-            ->paginate(20)
+            ->paginate(min(50, max(10, $request->integer('per_page', 10))))
             ->withQueryString();
 
         $stats = [
-            'open'    => SupportTicket::where('status', 'open')->count(),
-            'waiting' => SupportTicket::where('status', 'waiting')->count(),
-            'closed'  => SupportTicket::where('status', 'closed')->count(),
+            'total'    => SupportTicket::count(),
+            'open'     => SupportTicket::where('status', 'open')->count(),
+            'assigned' => SupportTicket::whereNotNull('assigned_to_id')->count(),
             'sla_breached' => SupportTicket::where('sla_due_at', '<', now())->whereNotIn('status', ['closed', 'resolved'])->count(),
+            'overdue'  => SupportTicket::where('sla_due_at', '<', now())->whereNotIn('status', ['closed', 'resolved'])->where('priority', 'urgent')->count(),
         ];
 
         return view('super-admin.tickets.index', [

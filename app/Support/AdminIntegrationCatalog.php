@@ -27,10 +27,13 @@ class AdminIntegrationCatalog
     {
         self::ensureForUser($userId);
 
+        $order = ['stripe' => 0, 'google-cloud' => 1, 'smtp' => 2, 'oauth' => 3];
+
         return AdminIntegrationSetting::query()
             ->where('user_id', $userId)
-            ->orderBy('display_name')
             ->get()
+            ->sortBy(fn (AdminIntegrationSetting $integration) => $order[$integration->name] ?? 99)
+            ->values()
             ->map(fn (AdminIntegrationSetting $integration) => [
                 'id' => $integration->id,
                 'name' => $integration->name,

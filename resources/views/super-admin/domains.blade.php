@@ -1,31 +1,74 @@
 @extends('layouts.super-admin')
 
 @section('title', 'Domains & Trackers')
-@section('content')
-<x-super-admin.page title="Domains & Trackers">
-    <div class="space-y-[14px]">
-        <form method="GET" class="flex flex-wrap items-center gap-[8px]">
-            <label class="figma-sa-dash-search !min-w-[220px]">
-                <svg class="h-[18px] w-[18px] shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="search" name="search" value="{{ request('search') }}" placeholder="Search domains" class="figma-sa-dash-search-input">
-            </label>
-            <select name="status" onchange="this.form.submit()" class="figma-select h-[34px] !text-[16px]">
-                <option value="">Verification Filter</option>
-                <option value="pending" @selected(request('status') === 'pending')>Pending</option>
-                <option value="connected" @selected(request('status') === 'connected')>Verified</option>
-                <option value="disabled" @selected(request('status') === 'disabled')>Disabled</option>
-            </select>
-            <select name="tracking" onchange="this.form.submit()" class="figma-select h-[34px] !text-[16px]">
-                <option value="">Tracker Statuses</option>
-                <option value="enabled" @selected(request('tracking') === 'enabled')>Tracking Enabled</option>
-                <option value="disabled" @selected(request('tracking') === 'disabled')>Tracking Disabled</option>
-            </select>
-            <button type="submit" class="figma-sa-btn figma-sa-btn-outline !px-4 !py-2 text-[13px]">Filter</button>
 
-            <a href="{{ route('super-admin.analytics.index') }}" class="ml-auto inline-flex h-[43px] items-center gap-[6px] rounded-[6px] bg-[#6706b3] px-[16px] text-[16px] font-medium text-white hover:bg-[#7a1acc]">
-                <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                View Analytics
-            </a>
+@section('content')
+@php
+    $currentStatus = request('status', '');
+    $statusTabs = [
+        '' => 'All Domains',
+        'connected' => 'Verified',
+        'pending' => 'Pending',
+        'disabled' => 'Disabled',
+    ];
+    $trackingFilterLabel = match (request('tracking')) {
+        'enabled' => 'Tracking Enabled',
+        'disabled' => 'Tracking Disabled',
+        default => 'Tracker Statuses',
+    };
+@endphp
+
+<x-super-admin.page title="Domains & Trackers">
+    <div class="figma-sa-subs">
+        <div class="figma-sa-subs-top">
+            <div class="figma-sa-subs-tabs" role="tablist" aria-label="Domain verification">
+                @foreach ($statusTabs as $value => $label)
+                    <a
+                        href="{{ route('super-admin.domains.index', array_merge(request()->except(['page', 'status']), $value !== '' ? ['status' => $value] : [])) }}"
+                        @class(['figma-sa-subs-tab', 'figma-sa-subs-tab--active' => $currentStatus === $value])
+                        role="tab"
+                        @if ($currentStatus === $value) aria-selected="true" @endif
+                    >
+                        @if ($currentStatus === $value)
+                            <span class="figma-sa-subs-tab-check" aria-hidden="true">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            </span>
+                        @endif
+                        {{ $label }}
+                    </a>
+                @endforeach
+            </div>
+
+            <div class="figma-sa-subs-actions">
+                <a href="{{ route('super-admin.analytics.index') }}" class="figma-sa-subs-export-btn">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M13 3h6m0 0v6m0-6L10 12"/></svg>
+                    View Analytics
+                </a>
+            </div>
+        </div>
+
+        <form method="GET" action="{{ route('super-admin.domains.index') }}" class="figma-sa-subs-filters" id="domains-filter-form">
+            <input type="hidden" name="status" id="filter-domains-status" value="{{ $currentStatus }}">
+            <input type="hidden" name="tracking" id="filter-domains-tracking" value="{{ request('tracking') }}">
+
+            <label class="figma-sa-subs-search">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="search" name="search" value="{{ request('search') }}" placeholder="Search domains" autocomplete="off">
+            </label>
+
+            <x-super-admin.dashboard-dropdown align="left">
+                <x-slot:trigger>
+                    <button type="button" class="figma-sa-subs-filter-chip figma-sa-subs-filter-chip--wide">
+                        <span>{{ $trackingFilterLabel }}</span>
+                        <span class="figma-sa-subs-chip-chevron">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </span>
+                    </button>
+                </x-slot:trigger>
+                <button type="button" class="figma-sa-users-action-item" onclick="document.getElementById('filter-domains-tracking').value=''; document.getElementById('domains-filter-form').submit();">Tracker Statuses</button>
+                <button type="button" class="figma-sa-users-action-item" onclick="document.getElementById('filter-domains-tracking').value='enabled'; document.getElementById('domains-filter-form').submit();">Tracking Enabled</button>
+                <button type="button" class="figma-sa-users-action-item" onclick="document.getElementById('filter-domains-tracking').value='disabled'; document.getElementById('domains-filter-form').submit();">Tracking Disabled</button>
+            </x-super-admin.dashboard-dropdown>
         </form>
 
         @foreach ($domains as $domain)
@@ -35,27 +78,27 @@
             <form id="domain-delete-{{ $domain->id }}" method="POST" action="{{ route('super-admin.domains.destroy', $domain) }}" class="hidden" onsubmit="return confirm('Delete {{ $domain->hostname }}? This cannot be undone.');">@csrf @method('DELETE')</form>
         @endforeach
 
-        <div class="figma-sa-subs-panel overflow-hidden rounded-[6px] bg-[#6400b3]">
-            <div class="overflow-x-auto">
-                <table class="figma-sa-subs-table min-w-[960px] w-full">
+        <div class="figma-sa-subs-panel">
+            <div class="figma-sa-subs-table-scroll">
+                <table class="figma-sa-subs-table">
                     <thead>
                         <tr>
-                            <th class="w-[48px]"></th>
+                            <th class="figma-sa-subs-th-check"><input type="checkbox" class="figma-sa-subs-checkbox" aria-label="Select all"></th>
                             <th>Domain</th>
                             <th>Owner</th>
                             <th>Verification</th>
                             <th>Last Seen</th>
                             <th>Tracking</th>
-                            <th class="text-right">Action</th>
+                            <th class="figma-sa-subs-th-action">Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($domains as $i => $domain)
+                        @forelse ($domains as $domain)
                             @php
                                 $verifyClass = match ($domain->status) {
                                     'connected' => 'is-active',
                                     'disabled' => 'is-cancelled',
-                                    default => 'is-paused',
+                                    default => 'is-pending',
                                 };
                                 $verifyLabel = match ($domain->status) {
                                     'connected' => 'Verified',
@@ -63,46 +106,74 @@
                                     default => 'Pending',
                                 };
                             @endphp
-                            <tr @class(['figma-sa-subs-row', 'is-alt' => $i % 2 === 1])>
-                                <td><input type="checkbox" class="figma-sa-checkbox rounded" aria-label="Select row"></td>
+                            <tr class="figma-sa-subs-row">
+                                <td class="figma-sa-subs-td-check">
+                                    <input type="checkbox" class="figma-sa-subs-checkbox" aria-label="Select {{ $domain->hostname }}">
+                                </td>
                                 <td>
-                                    <div class="flex items-center gap-[10px]">
-                                        <span class="figma-sa-subs-avatar">{{ strtoupper(substr($domain->hostname, 0, 1)) }}</span>
-                                        <p class="truncate text-[16px] font-medium text-white">{{ $domain->hostname }}</p>
+                                    <div class="figma-sa-subs-user">
+                                        <span class="figma-sa-subs-avatar" aria-hidden="true"></span>
+                                        <span class="figma-sa-subs-user-text">
+                                            <span class="figma-sa-subs-user-name">{{ $domain->hostname }}</span>
+                                        </span>
                                     </div>
                                 </td>
                                 <td>
-                                    <p class="truncate text-[16px] font-medium text-white">{{ $domain->user?->name ?? 'Deleted user' }}</p>
-                                    <p class="truncate text-[13px] font-medium text-white/80">{{ $domain->user?->email }}</p>
+                                    <span class="figma-sa-subs-plan-tier">{{ $domain->user?->name ?? 'Deleted user' }}</span>
+                                    <span class="figma-sa-subs-plan-detail">{{ $domain->user?->email }}</span>
                                 </td>
-                                <td><span class="figma-sa-subs-status {{ $verifyClass }}">{{ $verifyLabel }}</span></td>
-                                <td class="text-[14px] font-medium text-white">{{ $domain->last_seen_at?->format('M d,Y') ?? 'Never' }}</td>
-                                <td>
-                                    <span class="figma-sa-subs-status {{ $domain->tag_connected ? 'is-active' : 'is-paused' }}">{{ $domain->tag_connected ? 'Enabled' : 'Tracking Disabled' }}</span>
-                                </td>
-                                <td class="text-right">
+                                <td><span class="figma-sa-subs-status-pill {{ $verifyClass }}">{{ $verifyLabel }}</span></td>
+                                <td><span class="figma-sa-subs-date">{{ $domain->last_seen_at?->format('M d, Y') ?? 'Never' }}</span></td>
+                                <td><span class="figma-sa-subs-status-pill {{ $domain->tag_connected ? 'is-active' : 'is-paused' }}">{{ $domain->tag_connected ? 'Enabled' : 'Disabled' }}</span></td>
+                                <td class="figma-sa-subs-td-action">
                                     <x-super-admin.dashboard-dropdown align="right">
                                         <x-slot:trigger>
-                                            <button type="button" @click="open = !open" class="figma-sa-dash-row-menu" aria-label="Row actions">⋯</button>
+                                            <button type="button" class="figma-sa-subs-kebab" aria-label="Row actions">
+                                                <svg fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4z"/></svg>
+                                            </button>
                                         </x-slot:trigger>
-                                        <a href="https://{{ $domain->hostname }}" target="_blank" rel="noopener" class="figma-sa-dash-dropdown-item block text-left">View Domain</a>
-                                        <button form="domain-tracking-{{ $domain->id }}" type="submit" class="figma-sa-dash-dropdown-item block w-full text-left">{{ $domain->tag_connected ? 'Disable Tracker' : 'Enable Tracker' }}</button>
-                                        <button form="domain-verify-{{ $domain->id }}" type="submit" class="figma-sa-dash-dropdown-item block w-full text-left">Force Verify Domain</button>
-                                        <a href="{{ route('super-admin.analytics.index') }}" class="figma-sa-dash-dropdown-item block text-left">View Events</a>
-                                        <button form="domain-regen-{{ $domain->id }}" type="submit" class="figma-sa-dash-dropdown-item block w-full text-left">Regenerate Tracker Code</button>
-                                        <button form="domain-delete-{{ $domain->id }}" type="submit" class="figma-sa-dash-dropdown-item block w-full text-left text-red-300">Delete Domain</button>
+                                        <a href="https://{{ $domain->hostname }}" target="_blank" rel="noopener" class="figma-sa-users-action-item">View Domain</a>
+                                        <button form="domain-tracking-{{ $domain->id }}" type="submit" class="figma-sa-users-action-item w-full text-left">{{ $domain->tag_connected ? 'Disable Tracker' : 'Enable Tracker' }}</button>
+                                        <button form="domain-verify-{{ $domain->id }}" type="submit" class="figma-sa-users-action-item w-full text-left">Force Verify Domain</button>
+                                        <a href="{{ route('super-admin.analytics.index') }}" class="figma-sa-users-action-item">View Events</a>
+                                        <button form="domain-regen-{{ $domain->id }}" type="submit" class="figma-sa-users-action-item w-full text-left">Regenerate Tracker Code</button>
+                                        <button form="domain-delete-{{ $domain->id }}" type="submit" class="figma-sa-users-action-item figma-sa-users-action-item--danger w-full text-left">Delete Domain</button>
                                     </x-super-admin.dashboard-dropdown>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="px-4 py-12 text-center text-white/70">No domains yet.</td></tr>
+                            <tr>
+                                <td colspan="7" class="figma-sa-subs-empty">No domains yet.</td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            <div class="figma-sa-subs-pagination flex flex-wrap items-center justify-between gap-[10px] px-[24px] py-[16px]">
-                <p class="text-[16px] font-medium text-white/90">Showing {{ $domains->firstItem() ?? 0 }}-{{ $domains->lastItem() ?? 0 }} of {{ $domains->total() }}</p>
-                <div>{{ $domains->onEachSide(1)->links() }}</div>
+            <div class="figma-sa-subs-pagination">
+                <p class="figma-sa-subs-pagination-meta">
+                    @if ($domains->total())
+                        Showing {{ $domains->firstItem() }}–{{ $domains->lastItem() }} of {{ $domains->total() }}
+                    @else
+                        Showing 0 of 0
+                    @endif
+                </p>
+                <div class="figma-sa-subs-pagination-controls">
+                    @if ($domains->hasPages())
+                        <div class="figma-sa-subs-page-btns">
+                            @if ($domains->onFirstPage())
+                                <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--disabled" aria-hidden="true">&lt;</span>
+                            @else
+                                <a href="{{ $domains->previousPageUrl() }}" class="figma-sa-subs-page-btn" aria-label="Previous page">&lt;</a>
+                            @endif
+                            <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--current">{{ $domains->currentPage() }}</span>
+                            @if ($domains->hasMorePages())
+                                <a href="{{ $domains->nextPageUrl() }}" class="figma-sa-subs-page-btn" aria-label="Next page">&gt;</a>
+                            @else
+                                <span class="figma-sa-subs-page-btn figma-sa-subs-page-btn--disabled" aria-hidden="true">&gt;</span>
+                            @endif
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
     </div>

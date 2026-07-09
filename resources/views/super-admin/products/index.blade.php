@@ -39,42 +39,51 @@
         @edit-product.window="openEdit($event.detail.id)"
         @limits-product.window="openLimits($event.detail.id)"
     >
-        <form method="GET" action="{{ route('super-admin.products.index') }}" class="figma-sa-users-toolbar figma-sa-products-toolbar" id="products-filter-form">
+        <form method="GET" action="{{ route('super-admin.products.index') }}" class="figma-sa-products-toolbar" id="products-filter-form">
             <input type="hidden" name="status" id="filter-product-status" value="{{ request('status') }}">
             <input type="hidden" name="type" id="filter-product-type" value="{{ request('type') }}">
 
-            <div class="figma-sa-users-search-wrap">
-                <svg class="figma-sa-users-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="search" name="search" value="{{ request('search') }}" placeholder="Search product" class="figma-sa-users-search-input" autocomplete="off">
+            <div class="figma-sa-products-toolbar-group">
+                <label class="figma-sa-products-search-chip">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="search" name="search" value="{{ request('search') }}" placeholder="Search product" autocomplete="off">
+                </label>
+
+                <x-super-admin.dashboard-dropdown align="left">
+                    <x-slot:trigger>
+                        <button type="button" @click="open = !open" class="figma-sa-products-filter-chip">
+                            <span>{{ $statusLabel }}</span>
+                            <span class="figma-sa-products-chip-chevron">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </span>
+                        </button>
+                    </x-slot:trigger>
+                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value=''; document.getElementById('products-filter-form').submit();">All Products</button>
+                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value='active'; document.getElementById('products-filter-form').submit();">Active</button>
+                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value='inactive'; document.getElementById('products-filter-form').submit();">Deactivate</button>
+                </x-super-admin.dashboard-dropdown>
+
+                <x-super-admin.dashboard-dropdown align="left">
+                    <x-slot:trigger>
+                        <button type="button" @click="open = !open" class="figma-sa-products-filter-chip">
+                            <span>{{ $typeLabel }}</span>
+                            <span class="figma-sa-products-chip-chevron">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </span>
+                        </button>
+                    </x-slot:trigger>
+                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-type').value=''; document.getElementById('products-filter-form').submit();">All Types</button>
+                    @foreach ($productTypes as $type)
+                        <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-type').value='{{ $type }}'; document.getElementById('products-filter-form').submit();">{{ ucfirst($type) }}</button>
+                    @endforeach
+                </x-super-admin.dashboard-dropdown>
             </div>
 
-            <x-super-admin.dashboard-dropdown align="left">
-                <x-slot:trigger>
-                    <button type="button" @click="open = !open" class="figma-sa-users-filter-btn">
-                        <span>{{ $statusLabel }}</span>
-                        <svg class="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                </x-slot:trigger>
-                <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value=''; document.getElementById('products-filter-form').submit();">All Products</button>
-                <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value='active'; document.getElementById('products-filter-form').submit();">Active</button>
-                <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value='inactive'; document.getElementById('products-filter-form').submit();">Desactivate</button>
-            </x-super-admin.dashboard-dropdown>
-
-            <x-super-admin.dashboard-dropdown align="left">
-                <x-slot:trigger>
-                    <button type="button" @click="open = !open" class="figma-sa-users-filter-btn">
-                        <span>{{ $typeLabel }}</span>
-                        <svg class="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                </x-slot:trigger>
-                <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-type').value=''; document.getElementById('products-filter-form').submit();">All Types</button>
-                @foreach ($productTypes as $type)
-                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-type').value='{{ $type }}'; document.getElementById('products-filter-form').submit();">{{ ucfirst($type) }}</button>
-                @endforeach
-            </x-super-admin.dashboard-dropdown>
-
-            <button type="button" @click="createOpen = true" class="figma-sa-users-invite-btn">
-                <span class="figma-sa-users-invite-icon" aria-hidden="true">+</span>
+            <button type="button" @click="createOpen = true" class="figma-sa-products-new-bar">
+                <svg class="figma-sa-products-new-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke-width="1.75"/>
+                    <path stroke-linecap="round" stroke-width="1.75" d="M12 8v8M8 12h8"/>
+                </svg>
                 New Product
             </button>
         </form>
@@ -95,7 +104,7 @@
                 <table class="figma-sa-products-table">
                     <thead>
                         <tr>
-                            <th class="w-10"><input type="checkbox" class="figma-sa-users-checkbox" aria-label="Select all"></th>
+                            <th class="w-10"><input type="checkbox" class="figma-sa-users-checkbox figma-sa-products-checkbox" aria-label="Select all"></th>
                             <th>User</th>
                             <th>Plan Rulers</th>
                             <th>Status</th>
@@ -112,7 +121,7 @@
                                     : collect([$product->plans_count.' plan(s)']);
                             @endphp
                             <tr>
-                                <td><input type="checkbox" class="figma-sa-users-checkbox border-[#1a1a1a]" aria-label="Select {{ $product->name }}"></td>
+                                <td><input type="checkbox" class="figma-sa-users-checkbox figma-sa-products-checkbox" aria-label="Select {{ $product->name }}"></td>
                                 <td>
                                     <div class="figma-sa-products-usercell">
                                         <x-super-admin.product-icon />
@@ -131,9 +140,7 @@
                                 <td>
                                     <div class="figma-sa-products-status-cell">
                                         <span @class(['figma-sa-products-status-badge', 'figma-sa-products-status-badge--active' => $active, 'figma-sa-products-status-badge--off' => ! $active])>
-                                            @if ($active)
-                                                <span class="figma-sa-products-status-dot" aria-hidden="true"></span>
-                                            @endif
+                                            <span @class(['figma-sa-products-status-dot', 'figma-sa-products-status-dot--off' => ! $active]) aria-hidden="true"></span>
                                             {{ $active ? 'Active' : 'Deactivate' }}
                                         </span>
                                         <form method="POST" action="{{ route('super-admin.products.update', $product) }}" class="inline-flex">
@@ -146,7 +153,7 @@
                                             <x-figma-toggle
                                                 :checked="$active"
                                                 label-on="Active"
-                                                label-off="Off"
+                                                label-off="Deactivate"
                                                 onchange="const f=this.closest('form'); const h=f.querySelector('[name=is_active]'); h.value=this.checked?'1':'0'; f.submit();"
                                             />
                                         </form>
