@@ -469,7 +469,9 @@ class GoogleAdsDomainMetricsSync
 
         $baseHeaders = $this->connectionApi->apiHeaders($connection, forceRefresh: true);
         if (! $baseHeaders) {
-            $this->lastMessage = 'Could not build Google API headers (reconnect Gmail / check GOOGLE_ADS_* env).';
+            $refreshError = $this->connectionApi->lastRefreshError;
+            $this->lastMessage = $refreshError
+                ?: 'Could not build Google API headers (reconnect Gmail / check GOOGLE_ADS_* env).';
 
             return [];
         }
