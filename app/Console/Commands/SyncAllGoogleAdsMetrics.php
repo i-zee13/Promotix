@@ -6,6 +6,7 @@ use App\Console\Concerns\ResolvesGoogleAdsSyncDateRange;
 use App\Models\Domain;
 use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsIpExclusionSyncService;
+use App\Services\GoogleAdsLocationExclusionSyncService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -22,7 +23,7 @@ class SyncAllGoogleAdsMetrics extends Command
 
     protected $description = 'Sync Google Ads daily click metrics for all linked domains';
 
-    public function handle(GoogleAdsDomainMetricsSync $sync, GoogleAdsIpExclusionSyncService $exclusionSync): int
+    public function handle(GoogleAdsDomainMetricsSync $sync, GoogleAdsIpExclusionSyncService $exclusionSync, GoogleAdsLocationExclusionSyncService $locationSync): int
     {
         $range = $this->resolveSyncDateRange();
         if ($range === null) {
@@ -60,6 +61,7 @@ class SyncAllGoogleAdsMetrics extends Command
         $savedTotal = 0;
         $failed = 0;
         $exclusionsSynced = 0;
+        $locationsSynced = 0;
 
         foreach ($domains as $domain) {
             if ($purgeAll) {
@@ -95,6 +97,12 @@ class SyncAllGoogleAdsMetrics extends Command
                 $exclusionsSynced += $pendingExclusions;
                 $this->line(sprintf('  → %d pending IP exclusion(s) pushed to Google Ads campaigns.', $pendingExclusions));
             }
+
+            $pendingLocations = $locationSync->syncPendingForDomain($domain, 50);
+            if ($pendingLocations > 0) {
+                $locationsSynced += $pendingLocations;
+                $this->line(sprintf('  → %d pending location exclusion(s) pushed to Google Ads campaigns.', $pendingLocations));
+            }
         }
 
         Log::info('Google Ads sync-all finished', [
@@ -108,6 +116,9 @@ class SyncAllGoogleAdsMetrics extends Command
         $this->info("Done. {$savedTotal} metric rows saved across {$domains->count()} domain(s).");
         if ($exclusionsSynced > 0) {
             $this->info("{$exclusionsSynced} blocked IP(s) synced to Google Ads campaign exclusion lists.");
+        }
+        if ($locationsSynced > 0) {
+            $this->info("{$locationsSynced} location exclusion(s) synced to Google Ads campaigns.");
         }
 
         if ($failed > 0) {

@@ -11,6 +11,7 @@ use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
 use App\Services\GeoCatalogService;
 use App\Services\GoogleAdsIpExclusionSyncService;
+use App\Services\GoogleAdsLocationExclusionSyncService;
 use App\Services\GoogleAudienceExclusionService;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleIpBlockFormatter;
@@ -667,6 +668,8 @@ class PaidMarketingController extends Controller
             'out_of_geo_enabled' => ['nullable', 'boolean'],
             'out_of_geo_countries' => ['nullable', 'string'],
             'out_of_geo_audience' => ['nullable', 'string'],
+            'google_geo_block_enabled' => ['nullable', 'boolean'],
+            'google_geo_block_audience' => ['nullable', 'string'],
             'allow_list_enabled' => ['nullable', 'boolean'],
             'allow_list_ips' => ['nullable', 'string'],
             'block_list_enabled' => ['nullable', 'boolean'],
@@ -702,7 +705,15 @@ class PaidMarketingController extends Controller
             }
         }
 
-        DomainDetectionSetting::updateOrCreate(
+        $geoBlockAudience = null;
+        if (! empty($data['google_geo_block_audience'])) {
+            $decodedBlock = json_decode((string) $data['google_geo_block_audience'], true);
+            if (is_array($decodedBlock)) {
+                $geoBlockAudience = $decodedBlock;
+            }
+        }
+
+        $settings = DomainDetectionSetting::updateOrCreate(
             ['domain_id' => $domain->id],
             [
                 'invalid_bot_action' => $data['invalid_bot_action'],
@@ -719,6 +730,8 @@ class PaidMarketingController extends Controller
                 'out_of_geo_enabled' => (bool) ($data['out_of_geo_enabled'] ?? false),
                 'out_of_geo_countries' => $countries,
                 'out_of_geo_audience' => $audience,
+                'google_geo_block_enabled' => (bool) ($data['google_geo_block_enabled'] ?? false),
+                'google_geo_block_audience' => $geoBlockAudience,
                 'allow_list_enabled' => (bool) ($data['allow_list_enabled'] ?? false),
                 'allow_list_ips' => $data['allow_list_ips'] ?? null,
                 'block_list_enabled' => (bool) ($data['block_list_enabled'] ?? false),
@@ -737,9 +750,21 @@ class PaidMarketingController extends Controller
             ]
         );
 
+        $geoSync = app(GoogleAdsLocationExclusionSyncService::class)
+            ->syncSettingsForDomain($domain->fresh(['googleAdsAccount.connection']), $settings, true);
+
+        $status = 'Detection settings saved.';
+        if (($geoSync['queued'] ?? 0) > 0 || ($geoSync['synced'] ?? 0) > 0) {
+            $status .= sprintf(
+                ' Google Ads location exclusions: %d queued, %d synced.',
+                (int) ($geoSync['queued'] ?? 0),
+                (int) ($geoSync['synced'] ?? 0)
+            );
+        }
+
         return redirect()
             ->route('paid-marketing.detection-settings', ['domain_id' => $domain->id])
-            ->with('status', 'Detection settings saved.');
+            ->with('status', $status);
     }
 
     public function pushGoogleExclusionIp(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse

@@ -64,6 +64,7 @@
             @if ($domain && $settings)
             @php
                 $geoAudienceRules = $settings->out_of_geo_audience['rules'] ?? null;
+                $googleGeoBlockRules = $settings->google_geo_block_audience['rules'] ?? [];
                 $exclusionRules = array_merge(
                     (new \App\Services\GoogleAudienceExclusionService())->defaultRules(),
                     is_array($settings->google_exclusion_rules) ? $settings->google_exclusion_rules : []
@@ -73,6 +74,9 @@
                         ->map(fn ($c) => ['country' => $c, 'state' => null, 'city' => null])
                         ->values()
                         ->all();
+                }
+                if (! is_array($googleGeoBlockRules)) {
+                    $googleGeoBlockRules = [];
                 }
             @endphp
                 <form method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
@@ -173,6 +177,41 @@
                                     </div>
                                     <p class="figma-detection-block-ips-hint">Upload .txt / .csv (one IP per line). IPs are merged into the list below — click Save changes to apply.</p>
                                     <textarea id="block_list_ips" name="block_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="figma-detection-block-ips-textarea">{{ $settings->block_list_ips }}</textarea>
+                                </div>
+                            </div>
+
+                            <div class="figma-detection-section" x-data="geoAudiencePicker({{ json_encode(['rules' => $googleGeoBlockRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
+                                <h2 class="figma-detection-section-title">Block countries from Google Ads</h2>
+                                <div class="figma-detection-card space-y-[10px]">
+                                    <div class="flex flex-wrap items-start justify-between gap-[10px]">
+                                        <p class="figma-detection-card-text max-w-[520px]">Selected countries / regions / cities are pushed as Google Ads location exclusions so ads do not show in those geos.</p>
+                                        <x-figma-toggle
+                                            variant="on-light"
+                                            name="google_geo_block_enabled"
+                                            value="1"
+                                            :checked="$settings->google_geo_block_enabled"
+                                            label-on="On"
+                                            label-off="Off"
+                                        />
+                                    </div>
+                                    <input type="hidden" name="google_geo_block_audience" :value="jsonValue">
+                                    <div class="space-y-[8px] rounded-[8px] border border-white/15 bg-black/20 p-[10px]">
+                                        <div class="flex flex-wrap items-end gap-[8px]">
+                                            @include('paid-marketing.partials.geo-audience-comboboxes')
+                                            <button type="button" @click="addRule()" class="h-[32px] rounded-[6px] bg-white px-[12px] text-[11px] font-semibold text-[#6400B2]">Add</button>
+                                        </div>
+                                        <template x-if="rules.length">
+                                            <div class="space-y-[4px]">
+                                                <template x-for="(rule, idx) in rules" :key="idx">
+                                                    <div class="flex items-center justify-between rounded-[6px] bg-white/10 px-[8px] py-[6px] text-[11px] text-white">
+                                                        <span x-text="ruleLabel(rule)"></span>
+                                                        <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)">×</button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <p x-show="!rules.length" class="text-[10px] text-white/50">No blocked locations added yet. Add a country (optional region/city), then Save changes.</p>
+                                    </div>
                                 </div>
                             </div>
 
