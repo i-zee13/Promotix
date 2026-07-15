@@ -44,19 +44,18 @@ class TrackingController extends Controller
 
         $redirectUrl = GoogleAdsClickRedirect::buildRedirectUrl($finalUrl, $params);
 
-        // Rule: save only if a real Google click ID exists (auto-tagging).
-        if (GoogleClickAttribution::isPaidTraffic($params)) {
-            $domain = GoogleAdsClickRedirect::resolveDomainFromFinalUrl($finalUrl);
-            if (
-                $domain
-                && GoogleAdsClickRedirect::isAllowedFinalUrl($finalUrl, $domain)
-                && ($domain->status ?? 'pending') !== 'disabled'
-            ) {
-                try {
-                    $this->ingestGoogleAdsServerClick($request, $domain, $params, $finalUrl);
-                } catch (\Throwable $e) {
-                    report($e);
-                }
+        // Rule: save when Google click ID exists, or campaign_id matches a synced Ads campaign.
+        $domain = GoogleAdsClickRedirect::resolveDomainFromFinalUrl($finalUrl);
+        if (
+            $domain
+            && GoogleClickAttribution::isPaidTraffic($params, (int) $domain->id)
+            && GoogleAdsClickRedirect::isAllowedFinalUrl($finalUrl, $domain)
+            && ($domain->status ?? 'pending') !== 'disabled'
+        ) {
+            try {
+                $this->ingestGoogleAdsServerClick($request, $domain, $params, $finalUrl);
+            } catch (\Throwable $e) {
+                report($e);
             }
         }
 
@@ -269,6 +268,8 @@ class TrackingController extends Controller
             'utm_medium' => ['nullable', 'string'],
             'utm_campaign' => ['nullable', 'string'],
             'gad_campaignid' => ['nullable', 'string'],
+            'campaign_id' => ['nullable', 'string'],
+            'campaignid' => ['nullable', 'string'],
             'utm_term' => ['nullable', 'string'],
             'keyword' => ['nullable', 'string'],
             'session_id' => ['nullable', 'string', 'max:128'],
@@ -300,7 +301,7 @@ class TrackingController extends Controller
         $country = $request->headers->get('CF-IPCountry') ?: null;
         $device = $this->platformFromUa($ua);
         $isCrawler = $this->isCrawlerUa($ua);
-        $isPaidTraffic = GoogleClickAttribution::isPaidTraffic($data);
+        $isPaidTraffic = GoogleClickAttribution::isPaidTraffic($data, (int) $domain->id);
         $googleClick = GoogleClickAttribution::resolve($data);
         $visitedAt = isset($data['ts']) && is_numeric($data['ts'])
             ? UserTimezone::parseInstant($data['ts'])
