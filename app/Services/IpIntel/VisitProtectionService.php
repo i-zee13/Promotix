@@ -4,6 +4,7 @@ namespace App\Services\IpIntel;
 
 use App\Jobs\EnrichIpIntelJob;
 use App\Models\Domain;
+use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
@@ -36,6 +37,52 @@ class VisitProtectionService
         bool $isPaidTraffic = false,
         ?Carbon $visitedAt = null,
     ): array {
+        try {
+            return $this->assessInner(
+                $domain,
+                $ipLog,
+                $country,
+                $sessionId,
+                $isCrawler,
+                $isPaidTraffic,
+                $visitedAt,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+            $settings = \App\Models\DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+            $failClosed = ($settings?->fail_mode ?? 'open') === 'closed';
+
+            return [
+                'ipLog' => $ipLog,
+                'detection' => [
+                    'threat_score' => $failClosed ? 100 : 0,
+                    'threat_group' => $failClosed ? 'service_outage' : null,
+                    'action_taken' => $failClosed ? 'block' : 'allow',
+                    'reasons' => [$failClosed ? 'fail_closed' : 'fail_open'],
+                ],
+                'enforce_block' => $failClosed,
+                'prior_blocked' => false,
+            ];
+        }
+    }
+
+    /**
+     * @return array{
+     *   ipLog: IpLog,
+     *   detection: array{threat_score: int, threat_group: ?string, action_taken: string, reasons: list<string>},
+     *   enforce_block: bool,
+     *   prior_blocked: bool
+     * }
+     */
+    private function assessInner(
+        Domain $domain,
+        IpLog $ipLog,
+        ?string $country,
+        ?string $sessionId,
+        bool $isCrawler = false,
+        bool $isPaidTraffic = false,
+        ?Carbon $visitedAt = null,
+    ): array {
         if (AllowListMatcher::isAllowListed($domain, $ipLog->ip)) {
             if ($ipLog->is_blocked) {
                 $ipLog->is_blocked = false;
@@ -60,6 +107,17 @@ class VisitProtectionService
             ? $this->paidClicksTodayForIp($domain, $ipLog->ip, $visitedAt ?? UserTimezone::nowUtc())
             : 0;
 
+        $settings = \App\Models\DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        $thresholds = \App\Support\DetectionProfiles::thresholdsFor(
+            $settings?->detection_profile,
+            is_array($settings?->detection_thresholds) ? $settings->detection_thresholds : null,
+        );
+        $rapidWindow = (int) ($thresholds['rapid_window_seconds'] ?? IpFraudEvaluator::PAID_RAPID_WINDOW_SECONDS);
+
+        $paidClicksInRapidWindow = $isPaidTraffic
+            ? $this->paidClicksInWindowForIp($domain, $ipLog->ip, $at, $rapidWindow)
+            : 0;
+
         $resolvedCountry = $country ?? $ipLog->intel_country_code ?? $ipLog->intel_country_name;
         $detection = $this->evaluator->evaluate(
             $domain,
@@ -71,6 +129,7 @@ class VisitProtectionService
             $isPaidTraffic,
             $paidClicksToday,
             $ipMinuteHits,
+            $paidClicksInRapidWindow,
         );
 
         if ($detection['action_taken'] === 'block' && ! AllowListMatcher::reasonsIndicateAllowList($detection['reasons'])) {
@@ -160,11 +219,25 @@ class VisitProtectionService
         bool $captchaRequired = false,
         bool $recordSession = false,
         ?int $visitId = null,
+        ?Domain $domain = null,
     ): array {
+        $settings = $domain
+            ? DomainDetectionSetting::query()->where('domain_id', $domain->id)->first()
+            : null;
+
+        $blockResponse = (string) ($settings?->block_response ?? 'hide');
+        if (! in_array($blockResponse, ['hide', 'blank', 'redirect', 'challenge', 'forbid'], true)) {
+            $blockResponse = 'hide';
+        }
+
         $payload = [
             'ok' => true,
             'blocked' => $enforceBlock,
-            'captcha_required' => $captchaRequired,
+            'block_response' => $enforceBlock ? $blockResponse : null,
+            'block_redirect_url' => $enforceBlock && $blockResponse === 'redirect'
+                ? ($settings?->block_redirect_url ?: null)
+                : null,
+            'captcha_required' => $captchaRequired || ($enforceBlock && $blockResponse === 'challenge'),
             'action' => $detection['action_taken'],
             'threat_group' => $detection['threat_group'],
             'reasons' => $detection['reasons'],
@@ -268,6 +341,32 @@ class VisitProtectionService
 
         if (Schema::hasColumn('visits', 'is_invalid_traffic')) {
             $query->where('is_invalid_traffic', 0);
+        }
+
+        if (Schema::hasColumn('visits', 'is_duplicate_paid_click')) {
+            $query->where('is_duplicate_paid_click', 0);
+        }
+
+        return (int) $query->count();
+    }
+
+    /** Prior paid clicks from this IP inside the rapid-repeat window (before current hit). */
+    private function paidClicksInWindowForIp(Domain $domain, string $ip, Carbon $visitedAt, int $windowSeconds): int
+    {
+        if (! Schema::hasTable('visits')) {
+            return 0;
+        }
+
+        $query = DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('ip', $ip)
+            ->where('visited_at', '>=', $visitedAt->copy()->subSeconds($windowSeconds)->toDateTimeString())
+            ->where('visited_at', '<', $visitedAt->toDateTimeString());
+
+        GoogleClickAttribution::applyHasClickIdFilter($query);
+
+        if (Schema::hasColumn('visits', 'is_duplicate_paid_click')) {
+            $query->where('is_duplicate_paid_click', 0);
         }
 
         return (int) $query->count();

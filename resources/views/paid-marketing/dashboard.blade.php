@@ -108,23 +108,20 @@
                 </div>
                 <div class="mt-[6px] grid grid-cols-2 gap-[8px]">
                     <div class="text-center">
-                        <p class="text-[9px] text-white/70">Invalid Total Traffic</p>
+                        <p class="text-[9px] text-white/70">Platform invalid</p>
                         <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
                     </div>
                     <div class="text-center">
-                        <p class="text-[9px] text-white/70">Total blocked</p>
-                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.blocked_paid_visits)"></p>
+                        <p class="text-[9px] text-white/70">Blocks enforced</p>
+                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.block_enforced || 0)"></p>
                     </div>
                 </div>
                 <div class="mt-[8px] space-y-0">
-                    <div class="paid-blocking-row"><span>IP</span><span x-text="fmt(summary.unique_ips)"></span></div>
-                    <div class="paid-blocking-row"><span>IP Range</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
-                    <div class="paid-blocking-row"><span>Events</span><span x-text="fmt(summary.blocked_paid_visits)"></span></div>
-                    <div class="paid-blocking-row">
-                        <span>Audiences</span>
-                        <a href="{{ route('paid-marketing.detection-settings') }}" class="paid-campaign-link !py-[1px] !px-[8px] !text-[8px]">Set up</a>
-                    </div>
-                </div>
+                    <div class="paid-blocking-row"><span>Block attempts</span><span x-text="fmt(summary.block_attempts || summary.blocked_paid_visits)"></span></div>
+                    <div class="paid-blocking-row"><span>Flagged</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
+                    <div class="paid-blocking-row"><span>Google gap</span><span x-text="fmt(summary.invalid_reconciliation?.google_only || 0)"></span></div>
+                    <div class="paid-blocking-row"><span>Overlap</span><span x-text="fmt(summary.invalid_reconciliation?.overlap || 0)"></span></div>
+                    <div class="paid-blocking-row"><span>Platform-only</span><span x-text="fmt(summary.invalid_reconciliation?.platform_only || 0)"></span></div>
             </article>
 
             <article class="paid-dashboard-card">
@@ -237,19 +234,37 @@
                     <table class="w-full min-w-[720px] table-fixed text-left text-[11px] text-[#a9a9a9]">
                         <thead class="sticky top-0 z-[1] bg-[#6400B2]">
                             <tr>
-                                <th class="w-[20%] px-[8px] py-[7px] font-normal">Address</th>
-                                <th class="w-[14%] px-[8px] py-[7px] font-normal">Campaign</th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal">Country</th>
-                                <th class="w-[9%] px-[8px] py-[7px] font-normal">Invalid</th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal">Valid</th>
-                                <th class="w-[11%] px-[8px] py-[7px] font-normal">Bot detect</th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal">VPN</th>
-                                <th class="w-[10%] px-[8px] py-[7px] font-normal">Data center</th>
-                                <th class="w-[12%] px-[8px] py-[7px] font-normal">Last click</th>
+                                <th class="w-[20%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('ip')" @click="setIpSort('ip')"><span>Address</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[14%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('campaign')" @click="setIpSort('campaign')"><span>Campaign</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('country')" @click="setIpSort('country')"><span>Country</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[9%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('invalid')" @click="setIpSort('invalid')"><span>Invalid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('valid')" @click="setIpSort('valid')"><span>Valid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[11%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('top_threat')" @click="setIpSort('top_threat')"><span>Bot detect</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('vpn_hits')" @click="setIpSort('vpn_hits')"><span>VPN</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[10%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('data_center_hits')" @click="setIpSort('data_center_hits')"><span>Data center</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[12%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')"><span>Last click</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/15">
-                            <template x-for="row in ips" :key="row.ip">
+                            <template x-for="row in sortedIps" :key="row.ip">
                                 <tr class="cursor-pointer align-middle transition hover:bg-white/5" @click="openIpModal(row)">
                                     <td class="max-w-0 px-[8px] py-[6px]">
                                         <span class="flex items-center gap-[4px]">
@@ -267,7 +282,7 @@
                                     <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
                                 </tr>
                             </template>
-                            <tr x-show="ips.length === 0"><td colspan="9" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
+                            <tr x-show="sortedIps.length === 0"><td colspan="9" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -284,9 +299,15 @@
                         <table class="w-full text-left text-[10px] text-white/90">
                             <thead class="border-b border-white/15 bg-black/20 text-[#343434]">
                                 <tr>
-                                    <th class="px-[10px] py-[8px] font-normal">Country</th>
-                                    <th class="px-[10px] py-[8px] font-normal text-center">Invalid Visit</th>
-                                    <th class="px-[10px] py-[8px] font-normal text-right">Invalid Rate</th>
+                                    <th class="px-[10px] py-[8px] font-normal">
+                                        <button type="button" class="promotix-sortable" :class="countrySortClass('country')" @click="setCountrySort('country')"><span>Country</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                    </th>
+                                    <th class="px-[10px] py-[8px] font-normal text-center">
+                                        <button type="button" class="promotix-sortable mx-auto" :class="countrySortClass('invalid')" @click="setCountrySort('invalid')"><span>Invalid Visit</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                    </th>
+                                    <th class="px-[10px] py-[8px] font-normal text-right">
+                                        <button type="button" class="promotix-sortable ml-auto" :class="countrySortClass('invalid_rate')" @click="setCountrySort('invalid_rate')"><span>Invalid Rate</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody id="country-list" class="divide-y divide-white/10">
@@ -480,7 +501,7 @@ function paidAdvertisingFigma(config = {}) {
         reportingMode: config.reportingMode || 'profile',
         profileTimezone: config.profileTimezone || 'UTC',
         filters: { domain_id: '', campaign: '', campaign_id: '', path: '', window: 'weekly', from: '', to: '' },
-        summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, blocked_paid_visits: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0 },
+        summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [] },
         campaigns: [],
@@ -488,9 +509,41 @@ function paidAdvertisingFigma(config = {}) {
         keywords: [],
         countries: [],
         ips: [],
+        ipSortKey: 'invalid',
+        ipSortDir: 'desc',
+        countrySortKey: 'invalid',
+        countrySortDir: 'desc',
         ipModal: { open: false, row: null, clicks: [], activeIndex: 0, loading: false },
         countryModal: { open: false, country: '', rows: [], loading: false },
         get activeIpClick() { return this.ipModal.clicks[this.ipModal.activeIndex] || null; },
+        get sortedIps() {
+            const rows = (this.ips || []).map((row) => ({
+                ...row,
+                valid: row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)),
+            }));
+            return window.promotixSortable?.sortRows
+                ? window.promotixSortable.sortRows(rows, this.ipSortKey, this.ipSortDir, ['invalid', 'valid', 'vpn_hits', 'data_center_hits', 'total'])
+                : rows;
+        },
+        setIpSort(key) {
+            const next = window.promotixSortable?.toggleSort(this.ipSortKey, key, this.ipSortDir)
+                || { key, dir: this.ipSortKey === key && this.ipSortDir === 'asc' ? 'desc' : 'asc' };
+            this.ipSortKey = next.key;
+            this.ipSortDir = next.dir;
+        },
+        ipSortClass(key) {
+            return window.promotixSortable?.sortStateClass(this.ipSortKey, key, this.ipSortDir) || 'is-sortable';
+        },
+        setCountrySort(key) {
+            const next = window.promotixSortable?.toggleSort(this.countrySortKey, key, this.countrySortDir)
+                || { key, dir: this.countrySortKey === key && this.countrySortDir === 'asc' ? 'desc' : 'asc' };
+            this.countrySortKey = next.key;
+            this.countrySortDir = next.dir;
+            this.renderCountries();
+        },
+        countrySortClass(key) {
+            return window.promotixSortable?.sortStateClass(this.countrySortKey, key, this.countrySortDir) || 'is-sortable';
+        },
         heatmap: { days: [], hours: [], matrix: [] },
         trendsHoverIndex: null,
         hiddenTrendSeries: { lastWeek: false, thisWeek: false },
@@ -1300,11 +1353,21 @@ function paidAdvertisingFigma(config = {}) {
             if (this.countryGetStarted) return;
             const el = document.getElementById('country-list');
             if (!el) return;
-            const rows = (this.countries || []).slice(0, 8);
-            el.innerHTML = rows.length ? rows.map(row => {
+            const prepared = (this.countries || []).map((row) => {
                 const invalid = Number(row.invalid || 0);
                 const total = Number(row.total || 0);
-                const rate = total ? Math.round((invalid / total) * 100) : 0;
+                return {
+                    ...row,
+                    invalid,
+                    total,
+                    invalid_rate: total ? Math.round((invalid / total) * 100) : 0,
+                };
+            });
+            const rows = (window.promotixSortable?.sortRows
+                ? window.promotixSortable.sortRows(prepared, this.countrySortKey, this.countrySortDir, ['invalid', 'total', 'invalid_rate'])
+                : prepared
+            ).slice(0, 8);
+            el.innerHTML = rows.length ? rows.map(row => {
                 const label = this.countryLabel(row.country);
                 const flag = this.countryFlagUrl(row.country);
                 const flagHtml = flag
@@ -1312,8 +1375,8 @@ function paidAdvertisingFigma(config = {}) {
                     : `<span class="inline-block h-[10px] w-[14px] shrink-0 rounded-[2px] bg-white/25"></span>`;
                 return `<tr class="cursor-pointer transition hover:bg-white/5" onclick="window.__paidAdvertisingDash?.openCountryIps('${row.country}')">
                     <td class="px-[10px] py-[9px]"><span class="inline-flex items-center gap-[8px]">${flagHtml}<span>${label}</span></span></td>
-                    <td class="px-[10px] py-[9px] text-center">${this.fmt(invalid)}</td>
-                    <td class="px-[10px] py-[9px] text-right">${rate}%</td>
+                    <td class="px-[10px] py-[9px] text-center">${this.fmt(row.invalid)}</td>
+                    <td class="px-[10px] py-[9px] text-right">${row.invalid_rate}%</td>
                 </tr>`;
             }).join('') : '<tr><td colspan="3" class="px-[10px] py-[14px] text-center text-white/65">No country data for this period.</td></tr>';
         },

@@ -24,6 +24,12 @@ class PaidMarketingVisit extends Model
         'last_click_at',
         'threat_group',
         'threat_type',
+        'manual_decision',
+        'manual_decision_reason',
+        'manual_decision_by',
+        'manual_decision_at',
+        'original_threat_group',
+        'original_threat_type',
         'country',
         'platform',
         'last_path',
@@ -33,6 +39,7 @@ class PaidMarketingVisit extends Model
     {
         return [
             'last_click_at' => 'datetime',
+            'manual_decision_at' => 'datetime',
             'visits' => 'integer',
         ];
     }

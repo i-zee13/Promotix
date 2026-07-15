@@ -1,0 +1,113 @@
+===SHEET: Feature Checklist
+R1|Click Fraud Platform – Advanced Feature Development Checklist									
+R2|Use the Done checkbox column to mark completed work. Each item includes an acceptance test so developers can verify it properly.									
+R3|									
+R4|ID	Module	Feature / Task	Detailed Requirement	Acceptance Criteria	Priority	Status	Done ✓	Owner	Notes
+R5|AV-01	Advanced View	Sortable data columns	Add ascending and descending sorting controls to all important columns such as clicks, invalid clicks, blocked clicks, risk score, IP frequency, session duration, and spend.	Clicking ↑ shows highest-to-lowest; clicking ↓ shows lowest-to-highest; selected sort remains visible.	High	Not Started	☐		
+R6|AV-02	Advanced View	Filter and search controls	Add filters for date range, campaign, ad group, keyword, source, country, IP, device, browser, risk level, detection result, and block status.	Multiple filters work together and can be cleared with one action.	High	Not Started	☐		
+R7|AV-03	Advanced View	Same-IP activity timeline	Show every click and visit from the same IP in one expandable timeline.	Timeline shows timestamps, campaign, device, behavior, risk decision, and final action.	High	Not Started	☐		
+R8|AV-04	Advanced View	Session recording icon	Add a screen/video icon beside sessions where a recording is available.	Icon opens the correct recording and is hidden or disabled when no recording exists.	High	Not Started	☐		
+R9|AV-05	Advanced View	Export advanced data	Allow filtered results to export as CSV/XLSX.	Export matches visible filters and includes timestamps, IP, campaign, risk score, reason, and action.	Medium	Not Started	☐		
+R10|CT-01	Country Controls	Country mode selector	Add four clear modes: Allow Countries, Block Countries, Allow IPs, Block IPs.	Admin can select one mode and see a clear explanation of its effect.	Critical	Not Started	☐		
+R11|CT-02	Country Controls	Allow-country list	Only visitors from selected countries may access the protected website/landing page.	Allowed country opens normally; all other countries receive configured deny/redirect response.	Critical	Not Started	☐		
+R12|CT-03	Country Controls	Block-country list	Visitors from selected countries cannot access the protected website/landing page.	Blocked country is denied before page content and tracking scripts load.	Critical	Not Started	☐		
+R13|CT-04	Country Controls	Country rule scope	Apply rules by website, campaign, workspace, or global account.	A rule affects only the selected scope and never leaks into another workspace.	High	Not Started	☐		
+R14|CT-05	Country Controls	Country rule audit log	Log who created, edited, enabled, disabled, or deleted a country rule.	Audit record includes admin, timestamp, previous value, new value, and scope.	High	Not Started	☐		
+R15|IP-01	IP Controls	Allow-list single IP	Allow admin to add one trusted IPv4 or IPv6 address.	Allowed IP bypasses automated blocking but activity is still logged.	Critical	Not Started	☐		
+R16|IP-02	IP Controls	Allow-list bulk IPs	Allow bulk paste/upload of multiple IPs and CIDR ranges.	Valid entries import; invalid entries return row-level errors without losing valid rows.	High	Not Started	☐		
+R17|IP-03	IP Controls	Block-list single IP	Allow admin to block one IPv4 or IPv6 address.	Blocked IP is denied before protected page content loads.	Critical	Not Started	☐		
+R18|IP-04	IP Controls	Block-list bulk IPs	Allow bulk paste/upload of IPs and CIDR ranges.	Bulk block supports deduplication, validation, comments, expiry, and scope.	High	Not Started	☐		
+R19|IP-05	IP Controls	Temporary and permanent blocks	Support block duration: 2 minutes, 1 hour, 24 hours, 7 days, custom, or permanent.	Expired temporary blocks automatically stop applying and remain in history.	High	Not Started	☐		
+R20|IP-06	IP Controls	Rule precedence	Define precedence: explicit allow > explicit block > country rule > automated detection.	Conflicting rules always produce the documented outcome and show the reason.	Critical	Not Started	☐		
+R21|DE-01	Detection Engine	First click valid rule	Treat a first ad click from a new IP as valid unless high-risk signals already exist.	A clean first click is marked valid; strong bot/VPN/datacenter evidence can override it.	High	Not Started	☐		
+R22|DE-02	Detection Engine	Repeat click within 2 minutes	Mark a second paid-ad click from the same IP within 2 minutes as invalid or suspicious.	Rule uses paid-click timestamp and campaign context; reason appears in the event record.	Critical	Not Started	☐		
+R23|DE-03	Detection Engine	Third click automatic block	Block the same IP after 3 paid-ad clicks within the configured time window.	Third qualifying click triggers block, audit log, and visible reason code.	Critical	Not Started	☐		
+R24|DE-04	Detection Engine	Configurable thresholds	Let admins change click count, time window, risk score, and action thresholds.	Changes are validated, versioned, and applied only to selected scope.	High	Not Started	☐		
+R25|DE-05	Detection Engine	Advanced detection mode	Add Standard, Advanced, and Extreme detection profiles.	Each profile shows its thresholds, false-positive risk, and recommended use.	Critical	Not Started	☐		
+R26|DE-06	Detection Engine	Extreme detection profile	Combine repeat clicks, device fingerprint, IP reputation, VPN/proxy, datacenter ASN, automation signals, and behavior anomalies.	Extreme mode generates a risk score and reason list rather than blocking from one weak signal alone.	Critical	Not Started	☐		
+R27|DE-07	Detection Engine	Google invalid-click reconciliation	Import or reconcile Google invalid-click data separately from platform-detected invalid clicks.	Dashboard clearly labels Google-detected, platform-detected, and overlapping invalid clicks.	High	Not Started	☐		
+R28|DE-08	Detection Engine	Marketing-optimized mode	Add a profile that protects campaigns while reducing false positives for legitimate repeat visitors.	Profile does not block solely because a user revisits; it requires combined risk evidence.	High	Not Started	☐		
+R29|DE-09	Detection Engine	Risk reason codes	Store exact reason codes such as RAPID_REPEAT, NO_MOVEMENT, BOT_PATTERN, VPN_PROXY, DATACENTER_ASN, DEVICE_MISMATCH.	Every invalid or blocked event displays at least one human-readable reason.	High	Not Started	☐		
+R30|DE-10	Detection Engine	Manual override	Allow an admin to mark a detected event valid, invalid, allowed, or blocked.	Override requires reason, actor, timestamp, and preserves original automated decision.	High	Not Started	☐		
+R31|SR-01	Session Recording	Recording toggle	Add an admin toggle to enable or disable session recording per workspace/site.	Toggle state persists and recording starts only where enabled.	Critical	Not Started	☐		
+R32|SR-02	Session Recording	Privacy-safe capture	Capture mouse movement, scroll, clicks, page transitions, and viewport without collecting passwords or sensitive form values.	Sensitive inputs are masked and recordings follow configured retention/privacy rules.	Critical	Not Started	☐		
+R33|SR-03	Session Recording	No-interaction detection	Detect sessions with no mouse movement, scroll, click, or meaningful keyboard activity.	Session receives NO_INTERACTION signal after configurable minimum duration.	High	Not Started	☐		
+R34|SR-04	Session Recording	Repeated behavior fingerprint	Compare repeat sessions from the same IP/device for identical low-human behavior patterns.	Similar suspicious patterns increase risk score and show similarity evidence.	High	Not Started	☐		
+R35|SR-05	Session Recording	Recording player	Provide play, pause, speed, timeline seek, event markers, viewport size, and session metadata.	Admin can review the full session and jump to suspicious events.	High	Not Started	☐		
+R36|SR-06	Session Recording	Retention and deletion	Set recording retention period and allow authorized deletion.	Expired recordings are deleted automatically; metadata remains according to policy.	High	Not Started	☐		
+R37|TR-01	Tracking & Attribution	Reliable IP capture	Capture client IP using trusted proxy/CDN headers with spoofing protection.	Stored IP matches server-observed client; untrusted forwarded headers are ignored.	Critical	Not Started	☐		
+R38|TR-02	Tracking & Attribution	Exact paid-click deduplication	Use gclid/gbraid/wbraid and platform click IDs to prevent duplicate counting.	One unique paid-click identifier counts once; repeat requests are logged as duplicates.	Critical	Not Started	☐		
+R39|TR-03	Tracking & Attribution	Click/session linkage	Link ad click, landing-page visit, fingerprint, IP, and session recording into one event chain.	Admin can move from click record to session and back without losing attribution.	Critical	Not Started	☐		
+R40|TR-04	Tracking & Attribution	Blocked click accounting	Show attempted blocked visits separately from billable/recorded ad clicks.	Dashboard never claims the platform prevented Google billing unless verified by ad-platform data.	Critical	Not Started	☐		
+R41|TR-05	Tracking & Attribution	Server-side event capture	Add server-side tracking fallback when browser scripts are blocked.	Fallback captures essential click metadata and marks reduced-confidence fields.	High	Not Started	☐		
+R42|TR-06	Tracking & Attribution	Clock and timezone consistency	Store event time in UTC and display in selected account timezone.	Rapid-click rules use server timestamps and remain accurate across timezones.	High	Not Started	☐		
+R43|BL-01	Blocking Delivery	Pre-page blocking	Evaluate deny rules at edge/server level before serving the landing page.	Blocked visitor receives no protected HTML, marketing scripts, or page assets.	Critical	Not Started	☐		
+R44|BL-02	Blocking Delivery	Configurable block response	Support 403, blank page, safe redirect, challenge page, or custom deny page.	Selected response works without redirect loops and is logged.	High	Not Started	☐		
+R45|BL-03	Blocking Delivery	Ad-platform limitation notice	Display an admin notice that website blocking cannot guarantee Google will not count the original ad click.	Notice is visible in settings and reports; wording avoids false claims.	Critical	Not Started	☐		
+R46|BL-04	Blocking Delivery	Google Ads IP exclusion sync	Push eligible blocked IPs to Google Ads exclusion lists where API and policy allow.	Sync status, errors, limits, and last successful update are visible.	High	Not Started	☐		
+R47|BL-05	Blocking Delivery	Fail-safe behavior	Define behavior when detection/blocking service is unavailable: fail-open or fail-closed per site.	Outage behavior follows configuration and creates an alert/audit event.	Critical	Not Started	☐		
+R48|UI-01	Admin UI	Detection panel toggles	Add visible enable/disable toggles for country controls, IP controls, session recording, repeat-click detection, and blocking.	Each toggle has state, scope, confirmation, and last-updated information.	High	Not Started	☐		
+R49|UI-02	Admin UI	Four control cards	Show Allow Countries, Block Countries, Allow IPs, and Block IPs as separate cards/tabs.	Each card shows item count, enabled state, add/import action, and recent changes.	High	Not Started	☐		
+R50|UI-03	Admin UI	Risk badges and labels	Use consistent labels: Valid, Suspicious, Invalid, Blocked, Allowed Override, Google Invalid.	Color and text are consistent across dashboard, reports, and exports.	Medium	Not Started	☐		
+R51|UI-04	Admin UI	Rule explanation panel	Explain why a click was classified and which rule fired.	Admin sees inputs, threshold, decision, action, and override options.	High	Not Started	☐		
+R52|UI-05	Admin UI	Bulk actions	Allow selecting many records to allow, block, mark valid/invalid, export, or add notes.	Bulk action confirms scope and reports success/failure per item.	High	Not Started	☐		
+R53|SE-01	Security & Compliance	Workspace isolation	All rules, IPs, recordings, clicks, and exports must be isolated by user/workspace.	Automated tests prove one workspace cannot read or modify another workspace’s data.	Critical	Not Started	☐		
+R54|SE-02	Security & Compliance	Role-based permissions	Restrict view recordings, edit detection, block IPs, export data, and delete records by role.	Unauthorized actions return access denied and are logged.	Critical	Not Started	☐		
+R55|SE-03	Security & Compliance	Audit logs	Log configuration changes, manual decisions, imports, exports, and blocking actions.	Logs are immutable to normal admins and searchable by actor/date/action.	High	Not Started	☐		
+R56|SE-04	Security & Compliance	Consent and privacy controls	Support consent requirements, masking, retention, deletion, and regional privacy configuration.	Session recording can be disabled or masked based on jurisdiction and policy.	Critical	Not Started	☐		
+R57|SE-05	Security & Compliance	Rate limiting and abuse protection	Protect tracking and admin APIs against spam, replay, and brute force.	Rate limits and replay checks do not incorrectly count duplicate paid clicks.	High	Not Started	☐		
+R58|QA-01	QA & Testing	Rapid-repeat scenario test	Test 1st click valid, 2nd within 2 minutes invalid, 3rd within window blocked.	Expected decision and reason code occur at every step.	Critical	Not Started	☐		
+R59|QA-02	QA & Testing	Allow/block precedence test	Test conflicting country, IP allow, IP block, and automated rules.	Final outcome follows documented precedence every time.	Critical	Not Started	☐		
+R60|QA-03	QA & Testing	IP accuracy test	Test direct traffic, Cloudflare/CDN, reverse proxy, IPv4, IPv6, and spoofed headers.	Correct client IP is stored and spoofed data is rejected.	Critical	Not Started	☐		
+R61|QA-04	QA & Testing	Session behavior test	Test normal movement, no movement, scripted movement, repeat pattern, and short bounce.	Signals and risk scores match expected outcomes without excessive false positives.	High	Not Started	☐		
+R62|QA-05	QA & Testing	Google reconciliation test	Test imported Google invalid data against platform detections.	Overlap is deduplicated and categories remain separately reportable.	High	Not Started	☐		
+R63|QA-06	QA & Testing	Performance test	Measure tracking latency and edge-block decision time under expected peak load.	Tracking does not materially slow the landing page; limits are documented.	High	Not Started	☐		
+===SHEET: Dashboard
+R1|Development Progress Dashboard							
+R2|							
+R3|KPI	Value		Priority	Count	Completed		
+R4|Total Tasks	=COUNTA('Feature Checklist'!A5:A63)		Critical	=COUNTIF('Feature Checklist'!F5:F63,D4)	=COUNTIFS('Feature Checklist'!F5:F63,D4,'Feature Checklist'!H5:H63,"☑")		
+R5|Completed	=COUNTIF('Feature Checklist'!H5:H63,"☑")		High	=COUNTIF('Feature Checklist'!F5:F63,D5)	=COUNTIFS('Feature Checklist'!F5:F63,D5,'Feature Checklist'!H5:H63,"☑")		
+R6|In Progress	=COUNTIF('Feature Checklist'!G5:G63,"In Progress")		Medium	=COUNTIF('Feature Checklist'!F5:F63,D6)	=COUNTIFS('Feature Checklist'!F5:F63,D6,'Feature Checklist'!H5:H63,"☑")		
+R7|Blocked	=COUNTIF('Feature Checklist'!G5:G63,"Blocked")		Low	=COUNTIF('Feature Checklist'!F5:F63,D7)	=COUNTIFS('Feature Checklist'!F5:F63,D7,'Feature Checklist'!H5:H63,"☑")		
+R8|Completion %	=IFERROR(B5/B4,0)						
+R9|							
+R10|Important Product Reality							
+R11|Blocking a visitor from loading the website can stop future website access, but it cannot guarantee that Google Ads will not count the original ad click. The platform should report attempted/blocked visits separately and reconcile with Google Ads invalid-click data instead of claiming guaranteed billing prevention.							
+R12|							
+R13|							
+R14|							
+===SHEET: Detection Rules
+R1|Recommended Detection Rule Matrix							
+R2|							
+R3|Rule	Trigger	Initial Classification	Risk Points	Action	Escalation	Admin Configurable	Notes
+R4|New clean visitor	First paid click, no strong risk indicators	Valid	0	Allow and record	Re-score when new signals arrive	Yes	Do not punish a normal first click.
+R5|Rapid repeat	Second paid click from same IP within 2 minutes	Invalid / Suspicious	35	Record as invalid; optionally challenge	Block if threshold reached	Yes	Use campaign and click-ID context.
+R6|Repeated paid clicks	Third paid click from same IP within configured window	Blocked	70	Block IP temporarily or permanently	Sync to exclusion list when eligible	Yes	Default should be configurable.
+R7|No interaction	No mouse, scroll, click, or meaningful activity after minimum session time	Suspicious	20	Record signal, do not block alone	Combine with repeat or bot signals	Yes	Avoid false positives from quick readers.
+R8|Repeated identical behavior	Same IP/device repeats nearly identical low-human session pattern	Invalid	30	Increase risk score	Block when combined score passes threshold	Yes	Use similarity evidence.
+R9|VPN / proxy	Known anonymizer or proxy reputation	Suspicious	15	Record signal	Combine with other signals	Yes	VPN alone should not always block.
+R10|Datacenter ASN	Traffic originates from hosting/datacenter network	Suspicious	25	Challenge or increase score	Block in Extreme mode if other evidence exists	Yes	Handle legitimate corporate networks carefully.
+R11|Automation signals	Headless browser, impossible timing, scripted events, webdriver indicators	Invalid	50	Block or challenge	Permanent block for repeated automation	Yes	Store exact reason codes.
+R12|Explicit allow list	IP exists in allow list	Allowed Override	-100	Allow	Continue logging	Yes	Highest precedence by default.
+R13|Explicit block list	IP exists in block list	Blocked	100	Deny before page load	Remain blocked until expiry/removal	Yes	Second precedence after explicit allow.
+R14|Google invalid match	Google reports click as invalid	Google Invalid	0	Label and reconcile	Deduplicate overlap	No	Keep separate from internal detection.
+===SHEET: QA Test Cases
+R1|Implementation & Acceptance Test Checklist								
+R2|								
+R3|Test ID	Area	Test Scenario	Expected Result	Actual Result	Pass/Fail	Done ✓	Tester	Evidence / Link
+R4|T-001	Sorting	Sort click count ascending and descending	Rows reorder correctly; sort icon and state are visible.		Not Tested	☐		
+R5|T-002	Country Allow	Allow only Pakistan and test from allowed and non-allowed locations	Allowed location loads; non-allowed location is denied before page load.		Not Tested	☐		
+R6|T-003	Country Block	Block selected country	Selected country is denied; other countries load normally.		Not Tested	☐		
+R7|T-004	IP Allow	Add one IP and a CIDR range to allow list	Allowed entries bypass automated block but remain logged.		Not Tested	☐		
+R8|T-005	IP Block	Add one IP and bulk list to block list	Blocked entries cannot load protected page.		Not Tested	☐		
+R9|T-006	Rapid Click	Same IP clicks ad twice within 2 minutes	First is valid; second is invalid/suspicious with reason.		Not Tested	☐		
+R10|T-007	Third Click	Same IP clicks ad three times in configured window	Third click triggers configured block and audit event.		Not Tested	☐		
+R11|T-008	No Movement	Session has no movement or interaction	NO_INTERACTION signal is recorded after minimum duration.		Not Tested	☐		
+R12|T-009	Repeat Behavior	Same IP repeats nearly identical no-interaction behavior	Risk increases and evidence is shown.		Not Tested	☐		
+R13|T-010	Recording	Open video icon for a recorded session	Correct session opens with timeline and event markers.		Not Tested	☐		
+R14|T-011	Click Deduplication	Send tracking endpoint repeatedly with same gclid	Paid click counts once; duplicate requests are logged separately.		Not Tested	☐		
+R15|T-012	IP Accuracy	Test behind CDN/proxy with spoofed forwarded headers	Real trusted client IP is stored; spoofed header is ignored.		Not Tested	☐		
+R16|T-013	Google Reconciliation	Import Google invalid-click record matching internal event	Event is labeled overlap without double counting.		Not Tested	☐		
+R17|T-014	Workspace Isolation	User from workspace A requests workspace B records	Access is denied and security event is logged.		Not Tested	☐		
+R18|T-015	Service Outage	Disable detection service under fail-open and fail-closed modes	Configured fallback behavior occurs and alert is created.		Not Tested	☐		

@@ -18,6 +18,10 @@ Schedule::command('google-ads:sync-all --days=7')
     ->hourly()
     ->appendOutputTo(storage_path('logs/cron.log'));
 
+Schedule::command('session-recordings:purge')
+    ->dailyAt('03:15')
+    ->appendOutputTo(storage_path('logs/cron.log'));
+
 $queueConnection = config('queue.default', 'database');
 $queueMaxTime = (int) config('queue.worker_max_time', 55);
 $queueWorkers = (int) config('queue.scheduled_workers', 3);

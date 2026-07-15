@@ -3,20 +3,26 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\DetectionSettingsAudit;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
 use App\Models\PaidMarketingVisit;
+use App\Services\DetectionSettingsAuditLogger;
 use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
 use App\Services\GeoCatalogService;
 use App\Services\GoogleAdsIpExclusionSyncService;
 use App\Services\GoogleAdsLocationExclusionSyncService;
 use App\Services\GoogleAudienceExclusionService;
+use App\Support\DetectionProfiles;
+use App\Support\DetectionReasonLabels;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleIpBlockFormatter;
 use App\Support\GoogleVerifiedCampaignLookup;
 use App\Support\GoogleVerifiedPaidTraffic;
+use App\Support\IpListParser;
+use App\Support\RiskLabels;
 use App\Support\SessionRecordingNormalizer;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
@@ -99,14 +105,29 @@ class PaidMarketingController extends Controller
             $reportingTz,
         ));
 
+        $sortKey = trim((string) $request->query('sort', ''));
+        $sortDir = strtolower((string) $request->query('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+        if ($sortKey !== '') {
+            $rows = collect(\App\Support\SortableRows::sort(
+                $rows,
+                $sortKey,
+                $sortDir,
+                [
+                    'visits', 'invalid_clicks', 'valid_clicks', 'vpn_hits', 'data_center_hits',
+                    'intel_risk_score', 'intel_confidence', 'intel_latitude', 'intel_longitude', 'ip_count',
+                ],
+            ));
+        }
+
         $selectedDomain = $request->filled('domain_id') && $domains->count() === 1
             ? $domains->first()
             : null;
 
         return response()->json([
-            'rows' => $rows->values(),
-            'stats' => $this->computeDetailedStatsFromArrays($rows),
-            'total' => $rows->count(),
+            'rows' => collect($rows)->values(),
+            'stats' => $this->computeDetailedStatsFromArrays(collect($rows)),
+            'total' => collect($rows)->count(),
+            'sort' => ['key' => $sortKey !== '' ? $sortKey : 'last_click_at', 'dir' => $sortKey !== '' ? $sortDir : 'desc'],
             'timezone_context' => UserTimezone::dashboardContext(
                 $request->user(),
                 $googleTz ?? null,
@@ -115,6 +136,234 @@ class PaidMarketingController extends Controller
                 $selectedDomain,
             ),
         ]);
+    }
+
+    public function detailedIpTimeline(Request $request): JsonResponse
+    {
+        $ip = trim((string) $request->query('ip', ''));
+        abort_unless($ip !== '', 422, 'IP is required.');
+
+        [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
+        $user = $request->user();
+
+        $visits = PaidMarketingVisit::query()
+            ->with(['domain', 'clicks' => function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user): void {
+                $clickQuery->orderBy('clicked_at');
+                UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
+            }])
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id)->forPaidMarketing())
+            ->where(function ($q) use ($ip): void {
+                $this->applyIpFilter($q, 'ip', $ip);
+            })
+            ->when((int) $request->query('domain_id', 0) > 0, fn ($q) => $q->where('domain_id', (int) $request->query('domain_id')))
+            ->orderByDesc('last_click_at')
+            ->limit(100)
+            ->get();
+
+        $ipLog = IpLog::query()->where('ip', $ip)->first()
+            ?? IpLog::query()->where('ip', 'like', explode(',', $ip)[0] . '%')->first();
+
+        $events = [];
+        foreach ($visits as $visit) {
+            $visitIntel = $this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain);
+            $visitAt = UserTimezone::parseUtcInstant($visit->getRawOriginal('last_click_at') ?? $visit->last_click_at);
+
+            $events[] = [
+                'type' => 'visit',
+                'id' => 'visit-' . $visit->id,
+                'visit_id' => $visit->id,
+                'at' => UserTimezone::isoForUser($visitAt, $user),
+                'ip' => $visit->ip,
+                'domain' => $visit->domain?->hostname,
+                'campaign' => $visit->campaign_name ?: $visit->campaign,
+                'device' => $visit->platform ?: null,
+                'behavior' => $visit->last_path,
+                'risk_decision' => $visitIntel['status'] ?? 'Valid',
+                'action' => $this->timelineActionLabel($visit, $ipLog, $visitIntel),
+                'threat_group' => $visit->threat_group,
+                'threat_type' => $visit->threat_type,
+                'country' => $visit->country,
+            ];
+
+            foreach ($visit->clicks as $click) {
+                $clickedAt = UserTimezone::parseUtcInstant($click->getRawOriginal('clicked_at') ?? $click->clicked_at);
+                $threat = strtolower((string) ($click->threat_group ?: $visit->threat_group));
+                $risk = filled($threat) ? 'Invalid' : ($visitIntel['status'] ?? 'Valid');
+                if (($visitIntel['is_allowlisted'] ?? false) === true) {
+                    $risk = 'Allowed Override';
+                } elseif ($ipLog?->is_blocked) {
+                    $risk = 'Blocked';
+                }
+
+                $events[] = [
+                    'type' => 'click',
+                    'id' => 'click-' . $click->id,
+                    'visit_id' => $visit->id,
+                    'click_id' => $click->id,
+                    'at' => UserTimezone::isoForUser($clickedAt, $user),
+                    'ip' => $click->ip ?: $visit->ip,
+                    'domain' => $visit->domain?->hostname,
+                    'campaign' => $click->campaign_name ?: $click->campaign ?: ($visit->campaign_name ?: $visit->campaign),
+                    'device' => trim(implode(' / ', array_filter([$click->os, $click->browser_name]))),
+                    'behavior' => $click->path ?: $click->keyword,
+                    'risk_decision' => $risk,
+                    'action' => $this->timelineActionLabel($visit, $ipLog, $visitIntel, $click->threat_group),
+                    'threat_group' => $click->threat_group ?: $visit->threat_group,
+                    'threat_type' => $visit->threat_type,
+                    'country' => $click->country ?: $visit->country,
+                    'browser' => $click->browser_name,
+                    'os' => $click->os,
+                    'keyword' => $click->keyword,
+                    'paid_id' => $click->paid_id,
+                    'path' => $click->path,
+                ];
+            }
+        }
+
+        usort($events, function ($a, $b) {
+            return strcmp((string) ($b['at'] ?? ''), (string) ($a['at'] ?? ''));
+        });
+
+        return response()->json([
+            'ip' => $ip,
+            'events' => array_values($events),
+            'total' => count($events),
+        ]);
+    }
+
+    public function overrideVisitDecision(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'visit_id' => ['required', 'integer'],
+            'decision' => ['required', 'in:valid,invalid,allowed,blocked'],
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
+        ]);
+
+        $visit = PaidMarketingVisit::query()
+            ->with('domain')
+            ->whereKey($data['visit_id'])
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id)->forPaidMarketing())
+            ->firstOrFail();
+
+        $this->applyManualDecision($visit, $data['decision'], $data['reason'], (int) $request->user()->id);
+
+        if (in_array($data['decision'], ['blocked', 'allowed'], true) && $visit->ip) {
+            $ipLog = IpLog::query()->firstOrCreate(['ip' => explode(',', (string) $visit->ip)[0]]);
+            $ipLog->is_blocked = $data['decision'] === 'blocked';
+            $ipLog->save();
+        }
+
+        return response()->json([
+            'ok' => true,
+            'visit' => $this->formatDetailedVisit($visit->fresh(['domain', 'clicks']), $request->user()),
+        ]);
+    }
+
+    public function bulkVisitActions(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'visit_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'visit_ids.*' => ['integer'],
+            'action' => ['required', 'in:valid,invalid,allowed,blocked,export_ids'],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($data['action'] === 'export_ids') {
+            return response()->json(['ok' => true, 'visit_ids' => $data['visit_ids']]);
+        }
+
+        $reason = trim((string) ($data['reason'] ?? ''));
+        if ($reason === '') {
+            $reason = 'Bulk ' . $data['action'];
+        }
+
+        $visits = PaidMarketingVisit::query()
+            ->with('domain')
+            ->whereIn('id', $data['visit_ids'])
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id)->forPaidMarketing())
+            ->get();
+
+        $results = [];
+        foreach ($visits as $visit) {
+            try {
+                $this->applyManualDecision($visit, $data['action'], $reason, (int) $request->user()->id);
+                if (in_array($data['action'], ['blocked', 'allowed'], true) && $visit->ip) {
+                    $ipLog = IpLog::query()->firstOrCreate(['ip' => trim(explode(',', (string) $visit->ip)[0])]);
+                    $ipLog->is_blocked = $data['action'] === 'blocked';
+                    $ipLog->save();
+                }
+                $results[] = ['id' => $visit->id, 'ok' => true];
+            } catch (\Throwable $e) {
+                $results[] = ['id' => $visit->id, 'ok' => false, 'error' => $e->getMessage()];
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'results' => $results,
+            'updated' => count(array_filter($results, fn ($r) => $r['ok'])),
+            'failed' => count(array_filter($results, fn ($r) => ! $r['ok'])),
+        ]);
+    }
+
+    private function applyManualDecision(PaidMarketingVisit $visit, string $decision, string $reason, int $userId): void
+    {
+        if ($visit->original_threat_group === null && $visit->manual_decision === null) {
+            $visit->original_threat_group = $visit->threat_group;
+            $visit->original_threat_type = $visit->threat_type;
+        }
+
+        $visit->manual_decision = $decision;
+        $visit->manual_decision_reason = $reason;
+        $visit->manual_decision_by = $userId;
+        $visit->manual_decision_at = now('UTC');
+
+        match ($decision) {
+            'valid' => (function () use ($visit): void {
+                $visit->threat_group = null;
+                $visit->threat_type = null;
+            })(),
+            'allowed' => (function () use ($visit): void {
+                $visit->threat_group = null;
+                $visit->threat_type = 'allowed_override';
+            })(),
+            'invalid' => (function () use ($visit): void {
+                $visit->threat_group = $visit->threat_group ?: 'manual_invalid';
+                $visit->threat_type = 'invalid';
+            })(),
+            'blocked' => (function () use ($visit): void {
+                $visit->threat_group = 'blocked';
+                $visit->threat_type = 'block';
+            })(),
+            default => null,
+        };
+
+        $visit->save();
+    }
+
+    /**
+     * @param  array<string, mixed>  $intel
+     */
+    private function timelineActionLabel(
+        PaidMarketingVisit $visit,
+        ?IpLog $ipLog,
+        array $intel,
+        ?string $clickThreat = null,
+    ): string {
+        if ($visit->manual_decision) {
+            return 'Manual: ' . $visit->manual_decision;
+        }
+        if (($intel['is_allowlisted'] ?? false) === true) {
+            return 'Allow (allow-list)';
+        }
+        if ($ipLog?->is_blocked || ($intel['status'] ?? '') === 'Blocked') {
+            return 'Block';
+        }
+        $threat = strtolower((string) ($clickThreat ?: $visit->threat_group));
+        if ($threat !== '') {
+            return 'Flag / invalid';
+        }
+        return 'Allow';
     }
 
     public function exportDetailedCsv(Request $request): StreamedResponse
@@ -189,6 +438,94 @@ class PaidMarketingController extends Controller
         ]);
     }
 
+    public function exportDetailedXlsx(Request $request): StreamedResponse
+    {
+        $filename = 'paid-marketing-advanced-' . now()->format('YmdHis') . '.xlsx';
+
+        return response()->streamDownload(function () use ($request): void {
+            [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
+
+            $domains = Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->forPaidMarketing()
+                ->when($request->query('domain_id'), fn ($q, $id) => $q->where('id', (int) $id))
+                ->with('googleAdsAccount')
+                ->get();
+
+            $verificationLookup = app(GoogleVerifiedPaidTraffic::class)->buildLookup(
+                $domains->pluck('id'),
+                $metricFrom,
+                $metricTo,
+                $request->user(),
+                $reportingTz,
+                $domains,
+            );
+
+            $rows = $this->detailedVisitQuery($request)
+                ->orderByDesc('last_click_at')
+                ->limit(50000)
+                ->get()
+                ->map(function (PaidMarketingVisit $visit) use ($request, $verificationLookup, $reportingTz) {
+                    $visit->loadMissing(['domain', 'clicks']);
+                    $ipLog = IpLog::query()->where('ip', $visit->ip)->first();
+
+                    return $this->formatDetailedVisit($visit, $request->user(), $ipLog, null, $verificationLookup, $reportingTz);
+                })
+                ->values();
+
+            $sortKey = trim((string) $request->query('sort', ''));
+            $sortDir = strtolower((string) $request->query('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+            if ($sortKey !== '') {
+                $rows = collect(\App\Support\SortableRows::sort($rows, $sortKey, $sortDir, [
+                    'visits', 'invalid_clicks', 'valid_clicks',
+                ]));
+            }
+
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Advanced View');
+            $headers = [
+                'IP Address', 'Visits', 'Domain', 'Campaign', 'Last Click', 'Threat Group', 'Threat Type',
+                'Country', 'Invalid Clicks', 'Valid Clicks', 'Google Verified', 'Status', 'Risk Score',
+                'Risk Level', 'Action', 'Last Path', 'Timestamp',
+            ];
+            foreach ($headers as $i => $header) {
+                $sheet->setCellValue([$i + 1, 1], $header);
+            }
+
+            $r = 2;
+            foreach ($rows as $row) {
+                $sheet->fromArray([[
+                    $row['ip'] ?? '',
+                    $row['visits'] ?? 0,
+                    $row['domain'] ?? '',
+                    $row['campaign'] ?? '',
+                    $row['last_click_label'] ?? '',
+                    $row['threat_group'] ?? '',
+                    $row['threat_type'] ?? '',
+                    $row['country'] ?? '',
+                    $row['invalid_clicks'] ?? 0,
+                    $row['valid_clicks'] ?? 0,
+                    $row['google_verified_label'] ?? '',
+                    $row['status'] ?? '',
+                    $row['intel_risk_score'] ?? '',
+                    $row['intel_risk_level'] ?? '',
+                    $row['status'] === 'Blocked' ? 'Block' : (($row['status'] === 'Invalid') ? 'Flag' : 'Allow'),
+                    $row['last_path'] ?? '',
+                    $row['last_click_at'] ?? '',
+                ]], null, 'A' . $r);
+                $r++;
+            }
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
+    }
+
     public function showSessionRecording(Request $request, int $recording): JsonResponse
     {
         abort_unless(Schema::hasTable('visit_session_recordings'), 404);
@@ -204,13 +541,36 @@ class PaidMarketingController extends Controller
 
         return response()->json([
             'id' => (int) $row->id,
+            'visit_id' => $row->visit_id ? (int) $row->visit_id : null,
+            'session_id' => $row->session_id,
             'ip' => $row->ip,
             'page_url' => $row->page_url,
             'duration_ms' => (int) $row->duration_ms,
             'threat_group' => $row->threat_group,
+            'behavior_signals' => Schema::hasColumn('visit_session_recordings', 'behavior_signals')
+                ? (json_decode((string) ($row->behavior_signals ?? '[]'), true) ?: [])
+                : [],
             'events' => SessionRecordingNormalizer::normalize(json_decode((string) $row->events, true) ?: []),
             'created_at' => $row->created_at,
         ]);
+    }
+
+    public function destroySessionRecording(Request $request, int $recording): JsonResponse
+    {
+        abort_unless(Schema::hasTable('visit_session_recordings'), 404);
+
+        $row = DB::table('visit_session_recordings as r')
+            ->join('domains as d', 'd.id', '=', 'r.domain_id')
+            ->where('d.user_id', $request->user()->id)
+            ->where('r.id', $recording)
+            ->select('r.id')
+            ->first();
+
+        abort_unless($row, 404);
+
+        DB::table('visit_session_recordings')->where('id', $row->id)->delete();
+
+        return response()->json(['ok' => true]);
     }
 
     private function detailedVisitQuery(Request $request): Builder
@@ -281,6 +641,128 @@ class PaidMarketingController extends Controller
             }
         }
 
+        if ($country = trim((string) $request->query('country', ''))) {
+            $query->where(function ($match) use ($country): void {
+                $match->where('country', $country)
+                    ->orWhere('country', 'like', $country . '%')
+                    ->orWhereHas('clicks', fn ($cq) => $cq->where('country', $country)->orWhere('country', 'like', $country . '%'));
+            });
+        }
+
+        if ($keyword = trim((string) $request->query('keyword', ''))) {
+            $query->whereHas('clicks', fn ($cq) => $cq->where('keyword', 'like', '%' . $keyword . '%'));
+        }
+
+        if ($adGroup = trim((string) $request->query('ad_group', ''))) {
+            $query->whereHas('clicks', function ($cq) use ($adGroup): void {
+                $cq->where(function ($inner) use ($adGroup): void {
+                    if (Schema::hasColumn('paid_marketing_clicks', 'campaignr')) {
+                        $inner->where('campaignr', 'like', '%' . $adGroup . '%');
+                    }
+                    $inner->orWhere('campaign', 'like', '%' . $adGroup . '%');
+                    if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
+                        $inner->orWhere('campaign_name', 'like', '%' . $adGroup . '%');
+                    }
+                });
+            });
+        }
+
+        if ($browser = trim((string) $request->query('browser', ''))) {
+            $query->whereHas('clicks', fn ($cq) => $cq->where('browser_name', 'like', '%' . $browser . '%'));
+        }
+
+        if ($device = trim((string) $request->query('device', ''))) {
+            $query->where(function ($match) use ($device): void {
+                if (Schema::hasColumn('paid_marketing_visits', 'platform')) {
+                    $match->where('platform', 'like', '%' . $device . '%');
+                }
+                $match->orWhereHas('clicks', fn ($cq) => $cq->where('os', 'like', '%' . $device . '%'));
+            });
+        }
+
+        if ($source = trim((string) $request->query('source', ''))) {
+            if (Schema::hasColumn('paid_marketing_visits', 'platform')) {
+                $query->where('platform', 'like', '%' . $source . '%');
+            }
+        }
+
+        if ($threat = trim((string) $request->query('threat_group', ''))) {
+            $query->where(function ($match) use ($threat): void {
+                $match->where('threat_group', $threat)
+                    ->orWhere('threat_group', 'like', $threat . '%')
+                    ->orWhereHas('clicks', fn ($cq) => $cq->where('threat_group', $threat));
+            });
+        }
+
+        if ($detection = trim((string) $request->query('detection', ''))) {
+            $detection = strtolower($detection);
+            if ($detection === 'invalid') {
+                $query->where(function ($match): void {
+                    $match->whereNotNull('threat_group')->where('threat_group', '!=', '')
+                        ->orWhereNotNull('threat_type')->where('threat_type', '!=', '');
+                });
+            } elseif ($detection === 'valid') {
+                $query->where(function ($match): void {
+                    $match->where(fn ($q) => $q->whereNull('threat_group')->orWhere('threat_group', ''))
+                        ->where(fn ($q) => $q->whereNull('threat_type')->orWhere('threat_type', ''));
+                });
+            } elseif ($detection !== '') {
+                $query->where(function ($match) use ($detection): void {
+                    $match->where('threat_group', $detection)
+                        ->orWhere('threat_type', $detection)
+                        ->orWhereHas('clicks', fn ($cq) => $cq->where('threat_group', $detection));
+                });
+            }
+        }
+
+        if ($blockStatus = trim((string) $request->query('block_status', ''))) {
+            $blockStatus = strtolower($blockStatus);
+            if ($blockStatus === 'blocked') {
+                $query->whereExists(function ($sq): void {
+                    $sq->selectRaw('1')
+                        ->from('ip_logs')
+                        ->whereColumn('ip_logs.ip', 'paid_marketing_visits.ip')
+                        ->where('ip_logs.is_blocked', true);
+                });
+            } elseif ($blockStatus === 'allowed') {
+                $query->whereNotExists(function ($sq): void {
+                    $sq->selectRaw('1')
+                        ->from('ip_logs')
+                        ->whereColumn('ip_logs.ip', 'paid_marketing_visits.ip')
+                        ->where('ip_logs.is_blocked', true);
+                });
+            }
+        }
+
+        if ($riskLevel = trim((string) $request->query('risk_level', ''))) {
+            $riskLevel = strtolower($riskLevel);
+            $query->whereExists(function ($sq) use ($riskLevel): void {
+                $sq->selectRaw('1')
+                    ->from('ip_logs')
+                    ->whereColumn('ip_logs.ip', 'paid_marketing_visits.ip');
+
+                if ($riskLevel === 'high') {
+                    $sq->where(function ($inner): void {
+                        $inner->where('ipdetails_abuser_score', '>=', 0.7)
+                            ->orWhere('abuse_confidence_score', '>=', 50);
+                    });
+                } elseif ($riskLevel === 'medium') {
+                    $sq->where(function ($inner): void {
+                        $inner->whereBetween('ipdetails_abuser_score', [0.2, 0.6999])
+                            ->orWhereBetween('abuse_confidence_score', [20, 49]);
+                    });
+                } elseif ($riskLevel === 'low') {
+                    $sq->where(function ($inner): void {
+                        $inner->where(function ($safe): void {
+                            $safe->whereNotNull('ipdetails_abuser_score')->where('ipdetails_abuser_score', '<', 0.2);
+                        })->orWhere(function ($safe): void {
+                            $safe->whereNotNull('abuse_confidence_score')->where('abuse_confidence_score', '<', 20);
+                        });
+                    });
+                }
+            });
+        }
+
         return $query;
     }
 
@@ -338,6 +820,18 @@ class PaidMarketingController extends Controller
             ? $verificationLookup->statusLabel((int) $visit->domain_id, $campaignId, $verificationInstant, $reportingTz)
             : '—';
 
+        $intel = $this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain);
+        $reasons = [];
+        if ($visit->manual_decision) {
+            $reasons[] = 'manual_' . $visit->manual_decision;
+        }
+        if ($visit->threat_group) {
+            $reasons[] = (string) $visit->threat_group;
+        }
+        if ($visit->original_threat_group && $visit->manual_decision) {
+            $reasons[] = 'original:' . $visit->original_threat_group;
+        }
+
         return [
             'id' => $visit->id,
             'ip' => $visit->ip,
@@ -350,6 +844,31 @@ class PaidMarketingController extends Controller
             'last_click_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y') ?? '-',
             'threat_group' => $visit->threat_group,
             'threat_type' => $visit->threat_type,
+            'manual_decision' => $visit->manual_decision,
+            'manual_decision_reason' => $visit->manual_decision_reason,
+            'original_threat_group' => $visit->original_threat_group,
+            'original_threat_type' => $visit->original_threat_type,
+            'rule_explanation' => [
+                'inputs' => [
+                    'ip' => $visit->ip,
+                    'threat_group' => $visit->threat_group,
+                    'threat_type' => $visit->threat_type,
+                    'manual_decision' => $visit->manual_decision,
+                    'ip_blocked' => (bool) ($visit->ip_is_blocked ?? $ipLog?->is_blocked),
+                    'allow_listed' => $intel['is_allowlisted'] ?? false,
+                ],
+                'decision' => $intel['status'] ?? RiskLabels::VALID,
+                'action' => $visit->manual_decision
+                    ? ('Manual: ' . $visit->manual_decision)
+                    : ($visit->threat_type ?: (($intel['status'] ?? '') === RiskLabels::BLOCKED ? 'block' : 'allow')),
+                'reasons' => DetectionReasonLabels::explain(array_values(array_unique($reasons))),
+                'original_decision' => $visit->original_threat_group
+                    ? [
+                        'threat_group' => $visit->original_threat_group,
+                        'threat_type' => $visit->original_threat_type,
+                    ]
+                    : null,
+            ],
             'country' => $visit->country,
             'last_path' => $visit->last_path,
             'ip_is_blocked' => ($visit->domain && $ipLog && AllowListMatcher::isAllowListed($visit->domain, $ipLog->ip))
@@ -363,9 +882,18 @@ class PaidMarketingController extends Controller
             'google_verified_label' => $googleVerifiedLabel,
             'has_session_recording' => $recording !== null,
             'session_recording_id' => $recording ? (int) $recording->id : null,
-            'clicks' => $clicks->map(function ($c) use ($user) {
+            'clicks' => $clicks->map(function ($c) use ($user, $visit, $ipLog) {
                 $clickedAt = UserTimezone::parseUtcInstant($c->getRawOriginal('clicked_at') ?? $c->clicked_at);
                 $lastClick = UserTimezone::parseUtcInstant($c->getRawOriginal('last_click_at') ?? $c->last_click_at);
+                $intel = $this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain);
+                $risk = RiskLabels::fromContext([
+                    'is_allowlisted' => $intel['is_allowlisted'] ?? false,
+                    'is_blocked' => (bool) ($ipLog?->is_blocked),
+                    'manual_decision' => $visit->manual_decision,
+                    'threat_group' => $c->threat_group ?: $visit->threat_group,
+                    'threat_type' => $visit->threat_type,
+                    'action_taken' => $visit->threat_type,
+                ]);
 
                 return [
                 'id' => $c->id,
@@ -381,6 +909,9 @@ class PaidMarketingController extends Controller
                 'browser_name' => $c->browser_name,
                 'browser_version' => $c->browser_version,
                 'os' => $c->os,
+                'device' => trim(implode(' / ', array_filter([$c->os, $c->browser_name]))),
+                'risk_decision' => $risk,
+                'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
             ];
             })->values()->all(),
             ...$this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain),
@@ -410,21 +941,23 @@ class PaidMarketingController extends Controller
         $isHosting = $intel ? $intel->isHostingType($ipLog) : false;
         $isProxy = $intel ? $intel->isProxySuspect($ipLog) : false;
 
-        $status = 'Valid';
         $isAllowListed = $domain !== null
             && $ipLog !== null
             && AllowListMatcher::isAllowListed($domain, $ipLog->ip);
 
-        if ($isAllowListed) {
-            $status = 'Valid';
-        } elseif ($ipLog?->is_blocked) {
-            $status = 'Blocked';
-        } elseif (filled($visit->threat_group) || filled($visit->threat_type)) {
-            $status = 'Invalid';
-        }
+        $status = RiskLabels::fromContext([
+            'is_allowlisted' => $isAllowListed,
+            'is_blocked' => (bool) ($ipLog?->is_blocked),
+            'manual_decision' => $visit->manual_decision,
+            'threat_group' => $visit->threat_group,
+            'threat_type' => $visit->threat_type,
+            'action_taken' => $visit->threat_type,
+            'google_invalid' => strtolower((string) $visit->threat_group) === 'google_invalid',
+        ]);
 
         return [
             'status' => $status,
+            'status_badge_class' => RiskLabels::cssClass($status),
             'is_allowlisted' => $isAllowListed,
             'intel_region' => $raw['region'] ?? $raw['state'] ?? null,
             'intel_city' => $raw['city'] ?? null,
@@ -637,6 +1170,24 @@ class PaidMarketingController extends Controller
 
         $geoCatalog = app(GeoCatalogService::class);
 
+        $countryAudits = [];
+        if ($domain && Schema::hasTable('detection_settings_audits')) {
+            $countryAudits = DetectionSettingsAudit::query()
+                ->with('user:id,name,email')
+                ->where('domain_id', $domain->id)
+                ->whereIn('field', [
+                    'control_mode',
+                    'out_of_geo_enabled',
+                    'out_of_geo_countries',
+                    'out_of_geo_audience',
+                    'google_geo_block_enabled',
+                    'google_geo_block_audience',
+                ])
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get();
+        }
+
         return view('paid-marketing.detection-settings', [
             'domains' => $domains,
             'domain' => $domain,
@@ -648,6 +1199,8 @@ class PaidMarketingController extends Controller
                 'states' => route('paid-marketing.geo.states'),
                 'cities' => route('paid-marketing.geo.cities'),
             ],
+            'countryAudits' => $countryAudits,
+            'detectionProfiles' => \App\Support\DetectionProfiles::catalog(),
         ]);
     }
 
@@ -659,6 +1212,15 @@ class PaidMarketingController extends Controller
             'invalid_bot_action' => ['required', 'in:allow,block,flag'],
             'invalid_malicious_action' => ['required', 'in:allow,block,flag'],
             'suspicious_enabled' => ['nullable', 'boolean'],
+            'detection_profile' => ['nullable', 'in:standard,advanced,extreme,marketing'],
+            'rapid_window_seconds' => ['nullable', 'integer', 'min:30', 'max:600'],
+            'rapid_flag_at' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'rapid_block_at' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'daily_valid_click_limit' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'fail_mode' => ['nullable', 'in:open,closed'],
+            'block_response' => ['nullable', 'in:hide,blank,redirect,challenge,forbid'],
+            'block_redirect_url' => ['nullable', 'string', 'max:2048'],
+            'recording_retention_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'suspicious_vpn' => ['required', 'in:allow,block,flag'],
             'suspicious_proxy' => ['required', 'in:allow,block,flag'],
             'suspicious_data_center' => ['required', 'in:allow,block,flag'],
@@ -670,6 +1232,7 @@ class PaidMarketingController extends Controller
             'out_of_geo_audience' => ['nullable', 'string'],
             'google_geo_block_enabled' => ['nullable', 'boolean'],
             'google_geo_block_audience' => ['nullable', 'string'],
+            'control_mode' => ['nullable', 'in:allow_countries,block_countries,allow_ips,block_ips,mixed'],
             'allow_list_enabled' => ['nullable', 'boolean'],
             'allow_list_ips' => ['nullable', 'string'],
             'block_list_enabled' => ['nullable', 'boolean'],
@@ -683,6 +1246,11 @@ class PaidMarketingController extends Controller
             'google_exclude_proxy' => ['nullable', 'boolean'],
             'google_exclude_rate_limit' => ['nullable', 'boolean'],
             'google_exclude_out_of_geo' => ['nullable', 'boolean'],
+            'geo_rule_scope' => ['nullable', 'in:domain,workspace'],
+            'consent_required' => ['nullable', 'boolean'],
+            'consent_regions' => ['nullable', 'string'],
+            'recording_mask_passwords' => ['nullable', 'boolean'],
+            'save_workspace_geo' => ['nullable', 'boolean'],
         ]);
 
         $countries = collect(explode(',', (string) ($data['out_of_geo_countries'] ?? '')))
@@ -713,12 +1281,50 @@ class PaidMarketingController extends Controller
             }
         }
 
+        $controlMode = (string) ($data['control_mode'] ?? 'mixed');
+        $outOfGeoEnabled = (bool) ($data['out_of_geo_enabled'] ?? false);
+        $geoBlockEnabled = (bool) ($data['google_geo_block_enabled'] ?? false);
+        $allowListEnabled = (bool) ($data['allow_list_enabled'] ?? false);
+        $blockListEnabled = (bool) ($data['block_list_enabled'] ?? false);
+
+        // Mode selector drives the primary enable flags for clarity (CT-01).
+        if ($controlMode === 'allow_countries') {
+            $outOfGeoEnabled = true;
+        } elseif ($controlMode === 'block_countries') {
+            $geoBlockEnabled = true;
+        } elseif ($controlMode === 'allow_ips') {
+            $allowListEnabled = true;
+        } elseif ($controlMode === 'block_ips') {
+            $blockListEnabled = true;
+        }
+
+        $before = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+
         $settings = DomainDetectionSetting::updateOrCreate(
             ['domain_id' => $domain->id],
             [
                 'invalid_bot_action' => $data['invalid_bot_action'],
                 'invalid_malicious_action' => $data['invalid_malicious_action'],
                 'suspicious_enabled' => (bool) ($data['suspicious_enabled'] ?? false),
+                'detection_profile' => (string) ($data['detection_profile'] ?? 'standard'),
+                'detection_thresholds' => [
+                    'rapid_window_seconds' => (int) ($data['rapid_window_seconds'] ?? 120),
+                    'rapid_flag_at' => (int) ($data['rapid_flag_at'] ?? 1),
+                    'rapid_block_at' => (int) ($data['rapid_block_at'] ?? 2),
+                    'daily_valid_click_limit' => (int) ($data['daily_valid_click_limit'] ?? 2),
+                ],
+                'fail_mode' => (string) ($data['fail_mode'] ?? 'open'),
+                'block_response' => (string) ($data['block_response'] ?? 'hide'),
+                'block_redirect_url' => ($redir = trim((string) ($data['block_redirect_url'] ?? ''))) !== '' ? $redir : null,
+                'recording_retention_days' => (int) ($data['recording_retention_days'] ?? 30),
+                'geo_rule_scope' => (string) ($data['geo_rule_scope'] ?? 'domain'),
+                'consent_required' => (bool) ($data['consent_required'] ?? false),
+                'consent_regions' => collect(explode(',', (string) ($data['consent_regions'] ?? '')))
+                    ->map(fn ($v) => strtoupper(trim($v)))
+                    ->filter()
+                    ->values()
+                    ->all(),
+                'recording_mask_passwords' => $request->boolean('recording_mask_passwords', true),
                 'suspicious_matrix' => [
                     'vpn' => $data['suspicious_vpn'],
                     'proxy' => $data['suspicious_proxy'],
@@ -727,15 +1333,20 @@ class PaidMarketingController extends Controller
                 ],
                 'session_recordings' => (bool) ($data['session_recordings'] ?? false),
                 'frequency_capping' => (bool) ($data['frequency_capping'] ?? false),
-                'out_of_geo_enabled' => (bool) ($data['out_of_geo_enabled'] ?? false),
+                'control_mode' => $controlMode,
+                'out_of_geo_enabled' => $outOfGeoEnabled,
                 'out_of_geo_countries' => $countries,
                 'out_of_geo_audience' => $audience,
-                'google_geo_block_enabled' => (bool) ($data['google_geo_block_enabled'] ?? false),
+                'google_geo_block_enabled' => $geoBlockEnabled,
                 'google_geo_block_audience' => $geoBlockAudience,
-                'allow_list_enabled' => (bool) ($data['allow_list_enabled'] ?? false),
-                'allow_list_ips' => $data['allow_list_ips'] ?? null,
-                'block_list_enabled' => (bool) ($data['block_list_enabled'] ?? false),
-                'block_list_ips' => $data['block_list_ips'] ?? null,
+                'allow_list_enabled' => $allowListEnabled,
+                'allow_list_ips' => ($allowRaw = trim((string) ($data['allow_list_ips'] ?? ''))) === ''
+                    ? null
+                    : implode("\n", IpListParser::normalizeLines($allowRaw)),
+                'block_list_enabled' => $blockListEnabled,
+                'block_list_ips' => ($blockRaw = trim((string) ($data['block_list_ips'] ?? ''))) === ''
+                    ? null
+                    : implode("\n", IpListParser::normalizeLines($blockRaw)),
                 'audience_exclusion_event' => $data['audience_exclusion_event'],
                 'google_exclusion_rules' => [
                     'enabled' => $request->boolean('google_exclusion_enabled'),
@@ -749,6 +1360,25 @@ class PaidMarketingController extends Controller
                 ],
             ]
         );
+
+        if ($request->boolean('save_workspace_geo')) {
+            $request->user()->update([
+                'workspace_geo_settings' => [
+                    'out_of_geo_enabled' => $settings->out_of_geo_enabled,
+                    'out_of_geo_audience' => $settings->out_of_geo_audience,
+                    'out_of_geo_countries' => $settings->out_of_geo_countries,
+                    'google_geo_block_enabled' => $settings->google_geo_block_enabled,
+                    'google_geo_block_audience' => $settings->google_geo_block_audience,
+                ],
+            ]);
+        }
+
+        if ($before) {
+            $logger = app(DetectionSettingsAuditLogger::class);
+            $fresh = $settings->fresh();
+            $logger->logCountryRuleChanges($before, $fresh, $request->user()->id, 'domain');
+            $logger->logConfigChanges($before, $fresh, $request->user()->id, 'domain');
+        }
 
         $geoSync = app(GoogleAdsLocationExclusionSyncService::class)
             ->syncSettingsForDomain($domain->fresh(['googleAdsAccount.connection']), $settings, true);

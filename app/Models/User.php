@@ -34,6 +34,7 @@ class User extends Authenticatable
         'timezone',
         'timezone_source',
         'reporting_timezone',
+        'workspace_geo_settings',
         'last_login_at',
     ];
 
@@ -238,6 +239,7 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'is_super_admin' => 'boolean',
             'ui_preferences' => 'array',
+            'workspace_geo_settings' => 'array',
         ];
     }
 }

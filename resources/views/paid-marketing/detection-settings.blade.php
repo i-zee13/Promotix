@@ -79,8 +79,132 @@
                     $googleGeoBlockRules = [];
                 }
             @endphp
-                <form method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
+                <form method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}"
+                      x-data="{ mode: @js($settings->control_mode ?? 'mixed') }">
                     @csrf
+                    <input type="hidden" name="control_mode" :value="mode">
+
+                    <div class="mb-[18px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 xl:grid-cols-4">
+                        @foreach ([
+                            'allow_countries' => ['Allow Countries', 'Only selected countries can open the landing page. Everyone else is denied.'],
+                            'block_countries' => ['Block Countries', 'Selected countries cannot open the site and are pushed to Google Ads location exclusions.'],
+                            'allow_ips' => ['Allow IPs', 'Listed IPs always bypass automated blocks (activity still logged).'],
+                            'block_ips' => ['Block IPs', 'Listed IPs are denied before protected page content loads.'],
+                        ] as $modeKey => [$modeTitle, $modeHelp])
+                            <button type="button"
+                                    @click="mode = '{{ $modeKey }}'"
+                                    class="rounded-[10px] border px-[14px] py-[12px] text-left transition"
+                                    :class="mode === '{{ $modeKey }}' ? 'border-[#6400B2] bg-[#6400B2]/25' : 'border-white/20 bg-[#101010] hover:border-white/40'">
+                                <p class="text-[13px] font-semibold text-white">{{ $modeTitle }}</p>
+                                <p class="mt-[6px] text-[10px] leading-snug text-white/55">{{ $modeHelp }}</p>
+                                <p class="mt-[8px] text-[9px] font-semibold uppercase tracking-wide"
+                                   :class="mode === '{{ $modeKey }}' ? 'text-[#c084fc]' : 'text-white/35'"
+                                   x-text="mode === '{{ $modeKey }}' ? 'Selected mode' : 'Click to select'"></p>
+                            </button>
+                        @endforeach
+                    </div>
+                    <p class="mb-[16px] text-[11px] text-[#a9a9a9]">
+                        Active mode: <span class="font-semibold text-white" x-text="mode.replace('_', ' ')"></span>.
+                        Choose one primary control. You can still fine-tune the related lists below, then Save changes.
+                    </p>
+
+                    @php
+                        $profileKey = $settings->detection_profile ?? 'standard';
+                        $thr = $settings->detection_thresholds ?? [];
+                        $profiles = $detectionProfiles ?? \App\Support\DetectionProfiles::catalog();
+                    @endphp
+                    <div class="mb-[18px] rounded-[10px] border border-amber-400/40 bg-amber-500/10 px-[14px] py-[12px] text-[11px] leading-relaxed text-amber-100/90">
+                        <p class="font-semibold text-amber-100">Ad-platform limitation</p>
+                        <p class="mt-[4px]">Website blocking can stop future site access, but it cannot guarantee Google Ads will not count the original ad click. Prefer Google Ads IP / location exclusions where eligible, and treat platform block stats separately from Google-reported invalid clicks.</p>
+                    </div>
+
+                    <div class="mb-[18px] space-y-[10px]">
+                        <h2 class="figma-detection-section-title">Detection profile</h2>
+                        <div class="grid gap-[10px] sm:grid-cols-2 xl:grid-cols-4">
+                            @foreach ($profiles as $pkey => $pinfo)
+                                <label class="cursor-pointer rounded-[10px] border px-[12px] py-[12px] transition {{ $profileKey === $pkey ? 'border-[#6400B2] bg-[#6400B2]/25' : 'border-white/20 bg-[#101010]' }}">
+                                    <div class="flex items-start gap-[8px]">
+                                        <input type="radio" name="detection_profile" value="{{ $pkey }}" class="mt-[3px]" @checked($profileKey === $pkey)>
+                                        <div>
+                                            <p class="text-[13px] font-semibold text-white">{{ $pinfo['label'] }}</p>
+                                            <p class="mt-[4px] text-[10px] text-white/55">{{ $pinfo['summary'] }}</p>
+                                            <p class="mt-[6px] text-[9px] text-white/40">FP risk: {{ $pinfo['false_positive_risk'] }} · {{ $pinfo['recommended'] }}</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                        <div class="grid gap-[10px] rounded-[10px] border border-white/15 bg-[#101010] p-[12px] sm:grid-cols-4">
+                            <label class="text-[10px] text-white/60">
+                                Rapid window (sec)
+                                <input type="number" name="rapid_window_seconds" min="30" max="600" value="{{ $thr['rapid_window_seconds'] ?? 120 }}" class="mt-[4px] w-full rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                            </label>
+                            <label class="text-[10px] text-white/60">
+                                Flag at prior clicks
+                                <input type="number" name="rapid_flag_at" min="1" max="10" value="{{ $thr['rapid_flag_at'] ?? 1 }}" class="mt-[4px] w-full rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                            </label>
+                            <label class="text-[10px] text-white/60">
+                                Block at prior clicks
+                                <input type="number" name="rapid_block_at" min="1" max="20" value="{{ $thr['rapid_block_at'] ?? 2 }}" class="mt-[4px] w-full rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                            </label>
+                            <label class="text-[10px] text-white/60">
+                                Daily valid click limit
+                                <input type="number" name="daily_valid_click_limit" min="1" max="20" value="{{ $thr['daily_valid_click_limit'] ?? 2 }}" class="mt-[4px] w-full rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                            </label>
+                        </div>
+                        <label class="flex items-center gap-[10px] text-[11px] text-white/70">
+                            Fail-safe when detection is unavailable
+                            <select name="fail_mode" class="rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                                <option value="open" @selected(($settings->fail_mode ?? 'open') === 'open')>Fail open (allow)</option>
+                                <option value="closed" @selected(($settings->fail_mode ?? 'open') === 'closed')>Fail closed (block)</option>
+                            </select>
+                        </label>
+                        <div class="grid gap-[10px] rounded-[10px] border border-white/15 bg-[#101010] p-[12px] sm:grid-cols-2">
+                            <label class="text-[10px] text-white/60">
+                                Block response (BL-02)
+                                <select name="block_response" class="mt-[4px] w-full rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                                    <option value="hide" @selected(($settings->block_response ?? 'hide') === 'hide')>Hide page</option>
+                                    <option value="blank" @selected(($settings->block_response ?? '') === 'blank')>Blank page</option>
+                                    <option value="forbid" @selected(($settings->block_response ?? '') === 'forbid')>403 Forbidden screen</option>
+                                    <option value="challenge" @selected(($settings->block_response ?? '') === 'challenge')>Challenge / CAPTCHA</option>
+                                    <option value="redirect" @selected(($settings->block_response ?? '') === 'redirect')>Safe redirect</option>
+                                </select>
+                            </label>
+                            <label class="text-[10px] text-white/60">
+                                Redirect URL (when redirect selected)
+                                <input type="url" name="block_redirect_url" value="{{ $settings->block_redirect_url }}" placeholder="https://example.com/safe" class="mt-[4px] w-full rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                            </label>
+                            <label class="text-[10px] text-white/60 sm:col-span-2">
+                                Session recording retention (days)
+                                <input type="number" name="recording_retention_days" min="1" max="3650" value="{{ $settings->recording_retention_days ?? 30 }}" class="mt-[4px] w-full max-w-[160px] rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                            </label>
+                            <label class="text-[10px] text-white/60">
+                                Geo rule scope
+                                <select name="geo_rule_scope" class="mt-[4px] w-full rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                                    <option value="domain" @selected(($settings->geo_rule_scope ?? 'domain') === 'domain')>This domain only</option>
+                                    <option value="workspace" @selected(($settings->geo_rule_scope ?? '') === 'workspace')>Workspace defaults</option>
+                                </select>
+                            </label>
+                            <label class="text-[10px] text-white/60 flex items-end gap-[8px]">
+                                <input type="checkbox" name="save_workspace_geo" value="1" class="rounded border-white/30">
+                                Save current geo rules as workspace defaults
+                            </label>
+                            <label class="text-[10px] text-white/60 flex items-center gap-[8px] sm:col-span-2">
+                                <input type="hidden" name="consent_required" value="0">
+                                <input type="checkbox" name="consent_required" value="1" @checked($settings->consent_required ?? false) class="rounded border-white/30">
+                                Require consent banner before tracking (GDPR/CCPA)
+                            </label>
+                            <label class="text-[10px] text-white/60 sm:col-span-2">
+                                Consent regions (ISO country codes, comma-separated; empty = all)
+                                <input type="text" name="consent_regions" value="{{ implode(',', (array) ($settings->consent_regions ?? [])) }}" placeholder="DE,FR,GB" class="mt-[4px] w-full rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[12px] text-white">
+                            </label>
+                            <label class="text-[10px] text-white/60 flex items-center gap-[8px] sm:col-span-2">
+                                <input type="hidden" name="recording_mask_passwords" value="0">
+                                <input type="checkbox" name="recording_mask_passwords" value="1" @checked($settings->recording_mask_passwords ?? true) class="rounded border-white/30">
+                                Mask password and sensitive inputs in session recordings
+                            </label>
+                        </div>
+                    </div>
 
                     <div class="figma-detection-layout">
                         {{-- Left: threat groups (Figma gray panel) --}}
@@ -175,8 +299,28 @@
                                             />
                                         </div>
                                     </div>
-                                    <p class="figma-detection-block-ips-hint">Upload .txt / .csv (one IP per line). IPs are merged into the list below — click Save changes to apply.</p>
-                                    <textarea id="block_list_ips" name="block_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="figma-detection-block-ips-textarea">{{ $settings->block_list_ips }}</textarea>
+                                    <p class="figma-detection-block-ips-hint">Upload .txt / .csv (one IP per line). Optional duration: <code>1.2.3.4 | 2m</code>, <code>1h</code>, <code>24h</code>, <code>7d</code>, or <code>permanent</code>. Expired entries are ignored automatically.</p>
+                                    <div class="flex flex-wrap gap-[6px] mb-[8px]" x-data="{
+                                        append(duration) {
+                                            const el = document.getElementById('block_list_ips');
+                                            if (!el) return;
+                                            const lines = (el.value || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                                            const last = lines[lines.length - 1] || '';
+                                            if (!last || last.includes('|') || last.includes('#expires=')) {
+                                                el.focus();
+                                                return;
+                                            }
+                                            lines[lines.length - 1] = last + ' | ' + duration;
+                                            el.value = lines.join('\n');
+                                            el.dispatchEvent(new Event('input'));
+                                        }
+                                    }">
+                                        <span class="text-[10px] text-white/50 self-center">Set last IP duration:</span>
+                                        <template x-for="d in ['2m','1h','24h','7d','permanent']" :key="d">
+                                            <button type="button" class="rounded border border-white/20 px-[6px] py-[2px] text-[10px] text-white/80 hover:bg-white/10" @click="append(d)" x-text="d"></button>
+                                        </template>
+                                    </div>
+                                    <textarea id="block_list_ips" name="block_list_ips" rows="3" placeholder="Add IPs (e.g. 103.207.87.2 | 24h or 216.67.176.*)" class="figma-detection-block-ips-textarea">{{ $settings->block_list_ips }}</textarea>
                                 </div>
                             </div>
 
@@ -475,6 +619,43 @@
                                 <div class="figma-detection-save-row flex justify-end pt-[4px]">
                                     <button type="submit" class="rounded-[6px] bg-white px-[22px] py-[9px] text-[13px] font-semibold text-[#6400B2] shadow-[0_8px_20px_rgba(0,0,0,.25)]">Save changes</button>
                                 </div>
+
+                                @if (!empty($countryAudits) && $countryAudits->isNotEmpty())
+                                    <div class="figma-detection-section mt-[18px]">
+                                        <h2 class="figma-detection-section-title">Country rule audit log</h2>
+                                        <div class="figma-detection-card overflow-x-auto">
+                                            <table class="w-full text-left text-[11px] text-white/80">
+                                                <thead>
+                                                    <tr class="border-b border-white/15 text-white/50">
+                                                        <th class="py-[6px] pr-[8px] font-medium">When</th>
+                                                        <th class="py-[6px] pr-[8px] font-medium">Admin</th>
+                                                        <th class="py-[6px] pr-[8px] font-medium">Action</th>
+                                                        <th class="py-[6px] pr-[8px] font-medium">Field</th>
+                                                        <th class="py-[6px] pr-[8px] font-medium">Scope</th>
+                                                        <th class="py-[6px] font-medium">Change</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach ($countryAudits as $audit)
+                                                        <tr class="border-b border-white/10 align-top">
+                                                            <td class="py-[6px] pr-[8px] whitespace-nowrap">{{ optional($audit->created_at)?->timezone(config('app.timezone'))->format('Y-m-d H:i') }}</td>
+                                                            <td class="py-[6px] pr-[8px]">{{ $audit->user?->email ?? $audit->user?->name ?? ('#'.$audit->user_id) }}</td>
+                                                            <td class="py-[6px] pr-[8px]">{{ $audit->action }}</td>
+                                                            <td class="py-[6px] pr-[8px]">{{ $audit->field }}</td>
+                                                            <td class="py-[6px] pr-[8px]">{{ $audit->scope }}</td>
+                                                            <td class="py-[6px] max-w-[280px] break-all text-white/60">
+                                                                <span class="text-white/40">from</span>
+                                                                {{ \Illuminate\Support\Str::limit(json_encode($audit->previous_value['value'] ?? null), 80) }}
+                                                                <span class="text-white/40">→</span>
+                                                                {{ \Illuminate\Support\Str::limit(json_encode($audit->new_value['value'] ?? null), 80) }}
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         </section>
                     </div>

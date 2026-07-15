@@ -11,6 +11,7 @@ use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
 use App\Services\IpIntel\IpFraudEvaluator;
 use App\Support\GoogleClickAttribution;
+use App\Support\GoogleInvalidClickReconciler;
 use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
@@ -65,10 +66,20 @@ class PaidAdvertisingDashboardController extends Controller
         $unverifiedPaid = 0;
         $invalid = 0;
         $blocked = 0;
+        $blockAttempts = 0;
+        $blockEnforced = 0;
         $flagged = 0;
         $uniqueIps = 0;
         $uniquePaidClicks = 0;
         $uniqueValidPaidClicks = 0;
+
+        $invalidReconciliation = [
+            'platform_only' => 0,
+            'google_only' => 0,
+            'overlap' => 0,
+            'platform_invalid_total' => 0,
+            'google_gap_total' => 0,
+        ];
 
         $verificationLookup = app(GoogleVerifiedPaidTraffic::class)->buildLookup(
             $domainIds,
@@ -91,8 +102,12 @@ class PaidAdvertisingDashboardController extends Controller
             $uniqueIps = (clone $base)->distinct()->count('ip');
 
             if (Schema::hasColumn('visits', 'action_taken')) {
-                $blocked = (clone $base)->where('action_taken', 'block')->count();
+                $blockAttempts = (clone $base)->where('action_taken', 'block')->count();
+                $blocked = $blockAttempts;
                 $flagged = (clone $base)->where('action_taken', 'flag')->count();
+                if (Schema::hasColumn('visits', 'block_enforced')) {
+                    $blockEnforced = (clone $base)->where('block_enforced', true)->count();
+                }
             }
 
             $visitRows = (clone $base)->get([
@@ -114,6 +129,12 @@ class PaidAdvertisingDashboardController extends Controller
                 $verifiedPaid = (int) ($verificationCounts['verified'] ?? 0);
                 $verifiedValidPaid = (int) ($verificationCounts['verified_valid'] ?? 0);
                 $unverifiedPaid = (int) ($verificationCounts['unverified'] ?? 0);
+
+                $invalidReconciliation = app(GoogleInvalidClickReconciler::class)->categorize(
+                    $visitRows,
+                    $verificationLookup,
+                    $reportingTz,
+                );
             }
         }
 
@@ -169,7 +190,10 @@ class PaidAdvertisingDashboardController extends Controller
             'tag_gap_warning' => $googleClicks > 0 && $uniqueValidPaidClicks < (int) floor($googleClicks * 0.5),
             'invalid_paid_visits' => $invalid,
             'blocked_paid_visits' => $blocked,
+            'block_attempts' => $blockAttempts,
+            'block_enforced' => $blockEnforced,
             'flagged_paid_visits' => $flagged,
+            'invalid_reconciliation' => $invalidReconciliation,
             'unique_ips' => $uniqueIps,
             'unique_paid_clicks' => $uniquePaidClicks,
             'unique_valid_paid_clicks' => $uniqueValidPaidClicks,

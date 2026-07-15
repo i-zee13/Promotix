@@ -41,12 +41,12 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 
-Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'check'])->name('ip-check');
-Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::class, 'collect'])->name('t.collect');
+Route::match(['post', 'options'], '/ip-check', [IpFilterController::class, 'check'])->middleware('throttle:180,1')->name('ip-check');
+Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::class, 'collect'])->middleware('throttle:240,1')->name('t.collect');
 // GET must be allowed: the embedded tag falls back to an <img> pixel (query string) when sendBeacon/fetch fail.
-Route::match(['get', 'post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->name('ingest.visit');
-Route::get('/click', [TrackingController::class, 'googleAdsClick'])->name('google-ads.click');
-Route::match(['post', 'options'], '/ingest/session-recording', [TrackingController::class, 'sessionRecording'])->name('ingest.session-recording');
+Route::match(['get', 'post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->middleware('throttle:240,1')->name('ingest.visit');
+Route::get('/click', [TrackingController::class, 'googleAdsClick'])->middleware('throttle:120,1')->name('google-ads.click');
+Route::match(['post', 'options'], '/ingest/session-recording', [TrackingController::class, 'sessionRecording'])->middleware('throttle:120,1')->name('ingest.session-recording');
 Route::get('/tag/{domainKey}.js', [TagController::class, 'js'])->name('tag.js');
 Route::get('/tag/{domainKey}.html', [TagController::class, 'noscript'])->name('tag.noscript');
 
@@ -147,8 +147,13 @@ Route::middleware(['auth', 'admin'])
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/paid-marketing/detailed-view', [PaidMarketingController::class, 'detailedView'])->name('paid-marketing.detailed');
         Route::get('/paid-marketing/detailed-visits', [PaidMarketingController::class, 'detailedVisits'])->name('paid-marketing.detailed-visits');
+        Route::get('/paid-marketing/detailed-ip-timeline', [PaidMarketingController::class, 'detailedIpTimeline'])->name('paid-marketing.detailed-ip-timeline');
         Route::get('/paid-marketing/detailed-export.csv', [PaidMarketingController::class, 'exportDetailedCsv'])->name('paid-marketing.detailed-export');
+        Route::get('/paid-marketing/detailed-export.xlsx', [PaidMarketingController::class, 'exportDetailedXlsx'])->name('paid-marketing.detailed-export-xlsx');
+        Route::post('/paid-marketing/detailed-override', [PaidMarketingController::class, 'overrideVisitDecision'])->name('paid-marketing.detailed-override');
+        Route::post('/paid-marketing/detailed-bulk', [PaidMarketingController::class, 'bulkVisitActions'])->name('paid-marketing.detailed-bulk');
         Route::get('/paid-marketing/session-recording/{recording}', [PaidMarketingController::class, 'showSessionRecording'])->name('paid-marketing.session-recording');
+        Route::delete('/paid-marketing/session-recording/{recording}', [PaidMarketingController::class, 'destroySessionRecording'])->name('paid-marketing.session-recording.destroy');
         Route::get('/domains', [DomainManagementController::class, 'index'])->name('domains.index');
         Route::post('/domains', [DomainManagementController::class, 'store'])->name('domains.store');
         Route::put('/domains/{domain}', [DomainManagementController::class, 'update'])->name('domains.update');

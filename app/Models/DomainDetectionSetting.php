@@ -15,9 +15,20 @@ class DomainDetectionSetting extends Model
         'invalid_bot_action',
         'invalid_malicious_action',
         'suspicious_enabled',
+        'detection_profile',
+        'detection_thresholds',
+        'fail_mode',
+        'block_response',
+        'block_redirect_url',
         'suspicious_matrix',
         'session_recordings',
+        'recording_retention_days',
+        'consent_required',
+        'consent_regions',
+        'recording_mask_passwords',
+        'geo_rule_scope',
         'frequency_capping',
+        'control_mode',
         'out_of_geo_enabled',
         'out_of_geo_countries',
         'out_of_geo_audience',
@@ -36,6 +47,7 @@ class DomainDetectionSetting extends Model
         return [
             'suspicious_enabled' => 'boolean',
             'suspicious_matrix' => 'array',
+            'detection_thresholds' => 'array',
             'session_recordings' => 'boolean',
             'frequency_capping' => 'boolean',
             'out_of_geo_enabled' => 'boolean',
@@ -46,6 +58,9 @@ class DomainDetectionSetting extends Model
             'allow_list_enabled' => 'boolean',
             'block_list_enabled' => 'boolean',
             'google_exclusion_rules' => 'array',
+            'consent_required' => 'boolean',
+            'consent_regions' => 'array',
+            'recording_mask_passwords' => 'boolean',
         ];
     }
 

@@ -237,6 +237,9 @@ class TrackingController extends Controller
                 if (Schema::hasColumn('visits', 'click_source')) {
                     $visitPayload['click_source'] = 'server';
                 }
+                if (Schema::hasColumn('visits', 'tracking_confidence')) {
+                    $visitPayload['tracking_confidence'] = 'high';
+                }
                 if (Schema::hasColumn('visits', 'ad_click_meta') && ($data['ad_click_meta'] ?? []) !== []) {
                     $visitPayload['ad_click_meta'] = json_encode($data['ad_click_meta']);
                 }
@@ -282,7 +285,7 @@ class TrackingController extends Controller
             $data['ad_click_meta'] = [];
         }
         if (! filled($data['click_source'] ?? null)) {
-            $data['click_source'] = 'tag';
+            $data['click_source'] = $request->isMethod('get') ? 'pixel' : 'tag';
         }
 
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
@@ -331,6 +334,13 @@ class TrackingController extends Controller
 
         $campaignAttribution = CampaignAttributionResolver::resolve($domain, $data);
 
+        $paidId = (string) ($googleClick['id'] ?? '');
+        $duplicatePaidClick = $isPaidTraffic
+            && $paidId !== ''
+            && $this->paidClickIdExists($domain->id, $paidId);
+
+        $trackingConfidence = $this->resolveTrackingConfidence((string) ($data['click_source'] ?? 'tag'));
+
         $visitId = null;
         DB::transaction(function () use (
             &$visitId,
@@ -351,11 +361,14 @@ class TrackingController extends Controller
             $displayCountry,
             $visitCountryCode,
             $campaignAttribution,
+            $paidId,
+            $duplicatePaidClick,
+            $enforceBlock,
+            $trackingConfidence,
         ): void {
         if ($isPaidTraffic) {
             // Paid marketing funnel: Google click IDs (gclid / gbraid / wbraid) only.
-            $paidId = (string) ($googleClick['id'] ?? '');
-            $skipPaidClickRow = $paidId !== '' && $this->paidClickIdExists($domain->id, $paidId);
+            $skipPaidClickRow = $duplicatePaidClick;
 
             $visit = PaidMarketingVisit::firstOrNew([
                 'domain_id' => $domain->id,
@@ -364,7 +377,10 @@ class TrackingController extends Controller
             if (! $visit->exists) {
                 $visit->visits = 0;
             }
-            $visit->visits = ($visit->visits ?? 0) + 1;
+            // Unique gclid/gbraid/wbraid counts once; duplicate hits still update latest metadata.
+            if (! $skipPaidClickRow) {
+                $visit->visits = ($visit->visits ?? 0) + 1;
+            }
             $visit->last_click_at = $visitedAt;
             $visit->last_path = $data['path'] ?? null;
             $visit->campaign = $campaignAttribution['campaign'];
@@ -411,6 +427,12 @@ class TrackingController extends Controller
         }
 
         if (Schema::hasTable('visits') && ! $skipVisitLog) {
+            $reasons = $detection['reasons'];
+            if ($duplicatePaidClick) {
+                $reasons[] = 'DUPLICATE_PAID_CLICK';
+                $reasons = array_values(array_unique($reasons));
+            }
+
             $visitPayload = [
                 'domain_id' => $domain->id,
                 'session_id' => $sessionId,
@@ -426,11 +448,15 @@ class TrackingController extends Controller
                 'utm_campaign' => $data['utm_campaign'] ?? null,
                 'utm_term' => $data['utm_term'] ?? ($data['keyword'] ?? null),
                 'is_paid_traffic' => $isPaidTraffic,
-                'is_invalid_traffic' => $detection['action_taken'] !== 'allow',
+                'is_invalid_traffic' => $detection['action_taken'] !== 'allow' || $duplicatePaidClick,
                 'visited_at' => $visitedAt,
                 'created_at' => UserTimezone::nowUtc(),
                 'updated_at' => UserTimezone::nowUtc(),
             ];
+
+            if (Schema::hasColumn('visits', 'is_duplicate_paid_click')) {
+                $visitPayload['is_duplicate_paid_click'] = $duplicatePaidClick;
+            }
 
             if (Schema::hasColumn('visits', 'gclid')) {
                 $visitPayload['gclid'] = $data['gclid'] ?? null;
@@ -454,8 +480,10 @@ class TrackingController extends Controller
             if (Schema::hasColumn('visits', 'threat_score')) {
                 $visitPayload['threat_score'] = $detection['threat_score'];
                 $visitPayload['threat_group'] = $detection['threat_group'];
-                $visitPayload['action_taken'] = $detection['action_taken'];
-                $visitPayload['detection_reasons'] = json_encode($detection['reasons']);
+                $visitPayload['action_taken'] = $duplicatePaidClick && $detection['action_taken'] === 'allow'
+                    ? 'flag'
+                    : $detection['action_taken'];
+                $visitPayload['detection_reasons'] = json_encode($reasons);
             }
 
             if (Schema::hasColumn('visits', 'user_agent')) {
@@ -466,6 +494,12 @@ class TrackingController extends Controller
             }
             if (Schema::hasColumn('visits', 'click_source')) {
                 $visitPayload['click_source'] = $data['click_source'] ?? 'tag';
+            }
+            if (Schema::hasColumn('visits', 'tracking_confidence')) {
+                $visitPayload['tracking_confidence'] = $trackingConfidence;
+            }
+            if (Schema::hasColumn('visits', 'block_enforced')) {
+                $visitPayload['block_enforced'] = $enforceBlock && $isPaidTraffic;
             }
             if (Schema::hasColumn('visits', 'ad_click_meta') && ($data['ad_click_meta'] ?? []) !== []) {
                 $visitPayload['ad_click_meta'] = json_encode($data['ad_click_meta']);
@@ -568,6 +602,7 @@ class TrackingController extends Controller
             $captchaRequired,
             $this->shouldRecordSession($domain, $detection),
             $visitId,
+            $domain,
         );
 
         if ($request->isMethod('get')) {
@@ -606,21 +641,85 @@ class TrackingController extends Controller
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
         $ip = $this->clientIp($request);
         $events = array_slice((array) $data['events'], 0, 500);
+        $durationMs = min((int) ($data['duration_ms'] ?? 0), 15000);
+        $signals = \App\Support\SessionBehaviorAnalyzer::signals($events, $durationMs);
+        $fingerprint = \App\Support\SessionBehaviorFingerprint::fromEvents($events, $durationMs);
 
-        DB::table('visit_session_recordings')->insert([
+        // Soft signal when the same IP/domain recently repeated this low-human pattern.
+        $repeatScore = 0;
+        if ($fingerprint !== '' && Schema::hasColumn('visit_session_recordings', 'behavior_fingerprint')) {
+            $repeatScore = (int) DB::table('visit_session_recordings')
+                ->where('domain_id', $domain->id)
+                ->where('ip', $ip)
+                ->where('behavior_fingerprint', $fingerprint)
+                ->where('created_at', '>=', UserTimezone::nowUtc()->subDays(7))
+                ->count();
+            if ($repeatScore >= 1) {
+                $signals[] = 'REPEATED_BEHAVIOR';
+                $signals = array_values(array_unique($signals));
+            }
+        }
+
+        $payload = [
             'domain_id' => $domain->id,
             'visit_id' => $data['visit_id'] ?? null,
             'session_id' => $data['session_id'] ?? null,
             'ip' => $ip,
             'threat_group' => $data['threat_group'] ?? null,
-            'duration_ms' => min((int) ($data['duration_ms'] ?? 0), 15000),
+            'duration_ms' => $durationMs,
             'page_url' => $data['page_url'] ?? null,
             'events' => json_encode($events),
             'created_at' => UserTimezone::nowUtc(),
             'updated_at' => UserTimezone::nowUtc(),
-        ]);
+        ];
 
-        return $this->cors($request, response()->json(['ok' => true]));
+        if (Schema::hasColumn('visit_session_recordings', 'behavior_signals')) {
+            $payload['behavior_signals'] = json_encode($signals);
+        }
+        if (Schema::hasColumn('visit_session_recordings', 'behavior_fingerprint')) {
+            $payload['behavior_fingerprint'] = $fingerprint;
+        }
+
+        DB::table('visit_session_recordings')->insert($payload);
+
+        // Attach behavior signals to the visit record when present.
+        if (
+            $signals !== []
+            && ! empty($data['visit_id'])
+            && Schema::hasTable('visits')
+            && Schema::hasColumn('visits', 'detection_reasons')
+        ) {
+            $visit = DB::table('visits')->where('id', (int) $data['visit_id'])->where('domain_id', $domain->id)->first();
+            if ($visit) {
+                $existing = json_decode((string) ($visit->detection_reasons ?? '[]'), true);
+                if (! is_array($existing)) {
+                    $existing = [];
+                }
+                $merged = array_values(array_unique(array_merge($existing, $signals)));
+                $update = [
+                    'detection_reasons' => json_encode($merged),
+                    'updated_at' => UserTimezone::nowUtc(),
+                ];
+                if (
+                    Schema::hasColumn('visits', 'threat_score')
+                    && in_array('REPEATED_BEHAVIOR', $signals, true)
+                ) {
+                    $update['threat_score'] = max((int) ($visit->threat_score ?? 0), 30);
+                    if (($visit->action_taken ?? 'allow') === 'allow') {
+                        $update['action_taken'] = 'flag';
+                        $update['is_invalid_traffic'] = true;
+                    }
+                }
+                DB::table('visits')->where('id', $visit->id)->update($update);
+            }
+        }
+
+        return $this->cors($request, response()->json([
+            'ok' => true,
+            'signals' => $signals,
+            'fingerprint' => $fingerprint,
+            'prior_matches' => $repeatScore,
+        ]));
     }
 
     /** @param  array{threat_group: ?string, action_taken?: string}  $detection */
@@ -708,6 +807,11 @@ class TrackingController extends Controller
             ->where('pv.domain_id', $domainId)
             ->where('pc.paid_id', $paidId)
             ->exists();
+    }
+
+    private function resolveTrackingConfidence(string $clickSource): string
+    {
+        return in_array($clickSource, ['noscript', 'pixel'], true) ? 'reduced' : 'high';
     }
 
 }

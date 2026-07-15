@@ -82,6 +82,9 @@ class IpFraudReconciler
                     ? $this->paidClicksBeforeVisit($domain, $ip, $visitedAt, (int) $row->id)
                     : 0,
                 $this->ipMinuteHitsAt($domain, $ip, $visitedAt),
+                $isPaidTraffic
+                    ? $this->paidClicksInWindowBeforeVisit($domain, $ip, $visitedAt, (int) $row->id, IpFraudEvaluator::PAID_RAPID_WINDOW_SECONDS)
+                    : 0,
             );
 
             if (
@@ -219,6 +222,29 @@ class IpFraudReconciler
         if (Schema::hasColumn('visits', 'is_invalid_traffic')) {
             $query->where('is_invalid_traffic', 0);
         }
+
+        return (int) $query->count();
+    }
+
+    private function paidClicksInWindowBeforeVisit(
+        Domain $domain,
+        string $ip,
+        Carbon $visitedAt,
+        int $visitId,
+        int $windowSeconds,
+    ): int {
+        if (! Schema::hasTable('visits')) {
+            return 0;
+        }
+
+        $query = DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('ip', $ip)
+            ->where('id', '<', $visitId)
+            ->where('visited_at', '>=', $visitedAt->copy()->subSeconds($windowSeconds)->toDateTimeString())
+            ->where('visited_at', '<', $visitedAt->toDateTimeString());
+
+        GoogleClickAttribution::applyHasClickIdFilter($query);
 
         return (int) $query->count();
     }

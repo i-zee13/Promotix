@@ -5,6 +5,7 @@ namespace App\Services\IpIntel;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
+use App\Support\DetectionProfiles;
 use App\Support\GeoAudienceMatcher;
 
 class IpFraudEvaluator
@@ -16,8 +17,11 @@ class IpFraudEvaluator
     /** Hide site when the same IP opens pages this many times within one minute. */
     public const IP_MINUTE_VISIT_THRESHOLD = 4;
 
-    /** Paid marketing: max valid paid clicks per IP per calendar day (3rd+ is blocked). */
+    /** Paid marketing: max valid paid clicks per IP per calendar day (3rd+ daily is blocked). */
     public const PAID_DAILY_VALID_CLICK_LIMIT = 2;
+
+    /** Paid marketing: seconds window for rapid-repeat detection (DE-02 / DE-03). */
+    public const PAID_RAPID_WINDOW_SECONDS = 120;
 
     public function __construct(private readonly IpIntelService $intel)
     {
@@ -41,6 +45,7 @@ class IpFraudEvaluator
         bool $isPaidTraffic = false,
         int $paidClicksToday = 0,
         int $ipMinuteHits = 0,
+        int $paidClicksInRapidWindow = 0,
     ): array {
         $settings = DomainDetectionSetting::firstOrCreate(
             ['domain_id' => $domain->id],
@@ -72,12 +77,55 @@ class IpFraudEvaluator
             ];
         }
 
+        $resolvedCountryEarly = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: '')));
+        $rawEarly = (array) ($ipLog->ipdetails_raw ?? []);
+        if (GeoAudienceMatcher::isBlocked(
+            $settings,
+            $resolvedCountryEarly,
+            $rawEarly['region'] ?? $rawEarly['state'] ?? null,
+            $rawEarly['city'] ?? null,
+            $ipLog,
+            $domain,
+        )) {
+            return [
+                'threat_score' => 95,
+                'threat_group' => 'blocked_country',
+                'action_taken' => 'block',
+                'reasons' => ['blocked_country'],
+            ];
+        }
+
+        // Allow-country mode also applies when Suspicious toggle is off.
+        if ($settings->out_of_geo_enabled) {
+            $allowed = GeoAudienceMatcher::isAllowed(
+                $settings,
+                $resolvedCountryEarly,
+                $rawEarly['region'] ?? $rawEarly['state'] ?? null,
+                $rawEarly['city'] ?? null,
+                $ipLog,
+                $domain,
+            );
+            if (! $allowed) {
+                return [
+                    'threat_score' => 55,
+                    'threat_group' => 'out_of_geo',
+                    'action_taken' => 'block',
+                    'reasons' => ['out_of_geo'],
+                ];
+            }
+        }
+
         if (! $settings->suspicious_enabled) {
             return $this->allowResult([]);
         }
 
         $matrix = (array) ($settings->suspicious_matrix ?? []);
         $botAction = $settings->invalid_bot_action ?? 'block';
+        $thresholds = DetectionProfiles::thresholdsFor(
+            (string) ($settings->detection_profile ?? DetectionProfiles::STANDARD),
+            is_array($settings->detection_thresholds) ? $settings->detection_thresholds : null,
+        );
+        $requireCombined = (bool) ($thresholds['require_combined_evidence'] ?? false);
         $signals = [];
 
         if ($isCrawler) {
@@ -175,7 +223,29 @@ class IpFraudEvaluator
 
         if (
             $isPaidTraffic
-            && $paidClicksToday >= self::PAID_DAILY_VALID_CLICK_LIMIT
+            && $paidClicksInRapidWindow >= (int) $thresholds['rapid_block_at']
+        ) {
+            $signals[] = [
+                'group' => 'abnormal_rate_limit',
+                'score' => 70,
+                'action' => 'block',
+                'reason' => 'RAPID_REPEAT_BLOCK',
+            ];
+        } elseif (
+            $isPaidTraffic
+            && $paidClicksInRapidWindow >= (int) $thresholds['rapid_flag_at']
+        ) {
+            $signals[] = [
+                'group' => 'abnormal_rate_limit',
+                'score' => 35,
+                'action' => 'flag',
+                'reason' => 'RAPID_REPEAT',
+            ];
+        }
+
+        if (
+            $isPaidTraffic
+            && $paidClicksToday >= (int) $thresholds['daily_valid_click_limit']
         ) {
             $signals[] = [
                 'group' => 'abnormal_rate_limit',
@@ -194,6 +264,7 @@ class IpFraudEvaluator
                 $raw['region'] ?? $raw['state'] ?? null,
                 $raw['city'] ?? null,
                 $ipLog,
+                $domain,
             );
 
             if (! $allowed) {
@@ -208,6 +279,11 @@ class IpFraudEvaluator
 
         if ($signals === []) {
             return $this->allowResult([]);
+        }
+
+        // Extreme / marketing: do not block from a single weak signal alone.
+        if ($requireCombined && count($signals) === 1 && ($signals[0]['score'] ?? 0) < 50) {
+            $signals[0]['action'] = 'flag';
         }
 
         usort($signals, fn ($a, $b) => $b['score'] <=> $a['score']);
@@ -257,20 +333,76 @@ class IpFraudEvaluator
 
     public static function isIpInList(string $ip, string $list): bool
     {
-        $items = preg_split('/[\s,]+/', $list) ?: [];
-        foreach ($items as $item) {
-            $item = trim($item);
-            if ($item === '') {
+        $ip = trim($ip);
+        if ($ip === '' || trim($list) === '') {
+            return false;
+        }
+
+        foreach (preg_split('/\r\n|\r|\n|,/', $list) ?: [] as $entry) {
+            $entry = trim((string) $entry);
+            if ($entry === '' || str_starts_with($entry, '#')) {
                 continue;
             }
-            if ($item === $ip) {
-                return true;
+
+            if (! \App\Support\IpListParser::isActiveEntry($entry)) {
+                continue;
             }
-            if (str_ends_with($item, '*') && str_starts_with($ip, rtrim($item, '*'))) {
+
+            $pattern = \App\Support\IpListParser::entryIp($entry);
+            if ($pattern === '') {
+                continue;
+            }
+
+            if (str_contains($pattern, '*')) {
+                $prefix = rtrim($pattern, '*');
+                if ($prefix !== '' && str_starts_with($ip, $prefix)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (str_contains($pattern, '/')) {
+                if (self::ipInCidr($ip, $pattern)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (strcasecmp($ip, $pattern) === 0) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static function ipInCidr(string $ip, string $cidr): bool
+    {
+        if (! str_contains($cidr, '/')) {
+            return false;
+        }
+
+        [$subnet, $mask] = explode('/', $cidr, 2);
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false
+            || filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+            return false;
+        }
+
+        $mask = (int) $mask;
+        if ($mask < 0 || $mask > 32) {
+            return false;
+        }
+
+        $ipLong = ip2long($ip);
+        $subnetLong = ip2long($subnet);
+        if ($ipLong === false || $subnetLong === false) {
+            return false;
+        }
+
+        $maskLong = $mask === 0 ? 0 : (~0 << (32 - $mask));
+
+        return ($ipLong & $maskLong) === ($subnetLong & $maskLong);
     }
 }

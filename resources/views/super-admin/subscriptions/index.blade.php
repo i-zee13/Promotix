@@ -114,11 +114,11 @@
                     <thead>
                         <tr>
                             <th class="figma-sa-subs-th-check"><input type="checkbox" class="figma-sa-subs-checkbox" aria-label="Select all"></th>
-                            <th>User</th>
-                            <th>Plan</th>
-                            <th>Status</th>
-                            <th>Billing Cycle</th>
-                            <th>Next Payment</th>
+                            <x-sortable-th column="user" label="User" :sort="$sort ?? null" :dir="$dir ?? 'asc'" />
+                            <x-sortable-th column="plan" label="Plan" :sort="$sort ?? null" :dir="$dir ?? 'asc'" />
+                            <x-sortable-th column="status" label="Status" :sort="$sort ?? null" :dir="$dir ?? 'asc'" />
+                            <x-sortable-th column="billing_interval" label="Billing Cycle" :sort="$sort ?? null" :dir="$dir ?? 'asc'" />
+                            <x-sortable-th column="next_payment" label="Next Payment" :sort="$sort ?? null" :dir="$dir ?? 'asc'" />
                             <th class="figma-sa-subs-th-action">Action</th>
                         </tr>
                     </thead>

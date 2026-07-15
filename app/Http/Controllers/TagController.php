@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Domain;
+use App\Models\DomainDetectionSetting;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -20,6 +21,12 @@ class TagController extends Controller
 
         $collectUrl = url('/ingest/visit');
         $sessionRecordingUrl = url('/ingest/session-recording');
+        $ipCheckUrl = url('/ip-check');
+
+        $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        $consentRequired = (bool) ($settings?->consent_required ?? false);
+        $maskPasswords = ($settings?->recording_mask_passwords ?? true) !== false;
+        $consentRegionsJson = $this->json(json_encode($settings?->consent_regions ?? [], JSON_UNESCAPED_UNICODE));
 
         // Tracking tag: records visits server-side and enforces block / captcha on client.
         $trackingParams = (array) ($domain->tracking_params ?? [
@@ -38,6 +45,10 @@ class TagController extends Controller
   var domainKey = {$this->json($domainKey)};
   var collectUrl = {$this->json($collectUrl)};
   var sessionRecordingUrl = {$this->json($sessionRecordingUrl)};
+  var ipCheckUrl = {$this->json($ipCheckUrl)};
+  var consentRequired = {$consentRequired ? 'true' : 'false'};
+  var maskPasswords = {$maskPasswords ? 'true' : 'false'};
+  var consentRegions = {$consentRegionsJson};
   var trackSource = {$trackSource};
   var trackMedium = {$trackMedium};
   var trackCampaign = {$trackCampaign};
@@ -59,10 +70,57 @@ class TagController extends Controller
 
   function pixel(payload){
     try{
+      payload = payload || {};
+      payload.click_source = payload.click_source || 'pixel';
       var img = new Image();
       img.referrerPolicy = 'no-referrer-when-downgrade';
       img.src = collectUrl + (collectUrl.indexOf('?') === -1 ? '?' : '&') + qp(payload);
     }catch(e){}
+  }
+
+  function consentKey(){ return 'pm_consent_' + domainKey; }
+
+  function hasConsent(){
+    if (!consentRequired) return true;
+    try {
+      return localStorage.getItem(consentKey()) === '1';
+    } catch (e) { return false; }
+  }
+
+  function grantConsent(){
+    try { localStorage.setItem(consentKey(), '1'); } catch (e) {}
+    var banner = document.getElementById('pm-consent-banner');
+    if (banner) banner.remove();
+    bootstrap();
+  }
+
+  function showConsentBanner(){
+    if (!consentRequired || hasConsent() || document.getElementById('pm-consent-banner')) return;
+    try {
+      var bar = document.createElement('div');
+      bar.id = 'pm-consent-banner';
+      bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#101010;color:#fff;padding:16px 20px;font:14px/1.4 system-ui,sans-serif;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center;border-top:1px solid #6400B2;';
+      bar.innerHTML = '<span style="max-width:640px;opacity:.9;">We use analytics and fraud protection cookies to secure paid traffic. Accept to continue.</span><button type="button" id="pm-consent-accept" style="border:0;border-radius:6px;background:#6400B2;color:#fff;font-weight:600;padding:8px 16px;cursor:pointer;">Accept</button>';
+      (document.body || document.documentElement).appendChild(bar);
+      var btn = document.getElementById('pm-consent-accept');
+      if (btn) btn.addEventListener('click', grantConsent);
+    } catch (e) {}
+  }
+
+  function earlyIpCheck(done){
+    try {
+      fetch(ipCheckUrl, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ domainKey: domainKey, path: String(location.pathname || ''), referrer: String(document.referrer || '') }),
+        mode: 'cors',
+        credentials: 'omit',
+        keepalive: true
+      }).then(function(r){ return r.json(); }).then(function(resp){
+        applyProtection(resp);
+        done(resp && resp.blocked);
+      }).catch(function(){ done(false); });
+    } catch (e) { done(false); }
   }
 
   function captchaKey(){ return 'pm_captcha_' + domainKey; }
@@ -84,6 +142,7 @@ class TagController extends Controller
 
   function hidePage(){
     try {
+      if (document.getElementById('pm-block-overlay')) return;
       var overlay = document.createElement('div');
       overlay.id = 'pm-block-overlay';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#0d0d0d;color:#fff;display:flex;align-items:center;justify-content:center;font:16px/1.4 system-ui,sans-serif;text-align:center;padding:24px;';
@@ -91,6 +150,43 @@ class TagController extends Controller
       (document.body || document.documentElement).appendChild(overlay);
       document.documentElement.style.overflow = 'hidden';
     } catch (e) {}
+  }
+
+  function blankPage(){
+    try {
+      if (document.getElementById('pm-block-overlay')) return;
+      var overlay = document.createElement('div');
+      overlay.id = 'pm-block-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#ffffff;';
+      (document.body || document.documentElement).appendChild(overlay);
+      document.documentElement.style.overflow = 'hidden';
+    } catch (e) {}
+  }
+
+  function forbidPage(){
+    try {
+      if (document.getElementById('pm-block-overlay')) return;
+      var overlay = document.createElement('div');
+      overlay.id = 'pm-block-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font:16px/1.4 system-ui,sans-serif;text-align:center;padding:24px;';
+      overlay.innerHTML = '<div><p style="font-size:42px;font-weight:700;margin:0 0 8px;">403</p><p style="opacity:.75;margin:0;">Forbidden</p></div>';
+      (document.body || document.documentElement).appendChild(overlay);
+      document.documentElement.style.overflow = 'hidden';
+    } catch (e) {}
+  }
+
+  function applyBlockResponse(resp){
+    var mode = String(resp.block_response || 'hide');
+    if (mode === 'redirect' && resp.block_redirect_url) {
+      try { window.location.replace(String(resp.block_redirect_url)); return; } catch (e) {}
+    }
+    if (mode === 'blank') { blankPage(); return; }
+    if (mode === 'forbid') { forbidPage(); return; }
+    if (mode === 'challenge') {
+      if (!captchaPassed()) showCaptcha();
+      return;
+    }
+    hidePage();
   }
 
   function showCaptcha(){
@@ -123,7 +219,7 @@ class TagController extends Controller
   function applyProtection(resp){
     if (!resp || typeof resp !== 'object') return;
     if (resp.blocked) {
-      hidePage();
+      applyBlockResponse(resp);
       return;
     }
     if (resp.captcha_required && !captchaPassed()) {
@@ -177,14 +273,36 @@ class TagController extends Controller
       });
     }
 
+    function isSensitiveInput(el){
+      if (!el || !el.tagName) return false;
+      var tag = String(el.tagName).toLowerCase();
+      if (tag !== 'input' && tag !== 'textarea') return false;
+      var type = String(el.type || '').toLowerCase();
+      if (type === 'password') return true;
+      var name = String(el.name || el.id || '').toLowerCase();
+      return /password|passwd|secret|cvv|cvc|ssn|credit/.test(name);
+    }
+
+    function onInput(e){
+      if (!maskPasswords) return;
+      var el = e.target;
+      if (!isSensitiveInput(el)) return;
+      push('input_masked', {
+        tag: String(el.tagName || ''),
+        masked: true
+      });
+    }
+
     document.addEventListener('mousemove', onMove, { passive: true });
     window.addEventListener('scroll', onScroll, { passive: true });
     document.addEventListener('click', onClick, true);
+    document.addEventListener('input', onInput, true);
 
     setTimeout(function(){
       document.removeEventListener('mousemove', onMove);
       window.removeEventListener('scroll', onScroll);
       document.removeEventListener('click', onClick, true);
+      document.removeEventListener('input', onInput, true);
       window.__pmRecording = false;
       try {
         fetch(sessionRecordingUrl, {
@@ -382,8 +500,19 @@ class TagController extends Controller
     window.addEventListener('popstate', onRouteChange);
   }
 
-  pageview(true);
-  hookSpaNavigation();
+  function bootstrap(){
+    if (!hasConsent()) {
+      showConsentBanner();
+      return;
+    }
+    earlyIpCheck(function(blocked){
+      if (blocked) return;
+      pageview(true);
+      hookSpaNavigation();
+    });
+  }
+
+  bootstrap();
 })();
 JS;
 
@@ -395,11 +524,42 @@ JS;
 
     public function noscript(Request $request, string $domainKey): Response
     {
-        return response()->noContent();
+        $domain = Domain::where('domain_key', $domainKey)->first();
+        if (! $domain || ($domain->status ?? 'pending') === 'disabled') {
+            return response('', 204);
+        }
+
+        $collectUrl = url('/ingest/visit');
+        $params = http_build_query([
+            'domainKey' => $domainKey,
+            'type' => 'pageview',
+            'url' => (string) $request->headers->get('Referer', ''),
+            'path' => '/',
+            'click_source' => 'noscript',
+            'ts' => (string) (int) (microtime(true) * 1000),
+            '_' => (string) time(),
+        ]);
+        $pixelSrc = e($collectUrl . '?' . $params);
+
+        $html = <<<HTML
+<!DOCTYPE html><html><head><meta charset="utf-8"><title></title></head>
+<body style="margin:0;padding:0;">
+<img src="{$pixelSrc}" width="1" height="1" alt="" style="position:absolute;left:-9999px;" />
+</body></html>
+HTML;
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
     }
 
-    private function json(string $value): string
+    private function json(mixed $value): string
     {
+        if (is_string($value) && ($value === 'true' || $value === 'false')) {
+            return $value;
+        }
+
         return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 }

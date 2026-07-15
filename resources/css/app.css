@@ -316,6 +316,46 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
 }
 
+.paid-advanced-filters-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 70;
+    width: min(420px, calc(100vw - 32px));
+    max-height: 440px;
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    background: #0f0e0e;
+    padding: 12px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+.paid-advanced-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.paid-advanced-filter-field input,
+.paid-advanced-filter-field select {
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #101010;
+    padding: 0 8px;
+    color: #d9d9d9;
+    font-size: 11px;
+}
+
+.paid-advanced-filter-field input:focus,
+.paid-advanced-filter-field select:focus {
+    outline: none;
+    border-color: rgba(192, 132, 252, 0.7);
+}
+
 .paid-advanced-column-option {
     display: flex;
     align-items: center;
@@ -402,6 +442,63 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     background: #1a1a1a;
 }
 
+.pm-adv-table-grid--head .promotix-sortable {
+    width: 100%;
+}
+
+/* Global sortable column headers (Advanced View, dashboards, server tables) */
+.promotix-sortable {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+}
+
+.promotix-sortable:hover {
+    color: #ffffff;
+}
+
+.promotix-sortable-arrows {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 0.75;
+    font-size: 8px;
+    opacity: 0.35;
+}
+
+.promotix-sortable.is-asc .promotix-sortable-up,
+.promotix-sortable.is-desc .promotix-sortable-down {
+    opacity: 1;
+    color: #c084fc;
+}
+
+.promotix-sortable.is-asc .promotix-sortable-arrows,
+.promotix-sortable.is-desc .promotix-sortable-arrows {
+    opacity: 1;
+}
+
+.promotix-th .promotix-sortable {
+    color: inherit;
+    text-decoration: none;
+}
+
+.light-mode .promotix-sortable:hover {
+    color: #121212;
+}
+
+.light-mode .promotix-sortable.is-asc .promotix-sortable-up,
+.light-mode .promotix-sortable.is-desc .promotix-sortable-down {
+    color: #6400b2;
+}
+
 .pm-adv-table-grid--row {
     margin-bottom: 8px;
     padding: 10px 12px;
@@ -414,6 +511,24 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 .pm-adv-table-grid--row:hover {
     background: #ececec;
 }
+
+.risk-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e5e5e5;
+}
+.risk-badge--valid { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+.risk-badge--suspicious { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+.risk-badge--invalid { background: rgba(249, 115, 22, 0.2); color: #fdba74; }
+.risk-badge--blocked { background: rgba(239, 68, 68, 0.22); color: #fca5a5; }
+.risk-badge--allowed { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; }
+.risk-badge--google { background: rgba(168, 85, 247, 0.22); color: #d8b4fe; }
 
 .pm-adv-table-body-scroll {
     max-height: 420px;

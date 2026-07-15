@@ -8,30 +8,33 @@ trait ResolvesClientIp
 {
     protected function clientIp(Request $request): string
     {
-        $candidates = [
+        // Prefer CDN / edge identity headers before X-Forwarded-For (TR-01).
+        $trustedFirst = [
             $request->headers->get('CF-Connecting-IP'),
             $request->headers->get('True-Client-IP'),
             $request->headers->get('X-Real-IP'),
-            $request->headers->get('X-Forwarded-For'),
-            $request->headers->get('X-Cluster-Client-IP'),
         ];
 
-        $ips = [];
-        foreach ($candidates as $value) {
-            if (! $value) {
-                continue;
+        foreach ($trustedFirst as $value) {
+            $ip = trim((string) $value);
+            if ($ip !== '' && $this->isValidIp($ip) && ! $this->isLoopbackIp($ip) && ! $this->isPrivateOrReserved($ip)) {
+                return $ip;
             }
-            foreach (preg_split('/\s*,\s*/', $value) as $ip) {
-                $ip = trim($ip);
-                if ($ip !== '') {
-                    $ips[] = $ip;
-                }
+            if ($ip !== '' && $this->isValidIp($ip) && ! $this->isLoopbackIp($ip)) {
+                return $ip;
             }
         }
 
-        foreach ($ips as $ip) {
-            if ($this->isValidIp($ip) && ! $this->isLoopbackIp($ip)) {
-                return $ip;
+        $forwarded = $request->headers->get('X-Forwarded-For')
+            ?: $request->headers->get('X-Cluster-Client-IP');
+
+        if ($forwarded) {
+            foreach (preg_split('/\s*,\s*/', $forwarded) ?: [] as $candidate) {
+                $ip = trim((string) $candidate);
+                // Skip private/reserved hops commonly injected by spoofed client headers.
+                if ($ip !== '' && $this->isValidIp($ip) && ! $this->isLoopbackIp($ip) && ! $this->isPrivateOrReserved($ip)) {
+                    return $ip;
+                }
             }
         }
 
@@ -46,6 +49,15 @@ trait ResolvesClientIp
     protected function isLoopbackIp(string $ip): bool
     {
         return $ip === '127.0.0.1' || $ip === '::1';
+    }
+
+    protected function isPrivateOrReserved(string $ip): bool
+    {
+        return filter_var(
+            $ip,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        ) === false;
     }
 
     protected function cors(Request $request, $response)

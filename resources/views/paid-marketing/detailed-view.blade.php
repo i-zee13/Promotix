@@ -16,6 +16,9 @@
     'domainCatalog' => $domainCatalog ?? [],
     'reportingMode' => $reportingMode ?? 'profile',
     'profileTimezone' => $profileTimezone ?? \App\Support\UserTimezone::forUser(auth()->user()),
+    'overrideUrl' => route('paid-marketing.detailed-override'),
+    'bulkUrl' => route('paid-marketing.detailed-bulk'),
+    'csrf' => csrf_token(),
 ]))" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[10px] sm:flex-row sm:items-center sm:justify-between">
@@ -68,9 +71,81 @@
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input type="search" placeholder="Search for IP Address" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
                     </label>
+                    <div class="relative" @click.outside="dataFilterMenuOpen = false">
+                        <button type="button" @click="dataFilterMenuOpen = !dataFilterMenuOpen; filterMenuOpen = false" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                            Filters
+                            <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="activeDataFilterCount"></span>
+                        </button>
+                        <div x-show="dataFilterMenuOpen" x-cloak class="paid-advanced-filters-menu promotix-slim-scroll">
+                            <div class="mb-[8px] flex items-center justify-between gap-[8px]">
+                                <p class="text-[10px] font-semibold uppercase text-white/55">Data filters</p>
+                                <button type="button" class="text-[10px] font-semibold text-[#c084fc] hover:underline" @click="clearDataFilters()">Clear all</button>
+                            </div>
+                            <div class="grid grid-cols-1 gap-[8px] sm:grid-cols-2">
+                                <label class="paid-advanced-filter-field">
+                                    <span>Country</span>
+                                    <input type="text" x-model="filters.country" @input="scheduleFetch()" placeholder="e.g. US / Pakistan">
+                                </label>
+                                <label class="paid-advanced-filter-field">
+                                    <span>Keyword</span>
+                                    <input type="text" x-model="filters.keyword" @input="scheduleFetch()" placeholder="Search keyword">
+                                </label>
+                                <label class="paid-advanced-filter-field">
+                                    <span>Ad group</span>
+                                    <input type="text" x-model="filters.ad_group" @input="scheduleFetch()" placeholder="Ad group / sub-campaign">
+                                </label>
+                                <label class="paid-advanced-filter-field">
+                                    <span>Source / platform</span>
+                                    <input type="text" x-model="filters.source" @input="scheduleFetch()" placeholder="Platform / source">
+                                </label>
+                                <label class="paid-advanced-filter-field">
+                                    <span>Browser</span>
+                                    <input type="text" x-model="filters.browser" @input="scheduleFetch()" placeholder="Chrome, Safari…">
+                                </label>
+                                <label class="paid-advanced-filter-field">
+                                    <span>Device / OS</span>
+                                    <input type="text" x-model="filters.device" @input="scheduleFetch()" placeholder="Windows, iOS…">
+                                </label>
+                                <label class="paid-advanced-filter-field">
+                                    <span>Detection result</span>
+                                    <select x-model="filters.detection" @change="scheduleFetch(true)">
+                                        <option value="">All</option>
+                                        <option value="valid">Valid</option>
+                                        <option value="invalid">Invalid</option>
+                                        <option value="vpn">VPN</option>
+                                        <option value="proxy">Proxy</option>
+                                        <option value="data_center">Data center</option>
+                                        <option value="malicious">Malicious</option>
+                                    </select>
+                                </label>
+                                <label class="paid-advanced-filter-field">
+                                    <span>Threat group</span>
+                                    <input type="text" x-model="filters.threat_group" @input="scheduleFetch()" placeholder="Exact/partial threat">
+                                </label>
+                                <label class="paid-advanced-filter-field">
+                                    <span>Risk level</span>
+                                    <select x-model="filters.risk_level" @change="scheduleFetch(true)">
+                                        <option value="">All</option>
+                                        <option value="high">High</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </label>
+                                <label class="paid-advanced-filter-field">
+                                    <span>Block status</span>
+                                    <select x-model="filters.block_status" @change="scheduleFetch(true)">
+                                        <option value="">All</option>
+                                        <option value="blocked">Blocked</option>
+                                        <option value="allowed">Not blocked</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <p class="mt-[8px] text-[9px] leading-snug text-white/40">Date range, campaign, path, and IP search also apply together. Clear all resets data filters only (keeps dates/domain).</p>
+                        </div>
+                    </div>
                     <div class="relative" @click.outside="filterMenuOpen = false">
-                        <button type="button" @click="filterMenuOpen = !filterMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
-                            Advanced Filter
+                        <button type="button" @click="filterMenuOpen = !filterMenuOpen; dataFilterMenuOpen = false" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                            Columns
                             <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
                         </button>
                         <div x-show="filterMenuOpen" x-cloak class="paid-advanced-columns-menu promotix-slim-scroll">
@@ -82,7 +157,7 @@
                                 </label>
                             </template>
                             <p class="mb-[8px] mt-[10px] text-[10px] font-semibold uppercase text-white/55">Optional columns</p>
-                            <p class="mb-[6px] text-[9px] leading-snug text-white/40">IP detection fields show PromoTix intel (VPN, proxy, risk). Enable below or use Advanced Filter.</p>
+                            <p class="mb-[6px] text-[9px] leading-snug text-white/40">IP detection fields show PromoTix intel (VPN, proxy, risk). Enable below.</p>
                             <template x-for="col in columnCatalog.filter(c => !c.primary)" :key="col.key">
                                 <label class="paid-advanced-column-option">
                                     <input type="checkbox" :value="col.key" :checked="optionalColumnKeys.includes(col.key)" @change="toggleOptionalColumn(col.key)">
@@ -91,25 +166,72 @@
                             </template>
                         </div>
                     </div>
-                    <a :href="csvHref()" class="inline-flex items-center gap-[6px] text-[12px] font-medium text-white hover:underline">
-                        <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
-                        Download CSV
-                    </a>
+                    <button type="button" x-show="activeDataFilterCount > 0 || filters.ip || filters.path || filters.campaign" x-cloak @click="clearAllFilters()" class="inline-flex h-[28px] items-center rounded-[6px] border border-white/30 px-[10px] text-[11px] text-white hover:bg-white/10">
+                        Clear filters
+                    </button>
+                    <div class="relative" @click.outside="exportMenuOpen = false">
+                        <button type="button" @click="exportMenuOpen = !exportMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] text-[12px] font-medium text-white hover:underline">
+                            <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
+                            Export
+                        </button>
+                        <div x-show="exportMenuOpen" x-cloak class="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[140px] rounded-[8px] border border-white/20 bg-[#0f0e0e] p-[6px] shadow-lg">
+                            <a :href="csvHref()" class="block rounded-[6px] px-[10px] py-[6px] text-[11px] text-white hover:bg-white/10">Download CSV</a>
+                            <a :href="xlsxHref()" class="block rounded-[6px] px-[10px] py-[6px] text-[11px] text-white hover:bg-white/10">Download XLSX</a>
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <div class="flex flex-wrap gap-[6px] border-b border-white/10 bg-[#101010] px-[16px] py-[8px]" x-show="activeFilterChips.length" x-cloak>
+                <template x-for="chip in activeFilterChips" :key="chip.key">
+                    <button type="button" class="inline-flex items-center gap-[4px] rounded-full border border-white/20 bg-white/5 px-[8px] py-[2px] text-[10px] text-white/85 hover:bg-white/10" @click="clearFilterChip(chip.key)">
+                        <span x-text="chip.label"></span>
+                        <span aria-hidden="true">×</span>
+                    </button>
+                </template>
+            </div>
+
+            <div class="flex flex-wrap gap-[6px] border-b border-white/10 bg-[#101010] px-[16px] py-[8px]" x-show="selectedIds.length" x-cloak>
+                <span class="self-center text-[10px] text-white/55" x-text="selectedIds.length + ' selected'"></span>
+                <button type="button" class="rounded border border-white/20 px-[8px] py-[3px] text-[10px] text-white/85 hover:bg-white/10" @click="bulkAction('valid')">Mark valid</button>
+                <button type="button" class="rounded border border-white/20 px-[8px] py-[3px] text-[10px] text-white/85 hover:bg-white/10" @click="bulkAction('invalid')">Mark invalid</button>
+                <button type="button" class="rounded border border-white/20 px-[8px] py-[3px] text-[10px] text-white/85 hover:bg-white/10" @click="bulkAction('allowed')">Allow</button>
+                <button type="button" class="rounded border border-white/20 px-[8px] py-[3px] text-[10px] text-white/85 hover:bg-white/10" @click="bulkAction('blocked')">Block</button>
+                <button type="button" class="rounded border border-white/20 px-[8px] py-[3px] text-[10px] text-white/55 hover:bg-white/10" @click="selectedIds = []">Clear</button>
+                <span class="self-center text-[10px] text-white/40" x-text="bulkMessage"></span>
             </div>
 
             <div class="pm-adv-table-shell">
                 <div class="pm-adv-table-x-scroll">
                     <div class="pm-adv-table-sync" :style="syncStyle">
                         <div class="pm-adv-table-grid pm-adv-table-grid--head text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
+                            <label class="flex items-center justify-center">
+                                <input type="checkbox" class="rounded border-white/30" :checked="allVisibleSelected" @change="toggleSelectAll($event.target.checked)">
+                            </label>
                             <template x-for="col in visibleColumns" :key="'head-' + col.key">
-                                <span class="truncate" x-text="col.label"></span>
+                                <button
+                                    type="button"
+                                    class="promotix-sortable truncate"
+                                    :class="sortClass(col.key)"
+                                    :disabled="col.key === 'session_recording'"
+                                    @click="setSort(col.key)"
+                                    :title="'Sort by ' + col.label"
+                                >
+                                    <span class="truncate" x-text="col.label"></span>
+                                    <span class="promotix-sortable-arrows" aria-hidden="true" x-show="col.key !== 'session_recording'">
+                                        <span class="promotix-sortable-up">▲</span>
+                                        <span class="promotix-sortable-down">▼</span>
+                                    </span>
+                                </button>
                             </template>
                         </div>
 
                         <div class="pm-adv-table-body-scroll">
-                            <template x-for="visit in rows" :key="visit.id">
+                            <template x-for="visit in sortedRows" :key="visit.id">
                                 <div class="pm-adv-table-grid pm-adv-table-grid--row cursor-pointer text-[10px] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
+                                    <label class="flex items-center justify-center" @click.stop>
+                                        <input type="checkbox" class="rounded border-white/30" :checked="selectedIds.includes(visit.id)" @change="toggleSelect(visit.id, $event.target.checked)">
+                                    </label>
                                     <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
                                         <template x-if="col.key !== 'session_recording'">
                                             <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(visit, col.key)" x-text="cellValue(visit, col.key)"></span>
@@ -125,7 +247,7 @@
                                     </template>
                                 </div>
                             </template>
-                            <p x-show="!loading && rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No rows match your filters.</p>
+                            <p x-show="!loading && sortedRows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No rows match your filters.</p>
                         </div>
                     </div>
                 </div>
@@ -152,11 +274,48 @@
              @keydown.escape.window="closeModal()" @click.self="closeModal()">
             <div class="figma-modal figma-modal--click-details">
                 <header class="mb-4 flex items-center justify-between gap-3">
-                    <h3 class="figma-modal-title">Click Details</h3>
+                    <div>
+                        <h3 class="figma-modal-title">Click Details</h3>
+                        <p class="mt-1 text-[11px] text-white/55">Same-IP activity timeline</p>
+                    </div>
                     <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeModal()" aria-label="Close">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </header>
+
+                <div class="mb-4 rounded-[8px] border border-white/15 bg-black/20 p-[10px]">
+                    <button type="button" class="flex w-full items-center justify-between text-left" @click="modal.timelineOpen = !modal.timelineOpen">
+                        <span class="text-[12px] font-semibold text-white">
+                            IP timeline
+                            <span class="ml-1 font-normal text-white/50" x-text="`(${modal.timeline.length} events)`"></span>
+                        </span>
+                        <span class="text-white/60" x-text="modal.timelineOpen ? '▾' : '▸'"></span>
+                    </button>
+                    <p class="mt-1 text-[10px] text-white/45" x-show="modal.timelineLoading">Loading same-IP activity…</p>
+                    <div x-show="modal.timelineOpen" x-cloak class="mt-3 max-h-[220px] space-y-[8px] overflow-y-auto promotix-slim-scroll">
+                        <template x-for="event in modal.timeline" :key="event.id">
+                            <div class="rounded-[6px] border border-white/10 bg-white/5 px-[10px] py-[8px]">
+                                <div class="flex flex-wrap items-center justify-between gap-[6px]">
+                                    <span class="rounded-[4px] px-[6px] py-[1px] text-[9px] font-semibold uppercase"
+                                          :class="event.type === 'click' ? 'bg-[#6400B2]/40 text-white' : 'bg-white/15 text-white/80'"
+                                          x-text="event.type"></span>
+                                    <span class="text-[10px] text-white/55" x-text="formatDateTime(event.at)"></span>
+                                </div>
+                                <p class="mt-1 truncate text-[11px] text-white" x-text="event.campaign || 'No campaign'"></p>
+                                <p class="mt-1 text-[10px] text-white/60">
+                                    <span x-text="event.device || 'Device n/a'"></span>
+                                    · <span x-text="event.behavior || '—'"></span>
+                                </p>
+                                <p class="mt-1 text-[10px] text-white/75">
+                                    Risk: <span class="font-semibold" x-text="event.risk_decision || '—'"></span>
+                                    · Action: <span class="font-semibold" x-text="event.action || '—'"></span>
+                                    <template x-if="event.threat_group"><span> · <span x-text="event.threat_group"></span></span></template>
+                                </p>
+                            </div>
+                        </template>
+                        <p x-show="!modal.timelineLoading && modal.timeline.length === 0" class="text-[11px] text-white/50">No other same-IP events in this date range.</p>
+                    </div>
+                </div>
 
                 <div class="figma-click-modal-layout">
                     <aside class="figma-click-modal-sidebar">
@@ -241,6 +400,20 @@
                                         <p class="figma-modal-value" x-text="activeClick.campaign || modal.visit?.campaign || 'N/A'"></p>
                                     </div>
                                     <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Risk decision</p>
+                                        <p class="figma-modal-value">
+                                            <span class="risk-badge" :class="modal.visit?.status_badge_class || ''" x-text="activeClick.risk_decision || modal.visit?.status || '—'"></span>
+                                        </p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Final action</p>
+                                        <p class="figma-modal-value" x-text="activeClick.action || modal.visit?.rule_explanation?.action || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Device</p>
+                                        <p class="figma-modal-value" x-text="activeClick.device || [activeClick.os, activeClick.browser_name].filter(Boolean).join(' / ') || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
                                         <p class="figma-modal-label">Keyword</p>
                                         <p class="figma-modal-value" x-text="activeClick.keyword || 'N/A'"></p>
                                     </div>
@@ -256,10 +429,46 @@
                                     </div>
                                     <div class="figma-modal-field figma-modal-field--full">
                                         <div class="figma-modal-field__head">
-                                            <p class="figma-modal-label">Path</p>
+                                            <p class="figma-modal-label">Path / behavior</p>
                                             <button type="button" class="figma-modal-copy-btn" @click="copyText(activeClick.path || modal.visit?.last_path)" x-show="activeClick.path || modal.visit?.last_path">Copy</button>
                                         </div>
                                         <p class="figma-modal-value figma-modal-value--long" x-text="activeClick.path || modal.visit?.last_path || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field figma-modal-field--full space-y-[8px]">
+                                        <p class="figma-modal-label">Manual override</p>
+                                        <p class="text-[10px] text-white/45" x-show="modal.visit?.manual_decision">
+                                            Current: <span class="text-white/80" x-text="modal.visit?.manual_decision"></span>
+                                            · original <span x-text="modal.visit?.original_threat_group || 'none'"></span>
+                                            · <span x-text="modal.visit?.manual_decision_reason || ''"></span>
+                                        </p>
+                                        <input type="text" x-model="overrideReason" placeholder="Reason (required)" class="w-full rounded border border-white/20 bg-black/40 px-[8px] py-[6px] text-[11px] text-white">
+                                        <div class="flex flex-wrap gap-[6px]">
+                                            <button type="button" :disabled="overrideBusy" class="rounded border border-white/20 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10" @click="overrideDecision('valid')">Valid</button>
+                                            <button type="button" :disabled="overrideBusy" class="rounded border border-white/20 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10" @click="overrideDecision('invalid')">Invalid</button>
+                                            <button type="button" :disabled="overrideBusy" class="rounded border border-white/20 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10" @click="overrideDecision('allowed')">Allowed</button>
+                                            <button type="button" :disabled="overrideBusy" class="rounded border border-white/20 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10" @click="overrideDecision('blocked')">Blocked</button>
+                                        </div>
+                                    </div>
+                                    <div class="figma-modal-field figma-modal-field--full space-y-[6px]" x-show="modal.visit?.rule_explanation">
+                                        <p class="figma-modal-label">Why this click was classified</p>
+                                        <p class="text-[11px] text-white/80">
+                                            Decision: <span class="risk-badge" :class="modal.visit?.status_badge_class" x-text="modal.visit?.rule_explanation?.decision || modal.visit?.status"></span>
+                                            · Action: <span x-text="modal.visit?.rule_explanation?.action || '—'"></span>
+                                        </p>
+                                        <ul class="space-y-[4px] text-[10px] text-white/60">
+                                            <template x-for="reason in (modal.visit?.rule_explanation?.reasons || [])" :key="reason.code">
+                                                <li>
+                                                    <span class="font-semibold text-white/80" x-text="reason.code"></span>
+                                                    — <span x-text="reason.label"></span>
+                                                </li>
+                                            </template>
+                                            <li x-show="!(modal.visit?.rule_explanation?.reasons || []).length" class="text-white/40">No automated reason codes on this row.</li>
+                                        </ul>
+                                        <p class="text-[10px] text-white/40" x-show="modal.visit?.rule_explanation?.original_decision">
+                                            Original automated decision preserved:
+                                            <span x-text="modal.visit?.rule_explanation?.original_decision?.threat_group || 'none'"></span>
+                                            / <span x-text="modal.visit?.rule_explanation?.original_decision?.threat_type || '—'"></span>
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -279,11 +488,24 @@
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </header>
-                <p class="mb-3 text-[12px] text-white/70" x-text="recordingModal.ip ? `IP: ${recordingModal.ip}` : ''"></p>
+                <p class="mb-3 text-[12px] text-white/70">
+                    <span x-text="recordingModal.ip ? `IP: ${recordingModal.ip}` : ''"></span>
+                    <span x-show="recordingModal.visit_id" class="text-white/45" x-text="recordingModal.visit_id ? ` · Visit #${recordingModal.visit_id}` : ''"></span>
+                </p>
                 <div class="overflow-hidden rounded-[8px] border border-white/20 bg-[#101010]">
-                    <canvas x-ref="recordingCanvas" width="600" height="320" class="h-auto w-full"></canvas>
+                    <canvas x-ref="recordingCanvas" width="600" height="320" class="h-auto w-full" @click="seekRecording($event)"></canvas>
                 </div>
-                <p class="mt-3 text-[11px] text-white/50" x-text="recordingModal.page_url || ''"></p>
+                <div class="mt-3 flex flex-wrap items-center gap-[8px]">
+                    <button type="button" class="rounded border border-white/20 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10" @click="toggleRecordingPlayback()" x-text="recordingPlaying ? 'Pause' : 'Play'"></button>
+                    <template x-for="spd in [0.5, 1, 2, 4]" :key="'spd-'+spd">
+                        <button type="button" class="rounded border px-[8px] py-[4px] text-[10px]"
+                                :class="recordingSpeed === spd ? 'border-[#6400B2] bg-[#6400B2]/30 text-white' : 'border-white/20 text-white/70 hover:bg-white/10'"
+                                @click="setRecordingSpeed(spd)" x-text="spd + 'x'"></button>
+                    </template>
+                    <button type="button" class="rounded border border-red-400/40 px-[8px] py-[4px] text-[10px] text-red-200 hover:bg-red-500/20" @click="deleteRecording()" x-show="recordingModal.id">Delete recording</button>
+                </div>
+                <p class="mt-2 text-[10px] text-white/40">Pink markers = clicks · cyan = scrolls · click timeline to seek</p>
+                <p class="mt-1 text-[11px] text-white/50" x-text="recordingModal.page_url || ''"></p>
             </div>
         </div>
     </section>
@@ -366,6 +588,8 @@
             fetchTimer: null,
             loading: false,
             filterMenuOpen: false,
+            dataFilterMenuOpen: false,
+            exportMenuOpen: false,
             campaignMenuOpen: false,
             reportingTimezone: config.reportingTimezone || 'UTC',
             timezoneContext: null,
@@ -374,14 +598,175 @@
             profileTimezone: config.profileTimezone || 'UTC',
             columnCatalog,
             optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
-            filters: { ip: '', path: '', domain_id: '', campaign: '', from: '', to: '' },
+            filters: {
+                ip: '', path: '', domain_id: '', campaign: '', from: '', to: '',
+                country: '', keyword: '', ad_group: '', source: '', browser: '', device: '',
+                detection: '', threat_group: '', risk_level: '', block_status: '',
+            },
             campaignOptions: [],
             rows: [],
+            selectedIds: [],
+            bulkMessage: '',
+            overrideUrl: config.overrideUrl || '',
+            bulkUrl: config.bulkUrl || '',
+            csrf: config.csrf || '',
+            overrideReason: '',
+            overrideBusy: false,
+            sortKey: 'last_click_at',
+            sortDir: 'desc',
+            sortNumericKeys: [
+                'visits', 'invalid_clicks', 'valid_clicks', 'vpn_hits', 'data_center_hits',
+                'intel_risk_score', 'intel_confidence', 'intel_latitude', 'intel_longitude', 'ip_count',
+            ],
             statCards: [],
-            modal: { open: false, visit: null, clicks: [], activeIndex: 0 },
-            recordingModal: { open: false, ip: '', page_url: '', events: [] },
+            modal: { open: false, visit: null, clicks: [], activeIndex: 0, timeline: [], timelineOpen: true, timelineLoading: false },
+            recordingModal: { open: false, id: null, visit_id: null, ip: '', page_url: '', events: [] },
+            recordingController: null,
+            recordingPlaying: true,
+            recordingSpeed: 1,
             recordingStop: null,
             get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
+            get allVisibleSelected() {
+                return this.sortedRows.length > 0 && this.sortedRows.every((row) => this.selectedIds.includes(row.id));
+            },
+            toggleSelect(id, on) {
+                if (on) {
+                    if (!this.selectedIds.includes(id)) this.selectedIds.push(id);
+                } else {
+                    this.selectedIds = this.selectedIds.filter((x) => x !== id);
+                }
+            },
+            toggleSelectAll(on) {
+                if (!on) {
+                    this.selectedIds = [];
+                    return;
+                }
+                this.selectedIds = this.sortedRows.map((row) => row.id);
+            },
+            async bulkAction(action) {
+                if (!this.bulkUrl || !this.selectedIds.length) return;
+                const reason = window.prompt('Reason for bulk ' + action + ' (required):', 'Bulk ' + action);
+                if (reason === null) return;
+                if (String(reason).trim().length < 3) {
+                    this.bulkMessage = 'Reason too short.';
+                    return;
+                }
+                this.bulkMessage = 'Working…';
+                try {
+                    const res = await fetch(this.bulkUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ visit_ids: this.selectedIds, action, reason }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    this.bulkMessage = data.ok
+                        ? `Updated ${data.updated || 0}` + (data.failed ? `, failed ${data.failed}` : '')
+                        : (data.message || 'Bulk action failed');
+                    await this.fetchNow();
+                    this.selectedIds = [];
+                } catch (e) {
+                    this.bulkMessage = 'Bulk request failed.';
+                }
+            },
+            async overrideDecision(decision) {
+                if (!this.overrideUrl || !this.modal.visit?.id) return;
+                const reason = String(this.overrideReason || '').trim();
+                if (reason.length < 3) {
+                    this.bulkMessage = 'Enter an override reason (min 3 chars).';
+                    return;
+                }
+                this.overrideBusy = true;
+                try {
+                    const res = await fetch(this.overrideUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            visit_id: this.modal.visit.id,
+                            decision,
+                            reason,
+                        }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (data.ok && data.visit) {
+                        const idx = this.rows.findIndex((r) => r.id === data.visit.id);
+                        if (idx >= 0) this.rows[idx] = data.visit;
+                        this.modal.visit = data.visit;
+                        this.overrideReason = '';
+                    }
+                } finally {
+                    this.overrideBusy = false;
+                }
+            },
+            get dataFilterKeys() {
+                return ['country', 'keyword', 'ad_group', 'source', 'browser', 'device', 'detection', 'threat_group', 'risk_level', 'block_status'];
+            },
+            get activeDataFilterCount() {
+                return this.dataFilterKeys.filter((key) => String(this.filters[key] || '').trim() !== '').length;
+            },
+            get activeFilterChips() {
+                const labels = {
+                    ip: 'IP', path: 'Path', campaign: 'Campaign', country: 'Country', keyword: 'Keyword',
+                    ad_group: 'Ad group', source: 'Source', browser: 'Browser', device: 'Device',
+                    detection: 'Detection', threat_group: 'Threat', risk_level: 'Risk', block_status: 'Block',
+                };
+                return Object.keys(labels)
+                    .filter((key) => String(this.filters[key] || '').trim() !== '')
+                    .map((key) => ({ key, label: `${labels[key]}: ${this.filters[key]}` }));
+            },
+            clearDataFilters() {
+                this.dataFilterKeys.forEach((key) => { this.filters[key] = ''; });
+                this.scheduleFetch(true);
+            },
+            clearAllFilters() {
+                this.dataFilterKeys.forEach((key) => { this.filters[key] = ''; });
+                this.filters.ip = '';
+                this.filters.path = '';
+                this.filters.campaign = '';
+                this.scheduleFetch(true);
+            },
+            clearFilterChip(key) {
+                if (Object.prototype.hasOwnProperty.call(this.filters, key)) {
+                    this.filters[key] = '';
+                    this.scheduleFetch(true);
+                }
+            },
+            get sortedRows() {
+                const api = window.promotixSortable;
+                if (!api?.sortRows) return this.rows;
+                return api.sortRows(this.rows, this.sortKey, this.sortDir, this.sortNumericKeys);
+            },
+            setSort(key) {
+                if (!key || key === 'session_recording') return;
+                const api = window.promotixSortable;
+                if (api?.toggleSort) {
+                    const next = api.toggleSort(this.sortKey, key, this.sortDir);
+                    this.sortKey = next.key;
+                    this.sortDir = next.dir;
+                    return;
+                }
+                if (this.sortKey === key) {
+                    this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortKey = key;
+                    this.sortDir = 'asc';
+                }
+            },
+            sortClass(key) {
+                const api = window.promotixSortable;
+                if (api?.sortStateClass) return api.sortStateClass(this.sortKey, key, this.sortDir);
+                if (this.sortKey !== key) return 'is-sortable';
+                return this.sortDir === 'desc' ? 'is-sortable is-desc' : 'is-sortable is-asc';
+            },
             resolveReportingTimezone(googleTz) {
                 if (this.reportingMode === 'google' && googleTz) return googleTz;
                 if (this.reportingMode === 'utc') return 'UTC';
@@ -454,7 +839,7 @@
             },
             get gridStyle() {
                 const cols = this.visibleColumns.map(col => this.columnTrack(col)).join(' ');
-                return `grid-template-columns: ${cols}`;
+                return `grid-template-columns: 36px ${cols}`;
             },
             get syncStyle() {
                 return `min-width: ${this.tableMinWidth}px`;
@@ -462,8 +847,8 @@
             get tableMinWidth() {
                 const gap = 8;
                 const pad = 24;
-                const cols = this.visibleColumns.length;
-                const colWidths = this.visibleColumns.reduce((sum, col) => sum + this.columnMinPx(col), 0);
+                const cols = this.visibleColumns.length + 1;
+                const colWidths = this.visibleColumns.reduce((sum, col) => sum + this.columnMinPx(col), 0) + 36;
                 return colWidths + Math.max(0, cols - 1) * gap + pad;
             },
             columnMinPx(col) {
@@ -604,11 +989,19 @@
                 Object.entries(this.filters).forEach(([k, v]) => {
                     if (v !== '' && v != null) p.set(k, v);
                 });
+                if (this.sortKey) {
+                    p.set('sort', this.sortKey);
+                    p.set('dir', this.sortDir || 'asc');
+                }
                 return p.toString();
             },
             csvHref() {
                 const qs = this.queryString();
                 return `{{ route('paid-marketing.detailed-export') }}${qs ? '?' + qs : ''}`;
+            },
+            xlsxHref() {
+                const qs = this.queryString();
+                return `{{ route('paid-marketing.detailed-export-xlsx') }}${qs ? '?' + qs : ''}`;
             },
             async fetchNow() {
                 this.loading = true;
@@ -633,17 +1026,41 @@
                     window.promotixPageLoader?.hide();
                 }
             },
-            openClicks(visit) {
+            async openClicks(visit) {
                 this.modal.visit = visit;
                 this.modal.clicks = (visit.clicks || []).slice();
                 this.modal.activeIndex = 0;
+                this.modal.timeline = [];
+                this.modal.timelineOpen = true;
+                this.modal.timelineLoading = true;
                 this.modal.open = true;
+
+                try {
+                    const params = new URLSearchParams();
+                    params.set('ip', visit.ip || '');
+                    if (this.filters.domain_id) params.set('domain_id', this.filters.domain_id);
+                    if (this.filters.from) params.set('from', this.filters.from);
+                    if (this.filters.to) params.set('to', this.filters.to);
+                    const res = await fetch(`{{ route('paid-marketing.detailed-ip-timeline') }}?${params}`, {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.modal.timeline = data.events || [];
+                    }
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    this.modal.timelineLoading = false;
+                }
             },
             closeModal() {
                 this.modal.open = false;
                 this.modal.visit = null;
                 this.modal.clicks = [];
                 this.modal.activeIndex = 0;
+                this.modal.timeline = [];
+                this.modal.timelineLoading = false;
             },
             async openRecording(visit) {
                 if (!visit?.session_recording_id) return;
@@ -655,32 +1072,94 @@
                     const data = await res.json();
                     this.recordingModal = {
                         open: true,
+                        id: data.id || visit.session_recording_id,
+                        visit_id: data.visit_id || null,
                         ip: data.ip || visit.ip,
                         page_url: data.page_url || '',
                         events: data.events || [],
                     };
+                    this.recordingPlaying = true;
+                    this.recordingSpeed = 1;
                     this.$nextTick(() => this.renderRecording(data.events || []));
                 } catch (e) {
                     console.error(e);
                 }
             },
             closeRecording() {
+                if (this.recordingController?.stop) this.recordingController.stop();
                 if (this.recordingStop) {
                     this.recordingStop();
                     this.recordingStop = null;
                 }
-                this.recordingModal = { open: false, ip: '', page_url: '', events: [] };
+                this.recordingController = null;
+                this.recordingPlaying = false;
+                this.recordingModal = { open: false, id: null, visit_id: null, ip: '', page_url: '', events: [] };
             },
             renderRecording(events) {
+                if (this.recordingController?.stop) this.recordingController.stop();
                 if (this.recordingStop) {
                     this.recordingStop();
                     this.recordingStop = null;
                 }
                 const canvas = this.$refs.recordingCanvas;
                 if (!canvas || !window.PromotixSessionRecordingPlayer) return;
-                this.recordingStop = window.PromotixSessionRecordingPlayer.play(canvas, events, () => {
+                this.recordingController = window.PromotixSessionRecordingPlayer.play(canvas, events, () => {
+                    this.recordingPlaying = false;
+                    this.recordingController = null;
                     this.recordingStop = null;
-                });
+                }, { speed: this.recordingSpeed });
+                this.recordingStop = () => this.recordingController?.stop?.();
+                this.recordingPlaying = true;
+            },
+            toggleRecordingPlayback() {
+                if (!this.recordingController) return;
+                if (this.recordingPlaying) {
+                    this.recordingController.pause?.();
+                    this.recordingPlaying = false;
+                } else {
+                    this.recordingController.resume?.();
+                    this.recordingPlaying = true;
+                }
+            },
+            setRecordingSpeed(spd) {
+                this.recordingSpeed = spd;
+                this.recordingController?.setSpeed?.(spd);
+            },
+            seekRecording(event) {
+                const canvas = this.$refs.recordingCanvas;
+                if (!canvas || !this.recordingController?.seek) return;
+                const rect = canvas.getBoundingClientRect();
+                const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+                const duration = this.recordingController.duration || 1;
+                this.recordingController.seek(ratio * duration);
+                this.recordingPlaying = true;
+            },
+            async deleteRecording() {
+                if (!this.recordingModal?.id) return;
+                if (!window.confirm('Delete this session recording permanently?')) return;
+                try {
+                    const res = await fetch(`{{ route('paid-marketing.session-recording.destroy', ['recording' => '__ID__']) }}`.replace('__ID__', this.recordingModal.id), {
+                        method: 'DELETE',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (data.ok) {
+                        const id = this.recordingModal.id;
+                        this.closeRecording();
+                        this.rows = this.rows.map((row) => {
+                            if (row.session_recording_id === id) {
+                                return { ...row, has_session_recording: false, session_recording_id: null };
+                            }
+                            return row;
+                        });
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
             },
             formatDateTime(value) {
                 if (!value) return '-';
