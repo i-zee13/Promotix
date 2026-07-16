@@ -39,15 +39,22 @@ class TagController extends Controller
         $trackMedium = ($trackingParams['utm_medium'] ?? true) ? 'true' : 'false';
         $trackCampaign = ($trackingParams['utm_campaign'] ?? true) ? 'true' : 'false';
         $trackTerm = ($trackingParams['utm_term'] ?? true) ? 'true' : 'false';
+        // Heredoc cannot embed ternaries like {$x ? 'true' : 'false'} (PHP ParseError).
+        $consentRequiredJs = $consentRequired ? 'true' : 'false';
+        $maskPasswordsJs = $maskPasswords ? 'true' : 'false';
+        $domainKeyJson = $this->json($domainKey);
+        $collectUrlJson = $this->json($collectUrl);
+        $sessionRecordingUrlJson = $this->json($sessionRecordingUrl);
+        $ipCheckUrlJson = $this->json($ipCheckUrl);
 
         $js = <<<JS
 (function(){
-  var domainKey = {$this->json($domainKey)};
-  var collectUrl = {$this->json($collectUrl)};
-  var sessionRecordingUrl = {$this->json($sessionRecordingUrl)};
-  var ipCheckUrl = {$this->json($ipCheckUrl)};
-  var consentRequired = {$consentRequired ? 'true' : 'false'};
-  var maskPasswords = {$maskPasswords ? 'true' : 'false'};
+  var domainKey = {$domainKeyJson};
+  var collectUrl = {$collectUrlJson};
+  var sessionRecordingUrl = {$sessionRecordingUrlJson};
+  var ipCheckUrl = {$ipCheckUrlJson};
+  var consentRequired = {$consentRequiredJs};
+  var maskPasswords = {$maskPasswordsJs};
   var consentRegions = {$consentRegionsJson};
   var trackSource = {$trackSource};
   var trackMedium = {$trackMedium};
