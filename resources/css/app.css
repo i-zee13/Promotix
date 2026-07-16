@@ -4163,6 +4163,107 @@ select:autofill {
     color: rgba(16, 16, 16, 0.4);
 }
 
+/* Geo block / allow country picker inside detection cards */
+.figma-detection-geo-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 15px;
+}
+
+.figma-detection-geo-block-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.figma-detection-card-inset {
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background-color: rgba(0, 0, 0, 0.28);
+    padding: 10px;
+}
+
+.figma-detection-geo-add-btn {
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background-color: #ffffff;
+    padding: 0 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6400b2;
+}
+
+.figma-detection-geo-add-btn:hover {
+    background-color: #f4eefb;
+}
+
+.figma-detection-geo-rule-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 6px 8px;
+    font-size: 11px;
+    color: #ffffff;
+}
+
+.figma-detection-geo-empty {
+    font-size: 10px;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.figma-detection-advanced {
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background-color: #141414;
+    padding: 0 14px 14px;
+}
+
+.figma-detection-advanced-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: pointer;
+    list-style: none;
+    padding: 14px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #d9d9d9;
+}
+
+.figma-detection-advanced-summary::-webkit-details-marker {
+    display: none;
+}
+
+.figma-detection-advanced-hint {
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.figma-detection-advanced-input {
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background-color: #101010;
+    padding: 6px 8px;
+    font-size: 12px;
+    color: #ffffff;
+    color-scheme: dark;
+}
+
+.figma-detection-advanced-input option {
+    background-color: #101010;
+    color: #ffffff;
+}
+
 .figma-google-exclusion-actions {
     display: grid;
     grid-template-columns: minmax(180px, 1fr) auto auto;
@@ -6126,9 +6227,38 @@ select:autofill {
 
 .light-mode .figma-main [class*='bg-[#0e0e0e]'],
 .light-mode .figma-main [class*='bg-[#0f0e0e]'],
-.light-mode .figma-main [class*='bg-black'] {
+.light-mode .figma-main [class*='bg-black']:not(.figma-detection-card-inset):not(.figma-detection-advanced-input) {
     background-color: #6400b2 !important;
     color: #ffffff !important;
+}
+
+/* Keep geo inset panels dark inside detection cards (light theme) */
+.light-mode .figma-detection-card-inset,
+.light-mode .figma-detection-left .figma-detection-card-inset,
+.light-mode .figma-detection-right .figma-detection-card-inset {
+    background-color: rgba(0, 0, 0, 0.32) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #d9d9d9 !important;
+}
+
+.light-mode .figma-detection-advanced {
+    background-color: #f4eefb;
+    border-color: #c9b8dc;
+}
+
+.light-mode .figma-detection-advanced-summary {
+    color: #2d2d3a;
+}
+
+.light-mode .figma-detection-advanced-hint {
+    color: #6b6478;
+}
+
+.light-mode .figma-detection-advanced-input {
+    background-color: #ffffff !important;
+    border-color: #c9b8dc !important;
+    color: #2d2d3a !important;
+    color-scheme: light;
 }
 
 /* Purple surfaces: inner panels & controls */
