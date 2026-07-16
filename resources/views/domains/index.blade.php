@@ -3,7 +3,7 @@
 @section('title', 'Site Management')
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="siteManagementFigma()" x-init="initPage()" @keydown.escape.window="closeAll()">
+<div class="figma-domains-page min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="siteManagementFigma()" x-init="initPage()" @keydown.escape.window="closeAll()">
     <section class="mx-auto w-full px-[12px] pb-[32px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         <div class="mb-[20px] flex flex-col gap-[14px] lg:flex-row lg:items-center lg:justify-between">
             <h1 class="text-[28px] font-semibold leading-none text-[#a9a9a9] sm:text-[36px]">Site Management</h1>

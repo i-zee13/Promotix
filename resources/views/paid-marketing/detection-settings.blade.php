@@ -84,29 +84,38 @@
                     @csrf
                     <input type="hidden" name="control_mode" :value="mode">
 
-                    <div class="mb-[18px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 xl:grid-cols-4">
-                        @foreach ([
-                            'allow_countries' => ['Allow Countries', 'Only selected countries can open the landing page. Everyone else is denied.'],
-                            'block_countries' => ['Block Countries', 'Selected countries cannot open the site and are pushed to Google Ads location exclusions.'],
-                            'allow_ips' => ['Allow IPs', 'Listed IPs always bypass automated blocks (activity still logged).'],
-                            'block_ips' => ['Block IPs', 'Listed IPs are denied before protected page content loads.'],
-                        ] as $modeKey => [$modeTitle, $modeHelp])
-                            <button type="button"
-                                    @click="mode = '{{ $modeKey }}'"
-                                    class="rounded-[10px] border px-[14px] py-[12px] text-left transition"
-                                    :class="mode === '{{ $modeKey }}' ? 'border-[#6400B2] bg-[#6400B2]/25' : 'border-white/20 bg-[#101010] hover:border-white/40'">
-                                <p class="text-[13px] font-semibold text-white">{{ $modeTitle }}</p>
-                                <p class="mt-[6px] text-[10px] leading-snug text-white/55">{{ $modeHelp }}</p>
-                                <p class="mt-[8px] text-[9px] font-semibold uppercase tracking-wide"
-                                   :class="mode === '{{ $modeKey }}' ? 'text-[#c084fc]' : 'text-white/35'"
-                                   x-text="mode === '{{ $modeKey }}' ? 'Selected mode' : 'Click to select'"></p>
-                            </button>
-                        @endforeach
-                    </div>
-                    <p class="mb-[16px] text-[11px] text-[#a9a9a9]">
-                        Active mode: <span class="font-semibold text-white" x-text="mode.replace('_', ' ')"></span>.
-                        Choose one primary control. You can still fine-tune the related lists below, then Save changes.
-                    </p>
+                    <section class="figma-detection-control-modes" aria-labelledby="detection-control-modes-heading">
+                        <div class="figma-detection-control-modes-header">
+                            <h2 id="detection-control-modes-heading" class="figma-detection-control-modes-title">Primary access control</h2>
+                            <p class="figma-detection-control-modes-intro">
+                                Pick <strong>one</strong> main geo/IP strategy for this domain. This is separate from the <strong>Block / Flag / Allow</strong> dropdowns under Bot Protection below — those control what happens when a <em>threat type</em> is detected (bots, VPN, etc.), not which countries or IPs you allow or deny overall.
+                            </p>
+                        </div>
+                        <div class="figma-detection-control-modes-grid">
+                            @foreach ([
+                                'allow_countries' => ['Allow Countries', 'Only selected countries can open the landing page. Everyone else is denied.', 'Right panel → country allow list'],
+                                'block_countries' => ['Block Countries', 'Selected countries cannot open the site and are pushed to Google Ads location exclusions.', 'Left panel → Google geo block'],
+                                'allow_ips' => ['Allow IPs', 'Listed IPs always bypass automated blocks (activity still logged).', 'Right panel → IP allow list'],
+                                'block_ips' => ['Block IPs', 'Listed IPs are denied before protected page content loads.', 'Left panel → IP block list'],
+                            ] as $modeKey => [$modeTitle, $modeHelp, $modePanel])
+                                <button type="button"
+                                        @click="mode = '{{ $modeKey }}'"
+                                        class="figma-detection-control-mode-card"
+                                        :class="{ 'is-selected': mode === '{{ $modeKey }}' }"
+                                        :aria-pressed="mode === '{{ $modeKey }}' ? 'true' : 'false'">
+                                    <p class="figma-detection-control-mode-card-title">{{ $modeTitle }}</p>
+                                    <p class="figma-detection-control-mode-card-help">{{ $modeHelp }}</p>
+                                    <p class="figma-detection-control-mode-card-panel">{{ $modePanel }}</p>
+                                    <p class="figma-detection-control-mode-card-status"
+                                       x-text="mode === '{{ $modeKey }}' ? 'Selected mode' : 'Click to select'"></p>
+                                </button>
+                            @endforeach
+                        </div>
+                        <p class="figma-detection-control-modes-active">
+                            Active mode: <span x-text="mode.replaceAll('_', ' ')"></span>.
+                            Fine-tune the related lists in the panels below, then Save changes.
+                        </p>
+                    </section>
 
                     <div class="mb-[18px] rounded-[10px] border border-amber-400/40 bg-amber-500/10 px-[14px] py-[12px] text-[11px] leading-relaxed text-amber-100/90">
                         <p class="font-semibold text-amber-100">Ad-platform limitation</p>
@@ -265,7 +274,10 @@
                                 </div>
                             </div>
 
-                            <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-detection-add-domain">ADD DOMAIN</a>
+                            <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-detection-add-domain">
+                                <svg class="figma-detection-add-domain-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Add domain
+                            </a>
                         </div>
 
                         {{-- Right: marketing optimization (Figma purple panel) --}}
@@ -571,9 +583,16 @@
                         $thr = $settings->detection_thresholds ?? [];
                         $profiles = $detectionProfiles ?? \App\Support\DetectionProfiles::catalog();
                     @endphp
-                    <details class="figma-detection-advanced mt-[18px] open">
+                    <details
+                        id="detection-advanced"
+                        class="figma-detection-advanced mt-[18px]"
+                        @toggle="if ($el.open) { setTimeout(() => $el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80) }"
+                    >
                         <summary class="figma-detection-advanced-summary">
-                            <span>Advanced detection settings</span>
+                            <span class="figma-detection-advanced-summary-label">
+                                <svg class="figma-detection-advanced-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                Advanced detection settings
+                            </span>
                             <span class="figma-detection-advanced-hint">Profiles, rapid-click thresholds, block behavior, privacy &amp; recordings</span>
                         </summary>
                         <div class="figma-detection-advanced-body space-y-[12px]">
@@ -581,47 +600,47 @@
                                 These controls tune how aggressively PromoTix flags or blocks paid clicks (checklist items DE-04–DE-08, BL-02, BL-05, SR-06, SE-04). They are optional fine-tuning on top of the main threat rules in the panels above.
                             </p>
                             <h3 class="figma-detection-section-title !mb-[6px]">Detection profile</h3>
-                            <div class="grid gap-[10px] sm:grid-cols-2 xl:grid-cols-4">
+                            <div class="figma-detection-profile-grid">
                                 @foreach ($profiles as $pkey => $pinfo)
-                                    <label class="cursor-pointer rounded-[10px] border px-[12px] py-[12px] transition {{ $profileKey === $pkey ? 'border-[#6400B2] bg-[#6400B2]/25' : 'border-white/20 bg-[#101010]' }}">
+                                    <label class="figma-detection-profile-card {{ $profileKey === $pkey ? 'is-selected' : '' }}">
                                         <div class="flex items-start gap-[8px]">
                                             <input type="radio" name="detection_profile" value="{{ $pkey }}" class="mt-[3px]" @checked($profileKey === $pkey)>
                                             <div>
-                                                <p class="text-[13px] font-semibold text-white">{{ $pinfo['label'] }}</p>
-                                                <p class="mt-[4px] text-[10px] text-white/55">{{ $pinfo['summary'] }}</p>
-                                                <p class="mt-[6px] text-[9px] text-white/40">FP risk: {{ $pinfo['false_positive_risk'] }} · {{ $pinfo['recommended'] }}</p>
+                                                <p class="figma-detection-profile-card-title">{{ $pinfo['label'] }}</p>
+                                                <p class="figma-detection-profile-card-summary">{{ $pinfo['summary'] }}</p>
+                                                <p class="figma-detection-profile-card-meta">FP risk: {{ $pinfo['false_positive_risk'] }} · {{ $pinfo['recommended'] }}</p>
                                             </div>
                                         </div>
                                     </label>
                                 @endforeach
                             </div>
-                            <div class="grid gap-[10px] rounded-[10px] border border-white/15 bg-[#101010] p-[12px] sm:grid-cols-4">
-                                <label class="text-[10px] text-white/60">
+                            <div class="figma-detection-advanced-panel grid gap-[10px] sm:grid-cols-4">
+                                <label class="figma-detection-advanced-field">
                                     Rapid window (sec)
                                     <input type="number" name="rapid_window_seconds" min="30" max="600" value="{{ $thr['rapid_window_seconds'] ?? 120 }}" class="figma-detection-advanced-input mt-[4px] w-full">
                                 </label>
-                                <label class="text-[10px] text-white/60">
+                                <label class="figma-detection-advanced-field">
                                     Flag at prior clicks
                                     <input type="number" name="rapid_flag_at" min="1" max="10" value="{{ $thr['rapid_flag_at'] ?? 1 }}" class="figma-detection-advanced-input mt-[4px] w-full">
                                 </label>
-                                <label class="text-[10px] text-white/60">
+                                <label class="figma-detection-advanced-field">
                                     Block at prior clicks
                                     <input type="number" name="rapid_block_at" min="1" max="20" value="{{ $thr['rapid_block_at'] ?? 2 }}" class="figma-detection-advanced-input mt-[4px] w-full">
                                 </label>
-                                <label class="text-[10px] text-white/60">
+                                <label class="figma-detection-advanced-field">
                                     Daily valid click limit
                                     <input type="number" name="daily_valid_click_limit" min="1" max="20" value="{{ $thr['daily_valid_click_limit'] ?? 2 }}" class="figma-detection-advanced-input mt-[4px] w-full">
                                 </label>
                             </div>
-                            <label class="flex flex-wrap items-center gap-[10px] text-[11px] text-white/70">
+                            <label class="figma-detection-advanced-inline">
                                 Fail-safe when detection is unavailable
                                 <select name="fail_mode" class="figma-detection-advanced-input">
                                     <option value="open" @selected(($settings->fail_mode ?? 'open') === 'open')>Fail open (allow)</option>
                                     <option value="closed" @selected(($settings->fail_mode ?? 'open') === 'closed')>Fail closed (block)</option>
                                 </select>
                             </label>
-                            <div class="grid gap-[10px] rounded-[10px] border border-white/15 bg-[#101010] p-[12px] sm:grid-cols-2">
-                                <label class="text-[10px] text-white/60">
+                            <div class="figma-detection-advanced-panel grid gap-[10px] sm:grid-cols-2">
+                                <label class="figma-detection-advanced-field">
                                     Block response
                                     <select name="block_response" class="figma-detection-advanced-input mt-[4px] w-full">
                                         <option value="hide" @selected(($settings->block_response ?? 'hide') === 'hide')>Hide page</option>
@@ -631,35 +650,35 @@
                                         <option value="redirect" @selected(($settings->block_response ?? '') === 'redirect')>Safe redirect</option>
                                     </select>
                                 </label>
-                                <label class="text-[10px] text-white/60">
+                                <label class="figma-detection-advanced-field">
                                     Redirect URL (when redirect selected)
                                     <input type="url" name="block_redirect_url" value="{{ $settings->block_redirect_url }}" placeholder="https://example.com/safe" class="figma-detection-advanced-input mt-[4px] w-full">
                                 </label>
-                                <label class="text-[10px] text-white/60 sm:col-span-2">
+                                <label class="figma-detection-advanced-field sm:col-span-2">
                                     Session recording retention (days)
                                     <input type="number" name="recording_retention_days" min="1" max="3650" value="{{ $settings->recording_retention_days ?? 30 }}" class="figma-detection-advanced-input mt-[4px] w-full max-w-[160px]">
                                 </label>
-                                <label class="text-[10px] text-white/60">
+                                <label class="figma-detection-advanced-field">
                                     Geo rule scope
                                     <select name="geo_rule_scope" class="figma-detection-advanced-input mt-[4px] w-full">
                                         <option value="domain" @selected(($settings->geo_rule_scope ?? 'domain') === 'domain')>This domain only</option>
                                         <option value="workspace" @selected(($settings->geo_rule_scope ?? '') === 'workspace')>Workspace defaults</option>
                                     </select>
                                 </label>
-                                <label class="text-[10px] text-white/60 flex items-end gap-[8px]">
+                                <label class="figma-detection-advanced-field flex items-end gap-[8px]">
                                     <input type="checkbox" name="save_workspace_geo" value="1" class="rounded border-white/30">
                                     Save current geo rules as workspace defaults
                                 </label>
-                                <label class="text-[10px] text-white/60 flex items-center gap-[8px] sm:col-span-2">
+                                <label class="figma-detection-advanced-field flex items-center gap-[8px] sm:col-span-2">
                                     <input type="hidden" name="consent_required" value="0">
                                     <input type="checkbox" name="consent_required" value="1" @checked($settings->consent_required ?? false) class="rounded border-white/30">
                                     Require consent banner before tracking (GDPR/CCPA)
                                 </label>
-                                <label class="text-[10px] text-white/60 sm:col-span-2">
+                                <label class="figma-detection-advanced-field sm:col-span-2">
                                     Consent regions (ISO country codes, comma-separated; empty = all)
                                     <input type="text" name="consent_regions" value="{{ implode(',', (array) ($settings->consent_regions ?? [])) }}" placeholder="DE,FR,GB" class="figma-detection-advanced-input mt-[4px] w-full">
                                 </label>
-                                <label class="text-[10px] text-white/60 flex items-center gap-[8px] sm:col-span-2">
+                                <label class="figma-detection-advanced-field flex items-center gap-[8px] sm:col-span-2">
                                     <input type="hidden" name="recording_mask_passwords" value="0">
                                     <input type="checkbox" name="recording_mask_passwords" value="1" @checked($settings->recording_mask_passwords ?? true) class="rounded border-white/30">
                                     Mask password and sensitive inputs in session recordings
