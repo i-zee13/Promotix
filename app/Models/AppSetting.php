@@ -67,11 +67,21 @@ class AppSetting extends Model
         return $casted;
     }
 
-    public static function set(string $key, mixed $value): void
+    public static function set(string $key, mixed $value, ?string $type = null, ?string $group = null, ?string $label = null): void
     {
         $row = self::query()->where('key', $key)->first();
+
         if (! $row) {
-            return;
+            $group ??= str_contains($key, '.') ? explode('.', $key, 2)[0] : 'general';
+            $type ??= 'string';
+            $row = new self([
+                'group' => $group,
+                'key' => $key,
+                'label' => $label ?? $key,
+                'type' => $type,
+                'value' => '',
+                'is_public' => true,
+            ]);
         }
 
         $serialized = match ($row->type) {
@@ -80,7 +90,8 @@ class AppSetting extends Model
             default   => is_scalar($value) || $value === null ? (string) $value : json_encode($value),
         };
 
-        $row->update(['value' => $serialized]);
+        $row->value = $serialized;
+        $row->save();
         Cache::forget("app_setting:{$key}");
     }
 

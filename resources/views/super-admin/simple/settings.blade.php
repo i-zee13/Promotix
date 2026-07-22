@@ -33,7 +33,7 @@
 @endphp
 <x-super-admin.page>
 <div x-data="{
-        modal: null,
+        modal: @js(session('open_modal')),
         brandingTab: 'logo',
         emailTab: 'welcome_email',
         search: '',
@@ -95,6 +95,14 @@
             </span>
             <h3 class="figma-sa-settings-card-title">Bank Details</h3>
             <p class="figma-sa-settings-card-desc">Shown to customers on manual bank transfer</p>
+            @php
+                $bankNamePreview = $bankSettings->firstWhere('key', 'bank.bank_name')?->value;
+                $bankAccountPreview = $bankSettings->firstWhere('key', 'bank.account_number')?->value;
+            @endphp
+            <p class="mt-2 text-[12px] leading-snug text-white/65">
+                Bank: {{ $bankNamePreview !== null && $bankNamePreview !== '' ? $bankNamePreview : '—' }}
+                · Account: {{ $bankAccountPreview !== null && $bankAccountPreview !== '' ? $bankAccountPreview : '—' }}
+            </p>
             <button type="button" class="figma-sa-settings-card-btn" @click="modal = 'bank'">Configure</button>
         </article>
 
@@ -382,22 +390,43 @@
     </div>
 
     {{-- Bank Details modal --}}
-    <div x-show="modal === 'bank'" x-cloak class="figma-sa-settings-modal-backdrop" @keydown.escape.window="modal = null">
-        <div class="figma-sa-settings-modal" style="max-width:720px;" @click.outside="modal = null">
+    <div x-show="modal === 'bank'" x-cloak class="figma-sa-settings-modal-backdrop" @click.self="modal = null" @keydown.escape.window="if (modal === 'bank') modal = null">
+        <div class="figma-sa-settings-modal" style="max-width:720px;" @click.stop>
             <button type="button" class="figma-sa-settings-modal-close" @click="modal = null">&times;</button>
             <h2 class="figma-sa-settings-modal-title">Bank Transfer Details</h2>
             <form method="POST" action="{{ route('super-admin.settings.save') }}" class="figma-sa-settings-panel grid gap-4 md:grid-cols-2">
                 @csrf
-                @foreach ($bankSettings as $setting)
+                <input type="hidden" name="return_modal" value="bank">
+                @forelse ($bankSettings as $index => $setting)
                     <div @class(['md:col-span-2' => $setting->type === 'text' || $setting->key === 'bank.instructions'])>
                         <label class="figma-sa-settings-row-label">{{ $setting->label ?? $setting->key }}</label>
+                        <input type="hidden" name="setting_rows[{{ $index }}][key]" value="{{ $setting->key }}">
                         @if ($setting->type === 'text' || $setting->key === 'bank.instructions')
-                            <textarea name="settings[{{ $setting->key }}]" rows="3" class="figma-sa-settings-textarea mt-1">{{ $setting->value }}</textarea>
+                            <textarea name="setting_rows[{{ $index }}][value]" rows="3" class="figma-sa-settings-textarea mt-1">{{ $setting->value }}</textarea>
                         @else
-                            <input type="text" name="settings[{{ $setting->key }}]" value="{{ $setting->value }}" class="figma-sa-settings-input mt-1">
+                            <input type="text" name="setting_rows[{{ $index }}][value]" value="{{ $setting->value }}" class="figma-sa-settings-input mt-1" autocomplete="off">
                         @endif
                     </div>
-                @endforeach
+                @empty
+                    <p class="md:col-span-2 text-[13px] text-white/75">No bank settings found. Save once to create them.</p>
+                    @foreach ([
+                        'bank.bank_name' => 'Bank name',
+                        'bank.account_name' => 'Bank account holder name',
+                        'bank.account_number' => 'Bank account number / IBAN',
+                        'bank.swift' => 'SWIFT / BIC',
+                        'bank.instructions' => 'Payment instructions',
+                    ] as $fallbackKey => $fallbackLabel)
+                        <div @class(['md:col-span-2' => $fallbackKey === 'bank.instructions'])>
+                            <label class="figma-sa-settings-row-label">{{ $fallbackLabel }}</label>
+                            <input type="hidden" name="setting_rows[{{ $loop->index }}][key]" value="{{ $fallbackKey }}">
+                            @if ($fallbackKey === 'bank.instructions')
+                                <textarea name="setting_rows[{{ $loop->index }}][value]" rows="3" class="figma-sa-settings-textarea mt-1">Please use your registered email as the payment reference.</textarea>
+                            @else
+                                <input type="text" name="setting_rows[{{ $loop->index }}][value]" value="" class="figma-sa-settings-input mt-1" autocomplete="off">
+                            @endif
+                        </div>
+                    @endforeach
+                @endforelse
                 <div class="md:col-span-2 flex justify-end gap-2">
                     <button type="button" class="figma-sa-settings-btn figma-sa-settings-btn--outline" @click="modal = null">Cancel</button>
                     <button type="submit" class="figma-sa-settings-btn figma-sa-settings-btn--primary">Save bank details</button>

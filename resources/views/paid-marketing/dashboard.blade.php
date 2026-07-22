@@ -714,7 +714,7 @@ function paidAdvertisingFigma(config = {}) {
             this.filters.from = start.toISOString().slice(0, 10);
             this.filters.to = today.toISOString().slice(0, 10);
             window.promotixPageLoader?.show('Loading data…');
-            this.reload();
+            this.reload(false, true);
         },
         qs(forceGoogle = false) {
             const p = new URLSearchParams();
@@ -730,10 +730,15 @@ function paidAdvertisingFigma(config = {}) {
         googleSyncTimer: null,
         watermarkTimer: null,
         lastWatermarkId: null,
+        reloadInFlight: false,
+        reloadQueued: false,
+        reloadQueuedForceGoogle: false,
+        lastRenderFingerprint: '',
+        lastReloadAt: 0,
         livePollOn: true,
-        livePollMs: 30000,
+        livePollMs: 45000,
         googleSyncMs: 300000,
-        watermarkMs: 15000,
+        watermarkMs: 30000,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         scheduleReload() {
             clearTimeout(this.reloadTimer);
@@ -768,7 +773,7 @@ function paidAdvertisingFigma(config = {}) {
             this.filters.campaign_id = '';
             this.applyDomainTimezoneFromCatalog();
             window.promotixPageLoader?.show('Loading data…');
-            this.reload();
+            this.reload(false, true);
         },
         async onCampaignFilterChange() {
             this.syncCampaignFilter();
@@ -809,22 +814,25 @@ function paidAdvertisingFigma(config = {}) {
             clearInterval(this.livePollTimer);
             this.livePollTimer = setInterval(() => {
                 if (!this.livePollOn || document.hidden) return;
-                this.reload();
+                // Soft refresh only — never force Google Ads sync on the timer.
+                this.reload(false, false);
             }, this.livePollMs);
         },
         startGoogleSyncPoll() {
             clearInterval(this.googleSyncTimer);
             this.googleSyncTimer = setInterval(() => {
                 if (!this.livePollOn || document.hidden) return;
-                this.reload(true);
+                this.reload(true, false);
             }, this.googleSyncMs);
         },
         async checkWatermark() {
-            if (!this.livePollOn || document.hidden) return;
+            if (!this.livePollOn || document.hidden || this.reloadInFlight) return;
+            // Avoid a second full refresh right after a poll/reload.
+            if (Date.now() - this.lastReloadAt < 20000) return;
             try {
                 const data = await fetch(`/paid-marketing/watermark?${this.qs()}`).then(r => r.json());
                 if (this.lastWatermarkId !== null && data.last_id > this.lastWatermarkId) {
-                    this.reload();
+                    this.reload(false, false);
                 }
                 this.lastWatermarkId = data.last_id;
             } catch (e) { /* silent — next tick retries */ }
@@ -853,16 +861,23 @@ function paidAdvertisingFigma(config = {}) {
                 this.scheduleReload();
             });
             document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) this.reload(true);
+                // Soft refresh when returning to the tab — force Google sync is too heavy and causes 3–5s freezes.
+                if (!document.hidden) this.reload(false, false);
             });
             window.addEventListener('promotix:export-ips-csv', () => this.exportIpsCsv());
-            await this.reload();
+            await this.reload(false, true);
             window.addEventListener('resize', () => {
                 clearTimeout(window.__paidFigmaResize);
-                window.__paidFigmaResize = setTimeout(() => this.render(), 180);
+                window.__paidFigmaResize = setTimeout(() => this.render(true), 180);
             });
         },
         async reload(forceGoogle = false, withLoader = false) {
+            if (this.reloadInFlight) {
+                this.reloadQueued = true;
+                this.reloadQueuedForceGoogle = this.reloadQueuedForceGoogle || forceGoogle;
+                return;
+            }
+            this.reloadInFlight = true;
             if (withLoader) window.promotixPageLoader?.show('Refreshing dashboard…');
             try {
                 const qs = this.qs(forceGoogle);
@@ -890,9 +905,17 @@ function paidAdvertisingFigma(config = {}) {
                 this.countries = countries;
                 this.ips = ips;
                 this.heatmap = heatmap;
-                this.$nextTick(() => this.render());
+                this.lastReloadAt = Date.now();
+                this.$nextTick(() => this.render(false));
             } finally {
-                window.promotixPageLoader?.hide();
+                this.reloadInFlight = false;
+                if (withLoader) window.promotixPageLoader?.hide();
+                if (this.reloadQueued) {
+                    const queuedForce = this.reloadQueuedForceGoogle;
+                    this.reloadQueued = false;
+                    this.reloadQueuedForceGoogle = false;
+                    this.reload(queuedForce, false);
+                }
             }
         },
         openIpModal(row) {
@@ -972,7 +995,20 @@ function paidAdvertisingFigma(config = {}) {
             const qs = this.ipsQueryString();
             window.location.href = `{{ route('paid-marketing.ips.export') }}${qs ? '?' + qs : ''}`;
         },
-        render() {
+        render(force = false) {
+            const fingerprint = JSON.stringify({
+                s: this.summary,
+                t: this.trends,
+                b: this.blocking,
+                k: this.keywords,
+                c: this.countries,
+                h: this.heatmap,
+                hidden: this.hiddenTrendSeries,
+            });
+            if (!force && fingerprint === this.lastRenderFingerprint) {
+                return;
+            }
+            this.lastRenderFingerprint = fingerprint;
             requestAnimationFrame(() => {
                 this.renderCardCharts();
                 const labels = this.trends.labels || [];
@@ -1025,7 +1061,7 @@ function paidAdvertisingFigma(config = {}) {
             return {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: { duration: 350 },
+                animation: false,
                 plugins: { legend: { display: false }, tooltip: { enabled: true } },
                 ...extra,
             };
@@ -1048,7 +1084,6 @@ function paidAdvertisingFigma(config = {}) {
                 requestAnimationFrame(() => this.renderInvalidDonut(retry + 1));
                 return;
             }
-            this.destroyCardChart('invalidDonut');
             const valid = Number(this.summary.valid_paid_visits || 0);
             const invalid = Number(this.summary.invalid_paid_visits || 0);
             const tagTotal = Number(this.summary.tag_paid_visits || 0);
@@ -1057,10 +1092,25 @@ function paidAdvertisingFigma(config = {}) {
             const fmt = (n) => this.fmt(n);
             const validColor = 'rgba(255,255,255,0.42)';
             const emptyColor = 'rgba(255,255,255,0.14)';
+            const data = hasData ? [Math.max(valid, 0), Math.max(invalid, 0)] : [1];
+            let colors = hasData ? [validColor, '#FF4BC1'] : [emptyColor];
+
+            if (this.cardCharts.invalidDonut) {
+                const chart = this.cardCharts.invalidDonut;
+                chart.data.datasets[0].data = data;
+                chart.data.datasets[0].backgroundColor = colors;
+                chart.options.plugins.tooltip.enabled = hasData;
+                chart.update('none');
+                const center = document.getElementById('paid-invalid-donut-center');
+                if (center) center.textContent = hasData ? `${rate}%` : '0%';
+                return;
+            }
+
+            this.destroyCardChart('invalidDonut');
             const ringBorder = 'rgba(255,255,255,0.55)';
             let labels = ['Invalid', 'Valid'];
             let values = [invalid, valid];
-            let colors = ['#FF4BC1', validColor];
+            colors = ['#FF4BC1', validColor];
 
             if (!hasData) {
                 labels = ['Empty'];
@@ -1137,14 +1187,23 @@ function paidAdvertisingFigma(config = {}) {
         renderBotBars() {
             const el = document.getElementById('bot-bars');
             if (!el) return;
-            this.destroyCardChart('botBars');
             const values = (this.trends.invalid_daily || []).slice(-7);
             const labels = (this.trends.labels || []).slice(-7);
             const barValues = values.length ? values : [0, 0, 0, 0, 0, 0, 0];
+            const barLabels = labels.length ? labels : barValues.map((_, i) => i + 1);
+
+            if (this.cardCharts.botBars) {
+                const chart = this.cardCharts.botBars;
+                chart.data.labels = barLabels;
+                chart.data.datasets[0].data = barValues;
+                chart.update('none');
+                return;
+            }
+
             this.cardCharts.botBars = new Chart(el, {
                 type: 'bar',
                 data: {
-                    labels: labels.length ? labels : barValues.map((_, i) => i + 1),
+                    labels: barLabels,
                     datasets: [{
                         data: barValues,
                         backgroundColor: (ctx) => {
@@ -1320,8 +1379,13 @@ function paidAdvertisingFigma(config = {}) {
             const dpr = window.devicePixelRatio || 1;
             const w = canvas.clientWidth;
             const h = canvas.clientHeight;
-            canvas.width = Math.max(1, w * dpr);
-            canvas.height = Math.max(1, h * dpr);
+            const nextW = Math.max(1, Math.floor(w * dpr));
+            const nextH = Math.max(1, Math.floor(h * dpr));
+            // Only reset bitmap when size changes — resetting width/height clears the canvas and causes a visible flash.
+            if (canvas.width !== nextW || canvas.height !== nextH) {
+                canvas.width = nextW;
+                canvas.height = nextH;
+            }
             const ctx = canvas.getContext('2d');
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, w, h);

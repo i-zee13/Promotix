@@ -10,7 +10,7 @@ window.promotixPageLoader = (function () {
     let shownAt = 0;
     let hideTimer = null;
     let safetyTimer = null;
-    const minMs = 1200;
+    const minMs = 400;
 
     function node() {
         return document.getElementById('promotix-page-loader');

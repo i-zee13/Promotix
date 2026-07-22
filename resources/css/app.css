@@ -3015,6 +3015,23 @@ select.figma-sa-subs-status-pill {
     color: #6400b2;
 }
 
+.light-mode .figma-sa-plans-modal {
+    background: #ffffff !important;
+    border-color: #d4c4e8 !important;
+}
+
+.light-mode .figma-sa-plans-modal-title {
+    color: #3d3848 !important;
+}
+
+.light-mode .figma-sa-plans-modal-sub {
+    color: #6b6578 !important;
+}
+
+.light-mode .figma-sa-plans-modal-close {
+    color: #6b6578 !important;
+}
+
 /* Flash / alert banners */
 .light-mode .figma-sa-page .border-emerald-400\/40 {
     background: #ecfdf5 !important;
@@ -8863,6 +8880,100 @@ a.figma-sa-users-filter-option {
 .figma-sa-plans-card-menu button:hover {
     background: rgba(100, 0, 178, 0.25);
     color: #ffffff;
+}
+
+.figma-sa-plans-card-menu button.is-danger {
+    color: #ff8f8f;
+}
+
+.figma-sa-plans-card-menu button.is-danger:hover {
+    background: rgba(180, 40, 40, 0.45);
+    color: #ffffff;
+}
+
+.figma-sa-plans-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.72);
+}
+
+.figma-sa-plans-modal {
+    position: relative;
+    width: min(760px, 100%);
+    max-height: min(90vh, 920px);
+    overflow: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: #141414;
+    padding: 22px 22px 18px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.figma-sa-plans-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    border: 0;
+    background: transparent;
+    color: #a9a9a9;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.figma-sa-plans-modal-close:hover {
+    color: #ffffff;
+}
+
+.figma-sa-plans-modal-title {
+    margin: 0;
+    padding-right: 28px;
+    font-size: 22px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.figma-sa-plans-modal-sub {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #a9a9a9;
+}
+
+.figma-sa-plans-modal-form {
+    margin-top: 18px;
+}
+
+.figma-sa-plans-modal-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+@media (min-width: 720px) {
+    .figma-sa-plans-modal-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.figma-sa-plans-check {
+    width: 16px;
+    height: 16px;
+    accent-color: #6400b2;
+}
+
+.figma-sa-plans-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .figma-sa-plans-card-body {

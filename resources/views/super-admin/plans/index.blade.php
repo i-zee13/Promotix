@@ -4,33 +4,45 @@
 
 @section('content')
 @php
-    $productNames = $products->pluck('name', 'id');
     $defaultProduct = $products->first();
-@endphp
-
-<x-super-admin.page title="Plans & Pricing">
-    <div
-        class="figma-sa-plans"
-        x-data="plansPricingPage(@js($plans->map(fn ($p) => [
+    $plansPayload = $plans->map(function ($p) {
+        return [
             'id' => $p->id,
             'name' => $p->name,
             'tier' => $p->tier,
             'product_id' => $p->saas_product_id,
             'product_name' => $p->product?->name,
             'billing_interval' => $p->billing_interval,
+            'currency' => $p->currency ?: 'USD',
+            'price' => round($p->price_cents / 100, 2),
+            'price_yearly' => $p->price_yearly_cents !== null ? round($p->price_yearly_cents / 100, 2) : '',
+            'trial_days' => (int) ($p->trial_days ?? 0),
+            'sort_order' => (int) ($p->sort_order ?? 0),
+            'cta_label' => $p->cta_label,
             'is_active' => (bool) $p->is_active,
             'is_custom' => (bool) $p->is_custom,
             'is_highlighted' => (bool) $p->is_highlighted,
+            'short_description' => $p->short_description,
+            'features' => collect($p->feature_limits ?? [])->map(fn ($v, $k) => $k.': '.$v)->implode("\n"),
+            'feature_flags' => collect($p->feature_flags ?? [])->map(fn ($v, $k) => $k.': '.($v ? '1' : '0'))->implode("\n"),
             'price_label' => $p->is_custom
                 ? ($p->tier === 'custom' ? 'features' : 'Contact us')
                 : '$'.number_format($p->price_cents / 100, 0).' / '.($p->billing_interval === 'yearly' ? 'yr' : 'mo').'.',
             'status_label' => $p->is_custom && $p->trial_days
                 ? 'Custom Trial'
                 : ($p->is_active ? 'Active' : 'Inactive'),
-            'short_description' => $p->short_description,
             'description_lines' => array_values(array_filter(preg_split('/\r\n|\r|\n/', (string) ($p->short_description ?? '')))),
             'feature_lines' => collect($p->feature_limits ?? [])->take(8)->map(fn ($v, $k) => is_string($k) ? ucwords(str_replace('_', ' ', $k)).': '.$v : $v)->values()->all(),
-        ])))"
+            'update_url' => route('super-admin.plans.update', $p),
+            'archive_url' => route('super-admin.plans.destroy', $p),
+        ];
+    })->values();
+@endphp
+
+<x-super-admin.page title="Plans & Pricing">
+    <div
+        class="figma-sa-plans"
+        x-data="plansPricingPage(@js($plansPayload), @js($products->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()), @js(route('super-admin.plans.store')), @js($defaultProduct?->name ?? 'Plans'))"
     >
         <div class="figma-sa-plans-toolbar">
             <label class="figma-sa-plans-search">
@@ -68,9 +80,9 @@
                 <button type="button" class="figma-sa-users-filter-option" @click="billingCycle = 'custom'">Custom</button>
             </x-super-admin.dashboard-dropdown>
 
-            <button type="button" class="figma-sa-plans-save-btn" @click="openAdmin()">Save</button>
+            <button type="button" class="figma-sa-plans-save-btn" @click="submitModal()" x-show="modalOpen" x-cloak>Save</button>
 
-            <button type="button" class="figma-sa-plans-new-btn" @click="openAdmin(true)">
+            <button type="button" class="figma-sa-plans-new-btn" @click="openCreate()">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" stroke-width="1.75"/>
                     <path stroke-linecap="round" stroke-width="1.75" d="M12 8v8M8 12h8"/>
@@ -100,9 +112,10 @@
                                     @click.outside="openMenuId = null"
                                     class="figma-sa-plans-card-menu"
                                 >
-                                    <button type="button" @click="editPlan(plan.id)">Edit Plan</button>
-                                    <button type="button" @click="editPlan(plan.id)">Edit Pricing</button>
-                                    <button type="button" @click="editPlan(plan.id)" x-text="plan.is_active ? 'Deactivate Plan' : 'Activate Plan'"></button>
+                                    <button type="button" @click="openEdit(plan.id)">Edit Plan</button>
+                                    <button type="button" @click="openEdit(plan.id)">Edit Pricing</button>
+                                    <button type="button" @click="quickToggleActive(plan.id)" x-text="plan.is_active ? 'Deactivate Plan' : 'Activate Plan'"></button>
+                                    <button type="button" class="is-danger" @click="confirmArchive(plan.id)">Delete Plan</button>
                                 </div>
                             </div>
                         </div>
@@ -136,245 +149,193 @@
             <p x-show="filteredPlans.length === 0" x-cloak class="figma-sa-plans-empty">No plans match your filters.</p>
         </div>
 
-        {{-- Server-rendered cards for no-JS fallback --}}
-        <noscript>
-            <div class="figma-sa-plans-cards">
-                @foreach ($plans as $plan)
-                    @php
-                        $priceLabel = $plan->is_custom
-                            ? ($plan->tier === 'custom' ? 'features' : 'Contact us')
-                            : '$'.number_format($plan->price_cents / 100, 0).' / '.($plan->billing_interval === 'yearly' ? 'yr' : 'mo').'.';
-                        $statusLabel = $plan->is_custom && $plan->trial_days ? 'Custom Trial' : ($plan->is_active ? 'Active' : 'Inactive');
-                    @endphp
-                    <article @class(['figma-sa-plans-card', 'is-inactive' => ! $plan->is_active, 'is-highlighted' => $plan->is_highlighted])>
-                        <div class="figma-sa-plans-card-head">
-                            <div class="figma-sa-plans-card-head-main">
-                                <span class="figma-sa-plans-card-tier">{{ strtoupper($plan->tier) }}</span>
-                                <span class="figma-sa-plans-card-price">{{ $priceLabel }}</span>
-                            </div>
+        {{-- Edit / Create modal --}}
+        <div
+            class="figma-sa-plans-modal-backdrop"
+            x-show="modalOpen"
+            x-cloak
+            @keydown.escape.window="closeModal()"
+        >
+            <div class="figma-sa-plans-modal" @click.outside="closeModal()" role="dialog" aria-modal="true" :aria-labelledby="'plan-modal-title'">
+                <button type="button" class="figma-sa-plans-modal-close" @click="closeModal()" aria-label="Close">&times;</button>
+                <h2 id="plan-modal-title" class="figma-sa-plans-modal-title" x-text="formMode === 'create' ? 'New Plan' : 'Edit Plan'"></h2>
+                <p class="figma-sa-plans-modal-sub" x-text="formMode === 'create' ? 'Create a pricing card and set limits.' : ('Editing ' + (form.name || 'plan'))"></p>
+
+                <form method="POST" :action="formAction" class="figma-sa-plans-modal-form" id="plan-modal-form">
+                    @csrf
+                    <input type="hidden" name="_method" value="PUT" :disabled="formMode !== 'edit'">
+
+                    <div class="figma-sa-plans-modal-grid">
+                        <div>
+                            <label class="figma-sa-label">Product</label>
+                            <select name="saas_product_id" class="figma-select mt-1" x-model="form.product_id">
+                                <option value="">No product</option>
+                                <template x-for="product in products" :key="product.id">
+                                    <option :value="product.id" x-text="product.name"></option>
+                                </template>
+                            </select>
                         </div>
-                        <div class="figma-sa-plans-card-body">
-                            @if ($plan->short_description)
-                                @php $lines = array_values(array_filter(preg_split('/\r\n|\r|\n/', $plan->short_description))); @endphp
-                                <div class="figma-sa-plans-card-copy">
-                                    @if (! empty($lines[0]))
-                                        <p class="figma-sa-plans-card-tagline">{{ $lines[0] }}</p>
-                                    @endif
-                                    @if (count($lines) > 1)
-                                        <ul>
-                                            @foreach (array_slice($lines, 1) as $line)
-                                                <li>{{ ltrim($line, "•- \t") }}</li>
-                                            @endforeach
-                                        </ul>
-                                    @endif
-                                </div>
-                            @endif
+                        <div>
+                            <label class="figma-sa-label">Plan name</label>
+                            <input name="name" required class="figma-input mt-1" placeholder="Basic / Pro / Premium" x-model="form.name">
                         </div>
-                        <div class="figma-sa-plans-card-foot"><span>{{ $statusLabel }}</span></div>
-                    </article>
-                @endforeach
+                        <div>
+                            <label class="figma-sa-label">Tier</label>
+                            <select name="tier" class="figma-select mt-1" x-model="form.tier">
+                                <option value="basic">Basic</option>
+                                <option value="pro">Pro</option>
+                                <option value="premium">Premium</option>
+                                <option value="enterprise">Enterprise</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Price</label>
+                            <input name="price" type="number" step="0.01" min="0" class="figma-input mt-1" placeholder="9.99" x-model="form.price">
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Yearly price (total)</label>
+                            <input name="price_yearly" type="number" step="0.01" min="0" class="figma-input mt-1" placeholder="optional" x-model="form.price_yearly">
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Currency</label>
+                            <input name="currency" maxlength="3" class="figma-input mt-1" x-model="form.currency">
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Billing</label>
+                            <select name="billing_interval" class="figma-select mt-1" x-model="form.billing_interval">
+                                <option value="monthly">Monthly</option>
+                                <option value="yearly">Yearly</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Trial days</label>
+                            <input name="trial_days" type="number" min="0" class="figma-input mt-1" x-model="form.trial_days">
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Sort order</label>
+                            <input name="sort_order" type="number" min="0" class="figma-input mt-1" x-model="form.sort_order">
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">CTA label</label>
+                            <input name="cta_label" maxlength="80" class="figma-input mt-1" placeholder="Start free trial" x-model="form.cta_label">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="figma-sa-label">Card description</label>
+                        <textarea name="short_description" rows="5" class="figma-input mt-1" placeholder="For small businesses & starters&#10;Real-time fake click detection&#10;Bot & basic VPN traffic blocking" x-model="form.short_description"></textarea>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <label class="figma-sa-label">Feature limits</label>
+                            <textarea name="features" rows="4" class="figma-input mt-1" placeholder="domains: 10" x-model="form.features"></textarea>
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Feature flags</label>
+                            <textarea name="feature_flags" rows="4" class="figma-input mt-1" placeholder="ad_protection: 1" x-model="form.feature_flags"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex flex-wrap gap-5">
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="hidden" name="is_active" value="0">
+                            <input type="checkbox" name="is_active" value="1" class="figma-sa-plans-check" x-model="form.is_active">
+                            <span class="text-sm text-[#d9d9d9]">Active</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="hidden" name="is_custom" value="0">
+                            <input type="checkbox" name="is_custom" value="1" class="figma-sa-plans-check" x-model="form.is_custom">
+                            <span class="text-sm text-[#d9d9d9]">Custom</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="hidden" name="is_highlighted" value="0">
+                            <input type="checkbox" name="is_highlighted" value="1" class="figma-sa-plans-check" x-model="form.is_highlighted">
+                            <span class="text-sm text-[#d9d9d9]">Highlight card</span>
+                        </label>
+                    </div>
+
+                    <div class="figma-sa-plans-modal-actions">
+                        <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="closeModal()">Cancel</button>
+                        <template x-if="formMode === 'edit'">
+                            <button type="button" class="figma-sa-btn figma-sa-btn-danger" @click="confirmArchive(form.id)">Delete</button>
+                        </template>
+                        <button type="submit" class="figma-sa-btn figma-sa-btn-primary" x-text="formMode === 'create' ? 'Create Plan' : 'Save Changes'"></button>
+                    </div>
+                </form>
             </div>
-        </noscript>
-
-        <div id="plans-admin-panel" x-show="showAdmin" x-cloak class="figma-sa-plans-admin mt-[28px] space-y-6">
-            <x-super-admin.card>
-                <h2 class="text-base font-semibold text-white">Create Plan</h2>
-                <form method="POST" action="{{ route('super-admin.plans.store') }}" class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-4">
-                    @csrf
-                    <div>
-                        <label class="figma-sa-label">Product</label>
-                        <select name="saas_product_id" class="figma-select mt-1">
-                            <option value="">No product</option>
-                            @foreach ($products as $product)<option value="{{ $product->id }}">{{ $product->name }}</option>@endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="figma-sa-label">Plan name</label>
-                        <input name="name" required placeholder="Basic / Pro / Premium" class="figma-input mt-1">
-                    </div>
-                    <div>
-                        <label class="figma-sa-label">Tier</label>
-                        <select name="tier" class="figma-select mt-1">
-                            @foreach (['basic','pro','premium','enterprise','custom'] as $tier)<option value="{{ $tier }}">{{ ucfirst($tier) }}</option>@endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="figma-sa-label">Price</label>
-                        <input name="price" type="number" step="0.01" min="0" placeholder="9.99" class="figma-input mt-1">
-                    </div>
-                    <div>
-                        <label class="figma-sa-label">Currency</label>
-                        <input name="currency" maxlength="3" value="USD" class="figma-input mt-1">
-                    </div>
-                    <div>
-                        <label class="figma-sa-label">Billing</label>
-                        <select name="billing_interval" class="figma-select mt-1">
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
-                            <option value="custom">Custom</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="figma-sa-label">Trial days</label>
-                        <input name="trial_days" type="number" min="0" placeholder="0" class="figma-input mt-1">
-                    </div>
-                    <div>
-                        <label class="figma-sa-label">Sort order</label>
-                        <input name="sort_order" type="number" min="0" value="0" class="figma-input mt-1">
-                    </div>
-                    <div>
-                        <label class="figma-sa-label">Yearly price (total)</label>
-                        <input name="price_yearly" type="number" step="0.01" min="0" placeholder="optional" class="figma-input mt-1">
-                    </div>
-                    <div>
-                        <label class="figma-sa-label">CTA label</label>
-                        <input name="cta_label" maxlength="80" placeholder="Start free trial" class="figma-input mt-1">
-                    </div>
-                    <label class="inline-flex items-center gap-2 self-end pb-1 cursor-pointer">
-                        <input type="hidden" name="is_active" value="0">
-                        <x-figma-toggle name="is_active" value="1" checked :show-labels="false" />
-                        <span class="text-sm text-[#d9d9d9]">Active</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2 self-end pb-1 cursor-pointer">
-                        <input type="hidden" name="is_highlighted" value="0">
-                        <x-figma-toggle name="is_highlighted" value="1" :show-labels="false" />
-                        <span class="text-sm text-[#d9d9d9]">Highlight</span>
-                    </label>
-                    <div class="lg:col-span-4">
-                        <label class="figma-sa-label">Card description (shown on pricing cards)</label>
-                        <textarea name="short_description" rows="5" class="figma-input mt-1" placeholder="For small businesses &amp; starters&#10;• Real-time fake click detection&#10;• Bot &amp; basic VPN traffic blocking"></textarea>
-                    </div>
-                    <div class="lg:col-span-4">
-                        <label class="figma-sa-label">Feature limits</label>
-                        <textarea name="features" rows="3" class="figma-input mt-1" placeholder="One per line. Example: domains: 10"></textarea>
-                    </div>
-                    <div class="lg:col-span-4">
-                        <label class="figma-sa-label">Feature flags</label>
-                        <textarea name="feature_flags" rows="3" class="figma-input mt-1" placeholder="One per line. Example: ad_protection: 1"></textarea>
-                    </div>
-                    <button class="figma-sa-btn figma-sa-btn-primary lg:col-span-4">Create Plan</button>
-                </form>
-            </x-super-admin.card>
-
-            @foreach ($plans as $plan)
-                <form id="plan-form-{{ $plan->id }}" method="POST" action="{{ route('super-admin.plans.update', $plan) }}" class="hidden">
-                    @csrf
-                    @method('PUT')
-                </form>
-                <form id="plan-archive-{{ $plan->id }}" method="POST" action="{{ route('super-admin.plans.destroy', $plan) }}" class="hidden" onsubmit="return confirm('Archive this plan?')">
-                    @csrf
-                    @method('DELETE')
-                </form>
-            @endforeach
-
-            <x-super-admin.card class="!p-0 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="figma-sa-table min-w-[1400px]">
-                        <thead>
-                            <tr>
-                                <th>Plan</th>
-                                <th>Product</th>
-                                <th>Pricing</th>
-                                <th>Display</th>
-                                <th>Limits &amp; flags</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($plans as $plan)
-                                @php $fid = 'plan-form-'.$plan->id; $aid = 'plan-archive-'.$plan->id; @endphp
-                                <tr id="plan-row-{{ $plan->id }}">
-                                    <td class="align-top">
-                                        <div class="space-y-2">
-                                            <input form="{{ $fid }}" name="name" value="{{ $plan->name }}" class="figma-input">
-                                            <select form="{{ $fid }}" name="tier" class="figma-select">
-                                                @foreach (['basic','pro','premium','enterprise','custom'] as $tier)
-                                                    <option value="{{ $tier }}" @selected($plan->tier === $tier)>{{ ucfirst($tier) }}</option>
-                                                @endforeach
-                                            </select>
-                                            <textarea form="{{ $fid }}" name="short_description" rows="4" class="figma-input text-xs" placeholder="Card description">{{ $plan->short_description }}</textarea>
-                                        </div>
-                                    </td>
-                                    <td class="align-top">
-                                        <select form="{{ $fid }}" name="saas_product_id" class="figma-select">
-                                            <option value="">No product</option>
-                                            @foreach ($products as $product)
-                                                <option value="{{ $product->id }}" @selected($plan->saas_product_id === $product->id)>{{ $product->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </td>
-                                    <td class="align-top">
-                                        <div class="space-y-2">
-                                            <input form="{{ $fid }}" name="price" type="number" step="0.01" value="{{ $plan->price_cents / 100 }}" class="figma-input w-28" title="Monthly">
-                                            <input form="{{ $fid }}" name="price_yearly" type="number" step="0.01" value="{{ $plan->price_yearly_cents ? $plan->price_yearly_cents / 100 : '' }}" class="figma-input w-28" placeholder="Year total">
-                                            <input form="{{ $fid }}" name="currency" value="{{ $plan->currency }}" class="figma-input w-20">
-                                            <select form="{{ $fid }}" name="billing_interval" class="figma-select">
-                                                @foreach (['monthly','yearly','custom'] as $interval)
-                                                    <option value="{{ $interval }}" @selected($plan->billing_interval === $interval)>{{ ucfirst($interval) }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </td>
-                                    <td class="align-top">
-                                        <div class="space-y-2">
-                                            <input form="{{ $fid }}" name="sort_order" type="number" min="0" value="{{ (int) ($plan->sort_order ?? 0) }}" class="figma-input w-24">
-                                            <input form="{{ $fid }}" name="cta_label" value="{{ $plan->cta_label }}" class="figma-input text-xs" placeholder="CTA">
-                                            <input form="{{ $fid }}" type="hidden" name="is_highlighted" value="0">
-                                            <label class="inline-flex items-center gap-2 cursor-pointer">
-                                                <x-figma-toggle form="{{ $fid }}" name="is_highlighted" value="1" :checked="$plan->is_highlighted" :show-labels="false" />
-                                                <span class="text-xs text-[#d9d9d9]">Highlight card</span>
-                                            </label>
-                                        </div>
-                                    </td>
-                                    <td class="align-top">
-                                        <div class="space-y-2">
-                                            <input form="{{ $fid }}" name="trial_days" type="number" value="{{ $plan->trial_days }}" class="figma-input">
-                                            <textarea form="{{ $fid }}" name="features" rows="3" class="figma-input">{{ collect($plan->feature_limits ?? [])->map(fn($v, $k) => $k.': '.$v)->implode("\n") }}</textarea>
-                                            <textarea form="{{ $fid }}" name="feature_flags" rows="3" class="figma-input text-xs">{{ collect($plan->feature_flags ?? [])->map(fn($v, $k) => $k.': '.($v ? '1' : '0'))->implode("\n") }}</textarea>
-                                        </div>
-                                    </td>
-                                    <td class="align-top">
-                                        <input form="{{ $fid }}" type="hidden" name="is_active" value="0">
-                                        <input form="{{ $fid }}" type="hidden" name="is_custom" value="0">
-                                        <div class="space-y-2">
-                                            <label class="inline-flex items-center gap-2 cursor-pointer">
-                                                <x-figma-toggle form="{{ $fid }}" name="is_active" value="1" :checked="$plan->is_active" :show-labels="false" />
-                                                <span class="text-sm text-[#d9d9d9]">Active</span>
-                                            </label>
-                                            <label class="inline-flex items-center gap-2 cursor-pointer">
-                                                <x-figma-toggle form="{{ $fid }}" name="is_custom" value="1" :checked="$plan->is_custom" :show-labels="false" />
-                                                <span class="text-sm text-[#d9d9d9]">Custom</span>
-                                            </label>
-                                        </div>
-                                    </td>
-                                    <td class="align-top">
-                                        <div class="flex flex-col gap-2">
-                                            <button form="{{ $fid }}" type="submit" class="figma-sa-btn figma-sa-btn-primary !px-3 !py-2 text-xs">Save</button>
-                                            <button form="{{ $aid }}" type="submit" class="figma-sa-btn figma-sa-btn-danger !px-3 !py-2 text-xs">Archive</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="7" class="px-4 py-12 text-center text-[#a9a9a9]">No plans yet.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </x-super-admin.card>
         </div>
+
+        {{-- Hidden archive forms --}}
+        <template x-for="plan in plans" :key="'archive-' + plan.id">
+            <form :id="'plan-archive-' + plan.id" method="POST" :action="plan.archive_url" class="hidden" onsubmit="return confirm('Archive this plan?')">
+                @csrf
+                @method('DELETE')
+            </form>
+        </template>
+
+        {{-- Quick activate/deactivate forms --}}
+        <template x-for="plan in plans" :key="'toggle-' + plan.id">
+            <form :id="'plan-toggle-' + plan.id" method="POST" :action="plan.update_url" class="hidden">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="name" :value="plan.name">
+                <input type="hidden" name="tier" :value="plan.tier">
+                <input type="hidden" name="saas_product_id" :value="plan.product_id || ''">
+                <input type="hidden" name="price" :value="plan.price">
+                <input type="hidden" name="price_yearly" :value="plan.price_yearly">
+                <input type="hidden" name="currency" :value="plan.currency">
+                <input type="hidden" name="billing_interval" :value="plan.billing_interval">
+                <input type="hidden" name="trial_days" :value="plan.trial_days">
+                <input type="hidden" name="sort_order" :value="plan.sort_order">
+                <input type="hidden" name="cta_label" :value="plan.cta_label || ''">
+                <input type="hidden" name="short_description" :value="plan.short_description || ''">
+                <input type="hidden" name="features" :value="plan.features || ''">
+                <input type="hidden" name="feature_flags" :value="plan.feature_flags || ''">
+                <input type="hidden" name="is_custom" :value="plan.is_custom ? 1 : 0">
+                <input type="hidden" name="is_highlighted" :value="plan.is_highlighted ? 1 : 0">
+                <input type="hidden" name="is_active" :value="plan.is_active ? 0 : 1">
+            </form>
+        </template>
     </div>
 </x-super-admin.page>
 
 <script>
-function plansPricingPage(plans) {
+function plansPricingPage(plans, products, storeUrl, defaultProductTitle) {
+    const blankForm = () => ({
+        id: null,
+        name: '',
+        tier: 'basic',
+        product_id: '',
+        billing_interval: 'monthly',
+        currency: 'USD',
+        price: '',
+        price_yearly: '',
+        trial_days: 0,
+        sort_order: 0,
+        cta_label: '',
+        short_description: '',
+        features: '',
+        feature_flags: '',
+        is_active: true,
+        is_custom: false,
+        is_highlighted: false,
+    });
+
     return {
         plans,
+        products,
+        storeUrl,
+        defaultProductTitle,
         search: '',
         planType: '',
         billingCycle: '',
-        showAdmin: false,
         openMenuId: null,
+        modalOpen: false,
+        formMode: 'create',
+        form: blankForm(),
         get filteredPlans() {
             return this.plans.filter((plan) => {
                 const q = this.search.trim().toLowerCase();
@@ -397,27 +358,66 @@ function plansPricingPage(plans) {
         },
         get productTitle() {
             const first = this.filteredPlans[0];
-            return first?.product_name || @js($defaultProduct?->name ?? 'Plans');
+            return first?.product_name || this.defaultProductTitle;
+        },
+        get formAction() {
+            if (this.formMode === 'edit' && this.form.id) {
+                const plan = this.plans.find((p) => p.id === this.form.id);
+                return plan?.update_url || this.storeUrl;
+            }
+            return this.storeUrl;
         },
         toggleMenu(id) {
             this.openMenuId = this.openMenuId === id ? null : id;
         },
-        openAdmin(scrollCreate = false) {
-            this.showAdmin = true;
-            this.$nextTick(() => {
-                const panel = document.getElementById('plans-admin-panel');
-                panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                if (scrollCreate) {
-                    panel?.querySelector('form[action*="plans"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            });
-        },
-        editPlan(id) {
+        openCreate() {
             this.openMenuId = null;
-            this.showAdmin = true;
-            this.$nextTick(() => {
-                document.getElementById('plan-row-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            });
+            this.formMode = 'create';
+            this.form = blankForm();
+            this.modalOpen = true;
+        },
+        openEdit(id) {
+            const plan = this.plans.find((p) => p.id === id);
+            if (!plan) return;
+            this.openMenuId = null;
+            this.formMode = 'edit';
+            this.form = {
+                id: plan.id,
+                name: plan.name || '',
+                tier: plan.tier || 'basic',
+                product_id: plan.product_id ? String(plan.product_id) : '',
+                billing_interval: plan.billing_interval || 'monthly',
+                currency: plan.currency || 'USD',
+                price: plan.price ?? '',
+                price_yearly: plan.price_yearly ?? '',
+                trial_days: plan.trial_days ?? 0,
+                sort_order: plan.sort_order ?? 0,
+                cta_label: plan.cta_label || '',
+                short_description: plan.short_description || '',
+                features: plan.features || '',
+                feature_flags: plan.feature_flags || '',
+                is_active: !!plan.is_active,
+                is_custom: !!plan.is_custom,
+                is_highlighted: !!plan.is_highlighted,
+            };
+            this.modalOpen = true;
+        },
+        closeModal() {
+            this.modalOpen = false;
+        },
+        submitModal() {
+            document.getElementById('plan-modal-form')?.requestSubmit();
+        },
+        confirmArchive(id) {
+            this.openMenuId = null;
+            this.modalOpen = false;
+            const form = document.getElementById('plan-archive-' + id);
+            if (form) form.requestSubmit();
+        },
+        quickToggleActive(id) {
+            this.openMenuId = null;
+            const form = document.getElementById('plan-toggle-' + id);
+            if (form) form.submit();
         },
     };
 }

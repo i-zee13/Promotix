@@ -403,17 +403,67 @@ class SupportPagesController extends Controller
 
     public function saveSettings(Request $request): RedirectResponse
     {
+        $updated = 0;
+
+        // Indexed rows avoid PHP/Laravel dotted-key ambiguity: settings[bank.bank_name]
+        $rows = $request->input('setting_rows', []);
+        if (! is_array($rows)) {
+            $rows = [];
+        }
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $key = trim((string) ($row['key'] ?? ''));
+            if ($key === '') {
+                continue;
+            }
+            AppSetting::set($key, $row['value'] ?? null);
+            $updated++;
+        }
+
         $payload = $request->input('settings', []);
         if (! is_array($payload)) {
+            $payload = [];
+        }
+
+        if ($payload !== []) {
+            $knownKeys = AppSetting::query()->pluck('key')->all();
+            $byUnderscore = [];
+            foreach ($knownKeys as $known) {
+                $byUnderscore[str_replace('.', '_', $known)] = $known;
+            }
+
+            foreach ($payload as $key => $value) {
+                $resolved = in_array($key, $knownKeys, true)
+                    ? $key
+                    : ($byUnderscore[$key] ?? (is_string($key) ? $key : null));
+
+                if (! is_string($resolved) || $resolved === '') {
+                    continue;
+                }
+
+                AppSetting::set($resolved, $value);
+                $updated++;
+            }
+        }
+
+        if ($updated === 0 && $rows === [] && $payload === []) {
             return back()->withErrors(['settings' => 'Invalid payload.']);
         }
 
-        foreach ($payload as $key => $value) {
-            AppSetting::set($key, $value);
-        }
         AppSetting::flushCache();
 
-        return back()->with('status', 'Settings saved.');
+        $redirect = back()->with('status', $updated > 0
+            ? "Settings saved ({$updated} updated)."
+            : 'Settings saved.');
+
+        if ($request->filled('return_modal')) {
+            $redirect->with('open_modal', $request->string('return_modal')->toString());
+        }
+
+        return $redirect;
     }
 
     public function storeFeatureFlag(Request $request): RedirectResponse
