@@ -737,7 +737,7 @@ function paidAdvertisingFigma(config = {}) {
         lastSummaryFingerprint: '',
         lastRenderFingerprint: '',
         lastReloadAt: 0,
-        livePollOn: true,
+        livePollOn: false,
         livePollMs: 60000,
         googleSyncMs: 300000,
         watermarkMs: 45000,
@@ -897,8 +897,8 @@ function paidAdvertisingFigma(config = {}) {
                 this.scheduleReload();
             });
             document.addEventListener('visibilitychange', () => {
-                // Soft number patch only when returning to the tab — no full dashboard rebuild.
-                if (!document.hidden) this.refreshSummaryOnly(false);
+                // Auto polls are off by default; no tab-focus refresh either.
+                if (!document.hidden && this.livePollOn) this.refreshSummaryOnly(false);
             });
             window.addEventListener('promotix:export-ips-csv', () => this.exportIpsCsv());
             await this.reload(false, true);

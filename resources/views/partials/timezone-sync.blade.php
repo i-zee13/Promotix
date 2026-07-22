@@ -13,42 +13,37 @@ document.addEventListener('DOMContentLoaded', () => {
         tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
     } catch (e) {}
 
-    if (tz) {
-        fetch(@json(route('profile.timezone.sync')), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                Accept: 'application/json',
-            },
-            body: JSON.stringify({ timezone: tz }),
-        })
-            .then((response) => (response.ok ? response.json() : null))
-            .then((data) => {
-                if (!data || data.skipped) {
-                    initHeaderTimezoneClock();
-                    return;
-                }
+    if (!tz) {
+        initHeaderTimezoneClock();
+        return;
+    }
 
-                if (data.timezone && !document.getElementById('header-timezone')) {
-                    window.location.reload();
-                    return;
-                }
-
+    fetch(@json(route('profile.timezone.sync')), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            Accept: 'application/json',
+        },
+        body: JSON.stringify({ timezone: tz }),
+    })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => {
+            // Never hard-reload the page — that loops for new users while the
+            // timezone header chip is still absent from the first paint.
+            if (data?.timezone) {
                 const nameEl = document.getElementById('header-timezone-name');
                 const clockHost = document.getElementById('header-timezone');
-                if (nameEl && data.timezone) {
-                    nameEl.textContent = data.timezone;
+                if (nameEl) nameEl.textContent = data.timezone;
+                if (clockHost) clockHost.dataset.timezone = data.timezone;
+                if (data.label) {
+                    const clockEl = document.getElementById('header-timezone-clock');
+                    if (clockEl) clockEl.textContent = data.label;
                 }
-                if (clockHost && data.timezone) {
-                    clockHost.dataset.timezone = data.timezone;
-                }
-                initHeaderTimezoneClock();
-            })
-            .catch(() => initHeaderTimezoneClock());
-    } else {
-        initHeaderTimezoneClock();
-    }
+            }
+            initHeaderTimezoneClock();
+        })
+        .catch(() => initHeaderTimezoneClock());
 });
 
 function initHeaderTimezoneClock() {

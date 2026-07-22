@@ -62,15 +62,21 @@ class ProfileController extends Controller
         if (($user->timezone_source ?? '') === 'manual') {
             return response()->json([
                 'timezone' => $user->timezone,
+                'label' => UserTimezone::headerLabel($user),
                 'skipped' => true,
             ]);
         }
 
-        UserTimezone::assign($user, $data['timezone'], 'browser');
+        $already = ($user->timezone === $data['timezone']) && (($user->timezone_source ?? '') === 'browser');
+        if (! $already) {
+            UserTimezone::assign($user, $data['timezone'], 'browser');
+            $user->refresh();
+        }
 
         return response()->json([
             'timezone' => $user->timezone,
-            'label' => UserTimezone::headerLabel($user->fresh()),
+            'label' => UserTimezone::headerLabel($user),
+            'skipped' => $already,
         ]);
     }
 
