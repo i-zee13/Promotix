@@ -216,6 +216,7 @@ Route::middleware(['auth', 'admin'])
         Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
         Route::get('/billing/receipts/{payment}', [BillingController::class, 'downloadReceipt'])->name('billing.receipt.download');
         Route::post('/billing', [BillingController::class, 'submit'])->name('billing.submit');
+        Route::post('/billing/pay-card', [BillingController::class, 'payWithCard'])->name('billing.pay-card');
         Route::post('/billing/payment-methods', [BillingController::class, 'storePaymentMethod'])->name('billing.payment-methods.store');
         Route::patch('/billing/payment-methods/{paymentMethod}/primary', [BillingController::class, 'setPrimaryPaymentMethod'])->name('billing.payment-methods.primary');
         Route::delete('/billing/payment-methods/{paymentMethod}', [BillingController::class, 'destroyPaymentMethod'])->name('billing.payment-methods.destroy');

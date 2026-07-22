@@ -138,6 +138,113 @@ class BillingController extends Controller
             ->with('status', "Receipt submitted (ref: {$payment->invoice_number}). We'll verify and activate your plan shortly.");
     }
 
+    public function payWithCard(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'plan_id' => ['required', 'integer', 'exists:plans,id'],
+            'billing_cycle' => ['nullable', 'in:monthly,yearly'],
+            'payment_method_id' => ['nullable', 'integer', 'exists:payment_methods,id'],
+            'card_number' => ['nullable', 'string', 'min:12', 'max:19'],
+            'exp_month' => ['nullable', 'string', 'size:2'],
+            'exp_year' => ['nullable', 'string', 'min:2', 'max:4'],
+            'cvv' => ['nullable', 'string', 'min:3', 'max:4'],
+            'cardholder_name' => ['nullable', 'string', 'max:120'],
+            'coupon' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $user = $request->user();
+        $plan = Plan::query()->where('id', $data['plan_id'])->where('is_active', true)->firstOrFail();
+
+        if ($plan->is_custom) {
+            return back()->withErrors([
+                'plan_id' => 'Custom plans require manual quote. Please contact support.',
+            ]);
+        }
+
+        $paymentMethod = null;
+        $methodId = $data['payment_method_id'] ?? null;
+
+        if ($methodId) {
+            $paymentMethod = PaymentMethod::query()
+                ->where('id', $methodId)
+                ->where('user_id', $user->id)
+                ->firstOrFail();
+        } else {
+            $request->validate([
+                'card_number' => ['required', 'string', 'min:12', 'max:19'],
+                'exp_month' => ['required', 'string', 'size:2'],
+                'exp_year' => ['required', 'string', 'min:2', 'max:4'],
+                'cvv' => ['required', 'string', 'min:3', 'max:4'],
+            ]);
+
+            $digits = preg_replace('/\D/', '', (string) $data['card_number']);
+            $lastFour = substr($digits, -4);
+
+            PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
+
+            $paymentMethod = PaymentMethod::query()->create([
+                'user_id' => $user->id,
+                'label' => trim((string) ($data['cardholder_name'] ?? '')) ?: 'Primary card',
+                'brand' => str_starts_with($digits, '4') ? 'Visa' : (str_starts_with($digits, '5') ? 'Mastercard' : 'Card'),
+                'last_four' => $lastFour,
+                'exp_month' => $data['exp_month'],
+                'exp_year' => $data['exp_year'],
+                'is_primary' => true,
+                'is_temporary' => false,
+            ]);
+        }
+
+        $cycle = $data['billing_cycle'] ?? $plan->billing_interval ?? 'monthly';
+        $amountCents = (int) $plan->price_cents;
+        if ($cycle === 'yearly' && ($plan->billing_interval ?? 'monthly') === 'monthly') {
+            $amountCents = (int) round($amountCents * 12 * 0.9);
+        }
+
+        $payment = DB::transaction(function () use ($user, $plan, $paymentMethod, $amountCents, $cycle, $data) {
+            Subscription::query()
+                ->where('user_id', $user->id)
+                ->whereIn('status', ['active', 'trialing', 'past_due'])
+                ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+
+            $subscription = Subscription::query()->create([
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
+                'status' => 'pending',
+                'amount_cents' => $amountCents,
+                'currency' => $plan->currency,
+                'billing_interval' => $cycle,
+                'metadata' => [
+                    'source' => 'billing_card',
+                    'payment_method_id' => $paymentMethod->id,
+                ],
+            ]);
+
+            return Payment::query()->create([
+                'user_id' => $user->id,
+                'subscription_id' => $subscription->id,
+                'plan_id' => $plan->id,
+                'invoice_number' => 'INV-' . strtoupper(uniqid()),
+                'amount_cents' => $amountCents,
+                'currency' => $plan->currency,
+                'status' => 'pending',
+                'payment_method' => 'card',
+                'notes' => $data['coupon'] ?? null,
+                'metadata' => [
+                    'plan_slug' => $plan->slug,
+                    'billing_cycle' => $cycle,
+                    'payment_method_id' => $paymentMethod->id,
+                    'card_last_four' => $paymentMethod->last_four,
+                    'card_brand' => $paymentMethod->brand,
+                    'submitted_at' => now()->toIso8601String(),
+                ],
+            ]);
+        });
+
+        return redirect()
+            ->route('billing.index')
+            ->with('status', "Upgrade submitted with {$paymentMethod->maskedLabel()} (ref: {$payment->invoice_number}). We'll verify and activate your plan shortly.");
+    }
+
     public function storePaymentMethod(Request $request): RedirectResponse
     {
         $data = $request->validate([
