@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
-use App\Models\IpLog;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Support\DashboardNotifications;
@@ -314,22 +313,73 @@ class DashboardController extends Controller
         $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
 
+        $empty = [
+            'paidAdvertising' => [
+                'visits' => 0,
+                'campaigns' => 0,
+                'invalidVisits' => 0,
+                'invalidRate' => 0,
+            ],
+            'botProtection' => [
+                'blockedHits' => 0,
+                'domainsProtected' => 0,
+                'invalidRate' => 0,
+            ],
+            'connectionStatus' => [
+                'tracking' => 'Pending setup',
+                'ingestion' => 'Waiting for traffic',
+                'protection' => 'Monitoring',
+            ],
+            'notifications' => DashboardNotifications::forUser($user->id),
+            'dateRange' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
+            'ts' => now()->toIso8601String(),
+        ];
+
+        if ($domainIds->isEmpty()) {
+            return $empty;
+        }
+
         $visitBase = Schema::hasTable('visits')
             ? DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to])
             : null;
 
-        $paidVisits = $visitBase ? (clone $visitBase)->where('is_paid_traffic', true)->count()
+        $paidVisits = $visitBase
+            ? (int) (clone $visitBase)->where('is_paid_traffic', true)->count()
             : (int) PaidMarketingVisit::query()->whereIn('domain_id', $domainIds)->whereBetween('last_click_at', [$from, $to])->sum('visits');
-        $protectedHits = IpLog::query()
-            ->where('is_blocked', true)
-            ->whereBetween('updated_at', [$from, $to])
-            ->sum('hits');
+
+        // Paid card: invalid clicks within paid traffic only (user-scoped domains).
+        $paidInvalidVisits = $visitBase
+            ? (int) (clone $visitBase)->where('is_paid_traffic', true)->where('is_invalid_traffic', true)->count()
+            : (int) PaidMarketingVisit::query()
+                ->whereIn('domain_id', $domainIds)
+                ->whereNotNull('threat_group')
+                ->whereBetween('last_click_at', [$from, $to])
+                ->count();
+
+        // Bot card: blocked / invalid organic traffic for this user's domains only.
+        // Never use global ip_logs — that table is shared across all tenants.
+        $botBlockedHits = 0;
+        $botInvalidVisits = 0;
+        $botTotalVisits = 0;
+        if ($visitBase) {
+            $organicBase = (clone $visitBase)->where(function ($q): void {
+                $q->where('is_paid_traffic', false)->orWhereNull('is_paid_traffic');
+            });
+            $botTotalVisits = (int) (clone $organicBase)->count();
+            $botInvalidVisits = (int) (clone $organicBase)->where('is_invalid_traffic', true)->count();
+            if (Schema::hasColumn('visits', 'action_taken')) {
+                $botBlockedHits = (int) (clone $organicBase)->where('action_taken', 'block')->count();
+            } else {
+                $botBlockedHits = $botInvalidVisits;
+            }
+        }
+
         $connectedDomains = Domain::query()
             ->where('user_id', $user->id)
             ->where('tag_connected', true)
             ->count();
         $campaignCount = $visitBase
-            ? (clone $visitBase)->whereNotNull('utm_campaign')->distinct()->count('utm_campaign')
+            ? (int) (clone $visitBase)->where('is_paid_traffic', true)->whereNotNull('utm_campaign')->distinct()->count('utm_campaign')
             : PaidMarketingClick::query()
                 ->whereHas('visit.domain', fn ($q) => $q->where('user_id', $user->id))
                 ->whereBetween('clicked_at', [$from, $to])
@@ -337,31 +387,24 @@ class DashboardController extends Controller
                 ->distinct()
                 ->count('campaign');
 
-        $invalidVisits = $visitBase
-            ? (int) (clone $visitBase)->where('is_invalid_traffic', true)->count()
-            : (int) PaidMarketingVisit::query()->whereIn('domain_id', $domainIds)->whereNotNull('threat_group')->whereBetween('last_click_at', [$from, $to])->count();
-        $totalVisits = $visitBase
-            ? (int) (clone $visitBase)->count()
-            : (int) PaidMarketingVisit::query()->whereIn('domain_id', $domainIds)->whereBetween('last_click_at', [$from, $to])->sum('visits');
-
         $tagHealthy = $connectedDomains > 0;
 
         return [
             'paidAdvertising' => [
-                'visits' => (int) $paidVisits,
+                'visits' => $paidVisits,
                 'campaigns' => (int) $campaignCount,
-                'invalidVisits' => $invalidVisits,
-                'invalidRate' => $totalVisits > 0 ? round(($invalidVisits / $totalVisits) * 100, 2) : 0,
+                'invalidVisits' => $paidInvalidVisits,
+                'invalidRate' => $paidVisits > 0 ? round(($paidInvalidVisits / $paidVisits) * 100, 2) : 0,
             ],
             'botProtection' => [
-                'blockedHits' => (int) $protectedHits,
+                'blockedHits' => $botBlockedHits > 0 ? $botBlockedHits : $botInvalidVisits,
                 'domainsProtected' => (int) $connectedDomains,
-                'invalidRate' => $totalVisits > 0 ? round(($invalidVisits / $totalVisits) * 100, 2) : 0,
+                'invalidRate' => $botTotalVisits > 0 ? round(($botInvalidVisits / $botTotalVisits) * 100, 2) : 0,
             ],
             'connectionStatus' => [
                 'tracking' => $tagHealthy ? 'Healthy' : 'Pending setup',
-                'ingestion' => $totalVisits > 0 ? 'Online' : 'Waiting for traffic',
-                'protection' => $invalidVisits > 0 || $protectedHits > 0 ? 'Active' : 'Monitoring',
+                'ingestion' => ($paidVisits + $botTotalVisits) > 0 ? 'Online' : 'Waiting for traffic',
+                'protection' => ($paidInvalidVisits > 0 || $botBlockedHits > 0 || $botInvalidVisits > 0) ? 'Active' : 'Monitoring',
             ],
             'notifications' => DashboardNotifications::forUser($user->id),
             'dateRange' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
