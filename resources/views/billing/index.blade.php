@@ -312,20 +312,21 @@
     <div
         x-show="showCardModal"
         x-cloak
-        class="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4"
-        @keydown.escape.window="showCardModal = false"
+        class="billing-card-modal-backdrop"
+        @keydown.escape.window="if (showCardModal) showCardModal = false"
+        @click.self="showCardModal = false"
     >
-        <div class="relative w-full max-w-[420px] rounded-[18px] border border-[#5ec8ff]/70 bg-[#6400B2] p-[22px] text-white shadow-[0_20px_60px_rgba(0,0,0,.55)]" @click.outside="showCardModal = false">
-            <button type="button" class="absolute right-3 top-2 text-[22px] leading-none text-white/80 hover:text-white" @click="showCardModal = false">&times;</button>
+        <div class="billing-card-modal" @click.stop>
+            <button type="button" class="billing-card-modal__close" @click="showCardModal = false" aria-label="Close">&times;</button>
 
             <div class="mb-3 text-center">
-                <div class="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-md bg-white/15">
+                <div class="billing-card-modal__icon">
                     <svg class="h-5 w-5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 10h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z"/></svg>
                 </div>
                 <p class="text-[13px] text-white/85">Insert Your Credit Card Details</p>
             </div>
 
-            <form method="POST" action="{{ route('billing.pay-card') }}" class="space-y-3">
+            <form method="POST" action="{{ route('billing.pay-card') }}" class="space-y-3" @submit="if (cardMode === 'saved' && (!selectedCardId || String(selectedCardId) === 'new')) { $event.preventDefault(); }">
                 @csrf
                 <input type="hidden" name="plan_id" :value="selectedPlanId">
                 <input type="hidden" name="billing_cycle" :value="billingCycle">
@@ -344,12 +345,12 @@
                 <div>
                     <label class="mb-1 block text-[11px] text-white/75">Card</label>
                     <select
-                        class="w-full rounded-[8px] border border-white/55 bg-[#4b008a] px-3 py-2.5 text-[13px] text-white outline-none"
+                        class="billing-card-modal__field"
                         x-model="selectedCardId"
                         @change="
                             if (String(selectedCardId) === 'new' || selectedCardId === '' || selectedCardId === null) {
                                 cardMode = 'new';
-                                selectedCardId = null;
+                                selectedCardId = 'new';
                                 form.card_number = '';
                                 form.exp_month = '';
                                 form.exp_year = '';
@@ -373,38 +374,39 @@
                         type="text"
                         name="card_number"
                         x-model="form.card_number"
-                        :readonly="cardMode === 'saved' && !!selectedCardId"
+                        :readonly="cardMode === 'saved' && selectedCardId && String(selectedCardId) !== 'new'"
                         :required="cardMode === 'new'"
                         placeholder="Card number"
-                        class="w-full rounded-[8px] border border-white/55 bg-[#4b008a] px-3 py-2.5 pr-14 text-[13px] text-white placeholder:text-white/50 outline-none"
+                        class="billing-card-modal__field"
+                        style="padding-right: 56px;"
                     >
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold tracking-wide text-white/70" x-text="selectedCard?.brand || 'CARD'"></span>
+                    <span class="billing-card-modal__brand" x-text="selectedCard?.brand || 'CARD'"></span>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="billing-card-modal__grid">
                     <input
                         type="text"
                         name="exp_month"
                         maxlength="2"
                         x-model="form.exp_month"
-                        :readonly="cardMode === 'saved' && !!selectedCardId"
+                        :readonly="cardMode === 'saved' && selectedCardId && String(selectedCardId) !== 'new'"
                         :required="cardMode === 'new'"
                         placeholder="MM"
-                        class="rounded-[8px] border border-white/55 bg-[#4b008a] px-3 py-2.5 text-[13px] text-white placeholder:text-white/50 outline-none"
+                        class="billing-card-modal__field"
                     >
                     <input
                         type="text"
                         name="exp_year"
                         maxlength="4"
                         x-model="form.exp_year"
-                        :readonly="cardMode === 'saved' && !!selectedCardId"
+                        :readonly="cardMode === 'saved' && selectedCardId && String(selectedCardId) !== 'new'"
                         :required="cardMode === 'new'"
                         placeholder="YY"
-                        class="rounded-[8px] border border-white/55 bg-[#4b008a] px-3 py-2.5 text-[13px] text-white placeholder:text-white/50 outline-none"
+                        class="billing-card-modal__field"
                     >
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="billing-card-modal__grid">
                     <input
                         type="text"
                         name="cvv"
@@ -412,40 +414,44 @@
                         x-model="form.cvv"
                         :required="cardMode === 'new'"
                         placeholder="CVV"
-                        class="rounded-[8px] border border-white/55 bg-[#4b008a] px-3 py-2.5 text-[13px] text-white placeholder:text-white/50 outline-none"
+                        class="billing-card-modal__field"
                     >
                     <input
                         type="text"
                         name="cardholder_name"
                         x-model="form.cardholder_name"
                         placeholder="Name / ZIP"
-                        class="rounded-[8px] border border-white/55 bg-[#4b008a] px-3 py-2.5 text-[13px] text-white placeholder:text-white/50 outline-none"
+                        class="billing-card-modal__field"
                     >
                 </div>
 
-                <button type="button" class="flex items-center gap-1 text-[12px] text-white/90" @click="showCoupon = !showCoupon">
+                <button type="button" class="flex items-center gap-1 text-[12px] text-white/90" style="background:transparent;border:0;padding:0;cursor:pointer;" @click="showCoupon = !showCoupon">
                     Have a coupon?
-                    <svg class="h-3 w-3 transition" :class="showCoupon ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    <svg class="h-3 w-3" :style="showCoupon ? 'transform:rotate(180deg)' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
                 <div x-show="showCoupon" x-cloak>
-                    <input type="text" name="coupon" x-model="form.coupon" placeholder="Coupon code" class="w-full rounded-[8px] border border-white/55 bg-[#4b008a] px-3 py-2.5 text-[13px] text-white placeholder:text-white/50 outline-none">
+                    <input type="text" name="coupon" x-model="form.coupon" placeholder="Coupon code" class="billing-card-modal__field">
                 </div>
 
-                <div class="flex items-center justify-center gap-3 pt-1 text-[13px] font-semibold">
-                    <span :class="billingCycle === 'monthly' ? 'text-white' : 'text-white/55'">Monthly</span>
-                    <button type="button" class="relative h-6 w-11 rounded-full bg-white/25" @click="billingCycle = billingCycle === 'monthly' ? 'yearly' : 'monthly'">
-                        <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition" :class="billingCycle === 'yearly' ? 'left-5' : 'left-0.5'"></span>
+                <div class="billing-card-modal__toggle-wrap">
+                    <span :class="billingCycle === 'monthly' ? '' : 'billing-card-modal__muted'">Monthly</span>
+                    <button
+                        type="button"
+                        class="billing-card-modal__toggle"
+                        :class="billingCycle === 'yearly' ? 'is-yearly' : ''"
+                        @click.prevent.stop="billingCycle = billingCycle === 'monthly' ? 'yearly' : 'monthly'"
+                        aria-label="Toggle billing cycle"
+                    >
+                        <span class="billing-card-modal__toggle-knob"></span>
                     </button>
-                    <span :class="billingCycle === 'yearly' ? 'text-white' : 'text-white/55'">Yearly</span>
+                    <span :class="billingCycle === 'yearly' ? '' : 'billing-card-modal__muted'">Yearly</span>
                 </div>
 
                 <p class="text-center text-[11px] text-white/80">Your plan activates after payment verification.</p>
 
-                <button type="submit" class="w-full rounded-[10px] bg-[#e8e8e8] py-3 text-[14px] font-semibold text-black hover:bg-white">
-                    Pay now
-                </button>
+                <button type="submit" class="billing-card-modal__pay">Pay now</button>
 
-                <button type="button" class="w-full text-center text-[12px] text-white/80 underline" @click="showCardModal = false; showBankCheckout = true">
+                <button type="button" class="billing-card-modal__bank-link" @click="showCardModal = false; showBankCheckout = true">
                     Or pay by bank transfer
                 </button>
             </form>

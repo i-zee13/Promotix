@@ -790,6 +790,192 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     -webkit-backdrop-filter: blur(10px);
 }
 
+/* Billing upgrade card modal */
+.billing-card-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.78);
+}
+
+.billing-card-modal {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    border-radius: 18px;
+    border: 1px solid rgba(94, 200, 255, 0.65);
+    background: #6400b2;
+    padding: 22px 20px 18px;
+    color: #fff;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+.billing-card-modal__close {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.billing-card-modal__close:hover {
+    color: #fff;
+    border-bottom: 0;
+    text-decoration: none;
+}
+
+.billing-card-modal__icon {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.billing-card-modal__field,
+.billing-card-modal select.billing-card-modal__field,
+.billing-card-modal input.billing-card-modal__field {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    background: #4b008a;
+    color: #fff;
+    padding: 10px 12px;
+    font-size: 13px;
+    outline: none;
+    box-shadow: none;
+}
+
+.billing-card-modal__field::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.billing-card-modal__field:focus {
+    border-color: #fff;
+}
+
+.billing-card-modal__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.billing-card-modal__toggle-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding-top: 4px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.billing-card-modal__toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.billing-card-modal__toggle:hover {
+    border-bottom: 0;
+    text-decoration: none;
+}
+
+.billing-card-modal__toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: #fff;
+    transition: transform 0.18s ease;
+    transform: translateX(0);
+    pointer-events: none;
+}
+
+.billing-card-modal__toggle.is-yearly .billing-card-modal__toggle-knob {
+    transform: translateX(20px);
+}
+
+.billing-card-modal__pay {
+    display: block;
+    width: 100%;
+    border: 0 !important;
+    border-radius: 10px;
+    background: #e8e8e8 !important;
+    color: #111 !important;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none !important;
+    box-shadow: none;
+}
+
+.billing-card-modal__pay:hover,
+.billing-card-modal__pay:focus {
+    background: #ffffff !important;
+    color: #111 !important;
+    border: 0 !important;
+    border-bottom: 0 !important;
+    text-decoration: none !important;
+    outline: none;
+}
+
+.billing-card-modal__bank-link {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 12px;
+    text-align: center;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.billing-card-modal__bank-link:hover {
+    color: #fff;
+    border-bottom: 0;
+}
+
+.billing-card-modal__muted {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.billing-card-modal__brand {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.7);
+    pointer-events: none;
+}
+
 /* Header — single date range calendar */
 .figma-date-range-trigger {
     cursor: pointer;
