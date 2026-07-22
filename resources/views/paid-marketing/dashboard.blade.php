@@ -733,12 +733,14 @@ function paidAdvertisingFigma(config = {}) {
         reloadInFlight: false,
         reloadQueued: false,
         reloadQueuedForceGoogle: false,
+        summaryRefreshInFlight: false,
+        lastSummaryFingerprint: '',
         lastRenderFingerprint: '',
         lastReloadAt: 0,
         livePollOn: true,
-        livePollMs: 45000,
+        livePollMs: 60000,
         googleSyncMs: 300000,
-        watermarkMs: 30000,
+        watermarkMs: 45000,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         scheduleReload() {
             clearTimeout(this.reloadTimer);
@@ -814,25 +816,25 @@ function paidAdvertisingFigma(config = {}) {
             clearInterval(this.livePollTimer);
             this.livePollTimer = setInterval(() => {
                 if (!this.livePollOn || document.hidden) return;
-                // Soft refresh only — never force Google Ads sync on the timer.
-                this.reload(false, false);
+                // Patch click/summary numbers only — never rebuild the whole dashboard.
+                this.refreshSummaryOnly(false);
             }, this.livePollMs);
         },
         startGoogleSyncPoll() {
             clearInterval(this.googleSyncTimer);
             this.googleSyncTimer = setInterval(() => {
                 if (!this.livePollOn || document.hidden) return;
-                this.reload(true, false);
+                // Google click counts: update Paid Traffic card only.
+                this.refreshSummaryOnly(true);
             }, this.googleSyncMs);
         },
         async checkWatermark() {
-            if (!this.livePollOn || document.hidden || this.reloadInFlight) return;
-            // Avoid a second full refresh right after a poll/reload.
-            if (Date.now() - this.lastReloadAt < 20000) return;
+            if (!this.livePollOn || document.hidden || this.reloadInFlight || this.summaryRefreshInFlight) return;
+            if (Date.now() - this.lastReloadAt < 15000) return;
             try {
                 const data = await fetch(`/paid-marketing/watermark?${this.qs()}`).then(r => r.json());
                 if (this.lastWatermarkId !== null && data.last_id > this.lastWatermarkId) {
-                    this.reload(false, false);
+                    this.refreshSummaryOnly(false);
                 }
                 this.lastWatermarkId = data.last_id;
             } catch (e) { /* silent — next tick retries */ }
@@ -840,6 +842,40 @@ function paidAdvertisingFigma(config = {}) {
         startWatermarkPoll() {
             clearInterval(this.watermarkTimer);
             this.watermarkTimer = setInterval(() => this.checkWatermark(), this.watermarkMs);
+        },
+        async refreshSummaryOnly(forceGoogle = false) {
+            if (this.reloadInFlight || this.summaryRefreshInFlight) return;
+            this.summaryRefreshInFlight = true;
+            try {
+                const summary = await fetch(`/paid-marketing/summary?${this.qs(forceGoogle)}`).then(r => r.json());
+                const fingerprint = JSON.stringify({
+                    paid_visits: summary?.paid_visits,
+                    invalid_paid_visits: summary?.invalid_paid_visits,
+                    total_click_count: summary?.total_click_count,
+                    google_clicks: summary?.google_clicks,
+                    tag_paid_visits: summary?.tag_paid_visits,
+                    block_attempts: summary?.block_attempts,
+                    block_enforced: summary?.block_enforced,
+                    flagged_paid_visits: summary?.flagged_paid_visits,
+                    invalid_reconciliation: summary?.invalid_reconciliation,
+                });
+                if (fingerprint === this.lastSummaryFingerprint) {
+                    this.lastReloadAt = Date.now();
+                    return;
+                }
+                this.lastSummaryFingerprint = fingerprint;
+                this.summary = summary;
+                if (summary?.timezone_context?.reporting_timezone) {
+                    this.userTimezone = summary.timezone_context.reporting_timezone;
+                }
+                this.syncPaidTimezoneHeader();
+                this.lastReloadAt = Date.now();
+                // Do NOT call render() — charts/tables stay put; Alpine updates card numbers only.
+            } catch (e) {
+                /* keep previous summary */
+            } finally {
+                this.summaryRefreshInFlight = false;
+            }
         },
         async init() {
             window.__paidAdvertisingDash = this;
@@ -861,8 +897,8 @@ function paidAdvertisingFigma(config = {}) {
                 this.scheduleReload();
             });
             document.addEventListener('visibilitychange', () => {
-                // Soft refresh when returning to the tab — force Google sync is too heavy and causes 3–5s freezes.
-                if (!document.hidden) this.reload(false, false);
+                // Soft number patch only when returning to the tab — no full dashboard rebuild.
+                if (!document.hidden) this.refreshSummaryOnly(false);
             });
             window.addEventListener('promotix:export-ips-csv', () => this.exportIpsCsv());
             await this.reload(false, true);
@@ -892,6 +928,17 @@ function paidAdvertisingFigma(config = {}) {
                     fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
                 ]);
                 this.summary = summary;
+                this.lastSummaryFingerprint = JSON.stringify({
+                    paid_visits: summary?.paid_visits,
+                    invalid_paid_visits: summary?.invalid_paid_visits,
+                    total_click_count: summary?.total_click_count,
+                    google_clicks: summary?.google_clicks,
+                    tag_paid_visits: summary?.tag_paid_visits,
+                    block_attempts: summary?.block_attempts,
+                    block_enforced: summary?.block_enforced,
+                    flagged_paid_visits: summary?.flagged_paid_visits,
+                    invalid_reconciliation: summary?.invalid_reconciliation,
+                });
                 if (summary?.timezone_context?.reporting_timezone) {
                     this.userTimezone = summary.timezone_context.reporting_timezone;
                 }
