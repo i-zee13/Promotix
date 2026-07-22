@@ -29,15 +29,18 @@
                         </span>
                     </button>
                 </x-slot:trigger>
-                <button type="button" class="figma-sa-users-action-item" onclick="document.getElementById('filter-payments-status').value=''; document.getElementById('payments-filter-form').submit();">All Statuses</button>
-                @foreach ($statuses as $status)
-                    <button type="button" class="figma-sa-users-action-item" onclick="document.getElementById('filter-payments-status').value='{{ $status }}'; document.getElementById('payments-filter-form').submit();">{{ ucfirst($status) }}</button>
+                @foreach ($filterStatuses as $fs)
+                    <button type="button"
+                        class="figma-sa-users-filter-option"
+                        onclick="document.getElementById('filter-payments-status').value='{{ $fs['value'] }}'; document.getElementById('payments-filter-form').submit();">
+                        {{ $fs['label'] }}
+                    </button>
                 @endforeach
             </x-super-admin.dashboard-dropdown>
 
             <div class="figma-sa-subs-actions">
                 @if ($stats['pending'] > 0)
-                    <span class="figma-sa-subs-status-pill is-past_due" style="min-width:auto;cursor:default;">{{ $stats['pending'] }} awaiting verification</span>
+                    <span class="figma-sa-subs-status-pill is-tone-expiry" style="min-width:auto;cursor:default;">{{ $stats['pending'] }} awaiting verification</span>
                 @endif
                 <a href="{{ route('super-admin.payments.index', request()->query()) }}" class="figma-sa-subs-export-btn">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 17h8M12 4v9m0 0l-3-3m3 3l3-3M5 19h14a1 1 0 001-1v-4"/></svg>
@@ -73,12 +76,7 @@
                         @forelse ($payments as $payment)
                             @php
                                 $status = strtolower($payment->status ?? '');
-                                $statusClass = match ($status) {
-                                    'paid' => 'is-active',
-                                    'failed', 'rejected' => 'is-cancelled',
-                                    'refunded' => 'is-paused',
-                                    default => 'is-pending',
-                                };
+                                $statusTone = \App\Support\StatusTone::payment($status);
                             @endphp
                             <tr class="figma-sa-subs-row">
                                 <td class="figma-sa-subs-td-check">
@@ -98,7 +96,7 @@
                                     <span class="figma-sa-subs-plan-detail">{{ format_money_cents($payment->amount_cents, $payment->currency) }}</span>
                                 </td>
                                 <td>
-                                    <span class="figma-sa-subs-status-pill {{ $statusClass }}">{{ ucfirst($payment->status) }}</span>
+                                    <x-super-admin.status-pill :tone="$statusTone" :label="ucfirst($payment->status)" />
                                     @if ($status === 'rejected' && $payment->rejection_reason)
                                         <span class="figma-sa-subs-plan-detail">{{ $payment->rejection_reason }}</span>
                                     @endif

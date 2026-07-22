@@ -39,7 +39,13 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+            // Prefer MAIL_SCHEME (Laravel 11+). Fall back from legacy MAIL_ENCRYPTION.
+            // tls/starttls on :587 → null (Symfony negotiates STARTTLS)
+            // ssl/smtps on :465 → smtps
+            'scheme' => env('MAIL_SCHEME', match (strtolower((string) env('MAIL_ENCRYPTION', ''))) {
+                'ssl', 'smtps' => 'smtps',
+                default => null,
+            }),
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),

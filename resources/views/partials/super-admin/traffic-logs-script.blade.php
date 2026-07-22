@@ -61,7 +61,10 @@ function trafficLogs(initial) {
             }
             const res = await fetch(url, opts);
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.message || 'Request failed');
+            if (!res.ok) {
+                const firstError = data.errors ? Object.values(data.errors).flat()[0] : null;
+                throw new Error(firstError || data.message || 'Request failed');
+            }
             return data;
         },
         resetFilters() {

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Payment;
+use App\Support\StatusTone;
 use App\Models\Subscription;
 use App\Services\BillingAccess;
 use Illuminate\Http\RedirectResponse;
@@ -40,6 +40,7 @@ class PaymentsController extends Controller
         return view('super-admin.payments.index', [
             'payments' => $payments,
             'statuses' => ['paid', 'pending', 'failed', 'refunded', 'rejected'],
+            'filterStatuses' => StatusTone::paymentFilters(),
             'stats' => $stats,
         ]);
     }

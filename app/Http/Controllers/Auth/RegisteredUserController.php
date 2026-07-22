@@ -11,8 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
@@ -90,24 +88,14 @@ class RegisteredUserController extends Controller
             ]
         );
 
-        try {
-            Mail::raw(
-                "Hi {$user->name},\n\nYour Promotix email verification code is: {$code}\n\nThis code expires in 60 minutes.\n\n— Promotix",
-                function ($message) use ($user) {
-                    $message->to($user->email)->subject('Your Promotix verification code');
-                }
-            );
-        } catch (\Throwable $e) {
-            Log::warning('Verification email failed at signup', [
-                'email' => $user->email,
-                'error' => $e->getMessage(),
-            ]);
+        $mailConfigured = \App\Services\Auth\VerificationCodeMailer::mailIsConfigured();
+        $sent = \App\Services\Auth\VerificationCodeMailer::send($user->name, $user->email, $code);
+
+        if (! $mailConfigured) {
+            return $code;
         }
 
-        $mailer = config('mail.default', 'log');
-        $mailConfigured = ! in_array($mailer, ['log', 'array', 'null'], true);
-
-        return $mailConfigured ? null : $code;
+        return $sent ? null : $code;
     }
 
 }

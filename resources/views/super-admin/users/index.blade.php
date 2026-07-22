@@ -57,7 +57,7 @@
                 </x-slot:trigger>
                 @foreach ($filterStatuses as $fs)
                     <button type="button"
-                        class="figma-sa-users-status-chip figma-sa-users-status-chip--{{ $fs['tone'] }}"
+                        class="figma-sa-users-filter-option"
                         onclick="document.getElementById('filter-status').value='{{ $fs['value'] }}'; document.getElementById('users-filter-form').submit();">
                         {{ $fs['label'] }}
                     </button>
@@ -138,7 +138,9 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <span class="figma-sa-users-status-tag figma-sa-users-status-tag--{{ $status }}">{{ ucfirst($status) }}</span>
+                                        <x-super-admin.status-pill
+                                            :tone="\App\Support\StatusTone::user($status)"
+                                            :label="ucfirst($status)" />
                                     </td>
                                     <td class="figma-sa-users-date-col">{{ $user->created_at?->format('n/j/Y') ?? '—' }}</td>
                                     <td class="text-right">

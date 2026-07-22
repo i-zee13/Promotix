@@ -95,16 +95,13 @@
                     <tbody>
                         @forelse ($domains as $domain)
                             @php
-                                $verifyClass = match ($domain->status) {
-                                    'connected' => 'is-active',
-                                    'disabled' => 'is-cancelled',
-                                    default => 'is-pending',
-                                };
+                                $verifyTone = \App\Support\StatusTone::domainVerification($domain->status);
                                 $verifyLabel = match ($domain->status) {
                                     'connected' => 'Verified',
                                     'disabled' => 'Disabled',
                                     default => 'Pending',
                                 };
+                                $trackingTone = $domain->tag_connected ? 'active' : 'suspended';
                             @endphp
                             <tr class="figma-sa-subs-row">
                                 <td class="figma-sa-subs-td-check">
@@ -122,9 +119,9 @@
                                     <span class="figma-sa-subs-plan-tier">{{ $domain->user?->name ?? 'Deleted user' }}</span>
                                     <span class="figma-sa-subs-plan-detail">{{ $domain->user?->email }}</span>
                                 </td>
-                                <td><span class="figma-sa-subs-status-pill {{ $verifyClass }}">{{ $verifyLabel }}</span></td>
+                                <td><x-super-admin.status-pill :tone="$verifyTone" :label="$verifyLabel" /></td>
                                 <td><span class="figma-sa-subs-date">{{ $domain->last_seen_at?->format('M d, Y') ?? 'Never' }}</span></td>
-                                <td><span class="figma-sa-subs-status-pill {{ $domain->tag_connected ? 'is-active' : 'is-paused' }}">{{ $domain->tag_connected ? 'Enabled' : 'Disabled' }}</span></td>
+                                <td><x-super-admin.status-pill :tone="$trackingTone" :label="$domain->tag_connected ? 'Enabled' : 'Disabled'" /></td>
                                 <td class="figma-sa-subs-td-action">
                                     <x-super-admin.dashboard-dropdown align="right">
                                         <x-slot:trigger>

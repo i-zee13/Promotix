@@ -2,10 +2,6 @@
 
 @section('content')
 <x-auth.card innerWidth="max-w-md" minHeight="min-h-[520px]">
-    <div class="mb-6 flex justify-center">
-        <x-brand :height="40" />
-    </div>
-
     <div class="flex flex-col items-center text-center">
         {{-- Mail badge --}}
         <div class="flex h-16 w-16 items-center justify-center rounded-full bg-white/25">
@@ -19,7 +15,13 @@
         <p class="mt-0.5 text-sm font-semibold text-white">{{ $email ?? auth()->user()?->email }}</p>
     </div>
 
-    @if ($errors->any())
+    @if ($errors->has('email'))
+        <div class="mt-5 rounded-[10px] border border-amber-300/50 bg-amber-500/15 px-3 py-2 text-sm text-amber-100">
+            {{ $errors->first('email') }}
+        </div>
+    @endif
+
+    @if ($errors->any() && ! $errors->has('email'))
         <div class="mt-5 rounded-[10px] border border-red-300/50 bg-red-500/15 px-3 py-2 text-sm text-red-100">
             {{ $errors->first() }}
         </div>

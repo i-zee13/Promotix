@@ -97,11 +97,7 @@
                     <tbody>
                         @forelse ($rows as $row)
                             @php
-                                $statusClass = match ($row['variant']) {
-                                    'banned' => 'is-cancelled',
-                                    'suspicious' => 'is-past_due',
-                                    default => 'is-active',
-                                };
+                                $statusTone = \App\Support\StatusTone::security($row['variant']);
                                 $iconClass = match ($row['variant']) {
                                     'banned' => 'is-banned',
                                     'suspicious' => 'is-suspicious',
@@ -136,7 +132,7 @@
                                         <span class="figma-sa-subs-plan-tier">{{ $row['ip'] }}</span>
                                     @endif
                                 </td>
-                                <td><span class="figma-sa-subs-status-pill {{ $statusClass }}">{{ $row['status'] }}</span></td>
+                                <td><x-super-admin.status-pill :tone="$statusTone" :label="$row['status']" /></td>
                                 <td>
                                     <span class="figma-sa-subs-billing">{{ $row['details'] }}</span>
                                     <span class="figma-sa-security-country">

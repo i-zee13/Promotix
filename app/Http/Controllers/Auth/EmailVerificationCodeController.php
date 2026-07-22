@@ -3,25 +3,17 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\Auth\VerificationCodeMailer;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 /**
  * Email verification using a 6-digit OTP code (replaces the default Laravel link flow).
- *
- * Flow:
- *   - On signup (or "resend"), a 6-digit code is generated, hashed, and stored in
- *     `email_verification_codes`. Codes expire after 60 minutes and there are 6
- *     attempts per code before requiring a resend.
- *   - The verification screen accepts the code, marks the user's email as verified,
- *     fires the `Verified` event, and redirects to the next step (plan selection).
  */
 class EmailVerificationCodeController extends Controller
 {
@@ -67,15 +59,22 @@ class EmailVerificationCodeController extends Controller
             ]
         );
 
-        $this->mailCode($user->name, $user->email, $code);
+        $mailConfigured = VerificationCodeMailer::mailIsConfigured();
+        $sent = VerificationCodeMailer::send($user->name, $user->email, $code);
 
-        $response = back()->with('status', 'A fresh 6-digit verification code has been sent to your email.');
-
-        if (! $this->mailIsConfigured()) {
-            $response->with('dev_code', $code);
+        if (! $mailConfigured) {
+            return back()
+                ->with('status', 'Mail is not configured — use the dev code below.')
+                ->with('dev_code', $code);
         }
 
-        return $response;
+        if (! $sent) {
+            return back()
+                ->withErrors(['email' => 'We could not send the verification email. Check mail settings or try again shortly.'])
+                ->with('dev_code', config('app.debug') ? $code : null);
+        }
+
+        return back()->with('status', 'A fresh 6-digit verification code has been sent to your email.');
     }
 
     public function verify(Request $request): RedirectResponse
@@ -126,29 +125,5 @@ class EmailVerificationCodeController extends Controller
             ->delete();
 
         return redirect()->route($user->homeRouteName());
-    }
-
-    private function mailCode(string $name, string $email, string $code): void
-    {
-        try {
-            Mail::raw(
-                "Hi {$name},\n\nYour Promotix email verification code is: {$code}\n\nThis code expires in 60 minutes. If you did not request it, you can ignore this email.\n\n— Promotix",
-                function ($message) use ($email) {
-                    $message->to($email)->subject('Your Promotix verification code');
-                }
-            );
-        } catch (\Throwable $e) {
-            Log::warning('Email verification code email failed', [
-                'email' => $email,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    private function mailIsConfigured(): bool
-    {
-        $mailer = config('mail.default', 'log');
-
-        return ! in_array($mailer, ['log', 'array', 'null'], true);
     }
 }

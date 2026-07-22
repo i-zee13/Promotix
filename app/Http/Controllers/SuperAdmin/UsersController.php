@@ -5,10 +5,12 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Role;
+use App\Support\StatusTone;
 use App\Models\RoleChange;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Models\UserInvite;
+use App\Services\Mail\AppMailer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -107,15 +109,7 @@ class UsersController extends Controller
             ];
         });
 
-        $filterStatuses = [
-            ['value' => '', 'label' => 'All Statuses', 'tone' => 'all'],
-            ['value' => 'active', 'label' => 'Active', 'tone' => 'active'],
-            ['value' => 'suspended', 'label' => 'Suspended', 'tone' => 'suspended'],
-            ['value' => 'blocked', 'label' => 'Block', 'tone' => 'blocked'],
-            ['value' => 'deactivated', 'label' => 'Deactivate', 'tone' => 'deactivated'],
-            ['value' => 'expiry', 'label' => 'Expiry', 'tone' => 'expiry'],
-            ['value' => 'banned', 'label' => 'Ban', 'tone' => 'ban'],
-        ];
+        $filterStatuses = StatusTone::userFilters();
 
         return view('super-admin.users.index', [
             'users' => $users,
@@ -198,19 +192,43 @@ class UsersController extends Controller
             return back()->withErrors(['email' => 'A user with this email already exists.']);
         }
 
-        UserInvite::query()->updateOrCreate(
+        $token = Str::random(48);
+        $expiresAt = now()->addDays(14);
+
+        $invite = UserInvite::query()->updateOrCreate(
             ['email' => $data['email'], 'status' => 'pending'],
             [
                 'invited_by_id' => $request->user()->id,
                 'name' => $data['name'] ?? null,
                 'role_id' => $data['role_id'] ?? null,
                 'plan_id' => $data['plan_id'] ?? null,
-                'token' => Str::random(48),
-                'expires_at' => now()->addDays(14),
+                'token' => $token,
+                'expires_at' => $expiresAt,
             ]
         );
 
-        return back()->with('status', "Invite created for {$data['email']}. Share the registration link when ready.");
+        $inviteUrl = route('register', [
+            'invite' => $invite->token,
+            'email' => $invite->email,
+        ]);
+
+        $sent = AppMailer::sendTemplate('user_invite_email', $invite->email, [
+            '{{user_name}}' => $invite->name ?: 'there',
+            '{{invite_url}}' => $inviteUrl,
+            '{{invite_expires}}' => $expiresAt->format('M j, Y'),
+        ]);
+
+        if (! AppMailer::mailIsConfigured()) {
+            return back()->with('status', "Invite created for {$invite->email}, but mail is not configured. Share this link: {$inviteUrl}");
+        }
+
+        if (! $sent) {
+            return back()
+                ->withErrors(['email' => 'Invite saved, but the email could not be sent. Check SMTP credentials (Gmail needs an App Password).'])
+                ->with('status', "Invite link: {$inviteUrl}");
+        }
+
+        return back()->with('status', "Invite email sent to {$invite->email}.");
     }
 
     public function assignPlan(Request $request, User $user): RedirectResponse

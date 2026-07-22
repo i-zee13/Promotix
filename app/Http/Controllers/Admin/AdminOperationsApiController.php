@@ -96,7 +96,11 @@ class AdminOperationsApiController extends Controller
     public function blockIp(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'ip' => ['required', 'ip'],
+            'ip' => ['required', 'string', 'max:45', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! filter_var($value, FILTER_VALIDATE_IP)) {
+                    $fail('The IP address is not valid.');
+                }
+            }],
             'blocked' => ['nullable', 'boolean'],
             'reason' => ['nullable', 'string', 'max:255'],
         ]);
@@ -112,8 +116,16 @@ class AdminOperationsApiController extends Controller
             'intel_status' => $data['reason'] ?? ($blocked ? 'manual_block' : 'manual_unblock'),
         ])->save();
 
+        if (Schema::hasTable('visits')) {
+            $domainIds = $this->domainIds($request);
+            DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->where('ip', $data['ip'])
+                ->update(['action_taken' => $blocked ? 'block' : 'allow']);
+        }
+
         return response()->json([
-            'message' => $blocked ? 'IP blocked.' : 'IP unblocked.',
+            'message' => $blocked ? "IP {$log->ip} blocked." : "IP {$log->ip} unblocked.",
             'ip' => $log->ip,
             'is_blocked' => $log->is_blocked,
         ]);
@@ -394,6 +406,7 @@ class AdminOperationsApiController extends Controller
 
         return DB::table('visits')
             ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
+            ->leftJoin('ip_logs', 'ip_logs.ip', '=', 'visits.ip')
             ->select([
                 'visits.id',
                 'visits.domain_id',
@@ -409,6 +422,7 @@ class AdminOperationsApiController extends Controller
                 'visits.action_taken',
                 'visits.visited_at',
                 'domains.hostname as domain_hostname',
+                'ip_logs.is_blocked as ip_is_blocked',
             ])
             ->whereIn('visits.domain_id', $domainIds);
     }
@@ -416,16 +430,15 @@ class AdminOperationsApiController extends Controller
     private function trafficRow(object $row): array
     {
         $action = $row->action_taken ?? 'allow';
+        if (($row->ip_is_blocked ?? false) && $action !== 'block') {
+            $action = 'block';
+        }
         $statusLabel = match ($action) {
             'block' => 'Blocked',
             'flag', 'challenge' => 'Flagged',
             default => ($row->is_invalid_traffic ?? false) ? 'Flagged' : 'Allowed',
         };
-        $statusClass = match ($statusLabel) {
-            'Blocked' => 'is-cancelled',
-            'Flagged' => 'is-past_due',
-            default => 'is-active',
-        };
+        $statusClass = 'is-tone-'.\App\Support\StatusTone::traffic($statusLabel);
         $score = (int) ($row->threat_score ?? 0);
         $scoreTier = $score >= 70 ? 'High risk' : ($score >= 40 ? 'Medium risk' : 'Low risk');
 
@@ -443,6 +456,7 @@ class AdminOperationsApiController extends Controller
             'bot_score_tier' => $scoreTier,
             'threat_group' => $row->threat_group,
             'action_taken' => $action,
+            'ip_is_blocked' => (bool) ($row->ip_is_blocked ?? false),
             'status_label' => $statusLabel,
             'status_class' => $statusClass,
             'is_paid_traffic' => (bool) $row->is_paid_traffic,
@@ -470,11 +484,12 @@ class AdminOperationsApiController extends Controller
 
     private function domainIds(Request $request)
     {
-        if ($request->user()->is_super_admin ?? false) {
+        $user = $request->user();
+        if (($user->is_super_admin ?? false) || ($user->is_admin ?? false)) {
             return Domain::query()->pluck('id');
         }
 
-        return Domain::query()->where('user_id', $request->user()->id)->pluck('id');
+        return Domain::query()->where('user_id', $user->id)->pluck('id');
     }
 
     private function scopedJob(Request $request, int $id): AdminAutomationJob

@@ -62,15 +62,17 @@
             <x-super-admin.dashboard-dropdown align="left">
                 <x-slot:trigger>
                     <button type="button" class="figma-sa-subs-filter-chip figma-sa-subs-filter-chip--wide">
-                        <span>{{ request('status') ? ucfirst(request('status')) : 'All Statuses' }}</span>
+                        <span>{{ collect($filterStatuses)->firstWhere('value', request('status', ''))['label'] ?? 'All Statuses' }}</span>
                         <span class="figma-sa-subs-chip-chevron">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </span>
                     </button>
                 </x-slot:trigger>
-                <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['status', 'page']), [])) }}" class="figma-sa-users-action-item">All Statuses</a>
-                @foreach ($statuses as $status)
-                    <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['status', 'page']), ['status' => $status])) }}" class="figma-sa-users-action-item">{{ ucfirst($status) }}</a>
+                @foreach ($filterStatuses as $fs)
+                    <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['status', 'page']), $fs['value'] !== '' ? ['status' => $fs['value']] : [])) }}"
+                       class="figma-sa-users-filter-option block">
+                        {{ $fs['label'] }}
+                    </a>
                 @endforeach
             </x-super-admin.dashboard-dropdown>
 
@@ -93,19 +95,9 @@
                     <tbody>
                         @forelse ($tickets as $ticket)
                             @php
-                                $pri = $ticket->priority ?? 'normal';
-                                $priClass = match ($pri) {
-                                    'urgent' => 'is-cancelled',
-                                    'high' => 'is-past_due',
-                                    'low' => 'is-paused',
-                                    default => 'is-active',
-                                };
-                                $statusClass = match (strtolower($ticket->status ?? '')) {
-                                    'open' => 'is-past_due',
-                                    'waiting' => 'is-pending',
-                                    'resolved', 'closed' => 'is-active',
-                                    default => 'is-pending',
-                                };
+                                $pri = strtolower($ticket->priority ?? 'normal');
+                                $priTone = \App\Support\StatusTone::ticketPriority($pri);
+                                $statusTone = \App\Support\StatusTone::ticket($ticket->status ?? '');
                                 $slaBreached = $ticket->sla_due_at && $ticket->sla_due_at->isPast() && ! in_array($ticket->status, ['closed', 'resolved'], true);
                             @endphp
                             <tr class="figma-sa-subs-row">
@@ -121,8 +113,8 @@
                                         </span>
                                     </a>
                                 </td>
-                                <td><span class="figma-sa-subs-status-pill {{ $priClass }}">{{ ucfirst($pri) }}</span></td>
-                                <td><span class="figma-sa-subs-status-pill {{ $statusClass }}">{{ ucfirst($ticket->status) }}</span></td>
+                                <td><x-super-admin.status-pill :tone="$priTone" :label="ucfirst($pri)" /></td>
+                                <td><x-super-admin.status-pill :tone="$statusTone" :label="ucfirst(str_replace('_', ' ', $ticket->status ?? ''))" /></td>
                                 <td>
                                     <span class="figma-sa-subs-plan-tier">{{ $ticket->assignee?->name ?? 'Unassigned' }}</span>
                                 </td>

@@ -16,9 +16,13 @@ class EmailTemplateDefaults
                 'subject' => 'Your {{app_name}} Verification Code',
                 'body' => "Hi {{user_name}},\n\nYour verification code is:\n\n{{otp_code}}\n\nThis code expires in {{otp_expiry}} minutes.\nIf you didn't request this, ignore this email.\n\n— {{app_name}} Security Team",
             ],
+            'user_invite_email' => [
+                'subject' => "You're invited to {{app_name}}",
+                'body' => "Hi {{user_name}},\n\nYou've been invited to join {{app_name}}.\n\nCreate your account here:\n{{invite_url}}\n\nThis invite expires on {{invite_expires}}.\nIf you weren't expecting this, you can ignore this email.\n\n— {{app_name}} Team",
+            ],
             'password_reset_email' => [
-                'subject' => 'Reset Your {{app_name}} Password',
-                'body' => "Hi {{user_name}},\n\nWe received a request to reset your password.\n\nClick the link below to continue:\n{{reset_url}}\n\nThis link expires in {{reset_expiry}} minutes.\nIf you didn't request this, ignore this email.\n\n— {{app_name}} Team",
+                'subject' => 'Your {{app_name}} Password Reset Code',
+                'body' => "Hi {{user_name}},\n\nYour password reset code is:\n\n{{otp_code}}\n\nThis code expires in {{reset_expiry}} minutes.\nIf you didn't request this, ignore this email.\n\n— {{app_name}} Team",
             ],
             'payment_failed_email' => [
                 'subject' => 'Payment Failed – Action Required',

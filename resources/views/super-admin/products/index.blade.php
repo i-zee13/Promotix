@@ -58,9 +58,13 @@
                             </span>
                         </button>
                     </x-slot:trigger>
-                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value=''; document.getElementById('products-filter-form').submit();">All Products</button>
-                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value='active'; document.getElementById('products-filter-form').submit();">Active</button>
-                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-product-status').value='inactive'; document.getElementById('products-filter-form').submit();">Deactivate</button>
+                    @foreach (\App\Support\StatusTone::productFilters() as $fs)
+                    <button type="button"
+                        class="figma-sa-users-filter-option"
+                        onclick="document.getElementById('filter-product-status').value='{{ $fs['value'] }}'; document.getElementById('products-filter-form').submit();">
+                        {{ $fs['label'] }}
+                    </button>
+                    @endforeach
                 </x-super-admin.dashboard-dropdown>
 
                 <x-super-admin.dashboard-dropdown align="left">

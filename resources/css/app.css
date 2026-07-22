@@ -2139,33 +2139,64 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     line-height: 1.2;
     color: #ffffff;
     text-align: center;
-    cursor: pointer;
-    background-color: rgba(255, 255, 255, 0.28);
+    cursor: default;
+    background: rgba(255, 255, 255, 0.28);
 }
 
-.figma-sa-subs-status-pill.is-active {
+.figma-sa-subs-status-pill[role="button"],
+.figma-sa-subs-status-pill select,
+select.figma-sa-subs-status-pill {
+    cursor: pointer;
+}
+
+/* Figma table status pills — subtle tones, not gradient filter chips */
+.figma-sa-subs-status-pill.is-tone-active,
+.figma-sa-subs-status-pill.is-active,
+.figma-sa-subs-status-pill.is-tone-open {
     background-color: rgba(163, 108, 234, 0.55);
     color: #ffffff;
 }
 
-.figma-sa-subs-status-pill.is-past_due {
-    background-color: rgba(197, 245, 65, 0.72);
+.figma-sa-subs-status-pill.is-tone-suspended,
+.figma-sa-subs-status-pill.is-paused,
+.figma-sa-subs-status-pill.is-tone-waiting {
+    background-color: rgba(222, 166, 45, 0.88);
     color: #1a1a1a;
 }
 
-.figma-sa-subs-status-pill.is-pending {
+.figma-sa-subs-status-pill.is-tone-blocked,
+.figma-sa-subs-status-pill.is-past_due {
+    background-color: rgba(224, 122, 69, 0.82);
+    color: #ffffff;
+}
+
+.figma-sa-subs-status-pill.is-tone-deactivated,
+.figma-sa-subs-status-pill.is-tone-resolved {
+    background-color: rgba(154, 154, 154, 0.72);
+    color: #ffffff;
+}
+
+.figma-sa-subs-status-pill.is-tone-expiry,
+.figma-sa-subs-status-pill.is-pending,
+.figma-sa-subs-status-pill.is-tone-closed {
     background-color: rgba(200, 182, 226, 0.72);
     color: #2d2340;
 }
 
+.figma-sa-subs-status-pill.is-tone-ban,
 .figma-sa-subs-status-pill.is-cancelled {
     background-color: rgba(233, 53, 53, 0.82);
     color: #ffffff;
 }
 
-.figma-sa-subs-status-pill.is-paused {
-    background-color: rgba(222, 166, 45, 0.88);
-    color: #1a1a1a;
+.figma-sa-subs-status-pill.is-tone-all {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #d9d9d9;
+}
+
+.figma-sa-subs-status-pill.is-tone-in_progress {
+    background-color: rgba(100, 0, 178, 0.72);
+    color: #ffffff;
 }
 
 .figma-sa-subs-status-pill option {
@@ -2645,29 +2676,48 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     color: #ffffff !important;
 }
 
-.light-mode .figma-sa-subs-status-pill.is-active {
+.light-mode .figma-sa-subs-status-pill.is-tone-active,
+.light-mode .figma-sa-subs-status-pill.is-active,
+.light-mode .figma-sa-subs-status-pill.is-tone-open {
     background-color: rgba(100, 0, 178, 0.2) !important;
     color: #6400b2 !important;
 }
 
-.light-mode .figma-sa-subs-status-pill.is-pending {
+.light-mode .figma-sa-subs-status-pill.is-tone-suspended,
+.light-mode .figma-sa-subs-status-pill.is-paused,
+.light-mode .figma-sa-subs-status-pill.is-tone-waiting {
+    background-color: rgba(222, 166, 45, 0.9) !important;
+    color: #3d2e08 !important;
+}
+
+.light-mode .figma-sa-subs-status-pill.is-tone-blocked,
+.light-mode .figma-sa-subs-status-pill.is-past_due {
+    background-color: rgba(224, 122, 69, 0.85) !important;
+    color: #ffffff !important;
+}
+
+.light-mode .figma-sa-subs-status-pill.is-tone-deactivated,
+.light-mode .figma-sa-subs-status-pill.is-tone-resolved,
+.light-mode .figma-sa-subs-status-pill.is-pending,
+.light-mode .figma-sa-subs-status-pill.is-tone-expiry,
+.light-mode .figma-sa-subs-status-pill.is-tone-closed {
     background-color: rgba(200, 182, 226, 0.75) !important;
     color: #4a3d6b !important;
 }
 
-.light-mode .figma-sa-subs-status-pill.is-past_due {
-    background-color: rgba(197, 245, 65, 0.85) !important;
-    color: #2d3a0a !important;
-}
-
+.light-mode .figma-sa-subs-status-pill.is-tone-ban,
 .light-mode .figma-sa-subs-status-pill.is-cancelled {
     background-color: rgba(233, 53, 53, 0.85) !important;
     color: #ffffff !important;
 }
 
-.light-mode .figma-sa-subs-status-pill.is-paused {
-    background-color: rgba(222, 166, 45, 0.9) !important;
-    color: #3d2e08 !important;
+.light-mode .figma-sa-subs-status-pill.is-tone-in_progress {
+    background-color: rgba(100, 0, 178, 0.35) !important;
+    color: #6400b2 !important;
+}
+
+.light-mode .figma-sa-subs-status-pill option {
+    color: #ffffff !important;
 }
 
 .light-mode .figma-sa-subs-status-pill option {
@@ -2895,6 +2945,74 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 
 .light-mode .figma-sa-plan-price small {
     color: #6b6280 !important;
+}
+
+.light-mode .figma-sa-plans-toolbar {
+    background: #ffffff;
+    border-color: #6400b2;
+}
+
+.light-mode .figma-sa-plans-search {
+    border-color: #c9b8dc;
+    background: #faf8fc;
+}
+
+.light-mode .figma-sa-plans-search input,
+.light-mode .figma-sa-plans-search svg {
+    color: #4a4458;
+}
+
+.light-mode .figma-sa-plans-filter-chip {
+    background: #f0ecf5;
+    border-color: #d4c4e8;
+    color: #4a4458;
+}
+
+.light-mode .figma-sa-plans-section-label {
+    color: #6b6280;
+}
+
+.light-mode .figma-sa-plans-product-title {
+    color: #2d2d3a;
+}
+
+.light-mode .figma-sa-plans-card-head {
+    background: #f4eefb;
+}
+
+.light-mode .figma-sa-plans-card-tier,
+.light-mode .figma-sa-plans-card-menu-btn {
+    color: #6400b2;
+}
+
+.light-mode .figma-sa-plans-card {
+    background: #6400b2;
+}
+
+.light-mode .figma-sa-plans-card-price {
+    color: #0d0d0d !important;
+}
+
+.light-mode .figma-sa-plans-card.is-highlighted {
+    outline-color: rgba(100, 0, 178, 0.55) !important;
+}
+
+.light-mode .figma-sa-plans-card-foot {
+    background: #2d2d3a;
+}
+
+.light-mode .figma-sa-plans-card-menu {
+    background: #ffffff;
+    border-color: #d4c4e8;
+}
+
+.light-mode .figma-sa-plans-card-menu button {
+    color: #4a4458;
+}
+
+.light-mode .figma-sa-plans-card-menu button:hover {
+    background: #f4eefb;
+    color: #6400b2;
 }
 
 /* Flash / alert banners */
@@ -7515,71 +7633,65 @@ button.figma-bp-advanced-select-wrap:focus {
     background: rgba(100, 0, 178, 0.35);
 }
 
+a.figma-sa-users-filter-option {
+    text-decoration: none;
+    display: block;
+}
+
 .figma-sa-users-plan-chip {
     font-weight: 600;
     color: #6a0cb3;
-}
-
-.figma-sa-dash-dropdown-menu .figma-sa-users-status-chip {
-    display: block;
-    width: calc(100% - 16px);
-    margin: 6px 8px;
-    border: 0;
-    border-radius: 5px;
-    padding: 8px 12px;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: #ffffff;
-    cursor: pointer;
-}
-
-.figma-sa-users-status-chip--active {
-    background: linear-gradient(180deg, #3dd68c 0%, #1faa62 100%);
-}
-
-.figma-sa-users-status-chip--suspended {
-    background: linear-gradient(180deg, #f0c35a 0%, #c98a1e 100%);
-}
-
-.figma-sa-users-status-chip--blocked {
-    background: linear-gradient(180deg, #e07a45 0%, #a84318 100%);
-}
-
-.figma-sa-users-status-chip--deactivated {
-    background: linear-gradient(180deg, #9a9a9a 0%, #5c5c5c 100%);
-}
-
-.figma-sa-users-status-chip--expiry {
-    background: linear-gradient(180deg, #7a9bb8 0%, #4a6d8c 100%);
-}
-
-.figma-sa-users-status-chip--ban {
-    background: linear-gradient(180deg, #ff5c6c 0%, #c41e3a 100%);
-}
-
-.figma-sa-users-status-chip--all {
-    background: rgba(255, 255, 255, 0.12);
-    color: #d9d9d9;
 }
 
 .figma-sa-users-table-shell {
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.5);
     background: #6400b2;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .figma-sa-table-scroll {
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: visible;
 }
 
 .figma-sa-users-table {
     width: 100%;
+    max-width: 100%;
     table-layout: fixed;
     border-collapse: collapse;
     font-size: 14px;
+}
+
+.figma-sa-users-table th:first-child,
+.figma-sa-users-table td:first-child {
+    width: 44px;
+    padding-left: 14px !important;
+}
+
+.figma-sa-users-table th:nth-child(2),
+.figma-sa-users-table td:nth-child(2) {
+    width: 26%;
+}
+
+.figma-sa-users-table th:nth-child(3),
+.figma-sa-users-table td:nth-child(3) {
+    width: 14%;
+}
+
+.figma-sa-users-table th:nth-child(4),
+.figma-sa-users-table td:nth-child(4) {
+    width: 12%;
+}
+
+.figma-sa-users-table th:nth-child(5),
+.figma-sa-users-table td:nth-child(5) {
+    width: 11%;
+}
+
+.figma-sa-users-table th:nth-child(6),
+.figma-sa-users-table td:nth-child(6) {
+    width: 12%;
 }
 
 .figma-sa-users-table th:last-child,
@@ -7615,18 +7727,36 @@ button.figma-bp-advanced-select-wrap:focus {
     padding: 12px;
     vertical-align: middle;
     color: #ffffff;
-}
-
-.figma-sa-users-checkbox {
-    width: 16px;
-    height: 16px;
-    accent-color: #6400b2;
+    overflow: hidden;
 }
 
 .figma-sa-users-usercell {
     display: flex;
     align-items: center;
     gap: 12px;
+    min-width: 0;
+}
+
+.figma-sa-users-usercell > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.figma-sa-users-name {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.figma-sa-users-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: #6400b2;
 }
 
 .figma-sa-users-avatar {
@@ -7643,23 +7773,21 @@ button.figma-bp-advanced-select-wrap:focus {
     border-radius: 3px;
 }
 
-.figma-sa-users-name {
-    display: block;
-    font-size: 16px;
-    font-weight: 600;
-    color: #ffffff;
-    line-height: 1.2;
-}
-
 .figma-sa-users-subemail {
     display: block;
     margin-top: 2px;
     font-size: 13px;
     color: rgba(255, 255, 255, 0.75);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .figma-sa-users-role-col {
     font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .figma-sa-users-plan-tag {
@@ -7686,20 +7814,31 @@ button.figma-bp-advanced-select-wrap:focus {
     color: #ffffff;
 }
 
-.figma-sa-users-status-tag--active {
-    background: rgba(255, 247, 247, 0.35);
+.figma-sa-users-status-tag--active,
+.figma-sa-users-status-tag.is-tone-active {
+    background-color: rgba(163, 108, 234, 0.55);
 }
 
-.figma-sa-users-status-tag--suspended {
-    background: rgba(255, 255, 255, 0.3);
+.figma-sa-users-status-tag--suspended,
+.figma-sa-users-status-tag.is-tone-suspended {
+    background-color: rgba(222, 166, 45, 0.88);
+    color: #1a1a1a;
 }
 
-.figma-sa-users-status-tag--pending {
-    background: rgba(100, 0, 178, 0.55);
+.figma-sa-users-status-tag--pending,
+.figma-sa-users-status-tag.is-tone-expiry {
+    background-color: rgba(200, 182, 226, 0.72);
+    color: #2d2340;
 }
 
-.figma-sa-users-status-tag--banned {
-    background: rgba(80, 0, 40, 0.85);
+.figma-sa-users-status-tag--banned,
+.figma-sa-users-status-tag.is-tone-ban {
+    background-color: rgba(233, 53, 53, 0.82);
+}
+
+.figma-sa-users-table .figma-sa-subs-status-pill {
+    min-width: 0;
+    max-width: 100%;
 }
 
 .figma-sa-users-date-col {
@@ -8459,6 +8598,336 @@ button.figma-bp-advanced-select-wrap:focus {
     font-size: 13px;
     font-weight: 600;
     color: #d9d9d9;
+}
+
+/* Super Admin — Plans & Pricing (Figma) */
+.figma-sa-plans {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+.figma-sa-plans-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    border: 2px solid #6400b2;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.figma-sa-plans-search {
+    display: inline-flex;
+    flex: 1 1 220px;
+    min-width: 180px;
+    max-width: 360px;
+    height: 34px;
+    align-items: center;
+    gap: 8px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: transparent;
+    padding: 0 12px;
+    box-sizing: border-box;
+}
+
+.figma-sa-plans-search svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: #d9d9d9;
+}
+
+.figma-sa-plans-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 500;
+    color: #d9d9d9;
+    outline: none;
+}
+
+.figma-sa-plans-search input::placeholder {
+    color: #a9a9a9;
+}
+
+.figma-sa-plans-filter-chip {
+    display: inline-flex;
+    height: 34px;
+    min-width: 128px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: #0d0d0d;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #a9a9a9;
+    cursor: pointer;
+}
+
+.figma-sa-plans-chip-chevron svg {
+    width: 14px;
+    height: 14px;
+}
+
+.figma-sa-plans-save-btn {
+    display: inline-flex;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    border: 0;
+    background: #6400b2;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.figma-sa-plans-save-btn:hover {
+    background: #7a1acc;
+}
+
+.figma-sa-plans-new-btn {
+    display: inline-flex;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-left: auto;
+    border-radius: 5px;
+    border: 0;
+    background: #6706b3;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.figma-sa-plans-new-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.figma-sa-plans-new-btn:hover {
+    background: #7a1acc;
+}
+
+.figma-sa-plans-section-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #a9a9a9;
+}
+
+.figma-sa-plans-product-title {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.1;
+    color: #ffffff;
+}
+
+.figma-sa-plans-cards-wrap {
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+.figma-sa-plans-cards {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 14px;
+}
+
+@media (min-width: 768px) {
+    .figma-sa-plans-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1100px) {
+    .figma-sa-plans-cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.figma-sa-plans-card {
+    display: flex;
+    min-height: 300px;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 0;
+    background: #6009a6;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+}
+
+.figma-sa-plans-card.is-inactive {
+    opacity: 0.72;
+}
+
+.figma-sa-plans-card.is-highlighted {
+    outline: 2px dashed rgba(255, 255, 255, 0.7);
+    outline-offset: -2px;
+}
+
+.figma-sa-plans-card-head {
+    display: flex;
+    height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #d9d9d9;
+    padding: 0 10px 0 16px;
+}
+
+.figma-sa-plans-card-head-main {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.figma-sa-plans-card-tier {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #6009a6;
+    white-space: nowrap;
+}
+
+.figma-sa-plans-card-price {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #0d0d0d;
+    white-space: nowrap;
+}
+
+.figma-sa-plans-card-menu-btn {
+    display: inline-flex;
+    height: 28px;
+    width: 28px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #6009a6;
+    cursor: pointer;
+}
+
+.figma-sa-plans-card-menu-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.figma-sa-plans-card-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 20;
+    min-width: 190px;
+    overflow: hidden;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #101010;
+    padding: 6px 0;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.figma-sa-plans-card-menu button {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 8px 14px;
+    text-align: left;
+    font-size: 12px;
+    color: #d9d9d9;
+    cursor: pointer;
+}
+
+.figma-sa-plans-card-menu button:hover {
+    background: rgba(100, 0, 178, 0.25);
+    color: #ffffff;
+}
+
+.figma-sa-plans-card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding: 14px 16px 10px;
+}
+
+.figma-sa-plans-card-tagline {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: #ffffff;
+}
+
+.figma-sa-plans-card-copy {
+    flex: 1;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #ffffff;
+}
+
+.figma-sa-plans-card-copy ul {
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.figma-sa-plans-card-copy li {
+    position: relative;
+    padding-left: 12px;
+    margin-bottom: 4px;
+}
+
+.figma-sa-plans-card-copy li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+}
+
+.figma-sa-plans-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 16px 16px;
+    min-height: 28px;
+    border-radius: 4px;
+    background: #121212;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.figma-sa-plans-empty {
+    padding: 24px 0;
+    font-size: 13px;
+    color: #a9a9a9;
+}
+
+.figma-sa-plans-admin {
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding-top: 24px;
 }
 
 /* Integration cards */

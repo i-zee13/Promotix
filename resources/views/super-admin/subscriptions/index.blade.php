@@ -94,9 +94,12 @@
                         </span>
                     </button>
                 </x-slot:trigger>
-                <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-subs-status').value=''; document.getElementById('subs-filter-form').submit();">All Statuses</button>
-                @foreach (['active' => 'Active', 'pending' => 'Pending', 'past_due' => 'Payment Failed', 'cancelled' => 'Cancelled', 'paused' => 'Paused', 'trialing' => 'Trialing'] as $val => $lbl)
-                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-subs-status').value='{{ $val }}'; document.getElementById('subs-filter-form').submit();">{{ $lbl }}</button>
+                @foreach ($filterStatuses as $fs)
+                    <button type="button"
+                        class="figma-sa-users-filter-option"
+                        onclick="document.getElementById('filter-subs-status').value='{{ $fs['value'] }}'; document.getElementById('subs-filter-form').submit();">
+                        {{ $fs['label'] }}
+                    </button>
                 @endforeach
             </x-super-admin.dashboard-dropdown>
         </form>
@@ -136,13 +139,7 @@
                                 $planDetail = $plan
                                     ? ucfirst($subscription->billing_interval).' '.$price.' / '.$intervalShort.'.'
                                     : '—';
-                                $statusClass = match ($subscription->status) {
-                                    'past_due' => 'is-past_due',
-                                    'cancelled' => 'is-cancelled',
-                                    'paused' => 'is-paused',
-                                    'pending', 'trialing' => 'is-pending',
-                                    default => 'is-active',
-                                };
+                                $statusTone = \App\Support\StatusTone::subscription($subscription->status);
                             @endphp
                             <tr class="figma-sa-subs-row">
                                 <td class="figma-sa-subs-td-check">
@@ -162,7 +159,7 @@
                                     <span class="figma-sa-subs-plan-detail">{{ $planDetail }}</span>
                                 </td>
                                 <td>
-                                    <select form="{{ $fid }}" onchange="this.form.submit()" name="status" class="figma-sa-subs-status-pill {{ $statusClass }}" aria-label="Change status">
+                                    <select form="{{ $fid }}" onchange="this.form.submit()" name="status" class="figma-sa-subs-status-pill is-tone-{{ $statusTone }}" aria-label="Change status">
                                         @foreach ($statuses as $status)
                                             <option value="{{ $status }}" @selected($subscription->status === $status)>
                                                 {{ match ($status) {

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Subscription;
+use App\Support\StatusTone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -45,6 +45,7 @@ class SubscriptionsController extends Controller
             'subscriptions' => $subscriptions,
             'perPage' => min(50, max(10, $request->integer('per_page', 10))),
             'statuses' => ['active', 'pending', 'past_due', 'cancelled', 'paused', 'trialing'],
+            'filterStatuses' => StatusTone::subscriptionFilters(),
             'plans' => \App\Models\Plan::orderBy('name')->get(['id', 'name']),
             'sort' => array_key_exists($sort, $allowedSorts) ? $sort : 'id',
             'dir' => $dir,

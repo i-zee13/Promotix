@@ -16,7 +16,7 @@ class PlansController extends Controller
     public function index(): View
     {
         return view('super-admin.plans.index', [
-            'plans' => Plan::with(['product', 'planFeatures'])->orderBy('sort_order')->orderBy('id')->paginate(20),
+            'plans' => Plan::with(['product', 'planFeatures'])->orderBy('sort_order')->orderBy('id')->get(),
             'products' => SaasProduct::where('is_active', true)->orderBy('name')->get(),
             'featureFlags' => FeatureFlag::orderBy('name')->get(),
         ]);

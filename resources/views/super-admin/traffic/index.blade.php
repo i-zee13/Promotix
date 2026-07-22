@@ -16,7 +16,8 @@
         domains: @js($domains->map(fn ($d) => ['id' => $d->id, 'hostname' => $d->hostname])->values()),
         initialStats: @js($stats),
     })"
-    x-init="loadStats(); loadTraffic();">
+    x-init="loadStats(); loadTraffic();"
+    @traffic-block-ip.window="blockIp($event.detail.ip, $event.detail.blocked)">
 
     <div class="flex flex-wrap items-center gap-[10px]">
         <label class="figma-sa-traffic-date">
@@ -69,7 +70,7 @@
 
         <x-super-admin.dashboard-dropdown align="left">
             <x-slot:trigger>
-                <button type="button" @click="open = !open" class="figma-sa-users-filter-btn">
+                <button type="button" class="figma-sa-users-filter-btn">
                     <span x-text="trackerLabel"></span>
                     <svg class="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
@@ -82,20 +83,20 @@
 
         <x-super-admin.dashboard-dropdown align="left">
             <x-slot:trigger>
-                <button type="button" @click="open = !open" class="figma-sa-users-filter-btn">
+                <button type="button" class="figma-sa-users-filter-btn">
                     <span x-text="statusLabel"></span>
                     <svg class="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
             </x-slot:trigger>
-            <button type="button" class="figma-sa-dash-dropdown-item" @click="setStatus('')">All Statuses</button>
-            <button type="button" class="figma-sa-dash-dropdown-item" @click="setStatus('allow')">Allowed</button>
-            <button type="button" class="figma-sa-dash-dropdown-item" @click="setStatus('flag')">Flagged</button>
-            <button type="button" class="figma-sa-dash-dropdown-item" @click="setStatus('block')">Blocked</button>
+            <button type="button" class="figma-sa-users-filter-option" @click="setStatus('')">All Statuses</button>
+            <button type="button" class="figma-sa-users-filter-option" @click="setStatus('allow')">Allowed</button>
+            <button type="button" class="figma-sa-users-filter-option" @click="setStatus('flag')">Flagged</button>
+            <button type="button" class="figma-sa-users-filter-option" @click="setStatus('block')">Blocked</button>
         </x-super-admin.dashboard-dropdown>
 
         <x-super-admin.dashboard-dropdown align="left">
             <x-slot:trigger>
-                <button type="button" @click="open = !open" class="figma-sa-users-filter-btn">
+                <button type="button" class="figma-sa-users-filter-btn">
                     <span x-text="countryLabel"></span>
                     <svg class="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
@@ -114,7 +115,7 @@
 
         <x-super-admin.dashboard-dropdown align="right">
             <x-slot:trigger>
-                <button type="button" @click="open = !open" class="figma-sa-users-filter-btn">
+                <button type="button" class="figma-sa-users-filter-btn">
                     <span>Advanced Filters</span>
                     <svg class="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
@@ -169,8 +170,8 @@
                                             <svg fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4z"/></svg>
                                         </button>
                                     </x-slot:trigger>
-                                    <button type="button" class="figma-sa-users-action-item w-full text-left" @click="blockIp(row.ip, true)">Block IP</button>
-                                    <button type="button" class="figma-sa-users-action-item w-full text-left" @click="blockIp(row.ip, false)">Unblock IP</button>
+                                    <button type="button" class="figma-sa-users-action-item w-full text-left" @click="$dispatch('traffic-block-ip', { ip: row.ip, blocked: true })">Block IP</button>
+                                    <button type="button" class="figma-sa-users-action-item w-full text-left" @click="$dispatch('traffic-block-ip', { ip: row.ip, blocked: false })">Unblock IP</button>
                                     <button type="button" class="figma-sa-users-action-item w-full text-left" x-show="row.url" @click="navigator.clipboard.writeText(row.url)">Copy URL</button>
                                 </x-super-admin.dashboard-dropdown>
                             </td>

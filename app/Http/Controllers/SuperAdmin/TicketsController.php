@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Models\SupportTicket;
+use App\Support\StatusTone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -35,10 +35,13 @@ class TicketsController extends Controller
             'overdue'  => SupportTicket::where('sla_due_at', '<', now())->whereNotIn('status', ['closed', 'resolved'])->where('priority', 'urgent')->count(),
         ];
 
+        $filterStatuses = StatusTone::ticketFilters();
+
         return view('super-admin.tickets.index', [
             'tickets' => $tickets,
             'stats' => $stats,
-            'statuses' => ['open', 'waiting', 'resolved', 'closed'],
+            'statuses' => ['open', 'in_progress', 'waiting', 'resolved', 'closed'],
+            'filterStatuses' => $filterStatuses,
             'priorities' => ['low', 'normal', 'high', 'urgent'],
         ]);
     }
