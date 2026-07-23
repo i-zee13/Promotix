@@ -11,6 +11,67 @@
     --brand-primary-rgb: 100, 0, 178;
 }
 
+/*
+ * Customer portal brand paint:
+ * Hardcoded Figma purple utilities (#6400B2 / #4D008E) follow Super Admin → Branding.
+ * Scoped to .figma-shell so Super Admin chrome is untouched unless it reuses these classes.
+ */
+.figma-shell .bg-\[\#6400B2\],
+.figma-shell .bg-\[\#6400B3\],
+.figma-shell .hover\:bg-\[\#6400B2\]:hover,
+.figma-shell .hover\:bg-\[\#7B13C8\]:hover,
+.figma-shell .hover\:bg-\[\#7a1acc\]:hover {
+    background-color: var(--brand-primary, #6400B2) !important;
+}
+
+.figma-shell .bg-\[\#6400B2\]\/20,
+.figma-shell .hover\:bg-\[\#6400B2\]\/20:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 20%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/25,
+.figma-shell .hover\:bg-\[\#6400B2\]\/25:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 25%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/30,
+.figma-shell .hover\:bg-\[\#6400B2\]\/30:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/35,
+.figma-shell .hover\:bg-\[\#6400B2\]\/35:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/40 { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 40%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/55,
+.figma-shell .hover\:bg-\[\#6400B2\]\/55:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 55%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/60 { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 60%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/70 { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 70%, transparent) !important; }
+
+.figma-shell .bg-\[\#4D008E\],
+.figma-shell .bg-\[\#4D008E\]\/70 {
+    background-color: var(--brand-secondary, #4D008E) !important;
+}
+.figma-shell .bg-\[\#4D008E\]\/70 {
+    background-color: color-mix(in srgb, var(--brand-secondary, #4D008E) 70%, transparent) !important;
+}
+
+.figma-shell .border-\[\#6400B2\],
+.figma-shell .border-\[\#6400B2\]\/40,
+.figma-shell .border-\[\#6400B2\]\/50,
+.figma-shell .border-\[\#6400B2\]\/60,
+.figma-shell .focus\:border-\[\#6400B2\]:focus,
+.figma-shell .hover\:border-\[\#6400B2\]:hover,
+.figma-shell .hover\:border-\[\#7B13C8\]:hover {
+    border-color: var(--brand-primary, #6400B2) !important;
+}
+.figma-shell .border-\[\#6400B2\]\/40 { border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 40%, transparent) !important; }
+.figma-shell .border-\[\#6400B2\]\/50 { border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 50%, transparent) !important; }
+.figma-shell .border-\[\#6400B2\]\/60 { border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 60%, transparent) !important; }
+
+.figma-shell .text-\[\#6400B2\],
+.figma-shell .text-\[\#6400b2\],
+.figma-shell .text-\[\#6400B3\],
+.figma-shell .hover\:text-\[\#6400B2\]:hover,
+.figma-shell .hover\:text-\[\#4a0088\]:hover {
+    color: var(--brand-primary, #6400B2) !important;
+}
+
+.figma-shell .ring-\[\#6400B2\]\/30,
+.figma-shell .focus\:ring-\[\#6400B2\]\/30:focus {
+    --tw-ring-color: color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent) !important;
+}
+
 [x-cloak] {
     display: none !important;
 }
@@ -23,7 +84,7 @@ body.figma-body,
 .figma-nav-scrollless,
 .promotix-slim-scroll {
     scrollbar-width: thin;
-    scrollbar-color: #6400b2 rgba(255, 255, 255, 0.06);
+    scrollbar-color: var(--brand-primary, #6400b2) rgba(255, 255, 255, 0.06);
 }
 
 html::-webkit-scrollbar,
@@ -5226,9 +5287,9 @@ select:autofill {
     min-height: 158px;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.4);
-    background: #6400B2;
+    background: var(--brand-primary, #6400B2);
     padding: 16px;
-    box-shadow: 0 0 18px rgba(100, 0, 179, 0.35);
+    box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
 }
 
 .paid-dashboard-card__title {
@@ -5294,7 +5355,7 @@ select:autofill {
     padding: 4px 12px;
     font-size: 9px;
     font-weight: 600;
-    color: #6400B2;
+    color: var(--brand-primary, #6400B2);
     transition: background 0.15s;
 }
 
@@ -5347,7 +5408,7 @@ select:autofill {
     min-height: 158px;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.4);
-    background: #6400B2;
+    background: var(--brand-primary, #6400B2);
     padding: 14px;
 }
 
@@ -5384,7 +5445,7 @@ select:autofill {
     background: #fff;
     padding: 4px 12px;
     font-size: 10px;
-    color: #6400B2;
+    color: var(--brand-primary, #6400B2);
 }
 
 .paid-invalid-card {
