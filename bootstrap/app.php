@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'onboarded' => \App\Http\Middleware\EnsureOnboardingComplete::class,
             'protection' => \App\Http\Middleware\EnsureProtectionAccess::class,
             'redirect-super-admin' => \App\Http\Middleware\RedirectSuperAdminFromLegacyAdmin::class,
+            'portal-product' => \App\Http\Middleware\EnsurePortalProductActive::class,
         ]);
 
         // Onboarding gate: forces unverified / no-plan users through the funnel.

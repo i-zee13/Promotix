@@ -83,6 +83,10 @@ class ProductsController extends Controller
         if (array_key_exists('usage_limits', $data)) {
             $settings['usage_limits'] = $data['usage_limits'];
         }
+        // Preserve portal gate flag — only changeable by seed/migration, not wiped on edit.
+        if ($product->gatesCustomerPortal()) {
+            $settings['gates_customer_portal'] = true;
+        }
 
         $product->update([
             'name' => $data['name'],
@@ -90,6 +94,8 @@ class ProductsController extends Controller
             'is_active' => (bool) ($data['is_active'] ?? false),
             'settings' => $settings,
         ]);
+
+        SaasProduct::flushPortalCache();
 
         return back()->with('status', 'Product updated.');
     }

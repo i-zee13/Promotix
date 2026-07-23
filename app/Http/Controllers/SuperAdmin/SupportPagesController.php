@@ -388,17 +388,53 @@ class SupportPagesController extends Controller
 
     public function sendTestEmailTemplate(Request $request, \App\Models\EmailTemplate $emailTemplate): RedirectResponse
     {
-        $to = $request->user()->email;
+        $to = (string) $request->user()->email;
 
-        try {
-            \Illuminate\Support\Facades\Mail::raw($emailTemplate->body, function ($message) use ($to, $emailTemplate): void {
-                $message->to($to)->subject($emailTemplate->subject);
-            });
+        if (! \App\Services\Mail\AppMailer::mailIsConfigured()) {
+            $mailer = (string) config('mail.default', 'log');
 
-            return back()->with('status', "Test email sent to {$to}.");
-        } catch (\Throwable $e) {
-            return back()->withErrors(['email' => 'Could not send test email: '.$e->getMessage()]);
+            return back()->withErrors([
+                'email' => "Mail is not configured for real delivery (MAIL_MAILER={$mailer}). Set SMTP (or another real mailer) and an App Password if using Gmail.",
+            ]);
         }
+
+        if ($emailTemplate->is_active === false) {
+            return back()->withErrors([
+                'email' => 'This template is inactive. Activate it before sending a test (production sends also skip inactive templates).',
+            ]);
+        }
+
+        $sample = [
+            '{{user_name}}' => (string) ($request->user()->name ?: 'Test User'),
+            '{{otp_code}}' => '123456',
+            '{{otp_expiry}}' => '10',
+            '{{reset_expiry}}' => '10',
+            '{{invite_url}}' => url('/register'),
+            '{{invite_expires}}' => now()->addDays(7)->toFormattedDateString(),
+            '{{plan_name}}' => 'Pro',
+            '{{failure_reason}}' => 'Insufficient funds (test)',
+            '{{billing_url}}' => url('/billing'),
+            '{{cancel_date}}' => now()->toFormattedDateString(),
+            '{{alert_title}}' => 'Test security alert',
+            '{{alert_message}}' => 'This is a test alert from Settings → Email Templates.',
+            '{{event_time}}' => now()->toDateTimeString(),
+            '{{ip_address}}' => (string) $request->ip(),
+            '{{security_url}}' => url('/profile'),
+        ];
+
+        $ok = \App\Services\Mail\AppMailer::sendTemplate(
+            $emailTemplate->key,
+            $to,
+            $sample,
+            $emailTemplate->subject,
+            $emailTemplate->body
+        );
+
+        if (! $ok) {
+            return back()->withErrors(['email' => "Could not send test email to {$to}. Check mail config and laravel.log."]);
+        }
+
+        return back()->with('status', "Test email sent to {$to}.");
     }
 
     public function saveSettings(Request $request): RedirectResponse

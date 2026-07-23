@@ -11,6 +11,8 @@
     <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
     <script>window.PROMOTIX_FILTER_DEBOUNCE_MS = 1500;</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @php $branding = \App\Support\Branding::cssVars(); @endphp
+    <style>{!! \App\Support\Branding::rootStyleBlock() !!}</style>
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
 @php
@@ -22,6 +24,7 @@
 @endif
 @php
     $user = auth()->user();
+    $brandCompany = $branding['company_name'] ?? 'Digital Promotix';
     $navGroups = [
         'HOME' => [
             ['label' => 'Overview', 'route' => 'dashboard', 'icon' => 'home', 'permission' => 'dashboard'],
@@ -64,15 +67,15 @@
     <aside class="figma-sidebar px-[16px] pt-[12px] pb-[6px] xl:px-[20px] xl:pt-[14px] xl:pb-[8px]">
         <div class="figma-sidebar-inner flex min-h-[100dvh] flex-col">
             <a href="{{ route('dashboard') }}" class="figma-sidebar-brand mb-[8px] mt-[2px] flex shrink-0 items-center gap-[8px]">
-                <span class="h-[26px] w-[26px] shrink-0 rounded-[6px] bg-[#6400B2] shadow-[0_0_18px_rgba(100,0,179,.7)]"></span>
-                <span class="figma-sidebar-brand-text truncate text-[16px] font-bold leading-none">Digital Promotix</span>
+                <span class="h-[26px] w-[26px] shrink-0 rounded-[6px] shadow-[0_0_18px_rgba(var(--brand-primary-rgb),0.7)]" style="background:var(--brand-primary);"></span>
+                <span class="figma-sidebar-brand-text truncate text-[16px] font-bold leading-none">{{ $brandCompany }}</span>
             </a>
 
             <div class="relative mb-[10px] shrink-0">
                 <span class="figma-sidebar-search-icon absolute left-[11px] top-1/2 -translate-y-1/2 text-white/70">
                     <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </span>
-                <input type="search" placeholder="Search" class="figma-sidebar-search h-[32px] w-full max-w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[#6400B2] focus:ring-[#6400B2]/30">
+                <input type="search" placeholder="Search" class="figma-sidebar-search h-[32px] w-full max-w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[var(--brand-primary)] focus:ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)]">
             </div>
 
             <nav class="figma-nav-scrollless mt-[4px] shrink-0 overflow-hidden overflow-x-hidden pr-[2px]" aria-label="Main navigation">
@@ -85,9 +88,9 @@
                                 @php $active = request()->routeIs($item['route']); @endphp
                                 <a href="{{ route($item['route']) }}" @class([
                                     'figma-nav-link group relative flex h-[30px] items-center gap-[9px] rounded-[7px] px-[7px] text-[14px] leading-none transition',
-                                    'is-active bg-[#6400B2] text-white shadow-[0_0_0_1px_rgba(100,0,179,.55)]' => $active,
-                                    'hover:bg-[#6400B2]/55 hover:text-white' => ! $active,
-                                ])>
+                                    'is-active text-white' => $active,
+                                    'hover:text-white' => ! $active,
+                                ]) @if($active) style="background:var(--brand-primary);box-shadow:0 0 0 1px color-mix(in srgb, var(--brand-primary) 55%, transparent);" @endif>
                                     @include('partials.sidebar-icon', ['name' => $item['icon'], 'class' => 'h-[17px] w-[17px] shrink-0'])
                                     <span>{{ $item['label'] }}</span>
                                 </a>

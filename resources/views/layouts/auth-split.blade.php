@@ -14,19 +14,16 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
+        {!! \App\Support\Branding::rootStyleBlock() !!}
         :root {
-            --auth-brand: #6400B2;
-            --auth-brand-dark: #4D008E;
-            --auth-brand-glow: rgba(100, 0, 178, 0.45);
-            --auth-brand-ring: rgba(100, 0, 178, 0.82);
-            --auth-brand-ring-soft: rgba(147, 51, 234, 0.35);
             --auth-bg: #0a0a0f;
             --auth-bg-panel: #0e0e14;
             --auth-bg-input: #12121a;
             --auth-text: #f4f4f5;
             --auth-muted: rgba(255, 255, 255, 0.55);
             --auth-border: rgba(255, 255, 255, 0.1);
-            --auth-border-focus: rgba(147, 51, 234, 0.65);
+            --auth-border-focus: color-mix(in srgb, var(--brand-primary) 65%, transparent);
+            --auth-brand-ring-soft: color-mix(in srgb, var(--brand-primary) 35%, transparent);
         }
 
         .auth-dark-page {
@@ -322,7 +319,7 @@
             padding: 0.65rem 1rem;
             border: none;
             border-radius: 0.65rem;
-            background: linear-gradient(135deg, #6400B2 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, var(--auth-brand) 0%, var(--auth-brand-dark) 100%);
             color: #fff;
             font-family: inherit;
             font-size: 0.88rem;
@@ -331,7 +328,7 @@
             text-transform: uppercase;
             cursor: pointer;
             transition: filter 0.2s, box-shadow 0.2s;
-            box-shadow: 0 8px 28px rgba(100, 0, 178, 0.4);
+            box-shadow: 0 8px 28px var(--auth-brand-glow);
         }
 
         .auth-btn-primary:hover {

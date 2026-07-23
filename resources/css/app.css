@@ -4,6 +4,13 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+    --brand-primary: #6400B2;
+    --brand-secondary: #4D008E;
+    --brand-background: #0d0d0d;
+    --brand-primary-rgb: 100, 0, 178;
+}
+
 [x-cloak] {
     display: none !important;
 }
@@ -3726,8 +3733,19 @@ select.figma-sa-subs-status-pill {
 
 /* Sidebar semantic tokens */
 .figma-body {
-    background: #0d0d0d;
+    background: var(--brand-background, #0d0d0d);
     color: #ffffff;
+}
+
+.figma-nav-link:not(.is-active):hover {
+    background: color-mix(in srgb, var(--brand-primary, #6400B2) 55%, transparent);
+    color: #ffffff;
+}
+
+.figma-nav-link.is-active {
+    background: var(--brand-primary, #6400B2);
+    color: #ffffff;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 55%, transparent);
 }
 
 .figma-sidebar-brand-text,

@@ -29,10 +29,30 @@ class AppMailer
         ];
 
         $template = EmailTemplate::query()->where('key', $key)->first();
+
+        if ($template && $template->is_active === false) {
+            Log::info('Email template skipped (inactive)', [
+                'key' => $key,
+                'to' => $to,
+            ]);
+
+            return false;
+        }
+
         $subject = self::replaceTokens($template?->subject ?: $defaults['subject'], $replacements);
         $body = self::replaceTokens($template?->body ?: $defaults['body'], $replacements);
 
         return self::sendRaw($to, $subject, $body, $key);
+    }
+
+    /**
+     * Replace {{tokens}} the same way production sends do (for Settings test mail).
+     *
+     * @param  array<string, string>  $replacements
+     */
+    public static function renderTokens(string $text, array $replacements = []): string
+    {
+        return self::replaceTokens($text, $replacements);
     }
 
     public static function sendRaw(string $to, string $subject, string $body, string $context = 'mail'): bool

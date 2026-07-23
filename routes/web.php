@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\TrafficBotLogsController;
 use App\Http\Controllers\Admin\BillingController;
 use App\Http\Controllers\Admin\UpgradePlanController;
+use App\Http\Controllers\PortalInactiveController;
 use App\Http\Controllers\SuperAdmin\BillingAutomationController;
 use App\Http\Controllers\Admin\IpLogsController;
 use App\Http\Controllers\IpFilterController;
@@ -131,9 +132,11 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/integrations', [SuperAdminSupportPagesController::class, 'integrations'])->name('integrations.index');
     });
 
-Route::middleware(['auth', 'admin'])
+Route::middleware(['auth', 'admin', 'portal-product'])
     ->prefix('admin')
     ->group(function () {
+        Route::get('/portal-inactive', PortalInactiveController::class)->name('portal.inactive');
+
         Route::get('/', function () {
             $menu = config('admin.menu', []);
             foreach ($menu as $slug => $item) {
@@ -309,7 +312,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/integrations/direct-ads/{integration}', [IntegrationsController::class, 'directAdsDestroy']);
 });
 
-Route::middleware(['auth', 'admin'])
+Route::middleware(['auth', 'admin', 'portal-product'])
     ->prefix('api/admin')
     ->name('api.admin.')
     ->group(function () {
