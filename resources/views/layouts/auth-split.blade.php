@@ -436,8 +436,6 @@
     @endif
 
     @php
-        $logoPath = public_path('images/logo-dark.png');
-        $logoUrl = url('/images/logo-dark.png') . (is_file($logoPath) ? '?v=' . filemtime($logoPath) : '');
         $heroPath = public_path('images/login-hero.png');
         $heroUrl = is_file($heroPath)
             ? asset('images/login-hero.png') . '?v=' . filemtime($heroPath)
@@ -453,15 +451,6 @@
                         @if ($heroUrl)
                             <img src="{{ $heroUrl }}" alt="" class="auth-hero-photo" loading="eager" decoding="async" referrerpolicy="no-referrer">
                         @endif
-                        <div class="auth-hero-logo-wrap">
-                            <img
-                                src="{{ $logoUrl }}"
-                                alt="{{ config('app.name') }}"
-                                loading="eager"
-                                decoding="async"
-                                referrerpolicy="no-referrer"
-                            >
-                        </div>
                     </div>
                 </div>
 
