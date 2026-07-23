@@ -6,10 +6,10 @@
 ])
 
 {{--
-    Solid purple auth card (no gradient).
-    Reference (Figma): #6400B3, 15px radius, 1px white/35% border, 1px white/25% drop highlight.
+    Solid brand auth card (no gradient).
+    Colors come from --brand-primary (Super Admin → Branding).
 --}}
-<div class="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-[#0D0D0D]">
+<div class="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8" style="background:var(--brand-background,#0D0D0D);">
     <div {{ $attributes->class([
         'auth-card-panel',
         'w-full',
@@ -18,13 +18,13 @@
         'rounded-[15px]',
         'border',
         'border-white/35',
-        'bg-[#6400B3]',
-        'shadow-[0_1px_0_0_rgba(255,255,255,0.25),0_25px_60px_-20px_rgba(100,0,179,0.55)]',
         'flex',
         'items-center',
         'justify-center',
         $padding,
-    ]) }}>
+    ]) }}
+        style="background:var(--brand-primary,#6400B3);box-shadow:0 1px 0 0 rgba(255,255,255,0.25),0 25px 60px -20px rgba(var(--brand-primary-rgb,100,0,179),0.55);"
+    >
         <div class="w-full {{ $innerWidth }} mx-auto">
             {{ $slot }}
         </div>

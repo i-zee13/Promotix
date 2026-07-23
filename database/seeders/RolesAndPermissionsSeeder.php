@@ -27,16 +27,13 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $superAdmin->permissions()->sync(Permission::pluck('id'));
 
-        // Default role for newly registered users:
-        // grant only the dashboard permission so they land in the dashboard after registration.
+        // Default role for newly registered customers: full customer menu access.
+        // Onboarding (trial + card) is enforced separately by EnsureOnboardingComplete.
         $defaultRole = Role::updateOrCreate(
             ['slug' => 'default-user'],
-            ['name' => 'Default User', 'description' => 'Access to basic admin dashboard']
+            ['name' => 'Default User', 'description' => 'Customer portal access after onboarding']
         );
 
-        $dashboardPermission = Permission::where('slug', 'dashboard')->first();
-        if ($dashboardPermission) {
-            $defaultRole->permissions()->sync([$dashboardPermission->id]);
-        }
+        $defaultRole->permissions()->sync(Permission::pluck('id'));
     }
 }

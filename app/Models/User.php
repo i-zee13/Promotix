@@ -158,6 +158,39 @@ class User extends Authenticatable
     }
 
     /**
+     * Default route after login or email verification.
+     */
+    public function homeRouteName(): string
+    {
+        if ($this->is_super_admin ?? false) {
+            return 'super-admin.dashboard';
+        }
+
+        if ($this->bypassesOnboarding()) {
+            return 'dashboard';
+        }
+
+        if (! $this->hasVerifiedEmail()) {
+            return 'verification.notice';
+        }
+
+        if (! $this->activeSubscription()) {
+            return 'onboarding.plan';
+        }
+
+        if (! $this->hasPaymentMethodOnFile()) {
+            return 'onboarding.payment';
+        }
+
+        return 'dashboard';
+    }
+
+    public function hasPaymentMethodOnFile(): bool
+    {
+        return $this->paymentMethods()->exists();
+    }
+
+    /**
      * Admins are not restricted by subscription plan limits.
      */
     public function bypassesPlanLimits(): bool
@@ -171,22 +204,6 @@ class User extends Authenticatable
     public function bypassesOnboarding(): bool
     {
         return $this->bypassesPlanLimits();
-    }
-
-    /**
-     * Default route after login or email verification.
-     */
-    public function homeRouteName(): string
-    {
-        if ($this->is_super_admin ?? false) {
-            return 'super-admin.dashboard';
-        }
-
-        if ($this->is_admin) {
-            return 'dashboard';
-        }
-
-        return 'onboarding.plan';
     }
 
     /**

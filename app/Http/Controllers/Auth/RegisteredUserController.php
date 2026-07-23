@@ -50,7 +50,8 @@ class RegisteredUserController extends Controller
             'website_url' => $data['website_url'] ?? null,
             'password' => Hash::make($data['password']),
             'role_id' => $defaultRole?->id,
-            'is_admin' => true,
+            // Customers must complete trial + payment onboarding (admins bypass those gates).
+            'is_admin' => false,
         ]);
 
         event(new Registered($user));

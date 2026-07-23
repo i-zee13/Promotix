@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Onboarding;
 
 use App\Http\Controllers\Controller;
+use App\Models\PaymentMethod;
 use App\Models\Plan;
 use App\Models\Subscription;
 use Illuminate\Http\RedirectResponse;
@@ -10,11 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Post-signup onboarding: plan selection screen with the optional 7-day trial CTA.
- *
- * Gating:
- *   - User must be authenticated and have a verified email.
- *   - If they already have an active or trialing subscription, send them on to the dashboard.
+ * Post-signup onboarding: plan selection → add payment card → dashboard.
  */
 class OnboardingController extends Controller
 {
@@ -100,7 +97,88 @@ class OnboardingController extends Controller
             'metadata' => ['source' => 'onboarding_plan_selection'],
         ]);
 
-        return $this->afterPlanRedirect($user)->with('status', "Your {$days}-day free trial of {$plan->name} has started.");
+        return redirect()
+            ->route('onboarding.payment')
+            ->with('status', "Your {$days}-day free trial of {$plan->name} has started. Add a payment card to continue.");
+    }
+
+    public function payment(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user->bypassesOnboarding()) {
+            return redirect()->route($user->homeRouteName());
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
+        }
+
+        if (! $user->activeSubscription()) {
+            return redirect()->route('onboarding.plan');
+        }
+
+        if ($user->hasPaymentMethodOnFile()) {
+            return redirect()->route('dashboard');
+        }
+
+        $subscription = $user->activeSubscription();
+        $plan = $subscription?->plan;
+
+        return view('onboarding.payment', [
+            'user' => $user,
+            'subscription' => $subscription,
+            'plan' => $plan,
+            'trialDays' => (int) app_setting('trial.days', 7),
+        ]);
+    }
+
+    public function storePayment(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'card_number' => ['required', 'string', 'min:12', 'max:19'],
+            'exp_month' => ['required', 'string', 'size:2'],
+            'exp_year' => ['required', 'string', 'min:2', 'max:4'],
+            'label' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $user = $request->user();
+
+        if ($user->bypassesOnboarding()) {
+            return redirect()->route($user->homeRouteName());
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
+        }
+
+        if (! $user->activeSubscription()) {
+            return redirect()->route('onboarding.plan');
+        }
+
+        if ($user->hasPaymentMethodOnFile()) {
+            return redirect()->route('dashboard');
+        }
+
+        $digits = preg_replace('/\D/', '', $data['card_number']) ?: '';
+        $lastFour = substr($digits, -4);
+
+        PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
+
+        PaymentMethod::query()->create([
+            'user_id' => $user->id,
+            'label' => $data['label'] ?? 'Primary card',
+            'brand' => str_starts_with($digits, '4') ? 'Visa' : (str_starts_with($digits, '5') ? 'Mastercard' : 'Card'),
+            'last_four' => $lastFour,
+            'exp_month' => $data['exp_month'],
+            'exp_year' => strlen($data['exp_year']) === 2 ? '20'.$data['exp_year'] : $data['exp_year'],
+            'is_primary' => true,
+            'is_temporary' => false,
+        ]);
+
+        return redirect()
+            ->route('dashboard')
+            ->with('status', 'Payment method saved. Welcome to your dashboard.');
     }
 
     private function afterPlanRedirect($user): RedirectResponse
@@ -109,6 +187,10 @@ class OnboardingController extends Controller
             return redirect()->route($user->homeRouteName());
         }
 
-        return redirect()->route('home');
+        if (! $user->hasPaymentMethodOnFile()) {
+            return redirect()->route('onboarding.payment');
+        }
+
+        return redirect()->route('dashboard');
     }
 }

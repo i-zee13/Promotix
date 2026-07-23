@@ -60,17 +60,8 @@ Route::get('/', function () {
     if (! auth()->check()) {
         return redirect()->route('login');
     }
-    $user = auth()->user();
-    if ($user->is_super_admin ?? false) {
-        return redirect()->route('super-admin.dashboard');
-    }
-    if ($user->is_admin) {
-        return redirect()->route('dashboard');
-    }
-    if ($user->role_id && $user->role?->permissions()->exists()) {
-        return redirect()->route('admin');
-    }
-    return view('welcome');
+
+    return redirect()->route(auth()->user()->homeRouteName());
 })->name('home');
 
 Route::get('/admin/integrations/google/redirect', [IntegrationsController::class, 'googleRedirect'])->name('integrations.google.redirect');
@@ -237,6 +228,8 @@ Route::middleware('auth')->group(function () {
     // Onboarding (post email verification, pre dashboard)
     Route::get('/onboarding/plan', [OnboardingController::class, 'plans'])->name('onboarding.plan');
     Route::post('/onboarding/plan/start-trial', [OnboardingController::class, 'startTrial'])->name('onboarding.start-trial');
+    Route::get('/onboarding/payment', [OnboardingController::class, 'payment'])->name('onboarding.payment');
+    Route::post('/onboarding/payment', [OnboardingController::class, 'storePayment'])->name('onboarding.payment.store');
 });
 
 

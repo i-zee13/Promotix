@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  *   - Not email-verified  → /verify-email
  *   - Verified but no active/trialing subscription → /onboarding/plan
+ *   - Has subscription but no payment method → /onboarding/payment
  *   - Admins and super admins bypass both checks.
  *
  * Routes that should be reachable while onboarding is incomplete (login, logout,
@@ -35,6 +36,8 @@ class EnsureOnboardingComplete
         'verification.send-code',
         'onboarding.plan',
         'onboarding.start-trial',
+        'onboarding.payment',
+        'onboarding.payment.store',
         'pricing',
         'impersonate.stop',
         'google-ads.click',
@@ -64,6 +67,10 @@ class EnsureOnboardingComplete
 
         if (! $user->activeSubscription()) {
             return redirect()->route('onboarding.plan');
+        }
+
+        if (! $user->hasPaymentMethodOnFile()) {
+            return redirect()->route('onboarding.payment');
         }
 
         return $next($request);

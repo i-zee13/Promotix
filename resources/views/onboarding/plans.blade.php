@@ -1,7 +1,7 @@
 @extends('layouts.auth')
 
 @section('content')
-<div class="min-h-screen bg-[#0D0D0D] px-4 py-12 sm:px-6 lg:px-8">
+<div class="min-h-screen px-4 py-12 sm:px-6 lg:px-8" style="background:var(--brand-background,#0D0D0D);">
     <div class="mx-auto max-w-6xl"
         x-data="{
             interval: 'monthly',
@@ -21,11 +21,6 @@
                 return '$' + (monthlyCents / 100).toFixed(0) + '/m';
             }
         }">
-        {{-- Brand --}}
-        <div class="mb-10 flex justify-center">
-            <x-brand variant="dark" :height="44" />
-        </div>
-
         {{-- Header --}}
         <div class="text-center">
             <h1 class="text-3xl font-bold text-white sm:text-4xl">
@@ -49,7 +44,7 @@
                     <span class="figma-toggle-track"><span class="figma-toggle-thumb"></span></span>
                 </button>
                 <span :class="interval === 'yearly' ? 'text-white' : 'text-white/55'">Yearly</span>
-                <span class="ml-2 rounded-full border border-white/30 bg-[#6400B3]/60 px-3 py-0.5 text-xs font-semibold text-white">Save 15%</span>
+                <span class="ml-2 rounded-full border border-white/30 px-3 py-0.5 text-xs font-semibold text-white" style="background:color-mix(in srgb, var(--brand-primary,#6400B3) 60%, transparent);">Save 15%</span>
             </div>
 
             {{-- Currency (display only) --}}
@@ -106,7 +101,8 @@
                     </div>
 
                     {{-- Card --}}
-                    <div class="relative h-full rounded-[15px] border border-white/35 bg-[#6400B3] px-6 pb-8 pt-16 shadow-[0_25px_60px_-20px_rgba(100,0,179,0.55)]">
+                    <div class="brand-surface-card relative h-full rounded-[15px] border border-white/35 px-6 pb-8 pt-16"
+                        style="background:var(--brand-primary,#6400B3);box-shadow:0 25px 60px -20px rgba(var(--brand-primary-rgb,100,0,179),0.55);">
                         @if ($desc)
                             <p class="mt-2 text-center text-sm text-white/85">{{ $desc }}</p>
                         @endif
@@ -118,7 +114,8 @@
                             <input type="hidden" name="plan_slug" value="{{ $plan->slug }}">
                             <input type="hidden" name="billing_interval" :value="interval">
                             <button type="submit"
-                                class="block w-full rounded-[10px] bg-white py-2.5 text-center text-sm font-semibold text-[#6400B3] transition hover:bg-white/90">
+                                class="block w-full rounded-[10px] bg-white py-2.5 text-center text-sm font-semibold transition hover:bg-white/90"
+                                style="color:var(--brand-primary,#6400B3);">
                                 {{ $plan->cta_label ?: 'Start free trial' }}
                             </button>
                         </form>

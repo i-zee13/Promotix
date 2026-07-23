@@ -11,8 +11,9 @@
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>{!! \App\Support\Branding::rootStyleBlock() !!}</style>
 </head>
-<body class="min-h-screen bg-[#0D0D0D] font-sans text-gray-100 antialiased">
+<body class="min-h-screen font-sans text-gray-100 antialiased" style="background:var(--brand-background,#0D0D0D);">
     @if (session('status'))
         <div class="fixed right-4 top-4 z-50 max-w-md rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-4 py-3 text-sm text-emerald-100 shadow-lg">
             {{ session('status') }}

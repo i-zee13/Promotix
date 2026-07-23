@@ -29,6 +29,8 @@ class EnsurePortalProductActive
         'verification.send-code',
         'onboarding.plan',
         'onboarding.start-trial',
+        'onboarding.payment',
+        'onboarding.payment.store',
         'profile.edit',
         'profile.update',
         'profile.destroy',

@@ -3977,8 +3977,13 @@ html.light-mode .figma-body {
 }
 
 .auth-card-panel {
-    --promotix-autofill-bg: rgba(77, 0, 142, 0.6);
+    --promotix-autofill-bg: color-mix(in srgb, var(--brand-secondary, #4D008E) 60%, transparent);
     --promotix-autofill-text: #ffffff;
+    background: var(--brand-primary, #6400B3);
+}
+
+.brand-surface-card {
+    background: var(--brand-primary, #6400B3);
 }
 
 .figma-detection-right,
