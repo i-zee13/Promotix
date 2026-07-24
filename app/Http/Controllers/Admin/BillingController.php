@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
+use App\Support\CardBrand;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Services\BillingAccess;
@@ -185,7 +186,7 @@ class BillingController extends Controller
             $paymentMethod = PaymentMethod::query()->create([
                 'user_id' => $user->id,
                 'label' => trim((string) ($data['cardholder_name'] ?? '')) ?: 'Primary card',
-                'brand' => str_starts_with($digits, '4') ? 'Visa' : (str_starts_with($digits, '5') ? 'Mastercard' : 'Card'),
+                'brand' => CardBrand::detect((string) $digits),
                 'last_four' => $lastFour,
                 'exp_month' => $data['exp_month'],
                 'exp_year' => $data['exp_year'],
@@ -278,12 +279,20 @@ class BillingController extends Controller
         PaymentMethod::query()->create([
             'user_id' => $user->id,
             'label' => $data['label'] ?? ($makePrimary ? 'Primary card' : 'Backup card'),
-            'brand' => str_starts_with($digits, '4') ? 'Visa' : (str_starts_with($digits, '5') ? 'Mastercard' : 'Card'),
+            'brand' => CardBrand::detect((string) $digits),
             'last_four' => $lastFour,
             'exp_month' => $data['exp_month'],
             'exp_year' => $data['exp_year'],
             'is_primary' => $makePrimary,
             'is_temporary' => $isTemporary,
+            'verification_status' => 'saved_local',
+        ]);
+
+        \App\Services\Mail\AppMailer::sendTemplate('payment_method_saved_email', $user->email, [
+            '{{user_name}}' => $user->name ?: 'there',
+            '{{card_brand}}' => CardBrand::detect((string) $digits),
+            '{{last_four}}' => $lastFour,
+            '{{billing_url}}' => url('/admin/billing'),
         ]);
 
         return back()->with('status', 'Payment method saved.');

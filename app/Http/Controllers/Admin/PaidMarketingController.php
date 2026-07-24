@@ -1193,7 +1193,7 @@ class PaidMarketingController extends Controller
             'domain' => $domain,
             'settings' => $settings,
             'ipExclusions' => $domain ? $this->googleExclusionRowsForDomain($domain->id) : [],
-            'geoCountries' => $geoCatalog->countries(null, 100),
+            'geoCountries' => $geoCatalog->countries(null, 300),
             'geoEndpoints' => [
                 'countries' => route('paid-marketing.geo.countries'),
                 'states' => route('paid-marketing.geo.states'),

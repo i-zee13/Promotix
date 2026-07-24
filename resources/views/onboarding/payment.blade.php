@@ -13,7 +13,12 @@
             @if ($plan)
                 Your {{ $plan->name }} trial is ready.
             @endif
-            Add a card now so billing continues smoothly when the trial ends — you won’t be charged today.
+            Add a card now so billing continues smoothly when the trial ends — you won’t be charged today
+            @if (! empty($stripeEnabled) && ($verifyAmountCents ?? 0) > 0)
+                (a ${{ number_format(($verifyAmountCents ?? 100) / 100, 2) }} verification hold may appear, then refund).
+            @else
+                .
+            @endif
         </p>
     </div>
 
@@ -23,69 +28,131 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('onboarding.payment.store') }}" class="mt-6 space-y-4">
-        @csrf
-
-        <div>
-            <label for="card_number" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Card number</label>
-            <input
-                id="card_number"
-                type="text"
-                name="card_number"
-                inputmode="numeric"
-                autocomplete="cc-number"
-                placeholder="4242 4242 4242 4242"
-                required
-                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
-            >
+    @if (! empty($stripeEnabled) && ! empty($stripePublishableKey) && ! empty($setupIntentClientSecret))
+        <div class="mt-6 space-y-4" id="stripe-card-form"
+             data-pk="{{ $stripePublishableKey }}"
+             data-client-secret="{{ $setupIntentClientSecret }}"
+             data-confirm-url="{{ route('onboarding.payment.stripe-confirm') }}">
+            @csrf
+            <div id="stripe-payment-element" class="rounded-[10px] border border-white/30 bg-[#4D008E]/60 p-3"></div>
+            <p id="stripe-card-error" class="hidden text-sm text-red-100"></p>
+            <button type="button" id="stripe-submit"
+                class="mt-2 w-full rounded-[10px] bg-white py-3 text-sm font-semibold text-[color:var(--brand-primary,#6400B3)] transition hover:bg-white/90">
+                Verify &amp; save card
+            </button>
         </div>
+        <script src="https://js.stripe.com/v3/"></script>
+        <script>
+            (function () {
+                const root = document.getElementById('stripe-card-form');
+                if (!root || !window.Stripe) return;
+                const stripe = Stripe(root.dataset.pk);
+                const elements = stripe.elements({ clientSecret: root.dataset.clientSecret, appearance: { theme: 'night' } });
+                const paymentElement = elements.create('payment');
+                paymentElement.mount('#stripe-payment-element');
+                const errEl = document.getElementById('stripe-card-error');
+                const btn = document.getElementById('stripe-submit');
+                btn.addEventListener('click', async function () {
+                    btn.disabled = true;
+                    btn.textContent = 'Verifying…';
+                    errEl.classList.add('hidden');
+                    const { error, setupIntent } = await stripe.confirmSetup({
+                        elements,
+                        redirect: 'if_required',
+                        confirmParams: { return_url: window.location.href },
+                    });
+                    if (error) {
+                        errEl.textContent = error.message || 'Card verification failed.';
+                        errEl.classList.remove('hidden');
+                        btn.disabled = false;
+                        btn.textContent = 'Verify & save card';
+                        return;
+                    }
+                    const token = root.querySelector('input[name=_token]')?.value;
+                    const res = await fetch(root.dataset.confirmUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ setup_intent_id: setupIntent.id }),
+                        credentials: 'same-origin',
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.redirect) {
+                        errEl.textContent = data.message || 'Could not save card.';
+                        errEl.classList.remove('hidden');
+                        btn.disabled = false;
+                        btn.textContent = 'Verify & save card';
+                        return;
+                    }
+                    window.location = data.redirect;
+                });
+            })();
+        </script>
+    @else
+        <form method="POST" action="{{ route('onboarding.payment.store') }}" class="mt-6 space-y-4"
+            x-data="{
+                number: '',
+                brand() {
+                    const d = (this.number || '').replace(/\D/g, '');
+                    if (/^3[47]/.test(d)) return 'Amex';
+                    if (/^(6011|65|64[4-9])/.test(d)) return 'Discover';
+                    if (/^5[1-5]/.test(d)) return 'Mastercard';
+                    if (d.length >= 4) {
+                        const bin = parseInt(d.slice(0,4), 10);
+                        if (bin >= 2221 && bin <= 2720) return 'Mastercard';
+                    }
+                    if (/^4/.test(d)) return 'Visa';
+                    return d.length ? 'Card' : '';
+                }
+            }">
+            @csrf
 
-        <div class="grid grid-cols-2 gap-3">
             <div>
-                <label for="exp_month" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Month</label>
+                <div class="mb-1.5 flex items-center justify-between">
+                    <label for="card_number" class="block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Card number</label>
+                    <span class="text-xs font-semibold text-white/85" x-text="brand()" x-show="brand()"></span>
+                </div>
                 <input
-                    id="exp_month"
+                    id="card_number"
                     type="text"
-                    name="exp_month"
+                    name="card_number"
+                    x-model="number"
                     inputmode="numeric"
-                    autocomplete="cc-exp-month"
-                    placeholder="MM"
-                    maxlength="2"
+                    autocomplete="cc-number"
+                    placeholder="4242 4242 4242 4242"
                     required
                     class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
                 >
             </div>
-            <div>
-                <label for="exp_year" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Year</label>
-                <input
-                    id="exp_year"
-                    type="text"
-                    name="exp_year"
-                    inputmode="numeric"
-                    autocomplete="cc-exp-year"
-                    placeholder="YY"
-                    maxlength="4"
-                    required
-                    class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
-                >
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="exp_month" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Month</label>
+                    <input id="exp_month" type="text" name="exp_month" inputmode="numeric" autocomplete="cc-exp-month" placeholder="MM" maxlength="2" required
+                        class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
+                </div>
+                <div>
+                    <label for="exp_year" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Year</label>
+                    <input id="exp_year" type="text" name="exp_year" inputmode="numeric" autocomplete="cc-exp-year" placeholder="YY" maxlength="4" required
+                        class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
+                </div>
             </div>
-        </div>
 
-        <div>
-            <label for="label" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Label (optional)</label>
-            <input
-                id="label"
-                type="text"
-                name="label"
-                placeholder="Primary card"
-                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
-            >
-        </div>
+            <div>
+                <label for="label" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Label (optional)</label>
+                <input id="label" type="text" name="label" placeholder="Primary card"
+                    class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
+            </div>
 
-        <button type="submit" class="mt-2 w-full rounded-[10px] bg-white py-3 text-sm font-semibold text-[color:var(--brand-primary,#6400B3)] transition hover:bg-white/90">
-            Save card &amp; continue
-        </button>
-    </form>
+            <button type="submit" class="mt-2 w-full rounded-[10px] bg-white py-3 text-sm font-semibold text-[color:var(--brand-primary,#6400B3)] transition hover:bg-white/90">
+                Save card &amp; continue
+            </button>
+        </form>
+    @endif
 
     <form method="POST" action="{{ route('logout') }}" class="mt-6 text-center">
         @csrf

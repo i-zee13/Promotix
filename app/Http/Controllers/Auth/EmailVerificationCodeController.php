@@ -124,6 +124,10 @@ class EmailVerificationCodeController extends Controller
             ->where('email', strtolower($user->email))
             ->delete();
 
+        \App\Services\Mail\AppMailer::sendTemplate('welcome_email', $user->email, [
+            '{{user_name}}' => $user->name ?: 'there',
+        ]);
+
         return redirect()->route($user->homeRouteName());
     }
 }

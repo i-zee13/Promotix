@@ -31,6 +31,7 @@ class EnsurePortalProductActive
         'onboarding.start-trial',
         'onboarding.payment',
         'onboarding.payment.store',
+        'onboarding.payment.stripe-confirm',
         'profile.edit',
         'profile.update',
         'profile.destroy',

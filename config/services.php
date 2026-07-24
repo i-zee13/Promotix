@@ -59,4 +59,13 @@ return [
         'api_versions' => env('GOOGLE_ADS_API_VERSIONS', 'v24,v23,v22,v21,v20'),
     ],
 
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'currency' => env('STRIPE_CURRENCY', 'usd'),
+        // $1.00 card verification (charged then refunded). Min often $0.50.
+        'verify_amount_cents' => (int) env('STRIPE_VERIFY_AMOUNT_CENTS', 100),
+    ],
+
 ];

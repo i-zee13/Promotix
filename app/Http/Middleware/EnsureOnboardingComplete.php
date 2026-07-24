@@ -38,6 +38,7 @@ class EnsureOnboardingComplete
         'onboarding.start-trial',
         'onboarding.payment',
         'onboarding.payment.store',
+        'onboarding.payment.stripe-confirm',
         'pricing',
         'impersonate.stop',
         'google-ads.click',

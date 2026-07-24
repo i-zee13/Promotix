@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 class GeoCatalogService
 {
     /** @return list<array{code: string, name: string}> */
-    public function countries(?string $query = null, int $limit = 100): array
+    public function countries(?string $query = null, int $limit = 300): array
     {
         if (! Schema::hasTable('geo_countries')) {
             return [];
@@ -25,8 +25,11 @@ class GeoCatalogService
             });
         }
 
+        // Full world list (~250 rows). Cap search results only.
+        $cap = $query !== '' ? 150 : 300;
+
         return $builder
-            ->limit(max(1, min($limit, 100)))
+            ->limit(max(1, min($limit, $cap)))
             ->get(['code', 'name'])
             ->map(fn ($row) => ['code' => (string) $row->code, 'name' => (string) $row->name])
             ->all();

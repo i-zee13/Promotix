@@ -36,6 +36,10 @@ class EmailTemplateDefaults
                 'subject' => 'Alert: {{alert_title}}',
                 'body' => "Hi {{user_name}},\n\nWe detected the following activity:\n\n{{alert_message}}\n\nTime: {{event_time}}\nIP: {{ip_address}}\n\nIf this wasn't you, secure your account immediately:\n{{security_url}}\n\n— {{app_name}} Security",
             ],
+            'payment_method_saved_email' => [
+                'subject' => 'Your {{card_brand}} card is active on {{app_name}}',
+                'body' => "Hi {{user_name}},\n\nYour payment method was saved and verified on {{app_name}}.\n\nCard: {{card_brand}} •••• {{last_four}}\nStatus: Active / valid for billing\n\nYou can manage cards anytime here:\n{{billing_url}}\n\nIf you did not add this card, contact support immediately.\n\n— {{app_name}} Billing",
+            ],
             default => null,
         };
     }

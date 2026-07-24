@@ -1196,7 +1196,7 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 }
 
 .figma-sa-btn-primary {
-    background: #6400b2;
+    background: var(--brand-primary, #6400b2);
     color: #ffffff;
 }
 

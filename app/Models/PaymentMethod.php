@@ -16,6 +16,9 @@ class PaymentMethod extends Model
         'exp_year',
         'is_primary',
         'is_temporary',
+        'stripe_payment_method_id',
+        'verification_status',
+        'verification_charge_id',
     ];
 
     protected function casts(): array

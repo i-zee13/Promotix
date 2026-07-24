@@ -131,9 +131,8 @@ export function geoAudiencePicker(initial = {}) {
             if (this.countryOpen) {
                 this.stateOpen = false;
                 this.cityOpen = false;
-                if (this.countryItems.length === 0) {
-                    await this.fetchCountries();
-                }
+                // Always refresh so the full catalog is available (not just the first page-load slice).
+                await this.fetchCountries();
                 await this.$nextTick();
                 this.$refs.countrySearch?.focus();
             }

@@ -37,6 +37,7 @@ use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\DatabaseExportController;
 use App\Http\Controllers\Onboarding\OnboardingController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\PricingController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TrackingController;
@@ -55,6 +56,7 @@ Route::get('/cron/run/{token}', [CronController::class, 'run'])->name('cron.run'
 Route::get('/cron/aggregate/{token}', [CronController::class, 'aggregate'])->name('cron.aggregate');
 
 Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');
+Route::post('/stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
 
 Route::get('/', function () {
     if (! auth()->check()) {
@@ -230,6 +232,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/onboarding/plan/start-trial', [OnboardingController::class, 'startTrial'])->name('onboarding.start-trial');
     Route::get('/onboarding/payment', [OnboardingController::class, 'payment'])->name('onboarding.payment');
     Route::post('/onboarding/payment', [OnboardingController::class, 'storePayment'])->name('onboarding.payment.store');
+    Route::post('/onboarding/payment/stripe-confirm', [OnboardingController::class, 'confirmStripePayment'])->name('onboarding.payment.stripe-confirm');
 });
 
 

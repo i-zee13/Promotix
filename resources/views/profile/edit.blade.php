@@ -11,6 +11,7 @@
         <div class="space-y-[16px]">
             @include('profile.partials.update-profile-information-form')
             @include('profile.partials.update-password-form')
+            @include('profile.partials.login-history')
             @include('profile.partials.delete-user-form')
         </div>
     </section>

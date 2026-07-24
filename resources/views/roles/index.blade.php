@@ -1,77 +1,75 @@
 @extends('layouts.admin')
 
 @section('title', 'Roles & Permissions')
-@section('subtitle', 'Define roles and assign feature access')
 
 @section('content')
-    <div class="space-y-6">
-        <x-ui.page-header title="Roles & Permissions" subtitle="Create roles and assign permissions to control sidebar access">
-            <x-slot:actions>
-                <x-ui.button variant="primary" href="{{ route('roles.create') }}">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    New role
-                </x-ui.button>
-            </x-slot:actions>
-        </x-ui.page-header>
-
-        @if (session('status'))
-            <div class="brand-pill brand-pill-success">{{ session('status') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="brand-pill brand-pill-danger">{{ session('error') }}</div>
-        @endif
-
-        <x-ui.card variant="flat">
-            <div class="overflow-x-auto">
-                <table class="brand-table min-w-[600px]">
-                    <thead>
-                        <tr>
-                            <th>Role</th>
-                            <th>Permissions</th>
-                            <th>Users</th>
-                            <th><span class="sr-only">Actions</span></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($roles as $role)
-                            <tr>
-                                <td>
-                                    <p class="font-semibold text-white">{{ $role->name }}</p>
-                                    <p class="text-xs text-night-400">{{ $role->slug }}</p>
-                                    @if ($role->description)
-                                        <p class="mt-1 text-xs text-night-300">{{ Str::limit($role->description, 60) }}</p>
-                                    @endif
-                                </td>
-                                <td>
-                                    <x-ui.pill tone="purple">{{ $role->permissions_count }}</x-ui.pill>
-                                </td>
-                                <td>
-                                    <x-ui.pill tone="neutral">{{ $role->users_count }}</x-ui.pill>
-                                </td>
-                                <td>
-                                    <div class="flex items-center gap-1">
-                                        <a href="{{ route('roles.edit', $role) }}" class="rounded-lg px-3 py-1.5 text-sm font-medium text-brand-200 hover:bg-brand-500/10 hover:text-white">Edit</a>
-                                        @if ($role->slug !== 'super-admin')
-                                            <form method="POST" action="{{ route('roles.destroy', $role) }}" class="inline-block" onsubmit="return confirm('Delete this role? Users with this role will have no role.');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="rounded-lg px-3 py-1.5 text-sm font-medium text-rose-300 hover:bg-rose-500/10">Delete</button>
-                                            </form>
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="py-8 text-center text-night-300">No roles yet. Create one to assign permissions to users.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            @if ($roles->hasPages())
-                <div class="mt-4 border-t border-night-700/60 pt-4">{{ $roles->links() }}</div>
-            @endif
-        </x-ui.card>
+<div class="min-h-[calc(100vh-49px)] px-[12px] pb-[28px] pt-[20px] sm:px-[18px]" style="background:var(--brand-background,#0d0d0d);">
+    <div class="mb-[16px] flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h1 class="text-[28px] font-semibold text-white">Roles &amp; Permissions</h1>
+            <p class="mt-1 text-[13px] text-white/60">Create roles and assign permissions to control sidebar access.</p>
+        </div>
+        <a href="{{ route('roles.create') }}" class="rounded-[8px] px-[14px] py-[9px] text-[13px] font-semibold text-white" style="background:var(--brand-primary,#6400B2);">New role</a>
     </div>
+
+    @if (session('status'))
+        <div class="mb-[14px] rounded-[8px] border border-emerald-400/40 bg-emerald-500/15 px-[14px] py-[10px] text-[13px] text-emerald-100">{{ session('status') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="mb-[14px] rounded-[8px] border border-rose-400/40 bg-rose-500/15 px-[14px] py-[10px] text-[13px] text-rose-100">{{ session('error') }}</div>
+    @endif
+
+    <div class="overflow-hidden rounded-[12px] border border-white/15" style="background:color-mix(in srgb, var(--brand-primary,#6400B2) 22%, #101010);">
+        <div class="overflow-x-auto">
+            <table class="min-w-[640px] w-full text-left text-[13px]">
+                <thead class="bg-black/25 text-white/70">
+                    <tr>
+                        <th class="px-[16px] py-[12px] font-semibold">Role</th>
+                        <th class="px-[16px] py-[12px] font-semibold">Permissions</th>
+                        <th class="px-[16px] py-[12px] font-semibold">Users</th>
+                        <th class="px-[16px] py-[12px] font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/10">
+                    @forelse ($roles as $role)
+                        <tr class="text-white/90">
+                            <td class="px-[16px] py-[14px]">
+                                <p class="font-semibold text-white">{{ $role->name }}</p>
+                                <p class="text-[11px] text-white/50">{{ $role->slug }}</p>
+                                @if ($role->description)
+                                    <p class="mt-1 text-[12px] text-white/65">{{ Str::limit($role->description, 80) }}</p>
+                                @endif
+                            </td>
+                            <td class="px-[16px] py-[14px]">
+                                <span class="rounded-full px-[10px] py-[3px] text-[11px] font-semibold text-white" style="background:var(--brand-primary,#6400B2);">{{ $role->permissions_count }}</span>
+                            </td>
+                            <td class="px-[16px] py-[14px]">
+                                <span class="rounded-full bg-white/10 px-[10px] py-[3px] text-[11px] font-semibold text-white">{{ $role->users_count }}</span>
+                            </td>
+                            <td class="px-[16px] py-[14px] text-right">
+                                <div class="inline-flex items-center gap-2">
+                                    <a href="{{ route('roles.edit', $role) }}" class="rounded-[6px] border border-white/25 px-[12px] py-[6px] text-[12px] font-medium text-white hover:bg-white/10">Edit</a>
+                                    @if ($role->slug !== 'super-admin')
+                                        <form method="POST" action="{{ route('roles.destroy', $role) }}" class="inline" onsubmit="return confirm('Delete this role? Users with this role will have no role.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="rounded-[6px] border border-rose-400/40 px-[12px] py-[6px] text-[12px] font-medium text-rose-200 hover:bg-rose-500/15">Delete</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="px-[16px] py-[28px] text-center text-white/50">No roles yet. Create one to assign permissions.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if ($roles->hasPages())
+            <div class="border-t border-white/10 px-[16px] py-[12px]">{{ $roles->links() }}</div>
+        @endif
+    </div>
+</div>
 @endsection

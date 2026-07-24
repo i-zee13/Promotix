@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             '/ingest/visit',
             '/click',
             '/api/admin/*',
+            '/stripe/webhook',
         ]);
 
         $middleware->alias([

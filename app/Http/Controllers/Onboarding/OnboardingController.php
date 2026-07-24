@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\PaymentMethod;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\Billing\StripeService;
+use App\Services\Mail\AppMailer;
+use App\Support\CardBrand;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -125,11 +129,80 @@ class OnboardingController extends Controller
         $subscription = $user->activeSubscription();
         $plan = $subscription?->plan;
 
+        $stripeEnabled = StripeService::isConfigured();
+        $setup = $stripeEnabled ? StripeService::createSetupIntent($user) : null;
+
         return view('onboarding.payment', [
             'user' => $user,
             'subscription' => $subscription,
             'plan' => $plan,
             'trialDays' => (int) app_setting('trial.days', 7),
+            'stripeEnabled' => $stripeEnabled && $setup,
+            'stripePublishableKey' => StripeService::publishableKey(),
+            'setupIntentClientSecret' => $setup['client_secret'] ?? null,
+            'verifyAmountCents' => StripeService::verifyAmountCents(),
+        ]);
+    }
+
+    public function confirmStripePayment(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'setup_intent_id' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+
+        if ($user->bypassesOnboarding()) {
+            return response()->json(['redirect' => route($user->homeRouteName())]);
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email not verified.'], 422);
+        }
+
+        if (! $user->activeSubscription()) {
+            return response()->json(['message' => 'Start a trial first.'], 422);
+        }
+
+        if ($user->hasPaymentMethodOnFile()) {
+            return response()->json(['redirect' => route('dashboard')]);
+        }
+
+        $result = StripeService::attachAndVerify($user, $data['setup_intent_id']);
+        if (! ($result['ok'] ?? false)) {
+            return response()->json(['message' => $result['message'] ?? 'Card verification failed.'], 422);
+        }
+
+        PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
+
+        PaymentMethod::query()->create([
+            'user_id' => $user->id,
+            'label' => 'Primary card',
+            'brand' => $result['brand'],
+            'last_four' => $result['last_four'],
+            'exp_month' => $result['exp_month'] ?? null,
+            'exp_year' => $result['exp_year'] ?? null,
+            'is_primary' => true,
+            'is_temporary' => false,
+            'stripe_payment_method_id' => $result['payment_method_id'],
+            'verification_status' => 'verified_refunded',
+            'verification_charge_id' => $result['charge_id'],
+        ]);
+
+        AppMailer::sendTemplate('payment_method_saved_email', $user->email, [
+            '{{user_name}}' => $user->name ?: 'there',
+            '{{card_brand}}' => $result['brand'],
+            '{{last_four}}' => $result['last_four'],
+            '{{billing_url}}' => url('/admin/billing'),
+        ]);
+
+        AppMailer::sendTemplate('welcome_email', $user->email, [
+            '{{user_name}}' => $user->name ?: 'there',
+        ]);
+
+        return response()->json([
+            'redirect' => route('dashboard'),
+            'status' => "{$result['brand']} card •••• {$result['last_four']} verified.",
         ]);
     }
 
@@ -162,23 +235,36 @@ class OnboardingController extends Controller
 
         $digits = preg_replace('/\D/', '', $data['card_number']) ?: '';
         $lastFour = substr($digits, -4);
+        $brand = CardBrand::detect($digits);
 
         PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
 
         PaymentMethod::query()->create([
             'user_id' => $user->id,
             'label' => $data['label'] ?? 'Primary card',
-            'brand' => str_starts_with($digits, '4') ? 'Visa' : (str_starts_with($digits, '5') ? 'Mastercard' : 'Card'),
+            'brand' => $brand,
             'last_four' => $lastFour,
             'exp_month' => $data['exp_month'],
             'exp_year' => strlen($data['exp_year']) === 2 ? '20'.$data['exp_year'] : $data['exp_year'],
             'is_primary' => true,
             'is_temporary' => false,
+            'verification_status' => 'saved_local',
+        ]);
+
+        AppMailer::sendTemplate('payment_method_saved_email', $user->email, [
+            '{{user_name}}' => $user->name ?: 'there',
+            '{{card_brand}}' => $brand,
+            '{{last_four}}' => $lastFour,
+            '{{billing_url}}' => url('/admin/billing'),
+        ]);
+
+        AppMailer::sendTemplate('welcome_email', $user->email, [
+            '{{user_name}}' => $user->name ?: 'there',
         ]);
 
         return redirect()
             ->route('dashboard')
-            ->with('status', 'Payment method saved. Welcome to your dashboard.');
+            ->with('status', "{$brand} card •••• {$lastFour} saved. Welcome to your dashboard.");
     }
 
     private function afterPlanRedirect($user): RedirectResponse

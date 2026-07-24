@@ -36,6 +36,7 @@ class User extends Authenticatable
         'reporting_timezone',
         'workspace_geo_settings',
         'last_login_at',
+        'stripe_customer_id',
     ];
 
     public function role(): BelongsTo
