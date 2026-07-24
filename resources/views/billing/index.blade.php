@@ -190,7 +190,19 @@
             <form method="POST" action="{{ route('billing.payment-methods.store') }}" class="space-y-[10px] rounded-[8px] border border-[#6400B2]/40 bg-[#12081c] p-[12px]">
                 @csrf
                 <div class="grid gap-[10px] sm:grid-cols-2 lg:grid-cols-4">
-                    <input name="card_number" placeholder="Card number" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white" required>
+                    <input
+                        name="card_number"
+                        placeholder="4242 4242 4242 4242"
+                        inputmode="numeric"
+                        autocomplete="cc-number"
+                        maxlength="19"
+                        required
+                        class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white"
+                        oninput="
+                            let d = this.value.replace(/\D/g,'').slice(0,16);
+                            this.value = d.replace(/(\d{4})(?=\d)/g,'$1 ').trim();
+                        "
+                    >
                     <input name="exp_month" placeholder="MM" maxlength="2" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white" required>
                     <input name="exp_year" placeholder="YY" maxlength="4" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white" required>
                     <input name="label" placeholder="Label (optional)" class="rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white">
@@ -374,9 +386,18 @@
                         type="text"
                         name="card_number"
                         x-model="form.card_number"
+                        @input="
+                            if (cardMode === 'new') {
+                                let d = form.card_number.replace(/\D/g,'').slice(0,16);
+                                form.card_number = d.replace(/(\d{4})(?=\d)/g,'$1 ').trim();
+                            }
+                        "
                         :readonly="cardMode === 'saved' && selectedCardId && String(selectedCardId) !== 'new'"
                         :required="cardMode === 'new'"
-                        placeholder="Card number"
+                        :maxlength="cardMode === 'new' ? 19 : 30"
+                        inputmode="numeric"
+                        autocomplete="cc-number"
+                        placeholder="4242 4242 4242 4242"
                         class="billing-card-modal__field"
                         style="padding-right: 56px;"
                     >

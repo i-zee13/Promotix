@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\Auth\VerificationCodeMailer;
+use App\Services\LoginHistoryLogger;
+use App\Services\Mail\AppMailer;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -124,7 +126,9 @@ class EmailVerificationCodeController extends Controller
             ->where('email', strtolower($user->email))
             ->delete();
 
-        \App\Services\Mail\AppMailer::sendTemplate('welcome_email', $user->email, [
+        LoginHistoryLogger::ensureCurrentSession($user, $request, 'verified');
+
+        AppMailer::sendTemplate('welcome_email', $user->email, [
             '{{user_name}}' => $user->name ?: 'there',
         ]);
 

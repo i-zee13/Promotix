@@ -28,7 +28,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-[12px] py-[18px] text-center text-white/50">No logins recorded yet. Sign out and sign back in to create the first entry.</td>
+                        <td colspan="5" class="px-[12px] py-[18px] text-center text-white/50">No login history yet.</td>
                     </tr>
                 @endforelse
             </tbody>

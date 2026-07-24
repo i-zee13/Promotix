@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\LoginHistoryLogger;
 use App\Support\UserTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +20,10 @@ class ProfileController extends Controller
     public function edit(Request $request): View
     {
         $user = $request->user();
+
+        // New users often stay logged-in from signup/OTP and never hit /login —
+        // still show this session in history.
+        LoginHistoryLogger::ensureCurrentSession($user, $request, 'session');
 
         return view('profile.edit', [
             'user' => $user,

@@ -96,37 +96,63 @@
         <form method="POST" action="{{ route('onboarding.payment.store') }}" class="mt-6 space-y-4"
             x-data="{
                 number: '',
+                digits() {
+                    return (this.number || '').replace(/\D/g, '');
+                },
                 brand() {
-                    const d = (this.number || '').replace(/\D/g, '');
+                    const d = this.digits();
                     if (/^3[47]/.test(d)) return 'Amex';
                     if (/^(6011|65|64[4-9])/.test(d)) return 'Discover';
                     if (/^5[1-5]/.test(d)) return 'Mastercard';
                     if (d.length >= 4) {
-                        const bin = parseInt(d.slice(0,4), 10);
+                        const bin = parseInt(d.slice(0, 4), 10);
                         if (bin >= 2221 && bin <= 2720) return 'Mastercard';
                     }
                     if (/^4/.test(d)) return 'Visa';
                     return d.length ? 'Card' : '';
+                },
+                maxDigits() {
+                    return this.brand() === 'Amex' ? 15 : 16;
+                },
+                formatNumber(raw) {
+                    let d = String(raw || '').replace(/\D/g, '');
+                    const amex = /^3[47]/.test(d);
+                    d = d.slice(0, amex ? 15 : 16);
+                    if (amex) {
+                        const a = d.slice(0, 4);
+                        const b = d.slice(4, 10);
+                        const c = d.slice(10, 15);
+                        return [a, b, c].filter(Boolean).join(' ');
+                    }
+                    return d.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+                },
+                onNumberInput(e) {
+                    this.number = this.formatNumber(e.target.value);
+                    e.target.value = this.number;
                 }
-            }">
+            }"
+            @submit="document.getElementById('card_number_raw').value = digits()">
             @csrf
+            <input type="hidden" name="card_number" id="card_number_raw" value="">
 
             <div>
                 <div class="mb-1.5 flex items-center justify-between">
-                    <label for="card_number" class="block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Card number</label>
+                    <label for="card_number_display" class="block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Card number</label>
                     <span class="text-xs font-semibold text-white/85" x-text="brand()" x-show="brand()"></span>
                 </div>
                 <input
-                    id="card_number"
+                    id="card_number_display"
                     type="text"
-                    name="card_number"
                     x-model="number"
+                    @input="onNumberInput($event)"
                     inputmode="numeric"
                     autocomplete="cc-number"
                     placeholder="4242 4242 4242 4242"
+                    maxlength="19"
                     required
                     class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
                 >
+                <p class="mt-1.5 text-left text-[11px] text-white/55" x-text="(digits().length || 0) + ' / ' + maxDigits() + ' digits'"></p>
             </div>
 
             <div class="grid grid-cols-2 gap-3">

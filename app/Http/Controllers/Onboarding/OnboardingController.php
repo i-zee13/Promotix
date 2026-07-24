@@ -209,7 +209,7 @@ class OnboardingController extends Controller
     public function storePayment(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'card_number' => ['required', 'string', 'min:12', 'max:19'],
+            'card_number' => ['required', 'string', 'min:13', 'max:23'],
             'exp_month' => ['required', 'string', 'size:2'],
             'exp_year' => ['required', 'string', 'min:2', 'max:4'],
             'label' => ['nullable', 'string', 'max:80'],
@@ -234,6 +234,9 @@ class OnboardingController extends Controller
         }
 
         $digits = preg_replace('/\D/', '', $data['card_number']) ?: '';
+        if (strlen($digits) < 13 || strlen($digits) > 16) {
+            return back()->withErrors(['card_number' => 'Enter a valid card number (13–16 digits).'])->withInput();
+        }
         $lastFour = substr($digits, -4);
         $brand = CardBrand::detect($digits);
 
