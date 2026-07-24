@@ -34,6 +34,18 @@
                 choose the one that fits you best.
             </p>
 
+            @if ($errors->any())
+                <div class="mx-auto mt-4 max-w-xl rounded-[10px] border border-amber-300/40 bg-amber-500/15 px-4 py-3 text-sm text-amber-50">
+                    {{ $errors->first() }}
+                </div>
+            @endif
+
+            @if (session('status'))
+                <div class="mx-auto mt-4 max-w-xl rounded-[10px] border border-emerald-200/30 bg-emerald-500/15 px-4 py-3 text-sm text-emerald-50">
+                    {{ session('status') }}
+                </div>
+            @endif
+
             {{-- Monthly / Yearly toggle --}}
             <div class="mt-6 flex items-center justify-center gap-3 text-sm font-medium text-white">
                 <span :class="interval === 'monthly' ? 'text-white' : 'text-white/55'">Monthly</span>

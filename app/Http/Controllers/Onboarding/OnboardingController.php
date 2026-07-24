@@ -12,6 +12,7 @@ use App\Support\CardBrand;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 /**
@@ -81,7 +82,7 @@ class OnboardingController extends Controller
         $days = (int) app_setting('trial.days', 7);
         $interval = $data['billing_interval'] ?? $plan->billing_interval ?? 'monthly';
 
-        // Stripe configured → send user to Stripe Checkout to add a card, then start trial.
+        // Stripe configured → try hosted Checkout. If keys are invalid, fall back so the user is not stuck.
         if (StripeService::isConfigured()) {
             $checkout = StripeService::createCheckoutSetupSession(
                 $user,
@@ -99,8 +100,10 @@ class OnboardingController extends Controller
                 return redirect()->away($checkout['url']);
             }
 
-            return back()->withErrors([
-                'plan_slug' => 'Unable to open Stripe Checkout. Check STRIPE_SECRET / STRIPE_KEY and try again.',
+            // Invalid/expired Stripe keys → continue with local trial + payment page instead of looping.
+            Log::warning('Stripe Checkout unavailable; starting local trial', [
+                'user_id' => $user->id,
+                'plan' => $plan->slug,
             ]);
         }
 
@@ -122,12 +125,21 @@ class OnboardingController extends Controller
             'started_at' => now(),
             'trial_ends_at' => now()->addDays($days),
             'current_period_ends_at' => now()->addDays($days),
-            'metadata' => ['source' => 'onboarding_plan_selection'],
+            'metadata' => [
+                'source' => StripeService::isConfigured()
+                    ? 'onboarding_plan_selection_stripe_fallback'
+                    : 'onboarding_plan_selection',
+            ],
         ]);
+
+        $status = "Your {$days}-day free trial of {$plan->name} has started. Add a payment card to continue.";
+        if (StripeService::isConfigured()) {
+            $status .= ' (Stripe Checkout is unavailable — check STRIPE_SECRET key.)';
+        }
 
         return redirect()
             ->route('onboarding.payment')
-            ->with('status', "Your {$days}-day free trial of {$plan->name} has started. Add a payment card to continue.");
+            ->with('status', $status);
     }
 
     public function payment(Request $request): View|RedirectResponse
