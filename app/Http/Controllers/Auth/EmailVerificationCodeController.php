@@ -9,7 +9,6 @@ use App\Services\Mail\AppMailer;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
@@ -48,32 +47,18 @@ class EmailVerificationCodeController extends Controller
             return redirect()->route($user->homeRouteName());
         }
 
-        $code = (string) random_int(100000, 999999);
-
-        DB::table('email_verification_codes')->updateOrInsert(
-            ['email' => strtolower($user->email)],
-            [
-                'email' => strtolower($user->email),
-                'code_hash' => Hash::make($code),
-                'attempts' => 0,
-                'expires_at' => now()->addMinutes(60),
-                'created_at' => now(),
-            ]
-        );
-
-        $mailConfigured = VerificationCodeMailer::mailIsConfigured();
-        $sent = VerificationCodeMailer::send($user->name, $user->email, $code);
+        [$devCode, $sent, $mailConfigured] = VerificationCodeMailer::issueAndSend($user);
 
         if (! $mailConfigured) {
             return back()
                 ->with('status', 'Mail is not configured — use the dev code below.')
-                ->with('dev_code', $code);
+                ->with('dev_code', $devCode);
         }
 
         if (! $sent) {
             return back()
                 ->withErrors(['email' => 'We could not send the verification email. Check mail settings or try again shortly.'])
-                ->with('dev_code', config('app.debug') ? $code : null);
+                ->with('dev_code', $devCode);
         }
 
         return back()->with('status', 'A fresh 6-digit verification code has been sent to your email.');
@@ -111,7 +96,11 @@ class EmailVerificationCodeController extends Controller
             return back()->withErrors(['code' => 'Too many attempts. Please resend a new code.']);
         }
 
-        if (! Hash::check($data['code'], $row->code_hash)) {
+        $hash = (string) $row->code_hash;
+        $ok = hash_equals($hash, hash('sha256', $data['code']))
+            || (str_starts_with($hash, '$2') && Hash::check($data['code'], $hash));
+
+        if (! $ok) {
             DB::table('email_verification_codes')
                 ->where('email', strtolower($user->email))
                 ->update(['attempts' => $row->attempts + 1]);

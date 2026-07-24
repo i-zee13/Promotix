@@ -5,14 +5,13 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Auth\VerificationCodeMailer;
 use App\Services\LoginHistoryLogger;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
@@ -56,13 +55,13 @@ class RegisteredUserController extends Controller
             'is_admin' => false,
         ]);
 
-        event(new Registered($user));
-
         Auth::login($user);
-        LoginHistoryLogger::record($user, $request, 'register');
 
-        // Issue OTP first, then redirect with the same status UX as Resend.
-        [$devCode, $sent, $mailConfigured] = $this->issueVerificationCode($user);
+        // Send OTP in this same request — before redirect — so the inbox gets it immediately.
+        [$devCode, $sent, $mailConfigured] = VerificationCodeMailer::issueAndSend($user);
+
+        LoginHistoryLogger::record($user, $request, 'register');
+        event(new Registered($user));
 
         $redirect = redirect()->route('verification.notice');
 
@@ -81,44 +80,5 @@ class RegisteredUserController extends Controller
         }
 
         return $redirect;
-    }
-
-    /**
-     * @return array{0: ?string, 1: bool, 2: bool} [devCode, sent, mailConfigured]
-     */
-    private function issueVerificationCode(User $user): array
-    {
-        $code = (string) random_int(100000, 999999);
-
-        DB::table('email_verification_codes')->updateOrInsert(
-            ['email' => strtolower($user->email)],
-            [
-                'email' => strtolower($user->email),
-                'code_hash' => Hash::make($code),
-                'attempts' => 0,
-                'expires_at' => now()->addMinutes(60),
-                'created_at' => now(),
-            ]
-        );
-
-        $mailConfigured = \App\Services\Auth\VerificationCodeMailer::mailIsConfigured();
-        $sent = false;
-
-        try {
-            $sent = \App\Services\Auth\VerificationCodeMailer::send($user->name, $user->email, $code);
-        } catch (\Throwable $e) {
-            Log::warning('Signup OTP send failed', [
-                'email' => $user->email,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        // Always expose the code when mail is not configured, or when send failed in debug.
-        $devCode = null;
-        if (! $mailConfigured || (! $sent && config('app.debug'))) {
-            $devCode = $code;
-        }
-
-        return [$devCode, $sent, $mailConfigured];
     }
 }
