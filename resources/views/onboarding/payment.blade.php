@@ -22,6 +22,8 @@
         </p>
     </div>
 
+    @include('partials.accepted-card-brands')
+
     @if ($errors->any())
         <div class="mt-5 rounded-[10px] border border-red-300/50 bg-red-500/15 px-3 py-2 text-sm text-red-100">
             {{ $errors->first() }}
@@ -103,6 +105,7 @@
                     const d = this.digits();
                     if (/^3[47]/.test(d)) return 'Amex';
                     if (/^(6011|65|64[4-9])/.test(d)) return 'Discover';
+                    if (/^62/.test(d)) return 'UnionPay';
                     if (/^5[1-5]/.test(d)) return 'Mastercard';
                     if (d.length >= 4) {
                         const bin = parseInt(d.slice(0, 4), 10);

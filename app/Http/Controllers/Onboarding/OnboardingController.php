@@ -15,7 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Post-signup onboarding: plan selection → add payment card → dashboard.
+ * Post-signup onboarding: plan selection → Stripe Checkout (or local card) → dashboard.
  */
 class OnboardingController extends Controller
 {
@@ -48,6 +48,7 @@ class OnboardingController extends Controller
             'plans' => $plans,
             'trialDays' => $trialDays,
             'user' => $user,
+            'stripeEnabled' => StripeService::isConfigured(),
         ]);
     }
 
@@ -79,6 +80,29 @@ class OnboardingController extends Controller
 
         $days = (int) app_setting('trial.days', 7);
         $interval = $data['billing_interval'] ?? $plan->billing_interval ?? 'monthly';
+
+        // Stripe configured → send user to Stripe Checkout to add a card, then start trial.
+        if (StripeService::isConfigured()) {
+            $checkout = StripeService::createCheckoutSetupSession(
+                $user,
+                route('onboarding.stripe.success').'?session_id={CHECKOUT_SESSION_ID}',
+                route('onboarding.plan'),
+                [
+                    'purpose' => 'onboarding_trial',
+                    'plan_slug' => $plan->slug,
+                    'billing_interval' => $interval,
+                    'trial_days' => (string) $days,
+                ]
+            );
+
+            if ($checkout) {
+                return redirect()->away($checkout['url']);
+            }
+
+            return back()->withErrors([
+                'plan_slug' => 'Unable to open Stripe Checkout. Check STRIPE_SECRET / STRIPE_KEY and try again.',
+            ]);
+        }
 
         $amountCents = match ($interval) {
             'yearly' => $plan->price_yearly_cents
@@ -129,19 +153,146 @@ class OnboardingController extends Controller
         $subscription = $user->activeSubscription();
         $plan = $subscription?->plan;
 
-        $stripeEnabled = StripeService::isConfigured();
-        $setup = $stripeEnabled ? StripeService::createSetupIntent($user) : null;
+        // Prefer Stripe hosted Checkout over embedded Elements.
+        if (StripeService::isConfigured()) {
+            $checkout = StripeService::createCheckoutSetupSession(
+                $user,
+                route('onboarding.stripe.success').'?session_id={CHECKOUT_SESSION_ID}',
+                route('onboarding.payment'),
+                [
+                    'purpose' => 'onboarding_card',
+                    'plan_slug' => (string) ($plan?->slug ?? ''),
+                    'billing_interval' => (string) ($subscription?->billing_interval ?? 'monthly'),
+                    'trial_days' => (string) app_setting('trial.days', 7),
+                ]
+            );
+
+            if ($checkout) {
+                return redirect()->away($checkout['url']);
+            }
+        }
 
         return view('onboarding.payment', [
             'user' => $user,
             'subscription' => $subscription,
             'plan' => $plan,
             'trialDays' => (int) app_setting('trial.days', 7),
-            'stripeEnabled' => $stripeEnabled && $setup,
-            'stripePublishableKey' => StripeService::publishableKey(),
-            'setupIntentClientSecret' => $setup['client_secret'] ?? null,
+            'stripeEnabled' => false,
+            'stripePublishableKey' => null,
+            'setupIntentClientSecret' => null,
             'verifyAmountCents' => StripeService::verifyAmountCents(),
         ]);
+    }
+
+    public function stripeSuccess(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'session_id' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+
+        if ($user->bypassesOnboarding()) {
+            return redirect()->route($user->homeRouteName());
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
+        }
+
+        if ($user->hasPaymentMethodOnFile() && $user->activeSubscription()) {
+            return redirect()->route('dashboard');
+        }
+
+        $result = StripeService::completeCheckoutSetup($user, $data['session_id']);
+        if (! ($result['ok'] ?? false)) {
+            return redirect()
+                ->route('onboarding.plan')
+                ->withErrors(['plan_slug' => $result['message'] ?? 'Stripe Checkout failed. Please try again.']);
+        }
+
+        $meta = $result['metadata'] ?? [];
+        $planSlug = (string) ($meta['plan_slug'] ?? '');
+        $interval = in_array(($meta['billing_interval'] ?? ''), ['monthly', 'yearly'], true)
+            ? $meta['billing_interval']
+            : 'monthly';
+        $days = max(1, (int) ($meta['trial_days'] ?? app_setting('trial.days', 7)));
+
+        if (! $user->activeSubscription()) {
+            if ($planSlug === '') {
+                return redirect()
+                    ->route('onboarding.plan')
+                    ->withErrors(['plan_slug' => 'Plan missing from Stripe session. Please select a plan again.']);
+            }
+
+            $plan = Plan::query()
+                ->where('slug', $planSlug)
+                ->where('is_active', true)
+                ->first();
+
+            if (! $plan) {
+                return redirect()
+                    ->route('onboarding.plan')
+                    ->withErrors(['plan_slug' => 'Selected plan is no longer available.']);
+            }
+
+            $amountCents = match ($interval) {
+                'yearly' => $plan->price_yearly_cents
+                    ? (int) round($plan->price_yearly_cents / 12)
+                    : (int) round($plan->price_cents * (1 - 0.15)),
+                default => $plan->price_cents,
+            };
+
+            Subscription::query()->create([
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
+                'status' => 'trialing',
+                'is_trial' => true,
+                'amount_cents' => $amountCents,
+                'currency' => $plan->currency,
+                'billing_interval' => $interval,
+                'started_at' => now(),
+                'trial_ends_at' => now()->addDays($days),
+                'current_period_ends_at' => now()->addDays($days),
+                'metadata' => [
+                    'source' => 'stripe_checkout',
+                    'stripe_checkout_session_id' => $data['session_id'],
+                ],
+            ]);
+        }
+
+        if (! $user->hasPaymentMethodOnFile()) {
+            PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
+
+            PaymentMethod::query()->create([
+                'user_id' => $user->id,
+                'label' => 'Primary card',
+                'brand' => $result['brand'],
+                'last_four' => $result['last_four'],
+                'exp_month' => $result['exp_month'] ?? null,
+                'exp_year' => $result['exp_year'] ?? null,
+                'is_primary' => true,
+                'is_temporary' => false,
+                'stripe_payment_method_id' => $result['payment_method_id'],
+                'verification_status' => 'verified_refunded',
+                'verification_charge_id' => $result['charge_id'],
+            ]);
+
+            AppMailer::sendTemplate('payment_method_saved_email', $user->email, [
+                '{{user_name}}' => $user->name ?: 'there',
+                '{{card_brand}}' => $result['brand'],
+                '{{last_four}}' => $result['last_four'],
+                '{{billing_url}}' => url('/admin/billing'),
+            ]);
+
+            AppMailer::sendTemplate('welcome_email', $user->email, [
+                '{{user_name}}' => $user->name ?: 'there',
+            ]);
+        }
+
+        return redirect()
+            ->route('dashboard')
+            ->with('status', "{$result['brand']} card •••• {$result['last_four']} saved via Stripe. Your trial is active.");
     }
 
     public function confirmStripePayment(Request $request): JsonResponse

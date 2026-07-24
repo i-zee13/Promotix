@@ -8,7 +8,9 @@ use App\Models\PaymentMethod;
 use App\Support\CardBrand;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\Billing\StripeService;
 use App\Services\BillingAccess;
+use App\Services\Mail\AppMailer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +53,7 @@ class BillingController extends Controller
             'invoices' => $invoices,
             'paymentMethods' => $paymentMethods,
             'billingAlert' => BillingAccess::billingAlert($user),
+            'stripeEnabled' => StripeService::isConfigured(),
             'bank' => [
                 'account_name' => app_setting('bank.account_name') ?: '',
                 'account_number' => app_setting('bank.account_number') ?: '',
@@ -162,6 +165,39 @@ class BillingController extends Controller
             ]);
         }
 
+        $cycle = $data['billing_cycle'] ?? $plan->billing_interval ?? 'monthly';
+        $amountCents = (int) $plan->price_cents;
+        if ($cycle === 'yearly' && ($plan->billing_interval ?? 'monthly') === 'monthly') {
+            $amountCents = (int) round($amountCents * 12 * 0.9);
+        }
+
+        // Stripe Checkout hosted payment page
+        if (StripeService::isConfigured()) {
+            $checkout = StripeService::createCheckoutPaymentSession(
+                $user,
+                $plan->name.' ('.$cycle.')',
+                $amountCents,
+                (string) ($plan->currency ?: 'usd'),
+                route('billing.stripe.success').'?session_id={CHECKOUT_SESSION_ID}',
+                route('billing.index'),
+                [
+                    'purpose' => 'plan_payment',
+                    'plan_id' => (string) $plan->id,
+                    'plan_slug' => (string) $plan->slug,
+                    'billing_interval' => $cycle,
+                    'coupon' => (string) ($data['coupon'] ?? ''),
+                ]
+            );
+
+            if ($checkout) {
+                return redirect()->away($checkout['url']);
+            }
+
+            return back()->withErrors([
+                'plan_id' => 'Unable to open Stripe Checkout. Check Stripe keys and try again.',
+            ]);
+        }
+
         $paymentMethod = null;
         $methodId = $data['payment_method_id'] ?? null;
 
@@ -193,12 +229,6 @@ class BillingController extends Controller
                 'is_primary' => true,
                 'is_temporary' => false,
             ]);
-        }
-
-        $cycle = $data['billing_cycle'] ?? $plan->billing_interval ?? 'monthly';
-        $amountCents = (int) $plan->price_cents;
-        if ($cycle === 'yearly' && ($plan->billing_interval ?? 'monthly') === 'monthly') {
-            $amountCents = (int) round($amountCents * 12 * 0.9);
         }
 
         $payment = DB::transaction(function () use ($user, $plan, $paymentMethod, $amountCents, $cycle, $data) {
@@ -246,8 +276,156 @@ class BillingController extends Controller
             ->with('status', "Upgrade submitted with {$paymentMethod->maskedLabel()} (ref: {$payment->invoice_number}). We'll verify and activate your plan shortly.");
     }
 
+    public function stripeSuccess(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'session_id' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+        $result = StripeService::completeCheckoutPayment($user, $data['session_id']);
+
+        if (! ($result['ok'] ?? false)) {
+            // Setup-mode add-card returns here too if user used billing add-card flow.
+            $setup = StripeService::completeCheckoutSetup($user, $data['session_id']);
+            if ($setup['ok'] ?? false) {
+                PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
+                PaymentMethod::query()->create([
+                    'user_id' => $user->id,
+                    'label' => 'Primary card',
+                    'brand' => $setup['brand'],
+                    'last_four' => $setup['last_four'],
+                    'exp_month' => $setup['exp_month'] ?? null,
+                    'exp_year' => $setup['exp_year'] ?? null,
+                    'is_primary' => true,
+                    'is_temporary' => false,
+                    'stripe_payment_method_id' => $setup['payment_method_id'],
+                    'verification_status' => 'verified_refunded',
+                    'verification_charge_id' => $setup['charge_id'],
+                ]);
+
+                AppMailer::sendTemplate('payment_method_saved_email', $user->email, [
+                    '{{user_name}}' => $user->name ?: 'there',
+                    '{{card_brand}}' => $setup['brand'],
+                    '{{last_four}}' => $setup['last_four'],
+                    '{{billing_url}}' => url('/admin/billing'),
+                ]);
+
+                return redirect()
+                    ->route('billing.index')
+                    ->with('status', "{$setup['brand']} card •••• {$setup['last_four']} saved via Stripe.");
+            }
+
+            return redirect()
+                ->route('billing.index')
+                ->withErrors(['plan_id' => $result['message'] ?? 'Stripe payment failed.']);
+        }
+
+        $meta = $result['metadata'] ?? [];
+        $planId = (int) ($meta['plan_id'] ?? 0);
+        $plan = Plan::query()->where('id', $planId)->where('is_active', true)->first();
+        if (! $plan && ! empty($meta['plan_slug'])) {
+            $plan = Plan::query()->where('slug', $meta['plan_slug'])->where('is_active', true)->first();
+        }
+
+        if (! $plan) {
+            return redirect()
+                ->route('billing.index')
+                ->withErrors(['plan_id' => 'Plan from Stripe session was not found.']);
+        }
+
+        $cycle = in_array(($meta['billing_interval'] ?? ''), ['monthly', 'yearly'], true)
+            ? $meta['billing_interval']
+            : ($plan->billing_interval ?? 'monthly');
+        $amountCents = (int) ($result['amount_cents'] ?: $plan->price_cents);
+
+        if (! empty($result['payment_method_id'])) {
+            PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
+            PaymentMethod::query()->create([
+                'user_id' => $user->id,
+                'label' => 'Primary card',
+                'brand' => $result['brand'],
+                'last_four' => $result['last_four'],
+                'exp_month' => $result['exp_month'] ?? null,
+                'exp_year' => $result['exp_year'] ?? null,
+                'is_primary' => true,
+                'is_temporary' => false,
+                'stripe_payment_method_id' => $result['payment_method_id'],
+                'verification_status' => 'charged',
+                'verification_charge_id' => $result['charge_id'],
+            ]);
+        }
+
+        $payment = DB::transaction(function () use ($user, $plan, $amountCents, $cycle, $result, $data) {
+            Subscription::query()
+                ->where('user_id', $user->id)
+                ->whereIn('status', ['active', 'trialing', 'past_due', 'pending'])
+                ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+
+            $subscription = Subscription::query()->create([
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
+                'status' => 'active',
+                'is_trial' => false,
+                'amount_cents' => $amountCents,
+                'currency' => $plan->currency,
+                'billing_interval' => $cycle,
+                'started_at' => now(),
+                'current_period_ends_at' => $cycle === 'yearly' ? now()->addYear() : now()->addMonth(),
+                'metadata' => [
+                    'source' => 'stripe_checkout',
+                    'stripe_checkout_session_id' => $data['session_id'],
+                ],
+            ]);
+
+            return Payment::query()->create([
+                'user_id' => $user->id,
+                'subscription_id' => $subscription->id,
+                'plan_id' => $plan->id,
+                'invoice_number' => 'INV-' . strtoupper(uniqid()),
+                'amount_cents' => $amountCents,
+                'currency' => $plan->currency,
+                'status' => 'paid',
+                'payment_method' => 'stripe',
+                'paid_at' => now(),
+                'metadata' => [
+                    'plan_slug' => $plan->slug,
+                    'billing_cycle' => $cycle,
+                    'stripe_checkout_session_id' => $data['session_id'],
+                    'stripe_charge_id' => $result['charge_id'],
+                    'card_last_four' => $result['last_four'],
+                    'card_brand' => $result['brand'],
+                    'submitted_at' => now()->toIso8601String(),
+                ],
+            ]);
+        });
+
+        return redirect()
+            ->route('billing.index')
+            ->with('status', "Paid via Stripe (ref: {$payment->invoice_number}). {$plan->name} is now active.");
+    }
+
     public function storePaymentMethod(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
+        if (StripeService::isConfigured()) {
+            $checkout = StripeService::createCheckoutSetupSession(
+                $user,
+                route('billing.stripe.success').'?session_id={CHECKOUT_SESSION_ID}',
+                route('billing.index'),
+                ['purpose' => 'billing_add_card']
+            );
+
+            if ($checkout) {
+                return redirect()->away($checkout['url']);
+            }
+
+            return back()->withErrors([
+                'card_number' => 'Unable to open Stripe Checkout. Check Stripe keys and try again.',
+            ]);
+        }
+
         $data = $request->validate([
             'card_number' => ['required', 'string', 'min:12', 'max:19'],
             'exp_month' => ['required', 'string', 'size:2'],
@@ -258,7 +436,6 @@ class BillingController extends Controller
             'auto_charge' => ['nullable', 'boolean'],
         ]);
 
-        $user = $request->user();
         $digits = preg_replace('/\D/', '', $data['card_number']);
         $lastFour = substr($digits, -4);
 
@@ -288,7 +465,7 @@ class BillingController extends Controller
             'verification_status' => 'saved_local',
         ]);
 
-        \App\Services\Mail\AppMailer::sendTemplate('payment_method_saved_email', $user->email, [
+        AppMailer::sendTemplate('payment_method_saved_email', $user->email, [
             '{{user_name}}' => $user->name ?: 'there',
             '{{card_brand}}' => CardBrand::detect((string) $digits),
             '{{last_four}}' => $lastFour,

@@ -21,8 +21,13 @@ class CardBrand
         }
 
         // Discover
-        if (preg_match('/^(6011|65|64[4-9]|622)/', $digits)) {
+        if (preg_match('/^(6011|65|64[4-9])/', $digits)) {
             return 'Discover';
+        }
+
+        // UnionPay (mostly 62…)
+        if (preg_match('/^62/', $digits)) {
+            return 'UnionPay';
         }
 
         // Mastercard (51–55 and 2221–2720)
@@ -42,5 +47,11 @@ class CardBrand
         }
 
         return 'Card';
+    }
+
+    /** @return list<string> */
+    public static function accepted(): array
+    {
+        return ['Mastercard', 'Visa', 'Amex', 'UnionPay'];
     }
 }

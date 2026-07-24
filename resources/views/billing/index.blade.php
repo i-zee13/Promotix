@@ -187,8 +187,21 @@
                 <p class="mb-[12px] text-[13px] text-[#a9a9a9]">No cards on file yet.</p>
             @endif
 
+            @if (! empty($stripeEnabled))
+                <form method="POST" action="{{ route('billing.payment-methods.store') }}" class="space-y-[10px] rounded-[8px] border border-[#6400B2]/40 bg-[#12081c] p-[12px]">
+                    @csrf
+                    <div class="mb-[4px]">
+                        @include('partials.accepted-card-brands')
+                    </div>
+                    <p class="text-[13px] text-[#d9d9d9]">Add or update your card securely on Stripe’s checkout page.</p>
+                    <button type="submit" class="rounded-[6px] bg-[#6400B2] px-[12px] py-[8px] text-[12px] font-semibold text-white">Add card on Stripe</button>
+                </form>
+            @else
             <form method="POST" action="{{ route('billing.payment-methods.store') }}" class="space-y-[10px] rounded-[8px] border border-[#6400B2]/40 bg-[#12081c] p-[12px]">
                 @csrf
+                <div class="mb-[4px]">
+                    @include('partials.accepted-card-brands')
+                </div>
                 <div class="grid gap-[10px] sm:grid-cols-2 lg:grid-cols-4">
                     <input
                         name="card_number"
@@ -215,6 +228,7 @@
                 </div>
                 <button type="submit" class="rounded-[6px] bg-[#6400B2] px-[12px] py-[8px] text-[12px] font-semibold text-white">Add card</button>
             </form>
+            @endif
         </article>
 
         {{-- Upgrade plans --}}
@@ -335,24 +349,35 @@
                 <div class="billing-card-modal__icon">
                     <svg class="h-5 w-5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 10h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z"/></svg>
                 </div>
-                <p class="text-[13px] text-white/85">Insert Your Credit Card Details</p>
+                <p class="text-[13px] text-white/85">
+                    @if (! empty($stripeEnabled))
+                        Continue to Stripe Checkout
+                    @else
+                        Insert Your Credit Card Details
+                    @endif
+                </p>
             </div>
 
-            <form method="POST" action="{{ route('billing.pay-card') }}" class="space-y-3" @submit="if (cardMode === 'saved' && (!selectedCardId || String(selectedCardId) === 'new')) { $event.preventDefault(); }">
+            <form method="POST" action="{{ route('billing.pay-card') }}" class="space-y-3" @submit="if (! {{ !empty($stripeEnabled) ? 'true' : 'false' }} && cardMode === 'saved' && (!selectedCardId || String(selectedCardId) === 'new')) { $event.preventDefault(); }">
                 @csrf
                 <input type="hidden" name="plan_id" :value="selectedPlanId">
                 <input type="hidden" name="billing_cycle" :value="billingCycle">
-                <template x-if="cardMode === 'saved' && selectedCardId && String(selectedCardId) !== 'new'">
-                    <input type="hidden" name="payment_method_id" :value="selectedCardId">
-                </template>
 
                 <div>
-                    <h3 class="text-[15px] font-semibold">Credit Card Details</h3>
+                    <h3 class="text-[15px] font-semibold">{{ ! empty($stripeEnabled) ? 'Pay with Stripe' : 'Credit Card Details' }}</h3>
                     <p class="mt-1 text-[12px] text-white/85">
                         You pay <span class="font-semibold" x-text="displayAmount"></span> now for
                         <span class="font-semibold" x-text="selectedPlan?.name || 'this plan'"></span>.
+                        @if (! empty($stripeEnabled))
+                            You’ll complete payment on Stripe’s secure page.
+                        @endif
                     </p>
                 </div>
+
+                @if (empty($stripeEnabled))
+                <template x-if="cardMode === 'saved' && selectedCardId && String(selectedCardId) !== 'new'">
+                    <input type="hidden" name="payment_method_id" :value="selectedCardId">
+                </template>
 
                 <div>
                     <label class="mb-1 block text-[11px] text-white/75">Card</label>
@@ -403,7 +428,8 @@
                     >
                     <span class="billing-card-modal__brand" x-text="selectedCard?.brand || 'CARD'"></span>
                 </div>
-
+                @endif
+                @if (empty($stripeEnabled))
                 <div class="billing-card-modal__grid">
                     <input
                         type="text"
@@ -445,6 +471,7 @@
                         class="billing-card-modal__field"
                     >
                 </div>
+                @endif
 
                 <button type="button" class="flex items-center gap-1 text-[12px] text-white/90" style="background:transparent;border:0;padding:0;cursor:pointer;" @click="showCoupon = !showCoupon">
                     Have a coupon?
@@ -468,9 +495,15 @@
                     <span :class="billingCycle === 'yearly' ? '' : 'billing-card-modal__muted'">Yearly</span>
                 </div>
 
-                <p class="text-center text-[11px] text-white/80">Your plan activates after payment verification.</p>
+                <p class="text-center text-[11px] text-white/80">
+                    @if (! empty($stripeEnabled))
+                        You’ll finish on Stripe — card is charged there.
+                    @else
+                        Your plan activates after payment verification.
+                    @endif
+                </p>
 
-                <button type="submit" class="billing-card-modal__pay">Pay now</button>
+                <button type="submit" class="billing-card-modal__pay">{{ ! empty($stripeEnabled) ? 'Continue to Stripe' : 'Pay now' }}</button>
 
                 <button type="button" class="billing-card-modal__bank-link" @click="showCardModal = false; showBankCheckout = true">
                     Or pay by bank transfer

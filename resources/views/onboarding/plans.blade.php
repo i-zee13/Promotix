@@ -118,6 +118,9 @@
                                 style="color:var(--brand-primary,#6400B3);">
                                 {{ $plan->cta_label ?: 'Start free trial' }}
                             </button>
+                            @if (! empty($stripeEnabled))
+                                <p class="mt-2 text-center text-[11px] text-white/70">Secured by Stripe — you’ll add a card on Stripe’s checkout</p>
+                            @endif
                         </form>
 
                         <div class="mt-5 text-center text-sm text-white/85">
