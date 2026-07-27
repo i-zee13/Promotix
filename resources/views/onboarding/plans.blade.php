@@ -104,7 +104,8 @@
                         'Account overview' => $flags['account_overview'] ?? false,
                         'White-label reporting' => $flags['white_label_reports'] ?? false,
                         'In-person onboarding session' => $flags['in_person_onboarding'] ?? false,
-                        'Consent Mode &mdash; coming soon!' => true,
+                        'Consent Mode' => ($flags['consent_mode'] ?? false) && $plan->is_active,
+                        'Consent Mode &mdash; coming soon!' => ! ($flags['consent_mode'] ?? false) && $plan->is_active,
                     ])->filter()->keys()->all();
                 @endphp
 
@@ -133,13 +134,20 @@
                             @csrf
                             <input type="hidden" name="plan_slug" value="{{ $plan->slug }}">
                             <input type="hidden" name="billing_interval" :value="interval">
-                            <button type="submit"
-                                class="block w-full rounded-[10px] bg-white py-2.5 text-center text-sm font-semibold transition hover:bg-white/90"
-                                style="color:var(--brand-primary,#6400B3);">
-                                {{ $plan->cta_label ?: 'Start free trial' }}
-                            </button>
-                            @if (! empty($stripeEnabled))
-                                <p class="mt-2 text-center text-[11px] text-white/70">Secured by Stripe — you’ll add a card on Stripe’s checkout</p>
+                            @if ($plan->is_active)
+                                <button type="submit"
+                                    class="block w-full rounded-[10px] bg-white py-2.5 text-center text-sm font-semibold transition hover:bg-white/90"
+                                    style="color:var(--brand-primary,#6400B3);">
+                                    {{ $plan->cta_label ?: 'Start free trial' }}
+                                </button>
+                                @if (! empty($stripeEnabled))
+                                    <p class="mt-2 text-center text-[11px] text-white/70">Secured by Stripe — you’ll add a card on Stripe’s checkout</p>
+                                @endif
+                            @else
+                                <button type="button" disabled
+                                    class="block w-full cursor-not-allowed rounded-[10px] border border-white/40 bg-white/20 py-2.5 text-center text-sm font-semibold text-white/85">
+                                    Coming soon
+                                </button>
                             @endif
                         </form>
 

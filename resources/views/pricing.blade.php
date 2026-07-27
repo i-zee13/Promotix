@@ -70,7 +70,8 @@
                         'Account overview' => $flags['account_overview'] ?? false,
                         'White-label reporting' => $flags['white_label_reports'] ?? false,
                         'In-person onboarding session' => $flags['in_person_onboarding'] ?? false,
-                        'Consent Mode &mdash; coming soon!' => true,
+                        'Consent Mode' => ($flags['consent_mode'] ?? false) && $plan->is_active,
+                        'Consent Mode &mdash; coming soon!' => ! ($flags['consent_mode'] ?? false) && $plan->is_active,
                     ])->filter()->keys()->all();
                     $yearlyCents = (int) ($plan->price_yearly_cents ?? 0);
                 @endphp

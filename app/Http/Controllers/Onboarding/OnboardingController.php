@@ -38,7 +38,6 @@ class OnboardingController extends Controller
         }
 
         $plans = Plan::query()
-            ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
