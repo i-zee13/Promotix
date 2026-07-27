@@ -30,6 +30,35 @@ class EmailVerificationCodeController extends Controller
             return redirect()->route($user->homeRouteName());
         }
 
+        $email = strtolower((string) $user->email);
+
+        // Signup may fail SMTP on the first request — retry once when landing here.
+        if (session()->pull('otp_send_failed')) {
+            [$devCode, $sent, $mailConfigured] = VerificationCodeMailer::issueAndSend($user);
+
+            if ($devCode !== null) {
+                session()->flash('dev_code', $devCode);
+            }
+
+            if ($sent) {
+                session()->flash('status', "We've sent a 6-digit verification code to {$user->email}.");
+            } elseif (! $mailConfigured) {
+                session()->flash('status', 'Mail is not configured — use the dev code below.');
+            }
+        } elseif (! VerificationCodeMailer::hasActiveCode($email)) {
+            [$devCode, $sent, $mailConfigured] = VerificationCodeMailer::issueAndSend($user);
+
+            if ($devCode !== null) {
+                session()->flash('dev_code', $devCode);
+            }
+
+            if ($sent) {
+                session()->flash('status', "We've sent a 6-digit verification code to {$user->email}.");
+            } elseif (! $mailConfigured) {
+                session()->flash('status', 'Mail is not configured — use the dev code below.');
+            }
+        }
+
         return view('auth.verify-email', [
             'email' => $user->email,
         ]);

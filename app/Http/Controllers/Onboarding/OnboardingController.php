@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -38,9 +39,8 @@ class OnboardingController extends Controller
 
         $plans = Plan::query()
             ->where('is_active', true)
-            ->whereIn('slug', ['starter', 'pro', 'advanced'])
             ->orderBy('sort_order')
-            ->orderByRaw("FIELD(slug,'starter','pro','advanced')")
+            ->orderBy('name')
             ->get();
 
         $trialDays = (int) app_setting('trial.days', 7);
@@ -56,7 +56,11 @@ class OnboardingController extends Controller
     public function startTrial(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'plan_slug' => ['required', 'string', 'in:starter,pro,advanced'],
+            'plan_slug' => [
+                'required',
+                'string',
+                Rule::exists('plans', 'slug')->where(fn ($q) => $q->where('is_active', true)),
+            ],
             'billing_interval' => ['nullable', 'in:monthly,yearly'],
         ]);
 
@@ -375,6 +379,7 @@ class OnboardingController extends Controller
             'card_number' => ['required', 'string', 'min:13', 'max:23'],
             'exp_month' => ['required', 'string', 'size:2'],
             'exp_year' => ['required', 'string', 'min:2', 'max:4'],
+            'cvv' => ['required', 'string', 'min:3', 'max:4'],
             'label' => ['nullable', 'string', 'max:80'],
         ]);
 

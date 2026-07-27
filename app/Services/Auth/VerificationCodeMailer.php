@@ -14,6 +14,23 @@ class VerificationCodeMailer
         return AppMailer::mailIsConfigured();
     }
 
+    public static function hasActiveCode(string $email): bool
+    {
+        $row = DB::table('email_verification_codes')
+            ->where('email', strtolower($email))
+            ->first();
+
+        if (! $row) {
+            return false;
+        }
+
+        if (now()->greaterThan($row->expires_at)) {
+            return false;
+        }
+
+        return (int) $row->attempts < 6;
+    }
+
     public static function send(string $name, string $email, string $code, int $expiryMinutes = 60): bool
     {
         return AppMailer::sendTemplate('otp_verification_email', $email, [
@@ -47,28 +64,26 @@ class VerificationCodeMailer
         $mailConfigured = self::mailIsConfigured();
         $sent = false;
 
-        // Send immediately in this request (before any redirect).
         if ($mailConfigured) {
-            try {
-                $sent = self::send((string) ($user->name ?? ''), $email, $code, $expiryMinutes);
-            } catch (\Throwable $e) {
-                Log::warning('Signup OTP send failed', [
-                    'email' => $email,
-                    'error' => $e->getMessage(),
-                ]);
-                $sent = false;
-            }
+            $delays = [0, 300000, 700000];
+            foreach ($delays as $attempt => $delayMicros) {
+                if ($delayMicros > 0) {
+                    usleep($delayMicros);
+                }
 
-            // One immediate retry on transient SMTP failure (same code).
-            if (! $sent) {
                 try {
-                    usleep(250000);
                     $sent = self::send((string) ($user->name ?? ''), $email, $code, $expiryMinutes);
                 } catch (\Throwable $e) {
-                    Log::warning('Signup OTP retry failed', [
+                    Log::warning('OTP send attempt failed', [
                         'email' => $email,
+                        'attempt' => $attempt + 1,
                         'error' => $e->getMessage(),
                     ]);
+                    $sent = false;
+                }
+
+                if ($sent) {
+                    break;
                 }
             }
         }

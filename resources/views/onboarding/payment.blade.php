@@ -158,7 +158,7 @@
                 <p class="mt-1.5 text-left text-[11px] text-white/55" x-text="(digits().length || 0) + ' / ' + maxDigits() + ' digits'"></p>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-3 gap-3">
                 <div>
                     <label for="exp_month" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Month</label>
                     <input id="exp_month" type="text" name="exp_month" inputmode="numeric" autocomplete="cc-exp-month" placeholder="MM" maxlength="2" required
@@ -168,6 +168,22 @@
                     <label for="exp_year" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">Year</label>
                     <input id="exp_year" type="text" name="exp_year" inputmode="numeric" autocomplete="cc-exp-year" placeholder="YY" maxlength="4" required
                         class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
+                </div>
+                <div>
+                    <label for="cvv" class="mb-1.5 block text-left text-xs font-semibold uppercase tracking-wide text-white/70">CVC</label>
+                    <input
+                        id="cvv"
+                        type="text"
+                        name="cvv"
+                        inputmode="numeric"
+                        autocomplete="cc-csc"
+                        placeholder="123"
+                        maxlength="4"
+                        required
+                        class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 px-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
+                        @input="$event.target.value = $event.target.value.replace(/\D/g, '').slice(0, 4)"
+                    >
+                    <p class="mt-1 text-left text-[10px] text-white/50">Used for verification only — never stored.</p>
                 </div>
             </div>
 

@@ -66,8 +66,16 @@
             </div>
         </div>
 
-        {{-- Plan cards --}}
-        <div class="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+        {{-- Plan cards — up to 3 per row; extra plans wrap to the next row --}}
+        @php
+            $planCount = $plans->count();
+            $planGridClass = match (true) {
+                $planCount <= 1 => 'grid-cols-1 max-w-md mx-auto',
+                $planCount === 2 => 'grid-cols-1 sm:grid-cols-2',
+                default => 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+            };
+        @endphp
+        <div class="mt-12 grid {{ $planGridClass }} gap-6">
             @foreach ($plans as $plan)
                 @php
                     /** @var \App\Models\Plan $plan */

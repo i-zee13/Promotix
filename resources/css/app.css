@@ -8953,6 +8953,294 @@ a.figma-sa-users-filter-option {
     color: #ffffff;
 }
 
+/* User detail page */
+.figma-sa-user-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.figma-sa-user-detail-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.figma-sa-user-detail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #d9d9d9;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.figma-sa-user-detail-back svg {
+    width: 16px;
+    height: 16px;
+}
+
+.figma-sa-user-detail-back:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #ffffff;
+}
+
+.figma-sa-user-detail-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.figma-sa-user-detail-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: transparent;
+    padding: 0 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #d9d9d9;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.figma-sa-user-detail-action-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+.figma-sa-user-detail-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.figma-sa-user-detail-hero {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: linear-gradient(180deg, rgba(100, 0, 178, 0.14) 0%, #1a1a1a 42%);
+    padding: 18px;
+}
+
+.figma-sa-user-detail-avatar {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+}
+
+.figma-sa-user-detail-hero-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.figma-sa-user-detail-hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.figma-sa-user-detail-name {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #ffffff;
+}
+
+.figma-sa-user-detail-email {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #a9a9a9;
+}
+
+.figma-sa-user-detail-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.figma-sa-user-detail-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.figma-sa-user-detail-meta dt {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8c8787;
+}
+
+.figma-sa-user-detail-meta dd {
+    margin-top: 2px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #d9d9d9;
+}
+
+.figma-sa-user-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+@media (min-width: 1024px) {
+    .figma-sa-user-detail-grid {
+        grid-template-columns: 1.1fr 0.9fr;
+    }
+
+    .figma-sa-user-detail-meta {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.figma-sa-user-detail-panel {
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #1a1a1a;
+    padding: 16px 18px;
+}
+
+.figma-sa-user-detail-panel--table {
+    padding-bottom: 18px;
+}
+
+.figma-sa-user-detail-panel-head h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.figma-sa-user-detail-panel-head p {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #8c8787;
+}
+
+.figma-sa-user-detail-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+    margin-top: 16px;
+}
+
+.figma-sa-user-detail-fields dt {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8c8787;
+}
+
+.figma-sa-user-detail-fields dd {
+    margin-top: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #d9d9d9;
+}
+
+.figma-sa-user-detail-muted,
+.figma-sa-user-detail-hint {
+    color: #8c8787;
+    font-weight: 500;
+}
+
+.figma-sa-user-detail-plan-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.figma-sa-user-detail-field--compact {
+    max-width: 220px;
+}
+
+.figma-sa-user-detail-select-wrap {
+    position: relative;
+}
+
+.figma-sa-user-detail-select {
+    width: 100%;
+    height: 43px;
+    appearance: none;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background-color: rgba(0, 0, 0, 0.2);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23d9d9d9'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding: 0 40px 0 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #d9d9d9;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.figma-sa-user-detail-select:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.figma-sa-user-detail-select:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: none;
+}
+
+.figma-sa-user-detail-select option {
+    background: #1a1a1a;
+    color: #ffffff;
+}
+
+.figma-sa-user-detail-submit {
+    align-self: flex-start;
+    margin-top: 4px;
+    min-height: 43px;
+}
+
+.figma-sa-user-detail-table-shell {
+    margin-top: 14px;
+}
+
+.figma-sa-user-detail-table th:nth-child(1),
+.figma-sa-user-detail-table td:nth-child(1) {
+    width: auto;
+}
+
+.figma-sa-user-detail-table--logins th:nth-child(2),
+.figma-sa-user-detail-table--logins td:nth-child(2) {
+    width: 140px;
+}
+
+.figma-sa-user-detail-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+}
+
 .figma-sa-products .figma-toggle {
     --figma-toggle-track-off: #d5d5d5;
     --figma-toggle-track-on: #6400b2;

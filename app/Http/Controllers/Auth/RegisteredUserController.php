@@ -74,9 +74,11 @@ class RegisteredUserController extends Controller
         } elseif (! $mailConfigured) {
             $redirect->with('status', 'Mail is not configured — use the dev code below (or configure SMTP).');
         } else {
-            $redirect->withErrors([
-                'email' => 'We could not send the verification email. Tap Resend code, or check SMTP settings.',
-            ]);
+            $redirect
+                ->with('otp_send_failed', true)
+                ->withErrors([
+                    'email' => 'We could not send the verification email. We will retry automatically — or tap Resend code.',
+                ]);
         }
 
         return $redirect;
