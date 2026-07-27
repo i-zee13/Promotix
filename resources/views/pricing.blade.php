@@ -95,11 +95,17 @@
                             x-text="priceLabel({ monthlyCents: {{ (int) $plan->price_cents }}, yearlyCents: {{ $yearlyCents }} })"></p>
 
                         <div class="mt-5 flex flex-col gap-2">
-                            <a href="{{ route('register') }}"
-                                class="block w-full rounded-[10px] bg-white py-2.5 text-center text-sm font-semibold text-[#6400B3] transition hover:bg-white/90">
-                                {{ $plan->cta_label ?: 'Get started' }}
-                            </a>
-                            <a href="{{ route('login') }}" class="text-center text-xs font-medium text-white/80 underline-offset-4 hover:underline">Already have an account?</a>
+                            @if ($plan->is_active)
+                                <a href="{{ route('register') }}"
+                                    class="block w-full rounded-[10px] bg-white py-2.5 text-center text-sm font-semibold text-[#6400B3] transition hover:bg-white/90">
+                                    {{ $plan->cta_label ?: 'Get started' }}
+                                </a>
+                                <a href="{{ route('login') }}" class="text-center text-xs font-medium text-white/80 underline-offset-4 hover:underline">Already have an account?</a>
+                            @else
+                                <span class="block w-full cursor-not-allowed rounded-[10px] border border-white/40 bg-white/20 py-2.5 text-center text-sm font-semibold text-white/85">
+                                    Coming soon
+                                </span>
+                            @endif
                         </div>
 
                         <div class="mt-5 text-center text-sm text-white/85">
