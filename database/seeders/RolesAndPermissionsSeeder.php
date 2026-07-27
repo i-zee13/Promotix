@@ -5,18 +5,31 @@ namespace Database\Seeders;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
         $menu = config('admin.menu', []);
+        $routePermissions = config('admin.route_permission', []);
 
         foreach ($menu as $slug => $item) {
             $routeName = $item['route'] ?? $slug;
             Permission::updateOrCreate(
                 ['slug' => $slug],
                 ['name' => $item['label'] ?? $slug, 'route_name' => $routeName]
+            );
+        }
+
+        // Ensure every route_permission slug exists (some are not in the flat menu).
+        foreach (array_unique(array_values($routePermissions)) as $slug) {
+            Permission::updateOrCreate(
+                ['slug' => $slug],
+                [
+                    'name' => Str::headline(str_replace('-', ' ', $slug)),
+                    'route_name' => $slug,
+                ]
             );
         }
 

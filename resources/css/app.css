@@ -8867,6 +8867,92 @@ a.figma-sa-users-filter-option {
     background: rgba(0, 0, 0, 0.2);
 }
 
+/* Roles & Permissions — same table shell as SaaS Products */
+.figma-sa-roles-table th:nth-child(1),
+.figma-sa-roles-table td:nth-child(1) {
+    width: auto;
+}
+
+.figma-sa-roles-table th:nth-child(2),
+.figma-sa-roles-table td:nth-child(2),
+.figma-sa-roles-table th:nth-child(3),
+.figma-sa-roles-table td:nth-child(3) {
+    width: 110px;
+    text-align: center;
+}
+
+.figma-sa-roles-table th:nth-child(4),
+.figma-sa-roles-table td:nth-child(4) {
+    width: 180px;
+    padding-right: 14px;
+    text-align: right;
+}
+
+.figma-sa-roles-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.figma-sa-roles-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #6400b2;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.figma-sa-roles-count-badge--muted {
+    background: #1c1c1c;
+    color: #ffffff;
+}
+
+.figma-sa-roles-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.figma-sa-roles-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 31px;
+    padding: 6px 14px;
+    border-radius: 5px;
+    border: 1px solid #1c1c1c;
+    background: transparent;
+    color: #1c1c1c;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    line-height: 1.2;
+}
+
+.figma-sa-roles-action-btn:hover {
+    background: rgba(28, 28, 28, 0.06);
+    color: #1c1c1c;
+}
+
+.figma-sa-roles-action-btn--danger {
+    border-color: #7a1f1f;
+    background: #5c1515;
+    color: #ffffff;
+}
+
+.figma-sa-roles-action-btn--danger:hover {
+    background: #6e1a1a;
+    color: #ffffff;
+}
+
 .figma-sa-products .figma-toggle {
     --figma-toggle-track-off: #d5d5d5;
     --figma-toggle-track-on: #6400b2;

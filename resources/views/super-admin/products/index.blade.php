@@ -128,7 +128,7 @@
                                 <td><input type="checkbox" class="figma-sa-users-checkbox figma-sa-products-checkbox" aria-label="Select {{ $product->name }}"></td>
                                 <td>
                                     <div class="figma-sa-products-usercell">
-                                        <x-super-admin.product-icon />
+                                        <x-super-admin.product-icon :product="$product" />
                                         <span>
                                             <span class="figma-sa-products-name">{{ $product->name }}</span>
                                             @if ($product->gatesCustomerPortal())

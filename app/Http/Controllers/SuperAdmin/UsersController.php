@@ -350,7 +350,9 @@ class UsersController extends Controller
         $request->session()->put('impersonator_id', $request->user()->id);
         Auth::login($user);
 
-        return redirect()->route('dashboard')->with('status', "Now signed in as {$user->email}.");
+        return redirect()
+            ->route($user->homeRouteName())
+            ->with('status', "Now signed in as {$user->email}.");
     }
 
     public function stopImpersonating(Request $request): RedirectResponse

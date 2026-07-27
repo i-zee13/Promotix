@@ -44,7 +44,7 @@
                 </x-slot:trigger>
                 <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-plan').value=''; document.getElementById('users-filter-form').submit();">All plans</button>
                 @foreach ($plans as $plan)
-                    <button type="button" class="figma-sa-users-filter-option figma-sa-users-plan-chip" onclick="document.getElementById('filter-plan').value='{{ $plan->slug }}'; document.getElementById('users-filter-form').submit();">{{ $plan->name }}</button>
+                    <button type="button" class="figma-sa-users-filter-option" onclick="document.getElementById('filter-plan').value='{{ $plan->slug }}'; document.getElementById('users-filter-form').submit();">{{ $plan->name }}</button>
                 @endforeach
             </x-super-admin.dashboard-dropdown>
 
