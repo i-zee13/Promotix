@@ -138,6 +138,8 @@ class OnboardingController extends Controller
         $plan = $subscription?->plan;
         $stripeReadiness = StripeService::readiness();
 
+        $publishableKey = $stripeReadiness['ready'] ? StripeService::publishableKey() : null;
+
         return view('onboarding.payment', [
             'user' => $user,
             'subscription' => $subscription,
@@ -145,7 +147,8 @@ class OnboardingController extends Controller
             'trialDays' => (int) app_setting('trial.days', 7),
             'stripeEnabled' => $stripeReadiness['ready'],
             'stripeWarning' => $stripeReadiness['message'],
-            'stripePublishableKey' => $stripeReadiness['ready'] ? StripeService::publishableKey() : null,
+            'stripePublishableKey' => $publishableKey,
+            'stripeLiveMode' => is_string($publishableKey) && str_starts_with($publishableKey, 'pk_live_'),
             'setupIntentClientSecret' => null,
             'verifyAmountCents' => StripeService::verifyAmountCents(),
         ]);

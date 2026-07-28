@@ -10819,6 +10819,11 @@ a.figma-sa-users-filter-option {
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.onboarding-checkout__stripe-field--card {
+    min-height: 52px;
+    padding-right: 120px;
+}
+
 .onboarding-checkout__stripe-field:focus-within {
     border-color: #6b6b6b;
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);

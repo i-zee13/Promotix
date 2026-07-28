@@ -15,6 +15,7 @@
         ->take(4)
         ->values();
     $useStripeElements = ! empty($stripeEnabled) && ! empty($stripePublishableKey);
+    $stripeLiveMode = ! empty($stripeLiveMode);
 @endphp
 
 <div class="onboarding-checkout">
@@ -23,6 +24,12 @@
             <span aria-hidden="true">&larr;</span>
             Configure your plan
         </a>
+
+        @if ($useStripeElements && $stripeLiveMode)
+            <div class="onboarding-checkout__alert onboarding-checkout__alert--warn">
+                Stripe is in <strong>live</strong> mode. Test cards like 4242… will not work — use a real card (USD {{ number_format($verifyCents / 100, 2) }} verify charge is refunded). For QA, switch .env to pk_test_ / sk_test_ keys.
+            </div>
+        @endif
 
         @if (! empty($stripeWarning))
             <div class="onboarding-checkout__alert onboarding-checkout__alert--warn">
@@ -45,6 +52,7 @@
             class="onboarding-checkout__grid"
             data-stripe-enabled="{{ $useStripeElements ? '1' : '0' }}"
             data-stripe-pk="{{ $stripePublishableKey ?? '' }}"
+            data-stripe-live="{{ $stripeLiveMode ? '1' : '0' }}"
             @if (! $useStripeElements)
             x-data="{
                 number: '',
@@ -77,12 +85,20 @@
             <div class="onboarding-checkout__pay">
                 <h2 class="onboarding-checkout__section-title">Pay with</h2>
 
-                <div class="onboarding-checkout__field">
-                    <label for="{{ $useStripeElements ? 'stripe-card-number' : 'card_number_display' }}" class="onboarding-checkout__label">Card number</label>
-                    <div class="onboarding-checkout__input-wrap onboarding-checkout__input-wrap--card">
-                        @if ($useStripeElements)
-                            <div id="stripe-card-number" class="onboarding-checkout__stripe-field"></div>
-                        @else
+                @if ($useStripeElements)
+                    <div class="onboarding-checkout__field">
+                        <label for="stripe-card-element" class="onboarding-checkout__label">Card details</label>
+                        <div class="onboarding-checkout__input-wrap onboarding-checkout__input-wrap--card">
+                            <div id="stripe-card-element" class="onboarding-checkout__stripe-field onboarding-checkout__stripe-field--card"></div>
+                            <div class="onboarding-checkout__card-icons" aria-hidden="true">
+                                @include('partials.accepted-card-brands', ['compact' => true])
+                            </div>
+                        </div>
+                    </div>
+                @else
+                    <div class="onboarding-checkout__field">
+                        <label for="card_number_display" class="onboarding-checkout__label">Card number</label>
+                        <div class="onboarding-checkout__input-wrap onboarding-checkout__input-wrap--card">
                             <input
                                 id="card_number_display"
                                 type="text"
@@ -95,29 +111,21 @@
                                 required
                                 class="onboarding-checkout__input"
                             >
-                        @endif
-                        <div class="onboarding-checkout__card-icons" aria-hidden="true">
-                            @include('partials.accepted-card-brands', ['compact' => true])
+                            <div class="onboarding-checkout__card-icons" aria-hidden="true">
+                                @include('partials.accepted-card-brands', ['compact' => true])
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="onboarding-checkout__row">
-                    <div class="onboarding-checkout__field">
-                        <label for="{{ $useStripeElements ? 'stripe-card-expiry' : 'exp_display' }}" class="onboarding-checkout__label">Expiration date</label>
-                        @if ($useStripeElements)
-                            <div id="stripe-card-expiry" class="onboarding-checkout__stripe-field"></div>
-                        @else
+                    <div class="onboarding-checkout__row">
+                        <div class="onboarding-checkout__field">
+                            <label for="exp_display" class="onboarding-checkout__label">Expiration date</label>
                             <input id="exp_display" type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM / YY" maxlength="7" required class="onboarding-checkout__input">
                             <input type="hidden" name="exp_month" id="exp_month" value="">
                             <input type="hidden" name="exp_year" id="exp_year_hidden" value="">
-                        @endif
-                    </div>
-                    <div class="onboarding-checkout__field">
-                        <label for="{{ $useStripeElements ? 'stripe-card-cvc' : 'cvv' }}" class="onboarding-checkout__label">Security code</label>
-                        @if ($useStripeElements)
-                            <div id="stripe-card-cvc" class="onboarding-checkout__stripe-field"></div>
-                        @else
+                        </div>
+                        <div class="onboarding-checkout__field">
+                            <label for="cvv" class="onboarding-checkout__label">Security code</label>
                             <input
                                 id="cvv"
                                 type="text"
@@ -130,9 +138,10 @@
                                 class="onboarding-checkout__input"
                                 @input="$event.target.value = $event.target.value.replace(/\D/g, '').slice(0, 4)"
                             >
-                        @endif
+                        </div>
                     </div>
-                </div>
+                @endif
+
                 <input type="hidden" name="label" value="Primary card">
 
                 <label class="onboarding-checkout__save">
@@ -209,13 +218,13 @@
 
         const errBox = document.getElementById('onboarding-payment-error');
         const submitBtn = document.getElementById('onboarding-payment-submit');
+        const isLive = form.dataset.stripeLive === '1';
 
         function showError(msg) {
-            if (errBox) {
-                errBox.textContent = msg;
-                errBox.classList.remove('hidden');
-                errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
+            if (!errBox) return;
+            errBox.textContent = msg;
+            errBox.classList.remove('hidden');
+            errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         function resetSubmit() {
@@ -225,55 +234,59 @@
             }
         }
 
-        if (form.dataset.stripeEnabled === '1' && window.Stripe) {
+        function friendlyStripeError(message) {
+            const msg = String(message || '');
+            if (isLive && (/incomplete|4242|test card|not supported/i.test(msg) || /declined/i.test(msg))) {
+                return msg + ' Live Stripe keys reject test cards (4242…). Use a real card, or switch the server to pk_test_ / sk_test_ for testing.';
+            }
+            if (/incomplete/i.test(msg)) {
+                return 'Card details look incomplete. Clear the fields, type the number / expiry / CVC again inside the Stripe box, then retry.';
+            }
+            return msg || 'Card verification failed. Please check your card details.';
+        }
+
+        if (form.dataset.stripeEnabled === '1') {
+            if (!window.Stripe) {
+                showError('Stripe.js failed to load. Check network / CSP, then refresh.');
+                return;
+            }
+
             const pk = form.dataset.stripePk || '';
-            if (!pk) return;
+            if (!pk) {
+                showError('Stripe publishable key is missing.');
+                return;
+            }
 
             const stripe = Stripe(pk);
-            const elements = stripe.elements({
-                locale: 'en',
-            });
-
-            const elementStyle = {
-                base: {
-                    color: '#ffffff',
-                    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: '15px',
-                    fontSmoothing: 'antialiased',
-                    '::placeholder': { color: '#6b6b6b' },
+            const elements = stripe.elements({ locale: 'en' });
+            const card = elements.create('card', {
+                style: {
+                    base: {
+                        color: '#ffffff',
+                        fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                        fontSize: '15px',
+                        fontSmoothing: 'antialiased',
+                        '::placeholder': { color: '#6b6b6b' },
+                        iconColor: '#a3a3a3',
+                    },
+                    invalid: {
+                        color: '#fecaca',
+                        iconColor: '#fecaca',
+                    },
                 },
-                invalid: {
-                    color: '#fecaca',
-                    iconColor: '#fecaca',
-                },
-            };
-
-            const cardNumber = elements.create('cardNumber', {
-                style: elementStyle,
-                showIcon: false,
-                placeholder: '1234 1234 1234 1234',
-            });
-            const cardExpiry = elements.create('cardExpiry', {
-                style: elementStyle,
-                placeholder: 'MM / YY',
-            });
-            const cardCvc = elements.create('cardCvc', {
-                style: elementStyle,
-                placeholder: 'CVC',
+                hidePostalCode: true,
             });
 
-            cardNumber.mount('#stripe-card-number');
-            cardExpiry.mount('#stripe-card-expiry');
-            cardCvc.mount('#stripe-card-cvc');
+            card.mount('#stripe-card-element');
 
-            [cardNumber, cardExpiry, cardCvc].forEach(function (el) {
-                el.on('change', function (event) {
-                    if (event.error) {
-                        showError(event.error.message);
-                    } else if (errBox && !event.empty) {
-                        errBox.classList.add('hidden');
-                    }
-                });
+            let cardComplete = false;
+            card.on('change', function (event) {
+                cardComplete = !!event.complete;
+                if (event.error) {
+                    showError(friendlyStripeError(event.error.message));
+                } else if (errBox) {
+                    errBox.classList.add('hidden');
+                }
             });
 
             const pmInput = document.getElementById('stripe_payment_method_id');
@@ -287,25 +300,35 @@
                     errBox.classList.add('hidden');
                 }
 
+                if (!cardComplete) {
+                    showError(friendlyStripeError('Your card number is incomplete.'));
+                    return;
+                }
+
                 if (submitBtn) {
                     submitBtn.disabled = true;
                     submitBtn.textContent = 'Verifying…';
                 }
 
-                const result = await stripe.createPaymentMethod({
-                    type: 'card',
-                    card: cardNumber,
-                });
+                try {
+                    const result = await stripe.createPaymentMethod({
+                        type: 'card',
+                        card: card,
+                    });
 
-                if (result.error || !result.paymentMethod?.id) {
+                    if (result.error || !result.paymentMethod?.id) {
+                        resetSubmit();
+                        showError(friendlyStripeError(result.error?.message));
+                        return;
+                    }
+
+                    pmInput.value = result.paymentMethod.id;
+                    submittingWithStripe = true;
+                    form.submit();
+                } catch (e) {
                     resetSubmit();
-                    showError(result.error?.message || 'Card verification failed. Please check your card details.');
-                    return;
+                    showError(friendlyStripeError(e?.message || 'Payment failed unexpectedly.'));
                 }
-
-                pmInput.value = result.paymentMethod.id;
-                submittingWithStripe = true;
-                form.submit();
             });
 
             return;
