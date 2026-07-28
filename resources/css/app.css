@@ -24,6 +24,59 @@
     background-color: var(--brand-background, #0d0d0d);
 }
 
+.light-mode .brand-page-bg {
+    background:
+        radial-gradient(ellipse 90% 55% at 8% -8%, color-mix(in srgb, var(--brand-primary) 10%, transparent), transparent 58%),
+        var(--brand-background, #f4f2f7);
+    color: var(--brand-text, #1a1a1a);
+}
+
+.light-mode .brand-text {
+    color: var(--brand-text, #1a1a1a);
+}
+
+.light-mode .brand-text-muted {
+    color: var(--brand-text-muted, #5c5470);
+}
+
+.light-mode .brand-panel {
+    background: var(--brand-surface, #ffffff);
+    border-color: color-mix(in srgb, var(--brand-outline) 75%, transparent);
+    color: var(--brand-text, #1a1a1a);
+}
+
+.light-mode .onboarding-checkout {
+    background:
+        radial-gradient(ellipse 90% 55% at 8% -8%, color-mix(in srgb, var(--brand-primary) 10%, transparent), transparent 58%),
+        var(--brand-background, #f4f2f7);
+    color: var(--brand-text, #1a1a1a);
+}
+
+.light-mode .onboarding-checkout__summary-card,
+.light-mode .onboarding-checkout__input,
+.light-mode .onboarding-checkout__stripe-field {
+    background: var(--brand-surface, #ffffff);
+    border-color: var(--brand-outline, #d4c4e8);
+}
+
+.light-mode .onboarding-checkout__section-title,
+.light-mode .onboarding-checkout__plan-name,
+.light-mode .onboarding-checkout__line--total {
+    color: var(--brand-text, #1a1a1a);
+}
+
+.light-mode .onboarding-checkout__label,
+.light-mode .onboarding-checkout__save,
+.light-mode .onboarding-checkout__line,
+.light-mode .onboarding-checkout__legal,
+.light-mode .onboarding-checkout__back {
+    color: var(--brand-text-muted, #5c5470);
+}
+
+.light-mode .onboarding-checkout__back:hover {
+    color: var(--brand-text, #1a1a1a);
+}
+
 .brand-surface-bg {
     background-color: var(--brand-surface, #1E1033);
 }
@@ -3990,14 +4043,25 @@ select.figma-sa-subs-status-pill {
 }
 
 /* Light mode — Figma shell */
+html.light-mode {
+    --brand-background: #f4f2f7;
+    --brand-surface: #ffffff;
+    --brand-text: #1a1a1a;
+    --brand-text-muted: #5c5470;
+    --brand-outline: #d4c4e8;
+    --brand-input-bg: #ffffff;
+    --brand-glow: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+    --brand-shadow: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+}
+
 .light-mode .figma-body {
-    background: #f4f2f7 !important;
-    color: #1a1a1a !important;
+    background: var(--brand-background, #f4f2f7) !important;
+    color: var(--brand-text, #1a1a1a) !important;
 }
 
 .light-mode .figma-shell {
-    background: #f4f2f7;
-    color: #1a1a1a;
+    background: var(--brand-background, #f4f2f7);
+    color: var(--brand-text, #1a1a1a);
 }
 
 .light-mode .figma-sidebar,
@@ -4126,8 +4190,41 @@ select.figma-sa-subs-status-pill {
 .light-mode .figma-main [class*='bg-[#0D0D0D]'],
 .light-mode .figma-main [class*='bg-[#151515]'],
 .light-mode .figma-main [class*='bg-[#101010]'],
-.light-mode .figma-main [class*='bg-[#1a1a1a]'] {
-    background-color: #ffffff !important;
+.light-mode .figma-main [class*='bg-[#1a1a1a]'],
+.light-mode .figma-main .brand-page-bg,
+.light-mode .figma-main .brand-surface-bg {
+    background-color: var(--brand-surface, #ffffff) !important;
+}
+
+.light-mode .figma-main .brand-page-bg {
+    background:
+        radial-gradient(ellipse 90% 55% at 8% -8%, color-mix(in srgb, var(--brand-primary) 10%, transparent), transparent 58%),
+        radial-gradient(ellipse 70% 45% at 100% 0%, color-mix(in srgb, var(--brand-primary) 6%, transparent), transparent 52%),
+        var(--brand-background, #f4f2f7) !important;
+    color: var(--brand-text, #1a1a1a);
+}
+
+.light-mode .billing-page {
+    background:
+        radial-gradient(ellipse 80% 50% at 10% -10%, color-mix(in srgb, var(--brand-primary) 14%, transparent), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 90% 10%, color-mix(in srgb, var(--brand-primary) 8%, transparent), transparent 50%),
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--brand-primary) 5%, #f4f2f7) 0%,
+            var(--brand-background, #f4f2f7) 48%,
+            #ffffff 100%
+        ) !important;
+}
+
+.light-mode .figma-main article[class*='border-white/15'],
+.light-mode .figma-main article[class*='border-white/20'],
+.light-mode .figma-main article[class*='border-rose-400'] {
+    border-color: color-mix(in srgb, var(--brand-outline) 80%, transparent) !important;
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--brand-primary) 6%, transparent);
+}
+
+.light-mode .figma-main [class*='text-[#8c8787]'] {
+    color: var(--brand-text-muted, #5c5470) !important;
 }
 
 .light-mode .figma-main [class*='text-[#a9a9a9]']:not(.is-active *):not([class*='bg-[#6400B2]'] *) {
