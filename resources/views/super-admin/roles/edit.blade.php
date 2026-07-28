@@ -30,28 +30,28 @@
                     <textarea id="description" name="description" rows="2" class="figma-input mt-1">{{ old('description', $role->description) }}</textarea>
                 </div>
 
-                <div x-data="{ filter: '' }">
+                <div x-data="{ filter: '' }" class="figma-sa-permissions">
                     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
                         <label class="figma-sa-label">Permissions</label>
                         <input type="search" x-model="filter" placeholder="Filter permissions..." class="figma-input w-full max-w-xs">
                     </div>
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                         @foreach ($grouped as $groupLabel => $items)
-                            <div class="figma-sa-row p-3" x-data="{ toggleAll(state) { this.$root.querySelectorAll('input[type=checkbox][data-perm]').forEach(el => el.checked = state); } }">
+                            <div class="figma-sa-row figma-sa-perm-group p-3" x-data="{ toggleAll(state) { this.$root.querySelectorAll('input[type=checkbox][data-perm]').forEach(el => el.checked = state); } }">
                                 <div class="mb-2 flex items-center justify-between">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-[#a9a9a9]">{{ $groupLabel }}</p>
+                                    <p class="figma-sa-perm-group__title">{{ $groupLabel }}</p>
                                     <div class="flex gap-2 text-[10px] uppercase">
-                                        <button type="button" class="text-[#8c8787] hover:text-white" @click="toggleAll(true)">All</button>
-                                        <button type="button" class="text-[#8c8787] hover:text-rose-300" @click="toggleAll(false)">None</button>
+                                        <button type="button" class="figma-sa-perm-group__action" @click="toggleAll(true)">All</button>
+                                        <button type="button" class="figma-sa-perm-group__action figma-sa-perm-group__action--danger" @click="toggleAll(false)">None</button>
                                     </div>
                                 </div>
                                 <div class="space-y-1">
                                     @foreach ($items as $p)
-                                        <label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5"
+                                        <label class="figma-sa-perm-item flex cursor-pointer items-center gap-2 rounded px-2 py-1.5"
                                             x-show="filter === '' || '{{ strtolower(addslashes($p->name.' '.$p->slug)) }}'.includes(filter.toLowerCase())">
                                             <input type="checkbox" data-perm name="permissions[]" value="{{ $p->id }}" @checked(in_array($p->id, $checkedIds)) class="figma-sa-checkbox rounded">
-                                            <span class="text-sm text-[#d9d9d9]">{{ $p->name }}</span>
-                                            <span class="ml-auto font-mono text-[10px] text-[#8c8787]">{{ $p->slug }}</span>
+                                            <span class="figma-sa-perm-item__name">{{ $p->name }}</span>
+                                            <span class="figma-sa-perm-item__slug ml-auto font-mono text-[10px]">{{ $p->slug }}</span>
                                         </label>
                                     @endforeach
                                 </div>

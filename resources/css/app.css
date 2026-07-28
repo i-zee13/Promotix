@@ -8926,9 +8926,80 @@ a.figma-sa-users-filter-option {
     color: #ffffff !important;
 }
 
-/* Roles edit permission panels — purple mix */
-.figma-sa-page .figma-sa-row .text-\[\#d9d9d9\] {
+/* Roles edit permission panels — readable in dark + light */
+.figma-sa-perm-group__title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #a9a9a9;
+}
+
+.figma-sa-perm-group__action {
+    color: #8c8787;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    padding: 0;
+}
+
+.figma-sa-perm-group__action:hover {
+    color: #ffffff;
+}
+
+.figma-sa-perm-group__action--danger:hover {
+    color: #fda4af;
+}
+
+.figma-sa-perm-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.figma-sa-perm-item__name {
+    font-size: 0.875rem;
     color: #ece6f5;
+}
+
+.figma-sa-perm-item__slug {
+    color: #8c8787;
+}
+
+.light-mode .figma-sa-perm-group__title {
+    color: #5b5368 !important;
+}
+
+.light-mode .figma-sa-perm-group__action {
+    color: #6b6280 !important;
+}
+
+.light-mode .figma-sa-perm-group__action:hover {
+    color: #6400b2 !important;
+}
+
+.light-mode .figma-sa-perm-group__action--danger:hover {
+    color: #b3283f !important;
+}
+
+.light-mode .figma-sa-perm-item:hover {
+    background: rgba(100, 0, 178, 0.06);
+}
+
+.light-mode .figma-sa-perm-item__name {
+    color: #2d2d3a !important;
+}
+
+.light-mode .figma-sa-perm-item__slug {
+    color: #6b6280 !important;
+}
+
+/* Legacy hardcoded greys inside permission rows (light mode) */
+.light-mode .figma-sa-page .figma-sa-row .text-\[\#d9d9d9\],
+.light-mode .figma-sa-page .figma-sa-row .text-\[\#a9a9a9\] {
+    color: #2d2d3a !important;
+}
+
+.light-mode .figma-sa-page .figma-sa-row .text-\[\#8c8787\] {
+    color: #6b6280 !important;
 }
 
 .figma-sa-page .figma-sa-card .figma-input,
