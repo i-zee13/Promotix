@@ -126,7 +126,7 @@
                             <span class="figma-toggle-track"><span class="figma-toggle-thumb"></span></span>
                         </button>
                     </div>
-                    <a href="{{ route('profile.edit') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" aria-label="Settings">
+                    <a href="{{ route('profile.edit') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" aria-label="Account settings">
                         @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
                     </a>
                 </div>

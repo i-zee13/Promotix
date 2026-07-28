@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use App\Models\Role;
+use App\Models\Subscription;
 use App\Models\User;
+use App\Models\UserInvite;
 use App\Services\Auth\VerificationCodeMailer;
 use App\Services\LoginHistoryLogger;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
@@ -20,9 +24,16 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('auth.register');
+        $invite = $this->findValidInvite($request->string('invite')->toString());
+
+        return view('auth.register', [
+            'invite' => $invite,
+            'inviteToken' => $invite?->token,
+            'inviteEmail' => $invite?->email ?: $request->string('email')->toString(),
+            'inviteName' => $invite?->name,
+        ]);
     }
 
     /**
@@ -39,9 +50,18 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'company_name' => ['nullable', 'string', 'max:160'],
             'website_url' => ['nullable', 'url', 'max:255'],
+            'invite' => ['nullable', 'string', 'max:80'],
         ]);
 
+        $invite = $this->findValidInvite((string) ($data['invite'] ?? ''));
+        if ($invite && strcasecmp($invite->email, $data['email']) !== 0) {
+            return back()
+                ->withErrors(['email' => 'Use the invited email address to accept this invite.'])
+                ->withInput();
+        }
+
         $defaultRole = Role::where('slug', 'default-user')->first();
+        $roleId = $invite?->role_id ?: $defaultRole?->id;
 
         $user = User::create([
             'name' => $data['name'],
@@ -50,10 +70,14 @@ class RegisteredUserController extends Controller
             'company_name' => $data['company_name'] ?? null,
             'website_url' => $data['website_url'] ?? null,
             'password' => Hash::make($data['password']),
-            'role_id' => $defaultRole?->id,
+            'role_id' => $roleId,
             // Customers must complete trial + payment onboarding (admins bypass those gates).
             'is_admin' => false,
         ]);
+
+        if ($invite) {
+            $this->acceptInvite($invite, $user);
+        }
 
         Auth::login($user);
 
@@ -82,5 +106,59 @@ class RegisteredUserController extends Controller
         }
 
         return $redirect;
+    }
+
+    private function findValidInvite(string $token): ?UserInvite
+    {
+        $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
+
+        return UserInvite::query()
+            ->where('token', $token)
+            ->where('status', 'pending')
+            ->where(function ($q): void {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->first();
+    }
+
+    private function acceptInvite(UserInvite $invite, User $user): void
+    {
+        DB::transaction(function () use ($invite, $user): void {
+            $invite->update([
+                'status' => 'accepted',
+                'accepted_at' => now(),
+            ]);
+
+            if (! $invite->plan_id) {
+                return;
+            }
+
+            $plan = Plan::query()->whereKey($invite->plan_id)->where('is_active', true)->first();
+            if (! $plan) {
+                return;
+            }
+
+            $interval = $plan->billing_interval ?: 'monthly';
+            $amountCents = $interval === 'yearly' && $plan->price_yearly_cents
+                ? (int) round($plan->price_yearly_cents / 12)
+                : (int) $plan->price_cents;
+
+            Subscription::query()->create([
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
+                'status' => 'trialing',
+                'is_trial' => true,
+                'amount_cents' => $amountCents,
+                'currency' => $plan->currency ?: 'usd',
+                'billing_interval' => $interval,
+                'started_at' => now(),
+                'trial_ends_at' => now()->addDays((int) app_setting('trial.days', 7)),
+                'current_period_ends_at' => now()->addDays((int) app_setting('trial.days', 7)),
+                'metadata' => ['source' => 'user_invite'],
+            ]);
+        });
     }
 }

@@ -6,6 +6,7 @@ use App\Models\EmailTemplate;
 use App\Support\EmailTemplateDefaults;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class AppMailer
 {
@@ -58,8 +59,13 @@ class AppMailer
     public static function sendRaw(string $to, string $subject, string $body, string $context = 'mail'): bool
     {
         try {
-            Mail::raw($body, function ($message) use ($to, $subject): void {
+            $plain = trim(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
+            $html = self::wrapHtmlEmail($subject, $body);
+
+            Mail::send([], [], function ($message) use ($to, $subject, $plain, $html): void {
                 $message->to($to)->subject($subject);
+                $message->text($plain);
+                $message->html($html);
 
                 $fromAddress = config('mail.from.address');
                 $fromName = config('mail.from.name');
@@ -67,6 +73,12 @@ class AppMailer
                     $message->from($fromAddress, $fromName ?: null);
                 }
             });
+
+            Log::info('Outbound email accepted by mailer', [
+                'context' => $context,
+                'to' => $to,
+                'subject' => $subject,
+            ]);
 
             return true;
         } catch (\Throwable $e) {
@@ -80,8 +92,47 @@ class AppMailer
         }
     }
 
+    private static function wrapHtmlEmail(string $subject, string $body): string
+    {
+        $appName = e((string) config('app.name', 'Promotix'));
+        $primary = e((string) (app_setting('branding.color_primary', '#6400B2') ?: '#6400B2'));
+        $safeSubject = e($subject);
+
+        // If body already looks like HTML, keep it; otherwise convert plain text.
+        $content = Str::contains($body, ['<p', '<div', '<br', '<a ', '<table'])
+            ? $body
+            : nl2br(e($body), false);
+
+        // Auto-link bare URLs in converted plain text.
+        if (! Str::contains($body, ['<a ', '<p', '<div'])) {
+            $content = preg_replace(
+                '~(https?://[^\s<]+)~i',
+                '<a href="$1" style="color:'.$primary.';font-weight:600;word-break:break-all;">$1</a>',
+                $content
+            ) ?: $content;
+        }
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{$safeSubject}</title></head>
+<body style="margin:0;padding:0;background:#f4f2f7;font-family:Inter,Segoe UI,Arial,sans-serif;color:#1a1a1a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f2f7;padding:28px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #d4c4e8;border-radius:12px;overflow:hidden;">
+        <tr><td style="background:{$primary};padding:18px 24px;color:#ffffff;font-size:18px;font-weight:700;">{$appName}</td></tr>
+        <tr><td style="padding:24px;font-size:14px;line-height:1.6;color:#2d2d3a;">{$content}</td></tr>
+        <tr><td style="padding:0 24px 22px;font-size:12px;color:#6b6280;">If you did not expect this email, you can ignore it.</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+HTML;
+    }
+
     /** @param  array<string, string>  $replacements */
-    private static function replaceTokens(string $text, array $replacements): string
+    private static function replaceTokens(string $text, array $replacements = []): string
     {
         $appName = (string) config('app.name', 'Promotix');
         $base = [

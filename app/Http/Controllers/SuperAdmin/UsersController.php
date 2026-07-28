@@ -224,11 +224,13 @@ class UsersController extends Controller
 
         if (! $sent) {
             return back()
-                ->withErrors(['email' => 'Invite saved, but the email could not be sent. Check SMTP credentials (Gmail needs an App Password).'])
-                ->with('status', "Invite link: {$inviteUrl}");
+                ->withErrors([
+                    'email' => 'Invite saved, but the email could not be sent. Gmail SMTP returned BadCredentials — use a Google App Password (not your normal password) in MAIL_PASSWORD, then run: php artisan config:clear',
+                ])
+                ->with('status', "Backup invite link (share manually): {$inviteUrl}");
         }
 
-        return back()->with('status', "Invite email sent to {$invite->email}.");
+        return back()->with('status', "Invite email sent to {$invite->email}. If it is not in the inbox, check Spam/Promotions. Link: {$inviteUrl}");
     }
 
     public function assignPlan(Request $request, User $user): RedirectResponse

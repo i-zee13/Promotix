@@ -8,6 +8,11 @@
             Already have one?
             <a href="{{ route('login') }}" class="font-semibold text-white underline-offset-4 hover:underline">Log in</a>
         </p>
+        @if (! empty($invite))
+            <p class="mt-3 rounded-[10px] border border-white/25 bg-white/10 px-3 py-2 text-xs text-white/90">
+                You’re accepting an invite for <strong>{{ $inviteEmail }}</strong>.
+            </p>
+        @endif
     </div>
 
     @if ($errors->any())
@@ -18,6 +23,9 @@
 
     <form method="POST" action="{{ route('register') }}" class="mt-6 space-y-4" x-data="{ p1: false, p2: false }">
         @csrf
+        @if (! empty($inviteToken))
+            <input type="hidden" name="invite" value="{{ $inviteToken }}">
+        @endif
 
         {{-- Full name --}}
         <div class="relative">
@@ -26,7 +34,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A4.5 4.5 0 0 0 16.5 14h-3a4.5 4.5 0 0 0-4.499 6.118Z" />
                 </svg>
             </div>
-            <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name" placeholder="Full name"
+            <input id="name" type="text" name="name" value="{{ old('name', $inviteName ?? '') }}" required autofocus autocomplete="name" placeholder="Full name"
                 class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
         </div>
 
@@ -37,8 +45,9 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
                 </svg>
             </div>
-            <input id="email" type="email" name="email" value="{{ old('email') }}" required autocomplete="username" placeholder="E-mail"
-                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
+            <input id="email" type="email" name="email" value="{{ old('email', $inviteEmail ?? '') }}" required autocomplete="username" placeholder="E-mail"
+                @if (! empty($invite)) readonly @endif
+                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30 {{ ! empty($invite) ? 'opacity-90' : '' }}">
         </div>
 
         {{-- Phone (required) --}}

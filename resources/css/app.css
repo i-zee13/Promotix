@@ -1467,7 +1467,10 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 }
 
 .figma-sa-page-wrap {
-    background: #0d0d0d;
+    background:
+        radial-gradient(ellipse 80% 45% at 8% -5%, color-mix(in srgb, var(--brand-primary, #6400B2) 22%, transparent), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in srgb, var(--brand-secondary, #4D008E) 18%, transparent), transparent 50%),
+        #0d0d0d;
 }
 
 .figma-sa-tabs {
@@ -1502,8 +1505,33 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 
 .figma-sa-row {
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: #101010;
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 28%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #6400B2) 10%, #101010);
+}
+
+.figma-sa-card {
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #6400B2) 14%, #151515);
+    padding: 18px;
+    box-shadow: 0 0 24px color-mix(in srgb, var(--brand-primary, #6400B2) 12%, transparent);
+}
+
+.figma-sa-card__title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.figma-sa-card__subtitle {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #cbb6e8;
+}
+
+.figma-sa-card__body {
+    margin-top: 14px;
 }
 
 .figma-sa-msg {
@@ -1557,7 +1585,23 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 }
 
 .light-mode .figma-sa-page-wrap {
-    background: #f0ecf5;
+    background:
+        radial-gradient(ellipse 80% 45% at 8% -5%, color-mix(in srgb, var(--brand-primary, #6400B2) 10%, transparent), transparent 55%),
+        #f0ecf5;
+}
+
+.light-mode .figma-sa-card {
+    background: #ffffff !important;
+    border-color: #d4c4e8 !important;
+    box-shadow: 0 8px 24px rgba(100, 0, 178, 0.08);
+}
+
+.light-mode .figma-sa-card__title {
+    color: #2d2d3a !important;
+}
+
+.light-mode .figma-sa-card__subtitle {
+    color: #6b6280 !important;
 }
 
 .light-mode .figma-sa-tabs {
@@ -8727,11 +8771,15 @@ a.figma-sa-users-filter-option {
     position: relative;
     width: 100%;
     max-width: 480px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: #1a1a1a;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 35%, #ffffff);
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--brand-primary, #6400B2) 10%, #ffffff) 0%, #ffffff 42%);
     padding: 28px 24px 24px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.35),
+        0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 12%, transparent);
+    color: #2d2d3a;
 }
 
 .figma-sa-users-modal-close {
@@ -8742,21 +8790,152 @@ a.figma-sa-users-filter-option {
     background: transparent;
     font-size: 28px;
     line-height: 1;
-    color: #a9a9a9;
+    color: #6b6280;
     cursor: pointer;
 }
 
 .figma-sa-users-modal-title {
     font-size: 22px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--brand-primary, #6400B2);
 }
 
 .figma-sa-users-modal-sub {
     margin-top: 8px;
     font-size: 13px;
-    color: #a9a9a9;
+    color: #6b6280;
     line-height: 1.5;
+}
+
+.figma-sa-users-modal .figma-sa-label {
+    color: #3d3848;
+}
+
+.figma-sa-users-modal .figma-input,
+.figma-sa-users-modal .figma-select {
+    background: #ffffff;
+    border-color: #d4c4e8;
+    color: #2d2d3a;
+}
+
+.figma-sa-users-modal .figma-sa-btn-outline {
+    border-color: #d4c4e8;
+    color: #3d3848;
+    background: #ffffff;
+}
+
+/* Billing Automation — white card, purple inner rows, white toggle */
+.figma-sa-billing-auto-card {
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 22%, #ffffff);
+    background: #ffffff !important;
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--brand-primary, #6400B2) 14%, transparent);
+}
+
+.figma-sa-billing-auto-card__head {
+    padding: 14px 18px;
+    background: #ffffff;
+    border-bottom: 1px solid #eadff7;
+    color: var(--brand-primary, #6400B2);
+}
+
+.figma-sa-billing-auto-card__head h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--brand-primary, #6400B2);
+}
+
+.figma-sa-billing-auto-card__body {
+    padding: 12px;
+    background: #ffffff;
+}
+
+.figma-sa-billing-auto-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 8px 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
+    background: linear-gradient(
+        135deg,
+        var(--brand-primary, #6400B2) 0%,
+        color-mix(in srgb, var(--brand-secondary, #4D008E) 88%, #6400B2) 100%
+    ) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.figma-sa-billing-auto-row__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffffff !important;
+}
+
+.figma-sa-billing-auto-row__key {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.72) !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.figma-sa-billing-auto-row__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+}
+
+.figma-sa-billing-auto-row__enabled {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #ffffff !important;
+}
+
+.figma-sa-billing-auto-input {
+    width: 7rem;
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-color: rgba(255, 255, 255, 0.55) !important;
+    color: #2d2d3a !important;
+}
+
+/* Keep toggle thumb white on purple rows */
+.figma-sa-billing-auto-row .figma-toggle-track {
+    background: rgba(255, 255, 255, 0.28);
+    border-color: rgba(255, 255, 255, 0.45);
+}
+
+.figma-sa-billing-auto-row .figma-toggle-input:checked + .figma-toggle-track {
+    background: rgba(255, 255, 255, 0.38);
+}
+
+.figma-sa-billing-auto-row .figma-toggle-thumb {
+    background: #ffffff !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.figma-sa-billing-auto-row .figma-toggle-label {
+    color: #ffffff !important;
+}
+
+/* Roles edit permission panels — purple mix */
+.figma-sa-page .figma-sa-row .text-\[\#d9d9d9\] {
+    color: #ece6f5;
+}
+
+.figma-sa-page .figma-sa-card .figma-input,
+.figma-sa-page .figma-sa-card .figma-select,
+.figma-sa-page .figma-sa-card .figma-textarea {
+    border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #6400B2) 8%, #101010);
 }
 
 @media (max-width: 900px) {
@@ -10359,9 +10538,16 @@ a.figma-sa-users-filter-option {
     position: absolute;
     top: 16px;
     right: 16px;
-    font-size: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1;
     opacity: 0.95;
+    color: #ffffff;
+}
+
+.figma-sa-traffic-stat-icon svg {
+    display: block;
 }
 
 .figma-sa-traffic-stat-label {

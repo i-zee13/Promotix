@@ -31,25 +31,33 @@
 
     <div class="grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-4">
         <article class="figma-sa-traffic-stat">
-            <div class="figma-sa-traffic-stat-icon" aria-hidden="true">🌐</div>
+            <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
+                <x-stat-icon name="globe" class="h-[22px] w-[22px] text-white/95" />
+            </div>
             <p class="figma-sa-traffic-stat-label">Total Requests</p>
             <p class="figma-sa-traffic-stat-value" x-text="formatNumber(stats.total_requests)">{{ number_format($stats['total_requests'] ?? 0) }}</p>
             <span class="figma-sa-traffic-stat-line" aria-hidden="true"></span>
         </article>
         <article class="figma-sa-traffic-stat">
-            <div class="figma-sa-traffic-stat-icon" aria-hidden="true">🛡</div>
+            <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
+                <x-stat-icon name="shield" class="h-[22px] w-[22px] text-white/95" />
+            </div>
             <p class="figma-sa-traffic-stat-label">Threat Groups</p>
             <p class="figma-sa-traffic-stat-value" x-text="formatNumber(stats.threat_groups)">{{ number_format($stats['threat_groups'] ?? 0) }}</p>
             <span class="figma-sa-traffic-stat-line" aria-hidden="true"></span>
         </article>
         <article class="figma-sa-traffic-stat">
-            <div class="figma-sa-traffic-stat-icon" aria-hidden="true">⛔</div>
+            <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
+                <x-stat-icon name="ban" class="h-[22px] w-[22px] text-white/95" />
+            </div>
             <p class="figma-sa-traffic-stat-label">Blocked Traffic</p>
             <p class="figma-sa-traffic-stat-value" x-text="formatNumber(stats.blocked_traffic)">{{ number_format($stats['blocked_traffic'] ?? 0) }}</p>
             <span class="figma-sa-traffic-stat-line" aria-hidden="true"></span>
         </article>
         <article class="figma-sa-traffic-stat">
-            <div class="figma-sa-traffic-stat-icon" aria-hidden="true">📋</div>
+            <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
+                <x-stat-icon name="clipboard-list" class="h-[22px] w-[22px] text-white/95" />
+            </div>
             <p class="figma-sa-traffic-stat-label">Allow Lists</p>
             <p class="figma-sa-traffic-stat-value" x-text="formatNumber(stats.allow_lists)">{{ number_format($stats['allow_lists'] ?? 0) }}</p>
             <span class="figma-sa-traffic-stat-line" aria-hidden="true"></span>

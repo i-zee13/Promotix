@@ -27,16 +27,16 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-ui.kpi-card label="Total Requests" :value="number_format($stats['total_requests'] ?? 0)">
-            <x-slot:icon>@include('partials.sidebar-icon', ['name' => 'globe', 'class' => 'h-4 w-4'])</x-slot:icon>
+            <x-slot:icon><x-stat-icon name="globe" class="h-4 w-4" /></x-slot:icon>
         </x-ui.kpi-card>
         <x-ui.kpi-card label="Threat Groups" :value="number_format($stats['threat_groups'] ?? 0)">
-            <x-slot:icon>@include('partials.sidebar-icon', ['name' => 'shield', 'class' => 'h-4 w-4'])</x-slot:icon>
+            <x-slot:icon><x-stat-icon name="shield" class="h-4 w-4" /></x-slot:icon>
         </x-ui.kpi-card>
         <x-ui.kpi-card label="Blocked Traffic" :value="number_format($stats['blocked_traffic'] ?? 0)">
-            <x-slot:icon>@include('partials.sidebar-icon', ['name' => 'shield-x', 'class' => 'h-4 w-4'])</x-slot:icon>
+            <x-slot:icon><x-stat-icon name="ban" class="h-4 w-4" /></x-slot:icon>
         </x-ui.kpi-card>
         <x-ui.kpi-card label="Allow Lists" :value="number_format($stats['allow_lists'] ?? 0)">
-            <x-slot:icon>@include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-4 w-4'])</x-slot:icon>
+            <x-slot:icon><x-stat-icon name="clipboard-list" class="h-4 w-4" /></x-slot:icon>
         </x-ui.kpi-card>
     </div>
 

@@ -7,31 +7,41 @@
     <div class="figma-sa-subs">
         <div class="grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-5">
             <article class="figma-sa-traffic-stat">
-                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">🎫</div>
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
+                    <x-stat-icon name="ticket" class="h-[22px] w-[22px] text-amber-200" />
+                </div>
                 <p class="figma-sa-traffic-stat-label">Total Tickets</p>
                 <p class="figma-sa-traffic-stat-value">{{ number_format($stats['total']) }}</p>
                 <span class="figma-sa-traffic-stat-line" aria-hidden="true"></span>
             </article>
             <article class="figma-sa-traffic-stat">
-                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">✅</div>
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
+                    <x-stat-icon name="check-badge" class="h-[22px] w-[22px] text-emerald-200" />
+                </div>
                 <p class="figma-sa-traffic-stat-label">Open</p>
                 <p class="figma-sa-traffic-stat-value">{{ number_format($stats['open']) }}</p>
                 <span class="figma-sa-traffic-stat-line is-green" aria-hidden="true"></span>
             </article>
             <article class="figma-sa-traffic-stat">
-                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">👥</div>
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
+                    <x-stat-icon name="users" class="h-[22px] w-[22px] text-violet-100" />
+                </div>
                 <p class="figma-sa-traffic-stat-label">Assigned</p>
                 <p class="figma-sa-traffic-stat-value">{{ number_format($stats['assigned']) }}</p>
                 <span class="figma-sa-traffic-stat-line is-blue" aria-hidden="true"></span>
             </article>
             <article class="figma-sa-traffic-stat">
-                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">⚠️</div>
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
+                    <x-stat-icon name="alert-triangle" class="h-[22px] w-[22px] text-amber-200" />
+                </div>
                 <p class="figma-sa-traffic-stat-label">SLA Breaches</p>
                 <p class="figma-sa-traffic-stat-value">{{ number_format($stats['sla_breached']) }}</p>
                 <span class="figma-sa-traffic-stat-line is-red" aria-hidden="true"></span>
             </article>
             <article class="figma-sa-traffic-stat">
-                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">⏳</div>
+                <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
+                    <x-stat-icon name="hourglass" class="h-[22px] w-[22px] text-yellow-200" />
+                </div>
                 <p class="figma-sa-traffic-stat-label">Overdue</p>
                 <p class="figma-sa-traffic-stat-value">{{ number_format($stats['overdue']) }}</p>
                 <span class="figma-sa-traffic-stat-line is-yellow" aria-hidden="true"></span>
