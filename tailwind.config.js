@@ -16,12 +16,12 @@ export default {
                 display: ['Inter', ...defaultTheme.fontFamily.sans],
             },
             colors: {
-                // Legacy tokens kept for backward compat with un-revamped pages.
-                dark: '#0D0D0D',
-                'dark-card': '#1A1A1A',
-                'dark-border': '#2D2D2D',
-                accent: '#6400B2',
-                'accent-hover': '#56009C',
+                // Legacy tokens — follow Super Admin branding CSS variables at runtime.
+                dark: 'var(--brand-background, #0D0D0D)',
+                'dark-card': 'var(--brand-surface, #1A1A1A)',
+                'dark-border': 'var(--brand-outline, #2D2D2D)',
+                accent: 'var(--brand-primary, #6400B2)',
+                'accent-hover': 'var(--brand-secondary, #56009C)',
 
                 // New "night" palette (dark UI surfaces).
                 night: {
@@ -38,18 +38,18 @@ export default {
                     950: '#0B0E1F',
                 },
 
-                // Brand purple ramp (Figma primary #6400B2).
+                // Brand ramp — driven by --brand-primary / --brand-secondary from Super Admin.
                 brand: {
-                    50:  '#F5F0FF',
-                    100: '#E8DCFF',
-                    200: '#D1B8FF',
-                    300: '#B894F0',
-                    400: '#8B4DDB',
-                    500: '#6400B2',
-                    600: '#56009C',
-                    700: '#45007E',
-                    800: '#3A0D63',
-                    900: '#240040',
+                    50:  'color-mix(in srgb, var(--brand-primary, #6400B2) 8%, white)',
+                    100: 'color-mix(in srgb, var(--brand-primary, #6400B2) 15%, white)',
+                    200: 'color-mix(in srgb, var(--brand-primary, #6400B2) 30%, white)',
+                    300: 'color-mix(in srgb, var(--brand-primary, #6400B2) 45%, white)',
+                    400: 'color-mix(in srgb, var(--brand-primary, #6400B2) 70%, white)',
+                    500: 'var(--brand-primary, #6400B2)',
+                    600: 'var(--brand-secondary, #56009C)',
+                    700: 'color-mix(in srgb, var(--brand-secondary, #45007E) 85%, black)',
+                    800: 'color-mix(in srgb, var(--brand-secondary, #3A0D63) 90%, black)',
+                    900: 'color-mix(in srgb, var(--brand-secondary, #240040) 95%, black)',
                 },
             },
             boxShadow: {

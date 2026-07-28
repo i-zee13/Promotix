@@ -3,7 +3,7 @@
 @section('title', 'Bot Protection | Dashboard')
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="botProtectionFigma(@js(['useDemo' => $useDemo]))" x-init="init()">
+<div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="botProtectionFigma(@js(['useDemo' => $useDemo]))" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[24px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         {{-- Header --}}
         <div class="mb-[18px] flex flex-col gap-[14px] lg:flex-row lg:items-center lg:justify-between">

@@ -3,7 +3,7 @@
 @section('title', 'Account settings')
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="{ showDelete: @json($errors->userDeletion->isNotEmpty()) }">
+<div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="{ showDelete: @json($errors->userDeletion->isNotEmpty()) }">
     <section class="w-full px-[12px] pb-[32px] pt-[28px] sm:px-[18px] xl:px-[24px] xl:pt-[56px]">
         <h1 class="mb-[6px] text-[28px] font-semibold text-[#a9a9a9] sm:text-[36px]">Account settings</h1>
         <p class="mb-[24px] text-[13px] text-[#8c8787]">Manage your profile, password, and account.</p>

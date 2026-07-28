@@ -13,7 +13,7 @@
     ];
 @endphp
 
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]">
+<div class="brand-page-bg min-h-[calc(100vh-49px)]">
     <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[19px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-[12px]">

@@ -41,7 +41,7 @@
 
 @section('content')
 <div
-    class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]"
+    class="brand-page-bg min-h-[calc(100vh-49px)]"
     x-data="platformIntegrations(@js([
         'csrf' => csrf_token(),
         'directStoreUrl' => url('/integrations/direct-ads'),

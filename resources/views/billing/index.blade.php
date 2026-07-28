@@ -32,7 +32,7 @@
     ])->keyBy('id');
 @endphp
 <div
-    class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]"
+    class="brand-page-bg min-h-[calc(100vh-49px)]"
     x-data="{
         showCardModal: false,
         showBankCheckout: false,

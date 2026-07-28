@@ -259,15 +259,18 @@
 
             const stripe = Stripe(pk);
             const elements = stripe.elements({ locale: 'en' });
+            const rootStyles = getComputedStyle(document.documentElement);
+            const brandText = rootStyles.getPropertyValue('--brand-text').trim() || '#ffffff';
+            const brandMuted = rootStyles.getPropertyValue('--brand-text-muted').trim() || '#6b6b6b';
             const card = elements.create('card', {
                 style: {
                     base: {
-                        color: '#ffffff',
-                        fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                        color: brandText,
+                        fontFamily: rootStyles.getPropertyValue('--brand-font-family').trim() || 'ui-sans-serif, system-ui, sans-serif',
                         fontSize: '15px',
                         fontSmoothing: 'antialiased',
-                        '::placeholder': { color: '#6b6b6b' },
-                        iconColor: '#a3a3a3',
+                        '::placeholder': { color: brandMuted },
+                        iconColor: brandMuted,
                     },
                     invalid: {
                         color: '#fecaca',

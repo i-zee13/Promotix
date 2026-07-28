@@ -3,7 +3,7 @@
 @section('title', 'Bot Protection | Advanced View')
 
 @section('content')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="botProtectionAdvancedFigma()" x-init="init()">
+<div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma()" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         <div class="mb-[23px] flex flex-col gap-[10px] lg:flex-row lg:items-center lg:justify-between">
             <div class="flex flex-wrap items-center gap-[8px]">

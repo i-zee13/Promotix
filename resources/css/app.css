@@ -8,7 +8,77 @@
     --brand-primary: #6400B2;
     --brand-secondary: #4D008E;
     --brand-background: #0d0d0d;
+    --brand-surface: #212121;
+    --brand-text: #FFFFFF;
+    --brand-text-muted: #A9A9A9;
+    --brand-outline: #3D3D3D;
+    --brand-cta: #FFFFFF;
+    --brand-cta-text: #111111;
     --brand-primary-rgb: 100, 0, 178;
+    --brand-input-bg: color-mix(in srgb, var(--brand-surface) 62%, var(--brand-background));
+    --brand-glow: color-mix(in srgb, var(--brand-primary) 45%, transparent);
+    --brand-shadow: color-mix(in srgb, var(--brand-primary) 28%, transparent);
+}
+
+.brand-page-bg {
+    background-color: var(--brand-background, #0d0d0d);
+}
+
+.brand-surface-bg {
+    background-color: var(--brand-surface, #1E1033);
+}
+
+.brand-outline-border {
+    border-color: var(--brand-outline, #4A2D6E);
+}
+
+.brand-text {
+    color: var(--brand-text, #ffffff);
+}
+
+.brand-text-muted {
+    color: var(--brand-text-muted, #b8a4d4);
+}
+
+.brand-panel {
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--brand-outline) 55%, transparent);
+    background: var(--brand-surface);
+    color: var(--brand-text);
+}
+
+.brand-panel--gradient {
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+    background: linear-gradient(
+        180deg,
+        var(--brand-primary) 0%,
+        color-mix(in srgb, var(--brand-secondary) 88%, black) 100%
+    );
+}
+
+.brand-btn-primary-solid {
+    border-radius: 6px;
+    background: var(--brand-primary);
+    color: var(--brand-text);
+    font-weight: 600;
+    transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.brand-btn-primary-solid:hover {
+    background: color-mix(in srgb, var(--brand-primary) 82%, white);
+}
+
+.brand-btn-cta-solid {
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--brand-outline) 40%, transparent);
+    background: var(--brand-cta);
+    color: var(--brand-cta-text);
+    font-weight: 700;
+    transition: background 0.15s ease;
+}
+
+.brand-btn-cta-solid:hover {
+    background: color-mix(in srgb, var(--brand-cta) 88%, var(--brand-primary));
 }
 
 /*
@@ -70,6 +140,34 @@
 .figma-shell .ring-\[\#6400B2\]\/30,
 .figma-shell .focus\:ring-\[\#6400B2\]\/30:focus {
     --tw-ring-color: color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent) !important;
+}
+
+.figma-shell [class*='bg-[#0d0d0d]'],
+.figma-shell [class*='bg-[#0D0D0D]'],
+.figma-shell [class*='bg-[#0B0B0B]'],
+.figma-shell [class*='bg-[#0b0b0b]'] {
+    background-color: var(--brand-background, #0d0d0d) !important;
+}
+
+.figma-shell [class*='bg-[#101010]'],
+.figma-shell [class*='bg-[#151515]'],
+.figma-shell [class*='bg-[#1a1024]'],
+.figma-shell [class*='bg-[#12081c]'],
+.figma-shell [class*='bg-[#1a1a1a]'],
+.figma-shell [class*='bg-[#0f0e0e]'] {
+    background-color: var(--brand-input-bg, var(--brand-surface, #101010)) !important;
+}
+
+.figma-shell [class*='text-[#8c8787]'],
+.figma-shell [class*='text-[#a9a9a9]'] {
+    color: var(--brand-text-muted, #a9a9a9) !important;
+}
+
+.figma-shell .border-white\/15,
+.figma-shell .border-white\/20,
+.figma-shell .border-white\/25,
+.figma-shell .border-white\/30 {
+    border-color: color-mix(in srgb, var(--brand-outline, #4A2D6E) 55%, transparent) !important;
 }
 
 [x-cloak] {
@@ -781,15 +879,24 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 .billing-page {
     position: relative;
     background:
-        radial-gradient(ellipse 80% 50% at 10% -10%, rgba(100, 0, 178, 0.35), transparent 55%),
-        radial-gradient(ellipse 60% 40% at 90% 10%, rgba(154, 26, 255, 0.18), transparent 50%),
-        linear-gradient(180deg, #14081f 0%, #0d0d0d 45%, #0a0610 100%);
+        radial-gradient(ellipse 80% 50% at 10% -10%, var(--brand-glow), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 90% 10%, color-mix(in srgb, var(--brand-primary) 18%, transparent), transparent 50%),
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--brand-secondary) 35%, var(--brand-background)) 0%,
+            var(--brand-background) 45%,
+            color-mix(in srgb, var(--brand-background) 90%, black) 100%
+        );
 }
 
 .billing-glass {
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: linear-gradient(145deg, rgba(100, 0, 178, 0.28), rgba(20, 12, 28, 0.72));
+    border: 1px solid color-mix(in srgb, var(--brand-outline) 45%, transparent);
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--brand-primary) 28%, transparent),
+        color-mix(in srgb, var(--brand-surface) 72%, transparent)
+    );
     box-shadow:
         0 10px 40px rgba(0, 0, 0, 0.35),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -798,25 +905,37 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 }
 
 .billing-glass--accent {
-    background: linear-gradient(135deg, rgba(100, 0, 178, 0.92), rgba(74, 0, 136, 0.88));
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow: 0 0 28px rgba(100, 0, 178, 0.4);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--brand-primary) 92%, transparent),
+        color-mix(in srgb, var(--brand-secondary) 88%, transparent)
+    );
+    border-color: color-mix(in srgb, var(--brand-outline) 35%, white);
+    box-shadow: 0 0 28px var(--brand-shadow);
 }
 
 .billing-glass--inset {
     background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.28));
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: color-mix(in srgb, var(--brand-outline) 25%, transparent);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .billing-glass--checkout {
-    background: linear-gradient(145deg, rgba(100, 0, 178, 0.34), rgba(18, 10, 28, 0.78));
-    border-color: rgba(201, 168, 239, 0.28);
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--brand-primary) 34%, transparent),
+        color-mix(in srgb, var(--brand-surface) 78%, transparent)
+    );
+    border-color: color-mix(in srgb, var(--brand-primary) 28%, transparent);
 }
 
 .billing-glass--success {
-    border-color: rgba(255, 255, 255, 0.28);
-    background: linear-gradient(135deg, rgba(100, 0, 178, 0.7), rgba(40, 20, 60, 0.65));
+    border-color: color-mix(in srgb, var(--brand-outline) 35%, white);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--brand-primary) 70%, transparent),
+        color-mix(in srgb, var(--brand-surface) 65%, transparent)
+    );
 }
 
 .billing-glass--warn {
@@ -826,29 +945,33 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 
 .billing-plan-card {
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    background: linear-gradient(160deg, rgba(100, 0, 178, 0.88), rgba(55, 0, 110, 0.92));
-    box-shadow: 0 0 22px rgba(100, 0, 178, 0.28);
+    border: 1px solid color-mix(in srgb, var(--brand-outline) 35%, white);
+    background: linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--brand-primary) 88%, transparent),
+        color-mix(in srgb, var(--brand-secondary) 92%, transparent)
+    );
+    box-shadow: 0 0 22px var(--brand-shadow);
 }
 
 .billing-plan-card.is-highlighted {
-    border-color: #9a1aff;
-    box-shadow: 0 0 28px rgba(154, 26, 255, 0.45);
+    border-color: color-mix(in srgb, var(--brand-primary) 70%, white);
+    box-shadow: 0 0 28px var(--brand-glow);
 }
 
 .billing-input {
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(8, 4, 14, 0.55);
+    border: 1px solid color-mix(in srgb, var(--brand-outline) 45%, transparent);
+    background: color-mix(in srgb, var(--brand-input-bg) 85%, transparent);
     padding: 8px 12px;
     font-size: 13px;
-    color: #ffffff;
+    color: var(--brand-text, #ffffff);
 }
 
 .billing-input:focus {
     outline: none;
-    border-color: rgba(154, 26, 255, 0.7);
-    box-shadow: 0 0 0 2px rgba(100, 0, 178, 0.35);
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 35%, transparent);
 }
 
 .billing-card-chip {
@@ -3795,7 +3918,9 @@ select.figma-sa-subs-status-pill {
 /* Sidebar semantic tokens */
 .figma-body {
     background: var(--brand-background, #0d0d0d);
-    color: #ffffff;
+    color: var(--brand-text, #ffffff);
+    font-family: var(--brand-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+    font-size: var(--brand-font-size, 16px);
 }
 
 .figma-nav-link:not(.is-active):hover {
@@ -4049,13 +4174,13 @@ html.light-mode .figma-body {
 
 .figma-detection-right,
 .figma-detection-card {
-    --promotix-autofill-bg: #101010;
-    --promotix-autofill-text: #ffffff;
+    --promotix-autofill-bg: var(--brand-input-bg, #101010);
+    --promotix-autofill-text: var(--brand-text, #ffffff);
 }
 
 .figma-filter-control {
-    --promotix-autofill-bg: #101010;
-    --promotix-autofill-text: #8c8787;
+    --promotix-autofill-bg: var(--brand-input-bg, #101010);
+    --promotix-autofill-text: var(--brand-text-muted, #8c8787);
 }
 
 input:-webkit-autofill,
@@ -4114,26 +4239,26 @@ select:autofill {
 .figma-textarea {
     width: 100%;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background-color: #101010;
+    border: 1px solid color-mix(in srgb, var(--brand-outline) 55%, transparent);
+    background-color: var(--brand-input-bg, #101010);
     padding: 9px 12px;
     font-size: 13px;
     line-height: 1.35;
-    color: #ffffff;
+    color: var(--brand-text, #ffffff);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .figma-input::placeholder,
 .figma-textarea::placeholder {
-    color: #8c8787;
+    color: var(--brand-text-muted, #8c8787);
 }
 
 .figma-input:focus,
 .figma-select:focus,
 .figma-textarea:focus {
-    border-color: #9a1aff;
+    border-color: var(--brand-primary, #6400B2);
     outline: none;
-    box-shadow: 0 0 0 1px rgba(154, 26, 255, 0.4);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 40%, transparent);
 }
 
 .light-mode .figma-input,
@@ -7322,7 +7447,12 @@ select:autofill {
         @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold;
     }
     .brand-pill-neutral { @apply bg-night-700 text-night-100; }
-    .brand-pill-purple  { @apply bg-brand-500/15 text-brand-200 ring-1 ring-inset ring-brand-500/30; }
+    .brand-pill-purple {
+        @apply brand-pill ring-1 ring-inset;
+        background: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+        color: color-mix(in srgb, var(--brand-text) 75%, var(--brand-primary));
+        --tw-ring-color: color-mix(in srgb, var(--brand-primary) 30%, transparent);
+    }
     .brand-pill-success { @apply bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/30; }
     .brand-pill-warning { @apply bg-amber-500/15  text-amber-300  ring-1 ring-inset ring-amber-500/30; }
     .brand-pill-danger  { @apply bg-rose-500/15   text-rose-300   ring-1 ring-inset ring-rose-500/30; }
@@ -7333,17 +7463,47 @@ select:autofill {
                transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-night-950
                disabled:cursor-not-allowed disabled:opacity-50;
     }
-    .brand-btn-primary { @apply brand-btn bg-brand-500 text-white hover:bg-brand-600 focus:ring-brand-400; }
-    .brand-btn-soft    { @apply brand-btn bg-brand-500/15 text-brand-200 hover:bg-brand-500/25 focus:ring-brand-400; }
-    .brand-btn-ghost   { @apply brand-btn bg-transparent text-night-100 hover:bg-night-800 focus:ring-night-300; }
-    .brand-btn-outline { @apply brand-btn border border-night-700 bg-transparent text-night-100 hover:border-brand-400 hover:text-white focus:ring-brand-400; }
+    .brand-btn-primary {
+        @apply brand-btn text-white focus:ring-offset-night-950;
+        background: var(--brand-primary, #6400B2);
+        color: var(--brand-text, #ffffff);
+    }
+    .brand-btn-primary:hover { background: color-mix(in srgb, var(--brand-primary) 82%, white); }
+    .brand-btn-soft {
+        @apply brand-btn focus:ring-brand-400;
+        background: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+        color: color-mix(in srgb, var(--brand-text) 85%, var(--brand-primary));
+    }
+    .brand-btn-outline {
+        @apply brand-btn bg-transparent focus:ring-brand-400;
+        border: 1px solid var(--brand-outline, #4A2D6E);
+        color: var(--brand-text, #ffffff);
+    }
+    .brand-btn-outline:hover {
+        border-color: var(--brand-primary);
+        color: var(--brand-text, #ffffff);
+    }
+    .brand-btn-ghost {
+        @apply brand-btn bg-transparent focus:ring-night-300;
+        color: var(--brand-text-muted, #a9a9a9);
+    }
+    .brand-btn-ghost:hover {
+        background: color-mix(in srgb, var(--brand-surface) 50%, transparent);
+        color: var(--brand-text, #ffffff);
+    }
     .brand-btn-danger  { @apply brand-btn bg-rose-500 text-white hover:bg-rose-600 focus:ring-rose-400; }
 
     /* Form inputs */
     .brand-input {
-        @apply w-full rounded-xl border border-night-700 bg-night-900 px-3 py-2.5 text-sm text-white
-               placeholder-night-400 transition
-               focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
+        @apply w-full rounded-xl px-3 py-2.5 text-sm transition focus:outline-none focus:ring-2;
+        border: 1px solid color-mix(in srgb, var(--brand-outline) 55%, transparent);
+        background: var(--brand-input-bg, #101010);
+        color: var(--brand-text, #ffffff);
+    }
+    .brand-input::placeholder { color: var(--brand-text-muted, #8c8787); }
+    .brand-input:focus {
+        border-color: var(--brand-primary);
+        --tw-ring-color: color-mix(in srgb, var(--brand-primary) 30%, transparent);
     }
     .brand-select { @apply brand-input pr-10; }
     .brand-label  { @apply block text-sm font-medium text-night-200; }
@@ -7357,7 +7517,9 @@ select:autofill {
                hover:text-white;
     }
     .brand-tab-active {
-        @apply bg-brand-500 text-white shadow;
+        background: var(--brand-primary);
+        color: var(--brand-text);
+        @apply shadow rounded-lg px-3 py-1.5 text-sm font-medium;
     }
 
     /* Tables */
@@ -7388,16 +7550,14 @@ select:autofill {
 
     /* Checkbox & radio */
     .brand-checkbox {
-        @apply h-4 w-4 shrink-0 cursor-pointer rounded border-night-600 bg-night-900
-               text-brand-500 transition
-               focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-0;
-        accent-color: theme('colors.brand.500');
+        @apply h-4 w-4 shrink-0 cursor-pointer rounded border-night-600 bg-night-900 text-brand-500 transition focus:ring-2 focus:ring-offset-0;
+        --tw-ring-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+        accent-color: var(--brand-primary);
     }
     .brand-radio {
-        @apply h-4 w-4 shrink-0 cursor-pointer border-night-600 bg-night-900
-               text-brand-500 transition
-               focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-0;
-        accent-color: theme('colors.brand.500');
+        @apply h-4 w-4 shrink-0 cursor-pointer border-night-600 bg-night-900 text-brand-500 transition focus:ring-2 focus:ring-offset-0;
+        --tw-ring-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+        accent-color: var(--brand-primary);
     }
 }
 
@@ -9989,10 +10149,32 @@ a.figma-sa-users-filter-option {
     cursor: default;
 }
 
+.figma-sa-brand-preview-btn--cta {
+    margin-left: 8px;
+    background: var(--preview-cta, #ffffff);
+    color: var(--preview-cta-text, #111111);
+    border: 1px solid var(--preview-outline, #4a2d6e);
+}
+
+.figma-sa-brand-preview-card {
+    margin-top: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--preview-outline, #4a2d6e);
+    background: var(--preview-surface, #1e1033);
+    padding: 14px 16px;
+    box-shadow: 0 0 24px color-mix(in srgb, var(--preview-primary, #6400b2) 18%, transparent);
+}
+
+.figma-sa-brand-preview-card-title {
+    font-size: 0.9375em;
+    font-weight: 600;
+    color: #ffffff;
+}
+
 .figma-sa-brand-preview-muted {
     margin-top: 14px;
     font-size: 0.8125em;
-    color: #8c8787;
+    color: var(--preview-muted, #b8a4d4);
 }
 
 /* Traffic & Bot Logs (Figma) */
@@ -10721,9 +10903,10 @@ a.figma-sa-users-filter-option {
 /* Onboarding checkout — two-column payment (reference-style) */
 .onboarding-checkout {
     min-height: 100vh;
-    background: #0d0d0d;
-    color: #ececec;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--brand-background, #0d0d0d);
+    color: var(--brand-text, #ececec);
+    font-family: var(--brand-font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+    font-size: var(--brand-font-size, 16px);
 }
 
 .onboarding-checkout__inner {
@@ -10738,12 +10921,12 @@ a.figma-sa-users-filter-option {
     gap: 8px;
     font-size: 15px;
     font-weight: 600;
-    color: #ececec;
+    color: var(--brand-text-muted, #ececec);
     text-decoration: none;
 }
 
 .onboarding-checkout__back:hover {
-    color: #ffffff;
+    color: var(--brand-text, #ffffff);
 }
 
 .onboarding-checkout__alert {
@@ -10782,7 +10965,7 @@ a.figma-sa-users-filter-option {
     font-size: 22px;
     font-weight: 700;
     line-height: 1.2;
-    color: #ffffff;
+    color: var(--brand-text, #ffffff);
 }
 
 .onboarding-checkout__label {
@@ -10790,7 +10973,7 @@ a.figma-sa-users-filter-option {
     margin-bottom: 8px;
     font-size: 13px;
     font-weight: 500;
-    color: #a8a8a8;
+    color: var(--brand-text-muted, #a8a8a8);
 }
 
 .onboarding-checkout__field {
@@ -10813,8 +10996,8 @@ a.figma-sa-users-filter-option {
     width: 100%;
     min-height: 48px;
     border-radius: 12px;
-    border: 1px solid #3d3d3d;
-    background: #212121;
+    border: 1px solid var(--brand-outline, #3d3d3d);
+    background: var(--brand-surface, #212121);
     padding: 14px 14px;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -10825,8 +11008,8 @@ a.figma-sa-users-filter-option {
 }
 
 .onboarding-checkout__stripe-field:focus-within {
-    border-color: #6b6b6b;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+    border-color: var(--brand-primary, #6400B2);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
 }
 
 .onboarding-checkout__stripe-field .StripeElement {
@@ -10845,22 +11028,22 @@ a.figma-sa-users-filter-option {
     width: 100%;
     height: 48px;
     border-radius: 12px;
-    border: 1px solid #3d3d3d;
-    background: #212121;
+    border: 1px solid var(--brand-outline, #3d3d3d);
+    background: var(--brand-surface, #212121);
     padding: 0 14px;
     font-size: 15px;
-    color: #ffffff;
+    color: var(--brand-text, #ffffff);
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .onboarding-checkout__input::placeholder {
-    color: #6b6b6b;
+    color: color-mix(in srgb, var(--brand-text-muted, #6b6b6b) 75%, transparent);
 }
 
 .onboarding-checkout__input:focus {
-    border-color: #6b6b6b;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+    border-color: var(--brand-primary, #6400B2);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
 }
 
 .onboarding-checkout__row {
@@ -10876,26 +11059,26 @@ a.figma-sa-users-filter-option {
     margin-top: 8px;
     font-size: 13px;
     line-height: 1.45;
-    color: #b8b8b8;
+    color: var(--brand-text-muted, #b8b8b8);
     cursor: pointer;
 }
 
 .onboarding-checkout__checkbox {
     margin-top: 3px;
-    accent-color: #6400b2;
+    accent-color: var(--brand-primary, #6400b2);
 }
 
 .onboarding-checkout__verify-note {
     margin-top: 14px;
     font-size: 12px;
     line-height: 1.5;
-    color: #8c8c8c;
+    color: color-mix(in srgb, var(--brand-text-muted, #8c8c8c) 85%, transparent);
 }
 
 .onboarding-checkout__summary-card {
     border-radius: 20px;
-    border: 1px solid #3a3a3a;
-    background: #212121;
+    border: 1px solid var(--brand-outline, #3a3a3a);
+    background: var(--brand-surface, #212121);
     padding: 24px 22px 22px;
 }
 
@@ -10904,14 +11087,14 @@ a.figma-sa-users-filter-option {
     font-size: 28px;
     font-weight: 700;
     line-height: 1.15;
-    color: #ffffff;
+    color: var(--brand-text, #ffffff);
 }
 
 .onboarding-checkout__features-title {
     margin: 20px 0 10px;
     font-size: 14px;
     font-weight: 600;
-    color: #9a9a9a;
+    color: var(--brand-text-muted, #9a9a9a);
 }
 
 .onboarding-checkout__features {
@@ -10927,19 +11110,19 @@ a.figma-sa-users-filter-option {
     margin-bottom: 10px;
     font-size: 14px;
     line-height: 1.45;
-    color: #d8d8d8;
+    color: color-mix(in srgb, var(--brand-text, #d8d8d8) 88%, transparent);
 }
 
 .onboarding-checkout__feature-icon {
     flex-shrink: 0;
     margin-top: 2px;
-    color: #7eb8ff;
+    color: var(--brand-primary, #6400B2);
 }
 
 .onboarding-checkout__divider {
     height: 1px;
     margin: 18px 0;
-    background: #3a3a3a;
+    background: var(--brand-outline, #3a3a3a);
 }
 
 .onboarding-checkout__line {
@@ -10949,7 +11132,7 @@ a.figma-sa-users-filter-option {
     gap: 12px;
     margin-bottom: 8px;
     font-size: 14px;
-    color: #c8c8c8;
+    color: color-mix(in srgb, var(--brand-text-muted, #c8c8c8) 90%, transparent);
 }
 
 .onboarding-checkout__line--total {
@@ -10957,25 +11140,25 @@ a.figma-sa-users-filter-option {
     margin-bottom: 20px;
     font-size: 16px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--brand-text, #ffffff);
 }
 
 .onboarding-checkout__submit {
     display: block;
     width: 100%;
     height: 48px;
-    border: 0;
+    border: 1px solid color-mix(in srgb, var(--brand-outline, #3a3a3a) 40%, transparent);
     border-radius: 999px;
-    background: #ffffff;
+    background: var(--brand-cta, #ffffff);
     font-size: 16px;
     font-weight: 700;
-    color: #111111;
+    color: var(--brand-cta-text, #111111);
     cursor: pointer;
-    transition: background 0.15s ease, opacity 0.15s ease;
+    transition: background 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 
 .onboarding-checkout__submit:hover:not(:disabled) {
-    background: #f0f0f0;
+    background: color-mix(in srgb, var(--brand-cta, #ffffff) 88%, var(--brand-primary, #6400B2));
 }
 
 .onboarding-checkout__submit:disabled {
@@ -10987,7 +11170,7 @@ a.figma-sa-users-filter-option {
     margin: 14px 6px 0;
     font-size: 11px;
     line-height: 1.5;
-    color: #6f6f6f;
+    color: color-mix(in srgb, var(--brand-text-muted, #6f6f6f) 80%, transparent);
 }
 
 .onboarding-checkout__signout {
@@ -10999,13 +11182,13 @@ a.figma-sa-users-filter-option {
     border: 0;
     background: transparent;
     font-size: 13px;
-    color: #8c8c8c;
+    color: var(--brand-text-muted, #8c8c8c);
     text-decoration: underline;
     cursor: pointer;
 }
 
 .onboarding-checkout__signout button:hover {
-    color: #ffffff;
+    color: var(--brand-text, #ffffff);
 }
 
 @media (max-width: 900px) {

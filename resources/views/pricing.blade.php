@@ -1,7 +1,7 @@
 @extends('layouts.auth')
 
 @section('content')
-<div class="min-h-screen bg-[#0D0D0D] px-4 py-12 sm:px-6 lg:px-8">
+<div class="brand-page-bg min-h-screen px-4 py-12 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-6xl"
         x-data="{
             interval: 'monthly',

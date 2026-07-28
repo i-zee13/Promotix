@@ -145,16 +145,19 @@
                     @endif
                 </div>
 
-                <div x-show="brandingTab === 'colors'" class="grid gap-4 md:grid-cols-3">
-                    @foreach ([$brandingPrimary, $brandingSecondary, $brandingBackground] as $setting)
-                        @if ($setting)
+                <div x-show="brandingTab === 'colors'" class="space-y-3">
+                    <p class="text-[12px] leading-relaxed text-white/65">
+                        These colors apply to the customer portal (dashboard, billing, onboarding payment, profile, etc.).
+                    </p>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        @foreach ($brandingSettings->filter(fn ($s) => str_starts_with((string) $s->key, 'branding.color_'))->sortBy('key') as $setting)
                             <div>
                                 <label class="figma-sa-settings-row-label">{{ $setting->label }}</label>
                                 <input type="color" name="settings[{{ $setting->key }}]" value="{{ $setting->value }}" class="mt-2 h-10 w-full cursor-pointer rounded border-0 bg-transparent">
                                 <input type="text" value="{{ $setting->value }}" class="figma-sa-settings-input mt-2" readonly>
                             </div>
-                        @endif
-                    @endforeach
+                        @endforeach
+                    </div>
                 </div>
 
                 <div x-show="brandingTab === 'typography'" class="grid gap-4 md:grid-cols-2">
@@ -189,8 +192,15 @@
                 </div>
 
                 <div x-show="brandingTab === 'preview'">
+                    @php
+                        $previewSurface = $brandingSettings->get('branding.color_surface')?->value ?? '#1E1033';
+                        $previewOutline = $brandingSettings->get('branding.color_outline')?->value ?? '#4A2D6E';
+                        $previewCta = $brandingSettings->get('branding.color_cta')?->value ?? '#FFFFFF';
+                        $previewCtaText = $brandingSettings->get('branding.color_cta_text')?->value ?? '#111111';
+                        $previewTextMuted = $brandingSettings->get('branding.color_text_muted')?->value ?? '#B8A4D4';
+                    @endphp
                     <div class="figma-sa-brand-preview"
-                        style="--preview-bg: {{ $brandingBackground->value ?? '#0D0D0D' }}; --preview-primary: {{ $brandingPrimary->value ?? '#6400B2' }}; --preview-font: {{ $brandingFontFamily->value ?? 'Inter' }}; --preview-size: {{ ($brandingFontSize->value ?? 16).'px' }};">
+                        style="--preview-bg: {{ $brandingBackground->value ?? '#0D0D0D' }}; --preview-primary: {{ $brandingPrimary->value ?? '#6400B2' }}; --preview-surface: {{ $previewSurface }}; --preview-outline: {{ $previewOutline }}; --preview-cta: {{ $previewCta }}; --preview-cta-text: {{ $previewCtaText }}; --preview-muted: {{ $previewTextMuted }}; --preview-font: {{ $brandingFontFamily->value ?? 'Inter' }}; --preview-size: {{ ($brandingFontSize->value ?? 16).'px' }};">
                         <div class="figma-sa-brand-preview-header">
                             @if ($brandingLogo?->value)
                                 <img src="{{ $brandingLogo->value }}" alt="Logo" class="h-8 max-w-[140px] object-contain" onerror="this.style.display='none'">
@@ -199,7 +209,12 @@
                         </div>
                         <div class="figma-sa-brand-preview-body">
                             <p class="figma-sa-brand-preview-title">Customer portal preview</p>
+                            <div class="figma-sa-brand-preview-card">
+                                <p class="figma-sa-brand-preview-card-title">Plan summary card</p>
+                                <p class="figma-sa-brand-preview-muted">Surface, outline, and CTA colors</p>
+                            </div>
                             <button type="button" class="figma-sa-brand-preview-btn">Primary action</button>
+                            <button type="button" class="figma-sa-brand-preview-btn figma-sa-brand-preview-btn--cta">Subscribe (CTA)</button>
                             <p class="figma-sa-brand-preview-muted">Support: {{ $brandingSupport->value ?? 'support@promotix.local' }}</p>
                         </div>
                     </div>

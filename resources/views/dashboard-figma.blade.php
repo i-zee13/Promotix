@@ -4,7 +4,7 @@
 
 @section('content')
 @include('partials.promotix-page-loader')
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]">
+<div class="brand-page-bg min-h-[calc(100vh-49px)]">
     <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[18px] sm:px-[18px] xl:max-w-none xl:px-[22px] xl:pt-[20px]">
         <div class="mb-[10px] flex flex-col gap-[9px] sm:flex-row sm:items-center sm:justify-between">
             <h1 class="text-[31px] font-normal leading-none text-white">Overview</h1>
