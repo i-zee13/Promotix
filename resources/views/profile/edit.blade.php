@@ -4,15 +4,20 @@
 
 @section('content')
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="{ showDelete: @json($errors->userDeletion->isNotEmpty()) }">
-    <section class="mx-auto w-full max-w-[720px] px-[12px] pb-[32px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
+    <section class="w-full px-[12px] pb-[32px] pt-[28px] sm:px-[18px] xl:px-[24px] xl:pt-[56px]">
         <h1 class="mb-[6px] text-[28px] font-semibold text-[#a9a9a9] sm:text-[36px]">Account settings</h1>
         <p class="mb-[24px] text-[13px] text-[#8c8787]">Manage your profile, password, and account.</p>
 
-        <div class="space-y-[16px]">
-            @include('profile.partials.update-profile-information-form')
-            @include('profile.partials.update-password-form')
-            @include('profile.partials.login-history')
-            @include('profile.partials.delete-user-form')
+        <div class="grid items-start gap-[16px] xl:grid-cols-12">
+            <div class="space-y-[16px] xl:col-span-7">
+                @include('profile.partials.update-profile-information-form')
+                @include('profile.partials.update-password-form')
+            </div>
+
+            <div class="space-y-[16px] xl:col-span-5">
+                @include('profile.partials.login-history')
+                @include('profile.partials.delete-user-form')
+            </div>
         </div>
     </section>
 

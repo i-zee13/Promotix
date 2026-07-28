@@ -12,7 +12,6 @@ use App\Support\CardBrand;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -85,31 +84,6 @@ class OnboardingController extends Controller
         $days = (int) app_setting('trial.days', 7);
         $interval = $data['billing_interval'] ?? $plan->billing_interval ?? 'monthly';
 
-        // Stripe configured → try hosted Checkout. If keys are invalid, fall back so the user is not stuck.
-        if (StripeService::isConfigured()) {
-            $checkout = StripeService::createCheckoutSetupSession(
-                $user,
-                route('onboarding.stripe.success').'?session_id={CHECKOUT_SESSION_ID}',
-                route('onboarding.plan'),
-                [
-                    'purpose' => 'onboarding_trial',
-                    'plan_slug' => $plan->slug,
-                    'billing_interval' => $interval,
-                    'trial_days' => (string) $days,
-                ]
-            );
-
-            if ($checkout) {
-                return redirect()->away($checkout['url']);
-            }
-
-            // Invalid/expired Stripe keys → continue with local trial + payment page instead of looping.
-            Log::warning('Stripe Checkout unavailable; starting local trial', [
-                'user_id' => $user->id,
-                'plan' => $plan->slug,
-            ]);
-        }
-
         $amountCents = match ($interval) {
             'yearly' => $plan->price_yearly_cents
                 ? (int) round($plan->price_yearly_cents / 12)
@@ -129,16 +103,11 @@ class OnboardingController extends Controller
             'trial_ends_at' => now()->addDays($days),
             'current_period_ends_at' => now()->addDays($days),
             'metadata' => [
-                'source' => StripeService::isConfigured()
-                    ? 'onboarding_plan_selection_stripe_fallback'
-                    : 'onboarding_plan_selection',
+                'source' => 'onboarding_plan_selection',
             ],
         ]);
 
         $status = "Your {$days}-day free trial of {$plan->name} has started. Add a payment card to continue.";
-        if (StripeService::isConfigured()) {
-            $status .= ' (Stripe Checkout is unavailable — check STRIPE_SECRET key.)';
-        }
 
         return redirect()
             ->route('onboarding.payment')
@@ -168,32 +137,13 @@ class OnboardingController extends Controller
         $subscription = $user->activeSubscription();
         $plan = $subscription?->plan;
 
-        // Prefer Stripe hosted Checkout over embedded Elements.
-        if (StripeService::isConfigured()) {
-            $checkout = StripeService::createCheckoutSetupSession(
-                $user,
-                route('onboarding.stripe.success').'?session_id={CHECKOUT_SESSION_ID}',
-                route('onboarding.payment'),
-                [
-                    'purpose' => 'onboarding_card',
-                    'plan_slug' => (string) ($plan?->slug ?? ''),
-                    'billing_interval' => (string) ($subscription?->billing_interval ?? 'monthly'),
-                    'trial_days' => (string) app_setting('trial.days', 7),
-                ]
-            );
-
-            if ($checkout) {
-                return redirect()->away($checkout['url']);
-            }
-        }
-
         return view('onboarding.payment', [
             'user' => $user,
             'subscription' => $subscription,
             'plan' => $plan,
             'trialDays' => (int) app_setting('trial.days', 7),
-            'stripeEnabled' => false,
-            'stripePublishableKey' => null,
+            'stripeEnabled' => StripeService::isConfigured(),
+            'stripePublishableKey' => StripeService::publishableKey(),
             'setupIntentClientSecret' => null,
             'verifyAmountCents' => StripeService::verifyAmountCents(),
         ]);
@@ -379,6 +329,7 @@ class OnboardingController extends Controller
             'exp_month' => ['required', 'string', 'size:2'],
             'exp_year' => ['required', 'string', 'min:2', 'max:4'],
             'cvv' => ['required', 'string', 'min:3', 'max:4'],
+            'payment_method_id' => ['nullable', 'string', 'max:255'],
             'label' => ['nullable', 'string', 'max:80'],
         ]);
 
@@ -406,6 +357,34 @@ class OnboardingController extends Controller
         }
         $lastFour = substr($digits, -4);
         $brand = CardBrand::detect($digits);
+        $expYear = strlen($data['exp_year']) === 2 ? '20'.$data['exp_year'] : $data['exp_year'];
+        $verificationStatus = 'saved_local';
+        $verificationChargeId = null;
+        $stripePaymentMethodId = null;
+
+        if (StripeService::isConfigured()) {
+            $pmId = trim((string) ($data['payment_method_id'] ?? ''));
+            if ($pmId === '') {
+                return back()->withErrors([
+                    'card_number' => 'Card verification failed to initialize. Refresh and try again.',
+                ])->withInput();
+            }
+
+            $verified = StripeService::verifyPaymentMethod($user, $pmId);
+            if (! ($verified['ok'] ?? false)) {
+                return back()->withErrors([
+                    'card_number' => $verified['message'] ?? 'Card verification failed. Please try another card.',
+                ])->withInput();
+            }
+
+            $brand = (string) ($verified['brand'] ?? $brand);
+            $lastFour = (string) ($verified['last_four'] ?? $lastFour);
+            $expYear = (string) ($verified['exp_year'] ?? $expYear);
+            $data['exp_month'] = (string) ($verified['exp_month'] ?? $data['exp_month']);
+            $verificationStatus = 'verified_refunded';
+            $verificationChargeId = $verified['charge_id'] ?? null;
+            $stripePaymentMethodId = (string) ($verified['payment_method_id'] ?? '');
+        }
 
         PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
 
@@ -415,10 +394,12 @@ class OnboardingController extends Controller
             'brand' => $brand,
             'last_four' => $lastFour,
             'exp_month' => $data['exp_month'],
-            'exp_year' => strlen($data['exp_year']) === 2 ? '20'.$data['exp_year'] : $data['exp_year'],
+            'exp_year' => $expYear,
             'is_primary' => true,
             'is_temporary' => false,
-            'verification_status' => 'saved_local',
+            'stripe_payment_method_id' => $stripePaymentMethodId,
+            'verification_status' => $verificationStatus,
+            'verification_charge_id' => $verificationChargeId,
         ]);
 
         AppMailer::sendTemplate('payment_method_saved_email', $user->email, [

@@ -1,34 +1,34 @@
-<div class="rounded-[10px] border border-white/15 bg-[color-mix(in_srgb,var(--brand-primary,#6400B2)_18%,#101010)] p-[18px]">
+<div class="rounded-[10px] border border-[#b487ff]/35 bg-[linear-gradient(180deg,#6400b2_0%,#42007a_100%)] p-[16px]">
     <h2 class="text-[16px] font-semibold text-white">Login history</h2>
-    <p class="mt-[4px] text-[12px] text-white/60">Recent sign-ins for this account.</p>
+    <p class="mt-[3px] text-[11px] text-white/75">Recent sign-ins for this account.</p>
 
-    <div class="mt-[14px] overflow-x-auto rounded-[8px] border border-white/10">
-        <table class="min-w-full text-left text-[12px]">
-            <thead class="bg-black/30 text-white/70">
+    <div class="mt-[10px] max-h-[360px] overflow-auto rounded-[8px] border border-white/20 bg-black/15">
+        <table class="min-w-full text-left text-[11px]">
+            <thead class="bg-white/10 text-white/90">
                 <tr>
-                    <th class="px-[12px] py-[8px] font-semibold">When</th>
-                    <th class="px-[12px] py-[8px] font-semibold">IP</th>
-                    <th class="px-[12px] py-[8px] font-semibold">Device</th>
-                    <th class="px-[12px] py-[8px] font-semibold">Browser</th>
-                    <th class="px-[12px] py-[8px] font-semibold">Event</th>
+                    <th class="px-[10px] py-[7px] font-semibold">When</th>
+                    <th class="px-[10px] py-[7px] font-semibold">IP</th>
+                    <th class="px-[10px] py-[7px] font-semibold">Device</th>
+                    <th class="px-[10px] py-[7px] font-semibold">Browser</th>
+                    <th class="px-[10px] py-[7px] font-semibold">Event</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-white/10">
-                @forelse ($loginHistories ?? [] as $entry)
-                    <tr class="text-white/85">
-                        <td class="px-[12px] py-[9px] whitespace-nowrap">{{ $entry->created_at?->timezone(config('app.timezone'))->format('M j, Y H:i') }}</td>
-                        <td class="px-[12px] py-[9px] font-mono text-[11px]">{{ $entry->ip_address ?? '—' }}</td>
-                        <td class="px-[12px] py-[9px]">{{ $entry->device ?? '—' }}</td>
-                        <td class="px-[12px] py-[9px]">{{ $entry->browser ?? '—' }}</td>
-                        <td class="px-[12px] py-[9px]">
-                            <span class="rounded-full px-[8px] py-[2px] text-[10px] font-semibold text-white" style="background:var(--brand-primary,#6400B2);">
+            <tbody class="divide-y divide-white/15">
+                @forelse (collect($loginHistories ?? [])->take(16) as $entry)
+                    <tr class="text-white/95">
+                        <td class="whitespace-nowrap px-[10px] py-[7px]">{{ $entry->created_at?->timezone(config('app.timezone'))->format('M j, Y H:i') }}</td>
+                        <td class="px-[10px] py-[7px] font-mono text-[10px]">{{ $entry->ip_address ?? '—' }}</td>
+                        <td class="px-[10px] py-[7px]">{{ $entry->device ?? '—' }}</td>
+                        <td class="px-[10px] py-[7px]">{{ $entry->browser ?? '—' }}</td>
+                        <td class="px-[10px] py-[7px]">
+                            <span class="rounded-full bg-white px-[7px] py-[2px] text-[9px] font-semibold text-[#5a1297]">
                                 {{ ucfirst($entry->event ?? $entry->status ?? 'login') }}
                             </span>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-[12px] py-[18px] text-center text-white/50">No login history yet.</td>
+                        <td colspan="5" class="px-[10px] py-[14px] text-center text-white/70">No login history yet.</td>
                     </tr>
                 @endforelse
             </tbody>

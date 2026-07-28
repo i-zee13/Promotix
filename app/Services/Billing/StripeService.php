@@ -488,6 +488,95 @@ class StripeService
     }
 
     /**
+     * Verify an already-created Stripe payment method by charging and refunding.
+     *
+     * @return array{ok: bool, brand: string, last_four: string, exp_month?: ?string, exp_year?: ?string, payment_method_id: string, charge_id: ?string, message: ?string, metadata?: array<string, string>}
+     */
+    public static function verifyPaymentMethod(User $user, string $paymentMethodId): array
+    {
+        $client = self::client();
+        if (! $client) {
+            return self::failResult('Stripe is not configured.');
+        }
+
+        $pmId = trim($paymentMethodId);
+        if ($pmId === '') {
+            return self::failResult('Missing payment method.');
+        }
+
+        try {
+            $pm = $client->paymentMethods->retrieve($pmId, []);
+            $card = $pm->card ?? null;
+            if (! $card) {
+                return self::failResult('Only card payment methods are supported.');
+            }
+
+            $brand = ucfirst((string) ($card->brand ?? 'Card'));
+            $lastFour = (string) ($card->last4 ?? '0000');
+            $expMonth = str_pad((string) ($card->exp_month ?? ''), 2, '0', STR_PAD_LEFT);
+            $expYear = (string) ($card->exp_year ?? '');
+
+            $customerId = self::ensureCustomer($user);
+            if (! $customerId) {
+                return self::failResult('Unable to create Stripe customer.');
+            }
+
+            try {
+                $client->paymentMethods->attach($pmId, ['customer' => $customerId]);
+            } catch (\Throwable $e) {
+                if (! str_contains(strtolower($e->getMessage()), 'already been attached')) {
+                    throw $e;
+                }
+            }
+
+            $client->customers->update($customerId, [
+                'invoice_settings' => ['default_payment_method' => $pmId],
+            ]);
+
+            $chargeId = null;
+            $amount = self::verifyAmountCents();
+            $pi = $client->paymentIntents->create([
+                'amount' => $amount,
+                'currency' => strtolower((string) config('services.stripe.currency', 'usd')),
+                'customer' => $customerId,
+                'payment_method' => $pmId,
+                'off_session' => true,
+                'confirm' => true,
+                'description' => 'Card verification (refunded)',
+                'metadata' => [
+                    'user_id' => (string) $user->id,
+                    'purpose' => 'card_verification',
+                ],
+            ]);
+
+            if (! empty($pi->latest_charge)) {
+                $chargeId = (string) $pi->latest_charge;
+                $client->refunds->create(['charge' => $chargeId]);
+            }
+
+            return [
+                'ok' => true,
+                'brand' => $brand !== '' ? $brand : 'Card',
+                'last_four' => $lastFour,
+                'exp_month' => $expMonth,
+                'exp_year' => $expYear,
+                'payment_method_id' => $pmId,
+                'charge_id' => $chargeId,
+                'message' => null,
+                'metadata' => [],
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Stripe payment method verify failed', [
+                'user_id' => $user->id,
+                'payment_method_id' => $pmId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return self::failResult($e->getMessage());
+        }
+    }
+
+    /**
      * @return array{ok: bool, brand: string, last_four: string, exp_month: ?string, exp_year: ?string, payment_method_id: string, charge_id: ?string, message: ?string, metadata: array<string, string>}
      */
     private static function failResult(string $message): array
