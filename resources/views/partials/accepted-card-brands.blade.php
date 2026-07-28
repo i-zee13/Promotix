@@ -1,6 +1,14 @@
 @php
     $active = strtolower((string) ($activeBrand ?? ''));
+    $compact = (bool) ($compact ?? false);
 @endphp
+@if ($compact)
+    <span class="inline-flex items-center gap-1" aria-hidden="true">
+        <span class="inline-flex h-5 w-7 items-center justify-center rounded bg-white"><svg viewBox="0 0 48 30" class="h-3 w-5"><circle cx="18" cy="15" r="10" fill="#EB001B"/><circle cx="30" cy="15" r="10" fill="#F79E1B"/></svg></span>
+        <span class="inline-flex h-5 w-7 items-center justify-center rounded bg-[#1A1F71]"><svg viewBox="0 0 48 16" class="h-2 w-6"><text x="2" y="12" fill="#fff" font-size="11" font-family="Arial Black" font-style="italic">VISA</text></svg></span>
+        <span class="inline-flex h-5 w-7 items-center justify-center rounded bg-[#2E77BC]"><svg viewBox="0 0 48 16" class="h-2 w-6"><text x="1" y="12" fill="#fff" font-size="9" font-family="Arial Black" font-style="italic">AMEX</text></svg></span>
+    </span>
+@else
 <div class="mt-4 flex flex-wrap items-center justify-center gap-2" aria-label="Accepted cards">
     {{-- Mastercard --}}
     <span @class([
@@ -52,3 +60,4 @@
     </span>
 </div>
 <p class="mt-2 text-center text-[11px] text-white/55">Mastercard · Visa · Amex · UnionPay</p>
+@endif
