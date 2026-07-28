@@ -14,6 +14,92 @@ class StripeService
         return self::secretKey() !== null && self::publishableKey() !== null;
     }
 
+    public static function keysArePaired(): bool
+    {
+        $pk = self::publishableKey() ?? '';
+        $sk = self::secretKey() ?? '';
+
+        if ($pk === '' || $sk === '') {
+            return false;
+        }
+
+        return (str_starts_with($pk, 'pk_test_') && str_starts_with($sk, 'sk_test_'))
+            || (str_starts_with($pk, 'pk_live_') && str_starts_with($sk, 'sk_live_'));
+    }
+
+    /**
+     * True when secret key can reach Stripe API (invalid/expired keys fail here).
+     */
+    public static function secretKeyIsValid(): bool
+    {
+        static $cached = null;
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $client = self::client();
+        if (! $client) {
+            return $cached = false;
+        }
+
+        try {
+            $client->balance->retrieve();
+
+            return $cached = true;
+        } catch (\Throwable $e) {
+            Log::warning('Stripe secret key validation failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return $cached = false;
+        }
+    }
+
+    /**
+     * Stripe is ready for $1 verify + refund on this server.
+     */
+    public static function canCharge(): bool
+    {
+        return self::isConfigured()
+            && self::keysArePaired()
+            && self::secretKeyIsValid();
+    }
+
+    /**
+     * @return array{ready: bool, message: ?string}
+     */
+    public static function readiness(): array
+    {
+        if (! self::isConfigured()) {
+            return ['ready' => false, 'message' => null];
+        }
+
+        if (! self::keysArePaired()) {
+            return [
+                'ready' => false,
+                'message' => 'Stripe keys do not match (use both test or both live keys from the same Stripe account).',
+            ];
+        }
+
+        if (! self::secretKeyIsValid()) {
+            return [
+                'ready' => false,
+                'message' => 'Stripe secret key is invalid or expired. Update STRIPE_SECRET in .env, then run php artisan config:clear && php artisan config:cache.',
+            ];
+        }
+
+        $pk = self::publishableKey() ?? '';
+        if (! str_starts_with($pk, 'pk_test_') && ! str_starts_with($pk, 'pk_live_')) {
+            return [
+                'ready' => false,
+                'message' => 'Stripe publishable key format is invalid. Update STRIPE_KEY in .env.',
+            ];
+        }
+
+        return ['ready' => true, 'message' => null];
+    }
+
     public static function publishableKey(): ?string
     {
         $fromEnv = trim((string) config('services.stripe.key', ''));

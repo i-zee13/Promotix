@@ -136,14 +136,16 @@ class OnboardingController extends Controller
 
         $subscription = $user->activeSubscription();
         $plan = $subscription?->plan;
+        $stripeReadiness = StripeService::readiness();
 
         return view('onboarding.payment', [
             'user' => $user,
             'subscription' => $subscription,
             'plan' => $plan,
             'trialDays' => (int) app_setting('trial.days', 7),
-            'stripeEnabled' => StripeService::isConfigured(),
-            'stripePublishableKey' => StripeService::publishableKey(),
+            'stripeEnabled' => $stripeReadiness['ready'],
+            'stripeWarning' => $stripeReadiness['message'],
+            'stripePublishableKey' => $stripeReadiness['ready'] ? StripeService::publishableKey() : null,
             'setupIntentClientSecret' => null,
             'verifyAmountCents' => StripeService::verifyAmountCents(),
         ]);
@@ -324,15 +326,6 @@ class OnboardingController extends Controller
 
     public function storePayment(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'card_number' => ['required', 'string', 'min:13', 'max:23'],
-            'exp_month' => ['required', 'string', 'size:2'],
-            'exp_year' => ['required', 'string', 'min:2', 'max:4'],
-            'cvv' => ['required', 'string', 'min:3', 'max:4'],
-            'payment_method_id' => ['nullable', 'string', 'max:255'],
-            'label' => ['nullable', 'string', 'max:80'],
-        ]);
-
         $user = $request->user();
 
         if ($user->bypassesOnboarding()) {
@@ -351,39 +344,56 @@ class OnboardingController extends Controller
             return redirect()->route('dashboard');
         }
 
-        $digits = preg_replace('/\D/', '', $data['card_number']) ?: '';
-        if (strlen($digits) < 13 || strlen($digits) > 16) {
-            return back()->withErrors(['card_number' => 'Enter a valid card number (13–16 digits).'])->withInput();
+        $stripeCharge = StripeService::canCharge();
+
+        if ($stripeCharge) {
+            $data = $request->validate([
+                'payment_method_id' => ['required', 'string', 'max:255'],
+                'label' => ['nullable', 'string', 'max:80'],
+            ]);
+        } else {
+            $data = $request->validate([
+                'card_number' => ['required', 'string', 'min:13', 'max:23'],
+                'exp_month' => ['required', 'string', 'size:2'],
+                'exp_year' => ['required', 'string', 'min:2', 'max:4'],
+                'cvv' => ['required', 'string', 'min:3', 'max:4'],
+                'label' => ['nullable', 'string', 'max:80'],
+            ]);
         }
-        $lastFour = substr($digits, -4);
-        $brand = CardBrand::detect($digits);
-        $expYear = strlen($data['exp_year']) === 2 ? '20'.$data['exp_year'] : $data['exp_year'];
+
         $verificationStatus = 'saved_local';
         $verificationChargeId = null;
         $stripePaymentMethodId = null;
+        $expMonth = '01';
+        $expYear = (string) now()->addYear()->year;
+        $lastFour = '0000';
+        $brand = 'Card';
 
-        if (StripeService::isConfigured()) {
-            $pmId = trim((string) ($data['payment_method_id'] ?? ''));
-            if ($pmId === '') {
-                return back()->withErrors([
-                    'card_number' => 'Card verification failed to initialize. Refresh and try again.',
-                ])->withInput();
-            }
-
-            $verified = StripeService::verifyPaymentMethod($user, $pmId);
+        if ($stripeCharge) {
+            $verified = StripeService::verifyPaymentMethod($user, trim((string) $data['payment_method_id']));
             if (! ($verified['ok'] ?? false)) {
                 return back()->withErrors([
                     'card_number' => $verified['message'] ?? 'Card verification failed. Please try another card.',
-                ])->withInput();
+                ]);
             }
 
             $brand = (string) ($verified['brand'] ?? $brand);
             $lastFour = (string) ($verified['last_four'] ?? $lastFour);
             $expYear = (string) ($verified['exp_year'] ?? $expYear);
-            $data['exp_month'] = (string) ($verified['exp_month'] ?? $data['exp_month']);
+            $expMonth = (string) ($verified['exp_month'] ?? $expMonth);
             $verificationStatus = 'verified_refunded';
             $verificationChargeId = $verified['charge_id'] ?? null;
             $stripePaymentMethodId = (string) ($verified['payment_method_id'] ?? '');
+        } else {
+            $digits = preg_replace('/\D/', '', $data['card_number']) ?: '';
+            if (strlen($digits) < 13 || strlen($digits) > 16) {
+                return back()->withErrors(['card_number' => 'Enter a valid card number (13–16 digits).'])->withInput();
+            }
+
+            $lastFour = substr($digits, -4);
+            $brand = CardBrand::detect($digits);
+            $expMonth = $data['exp_month'];
+            $expYear = strlen($data['exp_year']) === 2 ? '20'.$data['exp_year'] : $data['exp_year'];
         }
 
         PaymentMethod::query()->where('user_id', $user->id)->update(['is_primary' => false]);
@@ -393,7 +403,7 @@ class OnboardingController extends Controller
             'label' => $data['label'] ?? 'Primary card',
             'brand' => $brand,
             'last_four' => $lastFour,
-            'exp_month' => $data['exp_month'],
+            'exp_month' => $expMonth,
             'exp_year' => $expYear,
             'is_primary' => true,
             'is_temporary' => false,
