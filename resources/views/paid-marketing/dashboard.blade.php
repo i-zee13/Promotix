@@ -26,23 +26,44 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
             </div>
 
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
-                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
+            <div class="figma-filter-bar figma-filter-bar--overview flex min-h-[54px] w-full max-w-[920px] flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
+                <label class="flex min-w-[130px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All domains</option>
+                            <option value="">All Domains</option>
                             @foreach ($domains as $domain)
                                 <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
                             @endforeach
                         </select>
                     </div>
                 </label>
-                <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
+                <label class="flex min-w-[120px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.traffic_source" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="google_ads">Google Ads</option>
+                            <option value="meta_ads" disabled>Meta Ads</option>
+                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                        </select>
+                    </div>
+                </label>
+                <label class="flex min-w-[150px] flex-[1.2] flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.campaign" @change="onCampaignChange(); reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All Campaigns</option>
+                            <template x-for="row in campaignOptions" :key="row.campaign + '-' + (row.campaign_id || '')">
+                                <option :value="row.campaign" x-text="row.campaign"></option>
+                            </template>
+                        </select>
+                    </div>
+                </label>
+                <label class="flex min-w-[140px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input x-model="filters.path" @input="scheduleReload()" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                        <input x-model="filters.path" @input="scheduleReload()" placeholder="Landing page" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                     </div>
                 </label>
                 @include('partials.figma-filter-date-fields')
@@ -57,29 +78,37 @@
                         <button type="button" class="paid-dashboard-card__icon-btn" aria-label="Refresh" @click="reload(true, true)" title="Refresh Google Ads sync">
                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
                         </button>
-                        <span class="paid-dashboard-card__icon-btn text-[11px]" title="Invalid rate for selected period">i</span>
+                        <span class="paid-dashboard-card__icon-btn text-[11px]" title="1 Google click ID (gclid/gbraid/wbraid) = 1 click. Tracking accuracy = tracked ÷ Google Ads clicks.">i</span>
                     </div>
                 </div>
                 <div class="mt-[8px] grid grid-cols-[minmax(0,1fr)_88px] items-center gap-[10px]">
                     <div class="min-w-0">
-                        <div class="grid grid-cols-2 gap-x-[14px] gap-y-[6px]">
+                        <div class="grid grid-cols-2 gap-x-[12px] gap-y-[8px] sm:grid-cols-3">
                             <div class="min-w-0 text-left">
-                                <p class="text-[9px] leading-[1.25] text-white/75">Paid traffic</p>
-                                <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.paid_visits)"></p>
-                                <p class="mt-[4px] text-[8px] leading-tight text-white/45">
-                                    Google verified · valid only
-                                    · Tag: <span x-text="fmt(summary.tag_paid_visits)"></span>
+                                <p class="text-[9px] leading-[1.25] text-white/75">Total Google Ads Clicks</p>
+                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
+                            </div>
+                            <div class="min-w-0 text-left">
+                                <p class="text-[9px] leading-[1.25] text-white/75">Tracked Clicks</p>
+                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.tracked_clicks ?? summary.unique_paid_clicks)"></p>
+                            </div>
+                            <div class="min-w-0 text-left">
+                                <p class="text-[9px] leading-[1.25] text-white/75">Valid Clicks</p>
+                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.unique_valid_paid_clicks ?? summary.valid_paid_visits)"></p>
+                            </div>
+                            <div class="min-w-0 text-left">
+                                <p class="text-[9px] leading-[1.25] text-white/75">Invalid Clicks</p>
+                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></p>
+                            </div>
+                            <div class="min-w-0 text-left sm:col-span-2">
+                                <p class="text-[9px] leading-[1.25] text-white/75">Tracking Accuracy</p>
+                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white">
+                                    <span x-text="fmt(summary.tracking_accuracy_pct ?? summary.tag_capture_pct)"></span>%
+                                </p>
+                                <p class="mt-[3px] text-[8px] leading-tight text-white/45" x-show="summary.tag_gap_warning">
+                                    Tracking gap vs Google Ads — check GCLID capture
                                 </p>
                             </div>
-                            <div class="min-w-0 text-left">
-                                <p class="text-[9px] leading-[1.25] text-white/75">Invalid clicks</p>
-                                <p class="mt-[6px] text-[24px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
-                            </div>
-                        </div>
-                        <div class="mt-[10px]">
-                            <h3 class="paid-dashboard-card__title">Total click count</h3>
-                            <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.total_click_count)"></p>
-                            <p class="mt-[2px] text-[8px] leading-tight text-white/50">Google Ads clicks for selected dates</p>
                         </div>
                     </div>
                     <div class="relative h-[72px] w-[88px] self-end">
@@ -90,10 +119,24 @@
 
             <article class="paid-dashboard-card">
                 <h2 class="paid-dashboard-card__title">Bot Protection</h2>
-                <div class="grid grid-cols-[70px_1fr] items-end gap-[10px]">
-                    <div class="pt-[15px]">
-                        <p class="text-[30px] font-normal leading-none text-white"><span x-text="botRate"></span>%</p>
-                        <p class="text-[18px] leading-none text-white">Bots</p>
+                <div class="grid grid-cols-[minmax(0,1fr)_1fr] items-end gap-[10px]">
+                    <div class="grid grid-cols-2 gap-x-[8px] gap-y-[6px] pt-[6px] text-left">
+                        <div>
+                            <p class="text-[8px] text-white/65">Visitors</p>
+                            <p class="text-[16px] font-semibold text-white" x-text="fmt(summary.tag_paid_visits)"></p>
+                        </div>
+                        <div>
+                            <p class="text-[8px] text-white/65">Bots Detected</p>
+                            <p class="text-[16px] font-semibold text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
+                        </div>
+                        <div>
+                            <p class="text-[8px] text-white/65">Blocked</p>
+                            <p class="text-[16px] font-semibold text-white" x-text="fmt(summary.block_enforced || summary.block_attempts || 0)"></p>
+                        </div>
+                        <div>
+                            <p class="text-[8px] text-white/65">Detection Rate</p>
+                            <p class="text-[16px] font-semibold text-white"><span x-text="botRate"></span>%</p>
+                        </div>
                     </div>
                     <div class="relative h-[80px] w-full min-w-0">
                         <canvas id="bot-bars" class="h-full w-full" aria-label="Invalid traffic trend"></canvas>
@@ -104,46 +147,52 @@
             <article class="paid-dashboard-card">
                 <div class="flex items-start justify-between">
                     <h2 class="paid-dashboard-card__title">Blocking Activity</h2>
-                    <span class="paid-dashboard-card__icon-btn text-[12px]" title="Blocking breakdown">i</span>
+                    <span class="paid-dashboard-card__icon-btn text-[12px]" title="What happened after invalid traffic detection">i</span>
                 </div>
                 <div class="mt-[6px] grid grid-cols-2 gap-[8px]">
                     <div class="text-center">
-                        <p class="text-[9px] text-white/70">Platform invalid</p>
-                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
+                        <p class="text-[9px] text-white/70">Invalid Clicks</p>
+                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></p>
                     </div>
                     <div class="text-center">
-                        <p class="text-[9px] text-white/70">Blocks enforced</p>
+                        <p class="text-[9px] text-white/70">Blocked</p>
                         <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.block_enforced || 0)"></p>
                     </div>
                 </div>
                 <div class="mt-[8px] space-y-0">
+                    <div class="paid-blocking-row"><span>Detection events</span><span x-text="fmt(summary.invalid_paid_events || summary.invalid_paid_visits)"></span></div>
+                    <div class="paid-blocking-row"><span>Monitored / Flagged</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
                     <div class="paid-blocking-row"><span>Block attempts</span><span x-text="fmt(summary.block_attempts || summary.blocked_paid_visits)"></span></div>
-                    <div class="paid-blocking-row"><span>Flagged</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
                     <div class="paid-blocking-row"><span>Google gap</span><span x-text="fmt(summary.invalid_reconciliation?.google_only || 0)"></span></div>
                     <div class="paid-blocking-row"><span>Overlap</span><span x-text="fmt(summary.invalid_reconciliation?.overlap || 0)"></span></div>
-                    <div class="paid-blocking-row"><span>Platform-only</span><span x-text="fmt(summary.invalid_reconciliation?.platform_only || 0)"></span></div>
+                </div>
             </article>
 
             <article class="paid-dashboard-card">
                 <h2 class="paid-dashboard-card__title">Campaigns Breakdown</h2>
-                <div class="paid-campaign-breakdown">
-                    <div class="paid-campaign-diamond">
-                        <svg class="h-[28px] w-[28px] text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M12 3l2.2 6.8H21l-5.5 4 2.1 6.8L12 16.6 6.4 20.6l2.1-6.8L3 9.8h6.8L12 3z" stroke="currentColor" stroke-width="1.4" fill="rgba(255,255,255,0.12)"/>
-                        </svg>
-                    </div>
+                <div class="paid-campaign-breakdown !items-stretch">
                     <template x-if="untaggedDomains.length > 0">
-                        <div class="w-full space-y-[4px] px-[6px] text-left">
+                        <div class="w-full space-y-[4px] px-[2px] text-left">
                             <template x-for="d in untaggedDomains.slice(0, 3)" :key="d.id">
                                 <p class="truncate text-[10px] text-white/85" x-text="d.hostname"></p>
                             </template>
                         </div>
                     </template>
-                    <template x-if="untaggedDomains.length === 0 && topCampaign">
-                        <p class="max-w-full truncate px-[6px] text-[10px] text-white/85" x-text="topCampaign.campaign"></p>
-                    </template>
-                    <template x-if="untaggedDomains.length === 0 && !topCampaign">
-                        <p class="text-[10px] text-white/55">No campaign data yet</p>
+                    <template x-if="untaggedDomains.length === 0">
+                        <div class="w-full space-y-[6px] px-[2px] text-left">
+                            <template x-for="row in campaignOptions.slice(0, 3)" :key="row.campaign">
+                                <div class="rounded-[6px] bg-black/20 px-[8px] py-[6px]">
+                                    <p class="truncate text-[10px] font-medium text-white" x-text="row.campaign"></p>
+                                    <p class="mt-[2px] text-[9px] text-white/65">
+                                        <span x-text="fmt(row.total)"></span> clicks ·
+                                        <span x-text="fmt(row.valid)"></span> valid ·
+                                        <span x-text="fmt(row.invalid)"></span> invalid
+                                        (<span x-show="row.invalid_pct != null"> · <span x-text="row.invalid_pct"></span>%</span>
+                                    </p>
+                                </div>
+                            </template>
+                            <p x-show="campaignOptions.length === 0" class="text-[10px] text-white/55">No campaign data yet</p>
+                        </div>
                     </template>
                     <a
                         :href="campaignBreakdownLink()"
@@ -448,17 +497,29 @@
                             <div class="figma-click-modal-wide">
                                 <div class="figma-modal-field figma-modal-field--full">
                                     <div class="figma-modal-field__head">
-                                        <p class="figma-modal-label">Paid ID</p>
-                                        <button type="button" class="figma-modal-copy-btn" @click="copyText(activeIpClick.paid_id)" x-show="activeIpClick.paid_id">Copy</button>
+                                        <p class="figma-modal-label">Google Click ID (GCLID)</p>
+                                        <button type="button" class="figma-modal-copy-btn" @click="copyText(activeIpClick.gclid || activeIpClick.paid_id)" x-show="activeIpClick.gclid || activeIpClick.paid_id">Copy</button>
                                     </div>
-                                    <p class="figma-modal-value figma-modal-value--long" x-text="activeIpClick.paid_id || '—'"></p>
+                                    <p class="figma-modal-value figma-modal-value--long" x-text="activeIpClick.gclid || activeIpClick.paid_id || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">GBRAID</p>
+                                    <p class="figma-modal-value figma-modal-value--mono-sm" x-text="activeIpClick.gbraid || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">WBRAID</p>
+                                    <p class="figma-modal-value figma-modal-value--mono-sm" x-text="activeIpClick.wbraid || '—'"></p>
                                 </div>
                                 <div class="figma-modal-field figma-modal-field--full">
                                     <div class="figma-modal-field__head">
-                                        <p class="figma-modal-label">Path</p>
+                                        <p class="figma-modal-label">Path / Landing Page</p>
                                         <button type="button" class="figma-modal-copy-btn" @click="copyText(activeIpClick.path)" x-show="activeIpClick.path">Copy</button>
                                     </div>
                                     <p class="figma-modal-value figma-modal-value--long" x-text="activeIpClick.path || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field figma-modal-field--full" x-show="(activeIpClick.detection_reasons || []).length">
+                                    <p class="figma-modal-label">Detection reasons</p>
+                                    <p class="figma-modal-value" x-text="(activeIpClick.detection_reasons || []).join(' · ')"></p>
                                 </div>
                             </div>
                         </div>
@@ -500,8 +561,8 @@ function paidAdvertisingFigma(config = {}) {
         domainCatalog: config.domainCatalog || {},
         reportingMode: config.reportingMode || 'profile',
         profileTimezone: config.profileTimezone || 'UTC',
-        filters: { domain_id: '', campaign: '', campaign_id: '', path: '', window: 'weekly', from: '', to: '' },
-        summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
+        filters: { domain_id: '', campaign: '', campaign_id: '', path: '', traffic_source: 'google_ads', window: 'weekly', from: '', to: '' },
+        summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [] },
         campaigns: [],
@@ -549,9 +610,9 @@ function paidAdvertisingFigma(config = {}) {
         hiddenTrendSeries: { lastWeek: false, thisWeek: false },
         cardCharts: {},
         get botRate() {
-            const tagTotal = Number(this.summary.tag_paid_visits || 0);
-            const invalid = Number(this.summary.invalid_paid_visits || 0);
-            return tagTotal ? Math.round((invalid / tagTotal) * 100) : 0;
+            const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || this.summary.tag_paid_visits || 0);
+            const invalid = Number(this.summary.unique_invalid_paid_clicks || this.summary.invalid_paid_visits || 0);
+            return tracked ? Math.round((invalid / tracked) * 100) : 0;
         },
         resolveReportingTimezone(googleTz) {
             if (this.reportingMode === 'google' && googleTz) return googleTz;
@@ -720,10 +781,16 @@ function paidAdvertisingFigma(config = {}) {
             const p = new URLSearchParams();
             if (this.filters.domain_id) p.set('domain_id', this.filters.domain_id);
             if (this.filters.path) p.set('path', this.filters.path);
+            if (this.filters.campaign) p.set('campaign', this.filters.campaign);
+            if (this.filters.campaign_id) p.set('campaign_id', this.filters.campaign_id);
+            if (this.filters.traffic_source) p.set('traffic_source', this.filters.traffic_source);
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);
             if (forceGoogle) p.set('force_google_sync', '1');
             return p.toString();
+        },
+        onCampaignChange() {
+            this.syncCampaignFilter();
         },
         reloadTimer: null,
         livePollTimer: null,

@@ -70,6 +70,7 @@ class PaidAdvertisingDashboardController extends Controller
         $blockEnforced = 0;
         $flagged = 0;
         $uniqueIps = 0;
+        $uniqueInvalidPaidClicks = 0;
         $uniquePaidClicks = 0;
         $uniqueValidPaidClicks = 0;
 
@@ -98,6 +99,7 @@ class PaidAdvertisingDashboardController extends Controller
             $uniqueInvalidPaidClicks = GoogleClickAttribution::countDistinctClickIds(
                 (clone $base)->where('is_invalid_traffic', true)
             );
+            // Valid = distinct click IDs that never appear as invalid (certification: 1 click ID = 1 click).
             $uniqueValidPaidClicks = max(0, $uniquePaidClicks - $uniqueInvalidPaidClicks);
             $uniqueIps = (clone $base)->distinct()->count('ip');
 
@@ -170,6 +172,10 @@ class PaidAdvertisingDashboardController extends Controller
         $paid = $this->displayPaidTrafficCount($verifiedValidPaid, $uniqueValidPaidClicks, $googleClicks);
         $validTagPaid = max(0, $uniqueValidPaidClicks);
         $totalClickCount = $googleClicks;
+        // Tracking accuracy = distinct tracked Google click IDs / Google Ads reported clicks.
+        $trackingAccuracyPct = $googleClicks > 0
+            ? (int) round(min(100, ($uniquePaidClicks / $googleClicks) * 100))
+            : ($uniquePaidClicks > 0 ? 100 : 0);
         $tagCapturePct = $googleClicks > 0
             ? (int) round(min(100, ($uniqueValidPaidClicks / $googleClicks) * 100))
             : ($uniqueValidPaidClicks > 0 ? 100 : 0);
@@ -184,11 +190,15 @@ class PaidAdvertisingDashboardController extends Controller
             'verified_valid_paid_visits' => $verifiedValidPaid,
             'unverified_paid_visits' => $unverifiedPaid,
             'tag_paid_visits' => $tagPaid,
+            'tracked_clicks' => $uniquePaidClicks,
             'google_clicks' => $googleClicks,
             'total_click_count' => $totalClickCount,
             'tag_capture_pct' => $tagCapturePct,
-            'tag_gap_warning' => $googleClicks > 0 && $uniqueValidPaidClicks < (int) floor($googleClicks * 0.5),
-            'invalid_paid_visits' => $invalid,
+            'tracking_accuracy_pct' => $trackingAccuracyPct,
+            'tag_gap_warning' => $googleClicks > 0 && $uniquePaidClicks < (int) floor($googleClicks * 0.5),
+            'invalid_paid_visits' => $uniqueInvalidPaidClicks > 0 ? $uniqueInvalidPaidClicks : $invalid,
+            'invalid_paid_events' => $invalid,
+            'unique_invalid_paid_clicks' => $uniqueInvalidPaidClicks,
             'blocked_paid_visits' => $blocked,
             'block_attempts' => $blockAttempts,
             'block_enforced' => $blockEnforced,
@@ -429,6 +439,9 @@ class PaidAdvertisingDashboardController extends Controller
                     'total' => (int) ($best['total'] ?? $best['clicks'] ?? 0),
                     'invalid' => (int) ($best['invalid'] ?? 0),
                     'valid' => (int) ($best['valid'] ?? max(0, (int) ($best['total'] ?? $best['clicks'] ?? 0) - (int) ($best['invalid'] ?? 0))),
+                    'invalid_pct' => (int) ($best['total'] ?? $best['clicks'] ?? 0) > 0
+                        ? round(((int) ($best['invalid'] ?? 0) / (int) ($best['total'] ?? $best['clicks'] ?? 1)) * 100, 1)
+                        : 0,
                     'source' => $best['source'] ?? 'merged',
                 ];
             })
@@ -773,6 +786,9 @@ class PaidAdvertisingDashboardController extends Controller
                 'detection_reasons',
                 DB::raw("{$campaignExpr} as campaign"),
                 DB::raw("{$paidIdExpr} as paid_id"),
+                DB::raw(Schema::hasColumn('visits', 'gclid') ? 'gclid' : 'NULL as gclid'),
+                DB::raw(Schema::hasColumn('visits', 'gbraid') ? 'gbraid' : 'NULL as gbraid'),
+                DB::raw(Schema::hasColumn('visits', 'wbraid') ? 'wbraid' : 'NULL as wbraid'),
                 DB::raw(Schema::hasColumn('visits', 'utm_term') ? 'utm_term as keyword' : "NULL as keyword"),
             ]);
 
@@ -801,6 +817,9 @@ class PaidAdvertisingDashboardController extends Controller
                 'campaign' => $row->campaign,
                 'path' => $row->url,
                 'paid_id' => $row->paid_id,
+                'gclid' => $row->gclid ?? null,
+                'gbraid' => $row->gbraid ?? null,
+                'wbraid' => $row->wbraid ?? null,
                 'keyword' => $row->keyword ?? null,
                 'browser_name' => $row->browser,
                 'browser_version' => null,
@@ -874,6 +893,9 @@ class PaidAdvertisingDashboardController extends Controller
                     'campaign' => $row->campaign,
                     'path' => $row->path,
                     'paid_id' => $row->paid_id,
+                    'gclid' => $row->paid_id,
+                    'gbraid' => null,
+                    'wbraid' => null,
                     'keyword' => $row->keyword ?? null,
                     'browser_name' => $row->browser_name,
                     'browser_version' => $row->browser_version,
