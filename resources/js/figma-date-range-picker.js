@@ -50,19 +50,30 @@ export function figmaDateRangePicker() {
         }
     })();
 
+    const startOfWeekMon = (d) => {
+        const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+        const day = x.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        x.setDate(x.getDate() + diff);
+        return x;
+    };
+
     const today = new Date();
     const todayStr = fmt(today);
 
     const presets = [
         { id: 'today', label: 'Today' },
         { id: 'yesterday', label: 'Yesterday' },
-        { id: 'this_week', label: 'This week (Sun – Today)' },
         { id: 'last_7', label: 'Last 7 days' },
-        { id: 'last_week', label: 'Last week (Sun – Sat)' },
         { id: 'last_14', label: 'Last 14 days' },
-        { id: 'this_month', label: 'This month' },
         { id: 'last_30', label: 'Last 30 days' },
+        { id: 'this_week', label: 'This week (Sun – Today)' },
+        { id: 'this_week_mon', label: 'This week (Mon – Today)' },
+        { id: 'last_week', label: 'Last week (Sun – Sat)' },
+        { id: 'last_week_mon', label: 'Last week (Mon – Sun)' },
+        { id: 'this_month', label: 'This month' },
         { id: 'last_month', label: 'Last month' },
+        { id: 'this_year', label: 'This year' },
         { id: 'all_time', label: 'All time' },
     ];
 
@@ -74,10 +85,17 @@ export function figmaDateRangePicker() {
             return { from: fmt(y), to: fmt(y) };
         }
         if (id === 'this_week') return { from: fmt(startOfWeek(t)), to: fmt(t) };
+        if (id === 'this_week_mon') return { from: fmt(startOfWeekMon(t)), to: fmt(t) };
         if (id === 'last_7') return { from: fmt(addDays(t, -6)), to: fmt(t) };
         if (id === 'last_week') {
             const end = addDays(startOfWeek(t), -1);
             return { from: fmt(startOfWeek(end)), to: fmt(end) };
+        }
+        if (id === 'last_week_mon') {
+            const thisMon = startOfWeekMon(t);
+            const end = addDays(thisMon, -1);
+            const start = startOfWeekMon(end);
+            return { from: fmt(start), to: fmt(end) };
         }
         if (id === 'last_14') return { from: fmt(addDays(t, -13)), to: fmt(t) };
         if (id === 'this_month') return { from: fmt(startOfMonth(t)), to: fmt(t) };
@@ -86,6 +104,7 @@ export function figmaDateRangePicker() {
             const prev = new Date(t.getFullYear(), t.getMonth() - 1, 1, 12, 0, 0);
             return { from: fmt(startOfMonth(prev)), to: fmt(endOfMonth(prev)) };
         }
+        if (id === 'this_year') return { from: fmt(new Date(t.getFullYear(), 0, 1, 12, 0, 0)), to: fmt(t) };
         if (id === 'all_time') return { from: '2020-01-01', to: fmt(t) };
         return { from: todayStr, to: todayStr };
     };
@@ -100,6 +119,7 @@ export function figmaDateRangePicker() {
 
     return {
         calendarOpen: false,
+        mobileView: 'list', // list | custom
         pickStart: null,
         from: stored.from || todayStr,
         to: stored.to || todayStr,
@@ -112,9 +132,23 @@ export function figmaDateRangePicker() {
         months: [],
         scrollMonthKey: '',
         presets,
+        isMobile() {
+            return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+        },
+        lockBody(lock) {
+            if (typeof document === 'undefined') return;
+            document.documentElement.classList.toggle('figma-gads-calendar-open', !!lock);
+            document.body.style.overflow = lock ? 'hidden' : '';
+        },
 
         rangeLabel() {
             if (this.from === this.to) return displayDate(this.from) || displayInput(this.from);
+            return `${displayInput(this.from)} – ${displayInput(this.to)}`;
+        },
+        shortRangeLabel() {
+            const preset = this.presets.find((p) => p.id === this.activePreset);
+            if (preset && this.activePreset !== 'custom') return preset.label;
+            if (this.from === this.to) return displayDate(this.from) || 'Custom';
             return `${displayInput(this.from)} – ${displayInput(this.to)}`;
         },
         draftFromLabel() {
@@ -194,13 +228,17 @@ export function figmaDateRangePicker() {
                 this.draftFrom = this.from;
                 this.draftTo = this.to;
                 this.activePreset = detectPreset(this.from, this.to);
+                this.mobileView = 'list';
                 this.refreshMonths();
+                this.lockBody(this.isMobile());
                 this.$nextTick?.(() => this.scrollToMonth(this.scrollMonthKey));
+            } else {
+                this.lockBody(false);
             }
         },
 
         scrollToMonth(key) {
-            const root = this.$refs?.monthScroller;
+            const root = this.$refs?.monthScroller || this.$refs?.mobileMonthScroller;
             if (!root || !key) return;
             const el = root.querySelector(`[data-month-key="${key}"]`);
             if (el) el.scrollIntoView({ block: 'start' });
@@ -220,6 +258,28 @@ export function figmaDateRangePicker() {
             this.draftTo = r.to;
             this.pickStart = null;
             this.refreshMonths();
+        },
+
+        /** Mobile Google Ads behavior: picking a preset applies immediately. */
+        selectPresetMobile(id) {
+            this.selectPreset(id);
+            this.applyCalendar();
+        },
+
+        openCustomMobile() {
+            this.mobileView = 'custom';
+            this.activePreset = 'custom';
+            this.pickStart = null;
+            this.refreshMonths();
+            this.$nextTick?.(() => this.scrollToMonth(this.scrollMonthKey));
+        },
+
+        backToMobileList() {
+            this.mobileView = 'list';
+            this.pickStart = null;
+            this.draftFrom = this.from;
+            this.draftTo = this.to;
+            this.activePreset = detectPreset(this.from, this.to);
         },
 
         applyDaysUpTo(kind) {
@@ -277,9 +337,11 @@ export function figmaDateRangePicker() {
 
         cancelCalendar() {
             this.calendarOpen = false;
+            this.mobileView = 'list';
             this.pickStart = null;
             this.draftFrom = this.from;
             this.draftTo = this.to;
+            this.lockBody(false);
         },
 
         applyCalendar() {
@@ -289,8 +351,11 @@ export function figmaDateRangePicker() {
             if (to < from) [from, to] = [to, from];
             this.from = from;
             this.to = to;
+            this.activePreset = detectPreset(from, to);
             this.calendarOpen = false;
+            this.mobileView = 'list';
             this.pickStart = null;
+            this.lockBody(false);
             this.applyRange(true);
         },
 
@@ -327,6 +392,9 @@ export function figmaDateRangePicker() {
                     this.draftTo = detail.to;
                     this.activePreset = detectPreset(this.from, this.to);
                 }
+            });
+            window.addEventListener('resize', () => {
+                if (this.calendarOpen) this.lockBody(this.isMobile());
             });
         },
     };
