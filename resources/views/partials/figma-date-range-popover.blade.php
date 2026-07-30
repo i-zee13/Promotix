@@ -1,29 +1,115 @@
-<div x-show="calendarOpen" x-cloak x-transition class="figma-date-range-popover {{ $popoverClass ?? 'absolute right-0 top-[calc(100%+6px)] z-[120]' }}">
-    <div class="figma-date-range-nav">
-        <button type="button" @click="prevMonth()" aria-label="Previous month">&lsaquo;</button>
-        <span x-text="monthLabel()"></span>
-        <button type="button" @click="nextMonth()" aria-label="Next month">&rsaquo;</button>
+<div
+    x-show="calendarOpen"
+    x-cloak
+    x-transition
+    class="figma-gads-calendar {{ $popoverClass ?? 'absolute right-0 top-[calc(100%+6px)] z-[120]' }}"
+    @keydown.escape.window="if (calendarOpen) cancelCalendar()"
+>
+    <div class="figma-gads-calendar__body">
+        <aside class="figma-gads-calendar__presets">
+            <ul class="figma-gads-calendar__preset-list">
+                <template x-for="preset in presets" :key="preset.id">
+                    <li>
+                        <button
+                            type="button"
+                            class="figma-gads-calendar__preset"
+                            :class="{ 'is-active': activePreset === preset.id }"
+                            @click="selectPreset(preset.id)"
+                            x-text="preset.label"
+                        ></button>
+                    </li>
+                </template>
+            </ul>
+
+            <div class="figma-gads-calendar__custom-days">
+                <label class="figma-gads-calendar__days-row">
+                    <input type="number" min="1" max="366" x-model.number="daysUpToToday" @change="applyDaysUpTo('today')" class="figma-gads-calendar__days-input">
+                    <span>days up to today</span>
+                </label>
+                <label class="figma-gads-calendar__days-row">
+                    <input type="number" min="1" max="366" x-model.number="daysUpToYesterday" @change="applyDaysUpTo('yesterday')" class="figma-gads-calendar__days-input">
+                    <span>days up to yesterday</span>
+                </label>
+            </div>
+
+            <div class="figma-gads-calendar__compare">
+                <span>Compare</span>
+                <button
+                    type="button"
+                    class="figma-gads-calendar__toggle"
+                    :class="{ 'is-on': compareEnabled }"
+                    role="switch"
+                    :aria-checked="compareEnabled"
+                    @click="compareEnabled = !compareEnabled"
+                >
+                    <span class="figma-gads-calendar__toggle-thumb"></span>
+                </button>
+            </div>
+        </aside>
+
+        <section class="figma-gads-calendar__main">
+            <div class="figma-gads-calendar__inputs">
+                <label class="figma-gads-calendar__field">
+                    <span>Start date*</span>
+                    <input
+                        type="text"
+                        :value="draftFromLabel()"
+                        @change="parseDraftInput('from', $event.target.value)"
+                        class="figma-gads-calendar__date-input"
+                    >
+                </label>
+                <label class="figma-gads-calendar__field">
+                    <span>End date*</span>
+                    <input
+                        type="text"
+                        :value="draftToLabel()"
+                        @change="parseDraftInput('to', $event.target.value)"
+                        class="figma-gads-calendar__date-input"
+                    >
+                </label>
+            </div>
+
+            <div class="figma-gads-calendar__month-nav">
+                <span class="figma-gads-calendar__month-current" x-text="(months.find(m => m.key === scrollMonthKey) || months[0] || {}).label || ''"></span>
+                <div class="figma-gads-calendar__month-arrows">
+                    <button type="button" @click="jumpMonth(-1)" aria-label="Previous month">&lsaquo;</button>
+                    <button type="button" @click="jumpMonth(1)" aria-label="Next month">&rsaquo;</button>
+                </div>
+            </div>
+
+            <div class="figma-gads-calendar__scroller" x-ref="monthScroller">
+                <template x-for="month in months" :key="month.key">
+                    <div class="figma-gads-calendar__month" :data-month-key="month.key">
+                        <h4 class="figma-gads-calendar__month-title" x-text="month.label"></h4>
+                        <div class="figma-gads-calendar__weekdays">
+                            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                        </div>
+                        <div class="figma-gads-calendar__grid">
+                            <template x-for="day in month.cells" :key="day.iso + '-' + day.inMonth">
+                                <button
+                                    type="button"
+                                    class="figma-gads-calendar__day"
+                                    :disabled="!day.inMonth"
+                                    :class="{
+                                        'is-outside': !day.inMonth,
+                                        'is-today': day.isToday,
+                                        'is-range': day.inRange,
+                                        'is-start': day.isStart,
+                                        'is-end': day.isEnd,
+                                    }"
+                                    @click="selectDay(day.iso, day.inMonth)"
+                                    x-text="day.day"
+                                ></button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="figma-gads-calendar__footer">
+                <button type="button" class="figma-gads-calendar__btn" @click="cancelCalendar()">Cancel</button>
+                <button type="button" class="figma-gads-calendar__btn figma-gads-calendar__btn--primary" @click="applyCalendar()">Apply</button>
+            </div>
+        </section>
     </div>
-    <div class="figma-date-range-weekdays">
-        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-    </div>
-    <div class="figma-date-range-grid">
-        <template x-for="day in calendarDays()" :key="day.iso + '-' + day.inMonth">
-            <button
-                type="button"
-                @click="selectDay(day.iso)"
-                :disabled="!day.inMonth"
-                :class="{
-                    'is-outside': !day.inMonth,
-                    'is-today': day.isToday,
-                    'is-range': day.inRange,
-                    'is-start': day.isStart,
-                    'is-end': day.isEnd,
-                }"
-                class="figma-date-range-day"
-                x-text="day.day"
-            ></button>
-        </template>
-    </div>
-    <p class="figma-date-range-hint" x-text="pickStart ? 'Select end date for range' : 'Click a day, or click twice for a range'"></p>
 </div>

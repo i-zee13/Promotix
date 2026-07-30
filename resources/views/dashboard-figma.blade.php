@@ -6,25 +6,43 @@
 @include('partials.promotix-page-loader')
 <div class="brand-page-bg min-h-[calc(100vh-49px)]">
     <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[18px] sm:px-[18px] xl:max-w-none xl:px-[22px] xl:pt-[20px]">
-        <div class="mb-[10px] flex flex-col gap-[9px] sm:flex-row sm:items-center sm:justify-between">
+        <div class="mb-[10px] flex flex-col gap-[9px] lg:flex-row lg:items-start lg:justify-between">
             <h1 class="text-[31px] font-normal leading-none text-white">Overview</h1>
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
+            <div class="figma-filter-bar figma-filter-bar--overview flex min-h-[54px] w-full max-w-[920px] flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                <label class="flex min-w-[140px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select id="domain-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All domains</option>
+                            <option value="">All Domains</option>
                             @foreach ($domains as $domain)
-                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                                <option value="{{ $domain->id }}" @selected((string) request('domain_id') === (string) $domain->id)>{{ $domain->hostname }}</option>
                             @endforeach
                         </select>
                     </div>
                 </label>
-                <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
+                <label class="flex min-w-[130px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
+                    <div class="figma-filter-select-wrap">
+                        <select id="traffic-source-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="google_ads" selected>Google Ads</option>
+                            <option value="meta_ads" disabled>Meta Ads</option>
+                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                        </select>
+                    </div>
+                </label>
+                <label class="flex min-w-[160px] flex-[1.2] flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
+                    <div class="figma-filter-select-wrap">
+                        <select id="campaign-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All Campaigns</option>
+                        </select>
+                    </div>
+                </label>
+                <label class="flex min-w-[150px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input id="path-filter" value="" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                        <input id="path-filter" value="{{ request('path', '') }}" placeholder="Landing page" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                     </div>
                 </label>
                 @include('partials.figma-filter-date-fields')
@@ -32,36 +50,38 @@
         </div>
 
         <div class="grid grid-cols-1 gap-[15px] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]">
-            <div class="rounded-[10px] border-[2px] border-[#6400B2] bg-[#6400B2] p-[12px] shadow-[0_0_24px_rgba(100,0,179,.45)]">
-                <div class="mb-[12px] flex h-[34px] items-center justify-between rounded-[8px] border border-white/30 bg-[#6400B2] px-[14px]">
+            <div class="rounded-[10px] border-[2px] border-[var(--brand-primary,#6400B2)] bg-[var(--brand-primary,#6400B2)] p-[12px] shadow-[0_0_24px_rgba(100,0,179,.45)]">
+                <div class="mb-[12px] flex h-[34px] items-center justify-between rounded-[8px] border border-white/30 bg-[var(--brand-primary,#6400B2)] px-[14px]">
                     <span class="text-[13px] font-medium text-white">Your Promo Suite</span>
-                    <span class="text-[9px] text-white/70">Showing data for the last 7 days</span>
+                    <span id="suite-range-label" class="text-[9px] text-white/70">Showing selected date range</span>
                 </div>
 
                 <div class="grid grid-cols-1 gap-[12px] sm:grid-cols-2">
-                    <article class="min-h-[136px] rounded-[12px] border border-white/30 bg-[#6400B2] px-[15px] py-[14px] text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
-                        <div class="mx-auto mb-[8px] flex h-[30px] w-[30px] items-center justify-center rounded-[4px] bg-white text-[#6400B2]">
+                    <article class="min-h-[136px] rounded-[12px] border border-white/30 bg-[var(--brand-primary,#6400B2)] px-[15px] py-[14px] text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+                        <div class="mx-auto mb-[8px] flex h-[30px] w-[30px] items-center justify-center rounded-[4px] bg-white text-[var(--brand-primary,#6400B2)]">
                             @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[20px] w-[20px]'])
                         </div>
                         <h2 class="text-[14px] font-normal text-white">Paid Advertising Protection</h2>
-                        <div class="mt-[9px] grid grid-cols-3 divide-x divide-white/25 text-[9px] text-white">
-                            <span>Invalid Visits</span>
-                            <span id="suite-paid-visits">--</span>
-                            <span>Invalids <b id="suite-paid-rate">0.00%</b></span>
+                        <div class="mt-[9px] grid grid-cols-2 gap-y-[6px] divide-x-0 text-[9px] text-white sm:grid-cols-4 sm:divide-x sm:divide-white/25">
+                            <div class="px-[4px]"><div class="text-white/65">Total Clicks</div><div id="suite-paid-clicks" class="mt-[2px] text-[12px] font-semibold">--</div></div>
+                            <div class="px-[4px]"><div class="text-white/65">Valid Clicks</div><div id="suite-paid-valid" class="mt-[2px] text-[12px] font-semibold">--</div></div>
+                            <div class="px-[4px]"><div class="text-white/65">Invalid Clicks</div><div id="suite-paid-visits" class="mt-[2px] text-[12px] font-semibold">--</div></div>
+                            <div class="px-[4px]"><div class="text-white/65">Protection Rate</div><div id="suite-paid-rate" class="mt-[2px] text-[12px] font-semibold">0.00%</div></div>
                         </div>
                         <p class="mt-[12px] text-[9px] text-white/70">Connection status</p>
                         <a href="{{ route('paid-marketing.dashboard') }}" class="mt-[8px] inline-block text-[11px] text-white hover:underline">Go To Dashboard</a>
                     </article>
 
-                    <article class="min-h-[136px] rounded-[12px] border border-white/30 bg-[#6400B2] px-[15px] py-[14px] text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
-                        <div class="mx-auto mb-[8px] flex h-[30px] w-[30px] items-center justify-center rounded-[4px] bg-white text-[#6400B2]">
+                    <article class="min-h-[136px] rounded-[12px] border border-white/30 bg-[var(--brand-primary,#6400B2)] px-[15px] py-[14px] text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]">
+                        <div class="mx-auto mb-[8px] flex h-[30px] w-[30px] items-center justify-center rounded-[4px] bg-white text-[var(--brand-primary,#6400B2)]">
                             @include('partials.sidebar-icon', ['name' => 'globe', 'class' => 'h-[20px] w-[20px]'])
                         </div>
                         <h2 class="text-[14px] font-normal text-white">Bot Detection</h2>
-                        <div class="mt-[9px] grid grid-cols-3 divide-x divide-white/25 text-[9px] text-white">
-                            <span>Invalid Visits</span>
-                            <span id="suite-bot-blocked">--</span>
-                            <span>Invalids <b id="suite-bot-rate">0.00%</b></span>
+                        <div class="mt-[9px] grid grid-cols-2 gap-y-[6px] text-[9px] text-white sm:grid-cols-4 sm:divide-x sm:divide-white/25">
+                            <div class="px-[4px]"><div class="text-white/65">Total Visitors</div><div id="suite-bot-visitors" class="mt-[2px] text-[12px] font-semibold">--</div></div>
+                            <div class="px-[4px]"><div class="text-white/65">Bots Detected</div><div id="suite-bot-detected" class="mt-[2px] text-[12px] font-semibold">--</div></div>
+                            <div class="px-[4px]"><div class="text-white/65">Blocked Bots</div><div id="suite-bot-blocked" class="mt-[2px] text-[12px] font-semibold">--</div></div>
+                            <div class="px-[4px]"><div class="text-white/65">Detection Rate</div><div id="suite-bot-rate" class="mt-[2px] text-[12px] font-semibold">0.00%</div></div>
                         </div>
                         <p class="mt-[12px] text-[9px] text-white/70">Connection status</p>
                         <a href="{{ route('bot-protection.dashboard') }}" class="mt-[8px] inline-block text-[11px] text-white hover:underline">Go To Dashboard</a>
@@ -69,13 +89,13 @@
                 </div>
             </div>
 
-            <div class="rounded-[8px] border border-[#6400B2] bg-[#6400B2] p-[12px]">
-                <div class="mb-[10px] flex items-center justify-between">
-                    <h2 class="text-[13px] font-normal text-white">Insights</h2>
-                    <span class="text-[9px] text-white/70">Showing data for the last 7 days</span>
-                    <button class="text-[10px] text-white hover:underline">Load More</button>
+            <div class="rounded-[8px] border border-[var(--brand-primary,#6400B2)] bg-[var(--brand-primary,#6400B2)] p-[12px]">
+                <div class="mb-[10px] flex items-center justify-between gap-2">
+                    <h2 class="text-[13px] font-normal text-white">Live Security Feed</h2>
+                    <span class="text-[9px] text-white/70">Recent detections</span>
+                    <a href="{{ route('paid-marketing.detailed') }}" class="text-[10px] text-white hover:underline">View All</a>
                 </div>
-                <div id="insight-list" class="space-y-[9px] text-[10px] text-white/75">
+                <div id="insight-list" class="max-h-[280px] space-y-[9px] overflow-y-auto text-[10px] text-white/75 promotix-slim-scroll">
                     <div class="text-white/60">Loading insights…</div>
                 </div>
             </div>
@@ -344,8 +364,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const params = dateParams();
         const domainId = document.getElementById('domain-filter')?.value || '';
         const path = document.getElementById('path-filter')?.value || '';
+        const campaign = document.getElementById('campaign-filter')?.value || '';
+        const trafficSource = document.getElementById('traffic-source-filter')?.value || '';
         if (domainId) params.set('domain_id', domainId);
         if (path) params.set('path', path);
+        if (campaign) params.set('campaign', campaign);
+        if (trafficSource) params.set('traffic_source', trafficSource);
         return params;
     }
 
@@ -459,10 +483,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadSummary() {
         const data = await json(apiUrl('/overview/summary'));
-        document.getElementById('suite-paid-visits').textContent = fmt(data.paidAdvertising?.invalidVisits ?? data.paidAdvertising?.visits);
-        document.getElementById('suite-bot-blocked').textContent = fmt(data.botProtection?.blockedHits);
-        const paidRate = Number(data.paidAdvertising?.invalidRate ?? 0).toFixed(2);
-        const botRate = Number(data.botProtection?.invalidRate ?? 0).toFixed(2);
+        const paid = data.paidAdvertising || {};
+        const bot = data.botProtection || {};
+        document.getElementById('suite-paid-clicks').textContent = fmt(paid.googleAdsClicks ?? paid.visits);
+        document.getElementById('suite-paid-valid').textContent = fmt(paid.validClicks ?? Math.max(0, Number(paid.visits || 0) - Number(paid.invalidVisits || 0)));
+        document.getElementById('suite-paid-visits').textContent = fmt(paid.invalidClicks ?? paid.invalidVisits);
+        document.getElementById('suite-bot-visitors').textContent = fmt(bot.totalVisitors);
+        document.getElementById('suite-bot-detected').textContent = fmt(bot.botsDetected ?? bot.blockedHits);
+        document.getElementById('suite-bot-blocked').textContent = fmt(bot.blockedHits);
+        const paidRate = Number(paid.protectionRate ?? paid.invalidRate ?? 0).toFixed(2);
+        const botRate = Number(bot.detectionRate ?? bot.invalidRate ?? 0).toFixed(2);
         document.getElementById('suite-paid-rate').textContent = `${paidRate}%`;
         document.getElementById('suite-bot-rate').textContent = `${botRate}%`;
         const conn = data.connectionStatus || {};
@@ -475,6 +505,10 @@ document.addEventListener('DOMContentLoaded', () => {
         setConn('conn-tracking', conn.tracking);
         setConn('conn-ingestion', conn.ingestion);
         setConn('conn-protection', conn.protection);
+        if (data.dateRange?.from && data.dateRange?.to) {
+            const label = document.getElementById('suite-range-label');
+            if (label) label.textContent = `Showing ${data.dateRange.from} → ${data.dateRange.to}`;
+        }
     }
 
     let domainRows = [];
@@ -514,30 +548,64 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadInsights() {
-        const params = dateParams();
-        const domainId = document.getElementById('domain-filter')?.value || '';
-        const path = document.getElementById('path-filter')?.value || '';
-        if (domainId) params.set('domain_id', domainId);
-        if (path) params.set('path', path);
-        const qs = params.toString();
-        const d = await json(qs ? `/insights?${qs}` : '/insights');
-        const today = new Date();
-        const rows = [
-            ['Paid Advertising: detection on example domain', d.totalClicks],
-            ['Paid Advertising: invalid traffic found', d.suspiciousVisits],
-            [`Top campaign: ${d.topCampaign || 'N/A'}`, d.topCampaignClicks],
-            ['Bot Protection: suspicious sessions blocked', d.suspiciousVisits],
-        ];
-        document.getElementById('insight-list').innerHTML = rows.map(([text, count], index) => `
-            <article class="flex h-[30px] items-center gap-[9px] rounded-[6px] bg-[#0D0D0D]/82 px-[10px] text-[10px] text-white">
-                <span class="rounded-[3px] bg-[#6400B2] px-[7px] py-[3px]">${today.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</span>
-                <span class="flex-1">${text}</span>
-                <span>${fmt(count)}</span>
-            </article>
-        `).join('');
+        const d = await json(apiUrl('/insights'));
+        const feed = Array.isArray(d.feed) ? d.feed : [];
+        const list = document.getElementById('insight-list');
+        if (!feed.length) {
+            list.innerHTML = `
+                <article class="rounded-[6px] bg-[#0D0D0D]/82 px-[10px] py-[10px] text-[10px] text-white/70">
+                    No high-risk detections in this range yet.
+                </article>`;
+        } else {
+            list.innerHTML = feed.map((item) => {
+                const severity = item.severity || 'medium';
+                const bar = severity === 'high' ? '#ef4444' : (severity === 'medium' ? '#f59e0b' : '#60a5fa');
+                const reasons = (item.reasons || []).slice(0, 3).map((r) => String(r).replace(/_/g, ' ')).join(' · ') || 'Review signals';
+                const time = item.at ? new Date(item.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+                return `
+                <article class="relative overflow-hidden rounded-[8px] bg-[#0D0D0D]/82 pl-[12px] pr-[10px] py-[10px] text-[10px] text-white"
+                         style="border-left:3px solid ${bar}">
+                    <div class="mb-[4px] flex items-center justify-between gap-2">
+                        <span class="font-semibold text-white">${item.title || 'High Risk Click Detected'}</span>
+                        <span class="rounded-[999px] px-[7px] py-[2px] text-[9px] uppercase"
+                              style="background:${bar}33;color:${bar}">${severity}</span>
+                    </div>
+                    <div class="space-y-[2px] text-white/75">
+                        <div><span class="text-white/45">Campaign:</span> ${item.campaign || '—'}</div>
+                        <div class="flex flex-wrap gap-x-3 gap-y-1">
+                            <span><span class="text-white/45">IP:</span> ${item.ip || '—'}</span>
+                            <span><span class="text-white/45">Risk:</span> ${Number(item.risk || 0)}%</span>
+                            <span><span class="text-white/45">Action:</span> ${item.action || '—'}</span>
+                        </div>
+                        <div><span class="text-white/45">Reasons:</span> ${reasons}</div>
+                    </div>
+                    ${time ? `<div class="mt-[4px] text-[9px] text-white/40">${time}</div>` : ''}
+                </article>`;
+            }).join('');
+        }
         document.getElementById('bottom-paid-clicks').textContent = fmt(d.totalClicks);
         document.getElementById('bottom-suspicious').textContent = fmt(d.suspiciousVisits);
         document.getElementById('bottom-top-campaign').textContent = d.topCampaign || 'N/A';
+    }
+
+    async function loadCampaignOptions(preserveValue = true) {
+        const select = document.getElementById('campaign-filter');
+        if (!select) return;
+        const current = preserveValue ? (select.value || new URLSearchParams(location.search).get('campaign') || '') : '';
+        const params = new URLSearchParams();
+        const domainId = document.getElementById('domain-filter')?.value || '';
+        if (domainId) params.set('domain_id', domainId);
+        const rows = await json(params.toString() ? `/campaigns?${params}` : '/campaigns');
+        const options = [`<option value="">All Campaigns</option>`].concat(
+            (rows || []).map((row) => {
+                const name = typeof row === 'string' ? row : (row.name || '');
+                const label = typeof row === 'string' ? row : (row.label || row.name || '');
+                const selected = current && current === name ? ' selected' : '';
+                return `<option value="${String(name).replace(/"/g, '&quot;')}"${selected}>${label}</option>`;
+            })
+        );
+        select.innerHTML = options.join('');
+        if (current) select.value = current;
     }
 
     async function loadDomainTable() {
@@ -551,12 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadCharts() {
         hiddenThreatSlices = {};
-        const params = dateParams();
-        const domainId = document.getElementById('domain-filter')?.value || '';
-        const path = document.getElementById('path-filter')?.value || '';
-        if (domainId) params.set('domain_id', domainId);
-        if (path) params.set('path', path);
-        const qs = params.toString();
+        const qs = filterParams().toString();
 
         if (insightsTab === 'bot') {
             const trends = await json(qs ? `/bot-protection/invalid-traffic-trends?${qs}` : '/bot-protection/invalid-traffic-trends');
@@ -581,6 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadAll() {
         syncHeaderDatesFromStorage();
         try {
+            await loadCampaignOptions(true);
             await Promise.all([loadSummary(), loadInsights(), loadDomainTable()]);
             await loadCharts();
         } catch (error) {
@@ -605,13 +669,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     window.addEventListener('promotix:date-range', loadAll);
 
-    document.getElementById('domain-filter')?.addEventListener('change', loadAll);
+    document.getElementById('domain-filter')?.addEventListener('change', async () => {
+        await loadCampaignOptions(false);
+        loadAll();
+    });
+    document.getElementById('campaign-filter')?.addEventListener('change', loadAll);
+    document.getElementById('traffic-source-filter')?.addEventListener('change', loadAll);
     document.getElementById('path-filter')?.addEventListener('input', () => {
         clearTimeout(window.__figmaPathTimer);
         window.__figmaPathTimer = setTimeout(loadAll, FILTER_DEBOUNCE_MS);
     });
+
+    const bootstrapParams = new URLSearchParams(location.search);
+    if (bootstrapParams.get('domain_id')) {
+        const domainEl = document.getElementById('domain-filter');
+        if (domainEl) domainEl.value = bootstrapParams.get('domain_id');
+    }
+    if (bootstrapParams.get('path')) {
+        const pathEl = document.getElementById('path-filter');
+        if (pathEl) pathEl.value = bootstrapParams.get('path');
+    }
+    if (bootstrapParams.get('campaign')) {
+        window.__pendingCampaign = bootstrapParams.get('campaign');
+    }
+
     window.addEventListener('resize', () => loadCharts());
-    loadAll();
+    loadAll().then(() => {
+        if (window.__pendingCampaign) {
+            const campaignEl = document.getElementById('campaign-filter');
+            if (campaignEl) {
+                campaignEl.value = window.__pendingCampaign;
+                loadAll();
+            }
+            window.__pendingCampaign = null;
+        }
+    });
 });
 </script>
 @endsection

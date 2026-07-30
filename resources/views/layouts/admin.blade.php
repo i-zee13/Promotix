@@ -75,7 +75,8 @@
                 <span class="figma-sidebar-search-icon absolute left-[11px] top-1/2 -translate-y-1/2 text-white/70">
                     <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </span>
-                <input type="search" placeholder="Search" class="figma-sidebar-search h-[32px] w-full max-w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[var(--brand-primary)] focus:ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)]">
+                <input id="figma-sidebar-search" type="search" placeholder="Search gclid, IP, domain…" class="figma-sidebar-search h-[32px] w-full max-w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[var(--brand-primary)] focus:ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)]">
+                <div id="figma-sidebar-search-hint" class="mt-1 hidden text-[10px] text-white/50"></div>
             </div>
 
             <nav class="figma-nav-scrollless mt-[4px] shrink-0 overflow-hidden overflow-x-hidden pr-[2px]" aria-label="Main navigation">
@@ -378,5 +379,73 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 @include('partials.timezone-sync')
 @include('partials.live-agent-chat')
+@include('partials.promotix-global-ip-modal')
+<script>
+(() => {
+    const input = document.getElementById('figma-sidebar-search');
+    const hint = document.getElementById('figma-sidebar-search-hint');
+    if (!input) return;
+
+    const setHint = (text, isError = false) => {
+        if (!hint) return;
+        if (!text) {
+            hint.classList.add('hidden');
+            hint.textContent = '';
+            return;
+        }
+        hint.classList.remove('hidden');
+        hint.textContent = text;
+        hint.style.color = isError ? '#fda4af' : 'rgba(255,255,255,0.55)';
+    };
+
+    const runSearch = async () => {
+        const q = input.value.trim();
+        if (!q) {
+            setHint('');
+            return;
+        }
+        setHint('Searching…');
+        try {
+            const res = await fetch(`/overview/search?q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' } });
+            const data = await res.json();
+            const match = data.match;
+            if (!match) {
+                setHint(data.message || 'No match found', true);
+                return;
+            }
+
+            if (match.type === 'domain') {
+                window.location.href = `{{ route('dashboard') }}?domain_id=${encodeURIComponent(match.domain_id)}`;
+                return;
+            }
+            if (match.type === 'campaign') {
+                window.location.href = `{{ route('dashboard') }}?campaign=${encodeURIComponent(match.campaign)}`;
+                return;
+            }
+            if (['ip', 'gclid', 'visitor', 'event'].includes(match.type) && match.ip) {
+                setHint(`Opening ${match.type.toUpperCase()} details…`);
+                window.dispatchEvent(new CustomEvent('promotix-open-ip-modal', {
+                    detail: {
+                        ip: match.ip,
+                        type: match.type,
+                        label: match.type === 'gclid' ? 'GCLID investigation' : `${match.type.toUpperCase()} investigation`,
+                    },
+                }));
+                return;
+            }
+            setHint('No actionable match', true);
+        } catch (e) {
+            setHint('Search failed', true);
+        }
+    };
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            runSearch();
+        }
+    });
+})();
+</script>
 </body>
 </html>
