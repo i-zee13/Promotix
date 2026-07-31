@@ -1245,7 +1245,7 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     --gads-cal-accent: var(--brand-primary, #6400B2);
     --gads-cal-range: color-mix(in srgb, var(--brand-primary, #6400B2) 28%, transparent);
     --gads-cal-input-bg: #0b0b0b;
-    width: min(720px, calc(100vw - 24px));
+    width: min(540px, calc(100vw - 20px));
     padding: 0;
     border: 1px solid var(--gads-cal-border);
     border-radius: 12px;
@@ -1257,8 +1257,8 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 
 .figma-gads-calendar__body {
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
-    max-height: min(560px, calc(100dvh - 48px));
+    grid-template-columns: 168px minmax(0, 1fr);
+    max-height: min(480px, calc(100dvh - 48px));
 }
 
 .figma-gads-calendar__presets {
@@ -1272,7 +1272,7 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 .figma-gads-calendar__preset-list {
     list-style: none;
     margin: 0;
-    padding: 8px 0;
+    padding: 6px 0;
     overflow-y: auto;
     flex: 1;
 }
@@ -1281,8 +1281,9 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     display: block;
     width: 100%;
     text-align: left;
-    padding: 8px 14px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
+    line-height: 1.25;
     color: var(--gads-cal-text);
     background: transparent;
     border: 0;
@@ -1295,38 +1296,38 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 }
 
 .figma-gads-calendar__custom-days {
-    padding: 10px 14px;
+    padding: 8px 10px;
     border-top: 1px solid var(--gads-cal-border);
     display: grid;
-    gap: 8px;
+    gap: 6px;
 }
 
 .figma-gads-calendar__days-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 11px;
+    gap: 6px;
+    font-size: 10px;
     color: var(--gads-cal-muted);
 }
 
 .figma-gads-calendar__days-input {
-    width: 44px;
-    height: 28px;
+    width: 38px;
+    height: 26px;
     border-radius: 4px;
     border: 1px solid var(--gads-cal-border);
     background: var(--gads-cal-input-bg);
     color: var(--gads-cal-text);
     text-align: center;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .figma-gads-calendar__compare {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 14px;
+    padding: 10px;
     border-top: 1px solid var(--gads-cal-border);
-    font-size: 12px;
+    font-size: 11px;
     color: var(--gads-cal-text);
 }
 
@@ -1365,32 +1366,32 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     flex-direction: column;
     min-width: 0;
     min-height: 0;
-    padding: 12px 14px 10px;
+    padding: 10px 12px 8px;
 }
 
 .figma-gads-calendar__inputs {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
 .figma-gads-calendar__field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    font-size: 10px;
+    gap: 3px;
+    font-size: 9px;
     color: var(--gads-cal-muted);
 }
 
 .figma-gads-calendar__date-input {
-    height: 34px;
+    height: 30px;
     border-radius: 6px;
     border: 1px solid var(--gads-cal-border);
     background: var(--gads-cal-input-bg);
     color: var(--gads-cal-text);
-    padding: 0 10px;
-    font-size: 12px;
+    padding: 0 8px;
+    font-size: 11px;
 }
 
 .figma-gads-calendar__month-nav {
@@ -1426,20 +1427,20 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 
 .figma-gads-calendar__scroller {
     flex: 1;
-    min-height: 220px;
-    max-height: 340px;
+    min-height: 180px;
+    max-height: 280px;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding-right: 4px;
+    padding-right: 2px;
 }
 
 .figma-gads-calendar__month {
-    margin-bottom: 14px;
+    margin-bottom: 10px;
 }
 
 .figma-gads-calendar__month-title {
-    margin: 0 0 6px;
-    font-size: 11px;
+    margin: 0 0 4px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.06em;
     color: var(--gads-cal-muted);
@@ -1449,24 +1450,24 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 .figma-gads-calendar__grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
+    gap: 1px;
 }
 
 .figma-gads-calendar__weekdays {
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .figma-gads-calendar__weekdays span {
     text-align: center;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     color: var(--gads-cal-muted);
 }
 
 .figma-gads-calendar__day {
-    height: 32px;
-    border-radius: 6px;
-    font-size: 12px;
+    height: 28px;
+    border-radius: 5px;
+    font-size: 11px;
     color: var(--gads-cal-text);
     background: transparent;
     border: 0;
@@ -5948,11 +5949,11 @@ select:autofill {
 }
 
 .paid-dashboard-card {
-    min-height: 158px;
+    min-height: 148px;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.4);
     background: var(--brand-primary, #6400B2);
-    padding: 16px;
+    padding: 12px 14px;
     box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
 }
 
@@ -5972,6 +5973,64 @@ select:autofill {
 
 .paid-dashboard-card__icon-btn:hover {
     color: #fff;
+}
+
+/* Compact Paid Traffic metrics (same purple card, tighter layout) */
+.paid-traffic-metrics {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 72px;
+    gap: 8px;
+    align-items: end;
+}
+
+.paid-traffic-metrics__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 10px;
+    min-width: 0;
+}
+
+.paid-traffic-metrics__label {
+    margin: 0;
+    font-size: 8px;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.paid-traffic-metrics__value {
+    margin: 3px 0 0;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1;
+    color: #fff;
+}
+
+.paid-traffic-metrics__accuracy {
+    grid-column: 1 / -1;
+}
+
+.paid-traffic-metrics__hint {
+    margin: 3px 0 0;
+    font-size: 8px;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.paid-traffic-metrics__donut {
+    position: relative;
+    width: 72px;
+    height: 72px;
+}
+
+.paid-traffic-metrics__donut canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+@media (min-width: 1280px) {
+    .paid-traffic-metrics__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .paid-blocking-row {

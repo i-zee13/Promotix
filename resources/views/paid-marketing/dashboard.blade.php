@@ -26,7 +26,7 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
             </div>
 
-            <div class="figma-filter-bar figma-filter-bar--overview flex min-h-[54px] w-full max-w-[920px] flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid flex min-h-[54px] w-full max-w-[780px] flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
                 <label class="flex min-w-[130px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
@@ -71,48 +71,42 @@
         </div>
 
         <div class="paid-dashboard-cards">
-            <article class="paid-dashboard-card">
-                <div class="flex items-start justify-between">
+            <article class="paid-dashboard-card paid-dashboard-card--traffic">
+                <div class="flex items-start justify-between gap-[8px]">
                     <h2 class="paid-dashboard-card__title">Paid Traffic</h2>
-                    <div class="flex items-center gap-[6px]">
+                    <div class="flex shrink-0 items-center gap-[6px]">
                         <button type="button" class="paid-dashboard-card__icon-btn" aria-label="Refresh" @click="reload(true, true)" title="Refresh Google Ads sync">
                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
                         </button>
                         <span class="paid-dashboard-card__icon-btn text-[11px]" title="1 Google click ID (gclid/gbraid/wbraid) = 1 click. Tracking accuracy = tracked ÷ Google Ads clicks.">i</span>
                     </div>
                 </div>
-                <div class="mt-[8px] grid grid-cols-[minmax(0,1fr)_88px] items-center gap-[10px]">
-                    <div class="min-w-0">
-                        <div class="grid grid-cols-2 gap-x-[12px] gap-y-[8px] sm:grid-cols-3">
-                            <div class="min-w-0 text-left">
-                                <p class="text-[9px] leading-[1.25] text-white/75">Total Google Ads Clicks</p>
-                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
-                            </div>
-                            <div class="min-w-0 text-left">
-                                <p class="text-[9px] leading-[1.25] text-white/75">Tracked Clicks</p>
-                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.tracked_clicks ?? summary.unique_paid_clicks)"></p>
-                            </div>
-                            <div class="min-w-0 text-left">
-                                <p class="text-[9px] leading-[1.25] text-white/75">Valid Clicks</p>
-                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.unique_valid_paid_clicks ?? summary.valid_paid_visits)"></p>
-                            </div>
-                            <div class="min-w-0 text-left">
-                                <p class="text-[9px] leading-[1.25] text-white/75">Invalid Clicks</p>
-                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white" x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></p>
-                            </div>
-                            <div class="min-w-0 text-left sm:col-span-2">
-                                <p class="text-[9px] leading-[1.25] text-white/75">Tracking Accuracy</p>
-                                <p class="mt-[4px] text-[20px] font-semibold leading-none text-white">
-                                    <span x-text="fmt(summary.tracking_accuracy_pct ?? summary.tag_capture_pct)"></span>%
-                                </p>
-                                <p class="mt-[3px] text-[8px] leading-tight text-white/45" x-show="summary.tag_gap_warning">
-                                    Tracking gap vs Google Ads — check GCLID capture
-                                </p>
-                            </div>
+                <div class="paid-traffic-metrics mt-[8px]">
+                    <div class="paid-traffic-metrics__grid">
+                        <div>
+                            <p class="paid-traffic-metrics__label">Total Google Ads Clicks</p>
+                            <p class="paid-traffic-metrics__value" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
+                        </div>
+                        <div>
+                            <p class="paid-traffic-metrics__label">Tracked Clicks</p>
+                            <p class="paid-traffic-metrics__value" x-text="fmt(summary.tracked_clicks ?? summary.unique_paid_clicks)"></p>
+                        </div>
+                        <div>
+                            <p class="paid-traffic-metrics__label">Valid Clicks</p>
+                            <p class="paid-traffic-metrics__value" x-text="fmt(summary.unique_valid_paid_clicks ?? summary.valid_paid_visits)"></p>
+                        </div>
+                        <div>
+                            <p class="paid-traffic-metrics__label">Invalid Clicks</p>
+                            <p class="paid-traffic-metrics__value" x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></p>
+                        </div>
+                        <div class="paid-traffic-metrics__accuracy">
+                            <p class="paid-traffic-metrics__label">Tracking Accuracy</p>
+                            <p class="paid-traffic-metrics__value"><span x-text="fmt(summary.tracking_accuracy_pct ?? summary.tag_capture_pct)"></span>%</p>
+                            <p class="paid-traffic-metrics__hint" x-show="summary.tag_gap_warning">Tracking gap vs Google Ads — check GCLID capture</p>
                         </div>
                     </div>
-                    <div class="relative h-[72px] w-[88px] self-end">
-                        <canvas id="paid-invalid-donut" class="h-full w-full" aria-label="Invalid traffic rate"></canvas>
+                    <div class="paid-traffic-metrics__donut">
+                        <canvas id="paid-invalid-donut" aria-label="Invalid traffic rate"></canvas>
                     </div>
                 </div>
             </article>
