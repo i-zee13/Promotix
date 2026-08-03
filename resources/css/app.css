@@ -6945,7 +6945,13 @@ html.ov-boot-lock body {
 }
 
 .ov-filter-bar {
-    max-width: min(100%, 560px) !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+}
+
+.ov-filter-bar .figma-filter-calendar-host {
+    flex: 0 0 auto;
+    margin-left: 0;
 }
 
 .ov-card {
