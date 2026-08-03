@@ -6918,11 +6918,30 @@ select:autofill {
 }
 
 /* ========== Overview mockup layout (GPT reference, brand colors kept) ========== */
+html.ov-boot-lock,
+html.ov-boot-lock body {
+    overflow: hidden !important;
+}
+
 .ov-page {
     width: 100%;
     max-width: 100%;
     min-width: 0;
     overflow-x: clip;
+}
+
+.ov-page--booting {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ov-page--booting .ov-feed-list {
+    overflow: hidden !important;
+}
+
+.ov-page--ready {
+    opacity: 1;
+    transition: opacity 0.2s ease;
 }
 
 .ov-filter-bar {
@@ -7122,6 +7141,31 @@ select:autofill {
     justify-content: center;
     border-radius: 999px;
     margin-bottom: 2px;
+}
+
+.ov-suite-icon-img {
+    display: block;
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+    /* SVGs were exported as black strokes — invert for purple cards */
+    filter: brightness(0) invert(1);
+    opacity: 0.95;
+}
+
+.ov-suite-icon-img--md {
+    width: 16px;
+    height: 16px;
+}
+
+.ov-suite-icon-img--lg {
+    width: 18px;
+    height: 18px;
+}
+
+.ov-suite-card__badge .ov-suite-icon-img,
+.ov-suite-card__brand .ov-suite-icon-img {
+    filter: brightness(0) invert(1);
 }
 
 .ov-suite-stat__icon--clicks,

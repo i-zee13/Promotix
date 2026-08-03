@@ -77,9 +77,18 @@
 @endsection
 
 @section('content')
-@include('partials.promotix-page-loader')
+<script>
+    document.documentElement.classList.add('ov-boot-lock');
+    if (window.promotixPageLoader) {
+        window.promotixPageLoader.show('Loading Overview…');
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            window.promotixPageLoader?.show('Loading Overview…');
+        });
+    }
+</script>
 <div class="brand-page-bg min-h-[calc(100vh-49px)]">
-    <section class="ov-page mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[18px] sm:px-[18px] xl:max-w-none xl:px-[22px] xl:pt-[20px]">
+    <section id="ov-page" class="ov-page ov-page--booting mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[18px] sm:px-[18px] xl:max-w-none xl:px-[22px] xl:pt-[20px]">
         <div class="mb-[12px] flex flex-col gap-[10px] xl:flex-row xl:items-start xl:justify-between">
             <h1 class="text-[28px] font-normal leading-none text-white sm:text-[31px]">Overview</h1>
             <div class="figma-filter-bar figma-filter-bar--overview ov-filter-bar flex min-h-[54px] w-full max-w-[720px] flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)] xl:max-w-[720px]">
@@ -128,13 +137,13 @@
                         <h2 class="ov-suite-card__title">Google Ads Protection</h2>
                     </div>
                     <span class="ov-suite-card__badge" aria-hidden="true" title="Ads protection">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l7 3v5c0 4.5-2.8 7.8-7 9-4.2-1.2-7-4.5-7-9V6l7-3z"/><path d="M12 8v8M9.5 12H14"/></svg>
+                        <img src="{{ asset('images/overview-icons/shield-dollar.png') }}" alt="" class="ov-suite-icon-img ov-suite-icon-img--lg">
                     </span>
                 </div>
                 <div class="ov-suite-card__metrics">
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--clicks" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7"/><path d="M12 9v6M9 12h6"/></svg>
+                            <img src="{{ asset('images/overview-icons/cursor-click.png') }}" alt="" class="ov-suite-icon-img">
                         </span>
                         <p class="ov-suite-stat__label">Total Clicks</p>
                         <p id="suite-paid-clicks" class="ov-suite-stat__value">--</p>
@@ -143,7 +152,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--valid" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9.2 12.2l1.8 1.8 3.8-4"/></svg>
+                            <img src="{{ asset('images/overview-icons/shield-check.png') }}" alt="" class="ov-suite-icon-img">
                         </span>
                         <p class="ov-suite-stat__label">Valid Clicks</p>
                         <p id="suite-paid-valid" class="ov-suite-stat__value">--</p>
@@ -152,7 +161,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--invalid" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></svg>
+                            <img src="{{ asset('images/overview-icons/ban.png') }}" alt="" class="ov-suite-icon-img">
                         </span>
                         <p class="ov-suite-stat__label">Invalid Clicks</p>
                         <p id="suite-paid-visits" class="ov-suite-stat__value">--</p>
@@ -161,7 +170,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--rate" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9 12.5l2 2 4-4.5"/></svg>
+                            <img src="{{ asset('images/overview-icons/gauge.png') }}" alt="" class="ov-suite-icon-img">
                         </span>
                         <p class="ov-suite-stat__label">Protection Rate</p>
                         <p id="suite-paid-rate" class="ov-suite-stat__value">0.00%</p>
@@ -176,18 +185,18 @@
                 <div class="ov-suite-card__head">
                     <div class="ov-suite-card__title-row">
                         <span class="ov-suite-card__brand ov-suite-card__brand--bot" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="8" width="12" height="10" rx="3"/><circle cx="10" cy="13" r="1.2" fill="currentColor"/><circle cx="14" cy="13" r="1.2" fill="currentColor"/><path d="M12 4v4M9 18v2M15 18v2"/></svg>
+                            <img src="{{ asset('images/overview-icons/cpu-bolt.png') }}" alt="" class="ov-suite-icon-img ov-suite-icon-img--md">
                         </span>
                         <h2 class="ov-suite-card__title">Bot Protection</h2>
                     </div>
                     <span class="ov-suite-card__badge" aria-hidden="true" title="Bot protection">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l7 3v5c0 4.5-2.8 7.8-7 9-4.2-1.2-7-4.5-7-9V6l7-3z"/><rect x="9" y="10" width="6" height="5" rx="1.5"/><circle cx="11" cy="12.5" r="0.7" fill="currentColor"/><circle cx="13" cy="12.5" r="0.7" fill="currentColor"/></svg>
+                        <img src="{{ asset('images/overview-icons/bug-scan.png') }}" alt="" class="ov-suite-icon-img ov-suite-icon-img--lg">
                     </span>
                 </div>
                 <div class="ov-suite-card__metrics">
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--clicks" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7"/><path d="M12 9v6M9 12h6"/></svg>
+                            <img src="{{ asset('images/overview-icons/users.png') }}" alt="" class="ov-suite-icon-img">
                         </span>
                         <p class="ov-suite-stat__label">Total Visitors</p>
                         <p id="suite-bot-visitors" class="ov-suite-stat__value">--</p>
@@ -196,7 +205,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--invalid" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></svg>
+                            <img src="{{ asset('images/overview-icons/bug-scan.png') }}" alt="" class="ov-suite-icon-img">
                         </span>
                         <p class="ov-suite-stat__label">Bots Detected</p>
                         <p id="suite-bot-detected" class="ov-suite-stat__value">--</p>
@@ -205,7 +214,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--valid" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9.2 12.2l1.8 1.8 3.8-4"/></svg>
+                            <img src="{{ asset('images/overview-icons/lock.png') }}" alt="" class="ov-suite-icon-img">
                         </span>
                         <p class="ov-suite-stat__label">Blocked Bots</p>
                         <p id="suite-bot-blocked" class="ov-suite-stat__value">--</p>
@@ -214,7 +223,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--rate" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9 12.5l2 2 4-4.5"/></svg>
+                            <img src="{{ asset('images/overview-icons/gauge.png') }}" alt="" class="ov-suite-icon-img">
                         </span>
                         <p class="ov-suite-stat__label">Detection Rate</p>
                         <p id="suite-bot-rate" class="ov-suite-stat__value">0.00%</p>
@@ -858,7 +867,17 @@ document.addEventListener('DOMContentLoaded', () => {
         feed.style.maxHeight = `${h}px`;
     }
 
+    function revealOverview() {
+        syncFeedToSuiteHeight();
+        const page = document.getElementById('ov-page');
+        page?.classList.remove('ov-page--booting');
+        page?.classList.add('ov-page--ready');
+        document.documentElement.classList.remove('ov-boot-lock');
+        window.promotixPageLoader?.hide();
+    }
+
     async function loadAll() {
+        window.promotixPageLoader?.show('Loading Overview…');
         try {
             const results = await Promise.allSettled([
                 loadSummary(),
@@ -881,9 +900,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('charts', error);
             }
         } finally {
+            // Wait for feed/layout paint so scrollbar doesn’t shove cards mid-reveal
             syncFeedToSuiteHeight();
-            requestAnimationFrame(syncFeedToSuiteHeight);
-            window.promotixPageLoader?.hide();
+            requestAnimationFrame(() => {
+                syncFeedToSuiteHeight();
+                requestAnimationFrame(revealOverview);
+            });
         }
     }
 
