@@ -521,6 +521,14 @@
                                     <p class="figma-modal-value" x-text="(ipModal.row?.risk_level || '—') + (ipModal.row?.risk_score != null ? (' · ' + ipModal.row.risk_score + '%') : '')"></p>
                                 </div>
                                 <div class="figma-modal-field">
+                                    <p class="figma-modal-label">ISP</p>
+                                    <p class="figma-modal-value" x-text="ipModal.row?.isp || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">ASN</p>
+                                    <p class="figma-modal-value" x-text="ipModal.row?.asn || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
                                     <p class="figma-modal-label">Country</p>
                                     <p class="figma-modal-value inline-flex items-center gap-2">
                                         <img x-show="countryFlagUrl(activeIpClick.country || ipModal.row?.country)"
