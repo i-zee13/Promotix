@@ -1511,6 +1511,8 @@ class PaidAdvertisingDashboardController extends Controller
                 $riskLevel = 'Low';
             }
 
+            $actionRaw = data_get($row, 'action');
+
             return [
                 'ip' => $ip,
                 'country' => $row->country ?? null,
@@ -1528,8 +1530,8 @@ class PaidAdvertisingDashboardController extends Controller
                 'campaign' => $row->campaign ?? null,
                 'device' => $row->device ?? null,
                 'browser' => $row->browser ?? null,
-                'action' => ! empty($row->action ?? null)
-                    ? ucfirst((string) $row->action)
+                'action' => ($actionRaw !== null && $actionRaw !== '')
+                    ? ucfirst((string) $actionRaw)
                     : (((int) ($row->invalid ?? 0) > 0) ? 'Block' : 'Allow'),
                 'vpn_hits' => (int) ($row->vpn_hits ?? 0),
                 'data_center_hits' => (int) ($row->data_center_hits ?? 0),
