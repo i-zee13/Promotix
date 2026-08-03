@@ -116,60 +116,112 @@
             </div>
         </div>
 
-        {{-- Top: Protection cards + Live Security Feed (compact equal-height row) --}}
+        {{-- Top: Suite protection cards (mockup) + Live Security Feed --}}
         <div class="ov-top-grid">
-            <article class="ov-card ov-card--metric">
-                <div class="ov-card__head">
-                    <h2 class="ov-card__title">Google Ads Protection</h2>
-                    <a href="{{ route('paid-marketing.dashboard') }}" class="ov-card__link">Dashboard →</a>
+            <article class="ov-suite-card">
+                <div class="ov-suite-card__head">
+                    <div class="ov-suite-card__title-row">
+                        <span class="ov-suite-card__brand" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#FBBC04" d="M12 2.5l9.5 16.5H2.5L12 2.5z"/><path fill="#4285F4" d="M12 2.5l9.5 16.5h-6.2L12 2.5z"/><path fill="#34A853" d="M8.7 19H2.5L12 2.5 8.7 19z"/></svg>
+                        </span>
+                        <h2 class="ov-suite-card__title">Google Ads Protection</h2>
+                    </div>
+                    <span class="ov-suite-card__badge" aria-hidden="true" title="Ads protection">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l7 3v5c0 4.5-2.8 7.8-7 9-4.2-1.2-7-4.5-7-9V6l7-3z"/><path d="M12 8v8M9.5 12H14"/></svg>
+                    </span>
                 </div>
-                <div class="ov-metric-body">
-                    <div class="ov-metric-grid">
-                        <div class="ov-metric-cell">
-                            <p class="ov-metric-label">Total Clicks</p>
-                            <p id="suite-paid-clicks" class="ov-metric-value">--</p>
-                        </div>
-                        <div class="ov-metric-cell">
-                            <p class="ov-metric-label">Valid Clicks</p>
-                            <p id="suite-paid-valid" class="ov-metric-value">--</p>
-                        </div>
-                        <div class="ov-metric-cell">
-                            <p class="ov-metric-label">Invalid Clicks</p>
-                            <p id="suite-paid-visits" class="ov-metric-value">--</p>
-                        </div>
-                        <div class="ov-metric-cell">
-                            <p class="ov-metric-label">Protection Rate</p>
-                            <p id="suite-paid-rate" class="ov-metric-value">0.00%</p>
-                        </div>
+                <div class="ov-suite-card__metrics">
+                    <div class="ov-suite-stat">
+                        <span class="ov-suite-stat__icon ov-suite-stat__icon--clicks" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7"/><path d="M12 9v6M9 12h6"/></svg>
+                        </span>
+                        <p class="ov-suite-stat__label">Total Clicks</p>
+                        <p id="suite-paid-clicks" class="ov-suite-stat__value">--</p>
+                        <p id="suite-paid-clicks-delta" class="ov-suite-stat__delta is-flat">—</p>
+                        <p class="ov-suite-stat__vs">vs previous period</p>
+                    </div>
+                    <div class="ov-suite-stat">
+                        <span class="ov-suite-stat__icon ov-suite-stat__icon--valid" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9.2 12.2l1.8 1.8 3.8-4"/></svg>
+                        </span>
+                        <p class="ov-suite-stat__label">Valid Clicks</p>
+                        <p id="suite-paid-valid" class="ov-suite-stat__value">--</p>
+                        <p id="suite-paid-valid-delta" class="ov-suite-stat__delta is-flat">—</p>
+                        <p class="ov-suite-stat__vs">vs previous period</p>
+                    </div>
+                    <div class="ov-suite-stat">
+                        <span class="ov-suite-stat__icon ov-suite-stat__icon--invalid" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></svg>
+                        </span>
+                        <p class="ov-suite-stat__label">Invalid Clicks</p>
+                        <p id="suite-paid-visits" class="ov-suite-stat__value">--</p>
+                        <p id="suite-paid-visits-delta" class="ov-suite-stat__delta is-flat">—</p>
+                        <p class="ov-suite-stat__vs">vs previous period</p>
+                    </div>
+                    <div class="ov-suite-stat">
+                        <span class="ov-suite-stat__icon ov-suite-stat__icon--rate" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9 12.5l2 2 4-4.5"/></svg>
+                        </span>
+                        <p class="ov-suite-stat__label">Protection Rate</p>
+                        <p id="suite-paid-rate" class="ov-suite-stat__value">0.00%</p>
+                        <p id="suite-paid-rate-delta" class="ov-suite-stat__delta is-flat">—</p>
+                        <p class="ov-suite-stat__vs">vs previous period</p>
                     </div>
                 </div>
+                <a href="{{ route('paid-marketing.dashboard') }}" class="ov-suite-card__cta">View Detailed Report →</a>
             </article>
 
-            <article class="ov-card ov-card--metric">
-                <div class="ov-card__head">
-                    <h2 class="ov-card__title">Bot Protection</h2>
-                    <a href="{{ route('bot-protection.dashboard') }}" class="ov-card__link">Dashboard →</a>
+            <article class="ov-suite-card">
+                <div class="ov-suite-card__head">
+                    <div class="ov-suite-card__title-row">
+                        <span class="ov-suite-card__brand ov-suite-card__brand--bot" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="8" width="12" height="10" rx="3"/><circle cx="10" cy="13" r="1.2" fill="currentColor"/><circle cx="14" cy="13" r="1.2" fill="currentColor"/><path d="M12 4v4M9 18v2M15 18v2"/></svg>
+                        </span>
+                        <h2 class="ov-suite-card__title">Bot Protection</h2>
+                    </div>
+                    <span class="ov-suite-card__badge" aria-hidden="true" title="Bot protection">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l7 3v5c0 4.5-2.8 7.8-7 9-4.2-1.2-7-4.5-7-9V6l7-3z"/><rect x="9" y="10" width="6" height="5" rx="1.5"/><circle cx="11" cy="12.5" r="0.7" fill="currentColor"/><circle cx="13" cy="12.5" r="0.7" fill="currentColor"/></svg>
+                    </span>
                 </div>
-                <div class="ov-metric-body">
-                    <div class="ov-metric-grid">
-                        <div class="ov-metric-cell">
-                            <p class="ov-metric-label">Total Visitors</p>
-                            <p id="suite-bot-visitors" class="ov-metric-value">--</p>
-                        </div>
-                        <div class="ov-metric-cell">
-                            <p class="ov-metric-label">Bots Detected</p>
-                            <p id="suite-bot-detected" class="ov-metric-value">--</p>
-                        </div>
-                        <div class="ov-metric-cell">
-                            <p class="ov-metric-label">Blocked Bots</p>
-                            <p id="suite-bot-blocked" class="ov-metric-value">--</p>
-                        </div>
-                        <div class="ov-metric-cell">
-                            <p class="ov-metric-label">Detection Rate</p>
-                            <p id="suite-bot-rate" class="ov-metric-value">0.00%</p>
-                        </div>
+                <div class="ov-suite-card__metrics">
+                    <div class="ov-suite-stat">
+                        <span class="ov-suite-stat__icon ov-suite-stat__icon--clicks" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7"/><path d="M12 9v6M9 12h6"/></svg>
+                        </span>
+                        <p class="ov-suite-stat__label">Total Visitors</p>
+                        <p id="suite-bot-visitors" class="ov-suite-stat__value">--</p>
+                        <p id="suite-bot-visitors-delta" class="ov-suite-stat__delta is-flat">—</p>
+                        <p class="ov-suite-stat__vs">vs previous period</p>
+                    </div>
+                    <div class="ov-suite-stat">
+                        <span class="ov-suite-stat__icon ov-suite-stat__icon--invalid" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></svg>
+                        </span>
+                        <p class="ov-suite-stat__label">Bots Detected</p>
+                        <p id="suite-bot-detected" class="ov-suite-stat__value">--</p>
+                        <p id="suite-bot-detected-delta" class="ov-suite-stat__delta is-flat">—</p>
+                        <p class="ov-suite-stat__vs">vs previous period</p>
+                    </div>
+                    <div class="ov-suite-stat">
+                        <span class="ov-suite-stat__icon ov-suite-stat__icon--valid" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9.2 12.2l1.8 1.8 3.8-4"/></svg>
+                        </span>
+                        <p class="ov-suite-stat__label">Blocked Bots</p>
+                        <p id="suite-bot-blocked" class="ov-suite-stat__value">--</p>
+                        <p id="suite-bot-blocked-delta" class="ov-suite-stat__delta is-flat">—</p>
+                        <p class="ov-suite-stat__vs">vs previous period</p>
+                    </div>
+                    <div class="ov-suite-stat">
+                        <span class="ov-suite-stat__icon ov-suite-stat__icon--rate" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.2-2.7 7.4-7 8.7C7.7 18.4 5 15.2 5 11V6l7-3z"/><path d="M9 12.5l2 2 4-4.5"/></svg>
+                        </span>
+                        <p class="ov-suite-stat__label">Detection Rate</p>
+                        <p id="suite-bot-rate" class="ov-suite-stat__value">0.00%</p>
+                        <p id="suite-bot-rate-delta" class="ov-suite-stat__delta is-flat">—</p>
+                        <p class="ov-suite-stat__vs">vs previous period</p>
                     </div>
                 </div>
+                <a href="{{ route('bot-protection.dashboard') }}" class="ov-suite-card__cta">View Bot Report →</a>
             </article>
 
             <article class="ov-card ov-card--feed">
@@ -384,9 +436,49 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<span class="ml-1 text-[9px] ${tone}">${sign}${n}</span>`;
     }
 
+    function pctFromAbsDelta(current, absDelta) {
+        if (absDelta == null || Number.isNaN(Number(absDelta))) return null;
+        const cur = Number(current || 0);
+        const d = Number(absDelta);
+        const prev = cur - d;
+        if (prev === 0) return d === 0 ? 0 : 100;
+        return Math.round((d / Math.abs(prev)) * 1000) / 10;
+    }
+
+    function setSuiteStat(id, value, absDelta, { isRate = false } = {}) {
+        const el = document.getElementById(id);
+        const deltaEl = document.getElementById(`${id}-delta`);
+        if (el) {
+            el.textContent = isRate
+                ? `${Number(value ?? 0).toFixed(2)}%`
+                : fmt(value);
+        }
+        if (!deltaEl) return;
+
+        let shown = null;
+        if (absDelta != null && !Number.isNaN(Number(absDelta))) {
+            shown = isRate ? Number(absDelta) : pctFromAbsDelta(value, absDelta);
+        }
+
+        if (shown == null || Number.isNaN(shown)) {
+            deltaEl.textContent = '—';
+            deltaEl.className = 'ov-suite-stat__delta is-flat';
+            return;
+        }
+
+        const n = Number(shown);
+        const arrow = n > 0 ? '↑' : (n < 0 ? '↓' : '·');
+        deltaEl.textContent = `${arrow} ${Math.abs(n).toFixed(n % 1 ? 1 : 0)}%`;
+        deltaEl.className = 'ov-suite-stat__delta ' + (n > 0 ? 'is-up' : (n < 0 ? 'is-down' : 'is-flat'));
+    }
+
     function setMetric(id, value, delta) {
         const el = document.getElementById(id);
         if (!el) return;
+        if (el.classList.contains('ov-suite-stat__value')) {
+            setSuiteStat(id, value, delta, { isRate: id.endsWith('-rate') });
+            return;
+        }
         el.innerHTML = `${fmt(value)}${deltaLabel(delta)}`;
     }
 
@@ -596,7 +688,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadSummary() {
-        const data = await json(apiUrl('/overview/summary'));
+        const params = filterParams();
+        params.set('compare', '1');
+        const qs = params.toString();
+        const data = await json(qs ? `/overview/summary?${qs}` : '/overview/summary?compare=1');
         const paid = data.paidAdvertising || {};
         const bot = data.botProtection || {};
         const compare = data.compare || {};
@@ -605,17 +700,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const quick = data.quickStats || {};
         const conn = data.connectionStatus || {};
 
-        setMetric('suite-paid-clicks', paid.googleAdsClicks ?? paid.visits, paidDelta.googleAdsClicks ?? paidDelta.visits);
-        setMetric('suite-paid-valid', paid.validClicks ?? Math.max(0, Number(paid.visits || 0) - Number(paid.invalidVisits || 0)), paidDelta.validClicks);
-        setMetric('suite-paid-visits', paid.invalidClicks ?? paid.invalidVisits, paidDelta.invalidClicks ?? paidDelta.invalidVisits);
-        setMetric('suite-bot-visitors', bot.totalVisitors, botDelta.totalVisitors);
-        setMetric('suite-bot-detected', bot.botsDetected ?? bot.blockedHits, botDelta.botsDetected ?? botDelta.blockedHits);
-        setMetric('suite-bot-blocked', bot.blockedHits, botDelta.blockedHits);
-
-        const paidRateEl = document.getElementById('suite-paid-rate');
-        const botRateEl = document.getElementById('suite-bot-rate');
-        if (paidRateEl) paidRateEl.innerHTML = `${Number(paid.protectionRate ?? paid.invalidRate ?? 0).toFixed(2)}%${deltaLabel(paidDelta.protectionRate ?? paidDelta.invalidRate)}`;
-        if (botRateEl) botRateEl.innerHTML = `${Number(bot.detectionRate ?? bot.invalidRate ?? 0).toFixed(2)}%${deltaLabel(botDelta.detectionRate ?? botDelta.invalidRate)}`;
+        setSuiteStat('suite-paid-clicks', paid.googleAdsClicks ?? paid.visits, paidDelta.googleAdsClicks ?? paidDelta.visits);
+        setSuiteStat('suite-paid-valid', paid.validClicks ?? Math.max(0, Number(paid.visits || 0) - Number(paid.invalidVisits || 0)), paidDelta.validClicks);
+        setSuiteStat('suite-paid-visits', paid.invalidClicks ?? paid.invalidVisits, paidDelta.invalidClicks ?? paidDelta.invalidVisits);
+        setSuiteStat('suite-paid-rate', paid.protectionRate ?? paid.invalidRate ?? 0, paidDelta.protectionRate ?? paidDelta.invalidRate, { isRate: true });
+        setSuiteStat('suite-bot-visitors', bot.totalVisitors, botDelta.totalVisitors);
+        setSuiteStat('suite-bot-detected', bot.botsDetected ?? bot.blockedHits, botDelta.botsDetected ?? botDelta.blockedHits);
+        setSuiteStat('suite-bot-blocked', bot.blockedHits, botDelta.blockedHits);
+        setSuiteStat('suite-bot-rate', bot.detectionRate ?? bot.invalidRate ?? 0, botDelta.detectionRate ?? botDelta.invalidRate, { isRate: true });
 
         document.getElementById('quick-total-clicks').textContent = fmt(quick.totalClicks ?? paid.visits ?? 0);
         document.getElementById('quick-invalid-clicks').textContent = fmt(quick.invalidClicks ?? paid.invalidVisits ?? 0);

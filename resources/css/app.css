@@ -6974,6 +6974,187 @@ select:autofill {
     align-items: stretch;
 }
 
+/* ========== Suite protection cards (mockup) ========== */
+.ov-suite-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 55%, #ffffff 8%);
+    background:
+        linear-gradient(165deg, color-mix(in srgb, var(--brand-primary, #6400B2) 28%, #0a0a0a) 0%, #0d0d0d 55%, #0a0a0a 100%);
+    padding: 14px 14px 12px;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.ov-suite-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ov-suite-card__title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.ov-suite-card__brand {
+    display: inline-flex;
+    height: 28px;
+    width: 28px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ov-suite-card__brand--bot {
+    color: #c4a3e8;
+}
+
+.ov-suite-card__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.ov-suite-card__badge {
+    display: inline-flex;
+    height: 34px;
+    width: 34px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    color: #d8b4fe;
+    background: color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 65%, #fff 10%);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
+}
+
+.ov-suite-card__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+@media (min-width: 640px) {
+    .ov-suite-card__metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+}
+
+.ov-suite-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    min-width: 0;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--brand-primary, #6400B2) 18%, #121212);
+    padding: 10px 6px 8px;
+}
+
+.ov-suite-stat__icon {
+    display: inline-flex;
+    height: 26px;
+    width: 26px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    margin-bottom: 2px;
+}
+
+.ov-suite-stat__icon--clicks,
+.ov-suite-stat__icon--invalid {
+    color: #c4b5fd;
+    background: color-mix(in srgb, var(--brand-primary, #6400B2) 40%, transparent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent);
+}
+
+.ov-suite-stat__icon--valid,
+.ov-suite-stat__icon--rate {
+    color: #67e8f9;
+    background: rgba(34, 211, 238, 0.12);
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.22);
+}
+
+.ov-suite-stat__label {
+    margin: 0;
+    font-size: 9px;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.ov-suite-stat__value {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #fff;
+    letter-spacing: -0.02em;
+}
+
+.ov-suite-stat__delta {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.ov-suite-stat__delta.is-up {
+    color: #4ade80;
+}
+
+.ov-suite-stat__delta.is-down {
+    color: #fb7185;
+}
+
+.ov-suite-stat__delta.is-flat {
+    color: rgba(255, 255, 255, 0.35);
+    font-weight: 500;
+}
+
+.ov-suite-stat__vs {
+    margin: 0;
+    font-size: 8px;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.38);
+}
+
+.ov-suite-card__cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-top: auto;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 70%, #fff 8%);
+    background: rgba(0, 0, 0, 0.35);
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.78);
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.ov-suite-card__cta:hover {
+    color: #fff;
+    background: color-mix(in srgb, var(--brand-primary, #6400B2) 35%, rgba(0, 0, 0, 0.4));
+    border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 85%, #fff 12%);
+}
+
 .ov-card--metric,
 .ov-card--feed {
     display: flex;
@@ -7052,21 +7233,21 @@ select:autofill {
 
     .ov-card--feed {
         grid-column: 1 / -1;
-        min-height: 200px;
-        max-height: 220px;
+        min-height: 220px;
+        max-height: 260px;
     }
 }
 
 @media (min-width: 1200px) {
     .ov-top-grid {
-        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.05fr) minmax(300px, 1.15fr);
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(280px, 0.9fr);
+        align-items: stretch;
     }
 
-    .ov-card--metric,
     .ov-card--feed {
         grid-column: auto;
-        min-height: 200px;
-        max-height: 220px;
+        min-height: 0;
+        max-height: none;
     }
 }
 
