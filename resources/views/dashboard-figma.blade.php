@@ -92,7 +92,7 @@
         <div class="mb-[12px] flex flex-col gap-[10px] xl:flex-row xl:items-start xl:justify-between">
             <h1 class="text-[28px] font-normal leading-none text-white sm:text-[31px]">Overview</h1>
             <div class="figma-filter-bar figma-filter-bar--overview ov-filter-bar flex min-h-[54px] w-full max-w-[720px] flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)] xl:max-w-[720px]">
-                <label class="flex min-w-[130px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="flex min-w-[120px] flex-[1.2] flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select id="domain-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -103,7 +103,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-[120px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="ov-filter-traffic flex w-[118px] max-w-[118px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                     <div class="figma-filter-select-wrap">
                         <select id="traffic-source-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -113,7 +113,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-[140px] flex-[1.1] flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="ov-filter-pages flex w-[128px] max-w-[128px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
