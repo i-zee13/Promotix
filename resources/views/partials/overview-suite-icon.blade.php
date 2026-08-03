@@ -3,6 +3,12 @@
     $size = (int) ($size ?? 14);
 @endphp
 @switch($name ?? '')
+    @case('ads')
+        <img class="ov-suite-icon-img" src="{{ asset('images/overview-icons/ads.png') }}" width="{{ $size }}" height="{{ $size }}" alt="" aria-hidden="true">
+        @break
+    @case('globe-users')
+        <img class="ov-suite-icon-img" src="{{ asset('images/overview-icons/globe-users.png') }}" width="{{ $size }}" height="{{ $size }}" alt="" aria-hidden="true">
+        @break
     @case('cursor-click')
         <svg class="ov-suite-icon-svg" width="{{ $size }}" height="{{ $size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 3.5v6.2"/><path d="M4.8 9.7H11"/><path d="M5.6 5.6l3.4 3.4"/><path d="M12.2 10.2l8.3 3.1-3.4 1.5-1.5 3.4-3.4-8z"/>

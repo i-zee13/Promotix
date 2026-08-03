@@ -131,7 +131,7 @@
             <article class="ov-suite-card">
                 <div class="ov-suite-card__head ov-suite-card__head--stacked">
                     <span class="ov-suite-card__brand" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="#FBBC04" d="M12 2.5l9.5 16.5H2.5L12 2.5z"/><path fill="#4285F4" d="M12 2.5l9.5 16.5h-6.2L12 2.5z"/><path fill="#34A853" d="M8.7 19H2.5L12 2.5 8.7 19z"/></svg>
+                        @include('partials.overview-suite-icon', ['name' => 'ads', 'size' => 22])
                     </span>
                     <h2 class="ov-suite-card__title">Google Ads Protection</h2>
                 </div>
@@ -167,7 +167,7 @@
             <article class="ov-suite-card">
                 <div class="ov-suite-card__head ov-suite-card__head--stacked">
                     <span class="ov-suite-card__brand ov-suite-card__brand--bot" aria-hidden="true">
-                        @include('partials.overview-suite-icon', ['name' => 'cpu-bolt', 'size' => 20])
+                        @include('partials.overview-suite-icon', ['name' => 'globe-users', 'size' => 22])
                     </span>
                     <h2 class="ov-suite-card__title">Bot Protection</h2>
                 </div>
