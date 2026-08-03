@@ -7168,12 +7168,11 @@ html.ov-boot-lock body {
     flex-shrink: 0;
 }
 
-/* Black SVG-Repo PNGs → white on purple suite cards */
+/* Suite header icons (white PNGs embedded as data URIs) */
 .ov-suite-icon-img {
     display: block;
     flex-shrink: 0;
     object-fit: contain;
-    filter: invert(1) brightness(1.05);
 }
 
 .ov-suite-card__badge,
