@@ -834,6 +834,16 @@ document.addEventListener('DOMContentLoaded', () => {
         renderThreatLegend(threats.labels || [], threats.values || []);
     }
 
+    function syncFeedToSuiteHeight() {
+        const pair = document.querySelector('.ov-suite-pair');
+        const feed = document.querySelector('.ov-card--feed');
+        if (!pair || !feed) return;
+        const h = Math.max(pair.offsetHeight || 0, 200);
+        feed.style.setProperty('--ov-suite-h', `${h}px`);
+        feed.style.maxHeight = `${h}px`;
+        feed.style.height = `${h}px`;
+    }
+
     async function loadAll() {
         try {
             const results = await Promise.allSettled([
@@ -857,6 +867,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('charts', error);
             }
         } finally {
+            syncFeedToSuiteHeight();
+            requestAnimationFrame(syncFeedToSuiteHeight);
             window.promotixPageLoader?.hide();
         }
     }
@@ -875,6 +887,10 @@ document.addEventListener('DOMContentLoaded', () => {
         window.__ovPathTimer = setTimeout(loadAll, FILTER_DEBOUNCE_MS);
     });
     window.addEventListener('promotix:date-range', loadAll);
+    window.addEventListener('resize', () => {
+        window.clearTimeout(window.__ovFeedSyncTimer);
+        window.__ovFeedSyncTimer = setTimeout(syncFeedToSuiteHeight, 100);
+    });
 
     const bootstrapParams = new URLSearchParams(location.search);
     if (bootstrapParams.get('domain_id')) {
