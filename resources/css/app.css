@@ -7346,14 +7346,14 @@ select:autofill {
 
 .ov-chart-area {
     position: relative;
-    height: 340px;
-    min-height: 300px;
+    height: 280px;
+    min-height: 240px;
 }
 
 @media (min-width: 1024px) {
     .ov-chart-area {
-        height: 380px;
-        min-height: 340px;
+        height: 300px;
+        min-height: 280px;
     }
 }
 
@@ -7387,7 +7387,7 @@ select:autofill {
 
 .ov-donut-wrap {
     position: relative;
-    height: 300px;
+    height: 240px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -7395,15 +7395,15 @@ select:autofill {
 
 @media (min-width: 1024px) {
     .ov-donut-wrap {
-        height: 340px;
+        height: 260px;
     }
 }
 
 .ov-donut-canvas {
     width: 100%;
     height: 100%;
-    max-width: 280px;
-    max-height: 280px;
+    max-width: 230px;
+    max-height: 230px;
 }
 
 .ov-donut-center {
