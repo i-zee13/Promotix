@@ -179,6 +179,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::get('/automation/{job}', [AutomationController::class, 'show'])->name('automation.show');
         Route::get('/integrations', [IntegrationsController::class, 'index'])->name('integrations');
         Route::post('/integrations/google/{connection}/sync-accounts', [IntegrationsController::class, 'syncAccounts'])->name('integrations.google.sync-accounts');
+        Route::post('/integrations/google/{connection}/test', [IntegrationsController::class, 'testConnection'])->name('integrations.google.test');
         Route::delete('/integrations/google/{connection}', [IntegrationsController::class, 'disconnect'])->name('integrations.google.disconnect');
         Route::post('/integrations/accounts', [IntegrationsController::class, 'storeAccount'])->name('integrations.store-account');
         Route::post('/integrations/mappings', [IntegrationsController::class, 'storeMapping'])->name('integrations.store-mapping');
@@ -249,6 +250,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/live-stream', [DashboardController::class, 'liveStream']);
     Route::get('/domains/performance', [DashboardController::class, 'domainPerformance']);
     Route::get('/campaigns', [DashboardController::class, 'campaigns']);
+    Route::get('/campaigns/performance', [DashboardController::class, 'campaignPerformance']);
     Route::put('/user/preferences', [DashboardController::class, 'preferences']);
 
     Route::get('/domains', [DomainManagementController::class, 'list']);
@@ -301,6 +303,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/integrations/connected', [IntegrationsController::class, 'connectedJson']);
     Route::get('/integrations/status', [IntegrationsController::class, 'statusJson']);
+    Route::get('/integrations/logs', [IntegrationsController::class, 'logsJson']);
+    Route::post('/integrations/google/{connection}/test', [IntegrationsController::class, 'testConnection']);
     Route::get('/integrations/all', [IntegrationsController::class, 'allJson']);
     Route::get('/integrations/google/oauth-url', [IntegrationsController::class, 'googleOauthUrl']);
     Route::get('/integrations/google/pixel-guard', [IntegrationsController::class, 'pixelGuardGet']);

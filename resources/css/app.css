@@ -6815,24 +6815,24 @@ select:autofill {
 /* Overview dashboard — Invalid Visits Trends + Threat donut (balanced layout) */
 .figma-dash-threats-charts {
     display: grid;
-    min-height: 255px;
+    min-height: 210px;
     grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
+    gap: 12px;
     align-items: stretch;
 }
 
 @media (min-width: 768px) {
     .figma-dash-threats-charts {
-        grid-template-columns: minmax(0, 1.08fr) minmax(220px, 0.92fr);
-        gap: 18px;
+        grid-template-columns: minmax(0, 1.2fr) minmax(200px, 0.8fr);
+        gap: 14px;
     }
 }
 
 .figma-dash-threats-charts__area,
 .figma-dash-threats-charts__donut {
     position: relative;
-    min-height: 240px;
-    height: 255px;
+    min-height: 200px;
+    height: 210px;
 }
 
 .figma-dash-threats-charts__donut {

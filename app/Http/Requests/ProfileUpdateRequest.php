@@ -27,6 +27,7 @@ class ProfileUpdateRequest extends FormRequest
             ],
             'timezone' => ['nullable', 'timezone:all'],
             'reporting_timezone' => ['nullable', 'string', Rule::in(\App\Support\UserTimezone::REPORTING_MODES)],
+            'company_name' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

@@ -104,10 +104,10 @@
         <section class="mt-[15px] rounded-[8px] border border-[#6400B2] bg-[#6400B2] p-[13px] shadow-[0_0_28px_rgba(100,0,179,.45)]">
             <div class="mb-[5px] flex items-center justify-between">
                 <div>
-                    <h2 class="text-[13px] font-normal leading-none text-white">Invalid Visits Trends &amp; Threat groups</h2>
+                    <h2 class="text-[13px] font-normal leading-none text-white">Invalid Traffic Trends &amp; Threat Groups</h2>
                     <div class="mt-[7px] flex items-center gap-[18px] border-b border-white/70 pb-[4px] text-[15px] leading-none text-white/95">
-                        <button type="button" id="insights-tab-paid" class="border-b-2 border-white pb-[2px] text-white">Paid Advertising</button>
-                        <button type="button" id="insights-tab-bot" class="pb-[2px] text-white/60 hover:text-white">Bot Protection</button>
+                        <button type="button" id="insights-tab-paid" class="border-b-2 border-white pb-[2px] text-white">Google Ads</button>
+                        <button type="button" id="insights-tab-bot" class="pb-[2px] text-white/60 hover:text-white">Organic / Bot</button>
                     </div>
                 </div>
                 <button class="text-white/80" aria-label="More">
@@ -147,16 +147,19 @@
                 </div>
             </div>
             <div class="overflow-x-auto rounded-[4px] border border-white/15">
-                <table class="min-w-[520px] w-full text-left text-[11px] text-white">
+                <table class="min-w-[720px] w-full text-left text-[11px] text-white">
                     <thead class="bg-[#4D008E] text-white/85">
                         <tr>
                             <th class="px-[10px] py-[7px] font-normal">Domain</th>
-                            <th class="px-[10px] py-[7px] font-normal">Visits</th>
-                            <th class="px-[10px] py-[7px] font-normal">Threats</th>
+                            <th class="px-[10px] py-[7px] font-normal">Clicks</th>
+                            <th class="px-[10px] py-[7px] font-normal">Visitors</th>
+                            <th class="px-[10px] py-[7px] font-normal">Invalid %</th>
+                            <th class="px-[10px] py-[7px] font-normal">Risk</th>
+                            <th class="px-[10px] py-[7px] font-normal">Status</th>
                         </tr>
                     </thead>
                     <tbody id="domain-performance-body" class="divide-y divide-white/10 bg-[#6400B2]">
-                        <tr><td colspan="3" class="px-[8px] py-[8px] text-center text-white/75">Loading...</td></tr>
+                        <tr><td colspan="6" class="px-[8px] py-[8px] text-center text-white/75">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -168,19 +171,21 @@
                     <h2 class="text-[13px] font-normal text-white">Campaign Performance</h2>
                     <span class="rounded-[4px] bg-[#0B0B0B]/80 px-[8px] py-[4px] text-[10px] text-white/75">Live</span>
                 </div>
-                <div class="grid grid-cols-1 gap-[10px] sm:grid-cols-3">
-                    <article class="rounded-[8px] border border-white/20 bg-[#4D008E]/70 p-[12px]">
-                        <p class="text-[10px] text-white/70">Paid clicks</p>
-                        <p id="bottom-paid-clicks" class="mt-[6px] text-[24px] font-semibold leading-none text-white">--</p>
-                    </article>
-                    <article class="rounded-[8px] border border-white/20 bg-[#4D008E]/70 p-[12px]">
-                        <p class="text-[10px] text-white/70">Suspicious visits</p>
-                        <p id="bottom-suspicious" class="mt-[6px] text-[24px] font-semibold leading-none text-white">--</p>
-                    </article>
-                    <article class="rounded-[8px] border border-white/20 bg-[#4D008E]/70 p-[12px]">
-                        <p class="text-[10px] text-white/70">Top campaign</p>
-                        <p id="bottom-top-campaign" class="mt-[6px] truncate text-[16px] font-semibold leading-none text-white">--</p>
-                    </article>
+                <div class="overflow-x-auto rounded-[4px] border border-white/15">
+                    <table class="min-w-[640px] w-full text-left text-[11px] text-white">
+                        <thead class="bg-[#4D008E] text-white/85">
+                            <tr>
+                                <th class="px-[10px] py-[7px] font-normal">Campaign</th>
+                                <th class="px-[10px] py-[7px] font-normal">Clicks</th>
+                                <th class="px-[10px] py-[7px] font-normal">Valid</th>
+                                <th class="px-[10px] py-[7px] font-normal">Invalid</th>
+                                <th class="px-[10px] py-[7px] font-normal">Risk %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaign-performance-body" class="divide-y divide-white/10 bg-[#4D008E]/55">
+                            <tr><td colspan="5" class="px-[8px] py-[8px] text-center text-white/75">Loading...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
@@ -195,6 +200,15 @@
                     </div>
                     <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
                         <span>Protection</span><span id="conn-protection" class="text-amber-100">—</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                        <span>Last event</span><span id="conn-last-event" class="text-white/80">—</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                        <span>Tracking version</span><span id="conn-tracking-version" class="text-white/80">—</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                        <span>Events today</span><span id="conn-events-today" class="text-white/80">—</span>
                     </div>
                 </div>
             </section>
@@ -351,13 +365,28 @@ document.addEventListener('DOMContentLoaded', () => {
     function dateParams() {
         try {
             const r = JSON.parse(localStorage.getItem('promotix-date-range') || '{}');
+            const c = JSON.parse(localStorage.getItem('promotix-date-compare') || '{}');
             const p = new URLSearchParams();
             if (r.from) p.set('from', r.from);
             if (r.to) p.set('to', r.to);
+            if (c.enabled) p.set('compare', '1');
             return p;
         } catch (e) {
             return new URLSearchParams();
         }
+    }
+
+    function deltaLabel(delta) {
+        if (delta == null || Number.isNaN(Number(delta))) return '';
+        const n = Number(delta);
+        const sign = n > 0 ? '+' : '';
+        return `<span class="ml-1 text-[9px] ${n > 0 ? 'text-rose-200' : (n < 0 ? 'text-emerald-200' : 'text-white/45')}">${sign}${n}</span>`;
+    }
+
+    function setMetric(id, value, delta) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = `${fmt(value)}${deltaLabel(delta)}`;
     }
 
     function filterParams() {
@@ -485,16 +514,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await json(apiUrl('/overview/summary'));
         const paid = data.paidAdvertising || {};
         const bot = data.botProtection || {};
-        document.getElementById('suite-paid-clicks').textContent = fmt(paid.googleAdsClicks ?? paid.visits);
-        document.getElementById('suite-paid-valid').textContent = fmt(paid.validClicks ?? Math.max(0, Number(paid.visits || 0) - Number(paid.invalidVisits || 0)));
-        document.getElementById('suite-paid-visits').textContent = fmt(paid.invalidClicks ?? paid.invalidVisits);
-        document.getElementById('suite-bot-visitors').textContent = fmt(bot.totalVisitors);
-        document.getElementById('suite-bot-detected').textContent = fmt(bot.botsDetected ?? bot.blockedHits);
-        document.getElementById('suite-bot-blocked').textContent = fmt(bot.blockedHits);
+        const compare = data.compare || {};
+        const paidDelta = compare.paidAdvertising || {};
+        const botDelta = compare.botProtection || {};
+        setMetric('suite-paid-clicks', paid.googleAdsClicks ?? paid.visits, paidDelta.googleAdsClicks ?? paidDelta.visits);
+        setMetric('suite-paid-valid', paid.validClicks ?? Math.max(0, Number(paid.visits || 0) - Number(paid.invalidVisits || 0)), paidDelta.validClicks);
+        setMetric('suite-paid-visits', paid.invalidClicks ?? paid.invalidVisits, paidDelta.invalidClicks ?? paidDelta.invalidVisits);
+        setMetric('suite-bot-visitors', bot.totalVisitors, botDelta.totalVisitors);
+        setMetric('suite-bot-detected', bot.botsDetected ?? bot.blockedHits, botDelta.botsDetected ?? botDelta.blockedHits);
+        setMetric('suite-bot-blocked', bot.blockedHits, botDelta.blockedHits);
         const paidRate = Number(paid.protectionRate ?? paid.invalidRate ?? 0).toFixed(2);
         const botRate = Number(bot.detectionRate ?? bot.invalidRate ?? 0).toFixed(2);
-        document.getElementById('suite-paid-rate').textContent = `${paidRate}%`;
-        document.getElementById('suite-bot-rate').textContent = `${botRate}%`;
+        const paidRateEl = document.getElementById('suite-paid-rate');
+        const botRateEl = document.getElementById('suite-bot-rate');
+        if (paidRateEl) {
+            paidRateEl.innerHTML = `${paidRate}%${deltaLabel(paidDelta.protectionRate ?? paidDelta.invalidRate)}`;
+        }
+        if (botRateEl) {
+            botRateEl.innerHTML = `${botRate}%${deltaLabel(botDelta.detectionRate ?? botDelta.invalidRate)}`;
+        }
         const conn = data.connectionStatus || {};
         const setConn = (id, text) => {
             const el = document.getElementById(id);
@@ -505,9 +543,29 @@ document.addEventListener('DOMContentLoaded', () => {
         setConn('conn-tracking', conn.tracking);
         setConn('conn-ingestion', conn.ingestion);
         setConn('conn-protection', conn.protection);
+        const lastEventEl = document.getElementById('conn-last-event');
+        if (lastEventEl) {
+            lastEventEl.textContent = conn.lastEventAt
+                ? new Date(conn.lastEventAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : '—';
+            lastEventEl.className = 'text-white/80';
+        }
+        const versionEl = document.getElementById('conn-tracking-version');
+        if (versionEl) {
+            versionEl.textContent = conn.trackingVersion || '—';
+            versionEl.className = 'text-white/80';
+        }
+        const eventsEl = document.getElementById('conn-events-today');
+        if (eventsEl) {
+            eventsEl.textContent = fmt(conn.eventsToday ?? 0);
+            eventsEl.className = 'text-white/80';
+        }
         if (data.dateRange?.from && data.dateRange?.to) {
             const label = document.getElementById('suite-range-label');
-            if (label) label.textContent = `Showing ${data.dateRange.from} → ${data.dateRange.to}`;
+            if (label) {
+                const cmp = data.compareRange ? ` · vs ${data.compareRange.from} → ${data.compareRange.to}` : '';
+                label.textContent = `Showing ${data.dateRange.from} → ${data.dateRange.to}${cmp}`;
+            }
         }
     }
 
@@ -515,22 +573,32 @@ document.addEventListener('DOMContentLoaded', () => {
     let domainFilter = 'all';
     let domainSearch = '';
 
+    function riskTone(level) {
+        const l = String(level || '').toLowerCase();
+        if (l === 'high') return 'text-rose-200';
+        if (l === 'medium') return 'text-amber-200';
+        return 'text-emerald-200';
+    }
+
     function renderDomainTable() {
         const body = document.getElementById('domain-performance-body');
         const q = domainSearch.trim().toLowerCase();
         const filtered = domainRows.filter((row) => {
             if (q && !(row.domain || '').toLowerCase().includes(q)) return false;
-            if (domainFilter === 'invalid') return row.threats > 0;
+            if (domainFilter === 'invalid') return (row.threats || 0) > 0 || (row.invalidPct || 0) > 0;
             if (domainFilter === 'pending') return row.pending;
             return true;
         });
         body.innerHTML = filtered.length ? filtered.map((row) => `
             <tr>
                 <td class="px-[8px] py-[6px]">${row.domain}${row.pending ? ' <span class="text-[9px] text-amber-200">(pending)</span>' : ''}</td>
-                <td class="px-[8px] py-[6px]">${fmt(row.visits)}</td>
-                <td class="px-[8px] py-[6px]">${fmt(row.threats)}</td>
+                <td class="px-[8px] py-[6px]">${fmt(row.clicks ?? row.visits)}</td>
+                <td class="px-[8px] py-[6px]">${fmt(row.visitors ?? row.visits)}</td>
+                <td class="px-[8px] py-[6px]">${Number(row.invalidPct || 0).toFixed(1)}%</td>
+                <td class="px-[8px] py-[6px] ${riskTone(row.riskLevel)}">${row.riskLevel || 'Low'} (${fmt(row.risk || 0)})</td>
+                <td class="px-[8px] py-[6px]">${row.status || (row.pending ? 'Pending' : 'Active')}</td>
             </tr>
-        `).join('') : '<tr><td colspan="3" class="px-[8px] py-[8px] text-center text-white/75">No domains match this filter.</td></tr>';
+        `).join('') : '<tr><td colspan="6" class="px-[8px] py-[8px] text-center text-white/75">No domains match this filter.</td></tr>';
     }
 
     function setDomainTab(tab) {
@@ -583,9 +651,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 </article>`;
             }).join('');
         }
-        document.getElementById('bottom-paid-clicks').textContent = fmt(d.totalClicks);
-        document.getElementById('bottom-suspicious').textContent = fmt(d.suspiciousVisits);
-        document.getElementById('bottom-top-campaign').textContent = d.topCampaign || 'N/A';
+    }
+
+    async function loadCampaignPerformance() {
+        const body = document.getElementById('campaign-performance-body');
+        if (!body) return;
+        const rows = await json(apiUrl('/campaigns/performance'));
+        body.innerHTML = (rows || []).length ? rows.map((row) => `
+            <tr>
+                <td class="px-[8px] py-[6px]">${row.campaign || '—'}</td>
+                <td class="px-[8px] py-[6px]">${fmt(row.clicks)}</td>
+                <td class="px-[8px] py-[6px]">${fmt(row.valid)}</td>
+                <td class="px-[8px] py-[6px]">${fmt(row.invalid)}</td>
+                <td class="px-[8px] py-[6px]">${Number(row.riskPct || 0).toFixed(1)}%</td>
+            </tr>
+        `).join('') : '<tr><td colspan="5" class="px-[8px] py-[8px] text-center text-white/75">No campaigns in this range.</td></tr>';
     }
 
     async function loadCampaignOptions(preserveValue = true) {
@@ -645,7 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
         syncHeaderDatesFromStorage();
         try {
             await loadCampaignOptions(true);
-            await Promise.all([loadSummary(), loadInsights(), loadDomainTable()]);
+            await Promise.all([loadSummary(), loadInsights(), loadDomainTable(), loadCampaignPerformance()]);
             await loadCharts();
         } catch (error) {
             console.error(error);

@@ -1,5 +1,5 @@
 <div class="rounded-[10px] border border-[#b487ff]/35 bg-[linear-gradient(180deg,#6400b2_0%,#42007a_100%)] p-[16px]">
-    <h2 class="text-[16px] font-semibold text-white">Login history</h2>
+    <h2 class="text-[16px] font-semibold text-white">Security activity</h2>
     <p class="mt-[3px] text-[11px] text-white/75">Recent sign-ins for this account.</p>
 
     <div class="mt-[10px] max-h-[360px] overflow-auto rounded-[8px] border border-white/20 bg-black/15">

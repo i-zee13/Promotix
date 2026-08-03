@@ -204,7 +204,7 @@ class PaidMarketingController extends Controller
                     'ip' => $click->ip ?: $visit->ip,
                     'domain' => $visit->domain?->hostname,
                     'campaign' => $click->campaign_name ?: $click->campaign ?: ($visit->campaign_name ?: $visit->campaign),
-                    'device' => trim(implode(' / ', array_filter([$click->os, $click->browser_name]))),
+                    'device' => $visit->platform ?: null,
                     'behavior' => $click->path ?: $click->keyword,
                     'risk_decision' => $risk,
                     'action' => $this->timelineActionLabel($visit, $ipLog, $visitIntel, $click->threat_group),
@@ -381,10 +381,18 @@ class PaidMarketingController extends Controller
                 'Threat Group',
                 'Threat Type',
                 'Country',
+                'Device',
+                'GCLID',
+                'GBRAID',
+                'WBRAID',
                 'Invalid Clicks',
                 'Valid Clicks',
                 'Google Verified',
                 'Status',
+                'Risk Score',
+                'Risk Level',
+                'Confidence',
+                'Evidence',
                 'Last Path',
             ]);
 
@@ -423,10 +431,18 @@ class PaidMarketingController extends Controller
                         $row['threat_group'],
                         $row['threat_type'],
                         $row['country'],
+                        $row['device'] ?? '',
+                        $row['gclid'] ?? '',
+                        $row['gbraid'] ?? '',
+                        $row['wbraid'] ?? '',
                         $row['invalid_clicks'],
                         $row['valid_clicks'],
                         $row['google_verified_label'] ?? '',
                         $row['status'] ?? '',
+                        $row['intel_risk_score'] ?? '',
+                        $row['intel_risk_level'] ?? '',
+                        $row['intel_confidence'] ?? '',
+                        $row['intel_evidence'] ?? '',
                         $row['last_path'],
                     ]);
                 });
@@ -486,8 +502,9 @@ class PaidMarketingController extends Controller
             $sheet->setTitle('Advanced View');
             $headers = [
                 'IP Address', 'Visits', 'Domain', 'Campaign', 'Last Click', 'Threat Group', 'Threat Type',
-                'Country', 'Invalid Clicks', 'Valid Clicks', 'Google Verified', 'Status', 'Risk Score',
-                'Risk Level', 'Action', 'Last Path', 'Timestamp',
+                'Country', 'Device', 'GCLID', 'GBRAID', 'WBRAID', 'Invalid Clicks', 'Valid Clicks',
+                'Google Verified', 'Status', 'Risk Score', 'Risk Level', 'Confidence', 'Evidence',
+                'Action', 'Last Path', 'Timestamp',
             ];
             foreach ($headers as $i => $header) {
                 $sheet->setCellValue([$i + 1, 1], $header);
@@ -504,12 +521,18 @@ class PaidMarketingController extends Controller
                     $row['threat_group'] ?? '',
                     $row['threat_type'] ?? '',
                     $row['country'] ?? '',
+                    $row['device'] ?? '',
+                    $row['gclid'] ?? '',
+                    $row['gbraid'] ?? '',
+                    $row['wbraid'] ?? '',
                     $row['invalid_clicks'] ?? 0,
                     $row['valid_clicks'] ?? 0,
                     $row['google_verified_label'] ?? '',
                     $row['status'] ?? '',
                     $row['intel_risk_score'] ?? '',
                     $row['intel_risk_level'] ?? '',
+                    $row['intel_confidence'] ?? '',
+                    $row['intel_evidence'] ?? '',
                     $row['status'] === 'Blocked' ? 'Block' : (($row['status'] === 'Invalid') ? 'Flag' : 'Allow'),
                     $row['last_path'] ?? '',
                     $row['last_click_at'] ?? '',
@@ -821,6 +844,8 @@ class PaidMarketingController extends Controller
             : '—';
 
         $intel = $this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain);
+        $clickIds = $this->hydrateGoogleClickIds($visit, $clicks);
+        $deviceLabel = $this->normalizeDeviceLabel($visit->platform);
         $reasons = [];
         if ($visit->manual_decision) {
             $reasons[] = 'manual_' . $visit->manual_decision;
@@ -848,6 +873,12 @@ class PaidMarketingController extends Controller
             'manual_decision_reason' => $visit->manual_decision_reason,
             'original_threat_group' => $visit->original_threat_group,
             'original_threat_type' => $visit->original_threat_type,
+            'device' => $deviceLabel,
+            'gclid' => $clickIds['gclid'],
+            'gbraid' => $clickIds['gbraid'],
+            'wbraid' => $clickIds['wbraid'],
+            'google_click_id' => $clickIds['google_click_id'],
+            'google_click_type' => $clickIds['google_click_type'],
             'rule_explanation' => [
                 'inputs' => [
                     'ip' => $visit->ip,
@@ -882,7 +913,7 @@ class PaidMarketingController extends Controller
             'google_verified_label' => $googleVerifiedLabel,
             'has_session_recording' => $recording !== null,
             'session_recording_id' => $recording ? (int) $recording->id : null,
-            'clicks' => $clicks->map(function ($c) use ($user, $visit, $ipLog) {
+            'clicks' => $clicks->map(function ($c) use ($user, $visit, $ipLog, $deviceLabel, $clickIds) {
                 $clickedAt = UserTimezone::parseUtcInstant($c->getRawOriginal('clicked_at') ?? $c->clicked_at);
                 $lastClick = UserTimezone::parseUtcInstant($c->getRawOriginal('last_click_at') ?? $c->last_click_at);
                 $intel = $this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain);
@@ -894,6 +925,7 @@ class PaidMarketingController extends Controller
                     'threat_type' => $visit->threat_type,
                     'action_taken' => $visit->threat_type,
                 ]);
+                $typed = $this->classifyPaidId((string) ($c->paid_id ?? ''));
 
                 return [
                 'id' => $c->id,
@@ -904,18 +936,158 @@ class PaidMarketingController extends Controller
                 'threat_group' => $c->threat_group,
                 'campaign' => $c->campaign_name ?: $c->campaign,
                 'paid_id' => $c->paid_id,
+                'gclid' => $typed['gclid'] ?: ($clickIds['gclid'] ?? null),
+                'gbraid' => $typed['gbraid'] ?: ($clickIds['gbraid'] ?? null),
+                'wbraid' => $typed['wbraid'] ?: ($clickIds['wbraid'] ?? null),
                 'path' => $c->path,
                 'keyword' => $c->keyword,
                 'browser_name' => $c->browser_name,
                 'browser_version' => $c->browser_version,
                 'os' => $c->os,
-                'device' => trim(implode(' / ', array_filter([$c->os, $c->browser_name]))),
+                'device' => $deviceLabel,
                 'risk_decision' => $risk,
                 'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
             ];
             })->values()->all(),
             ...$this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain),
         ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, mixed>  $clicks
+     * @return array{gclid: ?string, gbraid: ?string, wbraid: ?string, google_click_id: ?string, google_click_type: ?string}
+     */
+    private function hydrateGoogleClickIds(PaidMarketingVisit $visit, $clicks): array
+    {
+        $empty = [
+            'gclid' => null,
+            'gbraid' => null,
+            'wbraid' => null,
+            'google_click_id' => null,
+            'google_click_type' => null,
+        ];
+
+        if (Schema::hasTable('visits') && Schema::hasColumn('visits', 'gclid')) {
+            $query = DB::table('visits')
+                ->where('domain_id', $visit->domain_id)
+                ->where('ip', $visit->ip)
+                ->orderByDesc('visited_at');
+
+            $select = ['gclid'];
+            if (Schema::hasColumn('visits', 'gbraid')) {
+                $select[] = 'gbraid';
+            }
+            if (Schema::hasColumn('visits', 'wbraid')) {
+                $select[] = 'wbraid';
+            }
+            if (Schema::hasColumn('visits', 'google_click_type')) {
+                $select[] = 'google_click_type';
+            }
+
+            $row = $query->where(function ($q): void {
+                $q->whereNotNull('gclid')->where('gclid', '!=', '');
+                if (Schema::hasColumn('visits', 'gbraid')) {
+                    $q->orWhere(function ($inner): void {
+                        $inner->whereNotNull('gbraid')->where('gbraid', '!=', '');
+                    });
+                }
+                if (Schema::hasColumn('visits', 'wbraid')) {
+                    $q->orWhere(function ($inner): void {
+                        $inner->whereNotNull('wbraid')->where('wbraid', '!=', '');
+                    });
+                }
+            })->first($select);
+
+            if ($row) {
+                $gclid = filled($row->gclid ?? null) ? (string) $row->gclid : null;
+                $gbraid = filled($row->gbraid ?? null) ? (string) $row->gbraid : null;
+                $wbraid = filled($row->wbraid ?? null) ? (string) $row->wbraid : null;
+                $type = filled($row->google_click_type ?? null)
+                    ? (string) $row->google_click_type
+                    : ($gclid ? 'gclid' : ($gbraid ? 'gbraid' : ($wbraid ? 'wbraid' : null)));
+
+                return [
+                    'gclid' => $gclid,
+                    'gbraid' => $gbraid,
+                    'wbraid' => $wbraid,
+                    'google_click_id' => $gclid ?: $gbraid ?: $wbraid,
+                    'google_click_type' => $type,
+                ];
+            }
+        }
+
+        foreach ($clicks as $click) {
+            $typed = $this->classifyPaidId((string) ($click->paid_id ?? ''));
+            if ($typed['google_click_id']) {
+                return $typed;
+            }
+        }
+
+        return $empty;
+    }
+
+    /**
+     * @return array{gclid: ?string, gbraid: ?string, wbraid: ?string, google_click_id: ?string, google_click_type: ?string}
+     */
+    private function classifyPaidId(string $paidId): array
+    {
+        $paidId = trim($paidId);
+        if ($paidId === '') {
+            return [
+                'gclid' => null,
+                'gbraid' => null,
+                'wbraid' => null,
+                'google_click_id' => null,
+                'google_click_type' => null,
+            ];
+        }
+
+        $lower = strtolower($paidId);
+        if (str_starts_with($lower, 'gbraid') || str_contains($lower, 'gbraid')) {
+            return [
+                'gclid' => null,
+                'gbraid' => $paidId,
+                'wbraid' => null,
+                'google_click_id' => $paidId,
+                'google_click_type' => 'gbraid',
+            ];
+        }
+        if (str_starts_with($lower, 'wbraid') || str_contains($lower, 'wbraid')) {
+            return [
+                'gclid' => null,
+                'gbraid' => null,
+                'wbraid' => $paidId,
+                'google_click_id' => $paidId,
+                'google_click_type' => 'wbraid',
+            ];
+        }
+
+        return [
+            'gclid' => $paidId,
+            'gbraid' => null,
+            'wbraid' => null,
+            'google_click_id' => $paidId,
+            'google_click_type' => 'gclid',
+        ];
+    }
+
+    private function normalizeDeviceLabel(?string $platform): string
+    {
+        $value = strtolower(trim((string) $platform));
+        if ($value === '') {
+            return '—';
+        }
+        if (str_contains($value, 'mobile') || in_array($value, ['ios', 'android', 'phone'], true)) {
+            return 'Mobile';
+        }
+        if (str_contains($value, 'tablet') || str_contains($value, 'ipad')) {
+            return 'Tablet';
+        }
+        if (str_contains($value, 'desktop') || str_contains($value, 'windows') || str_contains($value, 'mac') || str_contains($value, 'linux')) {
+            return 'Desktop';
+        }
+
+        return ucfirst($platform);
     }
 
     /** @return array<string, mixed> */

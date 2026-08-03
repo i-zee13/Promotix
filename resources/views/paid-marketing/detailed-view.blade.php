@@ -411,7 +411,19 @@
                                     </div>
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">Device</p>
-                                        <p class="figma-modal-value" x-text="activeClick.device || [activeClick.os, activeClick.browser_name].filter(Boolean).join(' / ') || '—'"></p>
+                                        <p class="figma-modal-value" x-text="activeClick.device || modal.visit?.device || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Confidence</p>
+                                        <p class="figma-modal-value" x-text="modal.visit?.intel_confidence ?? '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Evidence</p>
+                                        <p class="figma-modal-value" x-text="modal.visit?.intel_evidence || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Risk score</p>
+                                        <p class="figma-modal-value" x-text="modal.visit?.intel_risk_score ?? '—'"></p>
                                     </div>
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">Keyword</p>
@@ -422,10 +434,24 @@
                                 <div class="figma-click-modal-wide">
                                     <div class="figma-modal-field figma-modal-field--full">
                                         <div class="figma-modal-field__head">
-                                            <p class="figma-modal-label">Paid ID</p>
-                                            <button type="button" class="figma-modal-copy-btn" @click="copyText(activeClick.paid_id)" x-show="activeClick.paid_id">Copy</button>
+                                            <p class="figma-modal-label">Google Click ID (GCLID)</p>
+                                            <button type="button" class="figma-modal-copy-btn" @click="copyText(activeClick.gclid || modal.visit?.gclid || activeClick.paid_id)" x-show="activeClick.gclid || modal.visit?.gclid || activeClick.paid_id">Copy</button>
                                         </div>
-                                        <p class="figma-modal-value figma-modal-value--long" x-text="activeClick.paid_id || '—'"></p>
+                                        <p class="figma-modal-value figma-modal-value--long" x-text="activeClick.gclid || modal.visit?.gclid || activeClick.paid_id || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field figma-modal-field--full">
+                                        <div class="figma-modal-field__head">
+                                            <p class="figma-modal-label">GBRAID</p>
+                                            <button type="button" class="figma-modal-copy-btn" @click="copyText(activeClick.gbraid || modal.visit?.gbraid)" x-show="activeClick.gbraid || modal.visit?.gbraid">Copy</button>
+                                        </div>
+                                        <p class="figma-modal-value figma-modal-value--long" x-text="activeClick.gbraid || modal.visit?.gbraid || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field figma-modal-field--full">
+                                        <div class="figma-modal-field__head">
+                                            <p class="figma-modal-label">WBRAID</p>
+                                            <button type="button" class="figma-modal-copy-btn" @click="copyText(activeClick.wbraid || modal.visit?.wbraid)" x-show="activeClick.wbraid || modal.visit?.wbraid">Copy</button>
+                                        </div>
+                                        <p class="figma-modal-value figma-modal-value--long" x-text="activeClick.wbraid || modal.visit?.wbraid || '—'"></p>
                                     </div>
                                     <div class="figma-modal-field figma-modal-field--full">
                                         <div class="figma-modal-field__head">
@@ -520,6 +546,10 @@
             { key: 'visits', label: 'Visits', primary: true, min: 44 },
             { key: 'domain', label: 'Domain', primary: true, min: 100 },
             { key: 'campaign', label: 'Campaigns', primary: true, min: 100 },
+            { key: 'gclid', label: 'GCLID', primary: true, min: 110 },
+            { key: 'gbraid', label: 'GBRAID', primary: false, min: 110 },
+            { key: 'wbraid', label: 'WBRAID', primary: false, min: 110 },
+            { key: 'device', label: 'Device', primary: true, min: 72 },
             { key: 'last_click_label', label: 'Last Click', primary: true, min: 76 },
             { key: 'threat_group', label: 'Threat Group', primary: true, min: 84 },
             { key: 'threat_type', label: 'Threat Type', primary: true, min: 76 },
@@ -546,8 +576,8 @@
             { key: 'intel_datacenter', label: 'Datacenter', primary: false, min: 72 },
             { key: 'intel_risk_score', label: 'Risk Score', primary: false, min: 72 },
             { key: 'intel_risk_level', label: 'Risk Level', primary: false, min: 72 },
-            { key: 'intel_confidence', label: 'Confidence', primary: false, min: 72 },
-            { key: 'intel_evidence', label: 'Evidence', primary: false, min: 90 },
+            { key: 'intel_confidence', label: 'Confidence', primary: true, min: 72 },
+            { key: 'intel_evidence', label: 'Evidence', primary: true, min: 90 },
             { key: 'intel_checked_at', label: 'Checked At', primary: false, min: 100 },
             { key: 'intel_error', label: 'Error', primary: false, min: 56 },
             { key: 'intel_ip_need_blockation', label: 'IP Need Blockation', primary: false, min: 110 },

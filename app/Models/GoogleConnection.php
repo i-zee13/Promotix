@@ -19,6 +19,11 @@ class GoogleConnection extends Model
         'access_token',
         'scopes',
         'connected_at',
+        'last_sync_at',
+        'last_sync_status',
+        'last_sync_message',
+        'last_health_check_at',
+        'health_status',
     ];
 
     protected function casts(): array
@@ -27,6 +32,8 @@ class GoogleConnection extends Model
             'refresh_token' => 'encrypted',
             'access_token' => 'encrypted',
             'connected_at' => 'datetime',
+            'last_sync_at' => 'datetime',
+            'last_health_check_at' => 'datetime',
         ];
     }
 
@@ -38,6 +45,11 @@ class GoogleConnection extends Model
     public function adsAccounts(): HasMany
     {
         return $this->hasMany(GoogleAdsAccount::class);
+    }
+
+    public function syncLogs(): HasMany
+    {
+        return $this->hasMany(IntegrationSyncLog::class);
     }
 }
 

@@ -33,11 +33,19 @@ class PaidAdvertisingDashboardController extends Controller
             ->orderBy('hostname')
             ->get(['id', 'hostname', 'paid_marketing_connected', 'source', 'google_ads_account_id']);
 
+        $googleAdsAccounts = GoogleAdsAccount::query()
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->synced()
+            ->orderBy('account_name')
+            ->orderBy('customer_id')
+            ->get(['id', 'account_name', 'customer_id', 'display_customer_id']);
+
         $countryGetStarted = $domains->isEmpty()
             || ! $domains->contains(fn (Domain $d) => $d->hasPaidAdvertisingFromAds());
 
         return view('paid-marketing.dashboard', [
             'domains' => $domains,
+            'googleAdsAccounts' => $googleAdsAccounts,
             'domainCatalog' => UserTimezone::domainCatalog($domains),
             'countryGetStarted' => $countryGetStarted,
         ]);
@@ -180,6 +188,11 @@ class PaidAdvertisingDashboardController extends Controller
             ? (int) round(min(100, ($uniqueValidPaidClicks / $googleClicks) * 100))
             : ($uniqueValidPaidClicks > 0 ? 100 : 0);
 
+        $googleCost = (float) ($googleAds['cost'] ?? 0);
+        $invalidForSavings = $uniqueInvalidPaidClicks > 0 ? $uniqueInvalidPaidClicks : $invalid;
+        $avgCpc = $googleClicks > 0 ? ($googleCost / $googleClicks) : 0.0;
+        $costSaved = round($avgCpc * $invalidForSavings, 2);
+
         $selectedDomain = $request->filled('domain_id') && $domains->count() === 1
             ? $domains->first()
             : null;
@@ -209,6 +222,9 @@ class PaidAdvertisingDashboardController extends Controller
             'unique_valid_paid_clicks' => $uniqueValidPaidClicks,
             'valid_paid_visits' => $validTagPaid,
             'google_ads' => $googleAds,
+            'google_cost' => round($googleCost, 2),
+            'avg_cpc' => round($avgCpc, 4),
+            'cost_saved' => $costSaved,
             'timezone_context' => UserTimezone::dashboardContext(
                 $request->user(),
                 $googleTz,
@@ -1051,6 +1067,15 @@ class PaidAdvertisingDashboardController extends Controller
             return $userDomainIds->filter(fn ($v) => (int) $v === $id)->values();
         }
 
+        if ($accountId = (int) $request->query('google_ads_account_id', 0)) {
+            return Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->forPaidMarketing()
+                ->where('google_ads_account_id', $accountId)
+                ->pluck('id')
+                ->values();
+        }
+
         return $userDomainIds;
     }
 
@@ -1351,23 +1376,62 @@ class PaidAdvertisingDashboardController extends Controller
      */
     private function formatIpRows($rows, ?\App\Models\User $user = null, array $allowListIps = [])
     {
-        return $rows->map(fn ($row) => [
-            'ip' => (string) ($row->ip ?? ''),
-            'country' => $row->country ?? null,
-            'total' => (int) ($row->total ?? 0),
-            'invalid' => (int) ($row->invalid ?? 0),
-            'valid' => max(0, (int) ($row->total ?? 0) - (int) ($row->invalid ?? 0)),
-            'last_seen' => UserTimezone::isoForUser(
-                ! empty($row->last_seen) ? Carbon::parse((string) $row->last_seen, 'UTC') : null,
-                $user
-            ),
-            'campaign' => $row->campaign ?? null,
-            'vpn_hits' => (int) ($row->vpn_hits ?? 0),
-            'data_center_hits' => (int) ($row->data_center_hits ?? 0),
-            'malicious_hits' => (int) ($row->malicious_hits ?? 0),
-            'top_threat' => $row->top_threat ?? null,
-            'is_allowlisted' => IpFraudEvaluator::isIpAllowListed((string) ($row->ip ?? ''), implode("\n", $allowListIps)),
-        ])->values();
+        $ips = $rows->map(fn ($row) => (string) ($row->ip ?? ''))->filter()->unique()->values();
+        $intelByIp = collect();
+        if ($ips->isNotEmpty() && Schema::hasTable('ip_logs')) {
+            $intelByIp = DB::table('ip_logs')
+                ->whereIn('ip', $ips->all())
+                ->get(['ip', 'intel_isp', 'abuse_confidence_score', 'ipdetails_abuser_score', 'ipdetails_raw'])
+                ->keyBy('ip');
+        }
+
+        return $rows->map(function ($row) use ($user, $allowListIps, $intelByIp) {
+            $ip = (string) ($row->ip ?? '');
+            $intel = $intelByIp->get($ip);
+            $raw = [];
+            if (! empty($intel?->ipdetails_raw)) {
+                $decoded = is_string($intel->ipdetails_raw)
+                    ? json_decode($intel->ipdetails_raw, true)
+                    : (array) $intel->ipdetails_raw;
+                $raw = is_array($decoded) ? $decoded : [];
+            }
+            $riskScore = $intel?->ipdetails_abuser_score ?? $intel?->abuse_confidence_score;
+            $riskLevel = null;
+            if (is_numeric($riskScore)) {
+                $score = (float) $riskScore;
+                if ($score <= 1) {
+                    $riskLevel = $score >= 0.7 ? 'High' : ($score >= 0.2 ? 'Medium' : 'Low');
+                } else {
+                    $riskLevel = $score >= 50 ? 'High' : ($score >= 20 ? 'Medium' : 'Low');
+                }
+            } elseif ((int) ($row->invalid ?? 0) > 0) {
+                $riskLevel = 'Medium';
+            } else {
+                $riskLevel = 'Low';
+            }
+
+            return [
+                'ip' => $ip,
+                'country' => $row->country ?? null,
+                'total' => (int) ($row->total ?? 0),
+                'invalid' => (int) ($row->invalid ?? 0),
+                'valid' => max(0, (int) ($row->total ?? 0) - (int) ($row->invalid ?? 0)),
+                'last_seen' => UserTimezone::isoForUser(
+                    ! empty($row->last_seen) ? Carbon::parse((string) $row->last_seen, 'UTC') : null,
+                    $user
+                ),
+                'campaign' => $row->campaign ?? null,
+                'vpn_hits' => (int) ($row->vpn_hits ?? 0),
+                'data_center_hits' => (int) ($row->data_center_hits ?? 0),
+                'malicious_hits' => (int) ($row->malicious_hits ?? 0),
+                'top_threat' => $row->top_threat ?? null,
+                'risk_level' => $riskLevel,
+                'risk_score' => $riskScore,
+                'isp' => $intel?->intel_isp ?? ($raw['isp'] ?? $raw['company'] ?? null),
+                'asn' => $raw['asn'] ?? null,
+                'is_allowlisted' => IpFraudEvaluator::isIpAllowListed($ip, implode("\n", $allowListIps)),
+            ];
+        })->values();
     }
 
     /**

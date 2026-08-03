@@ -47,9 +47,20 @@
         'directStoreUrl' => url('/integrations/direct-ads'),
         'trackingLink' => $menuDomain ? url('/tag/' . $menuDomain->domain_key . '.js') : null,
         'statusUrl' => url('/integrations/status'),
+        'logsUrl' => url('/integrations/logs'),
+        'testUrl' => $primaryConnection ? route('integrations.google.test', $primaryConnection) : null,
         'disconnectUrl' => $primaryConnection ? route('integrations.google.disconnect', $primaryConnection) : null,
         'paidMarketingConnectUrl' => route('domains.paid-marketing.connect', ['domain' => 0]),
         'domainConnections' => $domainConnections,
+        'connectionHealth' => $connectionHealth ?? [],
+        'syncLogs' => ($syncLogs ?? collect())->map(fn ($log) => [
+            'id' => $log->id,
+            'action' => $log->action,
+            'status' => $log->status,
+            'message' => $log->message,
+            'domain' => $log->domain?->hostname,
+            'created_at' => optional($log->created_at)->toIso8601String(),
+        ])->values(),
         'directInitial' => $directAds->map(fn ($row) => [
             'id' => $row->id,
             'platform' => $row->platform,
@@ -81,8 +92,8 @@
                     </div>
                 </label>
                 <label class="flex w-[178px] flex-col justify-center px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Filter by path</span>
-                    <input placeholder="Filter by path" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Landing Page</span>
+                    <input placeholder="Landing page" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                 </label>
             </div>
         </div>
@@ -186,6 +197,35 @@
                             <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold" :class="googleAdsConnected ? 'text-[#6706B3]' : 'text-[#101010]'" x-text="googleAdsConnected ? 'Connected' : 'Not Connected'"></div>
                         </div>
                     </div>
+                    <div class="mt-[10px] space-y-[4px] rounded border border-white/25 bg-black/20 px-[8px] py-[8px] text-[9px] text-white/85">
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Health</span>
+                            <span class="font-semibold uppercase" x-text="connectionHealth.health_status || '—'"></span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Google account</span>
+                            <span class="truncate font-medium" x-text="connectionHealth.email || 'Not connected'"></span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Last sync</span>
+                            <span x-text="formatHealthTime(connectionHealth.last_sync_at)"></span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Tracking script</span>
+                            <span x-text="connectionHealth.tracking_active ? 'Active' : 'Pending'"></span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span>Events today</span>
+                            <span x-text="connectionHealth.events_today ?? 0"></span>
+                        </div>
+                        @if ($primaryConnection)
+                            <button type="button"
+                                    class="mt-[6px] w-full rounded border border-white/40 bg-white/10 px-[8px] py-[5px] text-[9px] font-semibold text-white hover:bg-white/20"
+                                    @click="testGoogleHealth()">
+                                Test connection health
+                            </button>
+                        @endif
+                    </div>
                 </section>
 
                 <section class="rounded-[10px] bg-[#3c3c3c] p-[16px]">
@@ -272,7 +312,17 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td class="truncate px-[12px] py-[10px] text-[12px]" title="{{ $mapping->domain->hostname }}">{{ $mapping->domain->hostname }}</td>
+                                <td class="truncate px-[12px] py-[10px] text-[12px]" title="{{ $mapping->domain->hostname }}">
+                                    <span class="block truncate">{{ $mapping->domain->hostname }}</span>
+                                    @if ($mapping->account?->google_tag_id)
+                                        <span class="mt-[2px] block truncate font-mono text-[10px] text-[#121212]/65">Tag: {{ $mapping->account->google_tag_id }}</span>
+                                    @endif
+                                    @if ($mapping->domain?->tag_connected)
+                                        <span class="mt-[2px] inline-flex rounded bg-emerald-500/15 px-[5px] py-[1px] text-[9px] font-semibold text-emerald-700">Tracking verified</span>
+                                    @else
+                                        <span class="mt-[2px] inline-flex rounded bg-amber-500/15 px-[5px] py-[1px] text-[9px] font-semibold text-amber-800">Verify tracking</span>
+                                    @endif
+                                </td>
                                 <td class="px-[12px] py-[10px] text-[11px] font-medium text-[#6706B3]">
                                     <a href="{{ route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]) }}" class="inline-flex min-w-0 items-center gap-[5px] hover:underline">
                                         @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[16px] w-[16px] shrink-0'])
@@ -318,6 +368,62 @@
                 <div class="mt-[12px] border-t border-white/20 pt-[10px]">{{ $mappings->links() }}</div>
             @endif
         </section>
+
+        <div class="mt-[16px] grid gap-[12px] xl:grid-cols-2">
+            <section class="rounded-[10px] border border-[#6706B3] bg-[#121212] p-[16px]">
+                <div class="mb-[12px] flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-[18px] font-medium text-white">Tracking ID management</h2>
+                        <p class="mt-[3px] text-[12px] text-white/60">Google Ads conversion / tag IDs linked to this account</p>
+                    </div>
+                </div>
+                <div class="space-y-[8px]">
+                    @forelse (($trackingIds ?? []) as $row)
+                        <div class="flex flex-wrap items-center justify-between gap-[8px] rounded-[8px] border border-white/15 bg-[#6400B2]/25 px-[12px] py-[10px]">
+                            <div class="min-w-0">
+                                <p class="truncate text-[13px] font-medium text-white">{{ $row['label'] }}</p>
+                                <p class="truncate text-[11px] text-white/55">Customer: {{ $row['customer_id'] }}</p>
+                            </div>
+                            <div class="flex items-center gap-[8px]">
+                                <code class="rounded bg-black/40 px-[8px] py-[4px] font-mono text-[11px] text-white/90">{{ $row['google_tag_id'] ?: '—' }}</code>
+                                @if (! empty($row['google_tag_id']))
+                                    <button type="button" class="rounded border border-white/25 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10"
+                                            @click="copyKeyText(@js($row['google_tag_id']))">Copy</button>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <p class="rounded-[8px] border border-white/10 bg-white/5 px-[12px] py-[14px] text-center text-[12px] text-white/55">Connect Google Ads to manage tracking IDs.</p>
+                    @endforelse
+                </div>
+            </section>
+
+            <section class="rounded-[10px] border border-[#6706B3] bg-[#121212] p-[16px]">
+                <div class="mb-[12px] flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-[18px] font-medium text-white">Sync history &amp; logs</h2>
+                        <p class="mt-[3px] text-[12px] text-white/60">OAuth, account sync, domain link, and health checks</p>
+                    </div>
+                    <button type="button" class="rounded border border-white/25 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10" @click="refreshSyncLogs()">Refresh</button>
+                </div>
+                <div class="max-h-[280px] space-y-[6px] overflow-y-auto promotix-slim-scroll">
+                    <template x-for="log in syncLogs" :key="log.id">
+                        <article class="rounded-[8px] border border-white/10 bg-white/5 px-[10px] py-[8px]">
+                            <div class="flex flex-wrap items-center justify-between gap-[6px]">
+                                <span class="rounded px-[6px] py-[1px] text-[9px] font-semibold uppercase"
+                                      :class="log.status === 'ok' ? 'bg-emerald-500/20 text-emerald-200' : 'bg-rose-500/20 text-rose-200'"
+                                      x-text="log.status"></span>
+                                <span class="text-[10px] text-white/45" x-text="formatHealthTime(log.created_at)"></span>
+                            </div>
+                            <p class="mt-[4px] text-[11px] font-medium text-white" x-text="log.action.replaceAll('_', ' ')"></p>
+                            <p class="mt-[2px] text-[10px] text-white/65" x-text="log.message || '—'"></p>
+                            <p class="mt-[2px] text-[10px] text-white/40" x-show="log.domain" x-text="'Domain: ' + log.domain"></p>
+                        </article>
+                    </template>
+                    <p x-show="syncLogs.length === 0" class="rounded-[8px] border border-white/10 bg-white/5 px-[12px] py-[14px] text-center text-[12px] text-white/55">No sync events yet. Connect Google or run Sync Ads.</p>
+                </div>
+            </section>
+        </div>
     </section>
 
     @if ($primaryConnection)
@@ -441,6 +547,8 @@ function platformIntegrations(config) {
     return {
         directList: config.directInitial || [],
         domainConnections: config.domainConnections || [],
+        connectionHealth: config.connectionHealth || {},
+        syncLogs: config.syncLogs || [],
         selectedDomainId: '',
         keysModal: {
             open: false,
@@ -455,6 +563,60 @@ function platformIntegrations(config) {
         menuToast: '',
         menuToastType: 'info',
         menuToastTimer: null,
+        formatHealthTime(value) {
+            if (!value) return '—';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return '—';
+            return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        },
+        async refreshSyncLogs() {
+            try {
+                const res = await fetch(config.logsUrl || '/integrations/logs', { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                this.syncLogs = data.logs || [];
+            } catch (e) {
+                this.showMenuToast('Could not refresh sync logs.', 'error');
+            }
+        },
+        async testGoogleHealth() {
+            if (!config.testUrl) {
+                this.showMenuToast('Connect Google first.', 'error');
+                return;
+            }
+            try {
+                const res = await fetch(config.testUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': config.csrf,
+                        'Content-Type': 'application/json',
+                    },
+                    body: '{}',
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    this.showMenuToast(data.message || 'Health check failed.', 'error');
+                    this.connectionHealth = {
+                        ...this.connectionHealth,
+                        health_status: 'error',
+                        last_sync_message: data.message || 'Health check failed',
+                    };
+                    await this.refreshSyncLogs();
+                    return;
+                }
+                this.connectionHealth = {
+                    ...this.connectionHealth,
+                    health_status: data.health_status || 'ok',
+                    email: data.email || this.connectionHealth.email,
+                    last_sync_at: data.last_sync_at || new Date().toISOString(),
+                    last_sync_status: 'ok',
+                };
+                this.showMenuToast(data.message || 'Connection healthy', 'success');
+                await this.refreshSyncLogs();
+            } catch (e) {
+                this.showMenuToast('Health check failed.', 'error');
+            }
+        },
         get activeDomainStatus() {
             if (!this.selectedDomainId) return null;
             return this.domainConnections.find((d) => String(d.id) === String(this.selectedDomainId)) || null;

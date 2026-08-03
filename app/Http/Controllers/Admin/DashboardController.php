@@ -399,9 +399,23 @@ class DashboardController extends Controller
         }
 
         return response()->json([
-            'labels' => $rows->pluck('threat_group')->map(fn ($v) => (string) $v)->values(),
+            'labels' => $rows->pluck('threat_group')->map(fn ($v) => $this->humanThreatLabel((string) $v))->values(),
             'values' => $rows->pluck('total')->map(fn ($v) => (int) $v)->values(),
+            'rawLabels' => $rows->pluck('threat_group')->map(fn ($v) => (string) $v)->values(),
         ]);
+    }
+
+    private function humanThreatLabel(?string $group): string
+    {
+        return match (strtolower((string) $group)) {
+            'vpn', 'proxy' => 'VPN / Proxy',
+            'data_center', 'datacenter' => 'Data Center',
+            'malicious', 'bot' => 'Bot Behavior',
+            'abnormal_rate_limit', 'repeated_click', 'repeated_clicks' => 'Repeated Clicks',
+            'out_of_geo', 'geo_mismatch' => 'Location Mismatch',
+            'invalid_device' => 'Invalid Device',
+            default => $group ? ucwords(str_replace(['_', '-'], ' ', $group)) : 'Other',
+        };
     }
 
     public function notifications(Request $request): JsonResponse
@@ -435,6 +449,20 @@ class DashboardController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         if (Schema::hasTable('visits')) {
+            $select = [
+                'domains.hostname',
+                'domains.tag_connected',
+                'domains.status',
+                DB::raw('COUNT(visits.id) as visits_count'),
+                DB::raw('COUNT(DISTINCT visits.ip) as visitors_count'),
+                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as threat_visits_count'),
+            ];
+            if (Schema::hasColumn('visits', 'threat_score')) {
+                $select[] = DB::raw('AVG(CASE WHEN visits.threat_score IS NOT NULL THEN visits.threat_score END) as avg_risk');
+            } else {
+                $select[] = DB::raw('NULL as avg_risk');
+            }
+
             $rows = Domain::query()
                 ->where('user_id', $user->id)
                 ->when($search !== '', fn ($q) => $q->where('hostname', 'like', '%' . $search . '%'))
@@ -442,23 +470,34 @@ class DashboardController extends Controller
                     $join->on('domains.id', '=', 'visits.domain_id')
                         ->whereBetween('visits.visited_at', [$from, $to]);
                 })
-                ->select(
-                    'domains.hostname',
-                    'domains.tag_connected',
-                    'domains.status',
-                    DB::raw('COUNT(visits.id) as visits_count'),
-                    DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as threat_visits_count')
-                )
+                ->select($select)
                 ->groupBy('domains.id', 'domains.hostname', 'domains.tag_connected', 'domains.status')
                 ->orderByDesc('visits_count')
                 ->limit(50)
                 ->get()
-                ->map(fn ($d) => [
-                    'domain' => $d->hostname,
-                    'visits' => (int) $d->visits_count,
-                    'threats' => (int) $d->threat_visits_count,
-                    'pending' => ! $d->tag_connected || ($d->status ?? 'pending') === 'pending',
-                ]);
+                ->map(function ($d) {
+                    $clicks = (int) $d->visits_count;
+                    $threats = (int) $d->threat_visits_count;
+                    $invalidPct = $clicks > 0 ? round(($threats / $clicks) * 100, 1) : 0.0;
+                    $risk = is_numeric($d->avg_risk) ? (int) round((float) $d->avg_risk) : (int) min(100, round($invalidPct * 1.2));
+                    $status = (string) ($d->status ?: 'pending');
+                    if (! $d->tag_connected) {
+                        $status = 'pending';
+                    }
+
+                    return [
+                        'domain' => $d->hostname,
+                        'clicks' => $clicks,
+                        'visitors' => (int) $d->visitors_count,
+                        'visits' => $clicks,
+                        'threats' => $threats,
+                        'invalidPct' => $invalidPct,
+                        'risk' => $risk,
+                        'riskLevel' => $risk >= 80 ? 'High' : ($risk >= 50 ? 'Medium' : 'Low'),
+                        'status' => $status === 'connected' ? 'Active' : ucfirst($status),
+                        'pending' => ! $d->tag_connected || ($d->status ?? 'pending') === 'pending',
+                    ];
+                });
         } else {
             $rows = Domain::query()
                 ->where('user_id', $user->id)
@@ -470,13 +509,101 @@ class DashboardController extends Controller
                 ->orderByDesc('visits_count')
                 ->limit(50)
                 ->get()
-                ->map(fn ($d) => [
-                    'domain' => $d->hostname,
-                    'visits' => (int) $d->visits_count,
-                    'threats' => (int) $d->threat_visits_count,
-                    'pending' => ! $d->tag_connected || ($d->status ?? 'pending') === 'pending',
-                ]);
+                ->map(function ($d) {
+                    $clicks = (int) $d->visits_count;
+                    $threats = (int) $d->threat_visits_count;
+                    $invalidPct = $clicks > 0 ? round(($threats / $clicks) * 100, 1) : 0.0;
+
+                    return [
+                        'domain' => $d->hostname,
+                        'clicks' => $clicks,
+                        'visitors' => $clicks,
+                        'visits' => $clicks,
+                        'threats' => $threats,
+                        'invalidPct' => $invalidPct,
+                        'risk' => (int) min(100, round($invalidPct * 1.2)),
+                        'riskLevel' => $invalidPct >= 30 ? 'High' : ($invalidPct >= 10 ? 'Medium' : 'Low'),
+                        'status' => ! $d->tag_connected ? 'Pending' : 'Active',
+                        'pending' => ! $d->tag_connected || ($d->status ?? 'pending') === 'pending',
+                    ];
+                });
         }
+
+        return response()->json($rows);
+    }
+
+    public function campaignPerformance(Request $request): JsonResponse
+    {
+        $domainIds = $this->scopedDomainIds($request);
+        [$from, $to] = $this->dateRange($request);
+
+        if ($domainIds->isEmpty()) {
+            return response()->json([]);
+        }
+
+        if (Schema::hasTable('visits')) {
+            $campaignExpr = Schema::hasColumn('visits', 'campaign_name')
+                ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
+                : "NULLIF(TRIM(utm_campaign), '')";
+
+            $query = $this->applyVisitFilters(
+                DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]),
+                $request,
+                applyTrafficSource: false
+            );
+
+            $rows = $query
+                ->whereRaw("{$campaignExpr} IS NOT NULL")
+                ->whereRaw("{$campaignExpr} != ''")
+                ->selectRaw("{$campaignExpr} as campaign, COUNT(*) as clicks, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
+                ->groupByRaw($campaignExpr)
+                ->orderByDesc('clicks')
+                ->limit(25)
+                ->get()
+                ->map(function ($row) {
+                    $clicks = (int) $row->clicks;
+                    $invalid = (int) $row->invalid;
+                    $valid = max(0, $clicks - $invalid);
+                    $riskPct = $clicks > 0 ? round(($invalid / $clicks) * 100, 1) : 0.0;
+
+                    return [
+                        'campaign' => (string) $row->campaign,
+                        'clicks' => $clicks,
+                        'valid' => $valid,
+                        'invalid' => $invalid,
+                        'riskPct' => $riskPct,
+                        'costSaved' => null,
+                    ];
+                })
+                ->values();
+
+            return response()->json($rows);
+        }
+
+        $rows = PaidMarketingClick::query()
+            ->whereHas('visit', fn ($q) => $q->whereIn('domain_id', $domainIds))
+            ->whereBetween('clicked_at', [$from, $to])
+            ->whereNotNull('campaign')
+            ->select('campaign', DB::raw('COUNT(*) as clicks'), DB::raw("SUM(CASE WHEN threat_group IS NOT NULL AND threat_group != '' THEN 1 ELSE 0 END) as invalid"))
+            ->groupBy('campaign')
+            ->orderByDesc('clicks')
+            ->limit(25)
+            ->get()
+            ->map(function ($row) {
+                $clicks = (int) $row->clicks;
+                $invalid = (int) $row->invalid;
+                $valid = max(0, $clicks - $invalid);
+
+                return [
+                    'campaign' => (string) $row->campaign,
+                    'clicks' => $clicks,
+                    'valid' => $valid,
+                    'invalid' => $invalid,
+                    'riskPct' => $clicks > 0 ? round(($invalid / $clicks) * 100, 1) : 0.0,
+                    'costSaved' => null,
+                ];
+            })
+            ->values();
 
         return response()->json($rows);
     }
@@ -598,6 +725,9 @@ class DashboardController extends Controller
                 'tracking' => 'Pending setup',
                 'ingestion' => 'Waiting for traffic',
                 'protection' => 'Monitoring',
+                'lastEventAt' => null,
+                'trackingVersion' => config('promotix.tracking_version', 'v1.0.4'),
+                'eventsToday' => 0,
             ],
             'notifications' => DashboardNotifications::forUser($user->id),
             'dateRange' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
@@ -675,7 +805,19 @@ class DashboardController extends Controller
         $protectionRate = $paidVisits > 0 ? round(($paidInvalidVisits / $paidVisits) * 100, 2) : 0;
         $detectionRate = $botTotalVisits > 0 ? round(($botInvalidVisits / $botTotalVisits) * 100, 2) : 0;
 
-        return [
+        $lastEventAt = null;
+        $eventsToday = 0;
+        if (Schema::hasTable('visits')) {
+            $lastEventAt = DB::table('visits')->whereIn('domain_id', $domainIds)->max('visited_at');
+            $eventsToday = (int) DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereDate('visited_at', now($user->timezone ?? config('app.timezone'))->toDateString())
+                ->count();
+        } else {
+            $lastEventAt = Domain::query()->where('user_id', $user->id)->max('last_seen_at');
+        }
+
+        $payload = [
             'paidAdvertising' => [
                 'visits' => $paidVisits,
                 'googleAdsClicks' => $paidVisits,
@@ -698,11 +840,54 @@ class DashboardController extends Controller
                 'tracking' => $tagHealthy ? 'Healthy' : 'Pending setup',
                 'ingestion' => ($paidVisits + $botTotalVisits) > 0 ? 'Online' : 'Waiting for traffic',
                 'protection' => ($paidInvalidVisits > 0 || $botBlockedHits > 0 || $botInvalidVisits > 0) ? 'Active' : 'Monitoring',
+                'lastEventAt' => $lastEventAt ? Carbon::parse((string) $lastEventAt)->toIso8601String() : null,
+                'trackingVersion' => config('promotix.tracking_version', 'v1.0.4'),
+                'eventsToday' => $eventsToday,
             ],
             'notifications' => DashboardNotifications::forUser($user->id),
             'dateRange' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'ts' => now()->toIso8601String(),
         ];
+
+        if ($request->boolean('compare')) {
+            $days = max(1, $from->diffInDays($to) + 1);
+            $prevTo = $from->copy()->subDay()->endOfDay();
+            $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
+            $prevRequest = Request::create($request->url(), 'GET', array_merge(
+                $request->query(),
+                [
+                    'from' => $prevFrom->toDateString(),
+                    'to' => $prevTo->toDateString(),
+                    'compare' => '0',
+                ]
+            ));
+            $prevRequest->setUserResolver(fn () => $user);
+            $previous = $this->snapshot($prevRequest);
+            $payload['compareRange'] = [
+                'from' => $prevFrom->toDateString(),
+                'to' => $prevTo->toDateString(),
+            ];
+            $payload['compare'] = [
+                'paidAdvertising' => [
+                    'visits' => $payload['paidAdvertising']['visits'] - ($previous['paidAdvertising']['visits'] ?? 0),
+                    'googleAdsClicks' => $payload['paidAdvertising']['googleAdsClicks'] - ($previous['paidAdvertising']['googleAdsClicks'] ?? 0),
+                    'validClicks' => $payload['paidAdvertising']['validClicks'] - ($previous['paidAdvertising']['validClicks'] ?? 0),
+                    'invalidVisits' => $payload['paidAdvertising']['invalidVisits'] - ($previous['paidAdvertising']['invalidVisits'] ?? 0),
+                    'invalidClicks' => $payload['paidAdvertising']['invalidClicks'] - ($previous['paidAdvertising']['invalidClicks'] ?? 0),
+                    'protectionRate' => round($payload['paidAdvertising']['protectionRate'] - ($previous['paidAdvertising']['protectionRate'] ?? 0), 2),
+                    'invalidRate' => round($payload['paidAdvertising']['invalidRate'] - ($previous['paidAdvertising']['invalidRate'] ?? 0), 2),
+                ],
+                'botProtection' => [
+                    'totalVisitors' => $payload['botProtection']['totalVisitors'] - ($previous['botProtection']['totalVisitors'] ?? 0),
+                    'botsDetected' => $payload['botProtection']['botsDetected'] - ($previous['botProtection']['botsDetected'] ?? 0),
+                    'blockedHits' => $payload['botProtection']['blockedHits'] - ($previous['botProtection']['blockedHits'] ?? 0),
+                    'detectionRate' => round($payload['botProtection']['detectionRate'] - ($previous['botProtection']['detectionRate'] ?? 0), 2),
+                    'invalidRate' => round($payload['botProtection']['invalidRate'] - ($previous['botProtection']['invalidRate'] ?? 0), 2),
+                ],
+            ];
+        }
+
+        return $payload;
     }
 
     /** @return Collection<int, int> */

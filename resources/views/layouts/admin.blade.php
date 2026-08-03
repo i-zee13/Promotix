@@ -29,15 +29,18 @@
         'HOME' => [
             ['label' => 'Overview', 'route' => 'dashboard', 'icon' => 'home', 'permission' => 'dashboard'],
         ],
-        'PAID ADVERTISING' => [
-            ['label' => 'Dashboard', 'route' => 'paid-marketing.dashboard', 'icon' => 'chart', 'permission' => 'paid-marketing-dashboard'],
+        'TRAFFIC ANALYTICS' => [
+            ['label' => 'Paid Dashboard', 'route' => 'paid-marketing.dashboard', 'icon' => 'chart', 'permission' => 'paid-marketing-dashboard'],
+            ['label' => 'Bot Dashboard', 'route' => 'bot-protection.dashboard', 'icon' => 'home', 'permission' => 'bot-protection'],
+        ],
+        'INVALID TRAFFIC' => [
             ['label' => 'Advanced View', 'route' => 'paid-marketing.detailed', 'icon' => 'eye', 'permission' => 'paid-marketing-detailed'],
-            ['label' => 'Platform Integrate', 'route' => 'integrations', 'icon' => 'plug', 'permission' => 'paid-marketing-platform-connections'],
+            ['label' => 'Bot Advanced', 'route' => 'bot-protection.advanced', 'icon' => 'eye', 'permission' => 'bot-protection'],
             ['label' => 'Detection Panel', 'route' => 'paid-marketing.detection-settings', 'icon' => 'shield-check', 'permission' => 'paid-marketing-detection-settings'],
         ],
-        'BOT PROTECTION' => [
-            ['label' => 'Dashboard', 'route' => 'bot-protection.dashboard', 'icon' => 'home', 'permission' => 'bot-protection'],
-            ['label' => 'Advanced View', 'route' => 'bot-protection.advanced', 'icon' => 'eye', 'permission' => 'bot-protection'],
+        'TRACKING' => [
+            ['label' => 'Platform Integrate', 'route' => 'integrations', 'icon' => 'plug', 'permission' => 'paid-marketing-platform-connections'],
+            ['label' => 'Domains', 'route' => 'domains.index', 'icon' => 'globe', 'permission' => 'domain-management'],
         ],
     ];
     $toolLinks = [
@@ -102,16 +105,6 @@
 
                 <div class="mb-[14px]">
                     <p class="figma-nav-label mb-[8px] text-[11px] font-bold uppercase leading-none">SITE MANAGEMENT</p>
-                    @if ($user && $user->canAccess('domain-management'))
-                        <a href="{{ route('domains.index') }}" @class([
-                            'mb-[6px] flex h-[30px] items-center gap-[9px] rounded-[7px] px-[7px] text-[14px] leading-none transition',
-                            'is-active bg-[#6400B2] text-white shadow-[0_0_0_1px_rgba(100,0,179,.55)]' => request()->routeIs('domains.*'),
-                            'hover:bg-[#6400B2]/55 hover:text-white' => ! request()->routeIs('domains.*'),
-                        ])>
-                            @include('partials.sidebar-icon', ['name' => 'globe', 'class' => 'h-[17px] w-[17px] shrink-0'])
-                            <span>Domains</span>
-                        </a>
-                    @endif
                     <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-add-domain-btn flex h-[32px] w-full max-w-[188px] items-center justify-center gap-[6px] rounded-[8px] border text-[13px] font-bold uppercase transition hover:bg-[#6400B2] hover:text-white">
                         <span class="flex h-[16px] w-[16px] items-center justify-center rounded-full border text-[11px] leading-none">+</span>
                         ADD DOMAIN

@@ -12,6 +12,7 @@ use App\Models\Domain;
 use App\Models\DomainGoogleAdsMapping;
 use App\Models\GoogleAdsAccount;
 use App\Models\GoogleConnection;
+use App\Models\IntegrationSyncLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\UserTimezone;
@@ -19,9 +20,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -100,6 +103,41 @@ class IntegrationsController extends Controller
             ['label' => 'Google Ads', 'done' => $connections->isNotEmpty() && $accounts->isNotEmpty()],
         ];
 
+        $primary = $connections->first();
+        $connectionHealth = [
+            'oauth_connected' => $connections->isNotEmpty(),
+            'email' => $primary?->google_email,
+            'health_status' => $primary?->health_status ?: ($connections->isNotEmpty() ? 'ok' : 'pending'),
+            'last_sync_at' => optional($primary?->last_sync_at)->toIso8601String(),
+            'last_sync_status' => $primary?->last_sync_status,
+            'last_sync_message' => $primary?->last_sync_message,
+            'accounts' => $accounts->count(),
+            'tracking_active' => $tagReady,
+            'events_today' => Schema::hasTable('visits')
+                ? (int) DB::table('visits')
+                    ->whereIn('domain_id', $manualDomains->pluck('id'))
+                    ->whereDate('visited_at', now()->toDateString())
+                    ->count()
+                : 0,
+            'last_event_at' => $manualDomains->max('last_seen_at'),
+        ];
+
+        $trackingIds = $accounts->map(fn (GoogleAdsAccount $account) => [
+            'id' => $account->id,
+            'label' => $account->displayLabel(),
+            'customer_id' => $account->display_customer_id ?: $account->customer_id,
+            'google_tag_id' => $account->google_tag_id,
+        ])->values();
+
+        $syncLogs = Schema::hasTable('integration_sync_logs')
+            ? IntegrationSyncLog::query()
+                ->where('user_id', $user->id)
+                ->with(['domain:id,hostname', 'connection:id,google_email'])
+                ->latest('id')
+                ->limit(25)
+                ->get()
+            : collect();
+
         return view('integrations', compact(
             'connections',
             'domains',
@@ -114,6 +152,9 @@ class IntegrationsController extends Controller
             'platformReady',
             'requirementSteps',
             'domainConnections',
+            'connectionHealth',
+            'trackingIds',
+            'syncLogs',
         ));
     }
 
@@ -260,7 +301,22 @@ class IntegrationsController extends Controller
 
         $connection = $this->upsertGoogleConnection($user->id, $email, $sub, $token, $accessToken);
 
+        $this->recordSyncLog($user->id, $connection->id, $isPaidDomainFlow ? $paidDomainId : null, 'oauth_connect', 'ok', 'Google account connected: '.$email);
+
         $syncResult = $this->syncGoogleAdsAccountsForConnection($connection, $user->id);
+
+        if ($syncResult['error']) {
+            $this->markConnectionHealth($connection, 'error', $syncResult['error']);
+            $this->recordSyncLog($user->id, $connection->id, $isPaidDomainFlow ? $paidDomainId : null, 'sync_accounts', 'error', $syncResult['error']);
+        } else {
+            $syncMessage = $this->googleAdsSyncStatusMessage($syncResult, 'Google Ads accounts synced.');
+            $this->markConnectionHealth($connection, 'ok', $syncMessage);
+            $this->recordSyncLog($user->id, $connection->id, $isPaidDomainFlow ? $paidDomainId : null, 'sync_accounts', 'ok', $syncMessage, [
+                'synced' => $syncResult['synced'] ?? 0,
+                'skipped' => $syncResult['skipped'] ?? 0,
+                'domains' => $syncResult['domains'] ?? 0,
+            ]);
+        }
 
         if ($isPaidDomainFlow) {
             $request->session()->put('pick_google_ads_accounts', [
@@ -299,10 +355,21 @@ class IntegrationsController extends Controller
         $result = $this->syncGoogleAdsAccountsForConnection($connection, $request->user()->id);
 
         if ($result['error']) {
+            $this->markConnectionHealth($connection, 'error', $result['error']);
+            $this->recordSyncLog($request->user()->id, $connection->id, null, 'sync_accounts', 'error', $result['error']);
+
             return back()->with('status', $result['error']);
         }
 
-        return back()->with('status', $this->googleAdsSyncStatusMessage($result, 'Google Ads accounts synced.'));
+        $message = $this->googleAdsSyncStatusMessage($result, 'Google Ads accounts synced.');
+        $this->markConnectionHealth($connection, 'ok', $message);
+        $this->recordSyncLog($request->user()->id, $connection->id, null, 'sync_accounts', 'ok', $message, [
+            'synced' => $result['synced'] ?? 0,
+            'skipped' => $result['skipped'] ?? 0,
+            'domains' => $result['domains'] ?? 0,
+        ]);
+
+        return back()->with('status', $message);
     }
 
     /**
@@ -1092,6 +1159,27 @@ class IntegrationsController extends Controller
 
         $request->session()->forget('pick_google_ads_accounts');
 
+        $this->recordSyncLog(
+            $request->user()->id,
+            $account->google_connection_id,
+            $domain->id,
+            'link_domain',
+            $metricsMessage && $metricsSaved === 0 ? 'error' : 'ok',
+            $metricsMessage ?: ('Linked '.$account->displayLabel().' to '.$domain->hostname),
+            [
+                'account_id' => $account->id,
+                'metrics_rows_saved' => $metricsSaved,
+            ]
+        );
+
+        if ($account->connection) {
+            $this->markConnectionHealth(
+                $account->connection,
+                $metricsMessage && $metricsSaved === 0 ? 'error' : 'ok',
+                $metricsMessage ?: ('Linked '.$account->displayLabel())
+            );
+        }
+
         return response()->json([
             'ok' => true,
             'domain_id' => $domain->id,
@@ -1217,7 +1305,8 @@ class IntegrationsController extends Controller
     public function statusJson(Request $request): JsonResponse
     { 
         $userId = $request->user()->id;
-        $googleConnected = GoogleConnection::where('user_id', $userId)->exists();
+        $connection = GoogleConnection::query()->where('user_id', $userId)->latest('id')->first();
+        $googleConnected = $connection !== null;
         $googleAccountsCount = GoogleAdsAccount::query()
             ->whereHas('connection', fn ($q) => $q->where('user_id', $userId))
             ->synced()
@@ -1234,12 +1323,27 @@ class IntegrationsController extends Controller
         $oauthConfigured = (string) config('services.google_ads.client_id') !== ''
             && (string) config('services.google_ads.client_secret') !== '';
 
+        $domains = Domain::query()->where('user_id', $userId)->get(['id', 'tag_connected', 'last_seen_at']);
+        $trackingActive = $domains->contains(fn (Domain $d) => (bool) $d->tag_connected);
+        $lastSeen = $domains->max('last_seen_at');
+
         return response()->json([
             'google' => [
                 'connected' => $googleConnected,
+                'email' => $connection?->google_email,
                 'accounts' => $googleAccountsCount,
                 'oauth_configured' => $oauthConfigured,
                 'developer_token_configured' => $devTokenConfigured,
+                'health_status' => $connection?->health_status ?: ($googleConnected ? 'ok' : 'pending'),
+                'last_sync_at' => optional($connection?->last_sync_at)->toIso8601String(),
+                'last_sync_status' => $connection?->last_sync_status,
+                'last_sync_message' => $connection?->last_sync_message,
+            ],
+            'tracking' => [
+                'active' => $trackingActive,
+                'last_event_at' => $lastSeen
+                    ? \Carbon\Carbon::parse((string) $lastSeen)->toIso8601String()
+                    : null,
             ],
             'direct' => [
                 'connected' => $directCount > 0,
@@ -1247,6 +1351,106 @@ class IntegrationsController extends Controller
             ],
             'domain_mappings' => $mappingsCount,
         ]);
+    }
+
+    public function logsJson(Request $request): JsonResponse
+    {
+        if (! Schema::hasTable('integration_sync_logs')) {
+            return response()->json(['logs' => []]);
+        }
+
+        $logs = IntegrationSyncLog::query()
+            ->where('user_id', $request->user()->id)
+            ->with(['domain:id,hostname'])
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->map(fn (IntegrationSyncLog $log) => [
+                'id' => $log->id,
+                'action' => $log->action,
+                'status' => $log->status,
+                'message' => $log->message,
+                'domain' => $log->domain?->hostname,
+                'created_at' => optional($log->created_at)->toIso8601String(),
+                'meta' => $log->meta,
+            ]);
+
+        return response()->json(['logs' => $logs]);
+    }
+
+    public function testConnection(Request $request, GoogleConnection $connection): JsonResponse
+    {
+        abort_unless($connection->user_id === $request->user()->id, 403);
+
+        $token = $this->resolveAccessToken($connection);
+        if (! $token) {
+            $this->markConnectionHealth($connection, 'error', 'Token refresh failed. Reconnect Google.');
+            $this->recordSyncLog($request->user()->id, $connection->id, null, 'health_check', 'error', 'Token refresh failed. Reconnect Google.');
+
+            return response()->json(['ok' => false, 'message' => 'Token refresh failed. Reconnect Google.'], 422);
+        }
+
+        $this->markConnectionHealth($connection, 'ok', 'Connection healthy');
+        $this->recordSyncLog($request->user()->id, $connection->id, null, 'health_check', 'ok', 'Connection healthy');
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Connection healthy',
+            'email' => $connection->google_email,
+            'last_sync_at' => optional($connection->fresh()->last_sync_at)->toIso8601String(),
+            'health_status' => 'ok',
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    private function recordSyncLog(
+        int $userId,
+        ?int $connectionId,
+        ?int $domainId,
+        string $action,
+        string $status,
+        ?string $message = null,
+        array $meta = [],
+    ): void {
+        if (! Schema::hasTable('integration_sync_logs')) {
+            return;
+        }
+
+        IntegrationSyncLog::query()->create([
+            'user_id' => $userId,
+            'google_connection_id' => $connectionId,
+            'domain_id' => $domainId,
+            'action' => $action,
+            'status' => $status,
+            'message' => $message ? Str::limit($message, 500) : null,
+            'meta' => $meta !== [] ? $meta : null,
+            'created_at' => now(),
+        ]);
+    }
+
+    private function markConnectionHealth(GoogleConnection $connection, string $status, ?string $message = null): void
+    {
+        $payload = [
+            'last_health_check_at' => now(),
+            'health_status' => $status,
+            'last_sync_at' => now(),
+            'last_sync_status' => $status,
+            'last_sync_message' => $message ? Str::limit($message, 500) : null,
+        ];
+
+        // Only set columns that exist (pre-migration safety).
+        $data = [];
+        foreach ($payload as $column => $value) {
+            if (Schema::hasColumn('google_connections', $column)) {
+                $data[$column] = $value;
+            }
+        }
+
+        if ($data !== []) {
+            $connection->forceFill($data)->save();
+        }
     }
 
     public function allJson(Request $request): JsonResponse

@@ -1,6 +1,6 @@
 <article class="rounded-[10px] border border-white/15 bg-[#151515] p-[20px]">
-    <h2 class="text-[16px] font-semibold text-white">Password</h2>
-    <p class="mt-[4px] text-[12px] text-[#a9a9a9]">Use a long, random password to keep your account secure.</p>
+    <h2 class="text-[16px] font-semibold text-white">Security</h2>
+    <p class="mt-[4px] text-[12px] text-[#a9a9a9]">Update your password to protect account access.</p>
 
     <form method="post" action="{{ route('password.update') }}" class="mt-[16px] space-y-[14px]">
         @csrf
