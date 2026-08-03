@@ -351,6 +351,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let threatsChart = null;
     let hiddenThreatSlices = {};
     let lastThreatLegend = { labels: [], values: [] };
+    let hiddenTrendSeries = {};
+    let lastTrendChart = { labels: [], datasets: [] };
     let domainRows = [];
     let domainFilter = 'all';
     let domainSearch = '';
@@ -473,12 +475,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'text-emerald-200';
     }
 
+    function trendSeriesKey(ds, index = 0) {
+        return String(ds?.key || ds?.name || `series-${index}`);
+    }
+
+    function visibleTrendDatasets(datasets) {
+        return (datasets || []).filter((ds, index) => !hiddenTrendSeries[trendSeriesKey(ds, index)]);
+    }
+
     function drawTrendDual(labels, datasets) {
         const canvas = document.getElementById('trends-chart');
         if (!canvas) return;
         const { ctx, w, h } = retina(canvas);
         ctx.clearRect(0, 0, w, h);
-        const series = (datasets || []).map((d) => ({ ...d, values: d.values || [] }));
+        const series = visibleTrendDatasets(datasets).map((d) => ({ ...d, values: d.values || [] }));
         const max = Math.max(...series.flatMap((d) => d.values), 1);
         const left = 34, right = 12, top = 16, bottom = 28;
 
@@ -524,9 +534,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTrafficLegend(datasets) {
         const el = document.getElementById('traffic-quality-legend');
         if (!el) return;
-        el.innerHTML = (datasets || []).map((ds) => (
-            `<span class="ov-legend-item"><i style="background:${ds.color}"></i>${ds.name}</span>`
-        )).join('');
+        lastTrendChart.datasets = datasets || [];
+        el.innerHTML = (datasets || []).map((ds, index) => {
+            const key = trendSeriesKey(ds, index);
+            const hidden = Boolean(hiddenTrendSeries[key]);
+            return `<button type="button" class="ov-legend-item chart-legend-item${hidden ? ' is-hidden' : ''}" data-series="${key}" title="Click to show/hide"><i style="background:${ds.color}"></i>${ds.name}</button>`;
+        }).join('');
+        el.querySelectorAll('[data-series]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.series;
+                hiddenTrendSeries[key] = !hiddenTrendSeries[key];
+                drawTrendDual(lastTrendChart.labels, lastTrendChart.datasets);
+                renderTrafficLegend(lastTrendChart.datasets);
+            });
+        });
     }
 
     function updateDonutCenter(labels, values, absoluteTotal = null) {
@@ -794,6 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadCharts() {
         hiddenThreatSlices = {};
+        hiddenTrendSeries = {};
         const qs = filterParams().toString();
         const trends = await json(qs ? `/analytics/trends?${qs}` : '/analytics/trends');
         const threats = await json(qs ? `/analytics/threats?${qs}` : '/analytics/threats');
@@ -803,8 +825,9 @@ document.addEventListener('DOMContentLoaded', () => {
             color: '#FB7185',
             values: trends.values || [],
         }];
-        drawTrendDual(trends.labels || [], datasets);
-        renderTrafficLegend(datasets);
+        lastTrendChart = { labels: trends.labels || [], datasets };
+        drawTrendDual(lastTrendChart.labels, lastTrendChart.datasets);
+        renderTrafficLegend(lastTrendChart.datasets);
         renderDonut(threats.labels || [], threats.values || [], threats.total);
         renderThreatLegend(threats.labels || [], threats.values || []);
     }

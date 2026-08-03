@@ -7466,6 +7466,27 @@ html.ov-boot-lock body {
     gap: 5px;
     font-size: 10px;
     color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    user-select: none;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    transition: opacity 0.15s ease;
+}
+
+.ov-legend-item:hover {
+    opacity: 0.88;
+}
+
+.ov-legend-item.is-hidden {
+    opacity: 0.38;
+    text-decoration: line-through;
+}
+
+.ov-legend-item.is-hidden i {
+    filter: grayscale(1);
+    opacity: 0.55;
 }
 
 .ov-legend-item i {
