@@ -6966,7 +6966,7 @@ select:autofill {
     text-decoration: underline;
 }
 
-/* Top row: suite pair (content height) + feed — no equal-height stretch */
+/* Top row: suite pair + feed aligned to same bottom edge */
 .ov-top-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -6985,13 +6985,6 @@ select:autofill {
 @media (min-width: 900px) {
     .ov-suite-pair {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@media (min-width: 1280px) {
-    .ov-top-grid {
-        grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
-        align-items: start;
     }
 }
 
@@ -7186,8 +7179,13 @@ select:autofill {
 }
 
 .ov-card--feed {
-    max-height: 240px;
     overflow: hidden;
+}
+
+@media (max-width: 1279px) {
+    .ov-card--feed {
+        max-height: 260px;
+    }
 }
 
 .ov-metric-body {
@@ -7256,35 +7254,37 @@ select:autofill {
 
 @media (min-width: 1280px) {
     .ov-top-grid {
-        grid-template-columns: minmax(0, 840px) minmax(300px, 340px);
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+        max-width: 1180px;
         justify-content: start;
-        align-items: start;
-    }
-
-    .ov-card--feed {
-        min-height: 0;
-        height: var(--ov-suite-h, 220px);
-        max-height: var(--ov-suite-h, 220px);
-        align-self: start;
-        overflow: hidden;
+        /* Row height follows suite cards; feed fills the same height */
+        align-items: stretch;
     }
 
     .ov-suite-pair {
-        max-width: 840px;
-        align-self: start;
+        max-width: none;
         height: fit-content;
+        align-self: start;
     }
 
     .ov-suite-card {
         height: fit-content;
         align-self: start;
     }
+
+    .ov-card--feed {
+        min-height: 0;
+        height: auto;
+        max-height: none;
+        align-self: stretch;
+        overflow: hidden;
+    }
 }
 
 @media (min-width: 768px) and (max-width: 1279px) {
     .ov-card--feed {
         min-height: 0;
-        max-height: 240px;
+        max-height: 260px;
         overflow: hidden;
     }
 }

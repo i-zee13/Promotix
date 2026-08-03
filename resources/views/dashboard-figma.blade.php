@@ -838,10 +838,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const pair = document.querySelector('.ov-suite-pair');
         const feed = document.querySelector('.ov-card--feed');
         if (!pair || !feed) return;
-        const h = Math.max(pair.offsetHeight || 0, 200);
-        feed.style.setProperty('--ov-suite-h', `${h}px`);
-        feed.style.maxHeight = `${h}px`;
+
+        // Desktop: CSS stretch aligns bottoms — clear any leftover inline caps
+        if (window.matchMedia('(min-width: 1280px)').matches) {
+            feed.style.removeProperty('height');
+            feed.style.removeProperty('max-height');
+            feed.style.removeProperty('--ov-suite-h');
+            // Force feed to suite-pair height (grid stretch can fail if feed content mins tall)
+            const h = pair.getBoundingClientRect().height;
+            if (h > 0) {
+                feed.style.height = `${Math.round(h)}px`;
+                feed.style.maxHeight = `${Math.round(h)}px`;
+            }
+            return;
+        }
+
+        const h = Math.max(Math.round(pair.getBoundingClientRect().height || 0), 200);
         feed.style.height = `${h}px`;
+        feed.style.maxHeight = `${h}px`;
     }
 
     async function loadAll() {
