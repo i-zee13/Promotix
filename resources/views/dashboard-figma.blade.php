@@ -137,13 +137,13 @@
                         <h2 class="ov-suite-card__title">Google Ads Protection</h2>
                     </div>
                     <span class="ov-suite-card__badge" aria-hidden="true" title="Ads protection">
-                        <img src="{{ asset('images/overview-icons/shield-dollar.png') }}" alt="" class="ov-suite-icon-img ov-suite-icon-img--lg">
+                        @include('partials.overview-suite-icon', ['name' => 'shield-dollar', 'size' => 18])
                     </span>
                 </div>
                 <div class="ov-suite-card__metrics">
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--clicks" aria-hidden="true">
-                            <img src="{{ asset('images/overview-icons/cursor-click.png') }}" alt="" class="ov-suite-icon-img">
+                            @include('partials.overview-suite-icon', ['name' => 'cursor-click', 'size' => 14])
                         </span>
                         <p class="ov-suite-stat__label">Total Clicks</p>
                         <p id="suite-paid-clicks" class="ov-suite-stat__value">--</p>
@@ -152,7 +152,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--valid" aria-hidden="true">
-                            <img src="{{ asset('images/overview-icons/shield-check.png') }}" alt="" class="ov-suite-icon-img">
+                            @include('partials.overview-suite-icon', ['name' => 'shield-check', 'size' => 14])
                         </span>
                         <p class="ov-suite-stat__label">Valid Clicks</p>
                         <p id="suite-paid-valid" class="ov-suite-stat__value">--</p>
@@ -161,7 +161,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--invalid" aria-hidden="true">
-                            <img src="{{ asset('images/overview-icons/ban.png') }}" alt="" class="ov-suite-icon-img">
+                            @include('partials.overview-suite-icon', ['name' => 'ban', 'size' => 14])
                         </span>
                         <p class="ov-suite-stat__label">Invalid Clicks</p>
                         <p id="suite-paid-visits" class="ov-suite-stat__value">--</p>
@@ -170,7 +170,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--rate" aria-hidden="true">
-                            <img src="{{ asset('images/overview-icons/gauge.png') }}" alt="" class="ov-suite-icon-img">
+                            @include('partials.overview-suite-icon', ['name' => 'gauge', 'size' => 14])
                         </span>
                         <p class="ov-suite-stat__label">Protection Rate</p>
                         <p id="suite-paid-rate" class="ov-suite-stat__value">0.00%</p>
@@ -185,18 +185,18 @@
                 <div class="ov-suite-card__head">
                     <div class="ov-suite-card__title-row">
                         <span class="ov-suite-card__brand ov-suite-card__brand--bot" aria-hidden="true">
-                            <img src="{{ asset('images/overview-icons/cpu-bolt.png') }}" alt="" class="ov-suite-icon-img ov-suite-icon-img--md">
+                            @include('partials.overview-suite-icon', ['name' => 'cpu-bolt', 'size' => 16])
                         </span>
                         <h2 class="ov-suite-card__title">Bot Protection</h2>
                     </div>
                     <span class="ov-suite-card__badge" aria-hidden="true" title="Bot protection">
-                        <img src="{{ asset('images/overview-icons/bug-scan.png') }}" alt="" class="ov-suite-icon-img ov-suite-icon-img--lg">
+                        @include('partials.overview-suite-icon', ['name' => 'bug-scan', 'size' => 18])
                     </span>
                 </div>
                 <div class="ov-suite-card__metrics">
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--clicks" aria-hidden="true">
-                            <img src="{{ asset('images/overview-icons/users.png') }}" alt="" class="ov-suite-icon-img">
+                            @include('partials.overview-suite-icon', ['name' => 'users', 'size' => 14])
                         </span>
                         <p class="ov-suite-stat__label">Total Visitors</p>
                         <p id="suite-bot-visitors" class="ov-suite-stat__value">--</p>
@@ -205,7 +205,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--invalid" aria-hidden="true">
-                            <img src="{{ asset('images/overview-icons/bug-scan.png') }}" alt="" class="ov-suite-icon-img">
+                            @include('partials.overview-suite-icon', ['name' => 'bug-scan', 'size' => 14])
                         </span>
                         <p class="ov-suite-stat__label">Bots Detected</p>
                         <p id="suite-bot-detected" class="ov-suite-stat__value">--</p>
@@ -214,7 +214,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--valid" aria-hidden="true">
-                            <img src="{{ asset('images/overview-icons/lock.png') }}" alt="" class="ov-suite-icon-img">
+                            @include('partials.overview-suite-icon', ['name' => 'lock', 'size' => 14])
                         </span>
                         <p class="ov-suite-stat__label">Blocked Bots</p>
                         <p id="suite-bot-blocked" class="ov-suite-stat__value">--</p>
@@ -223,7 +223,7 @@
                     </div>
                     <div class="ov-suite-stat">
                         <span class="ov-suite-stat__icon ov-suite-stat__icon--rate" aria-hidden="true">
-                            <img src="{{ asset('images/overview-icons/gauge.png') }}" alt="" class="ov-suite-icon-img">
+                            @include('partials.overview-suite-icon', ['name' => 'gauge', 'size' => 14])
                         </span>
                         <p class="ov-suite-stat__label">Detection Rate</p>
                         <p id="suite-bot-rate" class="ov-suite-stat__value">0.00%</p>

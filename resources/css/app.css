@@ -7141,31 +7141,17 @@ html.ov-boot-lock body {
     justify-content: center;
     border-radius: 999px;
     margin-bottom: 2px;
+    color: #fff;
 }
 
-.ov-suite-icon-img {
+.ov-suite-icon-svg {
     display: block;
-    width: 14px;
-    height: 14px;
-    object-fit: contain;
-    /* SVGs were exported as black strokes — invert for purple cards */
-    filter: brightness(0) invert(1);
-    opacity: 0.95;
+    flex-shrink: 0;
 }
 
-.ov-suite-icon-img--md {
-    width: 16px;
-    height: 16px;
-}
-
-.ov-suite-icon-img--lg {
-    width: 18px;
-    height: 18px;
-}
-
-.ov-suite-card__badge .ov-suite-icon-img,
-.ov-suite-card__brand .ov-suite-icon-img {
-    filter: brightness(0) invert(1);
+.ov-suite-card__badge,
+.ov-suite-card__brand {
+    color: #fff;
 }
 
 .ov-suite-stat__icon--clicks,
