@@ -59,8 +59,9 @@ class GoogleAdsDomainMetricsSync
             'to' => $toDate,
         ]);
 
-        // Store all campaigns for the linked account (no hostname filter on save).
-        $dailyRows = $this->fetchDailyFromGoogle($account, $fromDate, $toDate);
+        // Scope metrics to this domain's landing pages so shared Google Ads accounts
+        // don't copy the same account-wide click totals onto every linked domain.
+        $dailyRows = $this->fetchDailyFromGoogle($account, $fromDate, $toDate, $domain->hostname);
 
         if ($dailyRows === []) {
             $apiErr = $this->metrics->lastApiError;
@@ -332,6 +333,11 @@ class GoogleAdsDomainMetricsSync
         $googleFrom = $reportingFrom;
         $googleTo = $reportingTo;
 
+        /** @var array<int, list<array{clicks: int, cost: float, impressions: int}>> $byAccount */
+        $byAccount = [];
+        /** @var list<array{clicks: int, cost: float, impressions: int}> $noAccount */
+        $noAccount = [];
+
         foreach ($ids as $domainId) {
             $domain = $domains->get($domainId);
             $googleTz = UserTimezone::isValid($domain?->googleAdsAccount?->time_zone)
@@ -341,9 +347,44 @@ class GoogleAdsDomainMetricsSync
             $googleFrom = min($googleFrom, $fromDate);
             $googleTo = max($googleTo, $toDate);
             $totals = $this->clickTotalsForDomain((int) $domainId, $fromDate, $toDate);
-            $clicks += (int) ($totals['clicks'] ?? 0);
-            $cost += (float) ($totals['cost'] ?? 0);
-            $impressions += (int) ($totals['impressions'] ?? 0);
+            $entry = [
+                'clicks' => (int) ($totals['clicks'] ?? 0),
+                'cost' => (float) ($totals['cost'] ?? 0),
+                'impressions' => (int) ($totals['impressions'] ?? 0),
+            ];
+            $accountId = (int) ($domain?->google_ads_account_id ?? 0);
+            if ($accountId > 0) {
+                $byAccount[$accountId][] = $entry;
+            } else {
+                $noAccount[] = $entry;
+            }
+        }
+
+        foreach ($byAccount as $entries) {
+            // Legacy sync stored full account totals on every linked domain. If every
+            // domain under the same account still has identical totals, count once.
+            $uniqueFingerprints = collect($entries)
+                ->map(fn ($e) => $e['clicks'].'|'.round($e['cost'], 2).'|'.$e['impressions'])
+                ->unique()
+                ->count();
+            if (count($entries) > 1 && $uniqueFingerprints === 1) {
+                $clicks += $entries[0]['clicks'];
+                $cost += $entries[0]['cost'];
+                $impressions += $entries[0]['impressions'];
+                continue;
+            }
+
+            foreach ($entries as $entry) {
+                $clicks += $entry['clicks'];
+                $cost += $entry['cost'];
+                $impressions += $entry['impressions'];
+            }
+        }
+
+        foreach ($noAccount as $entry) {
+            $clicks += $entry['clicks'];
+            $cost += $entry['cost'];
+            $impressions += $entry['impressions'];
         }
 
         return [
@@ -455,7 +496,7 @@ class GoogleAdsDomainMetricsSync
     /**
      * @return list<array<string, mixed>>
      */
-    private function fetchDailyFromGoogle(GoogleAdsAccount $account, string $fromDate, string $toDate): array
+    private function fetchDailyFromGoogle(GoogleAdsAccount $account, string $fromDate, string $toDate, ?string $hostname = null): array
     {
         $connection = $account->connection;
         if (! $connection) {
@@ -488,18 +529,25 @@ class GoogleAdsDomainMetricsSync
             array_unshift($headerAttempts, $withMcc);
         }
 
+        $hostname = $hostname !== null ? trim($hostname) : null;
+        if ($hostname === '') {
+            $hostname = null;
+        }
+
         foreach ($headerAttempts as $index => $headers) {
             Log::info('Google Ads domain metrics sync: API attempt', [
                 'attempt' => $index + 1,
                 'customer_id' => $account->customer_id,
                 'login_customer_id' => $headers['login-customer-id'] ?? null,
+                'hostname_filter' => $hostname,
             ]);
 
-            $rows = $this->metrics->dailyCampaignMetrics($account, $version, $headers, $fromStr, $toStr, null);
+            $rows = $this->metrics->dailyCampaignMetrics($account, $version, $headers, $fromStr, $toStr, $hostname);
             if ($rows !== []) {
                 Log::info('Google Ads domain metrics sync: API attempt succeeded', [
                     'attempt' => $index + 1,
                     'rows' => count($rows),
+                    'hostname_filter' => $hostname,
                 ]);
 
                 return $rows;

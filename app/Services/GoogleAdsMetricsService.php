@@ -112,9 +112,21 @@ class GoogleAdsMetricsService
 
         if ($hostnameFilter !== null && $hostnameFilter !== '') {
             $hostRows = $this->campaignIdsForHostnameQuery($customerId, $apiVersion, $headers, $hostnameFilter, $fromDate, $toDate);
-            if ($hostRows !== []) {
-                $rows = array_values(array_filter($rows, fn ($r) => in_array($r['campaign_id'], $hostRows, true)));
+            // Always apply hostname scope when requested. Previously an empty match list
+            // left account-wide rows intact, so every linked domain showed the same clicks.
+            if ($hostRows === []) {
+                Log::info('Google Ads daily campaign metrics hostname filter matched no campaigns', [
+                    'customer_id' => $customerId,
+                    'hostname_filter' => $hostnameFilter,
+                    'date_from' => $fromDate,
+                    'date_to' => $toDate,
+                    'rows_before_filter' => count($rows),
+                ]);
+
+                return [];
             }
+
+            $rows = array_values(array_filter($rows, fn ($r) => in_array($r['campaign_id'], $hostRows, true)));
         }
 
         Log::info('Google Ads daily campaign metrics parsed', [
