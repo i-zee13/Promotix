@@ -7078,7 +7078,7 @@ select:autofill {
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(11, 11, 11, 0.35);
-    padding: 10px 6px 8px;
+    padding: 10px 8px 8px;
 }
 
 .ov-suite-stat__icon {
@@ -7114,7 +7114,7 @@ select:autofill {
 
 .ov-suite-stat__value {
     margin: 0;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
     line-height: 1.1;
     color: #fff;
@@ -7253,12 +7253,13 @@ select:autofill {
 
 @media (min-width: 1280px) {
     .ov-top-grid {
-        /* Full content width — suite pair + feed, slightly wider feed */
-        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
+        /* Wider suite cards, narrower Live Security Feed */
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
         max-width: none;
         width: 100%;
         justify-content: stretch;
         align-items: stretch;
+        gap: 14px;
     }
 
     .ov-suite-pair {
@@ -7266,6 +7267,7 @@ select:autofill {
         width: 100%;
         height: fit-content;
         align-self: start;
+        gap: 14px;
     }
 
     .ov-suite-card {
@@ -7275,6 +7277,8 @@ select:autofill {
 
     .ov-card--feed {
         min-height: 0;
+        width: 100%;
+        max-width: 300px;
         height: auto;
         max-height: none;
         align-self: stretch;
