@@ -129,49 +129,32 @@
         <div class="ov-top-grid">
             <div class="ov-suite-pair">
             <article class="ov-suite-card">
-                <div class="ov-suite-card__head">
-                    <div class="ov-suite-card__title-row">
-                        <span class="ov-suite-card__brand" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#FBBC04" d="M12 2.5l9.5 16.5H2.5L12 2.5z"/><path fill="#4285F4" d="M12 2.5l9.5 16.5h-6.2L12 2.5z"/><path fill="#34A853" d="M8.7 19H2.5L12 2.5 8.7 19z"/></svg>
-                        </span>
-                        <h2 class="ov-suite-card__title">Google Ads Protection</h2>
-                    </div>
-                    <span class="ov-suite-card__badge" aria-hidden="true" title="Ads protection">
-                        @include('partials.overview-suite-icon', ['name' => 'shield-dollar', 'size' => 18])
+                <div class="ov-suite-card__head ov-suite-card__head--stacked">
+                    <span class="ov-suite-card__brand" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="#FBBC04" d="M12 2.5l9.5 16.5H2.5L12 2.5z"/><path fill="#4285F4" d="M12 2.5l9.5 16.5h-6.2L12 2.5z"/><path fill="#34A853" d="M8.7 19H2.5L12 2.5 8.7 19z"/></svg>
                     </span>
+                    <h2 class="ov-suite-card__title">Google Ads Protection</h2>
                 </div>
                 <div class="ov-suite-card__metrics">
                     <div class="ov-suite-stat">
-                        <span class="ov-suite-stat__icon ov-suite-stat__icon--clicks" aria-hidden="true">
-                            @include('partials.overview-suite-icon', ['name' => 'cursor-click', 'size' => 14])
-                        </span>
                         <p class="ov-suite-stat__label">Total Clicks</p>
                         <p id="suite-paid-clicks" class="ov-suite-stat__value">--</p>
                         <p id="suite-paid-clicks-delta" class="ov-suite-stat__delta is-flat">—</p>
                         <p class="ov-suite-stat__vs">vs previous period</p>
                     </div>
                     <div class="ov-suite-stat">
-                        <span class="ov-suite-stat__icon ov-suite-stat__icon--valid" aria-hidden="true">
-                            @include('partials.overview-suite-icon', ['name' => 'shield-check', 'size' => 14])
-                        </span>
                         <p class="ov-suite-stat__label">Valid Clicks</p>
                         <p id="suite-paid-valid" class="ov-suite-stat__value">--</p>
                         <p id="suite-paid-valid-delta" class="ov-suite-stat__delta is-flat">—</p>
                         <p class="ov-suite-stat__vs">vs previous period</p>
                     </div>
                     <div class="ov-suite-stat">
-                        <span class="ov-suite-stat__icon ov-suite-stat__icon--invalid" aria-hidden="true">
-                            @include('partials.overview-suite-icon', ['name' => 'ban', 'size' => 14])
-                        </span>
                         <p class="ov-suite-stat__label">Invalid Clicks</p>
                         <p id="suite-paid-visits" class="ov-suite-stat__value">--</p>
                         <p id="suite-paid-visits-delta" class="ov-suite-stat__delta is-flat">—</p>
                         <p class="ov-suite-stat__vs">vs previous period</p>
                     </div>
                     <div class="ov-suite-stat">
-                        <span class="ov-suite-stat__icon ov-suite-stat__icon--rate" aria-hidden="true">
-                            @include('partials.overview-suite-icon', ['name' => 'gauge', 'size' => 14])
-                        </span>
                         <p class="ov-suite-stat__label">Protection Rate</p>
                         <p id="suite-paid-rate" class="ov-suite-stat__value">0.00%</p>
                         <p id="suite-paid-rate-delta" class="ov-suite-stat__delta is-flat">—</p>
@@ -182,49 +165,32 @@
             </article>
 
             <article class="ov-suite-card">
-                <div class="ov-suite-card__head">
-                    <div class="ov-suite-card__title-row">
-                        <span class="ov-suite-card__brand ov-suite-card__brand--bot" aria-hidden="true">
-                            @include('partials.overview-suite-icon', ['name' => 'cpu-bolt', 'size' => 16])
-                        </span>
-                        <h2 class="ov-suite-card__title">Bot Protection</h2>
-                    </div>
-                    <span class="ov-suite-card__badge" aria-hidden="true" title="Bot protection">
-                        @include('partials.overview-suite-icon', ['name' => 'bug-scan', 'size' => 18])
+                <div class="ov-suite-card__head ov-suite-card__head--stacked">
+                    <span class="ov-suite-card__brand ov-suite-card__brand--bot" aria-hidden="true">
+                        @include('partials.overview-suite-icon', ['name' => 'cpu-bolt', 'size' => 20])
                     </span>
+                    <h2 class="ov-suite-card__title">Bot Protection</h2>
                 </div>
                 <div class="ov-suite-card__metrics">
                     <div class="ov-suite-stat">
-                        <span class="ov-suite-stat__icon ov-suite-stat__icon--clicks" aria-hidden="true">
-                            @include('partials.overview-suite-icon', ['name' => 'users', 'size' => 14])
-                        </span>
                         <p class="ov-suite-stat__label">Total Visitors</p>
                         <p id="suite-bot-visitors" class="ov-suite-stat__value">--</p>
                         <p id="suite-bot-visitors-delta" class="ov-suite-stat__delta is-flat">—</p>
                         <p class="ov-suite-stat__vs">vs previous period</p>
                     </div>
                     <div class="ov-suite-stat">
-                        <span class="ov-suite-stat__icon ov-suite-stat__icon--invalid" aria-hidden="true">
-                            @include('partials.overview-suite-icon', ['name' => 'bug-scan', 'size' => 14])
-                        </span>
                         <p class="ov-suite-stat__label">Bots Detected</p>
                         <p id="suite-bot-detected" class="ov-suite-stat__value">--</p>
                         <p id="suite-bot-detected-delta" class="ov-suite-stat__delta is-flat">—</p>
                         <p class="ov-suite-stat__vs">vs previous period</p>
                     </div>
                     <div class="ov-suite-stat">
-                        <span class="ov-suite-stat__icon ov-suite-stat__icon--valid" aria-hidden="true">
-                            @include('partials.overview-suite-icon', ['name' => 'lock', 'size' => 14])
-                        </span>
                         <p class="ov-suite-stat__label">Blocked Bots</p>
                         <p id="suite-bot-blocked" class="ov-suite-stat__value">--</p>
                         <p id="suite-bot-blocked-delta" class="ov-suite-stat__delta is-flat">—</p>
                         <p class="ov-suite-stat__vs">vs previous period</p>
                     </div>
                     <div class="ov-suite-stat">
-                        <span class="ov-suite-stat__icon ov-suite-stat__icon--rate" aria-hidden="true">
-                            @include('partials.overview-suite-icon', ['name' => 'gauge', 'size' => 14])
-                        </span>
                         <p class="ov-suite-stat__label">Detection Rate</p>
                         <p id="suite-bot-rate" class="ov-suite-stat__value">0.00%</p>
                         <p id="suite-bot-rate-delta" class="ov-suite-stat__delta is-flat">—</p>

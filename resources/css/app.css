@@ -7037,6 +7037,14 @@ html.ov-boot-lock body {
     gap: 10px;
 }
 
+.ov-suite-card__head--stacked {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+}
+
 .ov-suite-card__title-row {
     display: flex;
     align-items: center;
@@ -7046,18 +7054,18 @@ html.ov-boot-lock body {
 
 .ov-suite-card__brand {
     display: inline-flex;
-    height: 28px;
-    width: 28px;
+    height: 36px;
+    width: 36px;
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .ov-suite-card__brand--bot {
-    color: #c4a3e8;
+    color: #fff;
 }
 
 .ov-suite-card__title {
@@ -7066,6 +7074,11 @@ html.ov-boot-lock body {
     font-weight: 500;
     color: #fff;
     line-height: 1.2;
+}
+
+.ov-suite-card__head--stacked .ov-suite-card__title {
+    font-size: 15px;
+    font-weight: 600;
 }
 
 .ov-suite-card__badge {
@@ -7131,12 +7144,12 @@ html.ov-boot-lock body {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 4px;
+    gap: 3px;
     min-width: 0;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(11, 11, 11, 0.35);
-    padding: 10px 8px 8px;
+    padding: 12px 8px 10px;
 }
 
 .ov-suite-stat__icon {
