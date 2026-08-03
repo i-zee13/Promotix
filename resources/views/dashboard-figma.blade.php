@@ -69,6 +69,7 @@
                             <div class="px-[4px]"><div class="text-white/65">Protection Rate</div><div id="suite-paid-rate" class="mt-[2px] text-[12px] font-semibold">0.00%</div></div>
                         </div>
                         <p class="mt-[12px] text-[9px] text-white/70">Connection status</p>
+                        <p id="suite-paid-conn" class="mt-[2px] text-[10px] font-medium text-white/90">—</p>
                         <a href="{{ route('paid-marketing.dashboard') }}" class="mt-[8px] inline-block text-[11px] text-white hover:underline">Go To Dashboard</a>
                     </article>
 
@@ -84,6 +85,7 @@
                             <div class="px-[4px]"><div class="text-white/65">Detection Rate</div><div id="suite-bot-rate" class="mt-[2px] text-[12px] font-semibold">0.00%</div></div>
                         </div>
                         <p class="mt-[12px] text-[9px] text-white/70">Connection status</p>
+                        <p id="suite-bot-conn" class="mt-[2px] text-[10px] font-medium text-white/90">—</p>
                         <a href="{{ route('bot-protection.dashboard') }}" class="mt-[8px] inline-block text-[11px] text-white hover:underline">Go To Dashboard</a>
                     </article>
                 </div>
@@ -358,8 +360,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function json(url) {
-        const res = await fetch(url, {headers: {'Accept': 'application/json'}});
-        if (!res.ok) throw new Error(url);
+        const res = await fetch(url, {headers: {'Accept': 'application/json'}, credentials: 'same-origin'});
+        if (!res.ok) throw new Error(`${url} (${res.status})`);
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) throw new Error(`${url} (non-json)`);
         return res.json();
     }
 
@@ -544,6 +548,20 @@ document.addEventListener('DOMContentLoaded', () => {
         setConn('conn-tracking', conn.tracking);
         setConn('conn-ingestion', conn.ingestion);
         setConn('conn-protection', conn.protection);
+        const suitePaidConn = document.getElementById('suite-paid-conn');
+        if (suitePaidConn) {
+            suitePaidConn.textContent = conn.protection || conn.tracking || '—';
+            suitePaidConn.className = /healthy|online|active/i.test(suitePaidConn.textContent)
+                ? 'mt-[2px] text-[10px] font-medium text-emerald-200'
+                : 'mt-[2px] text-[10px] font-medium text-amber-100';
+        }
+        const suiteBotConn = document.getElementById('suite-bot-conn');
+        if (suiteBotConn) {
+            suiteBotConn.textContent = conn.tracking || '—';
+            suiteBotConn.className = /healthy|online|active/i.test(suiteBotConn.textContent)
+                ? 'mt-[2px] text-[10px] font-medium text-emerald-200'
+                : 'mt-[2px] text-[10px] font-medium text-amber-100';
+        }
         const lastEventEl = document.getElementById('conn-last-event');
         if (lastEventEl) {
             lastEventEl.textContent = conn.lastEventAt
@@ -617,49 +635,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadInsights() {
-        const d = await json(apiUrl('/insights'));
-        const feed = Array.isArray(d.feed) ? d.feed : [];
         const list = document.getElementById('insight-list');
-        if (!feed.length) {
-            list.innerHTML = `
-                <article class="rounded-[6px] bg-[#0D0D0D]/82 px-[10px] py-[10px] text-[10px] text-white/70">
-                    No high-risk detections in this range yet.
-                </article>`;
-        } else {
-            list.innerHTML = feed.map((item) => {
-                const severity = item.severity || 'medium';
-                const bar = severity === 'high' ? '#ef4444' : (severity === 'medium' ? '#f59e0b' : '#60a5fa');
-                const reasons = (item.reasons || []).slice(0, 3).map((r) => String(r).replace(/_/g, ' ')).join(' · ') || 'Review signals';
-                const time = item.at ? new Date(item.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
-                const ip = String(item.ip || '').replace(/"/g, '&quot;');
-                const advancedHref = ip
-                    ? `{{ route('paid-marketing.detailed') }}?ip=${encodeURIComponent(ip)}`
-                    : `{{ route('paid-marketing.detailed') }}`;
-                return `
-                <article class="relative overflow-hidden rounded-[8px] bg-[#0D0D0D]/82 pl-[12px] pr-[10px] py-[10px] text-[10px] text-white cursor-pointer transition hover:bg-[#161616]"
-                         style="border-left:3px solid ${bar}"
-                         data-ip="${ip}"
-                         onclick="window.dispatchEvent(new CustomEvent('promotix-open-ip-modal', { detail: { ip: this.dataset.ip } }))">
-                    <div class="mb-[4px] flex items-center justify-between gap-2">
-                        <span class="font-semibold text-white">${item.title || 'High Risk Click Detected'}</span>
-                        <span class="rounded-[999px] px-[7px] py-[2px] text-[9px] uppercase"
-                              style="background:${bar}33;color:${bar}">${severity}</span>
-                    </div>
-                    <div class="space-y-[2px] text-white/75">
-                        <div><span class="text-white/45">Campaign:</span> ${item.campaign || '—'}</div>
-                        <div class="flex flex-wrap gap-x-3 gap-y-1">
-                            <span><span class="text-white/45">IP:</span> ${item.ip || '—'}</span>
-                            <span><span class="text-white/45">Risk:</span> ${Number(item.risk || 0)}%</span>
-                            <span><span class="text-white/45">Action:</span> ${item.action || '—'}</span>
+        try {
+            const d = await json(apiUrl('/insights'));
+            const feed = Array.isArray(d.feed) ? d.feed : [];
+            if (!feed.length) {
+                list.innerHTML = `
+                    <article class="rounded-[6px] bg-[#0D0D0D]/82 px-[10px] py-[10px] text-[10px] text-white/70">
+                        No high-risk detections in this range yet.
+                    </article>`;
+            } else {
+                list.innerHTML = feed.map((item) => {
+                    const severity = item.severity || 'medium';
+                    const bar = severity === 'high' ? '#ef4444' : (severity === 'medium' ? '#f59e0b' : '#60a5fa');
+                    const reasons = (item.reasons || []).slice(0, 3).map((r) => String(r).replace(/_/g, ' ')).join(' · ') || 'Review signals';
+                    const time = item.at ? new Date(item.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+                    const ip = String(item.ip || '').replace(/"/g, '&quot;');
+                    const advancedHref = ip
+                        ? `{{ route('paid-marketing.detailed') }}?ip=${encodeURIComponent(ip)}`
+                        : `{{ route('paid-marketing.detailed') }}`;
+                    return `
+                    <article class="relative overflow-hidden rounded-[8px] bg-[#0D0D0D]/82 pl-[12px] pr-[10px] py-[10px] text-[10px] text-white cursor-pointer transition hover:bg-[#161616]"
+                             style="border-left:3px solid ${bar}"
+                             data-ip="${ip}"
+                             onclick="window.dispatchEvent(new CustomEvent('promotix-open-ip-modal', { detail: { ip: this.dataset.ip } }))">
+                        <div class="mb-[4px] flex items-center justify-between gap-2">
+                            <span class="font-semibold text-white">${item.title || 'High Risk Click Detected'}</span>
+                            <span class="rounded-[999px] px-[7px] py-[2px] text-[9px] uppercase"
+                                  style="background:${bar}33;color:${bar}">${severity}</span>
                         </div>
-                        <div><span class="text-white/45">Reasons:</span> ${reasons}</div>
-                    </div>
-                    <div class="mt-[6px] flex items-center justify-between gap-2">
-                        ${time ? `<div class="text-[9px] text-white/40">${time}</div>` : '<span></span>'}
-                        <a href="${advancedHref}" class="text-[9px] text-[#B893D8] hover:text-white" onclick="event.stopPropagation()">Investigate →</a>
-                    </div>
-                </article>`;
-            }).join('');
+                        <div class="space-y-[2px] text-white/75">
+                            <div><span class="text-white/45">Campaign:</span> ${item.campaign || '—'}</div>
+                            <div class="flex flex-wrap gap-x-3 gap-y-1">
+                                <span><span class="text-white/45">IP:</span> ${item.ip || '—'}</span>
+                                <span><span class="text-white/45">Risk:</span> ${Number(item.risk || 0)}%</span>
+                                <span><span class="text-white/45">Action:</span> ${item.action || '—'}</span>
+                            </div>
+                            <div><span class="text-white/45">Reasons:</span> ${reasons}</div>
+                        </div>
+                        <div class="mt-[6px] flex items-center justify-between gap-2">
+                            ${time ? `<div class="text-[9px] text-white/40">${time}</div>` : '<span></span>'}
+                            <a href="${advancedHref}" class="text-[9px] text-[#B893D8] hover:text-white" onclick="event.stopPropagation()">Investigate →</a>
+                        </div>
+                    </article>`;
+                }).join('');
+            }
+        } catch (error) {
+            console.error(error);
+            if (list) {
+                list.innerHTML = `
+                    <article class="rounded-[6px] bg-[#0D0D0D]/82 px-[10px] py-[10px] text-[10px] text-amber-100">
+                        Couldn’t load live feed. Refresh or try another date range.
+                    </article>`;
+            }
         }
     }
 
@@ -735,9 +763,35 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadAll() {
         syncHeaderDatesFromStorage();
         try {
-            await loadCampaignOptions(true);
-            await Promise.all([loadSummary(), loadInsights(), loadDomainTable(), loadCampaignPerformance()]);
-            await loadCharts();
+            try {
+                await loadCampaignOptions(true);
+            } catch (error) {
+                console.error('campaign options', error);
+            }
+            const results = await Promise.allSettled([
+                loadSummary(),
+                loadInsights(),
+                loadDomainTable(),
+                loadCampaignPerformance(),
+            ]);
+            results.forEach((result, index) => {
+                if (result.status === 'rejected') {
+                    console.error(['summary', 'insights', 'domains', 'campaigns'][index], result.reason);
+                }
+            });
+            if (results[0].status === 'rejected') {
+                ['suite-paid-clicks', 'suite-paid-valid', 'suite-paid-visits', 'suite-bot-visitors', 'suite-bot-detected', 'suite-bot-blocked']
+                    .forEach((id) => setMetric(id, 0));
+                const paidRateEl = document.getElementById('suite-paid-rate');
+                const botRateEl = document.getElementById('suite-bot-rate');
+                if (paidRateEl) paidRateEl.textContent = '0.00%';
+                if (botRateEl) botRateEl.textContent = '0.00%';
+            }
+            try {
+                await loadCharts();
+            } catch (error) {
+                console.error('charts', error);
+            }
         } catch (error) {
             console.error(error);
         } finally {

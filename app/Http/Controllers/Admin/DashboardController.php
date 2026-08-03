@@ -7,6 +7,7 @@ use App\Models\Domain;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Support\DashboardNotifications;
+use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -71,7 +72,7 @@ class DashboardController extends Controller
                 ->orderByDesc('visited_at')
                 ->limit(12);
 
-            $feed = $feedQuery->get([
+            $feedColumns = [
                 'id',
                 'ip',
                 'visited_at',
@@ -80,9 +81,13 @@ class DashboardController extends Controller
                 'action_taken',
                 'detection_reasons',
                 'utm_campaign',
-                'campaign_name',
                 'is_invalid_traffic',
-            ])->map(function ($row) use ($user) {
+            ];
+            if (Schema::hasColumn('visits', 'campaign_name')) {
+                $feedColumns[] = 'campaign_name';
+            }
+
+            $feed = $feedQuery->get($feedColumns)->map(function ($row) use ($user) {
                 $reasons = [];
                 if (! empty($row->detection_reasons)) {
                     $decoded = json_decode((string) $row->detection_reasons, true);
@@ -96,7 +101,10 @@ class DashboardController extends Controller
                     $score = 85;
                 }
                 $severity = $score >= 90 ? 'high' : ($score >= 75 ? 'medium' : 'low');
-                $campaign = trim((string) ($row->campaign_name ?: $row->utm_campaign ?: 'Unknown campaign'));
+                $campaignName = Schema::hasColumn('visits', 'campaign_name')
+                    ? (string) ($row->campaign_name ?? '')
+                    : '';
+                $campaign = trim((string) ($campaignName !== '' ? $campaignName : ($row->utm_campaign ?: 'Unknown campaign')));
                 $action = $row->action_taken ?: ($row->is_invalid_traffic ? 'Blocked' : 'Monitored');
 
                 return [
@@ -250,6 +258,10 @@ class DashboardController extends Controller
                 }
             }
 
+            $campaignExpr = Schema::hasColumn('visits', 'campaign_name')
+                ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
+                : "NULLIF(TRIM(utm_campaign), '')";
+
             $campaignHit = (clone $visitBase)
                 ->where(function ($query) use ($q): void {
                     $query->where('utm_campaign', $q)
@@ -259,8 +271,8 @@ class DashboardController extends Controller
                             ->orWhere('campaign_name', 'like', '%'.$q.'%');
                     }
                 })
-                ->selectRaw("COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), '')) as campaign")
-                ->whereNotNull('utm_campaign')
+                ->selectRaw("{$campaignExpr} as campaign")
+                ->whereRaw("{$campaignExpr} IS NOT NULL")
                 ->orderByDesc('visited_at')
                 ->first();
 
@@ -310,17 +322,14 @@ class DashboardController extends Controller
     public function trends(Request $request): JsonResponse
     {
         $domainIds = $this->scopedDomainIds($request);
-        $path = trim((string) $request->query('path', ''));
         [$from, $to] = $this->dateRange($request);
 
         if (Schema::hasTable('visits')) {
-            $query = DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->whereBetween('visited_at', [$from, $to]);
-
-            if ($path !== '') {
-                $query->where('url', 'like', '%' . $path . '%');
-            }
+            $query = $this->applyVisitFilters(
+                DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]),
+                $request
+            );
+            GoogleClickAttribution::applyHasClickIdFilter($query);
 
             $rows = $query
                 ->selectRaw('DATE(visited_at) as day, COUNT(*) as total')
@@ -329,6 +338,7 @@ class DashboardController extends Controller
                 ->orderBy('day')
                 ->get();
         } else {
+            $path = trim((string) $request->query('path', ''));
             $query = PaidMarketingClick::query()
                 ->whereHas('visit', fn ($q) => $q->whereIn('domain_id', $domainIds))
                 ->whereBetween('clicked_at', [$from, $to]);
@@ -378,9 +388,12 @@ class DashboardController extends Controller
                 ->orderByDesc('total')
                 ->get();
         } elseif (Schema::hasTable('visits')) {
-            $rows = DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->whereBetween('visited_at', [$from, $to])
+            $query = $this->applyVisitFilters(
+                DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]),
+                $request
+            );
+            GoogleClickAttribution::applyHasClickIdFilter($query);
+            $rows = $query
                 ->where('is_invalid_traffic', true)
                 ->whereNotNull('threat_group')
                 ->select('threat_group', DB::raw('COUNT(*) as total'))
@@ -748,9 +761,13 @@ class DashboardController extends Controller
             )
             : null;
 
-        $paidBase = $visitBase
-            ? $this->applyVisitFilters((clone $visitBase)->where('is_paid_traffic', true), $request, applyTrafficSource: true)
-            : null;
+        // Paid card: click-ID / is_paid_traffic (same attribution as Paid Dashboard).
+        $paidBase = null;
+        if ($visitBase) {
+            $paidBase = clone $visitBase;
+            GoogleClickAttribution::applyHasClickIdFilter($paidBase);
+            $paidBase = $this->applyVisitFilters($paidBase, $request, applyTrafficSource: true);
+        }
 
         $paidVisits = $paidBase
             ? (int) (clone $paidBase)->count()
@@ -767,15 +784,13 @@ class DashboardController extends Controller
 
         $paidValidClicks = max(0, $paidVisits - $paidInvalidVisits);
 
-        // Bot card: blocked / invalid organic traffic for this user's domains only.
-        // Never use global ip_logs — that table is shared across all tenants.
+        // Bot card: organic only (exclude paid click IDs / paid flag). Never use global ip_logs.
         $botBlockedHits = 0;
         $botInvalidVisits = 0;
         $botTotalVisits = 0;
         if ($visitBase) {
-            $organicBase = (clone $visitBase)->where(function ($q): void {
-                $q->where('is_paid_traffic', false)->orWhereNull('is_paid_traffic');
-            });
+            $organicBase = clone $visitBase;
+            GoogleClickAttribution::excludeClickIds($organicBase);
             $botTotalVisits = (int) (clone $organicBase)->count();
             $botInvalidVisits = (int) (clone $organicBase)->where('is_invalid_traffic', true)->count();
             if (Schema::hasColumn('visits', 'action_taken')) {
@@ -917,20 +932,24 @@ class DashboardController extends Controller
             return 0.0;
         }
 
-        $fromDate = $from instanceof Carbon ? $from->toDateString() : Carbon::parse((string) $from)->toDateString();
-        $toDate = $to instanceof Carbon ? $to->toDateString() : Carbon::parse((string) $to)->toDateString();
-        $reportingTz = UserTimezone::forUser($request->user());
-        $domains = Domain::query()
-            ->whereIn('id', $domainIds)
-            ->with('googleAdsAccount')
-            ->get();
+        try {
+            $fromDate = $from instanceof Carbon ? $from->toDateString() : Carbon::parse((string) $from)->toDateString();
+            $toDate = $to instanceof Carbon ? $to->toDateString() : Carbon::parse((string) $to)->toDateString();
+            $reportingTz = UserTimezone::forUser($request->user());
+            $domains = Domain::query()
+                ->whereIn('id', $domainIds)
+                ->with('googleAdsAccount')
+                ->get();
 
-        $googleAds = app(\App\Services\GoogleAdsDomainMetricsSync::class)
-            ->clickTotalsForDomainsReporting($domainIds, $fromDate, $toDate, $reportingTz, $domains);
-        $clicks = (int) ($googleAds['clicks'] ?? 0);
-        $cost = (float) ($googleAds['cost'] ?? 0);
+            $googleAds = app(\App\Services\GoogleAdsDomainMetricsSync::class)
+                ->clickTotalsForDomainsReporting($domainIds, $fromDate, $toDate, $reportingTz, $domains);
+            $clicks = (int) ($googleAds['clicks'] ?? 0);
+            $cost = (float) ($googleAds['cost'] ?? 0);
 
-        return $clicks > 0 ? ($cost / $clicks) : 0.0;
+            return $clicks > 0 ? ($cost / $clicks) : 0.0;
+        } catch (\Throwable) {
+            return 0.0;
+        }
     }
 
     /**
