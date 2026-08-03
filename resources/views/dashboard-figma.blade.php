@@ -91,8 +91,8 @@
     <section id="ov-page" class="ov-page ov-page--booting mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[18px] sm:px-[18px] xl:max-w-none xl:px-[22px] xl:pt-[20px]">
         <div class="mb-[12px] flex flex-col gap-[10px] xl:flex-row xl:items-start xl:justify-between">
             <h1 class="text-[28px] font-normal leading-none text-white sm:text-[31px]">Overview</h1>
-            <div class="figma-filter-bar figma-filter-bar--overview ov-filter-bar flex min-h-[54px] w-full max-w-[720px] flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)] xl:max-w-[720px]">
-                <label class="flex min-w-[120px] flex-[1.2] flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+            <div class="figma-filter-bar figma-filter-bar--overview ov-filter-bar flex min-h-[54px] w-full max-w-[560px] flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)] xl:max-w-[560px]">
+                <label class="flex min-w-[140px] max-w-[200px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select id="domain-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">

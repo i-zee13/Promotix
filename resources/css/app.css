@@ -6945,7 +6945,7 @@ html.ov-boot-lock body {
 }
 
 .ov-filter-bar {
-    max-width: min(100%, 720px) !important;
+    max-width: min(100%, 560px) !important;
 }
 
 .ov-card {
