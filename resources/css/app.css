@@ -6931,11 +6931,12 @@ select:autofill {
 
 .ov-card {
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     background: var(--brand-primary, #6400B2);
-    padding: 14px;
-    box-shadow: 0 0 22px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
+    padding: 12px 14px;
+    box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
     min-width: 0;
+    overflow: hidden;
 }
 
 .ov-card__head {
@@ -6943,13 +6944,14 @@ select:autofill {
     align-items: flex-start;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
 }
 
 .ov-card__title {
     margin: 0;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 400;
     color: #fff;
 }
 
@@ -6964,36 +6966,83 @@ select:autofill {
     text-decoration: underline;
 }
 
-.ov-metric-grid {
+/* Top row: Paid-dashboard style — compact, equal height, no empty purple towers */
+.ov-top-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 12px;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    align-items: stretch;
 }
 
-@media (min-width: 480px) {
+.ov-card--metric,
+.ov-card--feed {
+    display: flex;
+    flex-direction: column;
+    min-height: 156px;
+}
+
+.ov-metric-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-height: 0;
+}
+
+.ov-metric-grid {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 0;
+}
+
+.ov-metric-cell {
+    padding: 2px 8px;
+    min-width: 0;
+}
+
+.ov-metric-cell:nth-child(odd) {
+    padding-left: 0;
+}
+
+.ov-metric-cell:nth-child(even) {
+    border-left: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+@media (min-width: 520px) {
     .ov-metric-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0;
+    }
+
+    .ov-metric-cell {
+        padding: 4px 8px;
+        border-left: 1px solid rgba(255, 255, 255, 0.22);
+    }
+
+    .ov-metric-cell:nth-child(odd),
+    .ov-metric-cell:nth-child(even) {
+        padding-left: 8px;
+    }
+
+    .ov-metric-cell:first-child {
+        padding-left: 0;
+        border-left: 0;
     }
 }
 
 .ov-metric-label {
     margin: 0;
-    font-size: 9px;
+    font-size: 8px;
     color: rgba(255, 255, 255, 0.65);
+    line-height: 1.2;
 }
 
 .ov-metric-value {
-    margin: 3px 0 0;
+    margin: 2px 0 0;
     font-size: 16px;
     font-weight: 600;
     color: #fff;
     line-height: 1.15;
-}
-
-.ov-top-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
 }
 
 @media (min-width: 768px) {
@@ -7003,36 +7052,44 @@ select:autofill {
 
     .ov-card--feed {
         grid-column: 1 / -1;
+        min-height: 200px;
+        max-height: 220px;
     }
 }
 
 @media (min-width: 1200px) {
     .ov-top-grid {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(260px, 0.95fr);
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.05fr) minmax(300px, 1.15fr);
     }
 
+    .ov-card--metric,
     .ov-card--feed {
         grid-column: auto;
+        min-height: 200px;
+        max-height: 220px;
     }
 }
 
 .ov-feed-list {
-    max-height: 260px;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .ov-feed-item {
     border-radius: 8px;
     background: rgba(13, 13, 13, 0.82);
-    padding: 9px 10px;
+    padding: 7px 9px;
     border-left: 3px solid #f59e0b;
     font-size: 10px;
     color: rgba(255, 255, 255, 0.8);
     cursor: pointer;
     transition: background 0.15s ease;
+    flex-shrink: 0;
 }
 
 .ov-feed-item:hover {

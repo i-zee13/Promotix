@@ -116,18 +116,32 @@
             </div>
         </div>
 
-        {{-- Top: Protection cards + Live Security Feed --}}
+        {{-- Top: Protection cards + Live Security Feed (compact equal-height row) --}}
         <div class="ov-top-grid">
             <article class="ov-card ov-card--metric">
                 <div class="ov-card__head">
                     <h2 class="ov-card__title">Google Ads Protection</h2>
                     <a href="{{ route('paid-marketing.dashboard') }}" class="ov-card__link">Dashboard →</a>
                 </div>
-                <div class="ov-metric-grid">
-                    <div><p class="ov-metric-label">Total Clicks</p><p id="suite-paid-clicks" class="ov-metric-value">--</p></div>
-                    <div><p class="ov-metric-label">Valid Clicks</p><p id="suite-paid-valid" class="ov-metric-value">--</p></div>
-                    <div><p class="ov-metric-label">Invalid Clicks</p><p id="suite-paid-visits" class="ov-metric-value">--</p></div>
-                    <div><p class="ov-metric-label">Protection Rate</p><p id="suite-paid-rate" class="ov-metric-value">0.00%</p></div>
+                <div class="ov-metric-body">
+                    <div class="ov-metric-grid">
+                        <div class="ov-metric-cell">
+                            <p class="ov-metric-label">Total Clicks</p>
+                            <p id="suite-paid-clicks" class="ov-metric-value">--</p>
+                        </div>
+                        <div class="ov-metric-cell">
+                            <p class="ov-metric-label">Valid Clicks</p>
+                            <p id="suite-paid-valid" class="ov-metric-value">--</p>
+                        </div>
+                        <div class="ov-metric-cell">
+                            <p class="ov-metric-label">Invalid Clicks</p>
+                            <p id="suite-paid-visits" class="ov-metric-value">--</p>
+                        </div>
+                        <div class="ov-metric-cell">
+                            <p class="ov-metric-label">Protection Rate</p>
+                            <p id="suite-paid-rate" class="ov-metric-value">0.00%</p>
+                        </div>
+                    </div>
                 </div>
             </article>
 
@@ -136,11 +150,25 @@
                     <h2 class="ov-card__title">Bot Protection</h2>
                     <a href="{{ route('bot-protection.dashboard') }}" class="ov-card__link">Dashboard →</a>
                 </div>
-                <div class="ov-metric-grid">
-                    <div><p class="ov-metric-label">Total Visitors</p><p id="suite-bot-visitors" class="ov-metric-value">--</p></div>
-                    <div><p class="ov-metric-label">Bots Detected</p><p id="suite-bot-detected" class="ov-metric-value">--</p></div>
-                    <div><p class="ov-metric-label">Blocked Bots</p><p id="suite-bot-blocked" class="ov-metric-value">--</p></div>
-                    <div><p class="ov-metric-label">Detection Rate</p><p id="suite-bot-rate" class="ov-metric-value">0.00%</p></div>
+                <div class="ov-metric-body">
+                    <div class="ov-metric-grid">
+                        <div class="ov-metric-cell">
+                            <p class="ov-metric-label">Total Visitors</p>
+                            <p id="suite-bot-visitors" class="ov-metric-value">--</p>
+                        </div>
+                        <div class="ov-metric-cell">
+                            <p class="ov-metric-label">Bots Detected</p>
+                            <p id="suite-bot-detected" class="ov-metric-value">--</p>
+                        </div>
+                        <div class="ov-metric-cell">
+                            <p class="ov-metric-label">Blocked Bots</p>
+                            <p id="suite-bot-blocked" class="ov-metric-value">--</p>
+                        </div>
+                        <div class="ov-metric-cell">
+                            <p class="ov-metric-label">Detection Rate</p>
+                            <p id="suite-bot-rate" class="ov-metric-value">0.00%</p>
+                        </div>
+                    </div>
                 </div>
             </article>
 
@@ -640,22 +668,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `
                 <article class="ov-feed-item" style="border-left-color:${bar}" data-ip="${ip}"
                          onclick="window.dispatchEvent(new CustomEvent('promotix-open-ip-modal', { detail: { ip: this.dataset.ip } }))">
-                    <div class="mb-[3px] flex items-center justify-between gap-2">
-                        <span class="font-semibold text-white">${item.title || 'High Risk Click Detected'}</span>
-                        <span class="ov-feed-sev" style="background:${bar}33;color:${bar}">${severity}</span>
+                    <div class="mb-[2px] flex items-center justify-between gap-2">
+                        <span class="truncate font-semibold text-white">${item.title || 'High Risk Click Detected'}</span>
+                        <span class="ov-feed-sev shrink-0" style="background:${bar}33;color:${bar}">${severity}</span>
                     </div>
-                    <div class="space-y-[2px] text-white/70">
-                        <div><span class="text-white/40">Campaign:</span> ${item.campaign || '—'}</div>
-                        <div class="flex flex-wrap gap-x-3 gap-y-1">
-                            <span><span class="text-white/40">IP:</span> ${item.ip || '—'}</span>
-                            <span><span class="text-white/40">Risk:</span> ${Number(item.risk || 0)}%</span>
-                            <span><span class="text-white/40">Action:</span> ${item.action || '—'}</span>
-                        </div>
-                        <div><span class="text-white/40">Reasons:</span> ${reasons}</div>
+                    <div class="truncate text-white/70">
+                        <span class="text-white/40">IP</span> ${item.ip || '—'}
+                        <span class="text-white/35"> · </span>
+                        <span class="text-white/40">Risk</span> ${Number(item.risk || 0)}%
+                        <span class="text-white/35"> · </span>
+                        ${item.action || '—'}
                     </div>
-                    <div class="mt-[5px] flex items-center justify-between">
-                        ${time ? `<span class="text-[9px] text-white/40">${time}</span>` : '<span></span>'}
-                        <a href="${advancedHref}" class="text-[9px] text-[#B893D8] hover:text-white" onclick="event.stopPropagation()">Investigate →</a>
+                    <div class="mt-[3px] flex items-center justify-between gap-2">
+                        <span class="truncate text-[9px] text-white/45">${reasons}</span>
+                        <span class="flex shrink-0 items-center gap-2">
+                            ${time ? `<span class="text-[9px] text-white/40">${time}</span>` : ''}
+                            <a href="${advancedHref}" class="text-[9px] text-[#B893D8] hover:text-white" onclick="event.stopPropagation()">Investigate →</a>
+                        </span>
                     </div>
                 </article>`;
             }).join('');
