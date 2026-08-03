@@ -7339,8 +7339,8 @@ select:autofill {
 
 @media (min-width: 1024px) {
     .ov-charts-grid {
-        /* Narrower Traffic Quality vs previous wide strip; taller cards overall */
-        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+        /* Wider Traffic Quality, narrower Threat Breakdown donut */
+        grid-template-columns: minmax(0, 1.75fr) minmax(240px, 0.7fr);
     }
 }
 
