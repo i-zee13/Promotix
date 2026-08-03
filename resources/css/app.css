@@ -7182,7 +7182,12 @@ select:autofill {
 .ov-card--feed {
     display: flex;
     flex-direction: column;
-    min-height: 156px;
+    min-height: 0;
+}
+
+.ov-card--feed {
+    max-height: 240px;
+    overflow: hidden;
 }
 
 .ov-metric-body {
@@ -7258,30 +7263,42 @@ select:autofill {
 
     .ov-card--feed {
         min-height: 0;
-        max-height: none;
-        align-self: stretch;
+        height: var(--ov-suite-h, 220px);
+        max-height: var(--ov-suite-h, 220px);
+        align-self: start;
+        overflow: hidden;
     }
 
     .ov-suite-pair {
         max-width: 840px;
+        align-self: start;
+        height: fit-content;
+    }
+
+    .ov-suite-card {
+        height: fit-content;
+        align-self: start;
     }
 }
 
 @media (min-width: 768px) and (max-width: 1279px) {
     .ov-card--feed {
         min-height: 0;
-        max-height: 280px;
+        max-height: 240px;
+        overflow: hidden;
     }
 }
 
 .ov-feed-list {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
-    max-height: none;
+    max-height: 100%;
+    overflow-x: hidden;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    overscroll-behavior: contain;
 }
 
 .ov-feed-item {
