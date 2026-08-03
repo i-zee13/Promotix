@@ -18,15 +18,15 @@
     'reportingMode' => \App\Support\UserTimezone::reportingMode(auth()->user()),
     'profileTimezone' => \App\Support\UserTimezone::forUser(auth()->user()),
 ]))" x-init="init()">
-    <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
-        <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex flex-wrap items-center gap-[12px]">
+    <section class="paid-dashboard-page mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
+        <div class="mb-[23px] flex flex-col gap-[14px] 2xl:flex-row 2xl:items-start 2xl:justify-between">
+            <div class="flex flex-wrap items-center gap-[12px] shrink-0">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Advertising</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
             </div>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid flex min-h-[54px] w-full max-w-[900px] flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid flex min-h-[54px] w-full max-w-full flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)] 2xl:max-w-[min(100%,920px)]">
                 <label class="flex min-w-[130px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
@@ -81,6 +81,7 @@
             </div>
         </div>
 
+        <div class="paid-dashboard-cards-wrap">
         <div class="paid-dashboard-cards">
             <article class="paid-dashboard-card paid-dashboard-card--traffic">
                 <div class="flex items-start justify-between gap-[8px]">
@@ -216,6 +217,7 @@
                     </div>
                 </div>
             </article>
+        </div>
         </div>
 
         <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,589px)_minmax(260px,1fr)]">

@@ -5925,27 +5925,56 @@ select:autofill {
     color: #ffffff !important;
 }
 
-/* Paid dashboard — Figma 4-card top row */
+.paid-dashboard-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+}
+
+/* Paid dashboard — Figma top cards (container-aware for sidebar / smart screens) */
+.paid-dashboard-cards-wrap {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    container-type: inline-size;
+    container-name: paid-cards;
+}
+
 .paid-dashboard-cards {
     display: grid;
     grid-template-columns: 1fr;
     gap: 14px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
     .paid-dashboard-cards {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-@media (min-width: 1280px) {
+/* Prefer content width over viewport: sidebar + smart monitors stay 2×2 until wide enough */
+@container paid-cards (min-width: 1180px) {
     .paid-dashboard-cards {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
 
+/* Fallback when container queries unsupported: only 4-col on very wide viewports */
+@supports not (container-type: inline-size) {
+    @media (min-width: 1600px) {
+        .paid-dashboard-cards {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+}
+
 .paid-dashboard-cards > * {
     min-width: 0;
+    max-width: 100%;
 }
 
 .paid-dashboard-card {
@@ -5955,6 +5984,7 @@ select:autofill {
     background: var(--brand-primary, #6400B2);
     padding: 12px 14px;
     box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
+    overflow: hidden;
 }
 
 .paid-dashboard-card__title {
@@ -6885,6 +6915,317 @@ select:autofill {
     max-width: 255px;
     max-height: 255px;
     margin: 0 auto;
+}
+
+/* ========== Overview mockup layout (GPT reference, brand colors kept) ========== */
+.ov-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+}
+
+.ov-filter-bar {
+    max-width: 100% !important;
+}
+
+.ov-card {
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: var(--brand-primary, #6400B2);
+    padding: 14px;
+    box-shadow: 0 0 22px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
+    min-width: 0;
+}
+
+.ov-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.ov-card__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.ov-card__link {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+}
+
+.ov-card__link:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.ov-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+}
+
+@media (min-width: 480px) {
+    .ov-metric-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.ov-metric-label {
+    margin: 0;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.ov-metric-value {
+    margin: 3px 0 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.15;
+}
+
+.ov-top-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+@media (min-width: 768px) {
+    .ov-top-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ov-card--feed {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (min-width: 1200px) {
+    .ov-top-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(260px, 0.95fr);
+    }
+
+    .ov-card--feed {
+        grid-column: auto;
+    }
+}
+
+.ov-feed-list {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ov-feed-item {
+    border-radius: 8px;
+    background: rgba(13, 13, 13, 0.82);
+    padding: 9px 10px;
+    border-left: 3px solid #f59e0b;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.ov-feed-item:hover {
+    background: rgba(22, 22, 22, 0.95);
+}
+
+.ov-feed-sev {
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 9px;
+    text-transform: uppercase;
+}
+
+.ov-charts-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 14px;
+}
+
+@media (min-width: 1024px) {
+    .ov-charts-grid {
+        grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.85fr);
+    }
+}
+
+.ov-chart-area {
+    position: relative;
+    height: 230px;
+    min-height: 200px;
+}
+
+.ov-chart-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.ov-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-top: 6px;
+}
+
+.ov-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.ov-legend-item i {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+.ov-donut-wrap {
+    position: relative;
+    height: 210px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ov-donut-canvas {
+    width: 100%;
+    height: 100%;
+    max-width: 220px;
+    max-height: 220px;
+}
+
+.ov-donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    text-align: center;
+}
+
+.ov-donut-center__pct {
+    font-size: 22px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1;
+}
+
+.ov-donut-center__label {
+    margin-top: 4px;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.65);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ov-threat-legend {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 16px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.ov-card--table {
+    margin-top: 14px;
+}
+
+.ov-table thead {
+    background: #4D008E;
+}
+
+.ov-table th {
+    padding: 8px 10px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.88);
+    white-space: nowrap;
+}
+
+.ov-table td {
+    padding: 8px 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    vertical-align: middle;
+}
+
+.ov-table tbody {
+    background: rgba(77, 0, 142, 0.35);
+}
+
+.ov-bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 14px;
+}
+
+@media (min-width: 900px) {
+    .ov-bottom-grid {
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+    }
+
+    .ov-bottom-grid > .ov-card--table {
+        margin-top: 0;
+    }
+}
+
+.ov-quick-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.ov-quick-stat {
+    border-radius: 8px;
+    background: rgba(11, 11, 11, 0.55);
+    padding: 10px;
+}
+
+.ov-conn-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-radius: 6px;
+    background: rgba(11, 11, 11, 0.7);
+    padding: 8px 10px;
+}
+
+.ov-tool-btn {
+    display: flex;
+    height: 32px;
+    width: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    background: #6400B2;
+    color: #fff;
+}
+
+.ov-tool-btn:hover {
+    background: #7B13C8;
+}
+
+.ov-rightbar .figma-rightbar-notify {
+    max-height: 180px;
+    overflow-y: auto;
 }
 
 @media (min-width: 768px) {
@@ -8525,6 +8866,37 @@ button.figma-bp-advanced-select-wrap:focus {
 
 .figma-filter-bar--overview {
     overflow: visible;
+}
+
+/* Paid filter: keep calendar inside the bar; avoid orphaned wrap under Domain */
+.figma-filter-bar--paid {
+    max-width: 100% !important;
+    align-items: stretch;
+}
+
+.figma-filter-bar--paid .figma-filter-calendar-host {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    border-left: 1px solid rgba(0, 0, 0, 0.2);
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+@media (max-width: 1100px) {
+    .figma-filter-bar--paid .figma-filter-calendar-host {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+        border-left: 0;
+        border-top: 1px solid rgba(0, 0, 0, 0.12);
+        padding: 8px 10px;
+    }
+
+    .figma-filter-bar--paid .figma-filter-calendar-btn--responsive {
+        width: auto;
+    }
 }
 
 .figma-filter-calendar-host {

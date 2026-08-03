@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
+use App\Models\GoogleConnection;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Support\DashboardNotifications;
@@ -324,7 +325,13 @@ class DashboardController extends Controller
         $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
 
-        if (Schema::hasTable('visits')) {
+        $labels = [];
+        $totalSeries = [];
+        $validSeries = [];
+        $invalidSeries = [];
+        $indexed = [];
+
+        if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
             $query = $this->applyVisitFilters(
                 DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]),
                 $request
@@ -332,44 +339,41 @@ class DashboardController extends Controller
             GoogleClickAttribution::applyHasClickIdFilter($query);
 
             $rows = $query
-                ->selectRaw('DATE(visited_at) as day, COUNT(*) as total')
-                ->where('is_invalid_traffic', true)
+                ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
                 ->groupBy('day')
                 ->orderBy('day')
                 ->get();
-        } else {
-            $path = trim((string) $request->query('path', ''));
-            $query = PaidMarketingClick::query()
-                ->whereHas('visit', fn ($q) => $q->whereIn('domain_id', $domainIds))
-                ->whereBetween('clicked_at', [$from, $to]);
 
-            if ($path !== '') {
-                $query->where('path', 'like', '%' . $path . '%');
+            foreach ($rows as $row) {
+                $day = Carbon::parse((string) $row->day)->toDateString();
+                $indexed[$day] = [
+                    'total' => (int) $row->total,
+                    'invalid' => (int) $row->invalid,
+                ];
             }
-
-            $rows = $query
-                ->selectRaw('DATE(clicked_at) as day, COUNT(*) as total')
-                ->whereNotNull('clicked_at')
-                ->groupBy('day')
-                ->orderBy('day')
-                ->get();
         }
 
-        $indexed = $rows->pluck('total', 'day')->all();
-        $labels = [];
-        $values = [];
         $cursor = $from->copy()->startOfDay();
         $end = $to->copy()->startOfDay();
         while ($cursor->lte($end)) {
             $dateKey = $cursor->toDateString();
             $labels[] = $cursor->format('M d');
-            $values[] = (int) ($indexed[$dateKey] ?? 0);
+            $total = (int) ($indexed[$dateKey]['total'] ?? 0);
+            $invalid = (int) ($indexed[$dateKey]['invalid'] ?? 0);
+            $totalSeries[] = $total;
+            $invalidSeries[] = $invalid;
+            $validSeries[] = max(0, $total - $invalid);
             $cursor->addDay();
         }
 
         return response()->json([
             'labels' => $labels,
-            'values' => $values,
+            'values' => $invalidSeries,
+            'datasets' => [
+                ['key' => 'total', 'name' => 'Total Clicks', 'color' => '#B893D8', 'values' => $totalSeries],
+                ['key' => 'valid', 'name' => 'Valid Clicks', 'color' => '#4ADE80', 'values' => $validSeries],
+                ['key' => 'invalid', 'name' => 'Invalid Clicks', 'color' => '#FB7185', 'values' => $invalidSeries],
+            ],
         ]);
     }
 
@@ -415,6 +419,7 @@ class DashboardController extends Controller
             'labels' => $rows->pluck('threat_group')->map(fn ($v) => $this->humanThreatLabel((string) $v))->values(),
             'values' => $rows->pluck('total')->map(fn ($v) => (int) $v)->values(),
             'rawLabels' => $rows->pluck('threat_group')->map(fn ($v) => (string) $v)->values(),
+            'total' => (int) $rows->sum(fn ($row) => (int) ($row->total ?? 0)),
         ]);
     }
 
@@ -504,6 +509,7 @@ class DashboardController extends Controller
                         'visitors' => (int) $d->visitors_count,
                         'visits' => $clicks,
                         'threats' => $threats,
+                        'invalidClicks' => $threats,
                         'invalidPct' => $invalidPct,
                         'risk' => $risk,
                         'riskLevel' => $risk >= 80 ? 'High' : ($risk >= 50 ? 'Medium' : 'Low'),
@@ -533,6 +539,7 @@ class DashboardController extends Controller
                         'visitors' => $clicks,
                         'visits' => $clicks,
                         'threats' => $threats,
+                        'invalidClicks' => $threats,
                         'invalidPct' => $invalidPct,
                         'risk' => (int) min(100, round($invalidPct * 1.2)),
                         'riskLevel' => $invalidPct >= 30 ? 'High' : ($invalidPct >= 10 ? 'Medium' : 'Low'),
@@ -573,7 +580,7 @@ class DashboardController extends Controller
                 ->selectRaw("{$campaignExpr} as campaign, COUNT(*) as clicks, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
                 ->groupByRaw($campaignExpr)
                 ->orderByDesc('clicks')
-                ->limit(25)
+                ->limit(5)
                 ->get()
                 ->map(function ($row) use ($avgCpc) {
                     $clicks = (int) $row->clicks;
@@ -602,7 +609,7 @@ class DashboardController extends Controller
             ->select('campaign', DB::raw('COUNT(*) as clicks'), DB::raw("SUM(CASE WHEN threat_group IS NOT NULL AND threat_group != '' THEN 1 ELSE 0 END) as invalid"))
             ->groupBy('campaign')
             ->orderByDesc('clicks')
-            ->limit(25)
+            ->limit(5)
             ->get()
             ->map(function ($row) use ($avgCpc) {
                 $clicks = (int) $row->clicks;
@@ -740,9 +747,18 @@ class DashboardController extends Controller
                 'tracking' => 'Pending setup',
                 'ingestion' => 'Waiting for traffic',
                 'protection' => 'Monitoring',
+                'googleAdsApi' => 'Not connected',
+                'detectionEngine' => 'Idle',
                 'lastEventAt' => null,
+                'lastSyncAt' => null,
                 'trackingVersion' => config('promotix.tracking_version', 'v1.0.4'),
                 'eventsToday' => 0,
+            ],
+            'quickStats' => [
+                'totalClicks' => 0,
+                'invalidClicks' => 0,
+                'costSaved' => 0,
+                'blockedToday' => 0,
             ],
             'notifications' => DashboardNotifications::forUser($user->id),
             'dateRange' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
@@ -824,15 +840,50 @@ class DashboardController extends Controller
 
         $lastEventAt = null;
         $eventsToday = 0;
+        $blockedToday = 0;
+        $todayLocal = now($user->timezone ?? config('app.timezone'))->toDateString();
         if (Schema::hasTable('visits')) {
             $lastEventAt = DB::table('visits')->whereIn('domain_id', $domainIds)->max('visited_at');
             $eventsToday = (int) DB::table('visits')
                 ->whereIn('domain_id', $domainIds)
-                ->whereDate('visited_at', now($user->timezone ?? config('app.timezone'))->toDateString())
+                ->whereDate('visited_at', $todayLocal)
                 ->count();
+            if (Schema::hasColumn('visits', 'action_taken')) {
+                $blockedToday = (int) DB::table('visits')
+                    ->whereIn('domain_id', $domainIds)
+                    ->whereDate('visited_at', $todayLocal)
+                    ->where('action_taken', 'block')
+                    ->count();
+            }
         } else {
             $lastEventAt = Domain::query()->where('user_id', $user->id)->max('last_seen_at');
         }
+
+        $avgCpc = $this->avgGoogleCpcForOverview($request, $domainIds, $from, $to);
+        $costSaved = round($avgCpc * $paidInvalidVisits, 2);
+
+        $googleConnection = GoogleConnection::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('updated_at')
+            ->first();
+        $googleAdsApi = 'Not connected';
+        $lastSyncAt = null;
+        if ($googleConnection) {
+            $status = strtolower((string) ($googleConnection->last_sync_status ?? ''));
+            $googleAdsApi = in_array($status, ['ok', 'success', 'healthy', 'connected'], true) || $googleConnection->last_sync_at
+                ? 'Connected'
+                : 'Connected';
+            if ($status === 'error' || $status === 'failed') {
+                $googleAdsApi = 'Error';
+            }
+            $lastSyncAt = $googleConnection->last_sync_at
+                ? Carbon::parse((string) $googleConnection->last_sync_at)->toIso8601String()
+                : null;
+        }
+
+        $detectionEngine = ($paidInvalidVisits > 0 || $botInvalidVisits > 0 || $botBlockedHits > 0)
+            ? 'Active'
+            : ($tagHealthy ? 'Ready' : 'Idle');
 
         $payload = [
             'paidAdvertising' => [
@@ -857,9 +908,18 @@ class DashboardController extends Controller
                 'tracking' => $tagHealthy ? 'Healthy' : 'Pending setup',
                 'ingestion' => ($paidVisits + $botTotalVisits) > 0 ? 'Online' : 'Waiting for traffic',
                 'protection' => ($paidInvalidVisits > 0 || $botBlockedHits > 0 || $botInvalidVisits > 0) ? 'Active' : 'Monitoring',
+                'googleAdsApi' => $googleAdsApi,
+                'detectionEngine' => $detectionEngine,
                 'lastEventAt' => $lastEventAt ? Carbon::parse((string) $lastEventAt)->toIso8601String() : null,
+                'lastSyncAt' => $lastSyncAt,
                 'trackingVersion' => config('promotix.tracking_version', 'v1.0.4'),
                 'eventsToday' => $eventsToday,
+            ],
+            'quickStats' => [
+                'totalClicks' => $paidVisits,
+                'invalidClicks' => $paidInvalidVisits,
+                'costSaved' => $costSaved,
+                'blockedToday' => $blockedToday > 0 ? $blockedToday : $botBlockedHits,
             ],
             'notifications' => DashboardNotifications::forUser($user->id),
             'dateRange' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
