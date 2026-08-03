@@ -48,16 +48,7 @@ class DashboardController extends Controller
             );
             $totalClicks = (clone $base)->count();
             $suspiciousVisits = (clone $base)->where('is_invalid_traffic', true)->count();
-            $campaignExpr = Schema::hasColumn('visits', 'campaign_name')
-                ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
-                : "NULLIF(TRIM(utm_campaign), '')";
-            $topCampaign = (clone $base)
-                ->whereRaw("{$campaignExpr} IS NOT NULL")
-                ->whereRaw("{$campaignExpr} != ''")
-                ->selectRaw("{$campaignExpr} as campaign, COUNT(*) as total")
-                ->groupByRaw($campaignExpr)
-                ->orderByDesc('total')
-                ->first();
+            $topCampaign = $this->topVisitCampaignRow(clone $base);
 
             $feedQuery = (clone $base)
                 ->where(function ($q): void {
@@ -564,9 +555,10 @@ class DashboardController extends Controller
         $avgCpc = $this->avgGoogleCpcForOverview($request, $domainIds, $from, $to);
 
         if (Schema::hasTable('visits')) {
-            $campaignExpr = Schema::hasColumn('visits', 'campaign_name')
-                ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
-                : "NULLIF(TRIM(utm_campaign), '')";
+            $hasCampaignName = Schema::hasColumn('visits', 'campaign_name');
+            $groupCols = $hasCampaignName
+                ? ['visits.campaign_name', 'visits.utm_campaign']
+                : ['visits.utm_campaign'];
 
             $query = $this->applyVisitFilters(
                 DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]),
@@ -574,29 +566,70 @@ class DashboardController extends Controller
                 applyTrafficSource: false
             );
 
+            $query->where(function ($q) use ($hasCampaignName): void {
+                $q->whereNotNull('utm_campaign')->where('utm_campaign', '!=', '');
+                if ($hasCampaignName) {
+                    $q->orWhere(function ($inner): void {
+                        $inner->whereNotNull('campaign_name')->where('campaign_name', '!=', '');
+                    });
+                }
+            });
+
+            $select = [
+                'utm_campaign',
+                DB::raw('COUNT(*) as clicks'),
+                DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
+            ];
+            if ($hasCampaignName) {
+                array_unshift($select, 'campaign_name');
+            }
+            $groupCols = $hasCampaignName ? ['campaign_name', 'utm_campaign'] : ['utm_campaign'];
+
             $rows = $query
-                ->whereRaw("{$campaignExpr} IS NOT NULL")
-                ->whereRaw("{$campaignExpr} != ''")
-                ->selectRaw("{$campaignExpr} as campaign, COUNT(*) as clicks, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
-                ->groupByRaw($campaignExpr)
+                ->select($select)
+                ->groupBy($groupCols)
                 ->orderByDesc('clicks')
-                ->limit(5)
+                ->limit(100)
                 ->get()
                 ->map(function ($row) use ($avgCpc) {
+                    $campaign = trim((string) (($row->campaign_name ?? '') !== ''
+                        ? $row->campaign_name
+                        : ($row->utm_campaign ?? '')));
+                    if ($campaign === '') {
+                        return null;
+                    }
                     $clicks = (int) $row->clicks;
                     $invalid = (int) $row->invalid;
                     $valid = max(0, $clicks - $invalid);
-                    $riskPct = $clicks > 0 ? round(($invalid / $clicks) * 100, 1) : 0.0;
 
                     return [
-                        'campaign' => (string) $row->campaign,
+                        'campaign' => $campaign,
                         'clicks' => $clicks,
                         'valid' => $valid,
                         'invalid' => $invalid,
-                        'riskPct' => $riskPct,
+                        'riskPct' => $clicks > 0 ? round(($invalid / $clicks) * 100, 1) : 0.0,
                         'costSaved' => round($avgCpc * $invalid, 2),
                     ];
                 })
+                ->filter()
+                ->groupBy('campaign')
+                ->map(function ($group) {
+                    $clicks = (int) $group->sum('clicks');
+                    $invalid = (int) $group->sum('invalid');
+                    $valid = max(0, $clicks - $invalid);
+                    $first = $group->first();
+
+                    return [
+                        'campaign' => (string) $first['campaign'],
+                        'clicks' => $clicks,
+                        'valid' => $valid,
+                        'invalid' => $invalid,
+                        'riskPct' => $clicks > 0 ? round(($invalid / $clicks) * 100, 1) : 0.0,
+                        'costSaved' => round((float) $group->sum('costSaved'), 2),
+                    ];
+                })
+                ->sortByDesc('clicks')
+                ->take(5)
                 ->values();
 
             return response()->json($rows);
@@ -643,27 +676,65 @@ class DashboardController extends Controller
         }
 
         if (Schema::hasTable('visits')) {
-            $campaignExpr = Schema::hasColumn('visits', 'campaign_name')
-                ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
-                : "NULLIF(TRIM(utm_campaign), '')";
+            $hasCampaignName = Schema::hasColumn('visits', 'campaign_name');
+            $groupCols = $hasCampaignName
+                ? ['visits.campaign_name', 'visits.utm_campaign', 'domains.hostname', 'domains.id']
+                : ['visits.utm_campaign', 'domains.hostname', 'domains.id'];
 
             $rows = DB::table('visits')
                 ->join('domains', 'domains.id', '=', 'visits.domain_id')
                 ->whereIn('visits.domain_id', $domainIds)
-                ->whereRaw("{$campaignExpr} IS NOT NULL")
-                ->whereRaw("{$campaignExpr} != ''")
-                ->selectRaw("{$campaignExpr} as name, domains.hostname as domain, domains.id as domain_id, COUNT(*) as total")
-                ->groupByRaw("{$campaignExpr}, domains.hostname, domains.id")
-                ->orderBy('name')
+                ->where(function ($q) use ($hasCampaignName): void {
+                    $q->whereNotNull('visits.utm_campaign')->where('visits.utm_campaign', '!=', '');
+                    if ($hasCampaignName) {
+                        $q->orWhere(function ($inner): void {
+                            $inner->whereNotNull('visits.campaign_name')->where('visits.campaign_name', '!=', '');
+                        });
+                    }
+                });
+
+            $select = [
+                'visits.utm_campaign',
+                'domains.hostname as domain',
+                'domains.id as domain_id',
+                DB::raw('COUNT(*) as total'),
+            ];
+            if ($hasCampaignName) {
+                array_unshift($select, 'visits.campaign_name');
+            }
+
+            $rows = $rows
+                ->select($select)
+                ->groupBy($groupCols)
+                ->orderBy('domain')
                 ->get()
-                ->map(fn ($row) => [
-                    'name' => (string) $row->name,
-                    'domain' => (string) $row->domain,
-                    'domain_id' => (int) $row->domain_id,
-                    'label' => $request->query('domain_id')
-                        ? (string) $row->name
-                        : trim($row->name.' · '.$row->domain),
-                ])
+                ->map(function ($row) use ($request) {
+                    $name = trim((string) (($row->campaign_name ?? '') !== ''
+                        ? $row->campaign_name
+                        : ($row->utm_campaign ?? '')));
+                    if ($name === '') {
+                        return null;
+                    }
+
+                    return [
+                        'name' => $name,
+                        'domain' => (string) $row->domain,
+                        'domain_id' => (int) $row->domain_id,
+                        'label' => $request->query('domain_id')
+                            ? $name
+                            : trim($name.' · '.$row->domain),
+                        'total' => (int) $row->total,
+                    ];
+                })
+                ->filter()
+                ->groupBy(fn ($row) => $row['name'].'|'.$row['domain_id'])
+                ->map(function ($group) {
+                    $first = $group->first();
+                    $first['total'] = (int) $group->sum('total');
+
+                    return $first;
+                })
+                ->sortBy('name')
                 ->values();
 
             return response()->json($rows);
@@ -979,6 +1050,58 @@ class DashboardController extends Controller
         }
 
         return $ids;
+    }
+
+    /**
+     * ONLY_FULL_GROUP_BY-safe top campaign (avoid grouping by COALESCE/TRIM expressions).
+     *
+     * @param  \Illuminate\Database\Query\Builder  $base
+     */
+    private function topVisitCampaignRow($base): ?object
+    {
+        $hasCampaignName = Schema::hasColumn('visits', 'campaign_name');
+        $groupCols = $hasCampaignName ? ['campaign_name', 'utm_campaign'] : ['utm_campaign'];
+
+        $select = [
+            'utm_campaign',
+            DB::raw('COUNT(*) as total'),
+        ];
+        if ($hasCampaignName) {
+            array_unshift($select, 'campaign_name');
+        }
+
+        $rows = $base
+            ->where(function ($q) use ($hasCampaignName): void {
+                $q->whereNotNull('utm_campaign')->where('utm_campaign', '!=', '');
+                if ($hasCampaignName) {
+                    $q->orWhere(function ($inner): void {
+                        $inner->whereNotNull('campaign_name')->where('campaign_name', '!=', '');
+                    });
+                }
+            })
+            ->select($select)
+            ->groupBy($groupCols)
+            ->get()
+            ->map(function ($row) {
+                $campaign = trim((string) (($row->campaign_name ?? '') !== ''
+                    ? $row->campaign_name
+                    : ($row->utm_campaign ?? '')));
+
+                return $campaign === '' ? null : (object) [
+                    'campaign' => $campaign,
+                    'total' => (int) $row->total,
+                ];
+            })
+            ->filter()
+            ->groupBy('campaign')
+            ->map(fn ($group) => (object) [
+                'campaign' => (string) $group->first()->campaign,
+                'total' => (int) $group->sum('total'),
+            ])
+            ->sortByDesc('total')
+            ->first();
+
+        return $rows;
     }
 
     /**
