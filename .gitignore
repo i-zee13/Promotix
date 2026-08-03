@@ -33,3 +33,6 @@ auth.json
 /.vscode
 /.zed
 /.cursor/mcp.json
+
+# Private local scrapers (credentials / browser profiles — never commit)
+/scraper/

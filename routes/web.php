@@ -141,6 +141,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         })->name('admin');
         Route::middleware(['permission', 'redirect-super-admin'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/reports', [\App\Http\Controllers\Admin\ReportsController::class, 'index'])->name('reports.index');
         Route::get('/paid-marketing/detailed-view', [PaidMarketingController::class, 'detailedView'])->name('paid-marketing.detailed');
         Route::get('/paid-marketing/detailed-visits', [PaidMarketingController::class, 'detailedVisits'])->name('paid-marketing.detailed-visits');
         Route::get('/paid-marketing/detailed-ip-timeline', [PaidMarketingController::class, 'detailedIpTimeline'])->name('paid-marketing.detailed-ip-timeline');

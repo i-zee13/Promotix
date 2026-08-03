@@ -541,6 +541,8 @@ class DashboardController extends Controller
             return response()->json([]);
         }
 
+        $avgCpc = $this->avgGoogleCpcForOverview($request, $domainIds, $from, $to);
+
         if (Schema::hasTable('visits')) {
             $campaignExpr = Schema::hasColumn('visits', 'campaign_name')
                 ? "COALESCE(NULLIF(TRIM(campaign_name), ''), NULLIF(TRIM(utm_campaign), ''))"
@@ -560,7 +562,7 @@ class DashboardController extends Controller
                 ->orderByDesc('clicks')
                 ->limit(25)
                 ->get()
-                ->map(function ($row) {
+                ->map(function ($row) use ($avgCpc) {
                     $clicks = (int) $row->clicks;
                     $invalid = (int) $row->invalid;
                     $valid = max(0, $clicks - $invalid);
@@ -572,7 +574,7 @@ class DashboardController extends Controller
                         'valid' => $valid,
                         'invalid' => $invalid,
                         'riskPct' => $riskPct,
-                        'costSaved' => null,
+                        'costSaved' => round($avgCpc * $invalid, 2),
                     ];
                 })
                 ->values();
@@ -589,7 +591,7 @@ class DashboardController extends Controller
             ->orderByDesc('clicks')
             ->limit(25)
             ->get()
-            ->map(function ($row) {
+            ->map(function ($row) use ($avgCpc) {
                 $clicks = (int) $row->clicks;
                 $invalid = (int) $row->invalid;
                 $valid = max(0, $clicks - $invalid);
@@ -600,7 +602,7 @@ class DashboardController extends Controller
                     'valid' => $valid,
                     'invalid' => $invalid,
                     'riskPct' => $clicks > 0 ? round(($invalid / $clicks) * 100, 1) : 0.0,
-                    'costSaved' => null,
+                    'costSaved' => round($avgCpc * $invalid, 2),
                 ];
             })
             ->values();
@@ -902,6 +904,33 @@ class DashboardController extends Controller
         }
 
         return $ids;
+    }
+
+    /**
+     * @param  Collection<int, int>  $domainIds
+     * @param  \Carbon\Carbon|\Carbon\CarbonInterface|string  $from
+     * @param  \Carbon\Carbon|\Carbon\CarbonInterface|string  $to
+     */
+    private function avgGoogleCpcForOverview(Request $request, Collection $domainIds, $from, $to): float
+    {
+        if ($domainIds->isEmpty() || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            return 0.0;
+        }
+
+        $fromDate = $from instanceof Carbon ? $from->toDateString() : Carbon::parse((string) $from)->toDateString();
+        $toDate = $to instanceof Carbon ? $to->toDateString() : Carbon::parse((string) $to)->toDateString();
+        $reportingTz = UserTimezone::forUser($request->user());
+        $domains = Domain::query()
+            ->whereIn('id', $domainIds)
+            ->with('googleAdsAccount')
+            ->get();
+
+        $googleAds = app(\App\Services\GoogleAdsDomainMetricsSync::class)
+            ->clickTotalsForDomainsReporting($domainIds, $fromDate, $toDate, $reportingTz, $domains);
+        $clicks = (int) ($googleAds['clicks'] ?? 0);
+        $cost = (float) ($googleAds['cost'] ?? 0);
+
+        return $clicks > 0 ? ($cost / $clicks) : 0.0;
     }
 
     /**

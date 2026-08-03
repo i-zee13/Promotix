@@ -196,7 +196,8 @@
                                         <span x-text="fmt(row.total)"></span> clicks ·
                                         <span x-text="fmt(row.valid)"></span> valid ·
                                         <span x-text="fmt(row.invalid)"></span> invalid
-                                        (<span x-show="row.invalid_pct != null"> · <span x-text="row.invalid_pct"></span>%</span>
+                                        <span x-show="row.invalid_pct != null"> · <span x-text="row.invalid_pct"></span>%</span>
+                                        <span x-show="row.cost_saved != null"> · saved $<span x-text="Number(row.cost_saved || 0).toFixed(2)"></span></span>
                                     </p>
                                 </div>
                             </template>
@@ -265,7 +266,24 @@
 
                 <section class="paid-invalid-card sm:col-span-2 xl:col-span-2">
                     <h2 class="text-[16px] font-normal text-[#a9a9a9]">Protection Engine</h2>
-                    <p class="mt-[2px] text-[10px] text-white/55">Invalid traffic protection over time</p>
+                    <p class="mt-[2px] text-[10px] text-white/55">Active rules and invalid traffic protection over time</p>
+                    <div class="mt-[8px] flex flex-wrap gap-[6px]" x-show="(blocking.rules || []).length">
+                        <template x-for="rule in (blocking.rules || [])" :key="rule.label">
+                            <div class="inline-flex items-center gap-[6px] rounded-[5px] border border-white/15 bg-black/25 px-[8px] py-[4px] text-[10px]">
+                                <span class="text-white/65" x-text="rule.label"></span>
+                                <span
+                                    class="rounded-[3px] px-[6px] py-[1px] font-semibold"
+                                    :class="{
+                                        'bg-rose-500/25 text-rose-200': rule.tone === 'block',
+                                        'bg-amber-500/25 text-amber-100': rule.tone === 'challenge',
+                                        'bg-sky-500/20 text-sky-200': rule.tone === 'monitor',
+                                        'bg-white/10 text-white/55': rule.tone === 'off' || !rule.tone
+                                    }"
+                                    x-text="rule.action"
+                                ></span>
+                            </div>
+                        </template>
+                    </div>
                     <canvas id="invalid-protection" class="mt-[8px] h-[105px] w-full"></canvas>
                 </section>
             </div>
@@ -295,33 +313,42 @@
                     </div>
                 </div>
                 <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
-                    <table class="w-full min-w-[980px] table-fixed text-left text-[11px] text-[#a9a9a9]">
+                    <table class="w-full min-w-[1280px] table-fixed text-left text-[11px] text-[#a9a9a9]">
                         <thead class="sticky top-0 z-[1] bg-[#6400B2]">
                             <tr>
-                                <th class="w-[16%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[12%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('ip')" @click="setIpSort('ip')"><span>Address</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[12%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[10%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('campaign')" @click="setIpSort('campaign')"><span>Campaign</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[6%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('country')" @click="setIpSort('country')"><span>Country</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[7%] px-[8px] py-[7px] font-normal">Device</th>
+                                <th class="w-[7%] px-[8px] py-[7px] font-normal">Browser</th>
+                                <th class="w-[6%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('risk_level')" @click="setIpSort('risk_level')"><span>Risk</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[10%] px-[8px] py-[7px] font-normal">ISP</th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">ASN</th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[6%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('risk_score')" @click="setIpSort('risk_score')"><span>Risk %</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[7%] px-[8px] py-[7px] font-normal">Action</th>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal">ISP</th>
+                                <th class="w-[5%] px-[8px] py-[7px] font-normal">ASN</th>
+                                <th class="w-[5%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('invalid')" @click="setIpSort('invalid')"><span>Invalid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[5%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('valid')" @click="setIpSort('valid')"><span>Valid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[9%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('top_threat')" @click="setIpSort('top_threat')"><span>Bot detect</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('first_seen')" @click="setIpSort('first_seen')"><span>First seen</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')"><span>Last click</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
                             </tr>
@@ -337,16 +364,21 @@
                                     </td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px] text-white/85" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
+                                    <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-text="row.device || '—'"></td>
+                                    <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.browser || '—'"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.risk_level || '—'"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.risk_score != null ? (row.risk_score + '%') : '—'"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.action || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px]" :title="row.isp || ''" x-text="row.isp || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px]" x-text="row.asn || '—'"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.invalid)"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-text="threatLabel(row.top_threat)"></td>
+                                    <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.first_seen)"></td>
                                     <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
                                 </tr>
                             </template>
-                            <tr x-show="sortedIps.length === 0"><td colspan="10" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
+                            <tr x-show="sortedIps.length === 0"><td colspan="15" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -474,7 +506,19 @@
                                 </div>
                                 <div class="figma-modal-field">
                                     <p class="figma-modal-label">Browser</p>
-                                    <p class="figma-modal-value" x-text="activeIpClick.browser_name || '—'"></p>
+                                    <p class="figma-modal-value" x-text="activeIpClick.browser_name || ipModal.row?.browser || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Device</p>
+                                    <p class="figma-modal-value capitalize" x-text="ipModal.row?.device || activeIpClick.device || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Action</p>
+                                    <p class="figma-modal-value" x-text="ipModal.row?.action || activeIpClick.action_taken || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Risk</p>
+                                    <p class="figma-modal-value" x-text="(ipModal.row?.risk_level || '—') + (ipModal.row?.risk_score != null ? (' · ' + ipModal.row.risk_score + '%') : '')"></p>
                                 </div>
                                 <div class="figma-modal-field">
                                     <p class="figma-modal-label">Country</p>
@@ -580,7 +624,7 @@ function paidAdvertisingFigma(config = {}) {
         trackingTemplate: '{lpurl}?gclid={gclid}&gbraid={gbraid}&wbraid={wbraid}&utm_source=google&utm_medium=cpc&utm_campaign={campaignid}',
         summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
         trends: { labels: [], datasets: [], invalid_daily: [] },
-        blocking: { labels: [], datasets: [] },
+        blocking: { labels: [], datasets: [], rules: [] },
         campaigns: [],
         untaggedDomains: [],
         keywords: [],
@@ -599,7 +643,7 @@ function paidAdvertisingFigma(config = {}) {
                 valid: row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)),
             }));
             return window.promotixSortable?.sortRows
-                ? window.promotixSortable.sortRows(rows, this.ipSortKey, this.ipSortDir, ['invalid', 'valid', 'vpn_hits', 'data_center_hits', 'total'])
+                ? window.promotixSortable.sortRows(rows, this.ipSortKey, this.ipSortDir, ['invalid', 'valid', 'vpn_hits', 'data_center_hits', 'total', 'risk_score'])
                 : rows;
         },
         setIpSort(key) {
@@ -1543,7 +1587,8 @@ function paidAdvertisingFigma(config = {}) {
             const rows = (this.keywords || []).slice(0, 4);
             el.innerHTML = rows.length ? rows.map(row => `
                 <div class="paid-keyword-pill">
-                    <span class="truncate">${row.keyword}</span><span>${row.invalid}</span>
+                    <span class="truncate" title="${row.keyword}">${row.keyword}</span>
+                    <span class="shrink-0 text-white/80">${row.invalid_pct != null ? row.invalid_pct + '%' : row.invalid}</span>
                 </div>
             `).join('') : '<p class="text-[10px] text-white/70">No keyword data.</p>';
         },

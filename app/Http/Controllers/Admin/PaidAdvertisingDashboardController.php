@@ -404,6 +404,7 @@ class PaidAdvertisingDashboardController extends Controller
                 ['name' => 'Blocked', 'values' => $blockSeries],
                 ['name' => 'Flagged', 'values' => $flagSeries],
             ],
+            'rules' => $this->protectionEngineRules($request, $domainIds),
         ]);
     }
 
@@ -439,6 +440,8 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         $domainIds = $this->scopedDomainIds($request);
+        $scopedDomains = $this->scopedDomains($request, $domainIds);
+        $avgCpc = $this->avgGoogleCpc($request, $domainIds, $metricFrom, $metricTo, $scopedDomains);
         $merged = $merged
             ->merge($this->visitCampaignRows($request, $domainIds, $metricFrom, $metricTo))
             ->merge($this->paidMarketingCampaignRows($domainIds, $metricFrom, $metricTo, $request->user(), $this->reportingTimezone($request, $domainIds)));
@@ -446,18 +449,19 @@ class PaidAdvertisingDashboardController extends Controller
         $rows = $merged
             ->filter(fn ($row) => filled(is_array($row) ? ($row['campaign'] ?? null) : null))
             ->groupBy(fn ($row) => (string) $row['campaign'])
-            ->map(function ($group, $campaign) {
+            ->map(function ($group, $campaign) use ($avgCpc) {
                 $best = collect($group)->sortByDesc(fn ($row) => (int) ($row['total'] ?? $row['clicks'] ?? 0))->first();
+                $total = (int) ($best['total'] ?? $best['clicks'] ?? 0);
+                $invalid = (int) ($best['invalid'] ?? 0);
 
                 return [
                     'campaign' => $campaign,
                     'campaign_id' => $best['campaign_id'] ?? null,
-                    'total' => (int) ($best['total'] ?? $best['clicks'] ?? 0),
-                    'invalid' => (int) ($best['invalid'] ?? 0),
-                    'valid' => (int) ($best['valid'] ?? max(0, (int) ($best['total'] ?? $best['clicks'] ?? 0) - (int) ($best['invalid'] ?? 0))),
-                    'invalid_pct' => (int) ($best['total'] ?? $best['clicks'] ?? 0) > 0
-                        ? round(((int) ($best['invalid'] ?? 0) / (int) ($best['total'] ?? $best['clicks'] ?? 1)) * 100, 1)
-                        : 0,
+                    'total' => $total,
+                    'invalid' => $invalid,
+                    'valid' => (int) ($best['valid'] ?? max(0, $total - $invalid)),
+                    'invalid_pct' => $total > 0 ? round(($invalid / $total) * 100, 1) : 0,
+                    'cost_saved' => round($avgCpc * $invalid, 2),
                     'source' => $best['source'] ?? 'merged',
                 ];
             })
@@ -662,30 +666,92 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function keywords(Request $request): JsonResponse
     {
-        if (! Schema::hasTable('visits')) {
-            return response()->json([]);
-        }
-
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
+        $merged = collect();
 
-        $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
-            ->whereNotNull('utm_term')
-            ->select(
-                'utm_term',
-                DB::raw('COUNT(*) as total'),
-                DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
-            )
-            ->groupBy('utm_term')
-            ->orderByDesc('total')
-            ->limit(20)
-            ->get();
+        if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
+            $visitRows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
+                ->whereNotNull('utm_term')
+                ->where('utm_term', '!=', '')
+                ->select(
+                    'utm_term as keyword',
+                    DB::raw('COUNT(*) as total'),
+                    DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
+                )
+                ->groupBy('utm_term')
+                ->orderByDesc('total')
+                ->limit(40)
+                ->get();
 
-        return response()->json($rows->map(fn ($r) => [
-            'keyword' => $r->utm_term,
-            'total' => (int) $r->total,
-            'invalid' => (int) $r->invalid,
-        ])->values());
+            $merged = $merged->merge($visitRows);
+        }
+
+        if (Schema::hasTable('paid_marketing_clicks')
+            && Schema::hasTable('paid_marketing_visits')
+            && Schema::hasColumn('paid_marketing_clicks', 'keyword')
+            && $domainIds->isNotEmpty()) {
+            $clickQuery = DB::table('paid_marketing_clicks as pc')
+                ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
+                ->whereIn('pv.domain_id', $domainIds)
+                ->whereNotNull('pc.keyword')
+                ->where('pc.keyword', '!=', '');
+
+            UserTimezone::applyCalendarDateRangeFilter(
+                $clickQuery,
+                'pc.clicked_at',
+                $metricFrom,
+                $metricTo,
+                $request->user(),
+                $this->reportingTimezone($request, $domainIds),
+            );
+
+            $this->applyPaidTrafficOnlyFilter($clickQuery, 'pc');
+
+            if ($this->hasCampaignFilter($request)) {
+                if (Schema::hasColumn('paid_marketing_clicks', 'campaign_name')) {
+                    $this->applyDirectCampaignFilter($clickQuery, $request, 'pc.campaign_name', 'pc.google_campaign_id', 'pc.campaign');
+                } else {
+                    $this->applyDirectCampaignFilter($clickQuery, $request, 'pc.campaign', 'pc.google_campaign_id');
+                }
+            }
+
+            $clickRows = $clickQuery
+                ->select(
+                    'pc.keyword as keyword',
+                    DB::raw('COUNT(*) as total'),
+                    DB::raw("SUM(CASE WHEN pc.threat_group IS NOT NULL AND pc.threat_group != '' THEN 1 ELSE 0 END) as invalid")
+                )
+                ->groupBy('pc.keyword')
+                ->orderByDesc('total')
+                ->limit(40)
+                ->get();
+
+            $merged = $merged->merge($clickRows);
+        }
+
+        $rows = $merged
+            ->filter(fn ($row) => filled($row->keyword ?? null))
+            ->groupBy(fn ($row) => mb_strtolower(trim((string) $row->keyword)))
+            ->map(function ($group) {
+                $keyword = (string) ($group->first()->keyword ?? '');
+                $total = (int) $group->sum(fn ($r) => (int) ($r->total ?? 0));
+                $invalid = (int) $group->sum(fn ($r) => (int) ($r->invalid ?? 0));
+
+                return [
+                    'keyword' => $keyword,
+                    'total' => $total,
+                    'invalid' => $invalid,
+                    'valid' => max(0, $total - $invalid),
+                    'invalid_pct' => $total > 0 ? round(($invalid / $total) * 100, 1) : 0.0,
+                    'risk' => $total > 0 ? round(($invalid / $total) * 100, 1) : 0.0,
+                ];
+            })
+            ->sortByDesc('total')
+            ->take(20)
+            ->values();
+
+        return response()->json($rows);
     }
 
     public function countries(Request $request): JsonResponse
@@ -934,7 +1000,22 @@ class PaidAdvertisingDashboardController extends Controller
 
         return response()->streamDownload(function () use ($request, $domainIds, $metricFrom, $metricTo): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['IP Address', 'Country', 'Campaign', 'Invalid', 'Total', 'Bot Detect', 'VPN Hits', 'Data Center Hits', 'Malicious Hits', 'Last Click']);
+            fputcsv($handle, [
+                'IP Address',
+                'Country',
+                'Campaign',
+                'Device',
+                'Browser',
+                'Risk',
+                'Risk %',
+                'Action',
+                'Invalid',
+                'Valid',
+                'Total',
+                'Bot Detect',
+                'First Seen',
+                'Last Click',
+            ]);
 
             if ($domainIds->isEmpty()
                 || (! Schema::hasTable('visits') && ! Schema::hasTable('paid_marketing_visits'))) {
@@ -950,12 +1031,16 @@ class PaidAdvertisingDashboardController extends Controller
                     $r['ip'],
                     $r['country'],
                     $r['campaign'],
+                    $r['device'] ?? '',
+                    $r['browser'] ?? '',
+                    $r['risk_level'] ?? '',
+                    $r['risk_score'] ?? '',
+                    $r['action'] ?? '',
                     $r['invalid'],
+                    $r['valid'] ?? max(0, (int) ($r['total'] ?? 0) - (int) ($r['invalid'] ?? 0)),
                     $r['total'],
                     $r['top_threat'],
-                    $r['vpn_hits'],
-                    $r['data_center_hits'],
-                    $r['malicious_hits'],
+                    $r['first_seen'] ?? '',
                     $r['last_seen'],
                 ]);
             }
@@ -1126,10 +1211,14 @@ class PaidAdvertisingDashboardController extends Controller
                 DB::raw('COUNT(*) as total'),
                 DB::raw('SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
                 DB::raw('MAX(country) as country'),
+                DB::raw('MIN(visited_at) as first_seen'),
                 DB::raw('MAX(visited_at) as last_seen'),
                 DB::raw(Schema::hasColumn('visits', 'campaign_name')
                     ? 'MAX(COALESCE(campaign_name, utm_campaign)) as campaign'
                     : 'MAX(utm_campaign) as campaign'),
+                DB::raw(Schema::hasColumn('visits', 'device') ? 'MAX(device) as device' : 'NULL as device'),
+                DB::raw(Schema::hasColumn('visits', 'browser') ? 'MAX(browser) as browser' : 'NULL as browser'),
+                DB::raw(Schema::hasColumn('visits', 'action_taken') ? 'MAX(action_taken) as action' : 'NULL as action'),
                 DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
                 DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
                 DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
@@ -1179,10 +1268,14 @@ class PaidAdvertisingDashboardController extends Controller
                 DB::raw('COUNT(*) as total'),
                 DB::raw("SUM(CASE WHEN pc.threat_group IS NOT NULL AND pc.threat_group != '' THEN 1 ELSE 0 END) as invalid"),
                 DB::raw('MAX(pc.country) as country'),
+                DB::raw('MIN(pc.clicked_at) as first_seen'),
                 DB::raw('MAX(pc.clicked_at) as last_seen'),
                 DB::raw(Schema::hasColumn('paid_marketing_clicks', 'campaign_name')
                     ? 'MAX(COALESCE(pc.campaign_name, pc.campaign, pv.campaign_name, pv.campaign)) as campaign'
                     : 'MAX(COALESCE(pc.campaign, pv.campaign)) as campaign'),
+                DB::raw('MAX(pc.os) as device'),
+                DB::raw('MAX(pc.browser_name) as browser'),
+                DB::raw("MAX(CASE WHEN pc.threat_group IS NOT NULL AND pc.threat_group != '' THEN 'block' ELSE 'allow' END) as action"),
                 DB::raw("SUM(CASE WHEN pc.threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
                 DB::raw("SUM(CASE WHEN pc.threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
                 DB::raw("SUM(CASE WHEN pc.threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
@@ -1416,17 +1509,26 @@ class PaidAdvertisingDashboardController extends Controller
                 'total' => (int) ($row->total ?? 0),
                 'invalid' => (int) ($row->invalid ?? 0),
                 'valid' => max(0, (int) ($row->total ?? 0) - (int) ($row->invalid ?? 0)),
+                'first_seen' => UserTimezone::isoForUser(
+                    ! empty($row->first_seen) ? Carbon::parse((string) $row->first_seen, 'UTC') : null,
+                    $user
+                ),
                 'last_seen' => UserTimezone::isoForUser(
                     ! empty($row->last_seen) ? Carbon::parse((string) $row->last_seen, 'UTC') : null,
                     $user
                 ),
                 'campaign' => $row->campaign ?? null,
+                'device' => $row->device ?? null,
+                'browser' => $row->browser ?? null,
+                'action' => $row->action ? ucfirst((string) $row->action) : (((int) ($row->invalid ?? 0) > 0) ? 'Block' : 'Allow'),
                 'vpn_hits' => (int) ($row->vpn_hits ?? 0),
                 'data_center_hits' => (int) ($row->data_center_hits ?? 0),
                 'malicious_hits' => (int) ($row->malicious_hits ?? 0),
                 'top_threat' => $row->top_threat ?? null,
                 'risk_level' => $riskLevel,
-                'risk_score' => $riskScore,
+                'risk_score' => is_numeric($riskScore)
+                    ? (((float) $riskScore) <= 1 ? (int) round(((float) $riskScore) * 100) : (int) round((float) $riskScore))
+                    : null,
                 'isp' => $intel?->intel_isp ?? ($raw['isp'] ?? $raw['company'] ?? null),
                 'asn' => $raw['asn'] ?? null,
                 'is_allowlisted' => IpFraudEvaluator::isIpAllowListed($ip, implode("\n", $allowListIps)),
@@ -2068,6 +2170,101 @@ class PaidAdvertisingDashboardController extends Controller
             ->whereIn('id', $domainIds)
             ->with('googleAdsAccount')
             ->get();
+    }
+
+    /**
+     * Average Google Ads CPC for scoped domains/date range (used for Cost Saved).
+     *
+     * @param  \Illuminate\Support\Collection<int, int>  $domainIds
+     * @param  \Illuminate\Support\Collection<int, Domain>|null  $domains
+     */
+    private function avgGoogleCpc(Request $request, $domainIds, string $metricFrom, string $metricTo, $domains = null): float
+    {
+        if (collect($domainIds)->isEmpty() || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            return 0.0;
+        }
+
+        $reportingTz = $this->reportingTimezone($request, $domainIds);
+        $domains ??= $this->scopedDomains($request, $domainIds);
+        $googleAds = app(\App\Services\GoogleAdsDomainMetricsSync::class)
+            ->clickTotalsForDomainsReporting($domainIds, $metricFrom, $metricTo, $reportingTz, $domains);
+        $clicks = (int) ($googleAds['clicks'] ?? 0);
+        $cost = (float) ($googleAds['cost'] ?? 0);
+
+        return $clicks > 0 ? ($cost / $clicks) : 0.0;
+    }
+
+    /**
+     * Active detection rules shown above the Protection Engine chart.
+     *
+     * @param  \Illuminate\Support\Collection<int, int>  $domainIds
+     * @return list<array{label: string, action: string, tone: string}>
+     */
+    private function protectionEngineRules(Request $request, $domainIds): array
+    {
+        if (collect($domainIds)->isEmpty() || ! Schema::hasTable('domain_detection_settings')) {
+            return [
+                ['label' => 'Bot traffic', 'action' => 'Monitor', 'tone' => 'monitor'],
+                ['label' => 'Malicious', 'action' => 'Monitor', 'tone' => 'monitor'],
+                ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
+            ];
+        }
+
+        $domainId = (int) $request->query('domain_id', 0);
+        $query = DomainDetectionSetting::query()->whereIn('domain_id', collect($domainIds));
+        if ($domainId > 0) {
+            $query->where('domain_id', $domainId);
+        }
+
+        $settings = $query->get();
+        if ($settings->isEmpty()) {
+            return [
+                ['label' => 'Bot traffic', 'action' => 'Not configured', 'tone' => 'off'],
+                ['label' => 'Malicious', 'action' => 'Not configured', 'tone' => 'off'],
+                ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
+            ];
+        }
+
+        $first = $settings->first();
+        $botAction = $this->normalizeProtectionAction((string) ($first->invalid_bot_action ?? 'monitor'));
+        $maliciousAction = $this->normalizeProtectionAction((string) ($first->invalid_malicious_action ?? 'block'));
+        $suspiciousOn = $settings->contains(fn ($row) => (bool) ($row->suspicious_enabled ?? false));
+        $controlMode = strtolower((string) ($first->control_mode ?? 'mixed'));
+
+        $rules = [
+            ['label' => 'Bot traffic', 'action' => $botAction['label'], 'tone' => $botAction['tone']],
+            ['label' => 'Malicious', 'action' => $maliciousAction['label'], 'tone' => $maliciousAction['tone']],
+            [
+                'label' => 'Suspicious',
+                'action' => $suspiciousOn ? 'Challenge' : 'Off',
+                'tone' => $suspiciousOn ? 'challenge' : 'off',
+            ],
+        ];
+
+        if ($controlMode !== '') {
+            $rules[] = [
+                'label' => 'Control mode',
+                'action' => ucwords(str_replace('_', ' ', $controlMode)),
+                'tone' => $controlMode === 'monitor' ? 'monitor' : ($controlMode === 'block' ? 'block' : 'challenge'),
+            ];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @return array{label: string, tone: string}
+     */
+    private function normalizeProtectionAction(string $raw): array
+    {
+        $action = strtolower(trim($raw));
+
+        return match (true) {
+            in_array($action, ['block', 'blocked', 'deny'], true) => ['label' => 'Block', 'tone' => 'block'],
+            in_array($action, ['challenge', 'captcha', 'flag'], true) => ['label' => 'Challenge', 'tone' => 'challenge'],
+            in_array($action, ['monitor', 'log', 'allow', 'observe'], true) => ['label' => 'Monitor', 'tone' => 'monitor'],
+            default => ['label' => $raw !== '' ? ucfirst($action) : 'Monitor', 'tone' => 'monitor'],
+        };
     }
 
     /**

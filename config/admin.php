@@ -67,6 +67,7 @@ return [
     */
     'route_permission' => [
         'dashboard'        => 'dashboard',
+        'reports.index'    => 'dashboard',
         'paid-marketing.detailed' => 'paid-marketing-detailed',
         'paid-marketing.detailed-visits' => 'paid-marketing-detailed',
         'paid-marketing.detailed-export' => 'paid-marketing-detailed',

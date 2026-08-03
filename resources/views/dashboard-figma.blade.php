@@ -180,10 +180,11 @@
                                 <th class="px-[10px] py-[7px] font-normal">Valid</th>
                                 <th class="px-[10px] py-[7px] font-normal">Invalid</th>
                                 <th class="px-[10px] py-[7px] font-normal">Risk %</th>
+                                <th class="px-[10px] py-[7px] font-normal">Cost Saved</th>
                             </tr>
                         </thead>
                         <tbody id="campaign-performance-body" class="divide-y divide-white/10 bg-[#4D008E]/55">
-                            <tr><td colspan="5" class="px-[8px] py-[8px] text-center text-white/75">Loading...</td></tr>
+                            <tr><td colspan="6" class="px-[8px] py-[8px] text-center text-white/75">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -630,9 +631,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const bar = severity === 'high' ? '#ef4444' : (severity === 'medium' ? '#f59e0b' : '#60a5fa');
                 const reasons = (item.reasons || []).slice(0, 3).map((r) => String(r).replace(/_/g, ' ')).join(' · ') || 'Review signals';
                 const time = item.at ? new Date(item.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+                const ip = String(item.ip || '').replace(/"/g, '&quot;');
+                const advancedHref = ip
+                    ? `{{ route('paid-marketing.detailed') }}?ip=${encodeURIComponent(ip)}`
+                    : `{{ route('paid-marketing.detailed') }}`;
                 return `
-                <article class="relative overflow-hidden rounded-[8px] bg-[#0D0D0D]/82 pl-[12px] pr-[10px] py-[10px] text-[10px] text-white"
-                         style="border-left:3px solid ${bar}">
+                <article class="relative overflow-hidden rounded-[8px] bg-[#0D0D0D]/82 pl-[12px] pr-[10px] py-[10px] text-[10px] text-white cursor-pointer transition hover:bg-[#161616]"
+                         style="border-left:3px solid ${bar}"
+                         data-ip="${ip}"
+                         onclick="window.dispatchEvent(new CustomEvent('promotix-open-ip-modal', { detail: { ip: this.dataset.ip } }))">
                     <div class="mb-[4px] flex items-center justify-between gap-2">
                         <span class="font-semibold text-white">${item.title || 'High Risk Click Detected'}</span>
                         <span class="rounded-[999px] px-[7px] py-[2px] text-[9px] uppercase"
@@ -647,7 +654,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div><span class="text-white/45">Reasons:</span> ${reasons}</div>
                     </div>
-                    ${time ? `<div class="mt-[4px] text-[9px] text-white/40">${time}</div>` : ''}
+                    <div class="mt-[6px] flex items-center justify-between gap-2">
+                        ${time ? `<div class="text-[9px] text-white/40">${time}</div>` : '<span></span>'}
+                        <a href="${advancedHref}" class="text-[9px] text-[#B893D8] hover:text-white" onclick="event.stopPropagation()">Investigate →</a>
+                    </div>
                 </article>`;
             }).join('');
         }
@@ -664,8 +674,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-[8px] py-[6px]">${fmt(row.valid)}</td>
                 <td class="px-[8px] py-[6px]">${fmt(row.invalid)}</td>
                 <td class="px-[8px] py-[6px]">${Number(row.riskPct || 0).toFixed(1)}%</td>
+                <td class="px-[8px] py-[6px]">$${Number(row.costSaved || 0).toFixed(2)}</td>
             </tr>
-        `).join('') : '<tr><td colspan="5" class="px-[8px] py-[8px] text-center text-white/75">No campaigns in this range.</td></tr>';
+        `).join('') : '<tr><td colspan="6" class="px-[8px] py-[8px] text-center text-white/75">No campaigns in this range.</td></tr>';
     }
 
     async function loadCampaignOptions(preserveValue = true) {

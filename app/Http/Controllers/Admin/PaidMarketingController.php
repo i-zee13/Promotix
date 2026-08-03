@@ -382,6 +382,10 @@ class PaidMarketingController extends Controller
                 'Threat Type',
                 'Country',
                 'Device',
+                'Session ID',
+                'Fingerprint',
+                'Browser',
+                'OS',
                 'GCLID',
                 'GBRAID',
                 'WBRAID',
@@ -393,6 +397,8 @@ class PaidMarketingController extends Controller
                 'Risk Level',
                 'Confidence',
                 'Evidence',
+                'Needs Block',
+                'Connection',
                 'Last Path',
             ]);
 
@@ -432,6 +438,10 @@ class PaidMarketingController extends Controller
                         $row['threat_type'],
                         $row['country'],
                         $row['device'] ?? '',
+                        $row['session_id'] ?? '',
+                        $row['device_fingerprint'] ?? '',
+                        $row['browser'] ?? '',
+                        $row['os'] ?? '',
                         $row['gclid'] ?? '',
                         $row['gbraid'] ?? '',
                         $row['wbraid'] ?? '',
@@ -443,6 +453,8 @@ class PaidMarketingController extends Controller
                         $row['intel_risk_level'] ?? '',
                         $row['intel_confidence'] ?? '',
                         $row['intel_evidence'] ?? '',
+                        $row['intel_ip_need_blockation'] ?? '',
+                        $row['intel_connection_type'] ?? '',
                         $row['last_path'],
                     ]);
                 });
@@ -502,9 +514,9 @@ class PaidMarketingController extends Controller
             $sheet->setTitle('Advanced View');
             $headers = [
                 'IP Address', 'Visits', 'Domain', 'Campaign', 'Last Click', 'Threat Group', 'Threat Type',
-                'Country', 'Device', 'GCLID', 'GBRAID', 'WBRAID', 'Invalid Clicks', 'Valid Clicks',
-                'Google Verified', 'Status', 'Risk Score', 'Risk Level', 'Confidence', 'Evidence',
-                'Action', 'Last Path', 'Timestamp',
+                'Country', 'Device', 'Session ID', 'Fingerprint', 'Browser', 'OS', 'GCLID', 'GBRAID', 'WBRAID',
+                'Invalid Clicks', 'Valid Clicks', 'Google Verified', 'Status', 'Risk Score', 'Risk Level',
+                'Confidence', 'Evidence', 'Needs Block', 'Connection', 'Action', 'Last Path', 'Timestamp',
             ];
             foreach ($headers as $i => $header) {
                 $sheet->setCellValue([$i + 1, 1], $header);
@@ -522,6 +534,10 @@ class PaidMarketingController extends Controller
                     $row['threat_type'] ?? '',
                     $row['country'] ?? '',
                     $row['device'] ?? '',
+                    $row['session_id'] ?? '',
+                    $row['device_fingerprint'] ?? '',
+                    $row['browser'] ?? '',
+                    $row['os'] ?? '',
                     $row['gclid'] ?? '',
                     $row['gbraid'] ?? '',
                     $row['wbraid'] ?? '',
@@ -533,6 +549,8 @@ class PaidMarketingController extends Controller
                     $row['intel_risk_level'] ?? '',
                     $row['intel_confidence'] ?? '',
                     $row['intel_evidence'] ?? '',
+                    $row['intel_ip_need_blockation'] ?? '',
+                    $row['intel_connection_type'] ?? '',
                     $row['status'] === 'Blocked' ? 'Block' : (($row['status'] === 'Invalid') ? 'Flag' : 'Allow'),
                     $row['last_path'] ?? '',
                     $row['last_click_at'] ?? '',
@@ -845,7 +863,8 @@ class PaidMarketingController extends Controller
 
         $intel = $this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain);
         $clickIds = $this->hydrateGoogleClickIds($visit, $clicks);
-        $deviceLabel = $this->normalizeDeviceLabel($visit->platform);
+        $sessionMeta = $this->hydrateVisitSessionMeta($visit);
+        $deviceLabel = $this->normalizeDeviceLabel($visit->platform ?: ($sessionMeta['os'] ?? null));
         $reasons = [];
         if ($visit->manual_decision) {
             $reasons[] = 'manual_' . $visit->manual_decision;
@@ -855,6 +874,23 @@ class PaidMarketingController extends Controller
         }
         if ($visit->original_threat_group && $visit->manual_decision) {
             $reasons[] = 'original:' . $visit->original_threat_group;
+        }
+
+        $riskReasons = [];
+        if (($intel['intel_vpn'] ?? 'No') === 'Yes') {
+            $riskReasons[] = 'VPN detected';
+        }
+        if (($intel['intel_datacenter'] ?? 'No') === 'Yes') {
+            $riskReasons[] = 'Datacenter IP';
+        }
+        if (($intel['intel_proxy'] ?? 'No') === 'Yes') {
+            $riskReasons[] = 'Proxy detected';
+        }
+        if ($invalidClicks > 1) {
+            $riskReasons[] = 'Multiple invalid clicks';
+        }
+        if ($visit->threat_group) {
+            $riskReasons[] = str_replace('_', ' ', (string) $visit->threat_group);
         }
 
         return [
@@ -874,11 +910,28 @@ class PaidMarketingController extends Controller
             'original_threat_group' => $visit->original_threat_group,
             'original_threat_type' => $visit->original_threat_type,
             'device' => $deviceLabel,
+            'session_id' => $sessionMeta['session_id'],
+            'device_fingerprint' => $sessionMeta['device_fingerprint'],
+            'browser' => $sessionMeta['browser'] ?: ($firstClick?->browser_name),
+            'os' => $sessionMeta['os'] ?: ($firstClick?->os),
+            'screen_resolution' => $sessionMeta['screen'],
+            'language' => $sessionMeta['language'],
+            'visitor_timezone' => $sessionMeta['timezone'],
             'gclid' => $clickIds['gclid'],
             'gbraid' => $clickIds['gbraid'],
             'wbraid' => $clickIds['wbraid'],
             'google_click_id' => $clickIds['google_click_id'],
             'google_click_type' => $clickIds['google_click_type'],
+            'risk_summary' => [
+                'score' => $intel['intel_risk_score'] ?? null,
+                'level' => $intel['intel_risk_level'] ?? 'Low',
+                'status' => $intel['status'] ?? 'Valid',
+                'confidence' => $intel['intel_confidence'] ?? null,
+                'evidence' => $intel['intel_evidence'] ?? null,
+                'reasons' => array_values(array_unique($riskReasons)),
+                'needs_block' => ($intel['intel_ip_need_blockation'] ?? 'No') === 'Yes',
+                'connection' => $intel['intel_connection_type'] ?? null,
+            ],
             'rule_explanation' => [
                 'inputs' => [
                     'ip' => $visit->ip,
@@ -1152,7 +1205,13 @@ class PaidMarketingController extends Controller
             'intel_evidence' => $ipLog?->abuse_total_reports ? ($ipLog->abuse_total_reports . ' reports') : null,
             'intel_checked_at' => UserTimezone::formatForUser($ipLog?->intel_checked_at, $user, 'm/d/y H:i'),
             'intel_error' => $ipLog?->intel_status === 'error' ? 'Yes' : null,
-            'intel_ip_need_blockation' => ($isAllowListed || ! $ipLog?->is_blocked) ? 'No' : 'Yes',
+            'intel_ip_need_blockation' => $this->needsBlockationLabel(
+                $isAllowListed,
+                (bool) ($ipLog?->is_blocked),
+                $riskLevel,
+                $status,
+                filled($visit->threat_group)
+            ),
             'intel_blockation_type' => is_array($ipLog?->iphub_proxy_type)
                 ? implode(', ', $ipLog->iphub_proxy_type)
                 : ($ipLog?->iphub_proxy_type ?? null),
@@ -1162,6 +1221,96 @@ class PaidMarketingController extends Controller
             'intel_matched_provider' => $raw['provider'] ?? $raw['abuse_name'] ?? null,
             'intel_matched_dataset' => $raw['dataset'] ?? null,
             'intel_cloud_provider' => $raw['cloud_provider'] ?? null,
+            'intel_connection_type' => $raw['type'] ?? ($isHosting || $isDc ? 'Datacenter' : ($isVpn || $isProxy ? 'Anonymous' : 'Residential')),
+        ];
+    }
+
+    private function needsBlockationLabel(
+        bool $isAllowListed,
+        bool $isBlocked,
+        ?string $riskLevel,
+        mixed $status,
+        bool $hasThreat,
+    ): string {
+        if ($isAllowListed || $isBlocked) {
+            return 'No';
+        }
+
+        $statusText = strtolower((string) $status);
+        $needs = $hasThreat
+            || in_array($riskLevel, ['High', 'Medium'], true)
+            || in_array($statusText, ['invalid', 'blocked', 'high risk'], true);
+
+        return $needs ? 'Yes' : 'No';
+    }
+
+    /**
+     * @return array{session_id: ?string, device_fingerprint: ?string, browser: ?string, os: ?string, screen: ?string, language: ?string, timezone: ?string}
+     */
+    private function hydrateVisitSessionMeta(PaidMarketingVisit $visit): array
+    {
+        $empty = [
+            'session_id' => null,
+            'device_fingerprint' => null,
+            'browser' => null,
+            'os' => null,
+            'screen' => null,
+            'language' => null,
+            'timezone' => null,
+        ];
+
+        if (! Schema::hasTable('visits')) {
+            return $empty;
+        }
+
+        $select = ['id'];
+        foreach (['session_id', 'device', 'browser', 'os', 'user_agent', 'language', 'timezone', 'screen_resolution'] as $col) {
+            if (Schema::hasColumn('visits', $col)) {
+                $select[] = $col;
+            }
+        }
+
+        $row = DB::table('visits')
+            ->where('domain_id', $visit->domain_id)
+            ->where('ip', $visit->ip)
+            ->orderByDesc('visited_at')
+            ->first($select);
+
+        $fingerprint = null;
+        if (Schema::hasTable('visit_session_recordings') && Schema::hasColumn('visit_session_recordings', 'behavior_fingerprint')) {
+            $fingerprint = DB::table('visit_session_recordings')
+                ->where('domain_id', $visit->domain_id)
+                ->where('ip', $visit->ip)
+                ->orderByDesc('id')
+                ->value('behavior_fingerprint');
+        }
+
+        if (! $row) {
+            $empty['device_fingerprint'] = $fingerprint ? (string) $fingerprint : null;
+
+            return $empty;
+        }
+
+        $sessionId = filled($row->session_id ?? null) ? (string) $row->session_id : null;
+        if (! $sessionId && Schema::hasTable('visit_session_recordings') && Schema::hasColumn('visit_session_recordings', 'session_id')) {
+            $sessionId = DB::table('visit_session_recordings')
+                ->where('domain_id', $visit->domain_id)
+                ->where('ip', $visit->ip)
+                ->orderByDesc('id')
+                ->value('session_id');
+            $sessionId = $sessionId ? (string) $sessionId : null;
+        }
+
+        return [
+            'session_id' => $sessionId,
+            'device_fingerprint' => $fingerprint
+                ? (string) $fingerprint
+                : (filled($row->user_agent ?? null) ? substr(hash('sha256', (string) $row->user_agent), 0, 16) : null),
+            'browser' => filled($row->browser ?? null) ? (string) $row->browser : null,
+            'os' => filled($row->os ?? null) ? (string) $row->os : null,
+            'screen' => filled($row->screen_resolution ?? null) ? (string) $row->screen_resolution : null,
+            'language' => filled($row->language ?? null) ? (string) $row->language : null,
+            'timezone' => filled($row->timezone ?? null) ? (string) $row->timezone : null,
         ];
     }
 

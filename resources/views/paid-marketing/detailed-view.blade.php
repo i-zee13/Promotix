@@ -334,6 +334,34 @@
                     </aside>
 
                     <div class="figma-click-modal-body" x-show="modal.clicks.length > 0">
+                        <div class="mb-3 rounded-[8px] border border-white/15 bg-black/30 p-[12px]" x-show="modal.visit?.risk_summary">
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-white/55">Traffic Risk</p>
+                                    <p class="mt-1 text-[22px] font-semibold text-white">
+                                        <span x-text="modal.visit?.risk_summary?.score ?? '—'"></span>
+                                        <span class="text-[12px] font-normal text-white/50">/100</span>
+                                    </p>
+                                </div>
+                                <span class="rounded px-[8px] py-[3px] text-[10px] font-semibold uppercase"
+                                      :class="(modal.visit?.risk_summary?.level || '').toLowerCase() === 'high' ? 'bg-rose-500/25 text-rose-200' : ((modal.visit?.risk_summary?.level || '').toLowerCase() === 'medium' ? 'bg-amber-500/25 text-amber-100' : 'bg-emerald-500/20 text-emerald-200')"
+                                      x-text="modal.visit?.risk_summary?.level || 'Low'"></span>
+                            </div>
+                            <p class="mt-2 text-[11px] text-white/70">
+                                Status: <span class="font-semibold text-white" x-text="modal.visit?.risk_summary?.status || modal.visit?.status || '—'"></span>
+                                · Needs block: <span class="font-semibold" x-text="modal.visit?.risk_summary?.needs_block ? 'Yes' : 'No'"></span>
+                                · Connection: <span x-text="modal.visit?.risk_summary?.connection || modal.visit?.intel_connection_type || '—'"></span>
+                            </p>
+                            <ul class="mt-2 space-y-[3px] text-[10px] text-white/60">
+                                <template x-for="reason in (modal.visit?.risk_summary?.reasons || [])" :key="reason">
+                                    <li>✓ <span x-text="reason"></span></li>
+                                </template>
+                            </ul>
+                            <p class="mt-2 text-[10px] text-white/45" x-show="modal.visit?.session_id || modal.visit?.device_fingerprint">
+                                Session: <span class="font-mono text-white/70" x-text="modal.visit?.session_id || '—'"></span>
+                                · Fingerprint: <span class="font-mono text-white/70" x-text="modal.visit?.device_fingerprint || '—'"></span>
+                            </p>
+                        </div>
                         <template x-if="activeClick">
                             <div class="figma-click-modal-fields">
                                 <div class="figma-click-modal-compact">
@@ -549,7 +577,14 @@
             { key: 'gclid', label: 'GCLID', primary: true, min: 110 },
             { key: 'gbraid', label: 'GBRAID', primary: false, min: 110 },
             { key: 'wbraid', label: 'WBRAID', primary: false, min: 110 },
+            { key: 'session_id', label: 'Session ID', primary: false, min: 100 },
+            { key: 'device_fingerprint', label: 'Fingerprint', primary: false, min: 90 },
             { key: 'device', label: 'Device', primary: true, min: 72 },
+            { key: 'browser', label: 'Browser', primary: false, min: 80 },
+            { key: 'os', label: 'OS', primary: false, min: 72 },
+            { key: 'screen_resolution', label: 'Screen', primary: false, min: 72 },
+            { key: 'language', label: 'Language', primary: false, min: 64 },
+            { key: 'visitor_timezone', label: 'Timezone', primary: false, min: 80 },
             { key: 'last_click_label', label: 'Last Click', primary: true, min: 76 },
             { key: 'threat_group', label: 'Threat Group', primary: true, min: 84 },
             { key: 'threat_type', label: 'Threat Type', primary: true, min: 76 },
@@ -907,8 +942,13 @@
                 return `minmax(${min}px, 1fr)`;
             },
             init() {
-                const id = new URLSearchParams(window.location.search).get('domain_id');
+                const params = new URLSearchParams(window.location.search);
+                const id = params.get('domain_id');
                 if (id) this.filters.domain_id = id;
+                const ip = params.get('ip');
+                if (ip) this.filters.ip = ip;
+                const campaign = params.get('campaign');
+                if (campaign) this.filters.campaign = campaign;
                 this.applyDomainTimezoneFromCatalog();
                 this.syncHeaderDates();
                 if (!this.filters.from || !this.filters.to) {

@@ -16,6 +16,7 @@
             </div>
 
             <div class="space-y-[16px] xl:col-span-5">
+                @include('profile.partials.security-controls')
                 @include('profile.partials.login-history')
                 @include('profile.partials.delete-user-form')
             </div>

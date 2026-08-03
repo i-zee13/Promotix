@@ -32,6 +32,7 @@
         'TRAFFIC ANALYTICS' => [
             ['label' => 'Paid Dashboard', 'route' => 'paid-marketing.dashboard', 'icon' => 'chart', 'permission' => 'paid-marketing-dashboard'],
             ['label' => 'Bot Dashboard', 'route' => 'bot-protection.dashboard', 'icon' => 'home', 'permission' => 'bot-protection'],
+            ['label' => 'Reports', 'route' => 'reports.index', 'icon' => 'chart', 'permission' => 'dashboard'],
         ],
         'INVALID TRAFFIC' => [
             ['label' => 'Advanced View', 'route' => 'paid-marketing.detailed', 'icon' => 'eye', 'permission' => 'paid-marketing-detailed'],
@@ -41,6 +42,7 @@
         'TRACKING' => [
             ['label' => 'Platform Integrate', 'route' => 'integrations', 'icon' => 'plug', 'permission' => 'paid-marketing-platform-connections'],
             ['label' => 'Domains', 'route' => 'domains.index', 'icon' => 'globe', 'permission' => 'domain-management'],
+            ['label' => 'Billing', 'route' => 'billing.index', 'icon' => 'card', 'permission' => 'upgrade-plan'],
         ],
     ];
     $toolLinks = [

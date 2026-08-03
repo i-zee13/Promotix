@@ -25,6 +25,8 @@ class User extends Authenticatable
         'phone',
         'company_name',
         'website_url',
+        'company_address',
+        'support_email',
         'password',
         'is_admin',
         'is_super_admin',
