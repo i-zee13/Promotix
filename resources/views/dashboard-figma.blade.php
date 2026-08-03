@@ -118,6 +118,7 @@
 
         {{-- Top: Suite protection cards (mockup) + Live Security Feed --}}
         <div class="ov-top-grid">
+            <div class="ov-suite-pair">
             <article class="ov-suite-card">
                 <div class="ov-suite-card__head">
                     <div class="ov-suite-card__title-row">
@@ -223,6 +224,7 @@
                 </div>
                 <a href="{{ route('bot-protection.dashboard') }}" class="ov-suite-card__cta">View Bot Report →</a>
             </article>
+            </div>
 
             <article class="ov-card ov-card--feed">
                 <div class="ov-card__head">
