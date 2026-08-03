@@ -241,7 +241,11 @@ export function figmaDateRangePicker() {
             const root = this.$refs?.monthScroller || this.$refs?.mobileMonthScroller;
             if (!root || !key) return;
             const el = root.querySelector(`[data-month-key="${key}"]`);
-            if (el) el.scrollIntoView({ block: 'start' });
+            if (!el) return;
+            // Scroll only the calendar scroller — never the page (scrollIntoView jumps the window).
+            const rootTop = root.getBoundingClientRect().top;
+            const elTop = el.getBoundingClientRect().top;
+            root.scrollTop += elTop - rootTop;
         },
 
         jumpMonth(delta) {

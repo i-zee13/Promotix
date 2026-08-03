@@ -1325,16 +1325,24 @@ class PaidAdvertisingDashboardController extends Controller
             }
 
             $existing = $byIp[$ip];
+            $firstCandidates = array_values(array_filter([
+                (string) ($existing->first_seen ?? ''),
+                (string) ($row->first_seen ?? ''),
+            ], fn ($v) => $v !== ''));
             $byIp[$ip] = (object) [
                 'ip' => $ip,
                 'total' => max((int) ($existing->total ?? 0), (int) ($row->total ?? 0)),
                 'invalid' => max((int) ($existing->invalid ?? 0), (int) ($row->invalid ?? 0)),
                 'country' => $existing->country ?? $row->country ?? null,
+                'first_seen' => $firstCandidates !== [] ? min($firstCandidates) : null,
                 'last_seen' => max(
                     (string) ($existing->last_seen ?? ''),
                     (string) ($row->last_seen ?? '')
                 ) ?: null,
                 'campaign' => $existing->campaign ?? $row->campaign ?? null,
+                'device' => $existing->device ?? $row->device ?? null,
+                'browser' => $existing->browser ?? $row->browser ?? null,
+                'action' => $existing->action ?? $row->action ?? null,
                 'vpn_hits' => max((int) ($existing->vpn_hits ?? 0), (int) ($row->vpn_hits ?? 0)),
                 'data_center_hits' => max((int) ($existing->data_center_hits ?? 0), (int) ($row->data_center_hits ?? 0)),
                 'malicious_hits' => max((int) ($existing->malicious_hits ?? 0), (int) ($row->malicious_hits ?? 0)),
@@ -1520,7 +1528,9 @@ class PaidAdvertisingDashboardController extends Controller
                 'campaign' => $row->campaign ?? null,
                 'device' => $row->device ?? null,
                 'browser' => $row->browser ?? null,
-                'action' => $row->action ? ucfirst((string) $row->action) : (((int) ($row->invalid ?? 0) > 0) ? 'Block' : 'Allow'),
+                'action' => ! empty($row->action ?? null)
+                    ? ucfirst((string) $row->action)
+                    : (((int) ($row->invalid ?? 0) > 0) ? 'Block' : 'Allow'),
                 'vpn_hits' => (int) ($row->vpn_hits ?? 0),
                 'data_center_hits' => (int) ($row->data_center_hits ?? 0),
                 'malicious_hits' => (int) ($row->malicious_hits ?? 0),
