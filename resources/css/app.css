@@ -6926,7 +6926,7 @@ select:autofill {
 }
 
 .ov-filter-bar {
-    max-width: 100% !important;
+    max-width: min(100%, 720px) !important;
 }
 
 .ov-card {
@@ -7001,6 +7001,8 @@ select:autofill {
     background: var(--brand-primary, #6400B2);
     padding: 12px 12px 10px;
     box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
+    container-type: inline-size;
+    container-name: ov-suite;
 }
 
 .ov-suite-card__head {
@@ -7057,14 +7059,45 @@ select:autofill {
 
 .ov-suite-card__metrics {
     display: grid;
+    /* Default 2×2 — safe on phones and narrow half-width cards */
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
 }
 
-@media (min-width: 640px) {
+/* Only go 4-up when THIS card is wide enough (not viewport width) */
+@container ov-suite (min-width: 440px) {
     .ov-suite-card__metrics {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
+    }
+}
+
+@container ov-suite (max-width: 439px) {
+    .ov-suite-stat {
+        padding: 8px 6px 7px;
+    }
+
+    .ov-suite-stat__value {
+        font-size: 15px;
+    }
+
+    .ov-suite-stat__label {
+        font-size: 8px;
+    }
+
+    .ov-suite-stat__delta {
+        font-size: 10px;
+    }
+
+    .ov-suite-stat__vs {
+        font-size: 7px;
+    }
+}
+
+@media (min-width: 900px) and (max-width: 1279px) {
+    /* Suite cards side-by-side but each still often < 440px → keep 2×2 via container */
+    .ov-suite-card__title {
+        font-size: 13px;
     }
 }
 
