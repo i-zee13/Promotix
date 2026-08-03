@@ -6988,7 +6988,7 @@ select:autofill {
     }
 }
 
-/* ========== Suite protection cards (mockup) ========== */
+/* ========== Suite protection cards (mockup + theme purple) ========== */
 .ov-suite-card {
     display: flex;
     flex-direction: column;
@@ -6996,12 +6996,11 @@ select:autofill {
     height: auto;
     min-height: 0;
     min-width: 0;
-    border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 55%, #ffffff 8%);
-    background:
-        linear-gradient(165deg, color-mix(in srgb, var(--brand-primary, #6400B2) 28%, #0a0a0a) 0%, #0d0d0d 55%, #0a0a0a 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: var(--brand-primary, #6400B2);
     padding: 12px 12px 10px;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 28px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
 }
 
 .ov-suite-card__head {
@@ -7077,8 +7076,8 @@ select:autofill {
     gap: 4px;
     min-width: 0;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 18%, #121212);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(11, 11, 11, 0.35);
     padding: 10px 6px 8px;
 }
 
@@ -7156,19 +7155,19 @@ select:autofill {
     width: 100%;
     margin-top: 2px;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 70%, #fff 8%);
-    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: rgba(0, 0, 0, 0.28);
     padding: 8px 14px;
     font-size: 11px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.9);
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .ov-suite-card__cta:hover {
     color: #fff;
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 35%, rgba(0, 0, 0, 0.4));
-    border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 85%, #fff 12%);
+    background: rgba(0, 0, 0, 0.42);
+    border-color: rgba(255, 255, 255, 0.65);
 }
 
 .ov-card--metric,
@@ -7254,15 +7253,17 @@ select:autofill {
 
 @media (min-width: 1280px) {
     .ov-top-grid {
-        grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
-        max-width: 1180px;
-        justify-content: start;
-        /* Row height follows suite cards; feed fills the same height */
+        /* Full content width — suite pair + feed, slightly wider feed */
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
+        max-width: none;
+        width: 100%;
+        justify-content: stretch;
         align-items: stretch;
     }
 
     .ov-suite-pair {
         max-width: none;
+        width: 100%;
         height: fit-content;
         align-self: start;
     }
