@@ -90,6 +90,290 @@
                     flex-wrap: wrap;
                 }
             }
+            .pm-adv-charts {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            @media (min-width: 900px) {
+                .pm-adv-charts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            }
+            .pm-adv-chart-card {
+                display: flex;
+                flex-direction: column;
+                min-height: 280px;
+                border-radius: 10px;
+                border: 1px solid rgba(103, 6, 179, 0.55);
+                background: #111111;
+                padding: 16px 16px 12px;
+            }
+            .pm-adv-chart-card__title {
+                margin: 0 0 14px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .pm-adv-chart-card__body {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                flex: 1;
+                min-width: 0;
+            }
+            .pm-adv-donut {
+                --pm-donut: conic-gradient(rgba(100,0,178,0.25) 0 100%);
+                width: 118px;
+                height: 118px;
+                border-radius: 999px;
+                background: var(--pm-donut);
+                display: grid;
+                place-items: center;
+                flex-shrink: 0;
+            }
+            .pm-adv-donut__inner {
+                width: 78px;
+                height: 78px;
+                border-radius: 999px;
+                background: #111111;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 4px;
+            }
+            .pm-adv-donut__value {
+                font-size: 16px;
+                font-weight: 700;
+                color: #fff;
+                line-height: 1.1;
+            }
+            .pm-adv-donut__label {
+                margin-top: 2px;
+                font-size: 9px;
+                color: rgba(255, 255, 255, 0.45);
+                line-height: 1.2;
+            }
+            .pm-adv-legend {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                min-width: 0;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 7px;
+            }
+            .pm-adv-legend li {
+                display: grid;
+                grid-template-columns: 10px minmax(0, 1fr) auto;
+                align-items: center;
+                gap: 8px;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.82);
+            }
+            .pm-adv-legend__swatch {
+                width: 10px;
+                height: 10px;
+                border-radius: 2px;
+            }
+            .pm-adv-legend__name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .pm-adv-legend__meta {
+                white-space: nowrap;
+                font-variant-numeric: tabular-nums;
+                color: rgba(255, 255, 255, 0.7);
+            }
+            .pm-adv-countries {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                flex: 1;
+                padding-top: 4px;
+            }
+            .pm-adv-country-row {
+                display: grid;
+                grid-template-columns: 22px minmax(72px, 0.9fr) minmax(0, 1.4fr) auto;
+                align-items: center;
+                gap: 8px;
+            }
+            .pm-adv-country-row__flag { font-size: 14px; line-height: 1; }
+            .pm-adv-country-row__name {
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.88);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .pm-adv-country-row__track {
+                height: 6px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
+                overflow: hidden;
+            }
+            .pm-adv-country-row__bar {
+                display: block;
+                height: 100%;
+                border-radius: 999px;
+                background: #6400B2;
+            }
+            .pm-adv-country-row__meta {
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.75);
+                white-space: nowrap;
+                font-variant-numeric: tabular-nums;
+            }
+            .pm-adv-chart-card__updated {
+                margin: 14px 0 0;
+                text-align: right;
+                font-size: 10px;
+                color: rgba(255, 255, 255, 0.38);
+            }
+            .pm-adv-hip {
+                margin-top: 18px;
+            }
+            .pm-adv-hip__head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .pm-adv-hip__title {
+                margin: 0;
+                font-size: 16px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .pm-adv-hip__nav {
+                display: flex;
+                gap: 8px;
+            }
+            .pm-adv-hip__btn {
+                display: grid;
+                place-items: center;
+                width: 32px;
+                height: 32px;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                background: #1a1a1a;
+                color: rgba(255, 255, 255, 0.75);
+                cursor: pointer;
+                transition: background .15s ease, color .15s ease, border-color .15s ease;
+            }
+            .pm-adv-hip__btn:hover {
+                background: #222;
+                color: #fff;
+                border-color: rgba(100, 0, 178, 0.55);
+            }
+            .pm-adv-hip__btn:disabled {
+                opacity: 0.35;
+                cursor: default;
+            }
+            .pm-adv-hip__track {
+                display: flex;
+                gap: 12px;
+                overflow-x: auto;
+                scroll-snap-type: x mandatory;
+                scroll-behavior: smooth;
+                padding-bottom: 6px;
+                -webkit-overflow-scrolling: touch;
+            }
+            .pm-adv-hip__track::-webkit-scrollbar {
+                height: 4px;
+            }
+            .pm-adv-hip__track::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.18);
+                border-radius: 999px;
+            }
+            .pm-adv-hip-card {
+                flex: 0 0 min(220px, 78vw);
+                scroll-snap-align: start;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                padding: 16px 14px 14px;
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: #161616;
+                text-align: left;
+                cursor: pointer;
+                transition: border-color .15s ease, background .15s ease;
+            }
+            .pm-adv-hip-card:hover {
+                border-color: rgba(100, 0, 178, 0.55);
+                background: #1a1a1a;
+            }
+            .pm-adv-hip-card__ip {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 700;
+                color: #fff;
+                letter-spacing: 0.01em;
+                font-variant-numeric: tabular-nums;
+            }
+            .pm-adv-hip-card__risk {
+                margin: 0;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            .pm-adv-hip-card__risk--high { color: #F43F5E; }
+            .pm-adv-hip-card__risk--medium { color: #F59E0B; }
+            .pm-adv-hip-card__badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                width: fit-content;
+                padding: 4px 10px 4px 8px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                font-size: 11px;
+                font-weight: 500;
+                color: rgba(255, 255, 255, 0.88);
+            }
+            .pm-adv-hip-card__dot {
+                width: 7px;
+                height: 7px;
+                border-radius: 999px;
+                flex-shrink: 0;
+            }
+            .pm-adv-hip-card__meta {
+                margin: 2px 0 0;
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.45);
+            }
+            .pm-adv-hip-card__ago {
+                margin: 0;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.38);
+            }
+            .pm-adv-hip__empty {
+                margin: 0;
+                padding: 22px 12px;
+                text-align: center;
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.4);
+                border-radius: 10px;
+                border: 1px dashed rgba(255, 255, 255, 0.12);
+                background: #111;
+            }
+            @media (max-width: 520px) {
+                .pm-adv-chart-card__body { flex-direction: column; align-items: flex-start; }
+                .pm-adv-country-row {
+                    grid-template-columns: 22px minmax(0, 1fr) auto;
+                    grid-template-areas:
+                        "flag name meta"
+                        "track track track";
+                }
+                .pm-adv-country-row__flag { grid-area: flag; }
+                .pm-adv-country-row__name { grid-area: name; }
+                .pm-adv-country-row__meta { grid-area: meta; }
+                .pm-adv-country-row__track { grid-area: track; }
+            }
         </style>
 
         <div class="mb-[18px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
@@ -380,6 +664,111 @@
                     </div>
                 </div>
             </div>
+        </section>
+
+        <section class="pm-adv-charts mt-[18px]">
+            <article class="pm-adv-chart-card">
+                <h3 class="pm-adv-chart-card__title">Threat Distribution</h3>
+                <div class="pm-adv-chart-card__body">
+                    <div class="pm-adv-donut" :style="`--pm-donut: ${chartThreat.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                        <div class="pm-adv-donut__inner">
+                            <p class="pm-adv-donut__value" x-text="chartThreat.total_label || '0'"></p>
+                            <p class="pm-adv-donut__label" x-text="chartThreat.center_label || 'Invalid Clicks'"></p>
+                        </div>
+                    </div>
+                    <ul class="pm-adv-legend">
+                        <template x-for="item in (chartThreat.items || [])" :key="'threat-' + item.label">
+                            <li>
+                                <span class="pm-adv-legend__swatch" :style="`background:${item.color}`"></span>
+                                <span class="pm-adv-legend__name" x-text="item.label"></span>
+                                <span class="pm-adv-legend__meta">
+                                    <span x-text="item.pct + '%'"></span>
+                                    <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
+                                </span>
+                            </li>
+                        </template>
+                        <li x-show="!(chartThreat.items || []).length" class="!text-white/40">No invalid threat data in range.</li>
+                    </ul>
+                </div>
+                <p class="pm-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
+            </article>
+
+            <article class="pm-adv-chart-card">
+                <h3 class="pm-adv-chart-card__title">Risk Level Distribution</h3>
+                <div class="pm-adv-chart-card__body">
+                    <div class="pm-adv-donut" :style="`--pm-donut: ${chartRisk.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                        <div class="pm-adv-donut__inner">
+                            <p class="pm-adv-donut__value" x-text="chartRisk.total_label || '0'"></p>
+                            <p class="pm-adv-donut__label" x-text="chartRisk.center_label || 'Unique IPs'"></p>
+                        </div>
+                    </div>
+                    <ul class="pm-adv-legend">
+                        <template x-for="item in (chartRisk.items || [])" :key="'risk-' + item.label">
+                            <li>
+                                <span class="pm-adv-legend__swatch" :style="`background:${item.color}`"></span>
+                                <span class="pm-adv-legend__name" x-text="item.label"></span>
+                                <span class="pm-adv-legend__meta">
+                                    <span x-text="item.pct + '%'"></span>
+                                    <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
+                                </span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+                <p class="pm-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
+            </article>
+
+            <article class="pm-adv-chart-card">
+                <h3 class="pm-adv-chart-card__title">Top Countries by Invalid Clicks</h3>
+                <div class="pm-adv-countries">
+                    <template x-for="row in chartCountries" :key="'country-' + row.name">
+                        <div class="pm-adv-country-row">
+                            <span class="pm-adv-country-row__flag" x-text="row.flag || '🌐'"></span>
+                            <span class="pm-adv-country-row__name" x-text="row.name"></span>
+                            <div class="pm-adv-country-row__track">
+                                <span class="pm-adv-country-row__bar" :style="`width:${row.bar || 0}%`"></span>
+                            </div>
+                            <span class="pm-adv-country-row__meta">
+                                <span x-text="row.count_label"></span>
+                                <span class="opacity-55" x-text="'(' + row.pct + '%)'"></span>
+                            </span>
+                        </div>
+                    </template>
+                    <p x-show="chartCountries.length === 0" class="py-[18px] text-center text-[12px] text-white/40">No country invalid-click data in range.</p>
+                </div>
+                <p class="pm-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
+            </article>
+        </section>
+
+        <section class="pm-adv-hip">
+            <div class="pm-adv-hip__head">
+                <h2 class="pm-adv-hip__title">Recent High Risk IPs</h2>
+                <div class="pm-adv-hip__nav" x-show="highRiskIps.length > 1">
+                    <button type="button" class="pm-adv-hip__btn" @click="scrollHighRisk(-1)" aria-label="Previous high risk IPs">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button type="button" class="pm-adv-hip__btn" @click="scrollHighRisk(1)" aria-label="Next high risk IPs">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="pm-adv-hip__track" x-ref="highRiskTrack" x-show="highRiskIps.length">
+                <template x-for="card in highRiskIps" :key="'hip-' + (card.id || card.ip)">
+                    <button type="button" class="pm-adv-hip-card" @click="openHighRiskIp(card)">
+                        <p class="pm-adv-hip-card__ip" x-text="card.ip"></p>
+                        <p class="pm-adv-hip-card__risk" :class="card.risk_tone === 'high' ? 'pm-adv-hip-card__risk--high' : 'pm-adv-hip-card__risk--medium'">
+                            Risk: <span x-text="card.risk"></span>/100
+                        </p>
+                        <span class="pm-adv-hip-card__badge" :style="card.risk_tone === 'high' ? 'color:#F43F5E' : 'color:#F59E0B'">
+                            <span class="pm-adv-hip-card__dot" :style="`background:${card.dot || '#F43F5E'}`"></span>
+                            <span x-text="card.category"></span>
+                        </span>
+                        <p class="pm-adv-hip-card__meta" x-text="card.invalid_label"></p>
+                        <p class="pm-adv-hip-card__ago" x-text="card.ago"></p>
+                    </button>
+                </template>
+            </div>
+            <p class="pm-adv-hip__empty" x-show="!loading && highRiskIps.length === 0">No high-risk IPs in this range.</p>
         </section>
 
         <div class="figma-modal-overlay"
@@ -799,6 +1188,11 @@
             ],
             statCards: [],
             kpiCards: [],
+            chartThreat: { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' },
+            chartRisk: { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' },
+            chartCountries: [],
+            highRiskIps: [],
+            chartsUpdatedAt: null,
             modal: { open: false, visit: null, clicks: [], activeIndex: 0, timeline: [], timelineOpen: true, timelineLoading: false },
             recordingModal: { open: false, id: null, visit_id: null, ip: '', page_url: '', events: [] },
             recordingController: null,
@@ -919,6 +1313,17 @@
                     this.filters[key] = '';
                     this.scheduleFetch(true);
                 }
+            },
+            get chartsUpdatedLabel() {
+                if (!this.chartsUpdatedAt) return 'Updated: —';
+                const d = new Date(this.chartsUpdatedAt);
+                if (Number.isNaN(d.getTime())) return 'Updated: —';
+                const sec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
+                if (sec < 60) return `Updated: ${sec}s ago`;
+                const min = Math.round(sec / 60);
+                if (min < 60) return `Updated: ${min} min${min === 1 ? '' : 's'} ago`;
+                const hr = Math.round(min / 60);
+                return `Updated: ${hr}h ago`;
             },
             get sortedRows() {
                 const api = window.promotixSortable;
@@ -1195,6 +1600,12 @@
                     this.rows = data.rows || [];
                     this.statCards = data.stats?.cards || [];
                     this.kpiCards = data.stats?.kpis || [];
+                    const charts = data.stats?.charts || {};
+                    this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
+                    this.chartRisk = charts.risk || { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' };
+                    this.chartCountries = charts.countries || [];
+                    this.highRiskIps = charts.high_risk_ips || [];
+                    this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
                     this.timezoneContext = data.timezone_context || null;
                     if (this.timezoneContext?.reporting_timezone) {
                         this.reportingTimezone = this.timezoneContext.reporting_timezone;
@@ -1206,6 +1617,17 @@
                     this.loading = false;
                     window.promotixPageLoader?.hide();
                 }
+            },
+            scrollHighRisk(dir) {
+                const el = this.$refs.highRiskTrack;
+                if (!el) return;
+                const step = Math.max(240, Math.floor(el.clientWidth * 0.75));
+                el.scrollBy({ left: dir * step, behavior: 'smooth' });
+            },
+            openHighRiskIp(card) {
+                if (!card?.id) return;
+                const visit = this.rows.find((r) => String(r.id) === String(card.id));
+                if (visit) this.openClicks(visit);
             },
             async openClicks(visit) {
                 this.modal.visit = visit;

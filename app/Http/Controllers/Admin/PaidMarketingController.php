@@ -1385,6 +1385,139 @@ class PaidMarketingController extends Controller
         $validPct = $totalClicks > 0 ? round(($validClicks / $totalClicks) * 100, 1) : 0.0;
         $invalidPct = $totalClicks > 0 ? round(($invalidClicks / $totalClicks) * 100, 1) : 0.0;
 
+        $threatBuckets = [
+            'vpn' => ['label' => 'VPN / Proxy', 'color' => '#A855F7', 'count' => 0],
+            'datacenter' => ['label' => 'Data Center', 'color' => '#3B82F6', 'count' => 0],
+            'bot' => ['label' => 'Bot Behavior', 'color' => '#22D3EE', 'count' => 0],
+            'repeat' => ['label' => 'Repeated Clicks', 'color' => '#14B8A6', 'count' => 0],
+            'geo' => ['label' => 'Geo Mismatch', 'color' => '#D6B27C', 'count' => 0],
+            'device' => ['label' => 'Invalid Device', 'color' => '#C084FC', 'count' => 0],
+        ];
+
+        $riskBuckets = [
+            'high' => ['label' => 'High Risk', 'color' => '#F43F5E', 'count' => 0],
+            'medium' => ['label' => 'Medium Risk', 'color' => '#F59E0B', 'count' => 0],
+            'low' => ['label' => 'Low Risk', 'color' => '#22C55E', 'count' => 0],
+        ];
+
+        $countryInvalid = [];
+
+        foreach ($rows as $visit) {
+            $visits = max(1, (int) ($visit['visits'] ?? 1));
+            $invalid = (int) ($visit['invalid_clicks'] ?? 0);
+            $isInvalid = $invalid > 0
+                || filled($visit['threat_group'] ?? null)
+                || filled($visit['threat_type'] ?? null)
+                || (bool) ($visit['ip_is_blocked'] ?? false);
+
+            $weight = $invalid > 0 ? $invalid : ($isInvalid ? $visits : 0);
+            if ($weight <= 0) {
+                continue;
+            }
+
+            $group = strtolower(trim((string) ($visit['threat_group'] ?? '')));
+            $type = strtolower(trim((string) ($visit['threat_type'] ?? '')));
+            $blob = $group.' '.$type;
+
+            if ((int) ($visit['vpn_hits'] ?? 0) > 0 || str_contains($blob, 'vpn') || str_contains($blob, 'proxy')) {
+                $threatBuckets['vpn']['count'] += $weight;
+            } elseif ((int) ($visit['data_center_hits'] ?? 0) > 0 || str_contains($blob, 'data_center') || str_contains($blob, 'datacenter')) {
+                $threatBuckets['datacenter']['count'] += $weight;
+            } elseif (str_contains($blob, 'bot')) {
+                $threatBuckets['bot']['count'] += $weight;
+            } elseif (str_contains($blob, 'geo') || str_contains($blob, 'mismatch') || str_contains($blob, 'location')) {
+                $threatBuckets['geo']['count'] += $weight;
+            } elseif (str_contains($blob, 'device') || str_contains($blob, 'fingerprint')) {
+                $threatBuckets['device']['count'] += $weight;
+            } elseif ($visits > 1 || str_contains($blob, 'repeat') || str_contains($blob, 'duplicate')) {
+                $threatBuckets['repeat']['count'] += $weight;
+            } else {
+                // Unclassified invalid → distribute to largest related signal
+                if ((int) ($visit['vpn_hits'] ?? 0) > 0) {
+                    $threatBuckets['vpn']['count'] += $weight;
+                } elseif ((int) ($visit['data_center_hits'] ?? 0) > 0) {
+                    $threatBuckets['datacenter']['count'] += $weight;
+                } else {
+                    $threatBuckets['bot']['count'] += $weight;
+                }
+            }
+
+            $level = strtolower((string) ($visit['intel_risk_level'] ?? $visit['risk_summary']['level'] ?? ''));
+            $score = $visit['intel_risk_score'] ?? $visit['risk_summary']['score'] ?? null;
+            if ($level === '' && is_numeric($score)) {
+                $score = (float) $score;
+                $level = $score >= 70 ? 'high' : ($score >= 40 ? 'medium' : 'low');
+            }
+            if (! in_array($level, ['high', 'medium', 'low'], true)) {
+                $level = 'medium';
+            }
+            $riskBuckets[$level]['count'] += 1;
+
+            $country = trim((string) ($visit['country'] ?? ''));
+            if ($country !== '' && $country !== '—' && $country !== 'Unknown') {
+                $countryInvalid[$country] = ($countryInvalid[$country] ?? 0) + $weight;
+            }
+        }
+
+        $threatTotal = max(1, array_sum(array_column($threatBuckets, 'count')));
+        $threatItems = [];
+        $threatGradientStops = [];
+        $cursor = 0.0;
+        foreach ($threatBuckets as $bucket) {
+            if ($bucket['count'] <= 0) {
+                continue;
+            }
+            $pct = round(($bucket['count'] / $threatTotal) * 100, 1);
+            $threatItems[] = [
+                'label' => $bucket['label'],
+                'color' => $bucket['color'],
+                'pct' => $pct,
+                'count' => $bucket['count'],
+                'count_label' => number_format($bucket['count']),
+            ];
+            $next = $cursor + $pct;
+            $threatGradientStops[] = $bucket['color'].' '.$cursor.'% '.$next.'%';
+            $cursor = $next;
+        }
+        if ($threatGradientStops === []) {
+            $threatGradientStops[] = 'rgba(100,0,178,0.25) 0% 100%';
+        }
+
+        $uniqueIps = $rows->pluck('ip')->filter()->unique()->count();
+        $riskTotal = max(1, array_sum(array_column($riskBuckets, 'count')));
+        $riskItems = [];
+        $riskGradientStops = [];
+        $cursor = 0.0;
+        foreach ($riskBuckets as $bucket) {
+            $pct = round(($bucket['count'] / $riskTotal) * 100, 1);
+            $riskItems[] = [
+                'label' => $bucket['label'],
+                'color' => $bucket['color'],
+                'pct' => $pct,
+                'count' => $bucket['count'],
+                'count_label' => number_format($bucket['count']),
+            ];
+            $next = $cursor + max($pct, 0);
+            $riskGradientStops[] = $bucket['color'].' '.$cursor.'% '.$next.'%';
+            $cursor = $next;
+        }
+
+        arsort($countryInvalid);
+        $topCountriesRaw = array_slice($countryInvalid, 0, 5, true);
+        $countryMax = max(1, (int) (reset($topCountriesRaw) ?: 1));
+        $countryInvalidTotal = max(1, array_sum($countryInvalid));
+        $topCountries = [];
+        foreach ($topCountriesRaw as $name => $count) {
+            $topCountries[] = [
+                'name' => $name,
+                'count' => $count,
+                'count_label' => number_format($count),
+                'pct' => round(($count / $countryInvalidTotal) * 100, 1),
+                'bar' => round(($count / $countryMax) * 100, 1),
+                'flag' => $this->countryFlagEmoji((string) $name),
+            ];
+        }
+
         return [
             'kpis' => [
                 [
@@ -1430,6 +1563,25 @@ class PaidMarketingController extends Controller
                     'tone' => 'amber',
                 ],
             ],
+            'charts' => [
+                'updated_at' => now()->toIso8601String(),
+                'threat' => [
+                    'total' => array_sum(array_column($threatBuckets, 'count')),
+                    'total_label' => number_format(array_sum(array_column($threatBuckets, 'count'))),
+                    'center_label' => 'Invalid Clicks',
+                    'gradient' => 'conic-gradient('.implode(', ', $threatGradientStops).')',
+                    'items' => $threatItems,
+                ],
+                'risk' => [
+                    'total' => $uniqueIps,
+                    'total_label' => number_format($uniqueIps),
+                    'center_label' => 'Unique IPs',
+                    'gradient' => 'conic-gradient('.implode(', ', $riskGradientStops).')',
+                    'items' => $riskItems,
+                ],
+                'countries' => $topCountries,
+                'high_risk_ips' => $this->buildHighRiskIpCards($rows),
+            ],
             'cards' => [
                 ['label' => 'VPN Tracking', 'value' => (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[45%]', 'toneClass' => 'bg-[#9A1AFF]/50'],
                 ['label' => 'Threats', 'value' => (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[32%]', 'toneClass' => 'bg-white/25'],
@@ -1440,6 +1592,146 @@ class PaidMarketingController extends Controller
                 ['label' => 'Invalid Rate', 'value' => (int) round((($blockedCount + $threatCount) / max($rowCount * 2, 1)) * 100), 'fillClass' => 'h-[68%]', 'toneClass' => 'bg-white/20'],
             ],
         ];
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildHighRiskIpCards(Collection $rows): array
+    {
+        return $rows
+            ->map(function (array $visit): ?array {
+                $score = $visit['intel_risk_score'] ?? data_get($visit, 'risk_summary.score');
+                $level = strtolower((string) ($visit['intel_risk_level'] ?? data_get($visit, 'risk_summary.level') ?? ''));
+                if (! is_numeric($score) && $level === '') {
+                    return null;
+                }
+                $score = is_numeric($score) ? (int) round((float) $score) : match ($level) {
+                    'high' => 85,
+                    'medium' => 55,
+                    default => 25,
+                };
+                if ($score < 55 && $level !== 'high') {
+                    return null;
+                }
+
+                $group = strtolower(trim((string) ($visit['threat_group'] ?? '')));
+                $type = strtolower(trim((string) ($visit['threat_type'] ?? '')));
+                $blob = $group.' '.$type;
+                $category = 'High Risk';
+                $dot = '#F43F5E';
+                $isDc = (int) ($visit['data_center_hits'] ?? 0) > 0
+                    || ($visit['intel_datacenter'] ?? '') === 'Yes'
+                    || str_contains($blob, 'data_center')
+                    || str_contains($blob, 'datacenter');
+                $isVpn = (int) ($visit['vpn_hits'] ?? 0) > 0
+                    || ($visit['intel_vpn'] ?? '') === 'Yes'
+                    || ($visit['intel_proxy'] ?? '') === 'Yes'
+                    || str_contains($blob, 'vpn')
+                    || str_contains($blob, 'proxy');
+                if ($isDc) {
+                    $category = 'Datacenter';
+                    $dot = '#F43F5E';
+                } elseif ($isVpn) {
+                    $category = 'VPN / Proxy';
+                    $dot = '#F43F5E';
+                } elseif (str_contains($blob, 'bot')) {
+                    $category = 'Bot Behavior';
+                    $dot = '#F59E0B';
+                } elseif ((int) ($visit['invalid_clicks'] ?? 0) > 1 || (int) ($visit['visits'] ?? 0) > 1 || str_contains($blob, 'repeat')) {
+                    $category = 'Repeated Clicks';
+                    $dot = '#F43F5E';
+                } elseif (str_contains($blob, 'geo') || str_contains($blob, 'mismatch')) {
+                    $category = 'Geo Mismatch';
+                    $dot = '#D6B27C';
+                }
+
+                $invalid = (int) ($visit['invalid_clicks'] ?? 0);
+                if ($invalid <= 0) {
+                    $invalid = max(1, (int) ($visit['visits'] ?? 1));
+                }
+
+                $atRaw = $visit['last_click_at'] ?? null;
+                $sortAt = 0;
+                $ago = (string) ($visit['last_click_label'] ?? '—');
+                if (filled($atRaw)) {
+                    try {
+                        $parsed = \Illuminate\Support\Carbon::parse((string) $atRaw);
+                        $sortAt = $parsed->getTimestamp();
+                        $ago = $parsed->diffForHumans(null, true);
+                        $ago = str_replace(
+                            [' seconds', ' second', ' minutes', ' minute', ' hours', ' hour', ' days', ' day'],
+                            ['s', 's', ' mins', ' min', 'h', 'h', 'd', 'd'],
+                            $ago
+                        );
+                        $ago = $ago === '0s' ? 'Just now' : ($ago.' ago');
+                    } catch (\Throwable) {
+                        // keep last_click_label fallback
+                    }
+                }
+
+                return [
+                    'id' => $visit['id'] ?? null,
+                    'ip' => (string) ($visit['ip'] ?? '—'),
+                    'risk' => $score,
+                    'risk_tone' => $score >= 75 ? 'high' : 'medium',
+                    'category' => $category,
+                    'dot' => $dot,
+                    'invalid_clicks' => $invalid,
+                    'invalid_label' => number_format($invalid).' invalid click'.($invalid === 1 ? '' : 's'),
+                    'ago' => $ago,
+                    '_sort_at' => $sortAt,
+                ];
+            })
+            ->filter()
+            ->sortByDesc('_sort_at')
+            ->take(12)
+            ->values()
+            ->map(function (array $card) {
+                unset($card['_sort_at']);
+
+                return $card;
+            })
+            ->all();
+    }
+
+    private function countryFlagEmoji(string $country): string
+    {
+        $map = [
+            'united states' => '🇺🇸', 'usa' => '🇺🇸', 'us' => '🇺🇸',
+            'germany' => '🇩🇪', 'de' => '🇩🇪',
+            'india' => '🇮🇳', 'in' => '🇮🇳',
+            'singapore' => '🇸🇬', 'sg' => '🇸🇬',
+            'russia' => '🇷🇺', 'ru' => '🇷🇺',
+            'united kingdom' => '🇬🇧', 'uk' => '🇬🇧', 'gb' => '🇬🇧',
+            'canada' => '🇨🇦', 'ca' => '🇨🇦',
+            'france' => '🇫🇷', 'fr' => '🇫🇷',
+            'brazil' => '🇧🇷', 'br' => '🇧🇷',
+            'pakistan' => '🇵🇰', 'pk' => '🇵🇰',
+            'china' => '🇨🇳', 'cn' => '🇨🇳',
+            'australia' => '🇦🇺', 'au' => '🇦🇺',
+            'netherlands' => '🇳🇱', 'nl' => '🇳🇱',
+            'japan' => '🇯🇵', 'jp' => '🇯🇵',
+        ];
+
+        $key = strtolower(trim($country));
+        if (isset($map[$key])) {
+            return $map[$key];
+        }
+
+        if (strlen($country) === 2 && ctype_alpha($country)) {
+            $code = strtoupper($country);
+            return implode(
+                '',
+                array_map(
+                    fn ($char) => mb_chr(0x1F1E6 + ord($char) - ord('A')),
+                    str_split($code)
+                )
+            );
+        }
+
+        return '🌐';
     }
 
     private function campaignNamesForUser(Request $request): Collection
