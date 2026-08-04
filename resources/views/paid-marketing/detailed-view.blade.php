@@ -76,19 +76,34 @@
                 font-size: 10px;
                 color: rgba(255, 255, 255, 0.42);
             }
+            .pm-adv-page-head {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                margin-bottom: 18px;
+                min-width: 0;
+            }
+            @media (min-width: 1100px) {
+                .pm-adv-page-head {
+                    flex-direction: row;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 14px;
+                }
+            }
             .figma-filter-bar--pm-adv {
-                width: 100% !important;
+                width: fit-content !important;
                 max-width: 100% !important;
                 min-width: 0;
+                margin-left: auto;
                 display: flex;
                 flex-wrap: nowrap;
                 align-items: stretch;
                 overflow: visible;
             }
             .figma-filter-bar--pm-adv > label {
-                flex: 1 1 0;
+                flex: 0 0 auto;
                 min-width: 0;
-                max-width: none;
             }
             .figma-filter-bar--pm-adv .figma-filter-calendar-host {
                 display: flex;
@@ -99,15 +114,15 @@
                 min-height: 100%;
                 margin-left: 0;
                 border-left: 1px solid rgba(0, 0, 0, 0.2);
-                padding: 6px 12px;
+                padding: 6px 10px;
             }
             .figma-filter-bar--pm-adv .figma-filter-calendar-btn {
                 flex-shrink: 0;
-                width: 36px;
-                height: 36px;
             }
             @media (max-width: 900px) {
                 .figma-filter-bar--pm-adv {
+                    width: 100% !important;
+                    margin-left: 0;
                     flex-wrap: wrap;
                 }
                 .figma-filter-bar--pm-adv > label {
@@ -120,13 +135,6 @@
                     border-top: 1px solid rgba(0, 0, 0, 0.12);
                     padding: 8px 10px;
                 }
-            }
-            .pm-adv-page-head {
-                display: flex;
-                flex-direction: column;
-                gap: 14px;
-                margin-bottom: 18px;
-                min-width: 0;
             }
             .pm-adv-charts {
                 display: grid;
@@ -526,8 +534,8 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
             </div>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--pm-adv flex min-h-[54px] w-full max-w-full rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                <label class="flex min-w-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--pm-adv ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                <label class="flex w-[132px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -538,7 +546,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                <label class="flex w-[112px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.traffic_source" @change="scheduleFetch(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -548,7 +556,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                <label class="flex w-[138px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.google_ads_account_id" @change="scheduleFetch(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -559,7 +567,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="relative flex min-w-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="campaignMenuOpen = false">
+                <label class="relative flex w-[128px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="campaignMenuOpen = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
                     <button type="button" @click="openCampaignMenu()" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                         <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
@@ -571,7 +579,7 @@
                         </template>
                     </div>
                 </label>
-                <label class="flex min-w-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                <label class="flex w-[120px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
