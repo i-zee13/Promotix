@@ -276,9 +276,10 @@
                 html.light-mode .bpv2-donut__hole strong { color: #1a1524; }
                 html.light-mode .bpv2-bar-track { background: #efeaf6; }
 
+                /* Classic Domain + Country tables (old BP look) */
                 .bpv2-tables-row {
                     display: grid !important;
-                    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr) !important;
+                    grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.95fr) !important;
                     gap: 12px !important;
                     align-items: stretch;
                     width: 100%;
@@ -292,62 +293,62 @@
                     padding-bottom: 12px;
                     width: 100%;
                     min-width: 0;
-                }
-                .bpv2-sheet {
                     display: flex;
+                    flex-direction: column;
+                }
+                .bpv2-tables-row .figma-bp-domain-panel,
+                .bpv2-tables-row .figma-bp-country-panel {
+                    display: flex !important;
+                    flex: 1;
+                    min-height: 0;
+                    flex-direction: column;
+                    width: 100%;
+                }
+                .bpv2-tables-row .figma-bp-table {
+                    display: flex !important;
                     flex-direction: column;
                     flex: 1;
                     min-height: 0;
-                    border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 10px;
-                    overflow: hidden;
-                    background: #101010;
-                }
-                .bpv2-sheet__head {
-                    display: grid;
-                    align-items: center;
-                    gap: 10px;
-                    padding: 10px 12px;
-                    background: #1c1c1c;
-                    border-bottom: 1px solid rgba(255,255,255,0.08);
-                    font-size: 11px;
-                    font-weight: 600;
-                    color: rgba(255,255,255,0.55);
-                }
-                .bpv2-sheet__head--country {
-                    grid-template-columns: minmax(120px, 1.6fr) repeat(3, minmax(64px, 0.7fr));
-                }
-                .bpv2-sheet__head--domain {
-                    grid-template-columns: minmax(140px, 1.8fr) repeat(3, minmax(70px, 0.7fr)) 110px;
-                }
-                .bpv2-sheet__body {
-                    max-height: 340px;
-                    overflow: auto;
-                }
-                .bpv2-sheet__row {
-                    display: grid;
-                    align-items: center;
-                    gap: 10px;
                     width: 100%;
-                    padding: 10px 12px;
-                    border: 0;
-                    border-bottom: 1px solid rgba(255,255,255,0.06);
-                    background: transparent;
-                    color: rgba(255,255,255,0.88);
-                    font-size: 12px;
-                    text-align: left;
                 }
-                .bpv2-sheet__row:last-child { border-bottom: 0; }
-                .bpv2-sheet__row--country { grid-template-columns: minmax(120px, 1.6fr) repeat(3, minmax(64px, 0.7fr)); cursor: pointer; }
-                .bpv2-sheet__row--country:hover { background: rgba(255,255,255,0.04); }
-                .bpv2-sheet__row--domain { grid-template-columns: minmax(140px, 1.8fr) repeat(3, minmax(70px, 0.7fr)) 110px; }
-                .bpv2-sheet .num {
+                .bpv2-tables-row .figma-bp-table-body {
+                    max-height: 340px;
+                    overflow-y: auto;
+                }
+                /* Readable columns at full panel width (old sidebar grids were too narrow) */
+                .bpv2-tables-row .figma-bp-table-head--domain,
+                .bpv2-tables-row .figma-bp-table-row--domain {
+                    grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 0.85fr)) 100px;
+                }
+                .bpv2-tables-row .figma-bp-table-head--country,
+                .bpv2-tables-row .figma-bp-table-row--country {
+                    grid-template-columns: minmax(0, 1.5fr) minmax(52px, 0.7fr) minmax(52px, 0.7fr) minmax(40px, 0.55fr);
+                    padding: 10px 12px;
+                    font-size: 11px;
+                    gap: 8px;
+                }
+                .bpv2-tables-row .figma-bp-table-head--country {
+                    color: #ffffff;
+                    font-size: 11px;
+                    font-weight: 500;
+                }
+                .bpv2-tables-row .figma-bp-table-row--country {
+                    cursor: pointer;
+                    width: 100%;
+                    border: 0;
+                    text-align: left;
+                    font: inherit;
+                }
+                .bpv2-tables-row .figma-bp-table-row--country:hover {
+                    background-color: #1f1f1f;
+                }
+                .bpv2-tables-row .figma-bp-num {
                     text-align: right;
                     font-variant-numeric: tabular-nums;
                     white-space: nowrap;
                 }
-                .bpv2-country-cell,
-                .bpv2-domain-cell {
+                .bpv2-tables-row .figma-bp-country-cell,
+                .bpv2-tables-row .figma-bp-domain-cell {
                     display: inline-flex;
                     align-items: center;
                     gap: 8px;
@@ -355,63 +356,35 @@
                     max-width: 100%;
                     overflow: hidden;
                 }
-                .bpv2-flag {
+                .bpv2-tables-row .figma-bp-flag {
                     width: 16px;
                     height: 11px;
                     border-radius: 2px;
                     object-fit: cover;
                     flex-shrink: 0;
                 }
-                .bpv2-domain-icon {
+                .bpv2-tables-row .figma-bp-domain-icon {
                     width: 14px;
                     height: 14px;
-                    color: #B893D8;
+                    color: #6400b2;
                     flex-shrink: 0;
                 }
-                .bpv2-action-cell {
-                    display: flex;
-                    justify-content: flex-end;
-                }
-                .bpv2-protect-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    height: 28px;
-                    padding: 0 12px;
-                    border-radius: 6px;
-                    background: #6400B2;
-                    color: #fff !important;
-                    font-size: 11px;
-                    font-weight: 600;
-                    text-decoration: none;
-                    white-space: nowrap;
-                }
-                .bpv2-protect-btn:hover { background: #7b13c8; }
-                .bpv2-empty {
+                .bpv2-tables-row .figma-bp-empty {
                     margin: 0;
                     padding: 28px 12px;
                     text-align: center;
                     font-size: 12px;
                     color: rgba(255,255,255,0.45);
                 }
-                /* Kill any leftover old BP table styles if cached markup appears */
-                .figma-bp-dashboard .figma-bp-mid-section,
-                .figma-bp-dashboard .figma-bp-table,
-                .figma-bp-dashboard .figma-bp-country-panel,
-                .figma-bp-dashboard .figma-bp-domain-panel {
-                    display: none !important;
-                }
-                html.light-mode .bpv2-sheet { background: #fff; border-color: #e7e1ef; }
-                html.light-mode .bpv2-sheet__head {
-                    background: #f4f0f8;
-                    color: #6b6478;
+                html.light-mode .bpv2-tables-row .figma-bp-table-row--country {
+                    background-color: #f7f5fa;
+                    color: #2d2d3a;
                     border-bottom-color: #e7e1ef;
                 }
-                html.light-mode .bpv2-sheet__row {
-                    color: #2d2d3a;
-                    border-bottom-color: #efeaf6;
+                html.light-mode .bpv2-tables-row .figma-bp-table-row--country:hover {
+                    background-color: #efeaf6;
                 }
-                html.light-mode .bpv2-sheet__row--country:hover { background: rgba(100,0,178,0.04); }
+                html.light-mode .bpv2-tables-row .figma-bp-empty { color: #8a8498; }
             </style>
 
             {{-- Row 1: KPI metric cards --}}
@@ -623,66 +596,68 @@
                 </section>
             </div>
 
-            {{-- Country + Domain tables (div-grid; avoids broken table/Alpine layout) --}}
+            {{-- Domain (left) + Country (right) — classic figma-bp table design --}}
             <div class="bpv2-tables-row" id="bp-domain-country-row">
                 <section class="bpv2-card bpv2-card--table">
-                    <h2 class="bpv2-card__title">Country Breakdown</h2>
-                    <div class="bpv2-sheet">
-                        <div class="bpv2-sheet__head bpv2-sheet__head--country">
-                            <span>Country</span>
-                            <span class="num">Visits</span>
-                            <span class="num">Invalid</span>
-                            <span class="num">%</span>
-                        </div>
-                        <div class="bpv2-sheet__body promotix-slim-scroll">
-                            <template x-for="row in countries" :key="'c-' + row.country">
-                                <button type="button" class="bpv2-sheet__row bpv2-sheet__row--country" @click="openCountryIps(row.country)">
-                                    <span class="bpv2-country-cell">
-                                        <img
-                                            x-show="countryFlagUrl(row.country)"
-                                            :src="countryFlagUrl(row.country)"
-                                            :alt="countryLabel(row.country)"
-                                            class="bpv2-flag"
-                                            loading="lazy"
-                                        >
-                                        <span class="truncate" x-text="countryLabel(row.country)"></span>
-                                    </span>
-                                    <span class="num" x-text="fmt(row.total ?? 0)"></span>
-                                    <span class="num" x-text="fmt(row.invalid)"></span>
-                                    <span class="num" x-text="(row.percent ?? 0) + '%'"></span>
-                                </button>
-                            </template>
-                            <p x-show="!countries.length" class="bpv2-empty">No country data.</p>
+                    <h2 class="bpv2-card__title">Domain Performance</h2>
+                    <div class="figma-bp-domain-panel">
+                        <div class="figma-bp-table">
+                            <div class="figma-bp-table-head figma-bp-table-head--domain">
+                                <span>Domain</span>
+                                <span class="figma-bp-num">Valid</span>
+                                <span class="figma-bp-num">Invalid</span>
+                                <span class="figma-bp-num">Crawlers</span>
+                                <span class="figma-bp-num">Action</span>
+                            </div>
+                            <div class="figma-bp-table-body promotix-slim-scroll">
+                                <template x-for="row in domainsList" :key="'d-' + row.id">
+                                    <div class="figma-bp-table-row--domain">
+                                        <span class="figma-bp-domain-cell">
+                                            <svg class="figma-bp-domain-icon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/></svg>
+                                            <span class="truncate" x-text="row.hostname"></span>
+                                        </span>
+                                        <span class="figma-bp-num" x-text="fmt(row.valid_visits)"></span>
+                                        <span class="figma-bp-num" x-text="fmt(row.invalid_visits)"></span>
+                                        <span class="figma-bp-num" x-text="fmt(row.known_crawlers)"></span>
+                                        <a href="{{ route('paid-marketing.detection-settings') }}" class="figma-bp-protect-btn">Get Protected</a>
+                                    </div>
+                                </template>
+                                <p x-show="!domainsList.length" class="figma-bp-empty">No domains in this window.</p>
+                            </div>
                         </div>
                     </div>
                 </section>
 
                 <section class="bpv2-card bpv2-card--table">
-                    <h2 class="bpv2-card__title">Domain Performance</h2>
-                    <div class="bpv2-sheet">
-                        <div class="bpv2-sheet__head bpv2-sheet__head--domain">
-                            <span>Domain</span>
-                            <span class="num">Valid</span>
-                            <span class="num">Invalid</span>
-                            <span class="num">Crawlers</span>
-                            <span class="num">Action</span>
-                        </div>
-                        <div class="bpv2-sheet__body promotix-slim-scroll">
-                            <template x-for="row in domainsList" :key="'d-' + row.id">
-                                <div class="bpv2-sheet__row bpv2-sheet__row--domain">
-                                    <span class="bpv2-domain-cell">
-                                        <svg class="bpv2-domain-icon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/></svg>
-                                        <span class="truncate" x-text="row.hostname"></span>
-                                    </span>
-                                    <span class="num" x-text="fmt(row.valid_visits)"></span>
-                                    <span class="num" x-text="fmt(row.invalid_visits)"></span>
-                                    <span class="num" x-text="fmt(row.known_crawlers)"></span>
-                                    <span class="bpv2-action-cell">
-                                        <a href="{{ route('paid-marketing.detection-settings') }}" class="bpv2-protect-btn">Get Protected</a>
-                                    </span>
-                                </div>
-                            </template>
-                            <p x-show="!domainsList.length" class="bpv2-empty">No domains in this window.</p>
+                    <h2 class="bpv2-card__title">Country Breakdown</h2>
+                    <div class="figma-bp-country-panel">
+                        <div class="figma-bp-table">
+                            <div class="figma-bp-table-head figma-bp-table-head--country">
+                                <span>Country</span>
+                                <span class="figma-bp-num">Visits</span>
+                                <span class="figma-bp-num">Invalid</span>
+                                <span class="figma-bp-num">%</span>
+                            </div>
+                            <div class="figma-bp-table-body figma-bp-table-body--country promotix-slim-scroll">
+                                <template x-for="row in countries" :key="'c-' + row.country">
+                                    <button type="button" class="figma-bp-table-row--country" @click="openCountryIps(row.country)">
+                                        <span class="figma-bp-country-cell">
+                                            <img
+                                                x-show="countryFlagUrl(row.country)"
+                                                :src="countryFlagUrl(row.country)"
+                                                :alt="countryLabel(row.country)"
+                                                class="figma-bp-flag"
+                                                loading="lazy"
+                                            >
+                                            <span class="truncate" x-text="countryLabel(row.country)"></span>
+                                        </span>
+                                        <span class="figma-bp-num" x-text="fmt(row.total ?? 0)"></span>
+                                        <span class="figma-bp-num" x-text="fmt(row.invalid)"></span>
+                                        <span class="figma-bp-num" x-text="(row.percent ?? 0) + '%'"></span>
+                                    </button>
+                                </template>
+                                <p x-show="!countries.length" class="figma-bp-empty">No country data.</p>
+                            </div>
                         </div>
                     </div>
                 </section>
