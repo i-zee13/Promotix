@@ -34,11 +34,11 @@
         display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:10px;
     }
     .pm-ip-invest__ip {
-        margin:0; font-size:15px; font-weight:800; letter-spacing:.01em;
+        margin:0; font-size:13px; font-weight:800; letter-spacing:.01em;
         font-variant-numeric:tabular-nums; word-break:break-all; line-height:1.2; color:#fff;
     }
     .pm-ip-invest__badge {
-        flex-shrink:0; border-radius:999px; padding:4px 8px; font-size:8px; font-weight:800;
+        flex-shrink:0; border-radius:999px; padding:3px 6px; font-size:7px; font-weight:800;
         letter-spacing:.04em; text-transform:uppercase; white-space:nowrap;
         background:rgba(34,197,94,.18); color:#86efac; border:1px solid rgba(134,239,172,.25);
     }
@@ -49,43 +49,20 @@
         background:rgba(245,158,11,.2); color:#fcd34d; border-color:rgba(252,211,77,.3);
     }
     .pm-ip-invest__score-row {
-        display:flex; align-items:center; justify-content:space-between; gap:10px;
+        display:flex; align-items:center; justify-content:flex-start; gap:10px;
     }
     .pm-ip-invest__score {
-        margin:0; font-size:26px; font-weight:800; line-height:1; color:#22c55e;
+        margin:0; font-size:22px; font-weight:800; line-height:1; color:#22c55e;
         font-variant-numeric:tabular-nums;
     }
     .pm-ip-invest__score.is-high { color:#f43f5e; }
     .pm-ip-invest__score.is-medium { color:#f59e0b; }
     .pm-ip-invest__score-max { font-size:11px; font-weight:600; opacity:.65; margin-left:1px; }
     .pm-ip-invest__score-label { margin:4px 0 0; font-size:8px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:rgba(255,255,255,.4); }
-    .pm-ip-invest__gauge-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; }
-    .pm-ip-invest__gauge {
-        --pm-gauge:0;
-        width:64px; height:34px; position:relative; overflow:hidden;
-    }
-    .pm-ip-invest__gauge::before {
-        content:''; position:absolute; inset:0 0 -100% 0; border-radius:999px 999px 0 0;
-        background:conic-gradient(from 270deg,
-            #22c55e 0deg,
-            #f59e0b 90deg,
-            #f43f5e 180deg,
-            transparent 180deg);
-        mask:radial-gradient(farthest-side at 50% 100%, transparent calc(100% - 7px), #000 calc(100% - 6px));
-        -webkit-mask:radial-gradient(farthest-side at 50% 100%, transparent calc(100% - 7px), #000 calc(100% - 6px));
-        opacity:.35;
-    }
-    .pm-ip-invest__gauge-needle {
-        position:absolute; left:50%; bottom:0; width:2px; height:28px;
-        background:#fff; border-radius:2px; transform-origin:50% 100%;
-        transform:translateX(-50%) rotate(calc(-90deg + (var(--pm-gauge) * 1.8deg)));
-        box-shadow:0 0 6px rgba(255,255,255,.35);
-    }
-    .pm-ip-invest__gauge-caption { font-size:7px; color:rgba(255,255,255,.35); letter-spacing:.04em; text-transform:uppercase; }
 
     .pm-ip-invest__card {
         border-radius:9px; border:1px solid rgba(255,255,255,.1);
-        background:#141414; padding:10px 10px 9px;
+        background:#141414; padding:8px;
     }
     .pm-ip-invest__section-title {
         position:relative; margin:0 0 8px; padding-left:8px;
@@ -109,10 +86,10 @@
     }
 
     .pm-ip-invest__grid {
-        display:grid; grid-template-columns:1fr 1fr; gap:8px 8px;
+        display:grid; grid-template-columns:1fr 1fr; gap:6px;
     }
     .pm-ip-invest__field {
-        min-width:0; padding:6px 7px; border-radius:6px; background:rgba(255,255,255,.03);
+        min-width:0; padding:5px 6px; border-radius:6px; background:rgba(255,255,255,.03);
         border:1px solid rgba(255,255,255,.06);
     }
     .pm-ip-invest__label {
@@ -164,8 +141,7 @@
     html.light-mode .pm-ip-invest__field { background:#f8f6fb; border-color:#ebe4f4; }
     html.light-mode .pm-ip-invest__label,
     html.light-mode .pm-ip-invest__score-label,
-    html.light-mode .pm-ip-invest__tl-meta,
-    html.light-mode .pm-ip-invest__gauge-caption { color:#6b6280; }
+    html.light-mode .pm-ip-invest__tl-meta { color:#6b6280; }
     html.light-mode .pm-ip-invest__btn--ghost { background:#fff; border-color:#d4c4e8; color:#3d3848; }
     html.light-mode .pm-ip-invest__reasons li.is-off { color:#b0a8bc; }
 </style>
@@ -198,12 +174,6 @@
                         <span x-text="riskScore"></span><span class="pm-ip-invest__score-max">/100</span>
                     </p>
                     <p class="pm-ip-invest__score-label">Risk Score</p>
-                </div>
-                <div class="pm-ip-invest__gauge-wrap">
-                    <div class="pm-ip-invest__gauge" :style="`--pm-gauge:${gaugePct}`" aria-hidden="true">
-                        <span class="pm-ip-invest__gauge-needle"></span>
-                    </div>
-                    <span class="pm-ip-invest__gauge-caption">Score · Reasons</span>
                 </div>
             </div>
         </div>
@@ -386,9 +356,6 @@ window.promotixIpInvestigation = function promotixIpInvestigation() {
             if (label.includes('high')) return 'high';
             if (label.includes('medium')) return 'medium';
             return 'low';
-        },
-        get gaugePct() {
-            return this.derivedScore();
         },
         get hasGeo() {
             return /geo|mismatch|location|timezone/i.test(threatBlob(this.visit));

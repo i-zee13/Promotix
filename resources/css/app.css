@@ -4057,7 +4057,7 @@ select.figma-sa-subs-status-pill {
 /* Figma customer shell used by the whole customer/admin panel. */
 .figma-shell {
     --figma-left: 261px;
-    --figma-right: 300px;
+    --figma-right: 220px;
     min-height: 100vh;
     padding-left: var(--figma-left);
     padding-right: var(--figma-right);

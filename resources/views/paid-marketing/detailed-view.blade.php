@@ -20,7 +20,7 @@
     'bulkUrl' => route('paid-marketing.detailed-bulk'),
     'csrf' => csrf_token(),
 ]))" x-init="init()">
-    <section class="mx-auto w-full px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
+    <section class="mx-auto w-full min-w-0 px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         <style>
             .pm-adv-kpi-grid {
                 display: grid;
@@ -77,18 +77,61 @@
                 color: rgba(255, 255, 255, 0.42);
             }
             .figma-filter-bar--pm-adv {
-                overflow: visible;
-                width: fit-content;
-                max-width: 100%;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0;
+                flex-wrap: nowrap;
+                align-items: stretch;
+                overflow-x: auto;
+                overflow-y: visible;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
             }
             .figma-filter-bar--pm-adv > label {
+                flex: 1 1 0;
+                min-width: 110px;
+                max-width: 170px;
+            }
+            .figma-filter-bar--pm-adv .figma-filter-calendar-host {
+                display: flex;
                 flex: 0 0 auto;
+                align-items: center;
+                justify-content: center;
+                min-height: 100%;
+                margin-left: auto;
+                border-left: 1px solid rgba(0, 0, 0, 0.2);
+                padding-top: 6px;
+                padding-bottom: 6px;
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            .figma-filter-bar--pm-adv .figma-filter-calendar-btn {
+                flex-shrink: 0;
             }
             @media (max-width: 900px) {
                 .figma-filter-bar--pm-adv {
-                    width: 100%;
                     flex-wrap: wrap;
+                    overflow-x: visible;
                 }
+                .figma-filter-bar--pm-adv > label {
+                    flex: 1 1 140px;
+                    max-width: none;
+                }
+                .figma-filter-bar--pm-adv .figma-filter-calendar-host {
+                    flex: 1 1 100%;
+                    justify-content: flex-start;
+                    margin-left: 0;
+                    border-left: 0;
+                    border-top: 1px solid rgba(0, 0, 0, 0.12);
+                    padding: 8px 10px;
+                }
+            }
+            .pm-adv-page-head {
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+                margin-bottom: 18px;
+                min-width: 0;
             }
             .pm-adv-charts {
                 display: grid;
@@ -481,15 +524,15 @@
             }
         </style>
 
-        <div class="mb-[18px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
+        <div class="pm-adv-page-head">
             <div class="flex flex-wrap items-center gap-[8px] shrink-0">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
             </div>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--pm-adv ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                <label class="flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--pm-adv flex min-h-[54px] w-full max-w-full rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                <label class="flex min-w-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -500,7 +543,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex w-[118px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                <label class="flex min-w-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.traffic_source" @change="scheduleFetch(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -510,7 +553,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                <label class="flex min-w-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.google_ads_account_id" @change="scheduleFetch(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -521,7 +564,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="relative flex w-[140px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="campaignMenuOpen = false">
+                <label class="relative flex min-w-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="campaignMenuOpen = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
                     <button type="button" @click="openCampaignMenu()" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                         <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
@@ -533,7 +576,7 @@
                         </template>
                     </div>
                 </label>
-                <label class="flex w-[128px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                <label class="flex min-w-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -1770,10 +1813,9 @@
             openHighRiskIp(card) {
                 if (!card?.id) return;
                 const visit = this.rows.find((r) => String(r.id) === String(card.id));
-                if (visit) this.publishInvestigation(visit);
+                if (visit) this.openClicks(visit);
             },
             async openClicks(visit) {
-                this.publishInvestigation(visit);
                 this.modal.visit = visit;
                 this.modal.clicks = (visit.clicks || []).slice();
                 this.modal.activeIndex = 0;

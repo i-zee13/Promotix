@@ -62,7 +62,7 @@
             background: rgba(100, 0, 178, 0.1);
             color: #6400b2;
         }
-        .figma-shell { --figma-right: 300px; }
+        .figma-shell { --figma-right: 220px; }
     </style>
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
@@ -273,7 +273,7 @@
         @yield('content')
     </main>
 
-    <aside class="figma-rightbar px-[16px] pb-[16px] pt-[20px]">
+    <aside class="figma-rightbar px-[10px] pb-[14px] pt-[16px]">
         @hasSection('rightbar')
             @yield('rightbar')
         @else
