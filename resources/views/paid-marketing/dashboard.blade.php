@@ -7,6 +7,62 @@
     @include('partials.paid-marketing-header-timezone')
 @endsection
 
+@section('rightbar')
+<div class="figma-rightbar-default paid-rightbar">
+    <div class="mb-[16px]">
+        <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
+        <p class="mt-[4px] text-[9px] text-white/45">Paid Advertising</p>
+    </div>
+
+    <div class="mb-[6px]">
+        <h2 class="mb-[8px] text-[14px] font-bold text-[#a9a9a9]">Activity Feed</h2>
+        <div id="paid-activity-feed" class="space-y-[8px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]">
+            <p class="text-white/45">Loading…</p>
+        </div>
+    </div>
+
+    <div class="mt-[16px] border-t-2 border-[#5a2a99] pt-[14px]">
+        <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
+        <div class="grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
+            <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Test Tracking">
+                @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
+                <span>Test Tracking</span>
+            </a>
+            <a href="{{ route('integrations') }}" class="paid-quick-action" title="Sync Ads">
+                @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
+                <span>Sync Ads</span>
+            </a>
+            <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Generate Tag">
+                @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[16px] w-[16px]'])
+                <span>Generate Tag</span>
+            </a>
+            <a href="{{ route('reports.index') }}" class="paid-quick-action" title="View Reports">
+                @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[16px] w-[16px]'])
+                <span>View Reports</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
+        <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">System Overview</h2>
+        <div id="paid-system-overview" class="space-y-[8px] text-[10px] text-white/75">
+            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                <span>Total Clicks</span><span data-sys="clicks" class="text-white/90">—</span>
+            </div>
+            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                <span>Invalid Clicks</span><span data-sys="invalid" class="text-rose-300">—</span>
+            </div>
+            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                <span>Blocked</span><span data-sys="blocked" class="text-white/90">—</span>
+            </div>
+            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                <span>Protection Rate</span><span data-sys="rate" class="text-emerald-200">—</span>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
 @section('content')
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js([
     'countryGetStarted' => $countryGetStarted,
@@ -26,25 +82,14 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
             </div>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid flex min-h-[54px] w-full max-w-full flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)] 2xl:max-w-[min(100%,920px)]">
-                <label class="flex min-w-[130px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid flex min-h-[54px] w-full max-w-full flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)] 2xl:max-w-[min(100%,980px)]">
+                <label class="flex min-w-[120px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All Domains</option>
                             @foreach ($domains as $domain)
                                 <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </label>
-                <label class="flex min-w-[140px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="filters.google_ads_account_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All Accounts</option>
-                            @foreach (($googleAdsAccounts ?? []) as $account)
-                                <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -59,7 +104,18 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-[150px] flex-[1.2] flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="flex min-w-[130px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.google_ads_account_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All Accounts</option>
+                            @foreach (($googleAdsAccounts ?? []) as $account)
+                                <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </label>
+                <label class="flex min-w-[130px] flex-[1.1] flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.campaign" @change="onCampaignChange(); reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -70,7 +126,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-[140px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="flex min-w-[120px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -78,6 +134,19 @@
                     </div>
                 </label>
                 @include('partials.figma-filter-date-fields')
+                <label class="flex min-w-[88px] shrink-0 flex-col items-center justify-center gap-[4px] px-[10px] py-[6px]">
+                    <span class="text-[8px] font-semibold uppercase text-black/55">Compare</span>
+                    <button
+                        type="button"
+                        class="paid-compare-toggle"
+                        :class="{ 'is-on': compareEnabled }"
+                        :aria-pressed="compareEnabled ? 'true' : 'false'"
+                        @click="toggleCompare()"
+                        title="Compare with previous period"
+                    >
+                        <span class="paid-compare-toggle__knob"></span>
+                    </button>
+                </label>
             </div>
         </div>
 
@@ -85,7 +154,7 @@
         <div class="paid-dashboard-cards">
             <article class="paid-dashboard-card paid-dashboard-card--traffic">
                 <div class="flex items-start justify-between gap-[8px]">
-                    <h2 class="paid-dashboard-card__title">Paid Traffic</h2>
+                    <h2 class="paid-dashboard-card__title">Google Ads Click Summary</h2>
                     <div class="flex shrink-0 items-center gap-[6px]">
                         <button type="button" class="paid-dashboard-card__icon-btn" aria-label="Refresh" @click="reload(true, true)" title="Refresh Google Ads sync">
                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
@@ -93,36 +162,38 @@
                         <span class="paid-dashboard-card__icon-btn text-[11px]" title="1 Google click ID (gclid/gbraid/wbraid) = 1 click. Tracking accuracy = tracked ÷ Google Ads clicks.">i</span>
                     </div>
                 </div>
-                <div class="paid-traffic-metrics mt-[8px]">
-                    <div class="paid-traffic-metrics__grid">
-                        <div>
-                            <p class="paid-traffic-metrics__label">Total Google Ads Clicks</p>
-                            <p class="paid-traffic-metrics__value" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
-                        </div>
-                        <div>
-                            <p class="paid-traffic-metrics__label">Tracked Clicks</p>
-                            <p class="paid-traffic-metrics__value" x-text="fmt(summary.tracked_clicks ?? summary.unique_paid_clicks)"></p>
-                        </div>
-                        <div>
-                            <p class="paid-traffic-metrics__label">Valid Clicks</p>
-                            <p class="paid-traffic-metrics__value" x-text="fmt(summary.unique_valid_paid_clicks ?? summary.valid_paid_visits)"></p>
-                        </div>
-                        <div>
-                            <p class="paid-traffic-metrics__label">Invalid Clicks</p>
-                            <p class="paid-traffic-metrics__value" x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></p>
-                        </div>
-                        <div class="paid-traffic-metrics__accuracy">
-                            <p class="paid-traffic-metrics__label">Tracking Accuracy</p>
-                            <p class="paid-traffic-metrics__value"><span x-text="fmt(summary.tracking_accuracy_pct ?? summary.tag_capture_pct)"></span>%</p>
-                            <p class="paid-traffic-metrics__hint" x-show="summary.tag_gap_warning">Tracking gap vs Google Ads — check GCLID capture</p>
-                        </div>
-                        <div>
-                            <p class="paid-traffic-metrics__label">Cost Saved</p>
-                            <p class="paid-traffic-metrics__value">$<span x-text="Number(summary.cost_saved || 0).toFixed(2)"></span></p>
-                        </div>
+                <div class="mt-[8px] grid grid-cols-2 gap-x-[10px] gap-y-[6px]">
+                    <div>
+                        <p class="paid-traffic-metrics__label">Total Clicks</p>
+                        <p class="paid-traffic-metrics__value" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
                     </div>
-                    <div class="paid-traffic-metrics__donut">
-                        <canvas id="paid-invalid-donut" aria-label="Invalid traffic rate"></canvas>
+                    <div>
+                        <p class="paid-traffic-metrics__label">Tracked Clicks</p>
+                        <p class="paid-traffic-metrics__value" x-text="fmt(summary.tracked_clicks ?? summary.unique_paid_clicks)"></p>
+                    </div>
+                </div>
+                <div class="mt-[10px] space-y-[8px]">
+                    <div>
+                        <div class="mb-[3px] flex items-center justify-between text-[9px]">
+                            <span class="text-emerald-300">Valid Clicks</span>
+                            <span class="text-white/85"><span x-text="fmt(summary.unique_valid_paid_clicks ?? summary.valid_paid_visits)"></span> · <span x-text="validClickPct"></span>%</span>
+                        </div>
+                        <div class="paid-metric-bar"><span class="paid-metric-bar__fill is-valid" :style="'width:' + validClickPct + '%'"></span></div>
+                    </div>
+                    <div>
+                        <div class="mb-[3px] flex items-center justify-between text-[9px]">
+                            <span class="text-rose-300">Invalid Clicks</span>
+                            <span class="text-white/85"><span x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></span> · <span x-text="invalidClickPct"></span>%</span>
+                        </div>
+                        <div class="paid-metric-bar"><span class="paid-metric-bar__fill is-invalid" :style="'width:' + invalidClickPct + '%'"></span></div>
+                    </div>
+                    <div>
+                        <div class="mb-[3px] flex items-center justify-between text-[9px]">
+                            <span class="text-white/70">Tracking Accuracy</span>
+                            <span class="text-white/85"><span x-text="fmt(summary.tracking_accuracy_pct ?? summary.tag_capture_pct)"></span>%</span>
+                        </div>
+                        <div class="paid-metric-bar"><span class="paid-metric-bar__fill is-accuracy" :style="'width:' + Number(summary.tracking_accuracy_pct ?? summary.tag_capture_pct ?? 0) + '%'"></span></div>
+                        <p class="paid-traffic-metrics__hint" x-show="summary.tag_gap_warning">Tracking gap vs Google Ads — check GCLID capture</p>
                     </div>
                 </div>
             </article>
@@ -137,11 +208,11 @@
                         </div>
                         <div>
                             <p class="text-[8px] text-white/65">Bots Detected</p>
-                            <p class="text-[16px] font-semibold text-white" x-text="fmt(summary.invalid_paid_visits)"></p>
+                            <p class="text-[16px] font-semibold text-emerald-300" x-text="fmt(summary.invalid_paid_visits)"></p>
                         </div>
                         <div>
-                            <p class="text-[8px] text-white/65">Blocked</p>
-                            <p class="text-[16px] font-semibold text-white" x-text="fmt(summary.block_enforced || summary.block_attempts || 0)"></p>
+                            <p class="text-[8px] text-white/65">Blocked Bots</p>
+                            <p class="text-[16px] font-semibold text-rose-300" x-text="fmt(summary.block_enforced || summary.block_attempts || 0)"></p>
                         </div>
                         <div>
                             <p class="text-[8px] text-white/65">Detection Rate</p>
@@ -156,7 +227,7 @@
 
             <article class="paid-dashboard-card">
                 <div class="flex items-start justify-between">
-                    <h2 class="paid-dashboard-card__title">Blocking Activity</h2>
+                    <h2 class="paid-dashboard-card__title">Invalid Traffic Actions</h2>
                     <span class="paid-dashboard-card__icon-btn text-[12px]" title="What happened after invalid traffic detection">i</span>
                 </div>
                 <div class="mt-[6px] grid grid-cols-2 gap-[8px]">
@@ -165,21 +236,19 @@
                         <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></p>
                     </div>
                     <div class="text-center">
-                        <p class="text-[9px] text-white/70">Blocked</p>
-                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.block_enforced || 0)"></p>
+                        <p class="text-[9px] text-white/70">Detection Events</p>
+                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_events || summary.invalid_paid_visits)"></p>
                     </div>
                 </div>
                 <div class="mt-[8px] space-y-0">
-                    <div class="paid-blocking-row"><span>Detection events</span><span x-text="fmt(summary.invalid_paid_events || summary.invalid_paid_visits)"></span></div>
-                    <div class="paid-blocking-row"><span>Monitored / Flagged</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
-                    <div class="paid-blocking-row"><span>Block attempts</span><span x-text="fmt(summary.block_attempts || summary.blocked_paid_visits)"></span></div>
-                    <div class="paid-blocking-row"><span>Google gap</span><span x-text="fmt(summary.invalid_reconciliation?.google_only || 0)"></span></div>
-                    <div class="paid-blocking-row"><span>Overlap</span><span x-text="fmt(summary.invalid_reconciliation?.overlap || 0)"></span></div>
+                    <div class="paid-blocking-row"><span class="text-rose-300">Blocked</span><span x-text="fmt(summary.block_enforced || 0)"></span></div>
+                    <div class="paid-blocking-row"><span class="text-amber-200">Monitored</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
+                    <div class="paid-blocking-row"><span class="text-emerald-300">Whitelisted</span><span x-text="fmt(whitelistedIpCount)"></span></div>
                 </div>
             </article>
 
             <article class="paid-dashboard-card">
-                <h2 class="paid-dashboard-card__title">Campaigns Breakdown</h2>
+                <h2 class="paid-dashboard-card__title">Campaign Performance</h2>
                 <div class="paid-campaign-breakdown !items-stretch">
                     <template x-if="untaggedDomains.length > 0">
                         <div class="w-full space-y-[4px] px-[2px] text-left">
@@ -189,32 +258,35 @@
                         </div>
                     </template>
                     <template x-if="untaggedDomains.length === 0">
-                        <div class="w-full space-y-[6px] px-[2px] text-left">
-                            <template x-for="row in campaignOptions.slice(0, 3)" :key="row.campaign">
-                                <div class="rounded-[6px] bg-black/20 px-[8px] py-[6px]">
-                                    <p class="truncate text-[10px] font-medium text-white" x-text="row.campaign"></p>
-                                    <p class="mt-[2px] text-[9px] text-white/65">
-                                        <span x-text="fmt(row.total)"></span> clicks ·
-                                        <span x-text="fmt(row.valid)"></span> valid ·
-                                        <span x-text="fmt(row.invalid)"></span> invalid
-                                        <span x-show="row.invalid_pct != null"> · <span x-text="row.invalid_pct"></span>%</span>
-                                        <span x-show="row.cost_saved != null"> · saved $<span x-text="Number(row.cost_saved || 0).toFixed(2)"></span></span>
-                                    </p>
-                                </div>
-                            </template>
-                            <p x-show="campaignOptions.length === 0" class="text-[10px] text-white/55">No campaign data yet</p>
+                        <div class="paid-campaign-table-wrap w-full">
+                            <table class="paid-campaign-table">
+                                <thead>
+                                    <tr>
+                                        <th>Campaign</th>
+                                        <th>Clicks</th>
+                                        <th>Inv %</th>
+                                        <th>Saved</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="row in campaignOptions.slice(0, 4)" :key="row.campaign">
+                                        <tr>
+                                            <td class="truncate" :title="row.campaign" x-text="row.campaign"></td>
+                                            <td x-text="fmt(row.total)"></td>
+                                            <td x-text="(row.invalid_pct != null ? row.invalid_pct : 0) + '%'"></td>
+                                            <td>$<span x-text="Number(row.cost_saved || 0).toFixed(0)"></span></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <p x-show="campaignOptions.length === 0" class="px-[2px] text-[10px] text-white/55">No campaign data yet</p>
                         </div>
                     </template>
                     <a
                         :href="campaignBreakdownLink()"
                         class="paid-campaign-link"
-                        x-text="untaggedDomains.length ? 'Add Tag Management' : (topCampaign ? 'Set Tracking Parameter' : 'Add Tag Management')"
+                        x-text="untaggedDomains.length ? 'Add Tag Management' : (topCampaign ? 'Detection Settings' : 'Add Tag Management')"
                     ></a>
-                    <div class="mt-[8px] w-full rounded-[6px] border border-white/15 bg-black/25 p-[8px] text-left">
-                        <p class="text-[9px] font-semibold uppercase tracking-wide text-white/55">Final URL tracking template</p>
-                        <p class="mt-[4px] break-all font-mono text-[9px] text-white/80" x-text="trackingTemplate"></p>
-                        <button type="button" class="mt-[6px] rounded border border-white/25 px-[8px] py-[3px] text-[9px] text-white/85 hover:bg-white/10" @click="copyText(trackingTemplate)">Copy template</button>
-                    </div>
                 </div>
             </article>
         </div>
@@ -224,7 +296,7 @@
             <section class="min-h-[341px] rounded-[12px] border border-[#6400B2] bg-[#6400B2] p-[20px] shadow-[0_0_24px_rgba(100,0,179,.45)]">
                 <div class="mb-[8px] flex flex-wrap items-center justify-between gap-[8px]">
                     <div class="flex flex-wrap items-center gap-[10px]">
-                        <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trends</h2>
+                        <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trend</h2>
                         <template x-for="item in trendsLegendItems()" :key="item.key">
                             <button
                                 type="button"
@@ -252,37 +324,47 @@
                 <section class="paid-sidebar-card">
                     <div class="paid-sidebar-card__head">
                         <svg class="h-[16px] w-[16px] text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 9v4m0 3h.01"/></svg>
-                        <h2>Heatmap</h2>
+                        <h2>Click Activity Heatmap</h2>
                     </div>
-                    <div id="heatmap-grid" class="mt-[10px] grid grid-cols-8 gap-[3px]"></div>
-                    <div class="paid-heatmap-bar"><span :style="'width:' + heatmapIntensity + '%'"></span></div>
+                    <div id="heatmap-grid" class="paid-heatmap-grid mt-[10px]"></div>
+                    <div class="paid-heatmap-bar mt-[8px]"><span :style="'width:' + heatmapIntensity + '%'"></span></div>
                 </section>
 
                 <section class="paid-sidebar-card">
                     <div class="paid-sidebar-card__head">
                         <svg class="h-[16px] w-[16px] text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
-                        <h2>Keyword</h2>
+                        <h2>Keyword Performance</h2>
                     </div>
-                    <div id="keyword-list" class="mt-[10px] space-y-[6px]"></div>
+                    <div id="keyword-list" class="mt-[10px] overflow-x-auto"></div>
                 </section>
 
                 <section class="paid-invalid-card sm:col-span-2 xl:col-span-2">
-                    <h2 class="text-[16px] font-normal text-[#a9a9a9]">Protection Engine</h2>
-                    <p class="mt-[2px] text-[10px] text-white/55">Active rules and invalid traffic protection over time</p>
-                    <div class="mt-[8px] flex flex-wrap gap-[6px]" x-show="(blocking.rules || []).length">
+                    <div class="flex flex-wrap items-start justify-between gap-[8px]">
+                        <div>
+                            <h2 class="text-[16px] font-normal text-[#a9a9a9]">Invalid Traffic Protection Engine</h2>
+                            <p class="mt-[2px] text-[10px] text-white/55">Detection rules and protection actions</p>
+                        </div>
+                        <a href="{{ route('paid-marketing.detection-settings') }}" class="rounded-[5px] border border-white/20 px-[10px] py-[4px] text-[10px] text-white/80 hover:bg-white/10">Configure</a>
+                    </div>
+                    <div class="mt-[10px] grid grid-cols-1 gap-[8px] sm:grid-cols-2" x-show="(blocking.rules || []).length">
                         <template x-for="rule in (blocking.rules || [])" :key="rule.label">
-                            <div class="inline-flex items-center gap-[6px] rounded-[5px] border border-white/15 bg-black/25 px-[8px] py-[4px] text-[10px]">
-                                <span class="text-white/65" x-text="rule.label"></span>
+                            <div class="flex items-center justify-between gap-[10px] rounded-[6px] border border-white/15 bg-black/25 px-[10px] py-[8px]">
+                                <div class="min-w-0">
+                                    <p class="truncate text-[11px] text-white/90" x-text="rule.label"></p>
+                                    <p class="mt-[2px] text-[9px] text-white/50" x-text="rule.action"></p>
+                                </div>
                                 <span
-                                    class="rounded-[3px] px-[6px] py-[1px] font-semibold"
+                                    class="paid-rule-toggle"
                                     :class="{
-                                        'bg-rose-500/25 text-rose-200': rule.tone === 'block',
-                                        'bg-amber-500/25 text-amber-100': rule.tone === 'challenge',
-                                        'bg-sky-500/20 text-sky-200': rule.tone === 'monitor',
-                                        'bg-white/10 text-white/55': rule.tone === 'off' || !rule.tone
+                                        'is-on': rule.tone !== 'off',
+                                        'is-block': rule.tone === 'block',
+                                        'is-challenge': rule.tone === 'challenge',
+                                        'is-monitor': rule.tone === 'monitor'
                                     }"
-                                    x-text="rule.action"
-                                ></span>
+                                    :title="rule.action"
+                                >
+                                    <span class="paid-rule-toggle__knob"></span>
+                                </span>
                             </div>
                         </template>
                     </div>
@@ -291,11 +373,15 @@
             </div>
         </div>
 
-        <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,585px)_minmax(260px,1fr)]">
+        <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
             <section class="min-h-[451px] rounded-[10px] border border-[#5a2a99] bg-[#111111] p-[18px]">
                 <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[10px]">
-                    <div class="flex items-center gap-[10px]">
-                        <h2 class="text-[24px] font-semibold leading-none text-[#a9a9a9]">IP Address</h2>
+                    <div class="flex flex-wrap items-center gap-[10px]">
+                        <h2 class="text-[24px] font-semibold leading-none text-[#a9a9a9]">Recent IP Activity</h2>
+                        <div class="flex rounded-[6px] border border-white/15 bg-black/30 p-[2px] text-[10px]">
+                            <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'basic' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'basic'">Basic View</button>
+                            <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'expert' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'expert'">Expert View</button>
+                        </div>
                         <button type="button" @click="exportIpsCsv()" title="Download CSV" class="flex h-[26px] w-[26px] items-center justify-center rounded-[4px] border border-[#6400B2]/60 bg-[#1a1a1a] text-[#B893D8] transition hover:border-[#6400B2] hover:bg-[#6400B2]/20 hover:text-white">
                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
                         </button>
@@ -315,43 +401,36 @@
                     </div>
                 </div>
                 <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
-                    <table class="w-full min-w-[1280px] table-fixed text-left text-[11px] text-[#a9a9a9]">
+                    <table class="w-full min-w-[980px] table-fixed text-left text-[11px] text-[#a9a9a9]" :class="ipViewMode === 'expert' ? 'min-w-[1280px]' : 'min-w-[860px]'">
                         <thead class="sticky top-0 z-[1] bg-[#6400B2]">
                             <tr>
-                                <th class="w-[12%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('ip')" @click="setIpSort('ip')"><span>Address</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                <th class="w-[14%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('ip')" @click="setIpSort('ip')"><span>IP Address</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[10%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[12%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('campaign')" @click="setIpSort('campaign')"><span>Campaign</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[6%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('country')" @click="setIpSort('country')"><span>Country</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">Device</th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">Browser</th>
-                                <th class="w-[6%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('risk_level')" @click="setIpSort('risk_level')"><span>Risk</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[6%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('risk_score')" @click="setIpSort('risk_score')"><span>Risk %</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">Action</th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal">ISP</th>
-                                <th class="w-[5%] px-[8px] py-[7px] font-normal">ASN</th>
-                                <th class="w-[5%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('invalid')" @click="setIpSort('invalid')"><span>Invalid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[5%] px-[8px] py-[7px] font-normal">
+                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
                                     <button type="button" class="promotix-sortable" :class="ipSortClass('valid')" @click="setIpSort('valid')"><span>Valid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('top_threat')" @click="setIpSort('top_threat')"><span>Bot detect</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('risk_score')" @click="setIpSort('risk_score')"><span>Risk</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('first_seen')" @click="setIpSort('first_seen')"><span>First seen</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('country')" @click="setIpSort('country')"><span>Country</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')"><span>Last click</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                <th class="w-[10%] px-[8px] py-[7px] font-normal">ISP</th>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal">Action</th>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')"><span>Timestamp</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Device</th>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Browser</th>
+                                <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('top_threat')" @click="setIpSort('top_threat')"><span>Threat</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
                             </tr>
                         </thead>
@@ -361,83 +440,61 @@
                                     <td class="max-w-0 px-[8px] py-[6px]">
                                         <span class="flex items-center gap-[4px]">
                                             <span class="block truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
-                                            <span x-show="row.is_allowlisted" class="shrink-0 rounded-[3px] bg-emerald-500/20 px-[4px] py-[1px] text-[8px] font-semibold uppercase text-emerald-300">Allow list</span>
+                                            <span x-show="row.is_allowlisted" class="shrink-0 rounded-[3px] bg-emerald-500/20 px-[4px] py-[1px] text-[8px] font-semibold uppercase text-emerald-300">WL</span>
                                         </span>
                                     </td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px] text-white/85" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap text-rose-300" x-text="fmt(row.invalid)"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap text-emerald-300" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap">
+                                        <span class="paid-risk-badge" :class="riskBadgeClass(row.risk_level)" x-text="(row.risk_level || '—') + (row.risk_score != null ? ' ' + row.risk_score : '')"></span>
+                                    </td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-text="row.device || '—'"></td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.browser || '—'"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.risk_level || '—'"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.risk_score != null ? (row.risk_score + '%') : '—'"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.action || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px]" :title="row.isp || ''" x-text="row.isp || '—'"></td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px]" x-text="row.asn || '—'"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.invalid)"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-text="threatLabel(row.top_threat)"></td>
-                                    <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.first_seen)"></td>
+                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.action || '—'"></td>
                                     <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
+                                    <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="row.device || '—'"></td>
+                                    <td class="max-w-0 truncate px-[8px] py-[6px]" x-show="ipViewMode === 'expert'" x-text="row.browser || '—'"></td>
+                                    <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="threatLabel(row.top_threat)"></td>
                                 </tr>
                             </template>
-                            <tr x-show="sortedIps.length === 0"><td colspan="15" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
+                            <tr x-show="sortedIps.length === 0"><td colspan="12" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <section class="relative min-h-[329px] overflow-hidden rounded-[10px] border border-[#6400B2] bg-[linear-gradient(180deg,rgba(217,217,217,.72)_18%,#6625F8_58%,rgba(0,0,0,.92)_100%)] p-[12px]">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-[14px] font-normal text-[#343434]">Country Breakdown</h2>
-                    <span class="flex h-[16px] w-[16px] items-center justify-center rounded-full border border-[#343434]/50 text-[9px] font-semibold text-[#343434]" title="Geographic invalid visit breakdown">i</span>
+            <section class="min-h-[329px] rounded-[10px] border border-[#5a2a99] bg-[#111111] p-[14px]">
+                <div class="mb-[10px] flex items-center justify-between">
+                    <h2 class="text-[16px] font-semibold text-[#a9a9a9]">Top High Risk IPs</h2>
+                    <span class="text-[9px] text-white/45">Risk ≥ Medium</span>
                 </div>
-
-                <div class="relative mt-[14px] min-h-[248px]">
-                    <div class="overflow-hidden rounded-[6px] border border-white/20 bg-black/10">
-                        <table class="w-full text-left text-[10px] text-white/90">
-                            <thead class="border-b border-white/15 bg-black/20 text-[#343434]">
-                                <tr>
-                                    <th class="px-[10px] py-[8px] font-normal">
-                                        <button type="button" class="promotix-sortable" :class="countrySortClass('country')" @click="setCountrySort('country')"><span>Country</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                    </th>
-                                    <th class="px-[10px] py-[8px] font-normal text-center">
-                                        <button type="button" class="promotix-sortable mx-auto" :class="countrySortClass('invalid')" @click="setCountrySort('invalid')"><span>Invalid Visit</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                    </th>
-                                    <th class="px-[10px] py-[8px] font-normal text-right">
-                                        <button type="button" class="promotix-sortable ml-auto" :class="countrySortClass('invalid_rate')" @click="setCountrySort('invalid_rate')"><span>Invalid Rate</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                    </th>
+                <div class="promotix-slim-scroll max-h-[380px] overflow-y-auto rounded-[4px] border border-white/10">
+                    <table class="w-full text-left text-[10px] text-[#a9a9a9]">
+                        <thead class="sticky top-0 bg-[#6400B2] text-white">
+                            <tr>
+                                <th class="px-[8px] py-[7px] font-normal">IP</th>
+                                <th class="px-[8px] py-[7px] font-normal">Score</th>
+                                <th class="px-[8px] py-[7px] font-normal">Level</th>
+                                <th class="px-[8px] py-[7px] font-normal">Threat</th>
+                                <th class="px-[8px] py-[7px] font-normal">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/10">
+                            <template x-for="row in highRiskIps" :key="'hr-' + row.ip">
+                                <tr class="cursor-pointer hover:bg-white/5" @click="openIpModal(row)">
+                                    <td class="max-w-[90px] truncate px-[8px] py-[7px] font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></td>
+                                    <td class="px-[8px] py-[7px]" x-text="row.risk_score != null ? row.risk_score : '—'"></td>
+                                    <td class="px-[8px] py-[7px]"><span class="paid-risk-badge" :class="riskBadgeClass(row.risk_level)" x-text="row.risk_level || '—'"></span></td>
+                                    <td class="max-w-[70px] truncate px-[8px] py-[7px] capitalize" x-text="threatLabel(row.top_threat)"></td>
+                                    <td class="px-[8px] py-[7px]" x-text="row.action || '—'"></td>
                                 </tr>
-                            </thead>
-                            <tbody id="country-list" class="divide-y divide-white/10">
-                                @if ($countryGetStarted)
-                                    @for ($i = 0; $i < 5; $i++)
-                                        <tr class="text-white/80">
-                                            <td class="px-[10px] py-[9px]">
-                                                <span class="inline-flex items-center gap-[8px]">
-                                                    <span class="inline-block h-[10px] w-[14px] rounded-[2px] bg-white/40"></span>
-                                                    Country Stats
-                                                </span>
-                                            </td>
-                                            <td class="px-[10px] py-[9px] text-center">0</td>
-                                            <td class="px-[10px] py-[9px] text-right">0%</td>
-                                        </tr>
-                                    @endfor
-                                @endif
-                            </tbody>
-                        </table>
-                    </div>
-
-                    @if ($countryGetStarted)
-                        <div class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-[#6625F8]/35 to-black/55 pt-[8px]">
-                            <div class="mb-[52px] flex h-[118px] w-[118px] items-center justify-center rounded-[16px] border-2 border-white/90 bg-white/10 shadow-[0_14px_40px_rgba(0,0,0,.45)]">
-                                <svg class="h-[78px] w-[78px] text-white drop-shadow-[0_0_12px_rgba(255,255,255,.45)]" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-                                    <path d="M32 6L10 14v14c0 13.2 9.4 25.5 22 28 12.6-2.5 22-14.8 22-28V14L32 6z" stroke="currentColor" stroke-width="2.2" fill="rgba(100,0,178,.25)"/>
-                                    <path d="M24 33l6 6 12-14" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </div>
-                            <a href="{{ route('domains.index', ['add' => 1]) }}" class="absolute bottom-[28px] left-1/2 -translate-x-1/2 rounded-[7px] bg-white px-[42px] py-[9px] text-[15px] font-semibold text-[#6400B2] shadow-[0_8px_24px_rgba(0,0,0,.35)] hover:bg-white/95">Get Started</a>
-                        </div>
-                    @endif
+                            </template>
+                            <tr x-show="highRiskIps.length === 0">
+                                <td colspan="5" class="px-[10px] py-[16px] text-center text-white/55">No high-risk IPs in this period.</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
         </div>
@@ -677,12 +734,92 @@ function paidAdvertisingFigma(config = {}) {
         },
         heatmap: { days: [], hours: [], matrix: [] },
         trendsHoverIndex: null,
-        hiddenTrendSeries: { lastWeek: false, thisWeek: false },
+        hiddenTrendSeries: { lastWeek: false, thisWeek: false, clicks: false, valid: false, invalid: false },
+        compareEnabled: false,
+        ipViewMode: 'basic',
         cardCharts: {},
         get botRate() {
             const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || this.summary.tag_paid_visits || 0);
             const invalid = Number(this.summary.unique_invalid_paid_clicks || this.summary.invalid_paid_visits || 0);
             return tracked ? Math.round((invalid / tracked) * 100) : 0;
+        },
+        get validClickPct() {
+            const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || 0);
+            const valid = Number(this.summary.unique_valid_paid_clicks ?? this.summary.valid_paid_visits ?? 0);
+            return tracked ? Math.min(100, Math.round((valid / tracked) * 1000) / 10) : 0;
+        },
+        get invalidClickPct() {
+            const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || 0);
+            const invalid = Number(this.summary.unique_invalid_paid_clicks ?? this.summary.invalid_paid_visits ?? 0);
+            return tracked ? Math.min(100, Math.round((invalid / tracked) * 1000) / 10) : 0;
+        },
+        get whitelistedIpCount() {
+            return (this.ips || []).filter((row) => row.is_allowlisted).length;
+        },
+        get highRiskIps() {
+            const rank = { High: 3, Medium: 2, Low: 1 };
+            return (this.sortedIps || [])
+                .filter((row) => {
+                    const level = String(row.risk_level || '');
+                    return level === 'High' || level === 'Medium' || Number(row.risk_score || 0) >= 20;
+                })
+                .sort((a, b) => {
+                    const lr = (rank[b.risk_level] || 0) - (rank[a.risk_level] || 0);
+                    if (lr !== 0) return lr;
+                    return Number(b.risk_score || 0) - Number(a.risk_score || 0);
+                })
+                .slice(0, 12);
+        },
+        toggleCompare() {
+            this.compareEnabled = !this.compareEnabled;
+            this.hiddenTrendSeries = this.compareEnabled
+                ? { lastWeek: false, thisWeek: false }
+                : { clicks: false, valid: false, invalid: false };
+            this.render(true);
+        },
+        riskBadgeClass(level) {
+            const l = String(level || '').toLowerCase();
+            if (l === 'high') return 'is-high';
+            if (l === 'medium') return 'is-medium';
+            if (l === 'low') return 'is-low';
+            return '';
+        },
+        updatePaidRightbar() {
+            const fmt = (n) => this.fmt(n);
+            const clicks = Number(this.summary.total_click_count || this.summary.google_clicks || 0);
+            const invalid = Number(this.summary.unique_invalid_paid_clicks ?? this.summary.invalid_paid_visits ?? 0);
+            const blocked = Number(this.summary.block_enforced || 0);
+            const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || 0);
+            const rate = tracked ? Math.round((blocked / tracked) * 1000) / 10 : 0;
+
+            const sys = document.getElementById('paid-system-overview');
+            if (sys) {
+                const set = (key, val) => {
+                    const el = sys.querySelector(`[data-sys="${key}"]`);
+                    if (el) el.textContent = val;
+                };
+                set('clicks', fmt(clicks));
+                set('invalid', fmt(invalid));
+                set('blocked', fmt(blocked));
+                set('rate', `${rate}%`);
+            }
+
+            const feed = document.getElementById('paid-activity-feed');
+            if (feed) {
+                const items = [
+                    { label: 'Paid traffic in range', value: fmt(tracked) },
+                    { label: 'Invalid clicks detected', value: fmt(invalid) },
+                    { label: 'IPs blocked', value: fmt(blocked) },
+                    { label: 'Monitored / flagged', value: fmt(this.summary.flagged_paid_visits) },
+                    { label: 'Cost saved', value: `$${Number(this.summary.cost_saved || 0).toFixed(2)}` },
+                ];
+                feed.innerHTML = items.map((item) => `
+                    <div class="flex items-start justify-between gap-[8px] rounded-[6px] bg-[#0B0B0B]/55 px-[8px] py-[7px]">
+                        <span>${item.label}</span>
+                        <span class="shrink-0 text-white/85">${item.value}</span>
+                    </div>
+                `).join('');
+            }
         },
         resolveReportingTimezone(googleTz) {
             if (this.reportingMode === 'google' && googleTz) return googleTz;
@@ -1192,6 +1329,8 @@ function paidAdvertisingFigma(config = {}) {
                 c: this.countries,
                 h: this.heatmap,
                 hidden: this.hiddenTrendSeries,
+                compare: this.compareEnabled,
+                ipView: this.ipViewMode,
             });
             if (!force && fingerprint === this.lastRenderFingerprint) {
                 return;
@@ -1202,25 +1341,33 @@ function paidAdvertisingFigma(config = {}) {
                 const labels = this.trends.labels || [];
                 const datasets = this.visibleTrendDatasets();
                 this.drawPaidTrendLine('paid-trends', labels, datasets, this.trendsHoverIndex);
-                this.bindPaidTrendHover('paid-trends', labels, this.trends.datasets || []);
+                this.bindPaidTrendHover('paid-trends', labels, datasets);
                 this.drawProtectionLine('invalid-protection', this.blocking.labels || [], this.blocking.datasets || []);
                 this.renderHeatmap();
                 this.renderKeywords();
                 this.renderCountries();
+                this.updatePaidRightbar();
             });
         },
         trendsLegendItems() {
-            const datasets = this.trends.datasets || [];
-            if (datasets.length) {
-                return datasets.map(ds => ({
-                    key: ds.dashed ? 'lastWeek' : 'thisWeek',
-                    name: ds.name || (ds.dashed ? 'Last Week' : 'This Week'),
-                    color: ds.color || (ds.dashed ? '#FF4BC1' : '#6625F8'),
-                }));
+            if (this.compareEnabled) {
+                const datasets = this.trends.datasets || [];
+                if (datasets.length) {
+                    return datasets.map(ds => ({
+                        key: ds.dashed ? 'lastWeek' : 'thisWeek',
+                        name: ds.name || (ds.dashed ? 'Last Week' : 'This Week'),
+                        color: ds.color || (ds.dashed ? '#FF4BC1' : '#FFFFFF'),
+                    }));
+                }
+                return [
+                    { key: 'thisWeek', name: 'This Week', color: '#FFFFFF' },
+                    { key: 'lastWeek', name: 'Last Week', color: '#FF4BC1' },
+                ];
             }
             return [
-                { key: 'lastWeek', name: 'Last Week', color: '#FFFFFF' },
-                { key: 'thisWeek', name: 'This Week', color: '#6625F8' },
+                { key: 'clicks', name: 'Clicks', color: '#FFFFFF' },
+                { key: 'valid', name: 'Valid', color: '#4ade80' },
+                { key: 'invalid', name: 'Invalid', color: '#f87171' },
             ];
         },
         isTrendSeriesHidden(key) {
@@ -1233,11 +1380,28 @@ function paidAdvertisingFigma(config = {}) {
             const datasets = this.visibleTrendDatasets();
             this.drawPaidTrendLine('paid-trends', labels, datasets, this.trendsHoverIndex);
         },
+        qualityTrendDatasets() {
+            const paid = (this.trends.datasets || []).find((ds) => !ds.dashed)?.values || [];
+            const invalid = this.trends.invalid_daily || [];
+            return [
+                { key: 'clicks', name: 'Clicks', values: paid, color: '#FFFFFF' },
+                {
+                    key: 'valid',
+                    name: 'Valid',
+                    values: paid.map((v, i) => Math.max(0, Number(v || 0) - Number(invalid[i] || 0))),
+                    color: '#4ade80',
+                },
+                { key: 'invalid', name: 'Invalid', values: invalid, color: '#f87171' },
+            ];
+        },
         visibleTrendDatasets() {
-            return (this.trends.datasets || []).filter(ds => {
-                const key = ds.dashed ? 'lastWeek' : 'thisWeek';
-                return !this.hiddenTrendSeries[key];
-            });
+            if (this.compareEnabled) {
+                return (this.trends.datasets || []).filter(ds => {
+                    const key = ds.dashed ? 'lastWeek' : 'thisWeek';
+                    return !this.hiddenTrendSeries[key];
+                });
+            }
+            return this.qualityTrendDatasets().filter((ds) => !this.hiddenTrendSeries[ds.key]);
         },
         destroyCardChart(key) {
             if (this.cardCharts[key]) {
@@ -1261,116 +1425,11 @@ function paidAdvertisingFigma(config = {}) {
                 }
                 return;
             }
-            this.renderInvalidDonut();
+            this.destroyCardChart('invalidDonut');
             this.renderBotBars();
         },
-        renderInvalidDonut(retry = 0) {
-            const el = document.getElementById('paid-invalid-donut');
-            if (!el) return;
-            const rect = el.getBoundingClientRect();
-            if ((rect.width < 2 || rect.height < 2) && retry < 12) {
-                requestAnimationFrame(() => this.renderInvalidDonut(retry + 1));
-                return;
-            }
-            const valid = Number(this.summary.valid_paid_visits || 0);
-            const invalid = Number(this.summary.invalid_paid_visits || 0);
-            const tagTotal = Number(this.summary.tag_paid_visits || 0);
-            const rate = tagTotal ? Math.round((invalid / tagTotal) * 100) : 0;
-            const hasData = tagTotal > 0;
-            const fmt = (n) => this.fmt(n);
-            const validColor = 'rgba(255,255,255,0.42)';
-            const emptyColor = 'rgba(255,255,255,0.14)';
-            const data = hasData ? [Math.max(valid, 0), Math.max(invalid, 0)] : [1];
-            let colors = hasData ? [validColor, '#FF4BC1'] : [emptyColor];
-
-            if (this.cardCharts.invalidDonut) {
-                const chart = this.cardCharts.invalidDonut;
-                chart.data.datasets[0].data = data;
-                chart.data.datasets[0].backgroundColor = colors;
-                chart.options.plugins.tooltip.enabled = hasData;
-                chart.update('none');
-                const center = document.getElementById('paid-invalid-donut-center');
-                if (center) center.textContent = hasData ? `${rate}%` : '0%';
-                return;
-            }
-
-            this.destroyCardChart('invalidDonut');
-            const ringBorder = 'rgba(255,255,255,0.55)';
-            let labels = ['Invalid', 'Valid'];
-            let values = [invalid, valid];
-            colors = ['#FF4BC1', validColor];
-
-            if (!hasData) {
-                labels = ['Empty'];
-                values = [1];
-                colors = [emptyColor];
-            } else if (invalid <= 0) {
-                labels = ['Valid'];
-                values = [valid];
-                colors = [validColor];
-            } else if (valid <= 0) {
-                labels = ['Invalid'];
-                values = [invalid];
-                colors = ['#FF4BC1'];
-            }
-
-            this.cardCharts.invalidDonut = new Chart(el, {
-                type: 'doughnut',
-                data: {
-                    labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: colors,
-                        borderColor: ringBorder,
-                        borderWidth: 2,
-                        hoverOffset: hasData ? 2 : 0,
-                    }],
-                },
-                options: this.miniChartOptions({
-                    cutout: '70%',
-                    events: hasData ? undefined : [],
-                    interaction: { mode: 'nearest', intersect: true },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { enabled: false },
-                    },
-                }),
-                plugins: [{
-                    id: 'invalidRateCenter',
-                    afterDraw: (chart) => {
-                        const { ctx, chartArea } = chart;
-                        if (!chartArea) return;
-                        const cx = (chartArea.left + chartArea.right) / 2;
-                        const cy = (chartArea.top + chartArea.bottom) / 2;
-                        const active = hasData ? chart.getActiveElements() : [];
-
-                        ctx.save();
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-
-                        if (active.length > 0) {
-                            const idx = active[0].index;
-                            const label = chart.data.labels[idx] || '';
-                            const value = chart.data.datasets[0].data[idx] ?? 0;
-                            ctx.fillStyle = '#ffffff';
-                            ctx.font = '600 12px Inter, sans-serif';
-                            ctx.fillText(fmt(value), cx, cy - 5);
-                            ctx.fillStyle = 'rgba(255,255,255,0.65)';
-                            ctx.font = '8px Inter, sans-serif';
-                            ctx.fillText(label, cx, cy + 9);
-                        } else {
-                            ctx.fillStyle = '#ffffff';
-                            ctx.font = '600 12px Inter, sans-serif';
-                            ctx.fillText(`${rate}%`, cx, cy - 5);
-                            ctx.fillStyle = 'rgba(255,255,255,0.65)';
-                            ctx.font = '8px Inter, sans-serif';
-                            ctx.fillText('Invalid Rate', cx, cy + 9);
-                        }
-
-                        ctx.restore();
-                    },
-                }],
-            });
+        renderInvalidDonut() {
+            // Donut removed from summary card layout; keep no-op for safety.
         },
         renderBotBars() {
             const el = document.getElementById('bot-bars');
@@ -1582,25 +1641,63 @@ function paidAdvertisingFigma(config = {}) {
         renderHeatmap() {
             const el = document.getElementById('heatmap-grid');
             if (!el) return;
-            const flat = (this.heatmap.matrix || []).flat();
+            const days = this.heatmap.days?.length ? this.heatmap.days : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const hours = this.heatmap.hours?.length ? this.heatmap.hours : Array.from({ length: 24 }, (_, i) => i);
+            const matrix = this.heatmap.matrix || [];
+            const flat = matrix.flat();
             const max = Math.max(...flat, 1);
-            const cells = flat.slice(0, 56);
-            el.innerHTML = cells.map(v => {
-                const t = max ? Number(v || 0) / max : 0;
-                const bg = t > 0.65 ? '#6625F8' : t > 0.35 ? '#8B4FD4' : 'rgba(255,255,255,0.22)';
-                return `<span class="h-[13px] rounded-[2px]" style="background:${bg}"></span>`;
+            // Show every 3rd hour label to keep mobile readable
+            const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21];
+            const head = ['<div class="paid-heatmap-corner"></div>']
+                .concat(hourTicks.map((h) => {
+                    const label = h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`;
+                    return `<div class="paid-heatmap-hour">${label}</div>`;
+                }))
+                .join('');
+            const body = days.map((day, d) => {
+                const cells = hourTicks.map((h) => {
+                    const v = Number(matrix?.[d]?.[h] || 0);
+                    const t = max ? v / max : 0;
+                    const bg = t > 0.65 ? '#6625F8' : t > 0.35 ? '#8B4FD4' : t > 0.1 ? 'rgba(139,79,212,0.45)' : 'rgba(255,255,255,0.14)';
+                    return `<span class="paid-heatmap-cell" title="${day} ${h}:00 — ${v}" style="background:${bg}"></span>`;
+                }).join('');
+                return `<div class="paid-heatmap-day">${day}</div>${cells}`;
             }).join('');
+            el.innerHTML = `${head}${body}`;
         },
         renderKeywords() {
             const el = document.getElementById('keyword-list');
             if (!el) return;
-            const rows = (this.keywords || []).slice(0, 4);
-            el.innerHTML = rows.length ? rows.map(row => `
-                <div class="paid-keyword-pill">
-                    <span class="truncate" title="${row.keyword}">${row.keyword}</span>
-                    <span class="shrink-0 text-white/80">${row.invalid_pct != null ? row.invalid_pct + '%' : row.invalid}</span>
-                </div>
-            `).join('') : '<p class="text-[10px] text-white/70">No keyword data.</p>';
+            const rows = (this.keywords || []).slice(0, 6);
+            if (!rows.length) {
+                el.innerHTML = '<p class="text-[10px] text-white/70">No keyword data.</p>';
+                return;
+            }
+            el.innerHTML = `
+                <table class="paid-keyword-table">
+                    <thead>
+                        <tr>
+                            <th>Keyword</th>
+                            <th>Clicks</th>
+                            <th>Inv %</th>
+                            <th>Risk</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map((row) => {
+                            const pct = row.invalid_pct != null ? row.invalid_pct : (row.risk != null ? row.risk : 0);
+                            const level = pct >= 40 ? 'High' : pct >= 20 ? 'Medium' : 'Low';
+                            const cls = level === 'High' ? 'is-high' : level === 'Medium' ? 'is-medium' : 'is-low';
+                            return `<tr>
+                                <td class="truncate" title="${String(row.keyword || '').replace(/"/g, '&quot;')}">${row.keyword || '—'}</td>
+                                <td>${this.fmt(row.total)}</td>
+                                <td>${pct}%</td>
+                                <td><span class="paid-risk-badge ${cls}">${level}</span></td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
         },
         renderCountries() {
             if (this.countryGetStarted) return;

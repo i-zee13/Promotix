@@ -6078,6 +6078,218 @@ select:autofill {
     border-bottom: 0;
 }
 
+.paid-metric-bar {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.paid-metric-bar__fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.25s ease;
+}
+
+.paid-metric-bar__fill.is-valid {
+    background: #4ade80;
+}
+
+.paid-metric-bar__fill.is-invalid {
+    background: #f87171;
+}
+
+.paid-metric-bar__fill.is-accuracy {
+    background: #ffffff;
+}
+
+.paid-campaign-table-wrap {
+    max-height: 118px;
+    overflow: auto;
+}
+
+.paid-campaign-table,
+.paid-keyword-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.paid-campaign-table th,
+.paid-keyword-table th {
+    padding: 4px 4px 6px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.paid-campaign-table td,
+.paid-keyword-table td {
+    padding: 5px 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    vertical-align: middle;
+}
+
+.paid-campaign-table th:nth-child(2),
+.paid-campaign-table td:nth-child(2),
+.paid-campaign-table th:nth-child(3),
+.paid-campaign-table td:nth-child(3),
+.paid-campaign-table th:nth-child(4),
+.paid-campaign-table td:nth-child(4),
+.paid-keyword-table th:nth-child(2),
+.paid-keyword-table td:nth-child(2),
+.paid-keyword-table th:nth-child(3),
+.paid-keyword-table td:nth-child(3),
+.paid-keyword-table th:nth-child(4),
+.paid-keyword-table td:nth-child(4) {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.paid-risk-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 9px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.paid-risk-badge.is-high {
+    background: rgba(248, 113, 113, 0.22);
+    color: #fecaca;
+}
+
+.paid-risk-badge.is-medium {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fde68a;
+}
+
+.paid-risk-badge.is-low {
+    background: rgba(74, 222, 128, 0.18);
+    color: #bbf7d0;
+}
+
+.paid-compare-toggle,
+.paid-rule-toggle {
+    position: relative;
+    display: inline-flex;
+    width: 34px;
+    height: 18px;
+    flex-shrink: 0;
+    align-items: center;
+    border-radius: 999px;
+    border: 0;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.paid-compare-toggle.is-on,
+.paid-rule-toggle.is-on {
+    background: #6400B2;
+}
+
+.paid-rule-toggle.is-block.is-on {
+    background: #e11d48;
+}
+
+.paid-rule-toggle.is-challenge.is-on {
+    background: #d97706;
+}
+
+.paid-rule-toggle.is-monitor.is-on {
+    background: #0284c7;
+}
+
+.paid-compare-toggle__knob,
+.paid-rule-toggle__knob {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: #fff;
+    transition: transform 0.15s ease;
+}
+
+.paid-compare-toggle.is-on .paid-compare-toggle__knob,
+.paid-rule-toggle.is-on .paid-rule-toggle__knob {
+    transform: translateX(16px);
+}
+
+.paid-heatmap-grid {
+    display: grid;
+    grid-template-columns: 28px repeat(8, minmax(0, 1fr));
+    gap: 3px;
+    align-items: center;
+}
+
+.paid-heatmap-corner {
+    height: 10px;
+}
+
+.paid-heatmap-hour {
+    text-align: center;
+    font-size: 8px;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.paid-heatmap-day {
+    font-size: 8px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.paid-heatmap-cell {
+    display: block;
+    height: 12px;
+    border-radius: 2px;
+}
+
+.paid-quick-action {
+    display: flex;
+    min-height: 58px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 6px;
+    background: #6400B2;
+    padding: 8px 6px;
+    text-align: center;
+    font-size: 8px;
+    line-height: 1.2;
+    color: #fff;
+    transition: background 0.15s ease;
+}
+
+.paid-quick-action:hover {
+    background: #7B13C8;
+}
+
+@media (max-width: 767px) {
+    .paid-heatmap-grid {
+        grid-template-columns: 24px repeat(8, minmax(0, 1fr));
+        gap: 2px;
+    }
+
+    .paid-heatmap-cell {
+        height: 10px;
+    }
+
+    .paid-campaign-table,
+    .paid-keyword-table {
+        font-size: 8px;
+    }
+}
+
 .paid-campaign-breakdown {
     display: flex;
     flex-direction: column;
