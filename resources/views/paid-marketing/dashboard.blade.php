@@ -135,6 +135,28 @@
     .paid-trends-card { align-self: start; height: fit-content; min-height: 0; }
     .paid-trends-wrap { line-height: 0; }
     .paid-trends-canvas { display: block; width: 100%; }
+    .paid-dashboard-page {
+        container-type: inline-size;
+        container-name: paid-page;
+    }
+    .paid-row2 {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+        align-items: stretch;
+        width: 100%;
+    }
+    /* Keep Trend + Heatmap + Keywords on ONE row when content area is wide enough */
+    @container paid-page (min-width: 820px) {
+        .paid-row2 {
+            grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+        }
+    }
+    @media (max-width: 819px) {
+        .paid-row2 {
+            grid-template-columns: 1fr;
+        }
+    }
     @media (max-width: 1023px) {
         .paid-kpi-card__big { font-size: 18px; }
     }
@@ -378,7 +400,7 @@
         </div>
 
         {{-- Row 2 — Trend | Heatmap | Keywords --}}
-        <div class="paid-row2 mt-[15px] grid grid-cols-1 gap-[14px] lg:grid-cols-2 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]" style="align-items: stretch;">
+        <div class="paid-row2 mt-[15px]">
             <section class="paid-panel-card flex min-h-0 flex-col p-[16px] sm:p-[18px]">
                 <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[8px]">
                     <div class="flex min-w-0 flex-wrap items-center gap-[8px]">
