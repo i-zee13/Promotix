@@ -347,6 +347,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::post('/tickets/{id}/close', [AdminOperationsApiController::class, 'closeTicket'])->name('tickets.close');
     });
 
+    
 /*
 | Fallback for branding assets when the web server does not map /public correctly.
 */
