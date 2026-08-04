@@ -21,6 +21,7 @@
          'campaign' => (string) request('campaign', ''),
          'trafficSource' => (string) request('traffic_source', 'google_ads'),
      ]))"
+     x-init="window.promotixPageLoader?.hide()"
 >
     <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[19px] xl:pt-[68px]">
         <style>
@@ -2548,6 +2549,7 @@ window.detectionPageFilters = function detectionPageFilters(config) {
             trafficSource: config.trafficSource || 'google_ads',
         },
         applyFilters() {
+            window.promotixPageLoader?.show('Loading Detection…');
             const params = new URLSearchParams();
             if (this.filters.domainId) params.set('domain_id', this.filters.domainId);
             if (this.filters.path) params.set('path', this.filters.path);

@@ -106,6 +106,7 @@
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    window.promotixPageLoader?.show('Loading Integrations…');
     fetch('/overview/summary', { headers: { Accept: 'application/json' } })
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
@@ -128,7 +129,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 trackEl.className = on ? 'text-emerald-200' : 'text-white/55';
             }
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => window.promotixPageLoader?.hide());
 });
 </script>
 @endsection

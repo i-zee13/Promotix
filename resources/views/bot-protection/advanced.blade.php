@@ -1011,6 +1011,7 @@ function botProtectionAdvancedFigma() {
         },
         async reload(resetPage = false) {
             if (resetPage) this.meta.page = 1;
+            window.promotixPageLoader?.show('Loading Advanced View…');
             try {
                 const qs = this.qs({ page: this.meta.page, per_page: this.meta.per_page });
                 const [visits, stats] = await Promise.all([

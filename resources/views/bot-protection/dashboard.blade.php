@@ -543,6 +543,7 @@ function botProtectionFigma(config = {}) {
             return !hasTraffic && !hasTrends;
         },
         async reload() {
+            window.promotixPageLoader?.show('Loading Bot Protection…');
             try {
                 if (this.useDemo) {
                     this.applyDemoPayload();

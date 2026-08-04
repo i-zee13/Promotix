@@ -1,7 +1,63 @@
-<div id="promotix-page-loader" class="pointer-events-none fixed inset-0 z-[250] hidden items-center justify-center bg-[#0d0d0d]/72 backdrop-blur-[2px]" aria-hidden="true" aria-live="polite">
-    <div class="pointer-events-auto flex flex-col items-center gap-[14px] rounded-[12px] border border-[#6400B2]/50 bg-[#111111]/95 px-[28px] py-[22px] shadow-[0_0_40px_rgba(100,0,179,.45)]">
-        <div class="h-[44px] w-[44px] animate-spin rounded-full border-[3px] border-[#6400B2]/30 border-t-[#B893D8]"></div>
-        <p data-loader-msg class="text-[13px] font-medium text-white/90">Loading data…</p>
+<style>
+    #promotix-page-loader {
+        pointer-events: none;
+        position: fixed;
+        inset: 0;
+        z-index: 250;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(13, 13, 13, 0.72);
+        backdrop-filter: blur(2px);
+    }
+    #promotix-page-loader.is-visible {
+        display: flex;
+        pointer-events: auto;
+    }
+    #promotix-page-loader .pmx-loader-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(100, 0, 178, 0.5);
+        background: rgba(17, 17, 17, 0.95);
+        padding: 22px 28px;
+        box-shadow: 0 0 40px rgba(100, 0, 179, 0.45);
+    }
+    #promotix-page-loader .pmx-loader-spin {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        border: 3px solid rgba(100, 0, 178, 0.3);
+        border-top-color: #B893D8;
+        animation: pmx-loader-spin 0.8s linear infinite;
+    }
+    #promotix-page-loader .pmx-loader-msg {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.9);
+    }
+    @keyframes pmx-loader-spin {
+        to { transform: rotate(360deg); }
+    }
+    html.light-mode #promotix-page-loader {
+        background: rgba(247, 245, 250, 0.78);
+    }
+    html.light-mode #promotix-page-loader .pmx-loader-card {
+        background: rgba(255, 255, 255, 0.98);
+        border-color: #d4c4e8;
+        box-shadow: 0 8px 28px rgba(100, 0, 178, 0.12);
+    }
+    html.light-mode #promotix-page-loader .pmx-loader-msg {
+        color: #2d2d3a;
+    }
+</style>
+<div id="promotix-page-loader" aria-hidden="true" aria-live="polite">
+    <div class="pmx-loader-card">
+        <div class="pmx-loader-spin" aria-hidden="true"></div>
+        <p data-loader-msg class="pmx-loader-msg">Loading data…</p>
     </div>
 </div>
 <script>
@@ -16,7 +72,26 @@ window.promotixPageLoader = (function () {
         return document.getElementById('promotix-page-loader');
     }
 
-    return {
+    function isInternalNavLink(a) {
+        if (!a || a.hasAttribute('download') || a.target === '_blank') return false;
+        if (a.hasAttribute('data-no-loader')) return false;
+        const href = a.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+            return false;
+        }
+        try {
+            const url = new URL(href, window.location.origin);
+            if (url.origin !== window.location.origin) return false;
+            if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash === '') {
+                return false;
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    const api = {
         show(msg) {
             clearTimeout(hideTimer);
             clearTimeout(safetyTimer);
@@ -24,12 +99,11 @@ window.promotixPageLoader = (function () {
             if (!el) return;
             visible = true;
             shownAt = Date.now();
-            el.classList.remove('hidden');
-            el.classList.add('flex');
+            el.classList.add('is-visible');
             el.setAttribute('aria-hidden', 'false');
             const label = el.querySelector('[data-loader-msg]');
             if (label && msg) label.textContent = msg;
-            safetyTimer = setTimeout(() => this.hide(), 15000);
+            safetyTimer = setTimeout(() => api.hide(), 15000);
         },
         hide() {
             if (!visible) return;
@@ -40,11 +114,34 @@ window.promotixPageLoader = (function () {
             hideTimer = setTimeout(() => {
                 const el = node();
                 if (!el) return;
-                el.classList.add('hidden');
-                el.classList.remove('flex');
+                el.classList.remove('is-visible');
                 el.setAttribute('aria-hidden', 'true');
             }, wait);
         },
+        isVisible() {
+            return visible;
+        },
     };
+
+    document.addEventListener('click', function (e) {
+        if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        const a = e.target.closest && e.target.closest('a[href]');
+        if (!isInternalNavLink(a)) return;
+        api.show('Loading…');
+    }, true);
+
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!form || form.tagName !== 'FORM') return;
+        if (form.hasAttribute('data-no-loader') || form.getAttribute('target') === '_blank') return;
+        if (form.hasAttribute('x-on:submit.prevent') || form.getAttribute('@submit.prevent') != null) return;
+        api.show(form.method && form.method.toLowerCase() === 'post' ? 'Saving…' : 'Loading…');
+    }, true);
+
+    window.addEventListener('pageshow', function (ev) {
+        if (ev.persisted) api.hide();
+    });
+
+    return api;
 })();
 </script>

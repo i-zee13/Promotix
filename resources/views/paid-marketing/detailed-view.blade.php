@@ -1770,6 +1770,7 @@
             },
             async fetchNow() {
                 this.loading = true;
+                window.promotixPageLoader?.show('Loading Advanced View…');
                 try {
                     const qs = this.queryString();
                     const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
