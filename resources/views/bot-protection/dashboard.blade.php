@@ -211,12 +211,25 @@
                     width: 26px; height: 26px; border-radius: 999px;
                     display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px;
                 }
-                .bpv2-ads__icon.is-purple { background: rgba(100,0,178,0.22); color: #B893D8; }
-                .bpv2-ads__icon.is-green { background: rgba(16,185,129,0.18); color: #34d399; }
-                .bpv2-ads__icon.is-red { background: rgba(244,63,94,0.18); color: #fb7185; }
-                .bpv2-ads__icon.is-blue { background: rgba(59,130,246,0.18); color: #60a5fa; }
+                .bpv2-ads__icon.is-purple,
+                .bpv2-ads__icon.is-green,
+                .bpv2-ads__icon.is-red,
+                .bpv2-ads__icon.is-blue { background: rgba(100,0,178,0.28); color: #B893D8; }
                 .bpv2-ads__value { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.1; }
+                .bpv2-ads__value .pct {
+                    margin-left: 5px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: rgba(255,255,255,0.55);
+                }
+                .bpv2-ads__value .pct.is-valid { color: #6ee7b7; }
+                .bpv2-ads__value .pct.is-invalid { color: #fda4af; }
                 .bpv2-ads__label { margin-top: 4px; font-size: 11px; color: rgba(255,255,255,0.45); }
+                .bpv2-ads__sub {
+                    margin-top: 4px;
+                    font-size: 10px;
+                    color: rgba(255,255,255,0.4);
+                }
                 .bpv2-ads__delta { margin-top: 4px; font-size: 11px; font-weight: 600; color: #34d399; }
                 .bpv2-mal {
                     display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; align-items: start;
@@ -527,22 +540,34 @@
                             <span class="bpv2-ads__icon is-purple">
                                 <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
                             </span>
-                            <p class="bpv2-ads__value" x-text="fmt(summary.paid?.total || 0)"></p>
+                            <p class="bpv2-ads__value">
+                                <span x-text="fmt(summary.paid?.total || 0)"></span>
+                                <span class="pct" x-text="'(' + paidOfAllPct() + '%)'"></span>
+                            </p>
                             <p class="bpv2-ads__label">Total Ad Sessions</p>
+                            <p class="bpv2-ads__sub" x-text="fmt(summary.total_visits || 0) + ' total visits'"></p>
                         </div>
                         <div class="bpv2-ads__item">
                             <span class="bpv2-ads__icon is-green">
                                 <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                             </span>
-                            <p class="bpv2-ads__value" x-text="fmt(summary.paid?.valid || 0)"></p>
+                            <p class="bpv2-ads__value">
+                                <span x-text="fmt(summary.paid?.valid || 0)"></span>
+                                <span class="pct is-valid" x-text="'(' + paidValidPct() + '%)'"></span>
+                            </p>
                             <p class="bpv2-ads__label">Valid Sessions</p>
+                            <p class="bpv2-ads__sub">of ad sessions</p>
                         </div>
                         <div class="bpv2-ads__item">
                             <span class="bpv2-ads__icon is-red">
                                 <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
                             </span>
-                            <p class="bpv2-ads__value" x-text="fmt(summary.paid?.invalid || 0)"></p>
+                            <p class="bpv2-ads__value">
+                                <span x-text="fmt(summary.paid?.invalid || 0)"></span>
+                                <span class="pct is-invalid" x-text="'(' + paidInvalidPct() + '%)'"></span>
+                            </p>
                             <p class="bpv2-ads__label">Invalid Sessions</p>
+                            <p class="bpv2-ads__sub">of ad sessions</p>
                         </div>
                         <div class="bpv2-ads__item">
                             <span class="bpv2-ads__icon is-blue">
@@ -550,6 +575,7 @@
                             </span>
                             <p class="bpv2-ads__value" x-text="(summary.paid?.bot_impact ?? 0) + '%'"></p>
                             <p class="bpv2-ads__label">Bot Impact</p>
+                            <p class="bpv2-ads__sub" x-text="fmt(summary.paid?.invalid || 0) + ' invalid of ' + fmt(summary.paid?.total || 0)"></p>
                             <p class="bpv2-ads__delta" x-text="formatDelta(summary.deltas?.bot_impact || 0, true)"></p>
                         </div>
                     </div>
@@ -822,6 +848,15 @@ function botProtectionFigma(config = {}) {
             const t = Number(total || 0);
             if (!t) return 0;
             return Math.round((Number(part || 0) / t) * 10000) / 100;
+        },
+        paidOfAllPct() {
+            return this.sharePct(this.summary?.paid?.total, this.summary?.total_visits);
+        },
+        paidValidPct() {
+            return this.sharePct(this.summary?.paid?.valid, this.summary?.paid?.total);
+        },
+        paidInvalidPct() {
+            return this.sharePct(this.summary?.paid?.invalid, this.summary?.paid?.total);
         },
         sparkSvg(values, color) {
             const vals = (values || []).map(v => Number(v || 0));
