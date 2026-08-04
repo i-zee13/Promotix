@@ -725,6 +725,26 @@
             .pi-platforms-card .text-\[13px\].text-white\/45 {
                 color: rgba(18, 18, 18, 0.45) !important;
             }
+            .pi-scroll-box {
+                max-height: 260px;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding-right: 4px;
+                overscroll-behavior: contain;
+            }
+            .pi-scroll-box::-webkit-scrollbar {
+                width: 6px;
+            }
+            .pi-scroll-box::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .pi-scroll-box::-webkit-scrollbar-thumb {
+                background: rgba(100, 0, 178, 0.55);
+                border-radius: 999px;
+            }
+            .pi-scroll-box::-webkit-scrollbar-thumb:hover {
+                background: rgba(100, 0, 178, 0.8);
+            }
             @media (max-width: 900px) {
                 .pi-setup-track {
                     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -892,15 +912,15 @@
             </div>
         </section>
 
-        <div class="mt-[16px] grid gap-[12px] xl:grid-cols-2">
-            <section class="rounded-[10px] border border-[#6706B3] bg-[#121212] p-[16px]">
-                <div class="mb-[12px] flex items-center justify-between gap-3">
+        <div class="mt-[16px] grid gap-[12px] xl:grid-cols-2 xl:items-stretch">
+            <section class="flex min-h-0 flex-col rounded-[10px] border border-[#6706B3] bg-[#121212] p-[16px]">
+                <div class="mb-[12px] flex shrink-0 items-center justify-between gap-3">
                     <div>
                         <h2 class="text-[18px] font-medium text-white">Tracking ID management</h2>
                         <p class="mt-[3px] text-[12px] text-white/60">Google Ads conversion / tag IDs linked to this account</p>
                     </div>
                 </div>
-                <div class="space-y-[8px]">
+                <div class="pi-scroll-box space-y-[8px]">
                     @forelse (($trackingIds ?? []) as $row)
                         <div class="flex flex-wrap items-center justify-between gap-[8px] rounded-[8px] border border-white/15 bg-[#6400B2]/25 px-[12px] py-[10px]">
                             <div class="min-w-0">
@@ -910,7 +930,7 @@
                             <div class="flex items-center gap-[8px]">
                                 <code class="rounded bg-black/40 px-[8px] py-[4px] font-mono text-[11px] text-white/90">{{ $row['google_tag_id'] ?: '—' }}</code>
                                 @if (! empty($row['google_tag_id']))
-                                    <button type="button" class="rounded border border-white/25 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10"
+                                    <button type="button" class="rounded border border-white/25 bg-white px-[8px] py-[4px] text-[10px] font-semibold text-[#6400B2] hover:bg-white/90"
                                             @click="copyKeyText(@js($row['google_tag_id']))">Copy</button>
                                 @endif
                             </div>
@@ -921,15 +941,15 @@
                 </div>
             </section>
 
-            <section class="rounded-[10px] border border-[#6706B3] bg-[#121212] p-[16px]">
-                <div class="mb-[12px] flex items-center justify-between gap-3">
+            <section class="flex min-h-0 flex-col rounded-[10px] border border-[#6706B3] bg-[#121212] p-[16px]">
+                <div class="mb-[12px] flex shrink-0 items-center justify-between gap-3">
                     <div>
                         <h2 class="text-[18px] font-medium text-white">Sync history &amp; logs</h2>
                         <p class="mt-[3px] text-[12px] text-white/60">OAuth, account sync, domain link, and health checks</p>
                     </div>
-                    <button type="button" class="rounded border border-white/25 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10" @click="refreshSyncLogs()">Refresh</button>
+                    <button type="button" class="rounded border border-white/25 bg-white px-[8px] py-[4px] text-[10px] font-semibold text-[#6400B2] hover:bg-white/90" @click="refreshSyncLogs()">Refresh</button>
                 </div>
-                <div class="max-h-[280px] space-y-[6px] overflow-y-auto promotix-slim-scroll">
+                <div class="pi-scroll-box space-y-[6px]">
                     <template x-for="log in syncLogs" :key="log.id">
                         <article class="rounded-[8px] border border-white/10 bg-white/5 px-[10px] py-[8px]">
                             <div class="flex flex-wrap items-center justify-between gap-[6px]">
