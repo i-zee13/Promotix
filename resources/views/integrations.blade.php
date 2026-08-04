@@ -551,17 +551,21 @@
                 gap: 8px;
                 position: relative;
             }
-            .pi-setup-track::before {
-                content: '';
+            .pi-setup-track__fill {
                 position: absolute;
-                left: 8%;
-                right: 8%;
+                left: calc(100% / 12);
                 top: 18px;
                 height: 2px;
+                width: calc((100% - (100% / 6)) * (var(--pi-setup-fill, 0) / 100));
+                max-width: calc(100% - (100% / 6));
                 background: #6400B2;
-                opacity: 0.9;
+                opacity: 0.95;
                 z-index: 0;
+                border-radius: 999px;
+                transition: width 0.25s ease;
+                pointer-events: none;
             }
+            .pi-setup-track::before { display: none; }
             .pi-setup-step {
                 position: relative;
                 z-index: 1;
@@ -858,7 +862,8 @@
                     grid-template-columns: repeat(3, minmax(0, 1fr));
                     row-gap: 18px;
                 }
-                .pi-setup-track::before { display: none; }
+                .pi-setup-track::before,
+                .pi-setup-track__fill { display: none; }
             }
             @media (max-width: 640px) {
                 .pi-setup-track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -868,12 +873,19 @@
         {{-- Setup Progress --}}
         <section class="pi-setup-card">
             <h2 class="pi-setup-title">Setup Progress</h2>
-            <div class="pi-setup-track">
+            <div class="pi-setup-track" :style="`--pi-setup-fill: ${setupProgressFill}`">
+                <div class="pi-setup-track__fill" aria-hidden="true"></div>
                 <template x-for="step in activeSetupProgress" :key="step.key">
                     <div class="pi-setup-step">
                         <div class="pi-setup-icon" :class="step.done ? '' : 'is-pending'">
-                            <template x-if="step.key === 'domain'">
+                            <template x-if="step.key === 'domain' && step.done">
                                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21a9 9 0 100-18 9 9 0 000 18z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.6 9h16.8M3.6 15h16.8M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/>
+                                </svg>
+                            </template>
+                            <template x-if="step.key === 'domain' && !step.done">
+                                <svg class="h-[16px] w-[16px] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21a9 9 0 100-18 9 9 0 000 18z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.6 9h16.8M3.6 15h16.8M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/>
                                 </svg>
@@ -1261,9 +1273,16 @@ function platformIntegrations(config) {
         },
         get tagManagerConnected() {
             if (this.activeDomainStatus) {
-                return Boolean(this.activeDomainStatus.tag_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
+                return Boolean(this.activeDomainStatus.google_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
             }
-            return Boolean(this.tagReady || this.connectionHealth.tracking_active);
+            return Boolean(this.tagReady);
+        },
+        get trackingScriptOk() {
+            // Same domain-aware signal as Tag Manager / setup "Tracking Script Installed"
+            if (this.activeDomainStatus) {
+                return Boolean(this.activeDomainStatus.google_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
+            }
+            return Boolean(this.tagReady);
         },
         get healthItems() {
             const syncAgo = this.relativeAgo(this.connectionHealth.last_sync_at);
@@ -1271,14 +1290,27 @@ function platformIntegrations(config) {
             const apiOk = Boolean(this.googleOAuthConnected || this.googleConnected)
                 && String(this.connectionHealth.health_status || '').toLowerCase() !== 'error';
             const tagOk = this.tagManagerConnected;
-            const trackOk = Boolean(this.connectionHealth.tracking_active || this.tagReady);
-            const botOk = Boolean(this.botReady || this.domainConnections.some((d) => (d.steps || []).find((s) => s.label === 'Bot Protection')?.done));
+            const trackOk = this.trackingScriptOk;
+            const botOk = this.activeDomainStatus
+                ? Boolean((this.activeDomainStatus.steps || []).find((s) => s.label === 'Bot Protection')?.done)
+                : Boolean(this.botReady || this.domainConnections.some((d) => (d.steps || []).find((s) => s.label === 'Bot Protection')?.done));
             return [
                 { key: 'api', label: 'Google Ads API', ok: apiOk, ago: syncAgo },
                 { key: 'gtm', label: 'Tag Manager', ok: tagOk, ago: eventAgo },
                 { key: 'script', label: 'Tracking Script', ok: trackOk, ago: eventAgo },
                 { key: 'bot', label: 'Bot Protection', ok: botOk, ago: eventAgo },
             ];
+        },
+        get setupProgressFill() {
+            const steps = this.activeSetupProgress || [];
+            if (steps.length < 2) return 0;
+            let lastDone = -1;
+            for (let i = 0; i < steps.length; i += 1) {
+                if (steps[i].done) lastDone = i;
+                else break;
+            }
+            if (lastDone <= 0) return 0;
+            return Math.round((lastDone / (steps.length - 1)) * 100);
         },
         get healthPct() {
             const items = this.healthItems;
