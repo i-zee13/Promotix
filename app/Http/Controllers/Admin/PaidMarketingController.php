@@ -1890,19 +1890,11 @@ class PaidMarketingController extends Controller
 
         $geoCatalog = app(GeoCatalogService::class);
 
-        $countryAudits = [];
+        $detectionAudits = collect();
         if ($domain && Schema::hasTable('detection_settings_audits')) {
-            $countryAudits = DetectionSettingsAudit::query()
+            $detectionAudits = DetectionSettingsAudit::query()
                 ->with('user:id,name,email')
                 ->where('domain_id', $domain->id)
-                ->whereIn('field', [
-                    'control_mode',
-                    'out_of_geo_enabled',
-                    'out_of_geo_countries',
-                    'out_of_geo_audience',
-                    'google_geo_block_enabled',
-                    'google_geo_block_audience',
-                ])
                 ->orderByDesc('id')
                 ->limit(20)
                 ->get();
@@ -1925,7 +1917,8 @@ class PaidMarketingController extends Controller
                 'states' => route('paid-marketing.geo.states'),
                 'cities' => route('paid-marketing.geo.cities'),
             ],
-            'countryAudits' => $countryAudits,
+            'countryAudits' => $detectionAudits,
+            'detectionAudits' => $detectionAudits,
             'detectionProfiles' => \App\Support\DetectionProfiles::catalog(),
             'googleAdsAccounts' => $googleAdsAccounts,
         ]);

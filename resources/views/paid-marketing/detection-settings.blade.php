@@ -642,6 +642,356 @@
                 background: #f7f5fa; color: #2d2d3a; border-color: #d4c4e8;
             }
 
+            /* Detection panel — mockup sections (Bot Rules / Session / Profiles / Geo) */
+            .ds-panel {
+                margin-top: 16px;
+                border-radius: 12px;
+                border: 1px solid rgba(255,255,255,.12);
+                background: rgba(18,18,18,.92);
+                padding: 16px;
+            }
+            .ds-panel__head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                margin-bottom: 14px;
+            }
+            .ds-panel__title {
+                margin: 0;
+                font-size: 16px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .ds-panel__sub {
+                margin: 4px 0 0;
+                font-size: 12px;
+                color: rgba(255,255,255,.5);
+            }
+            .ds-badge-active {
+                display: inline-flex;
+                align-items: center;
+                border-radius: 999px;
+                padding: 4px 10px;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: .04em;
+                text-transform: uppercase;
+                background: rgba(34,197,94,.18);
+                color: #4ade80;
+                border: 1px solid rgba(74,222,128,.35);
+            }
+            .ds-split {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            @media (min-width: 900px) {
+                .ds-split { grid-template-columns: 1fr 1fr; }
+            }
+            .ds-box {
+                border-radius: 10px;
+                border: 1px solid rgba(255,255,255,.1);
+                background: #141414;
+                padding: 14px;
+                min-width: 0;
+            }
+            .ds-box__title {
+                margin: 0 0 12px;
+                font-size: 12px;
+                font-weight: 600;
+                color: rgba(255,255,255,.88);
+            }
+            .ds-signal-list {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .ds-signal-list li {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 12px;
+                color: rgba(255,255,255,.88);
+            }
+            .ds-check {
+                display: grid;
+                place-items: center;
+                width: 18px;
+                height: 18px;
+                flex-shrink: 0;
+                border-radius: 999px;
+                background: rgba(34,197,94,.2);
+                color: #4ade80;
+            }
+            .ds-risk-list {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .ds-risk-list li {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 12px;
+                color: rgba(255,255,255,.88);
+            }
+            .ds-dot {
+                width: 12px;
+                height: 12px;
+                border-radius: 999px;
+                flex-shrink: 0;
+            }
+            .ds-dot--allow { background: #34c759; }
+            .ds-dot--monitor { background: #e8c547; }
+            .ds-dot--challenge { background: #f59e0b; }
+            .ds-dot--block { background: #ef4444; }
+            .ds-challenge {
+                margin-top: 12px;
+                border-radius: 10px;
+                border: 1px solid rgba(255,255,255,.1);
+                background: #141414;
+                padding: 14px;
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 12px;
+            }
+            .ds-challenge__title {
+                margin: 0 0 6px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .ds-challenge__meta {
+                margin: 0;
+                font-size: 11px;
+                line-height: 1.45;
+                color: rgba(255,255,255,.5);
+            }
+            .ds-field-label {
+                display: block;
+                margin-bottom: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                color: rgba(255,255,255,.7);
+            }
+            .ds-row-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                margin-bottom: 14px;
+            }
+            .ds-select {
+                width: 100%;
+                max-width: 220px;
+                height: 34px;
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,.18);
+                background: #101010;
+                color: #fff;
+                font-size: 12px;
+                padding: 0 10px;
+                margin-bottom: 14px;
+            }
+            .ds-checkboxes {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .ds-checkboxes label {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 12px;
+                color: rgba(255,255,255,.88);
+                cursor: pointer;
+            }
+            .ds-checkboxes input[type="checkbox"] {
+                width: 15px;
+                height: 15px;
+                accent-color: #6400B2;
+                border-radius: 3px;
+            }
+            .ds-consent-btn {
+                margin-top: 14px;
+                width: 100%;
+                min-height: 36px;
+                border-radius: 8px;
+                border: 1px solid #6400B2;
+                background: transparent;
+                color: #c4b5fd;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .ds-consent-btn:hover { background: rgba(100,0,178,.15); }
+            .ds-audit-table-wrap { overflow-x: auto; }
+            .ds-audit-table {
+                width: 100%;
+                border-collapse: collapse;
+                min-width: 640px;
+            }
+            .ds-audit-table th {
+                text-align: left;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: .04em;
+                text-transform: uppercase;
+                color: rgba(255,255,255,.45);
+                padding: 8px 10px;
+                border-bottom: 1px solid rgba(255,255,255,.1);
+            }
+            .ds-audit-table td {
+                font-size: 11px;
+                color: rgba(255,255,255,.78);
+                padding: 10px;
+                border-bottom: 1px solid rgba(255,255,255,.06);
+                vertical-align: top;
+            }
+            .ds-audit-empty {
+                margin: 0;
+                padding: 18px 8px;
+                text-align: center;
+                font-size: 12px;
+                color: rgba(255,255,255,.4);
+            }
+            .ds-profile-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            @media (min-width: 700px) {
+                .ds-profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            }
+            @media (min-width: 1100px) {
+                .ds-profile-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            }
+            .ds-profile-card {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                min-height: 148px;
+                border-radius: 12px;
+                border: 1px solid rgba(255,255,255,.14);
+                background: #141414;
+                padding: 14px;
+                cursor: pointer;
+                transition: border-color .15s ease, background .15s ease;
+            }
+            .ds-profile-card input { position: absolute; opacity: 0; pointer-events: none; }
+            .ds-profile-card__icon {
+                display: grid;
+                place-items: center;
+                width: 28px;
+                height: 28px;
+                border-radius: 999px;
+                margin-bottom: 2px;
+            }
+            .ds-profile-card__title {
+                margin: 0;
+                font-size: 13px;
+                font-weight: 700;
+                color: #fff;
+            }
+            .ds-profile-card__desc {
+                margin: 0;
+                font-size: 11px;
+                line-height: 1.4;
+                color: rgba(255,255,255,.5);
+            }
+            .ds-profile-card.is-green { border-color: rgba(52,199,89,.55); }
+            .ds-profile-card.is-green .ds-profile-card__icon { background: rgba(52,199,89,.18); color: #4ade80; }
+            .ds-profile-card.is-blue { border-color: rgba(64,156,255,.55); }
+            .ds-profile-card.is-blue .ds-profile-card__icon { background: rgba(64,156,255,.18); color: #60a5fa; }
+            .ds-profile-card.is-orange { border-color: rgba(245,158,11,.55); }
+            .ds-profile-card.is-orange .ds-profile-card__icon { background: rgba(245,158,11,.18); color: #fbbf24; }
+            .ds-profile-card.is-purple { border-color: rgba(100,0,178,.65); }
+            .ds-profile-card.is-purple .ds-profile-card__icon { background: rgba(100,0,178,.22); color: #c4b5fd; }
+            .ds-profile-card.is-selected {
+                box-shadow: 0 0 0 1px currentColor inset;
+                background: #181818;
+            }
+            .ds-profile-card.is-selected.is-green { color: #34c759; }
+            .ds-profile-card.is-selected.is-blue { color: #409cff; }
+            .ds-profile-card.is-selected.is-orange { color: #f59e0b; }
+            .ds-profile-card.is-selected.is-purple { color: #a78bfa; }
+            .ds-geo-scope {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            @media (min-width: 700px) {
+                .ds-geo-scope { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            }
+            .ds-geo-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                min-height: 48px;
+                border-radius: 10px;
+                border: 1px solid rgba(255,255,255,.14);
+                background: #141414;
+                color: rgba(255,255,255,.75);
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .ds-geo-btn.is-active {
+                background: #6400B2;
+                border-color: #6400B2;
+                color: #fff;
+            }
+            .ds-geo-btn:disabled {
+                opacity: .45;
+                cursor: not-allowed;
+            }
+            html.light-mode .ds-panel,
+            html.light-mode .ds-box,
+            html.light-mode .ds-challenge,
+            html.light-mode .ds-profile-card {
+                background: #fff;
+                border-color: #e4dceb;
+            }
+            html.light-mode .ds-panel__title,
+            html.light-mode .ds-challenge__title,
+            html.light-mode .ds-profile-card__title,
+            html.light-mode .ds-box__title { color: #2d2d3a; }
+            html.light-mode .ds-panel__sub,
+            html.light-mode .ds-challenge__meta,
+            html.light-mode .ds-profile-card__desc,
+            html.light-mode .ds-field-label { color: #6b6578; }
+            html.light-mode .ds-signal-list li,
+            html.light-mode .ds-risk-list li,
+            html.light-mode .ds-checkboxes label,
+            html.light-mode .ds-audit-table td { color: #3d3a48; }
+            html.light-mode .ds-select {
+                background: #f7f5fa;
+                color: #2d2d3a;
+                border-color: #d4c4e8;
+            }
+            html.light-mode .ds-geo-btn {
+                background: #f7f5fa;
+                color: #3d3a48;
+                border-color: #d4c4e8;
+            }
+            html.light-mode .ds-geo-btn.is-active {
+                background: #6400B2;
+                border-color: #6400B2;
+                color: #fff;
+            }
+            html.light-mode .ds-audit-table th { color: #6b6578; border-bottom-color: #ece7f2; }
+            html.light-mode .ds-audit-table td { border-bottom-color: #f0ecf5; }
+
             .figma-rule-editor {
                 border-radius: 12px;
                 border: 1px solid rgba(255,255,255,.12);
@@ -1318,10 +1668,6 @@
                     {{-- Persist fields from removed old panels + compact editors for Manage buttons --}}
                     <div class="sr-only" aria-hidden="true">
                         <input type="hidden" name="invalid_bot_action" value="{{ old('invalid_bot_action', $settings->invalid_bot_action ?? 'block') }}">
-                        <input type="hidden" name="session_recordings" value="0">
-                        @if ($settings->session_recordings)
-                            <input type="hidden" name="session_recordings" value="1">
-                        @endif
                         <input type="hidden" name="audience_exclusion_event" value="{{ old('audience_exclusion_event', $settings->audience_exclusion_event ?? 'exclude_all_threat_groups_auto') }}">
                         @foreach ([
                             'google_exclude_invalid' => $exclusionRules['exclude_invalid'] ?? true,
@@ -1418,6 +1764,60 @@
                             'forbid' => 'block',
                             default => 'allow', // hide → Allow (softest)
                         };
+                        $retentionDays = (int) ($settings->recording_retention_days ?? 30);
+                        $geoScope = (string) ($settings->geo_rule_scope ?? 'domain');
+                        $consentOn = (bool) ($settings->consent_required ?? false);
+                        $maskOn = (bool) ($settings->recording_mask_passwords ?? true);
+                        $sessionRecOn = (bool) ($settings->session_recordings ?? false);
+                        $botRulesActive = (bool) ($settings->suspicious_enabled ?? true);
+                        $profileCards = [
+                            'standard' => [
+                                'title' => 'Balanced (Default)',
+                                'desc' => 'Low false positives. Recommended for most advertisers.',
+                                'tone' => 'green',
+                            ],
+                            'advanced' => [
+                                'title' => 'Advanced',
+                                'desc' => 'Better protection for high-risk campaigns.',
+                                'tone' => 'blue',
+                            ],
+                            'extreme' => [
+                                'title' => 'Maximum Protection',
+                                'desc' => 'Strict filtering for expensive campaigns.',
+                                'tone' => 'orange',
+                            ],
+                            'marketing' => [
+                                'title' => 'Custom Profile',
+                                'desc' => 'Create your own custom rules and settings.',
+                                'tone' => 'purple',
+                            ],
+                        ];
+                        $detectionAudits = $detectionAudits ?? $countryAudits ?? collect();
+                        $auditFieldLabels = [
+                            'suspicious_matrix' => 'Updated threat rules',
+                            'suspicious_enabled' => 'Updated suspicious detection',
+                            'invalid_bot_action' => 'Updated bot action',
+                            'invalid_malicious_action' => 'Updated malicious action',
+                            'block_response' => 'Updated block response',
+                            'detection_profile' => 'Updated detection profile',
+                            'detection_thresholds' => 'Updated detection thresholds',
+                            'session_recordings' => 'Updated session recording',
+                            'recording_retention_days' => 'Updated recording retention',
+                            'recording_mask_passwords' => 'Updated recording mask',
+                            'consent_required' => 'Updated consent requirement',
+                            'consent_regions' => 'Updated consent regions',
+                            'geo_rule_scope' => 'Updated geo rule scope',
+                            'allow_list_ips' => 'Updated whitelist IPs',
+                            'block_list_ips' => 'Updated blacklist IPs',
+                            'control_mode' => 'Updated control mode',
+                            'out_of_geo_enabled' => 'Updated geo targeting',
+                            'out_of_geo_countries' => 'Updated allowed countries',
+                            'out_of_geo_audience' => 'Updated geo audience',
+                            'google_geo_block_enabled' => 'Updated blocked countries',
+                            'google_geo_block_audience' => 'Updated Google geo block',
+                            'frequency_capping' => 'Updated frequency capping',
+                            'fail_mode' => 'Updated fail-safe mode',
+                        ];
                     @endphp
                     <section
                         id="detection-advanced"
@@ -1426,6 +1826,17 @@
                             rapidPreset: @js($rapidPreset),
                             rapidCustom: @js($rapidWindow),
                             blockAction: @js($blockResponseUi),
+                            challengeMode: @js($blockResponseUi === 'challenge'),
+                            sessionRecording: @js($sessionRecOn),
+                            maskPasswords: @js($maskOn),
+                            maskPayment: @js($maskOn),
+                            maskSensitive: @js($maskOn),
+                            consentGdpr: @js($consentOn),
+                            consentCcpa: @js($consentOn),
+                            consentCookie: @js($consentOn),
+                            consentManageOpen: false,
+                            geoScope: @js($geoScope),
+                            profileKey: @js($profileKey),
                             responseMap: { allow: 'hide', monitor: 'blank', challenge: 'challenge', redirect: 'redirect', block: 'forbid' },
                             setRapid(preset) {
                                 this.rapidPreset = preset;
@@ -1436,6 +1847,21 @@
                             },
                             get blockResponseValue() {
                                 return this.responseMap[this.blockAction] || 'hide';
+                            },
+                            setBlockAction(action) {
+                                this.blockAction = action;
+                                this.challengeMode = action === 'challenge';
+                            },
+                            setChallengeMode(on) {
+                                this.challengeMode = !!on;
+                                if (on) this.blockAction = 'challenge';
+                                else if (this.blockAction === 'challenge') this.blockAction = 'allow';
+                            },
+                            get maskValue() {
+                                return this.maskPasswords || this.maskPayment || this.maskSensitive;
+                            },
+                            get consentValue() {
+                                return this.consentGdpr || this.consentCcpa || this.consentCookie;
                             }
                         }"
                     >
@@ -1503,11 +1929,11 @@
                                 <h3 class="figma-ads-col-title">Block Response Action</h3>
                                 <input type="hidden" name="block_response" :value="blockResponseValue">
                                 <div class="figma-ads-actions">
-                                    <button type="button" class="figma-ads-action figma-ads-action--allow" :class="{ 'is-selected': blockAction === 'allow' }" @click="blockAction = 'allow'">Allow</button>
-                                    <button type="button" class="figma-ads-action figma-ads-action--monitor" :class="{ 'is-selected': blockAction === 'monitor' }" @click="blockAction = 'monitor'">Monitor</button>
-                                    <button type="button" class="figma-ads-action figma-ads-action--challenge" :class="{ 'is-selected': blockAction === 'challenge' }" @click="blockAction = 'challenge'">Challenge</button>
-                                    <button type="button" class="figma-ads-action figma-ads-action--redirect" :class="{ 'is-selected': blockAction === 'redirect' }" @click="blockAction = 'redirect'">Redirect</button>
-                                    <button type="button" class="figma-ads-action figma-ads-action--block" :class="{ 'is-selected': blockAction === 'block' }" @click="blockAction = 'block'">Block</button>
+                                    <button type="button" class="figma-ads-action figma-ads-action--allow" :class="{ 'is-selected': blockAction === 'allow' }" @click="setBlockAction('allow')">Allow</button>
+                                    <button type="button" class="figma-ads-action figma-ads-action--monitor" :class="{ 'is-selected': blockAction === 'monitor' }" @click="setBlockAction('monitor')">Monitor</button>
+                                    <button type="button" class="figma-ads-action figma-ads-action--challenge" :class="{ 'is-selected': blockAction === 'challenge' }" @click="setBlockAction('challenge')">Challenge</button>
+                                    <button type="button" class="figma-ads-action figma-ads-action--redirect" :class="{ 'is-selected': blockAction === 'redirect' }" @click="setBlockAction('redirect')">Redirect</button>
+                                    <button type="button" class="figma-ads-action figma-ads-action--block" :class="{ 'is-selected': blockAction === 'block' }" @click="setBlockAction('block')">Block</button>
                                 </div>
                                 <label class="figma-ads-custom" x-show="blockAction === 'redirect'" x-cloak>
                                     <span>Redirect URL</span>
@@ -1520,22 +1946,6 @@
                             <p class="text-[11px] leading-relaxed text-[#a9a9a9]">
                                 These controls tune how aggressively PromoTix flags or blocks paid clicks. Optional fine-tuning on top of the main threat rules above.
                             </p>
-                            <h3 class="figma-detection-section-title !mb-[6px]">Detection profile</h3>
-                            <div class="figma-detection-profile-grid">
-                                @foreach ($profiles as $pkey => $pinfo)
-                                    <label class="figma-detection-profile-card {{ $profileKey === $pkey ? 'is-selected' : '' }}">
-                                        <div class="flex items-start gap-[8px]">
-                                            <input type="radio" name="detection_profile" value="{{ $pkey }}" class="mt-[3px]" @checked($profileKey === $pkey)>
-                                            <div>
-                                                <p class="figma-detection-profile-card-title">{{ $pinfo['label'] }}</p>
-                                                <p class="figma-detection-profile-card-summary">{{ $pinfo['summary'] }}</p>
-                                                <p class="figma-detection-profile-card-meta">FP risk: {{ $pinfo['false_positive_risk'] }} · {{ $pinfo['recommended'] }}</p>
-                                            </div>
-                                        </div>
-                                    </label>
-                                @endforeach
-                            </div>
-
                             <div class="figma-detection-advanced-panel grid gap-[10px] sm:grid-cols-2">
                                 <label class="figma-detection-advanced-field">
                                     Flag at prior clicks
@@ -1546,7 +1956,6 @@
                                     <input type="number" name="rapid_block_at" min="1" max="20" value="{{ $thr['rapid_block_at'] ?? 2 }}" class="figma-detection-advanced-input mt-[4px] w-full">
                                 </label>
                             </div>
-
                             <label class="figma-detection-advanced-inline">
                                 Fail-safe when detection is unavailable
                                 <select name="fail_mode" class="figma-detection-advanced-input">
@@ -1554,38 +1963,210 @@
                                     <option value="closed" @selected(($settings->fail_mode ?? 'open') === 'closed')>Fail closed (block)</option>
                                 </select>
                             </label>
+                        </div>
 
-                            <div class="figma-detection-advanced-panel grid gap-[10px] sm:grid-cols-2">
-                                <label class="figma-detection-advanced-field sm:col-span-2">
-                                    Session recording retention (days)
-                                    <input type="number" name="recording_retention_days" min="1" max="3650" value="{{ $settings->recording_retention_days ?? 30 }}" class="figma-detection-advanced-input mt-[4px] w-full max-w-[160px]">
-                                </label>
-                                <label class="figma-detection-advanced-field">
-                                    Geo rule scope
-                                    <select name="geo_rule_scope" class="figma-detection-advanced-input mt-[4px] w-full">
-                                        <option value="domain" @selected(($settings->geo_rule_scope ?? 'domain') === 'domain')>This domain only</option>
-                                        <option value="workspace" @selected(($settings->geo_rule_scope ?? '') === 'workspace')>Workspace defaults</option>
-                                    </select>
-                                </label>
-                                <label class="figma-detection-advanced-field flex items-end gap-[8px]">
-                                    <input type="checkbox" name="save_workspace_geo" value="1" class="rounded border-white/30">
-                                    Save current geo rules as workspace defaults
-                                </label>
-                                <label class="figma-detection-advanced-field flex items-center gap-[8px] sm:col-span-2">
-                                    <input type="hidden" name="consent_required" value="0">
-                                    <input type="checkbox" name="consent_required" value="1" @checked($settings->consent_required ?? false) class="rounded border-white/30">
-                                    Require consent banner before tracking (GDPR/CCPA)
-                                </label>
-                                <label class="figma-detection-advanced-field sm:col-span-2">
-                                    Consent regions (ISO country codes, comma-separated; empty = all)
-                                    <input type="text" name="consent_regions" value="{{ implode(',', (array) ($settings->consent_regions ?? [])) }}" placeholder="DE,FR,GB" class="figma-detection-advanced-input mt-[4px] w-full">
-                                </label>
-                                <label class="figma-detection-advanced-field flex items-center gap-[8px] sm:col-span-2">
-                                    <input type="hidden" name="recording_mask_passwords" value="0">
-                                    <input type="checkbox" name="recording_mask_passwords" value="1" @checked($settings->recording_mask_passwords ?? true) class="rounded border-white/30">
-                                    Mask password and sensitive inputs in session recordings
+                        {{-- Bot Detection Rules + Challenge Mode --}}
+                        <div class="ds-panel">
+                            <div class="ds-panel__head">
+                                <h3 class="ds-panel__title">Bot Detection Rules</h3>
+                                @if ($botRulesActive)
+                                    <span class="ds-badge-active">Active</span>
+                                @endif
+                            </div>
+                            <div class="ds-split">
+                                <div class="ds-box">
+                                    <h4 class="ds-box__title">Bot Detection Signals</h4>
+                                    <ul class="ds-signal-list">
+                                        @foreach ([
+                                            'Headless Browser',
+                                            'Automation Framework',
+                                            'Missing Browser Signals',
+                                            'Abnormal User Agent',
+                                            'No Human Interaction',
+                                            'Repeated Automated Requests',
+                                        ] as $signal)
+                                            <li>
+                                                <span class="ds-check" aria-hidden="true">
+                                                    <svg class="h-[10px] w-[10px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                                </span>
+                                                {{ $signal }}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                                <div class="ds-box">
+                                    <h4 class="ds-box__title">Action (Based on Risk Score)</h4>
+                                    <ul class="ds-risk-list">
+                                        <li><span class="ds-dot ds-dot--allow"></span> Allow (0 - 30)</li>
+                                        <li><span class="ds-dot ds-dot--monitor"></span> Monitor (31 - 60)</li>
+                                        <li><span class="ds-dot ds-dot--challenge"></span> Challenge (61 - 80)</li>
+                                        <li><span class="ds-dot ds-dot--block"></span> Block (81 - 100)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="ds-challenge">
+                                <div>
+                                    <h4 class="ds-challenge__title">Challenge Mode (CAPTCHA)</h4>
+                                    <p class="ds-challenge__meta"><strong class="text-white/70">Trigger:</strong> Medium Risk Traffic (61 - 80 Score)</p>
+                                    <p class="ds-challenge__meta"><strong class="text-white/70">Action:</strong> Show verification challenge to validate user.</p>
+                                </div>
+                                <label class="figma-toggle figma-toggle--sm figma-toggle--no-labels">
+                                    <input type="checkbox" class="figma-toggle-input" :checked="challengeMode" @change="setChallengeMode($event.target.checked)">
+                                    <span class="figma-toggle-track pointer-events-none" aria-hidden="true"><span class="figma-toggle-thumb"></span></span>
                                 </label>
                             </div>
+                        </div>
+
+                        {{-- Session Recording & Privacy --}}
+                        <div class="ds-panel">
+                            <div class="ds-panel__head">
+                                <h3 class="ds-panel__title">Session Recording &amp; Privacy Controls</h3>
+                                <span class="ds-badge-active" x-show="sessionRecording" x-cloak>Active</span>
+                            </div>
+                            <div class="ds-split">
+                                <div class="ds-box">
+                                    <div class="ds-row-toggle">
+                                        <span class="ds-field-label !mb-0">Session Recording</span>
+                                        <input type="hidden" name="session_recordings" value="0">
+                                        <label class="figma-toggle figma-toggle--sm figma-toggle--no-labels">
+                                            <input type="checkbox" name="session_recordings" value="1" class="figma-toggle-input" x-model="sessionRecording">
+                                            <span class="figma-toggle-track pointer-events-none" aria-hidden="true"><span class="figma-toggle-thumb"></span></span>
+                                        </label>
+                                    </div>
+                                    <span class="ds-field-label">Retention Period</span>
+                                    <select name="recording_retention_days" class="ds-select">
+                                        @foreach ([7, 14, 30, 60, 90, 180, 365] as $days)
+                                            <option value="{{ $days }}" @selected($retentionDays === $days)>{{ $days }} Days</option>
+                                        @endforeach
+                                        @if (! in_array($retentionDays, [7, 14, 30, 60, 90, 180, 365], true))
+                                            <option value="{{ $retentionDays }}" selected>{{ $retentionDays }} Days</option>
+                                        @endif
+                                    </select>
+                                    <span class="ds-field-label">Mask Sensitive Data</span>
+                                    <input type="hidden" name="recording_mask_passwords" value="0">
+                                    <input type="hidden" name="recording_mask_passwords" :value="maskValue ? 1 : 0">
+                                    <div class="ds-checkboxes">
+                                        <label><input type="checkbox" x-model="maskPasswords"> Passwords</label>
+                                        <label><input type="checkbox" x-model="maskPayment"> Payment Fields</label>
+                                        <label><input type="checkbox" x-model="maskSensitive"> Sensitive Inputs</label>
+                                    </div>
+                                </div>
+                                <div class="ds-box">
+                                    <h4 class="ds-box__title">Consent Management</h4>
+                                    <input type="hidden" name="consent_required" value="0">
+                                    <input type="hidden" name="consent_required" :value="consentValue ? 1 : 0">
+                                    <div class="ds-checkboxes">
+                                        <label><input type="checkbox" x-model="consentGdpr"> GDPR Consent</label>
+                                        <label><input type="checkbox" x-model="consentCcpa"> CCPA Consent</label>
+                                        <label><input type="checkbox" x-model="consentCookie"> Cookie Notice</label>
+                                    </div>
+                                    <button type="button" class="ds-consent-btn" @click="consentManageOpen = !consentManageOpen">Manage Consent Settings</button>
+                                    <div x-show="consentManageOpen" x-cloak class="mt-[12px]">
+                                        <span class="ds-field-label">Consent regions (ISO codes, comma-separated; empty = all)</span>
+                                        <input type="text" name="consent_regions" value="{{ implode(',', (array) ($settings->consent_regions ?? [])) }}" placeholder="DE,FR,GB" class="ds-select !max-w-none">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Detection Audit Log --}}
+                        <div class="ds-panel">
+                            <div class="ds-panel__head">
+                                <h3 class="ds-panel__title">Detection Audit Log</h3>
+                            </div>
+                            @if ($detectionAudits instanceof \Illuminate\Support\Collection && $detectionAudits->isNotEmpty())
+                                <div class="ds-audit-table-wrap">
+                                    <table class="ds-audit-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Date &amp; Time</th>
+                                                <th>Admin</th>
+                                                <th>Action</th>
+                                                <th>Previous</th>
+                                                <th>New</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($detectionAudits as $audit)
+                                                @php
+                                                    $prevRaw = $audit->previous_value['value'] ?? $audit->previous_value;
+                                                    $nextRaw = $audit->new_value['value'] ?? $audit->new_value;
+                                                    $fmt = function ($v) {
+                                                        if (is_bool($v)) return $v ? 'On' : 'Off';
+                                                        if (is_array($v)) return \Illuminate\Support\Str::limit(json_encode($v), 48);
+                                                        if ($v === null || $v === '') return '—';
+                                                        return \Illuminate\Support\Str::limit((string) $v, 48);
+                                                    };
+                                                    $actionLabel = $auditFieldLabels[$audit->field] ?? ('Updated ' . str_replace('_', ' ', (string) $audit->field));
+                                                @endphp
+                                                <tr>
+                                                    <td>{{ optional($audit->created_at)->timezone(config('app.timezone'))->format('M j, Y g:i A') }}</td>
+                                                    <td>{{ $audit->user?->name ?: 'System' }}</td>
+                                                    <td>{{ $actionLabel }}</td>
+                                                    <td>{{ $fmt($prevRaw) }}</td>
+                                                    <td>{{ $fmt($nextRaw) }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <p class="ds-audit-empty">No detection setting changes logged yet.</p>
+                            @endif
+                        </div>
+
+                        {{-- Detection Profiles --}}
+                        <div class="ds-panel">
+                            <div class="ds-panel__head" style="flex-direction:column;align-items:flex-start;">
+                                <h3 class="ds-panel__title">Detection Profiles</h3>
+                                <p class="ds-panel__sub">Choose a protection level for your campaigns.</p>
+                            </div>
+                            <div class="ds-profile-grid">
+                                @foreach ($profileCards as $pkey => $card)
+                                    <label class="ds-profile-card is-{{ $card['tone'] }}" :class="{ 'is-selected': profileKey === '{{ $pkey }}' }">
+                                        <input type="radio" name="detection_profile" value="{{ $pkey }}" x-model="profileKey" @checked($profileKey === $pkey)>
+                                        <span class="ds-profile-card__icon" aria-hidden="true">
+                                            @if ($pkey === 'standard')
+                                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            @elseif ($pkey === 'advanced')
+                                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                            @elseif ($pkey === 'extreme')
+                                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 3v5c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V6l8-3z"/></svg>
+                                            @else
+                                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317a1.724 1.724 0 013.35 0 1.724 1.724 0 002.573 1.066 1.724 1.724 0 012.354 2.354 1.724 1.724 0 001.065 2.572 1.724 1.724 0 010 3.35 1.724 1.724 0 00-1.066 2.573 1.724 1.724 0 01-2.354 2.354 1.724 1.724 0 00-2.572 1.065 1.724 1.724 0 01-3.35 0 1.724 1.724 0 00-2.573-1.066 1.724 1.724 0 01-2.354-2.354 1.724 1.724 0 00-1.065-2.572 1.724 1.724 0 010-3.35 1.724 1.724 0 001.066-2.573 1.724 1.724 0 012.354-2.354 1.724 1.724 0 002.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                            @endif
+                                        </span>
+                                        <p class="ds-profile-card__title">{{ $card['title'] }}</p>
+                                        <p class="ds-profile-card__desc">{{ $card['desc'] }}</p>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Geo Rule Scope --}}
+                        <div class="ds-panel">
+                            <div class="ds-panel__head">
+                                <h3 class="ds-panel__title">Geo Rule Scope</h3>
+                            </div>
+                            <input type="hidden" name="geo_rule_scope" :value="geoScope">
+                            <div class="ds-geo-scope">
+                                <button type="button" class="ds-geo-btn" :class="{ 'is-active': geoScope === 'domain' }" @click="geoScope = 'domain'">
+                                    <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Current Domain
+                                </button>
+                                <button type="button" class="ds-geo-btn" :class="{ 'is-active': geoScope === 'workspace' }" @click="geoScope = 'workspace'">
+                                    <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    All Domains
+                                </button>
+                                <button type="button" class="ds-geo-btn" disabled title="Campaign-scoped geo rules coming soon">
+                                    <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                                    Selected Campaigns
+                                </button>
+                            </div>
+                            <label class="mt-[12px] inline-flex items-center gap-[8px] text-[11px] text-white/70">
+                                <input type="checkbox" name="save_workspace_geo" value="1" class="rounded border-white/30 accent-[#6400B2]">
+                                Save current geo rules as workspace defaults
+                            </label>
                         </div>
 
                         <div class="figma-detection-save-row flex justify-end pt-[16px]">
