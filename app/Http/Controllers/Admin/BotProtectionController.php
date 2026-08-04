@@ -43,35 +43,49 @@ class BotProtectionController extends Controller
             return response()->json($this->emptySummary());
         }
 
-        $base = $this->baseVisitsQuery($domainIds, $from, $to, $request);
+        $current = $this->visitClassificationStats($domainIds, $from, $to, $request);
+        $days = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
+        $prevTo = $from->copy()->subSecond();
+        $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
+        $previous = $this->visitClassificationStats($domainIds, $prevFrom, $prevTo, $request);
 
-        $total = (clone $base)->count();
-        $invalidBot = (clone $base)->where('is_invalid_traffic', true)->where(function ($q): void {
-            $q->where('threat_group', 'data_center')->orWhere('threat_group', 'vpn')->orWhere('threat_group', 'abnormal_rate_limit');
-        })->count();
-        $invalidMalicious = (clone $base)->where('is_invalid_traffic', true)->where('threat_group', 'malicious')->count();
+        $pctDelta = static function (int|float $cur, int|float $prev): float {
+            $cur = (float) $cur;
+            $prev = (float) $prev;
+            if ($prev == 0.0) {
+                return $cur > 0 ? 100.0 : 0.0;
+            }
 
-        if (Schema::hasColumn('visits', 'is_crawler')) {
-            $knownCrawlers = (clone $base)->where('is_crawler', true)->count();
-        } else {
-            $knownCrawlers = (clone $base)->where(function ($q): void {
-                foreach ($this->crawlerBrowserList() as $name) {
-                    $q->orWhere('user_agent', 'like', '%' . $name . '%');
-                }
-            })->count();
-        }
+            return round((($cur - $prev) / $prev) * 100, 1);
+        };
 
-        $valid = max(0, $total - $invalidBot - $invalidMalicious - $knownCrawlers);
+        $sparklines = $this->visitSparklineSeries($domainIds, $from, $to, $request);
 
         return response()->json([
-            'total_visits' => $total,
-            'valid_visits' => $valid,
-            'invalid_bot_visits' => $invalidBot,
-            'invalid_malicious_visits' => $invalidMalicious,
-            'known_crawlers' => $knownCrawlers,
+            'total_visits' => $current['total_visits'],
+            'valid_visits' => $current['valid_visits'],
+            'invalid_bot_visits' => $current['invalid_bot_visits'],
+            'invalid_malicious_visits' => $current['invalid_malicious_visits'],
+            'invalid_traffic' => $current['invalid_traffic'],
+            'known_crawlers' => $current['known_crawlers'],
+            'bots_detected' => $current['bots_detected'],
+            'deltas' => [
+                'valid_visits' => $pctDelta($current['valid_visits'], $previous['valid_visits']),
+                'invalid_bot_visits' => $pctDelta($current['invalid_bot_visits'], $previous['invalid_bot_visits']),
+                'known_crawlers' => $pctDelta($current['known_crawlers'], $previous['known_crawlers']),
+                'invalid_traffic' => $pctDelta($current['invalid_traffic'], $previous['invalid_traffic']),
+                'invalid_malicious_visits' => $pctDelta($current['invalid_malicious_visits'], $previous['invalid_malicious_visits']),
+                'bot_impact' => round($current['paid']['bot_impact'] - $previous['paid']['bot_impact'], 1),
+            ],
+            'paid' => $current['paid'],
+            'actions' => $current['actions'],
+            'signals' => $current['signals'],
+            'sparklines' => $sparklines,
             'window' => [
                 'from' => $from->toIso8601String(),
                 'to' => $to->toIso8601String(),
+                'previous_from' => $prevFrom->toIso8601String(),
+                'previous_to' => $prevTo->toIso8601String(),
             ],
         ]);
     }
@@ -281,30 +295,55 @@ class BotProtectionController extends Controller
         $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
 
-        if (! Schema::hasTable('detection_logs')) {
-            return response()->json([
-                'invalid_bot' => ['labels' => [], 'values' => []],
-                'invalid_malicious' => ['labels' => [], 'values' => []],
-            ]);
+        $empty = [
+            'invalid_bot' => ['labels' => [], 'values' => []],
+            'invalid_malicious' => ['labels' => [], 'values' => []],
+            'reasons' => ['labels' => [], 'values' => []],
+            'malicious_reasons' => ['labels' => [], 'values' => []],
+        ];
+
+        if (! Schema::hasTable('detection_logs') && ! Schema::hasTable('visits')) {
+            return response()->json($empty);
         }
 
-        $base = DB::table('detection_logs')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('detected_at', [$from, $to]);
+        $bot = collect();
+        $malicious = collect();
 
-        $bot = (clone $base)
-            ->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit'])
-            ->select('threat_group', DB::raw('COUNT(*) as total'))
-            ->groupBy('threat_group')
-            ->orderByDesc('total')
-            ->get();
+        if (Schema::hasTable('detection_logs')) {
+            $base = DB::table('detection_logs')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('detected_at', [$from, $to]);
 
-        $malicious = (clone $base)
-            ->where('threat_group', 'malicious')
-            ->select('action_taken as label', DB::raw('COUNT(*) as total'))
-            ->groupBy('action_taken')
-            ->orderByDesc('total')
-            ->get();
+            $bot = (clone $base)
+                ->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit', 'proxy', 'automation'])
+                ->select('threat_group', DB::raw('COUNT(*) as total'))
+                ->groupBy('threat_group')
+                ->orderByDesc('total')
+                ->get();
+
+            $malicious = (clone $base)
+                ->where('threat_group', 'malicious')
+                ->select('action_taken as label', DB::raw('COUNT(*) as total'))
+                ->groupBy('action_taken')
+                ->orderByDesc('total')
+                ->get();
+        }
+
+        if ($bot->isEmpty() && Schema::hasTable('visits')) {
+            $bot = $this->applyPathFilter(
+                $this->baseVisitsQuery($domainIds, $from, $to, $request)
+                    ->where('is_invalid_traffic', true)
+                    ->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit', 'proxy', 'automation']),
+                $request
+            )
+                ->select('threat_group', DB::raw('COUNT(*) as total'))
+                ->groupBy('threat_group')
+                ->orderByDesc('total')
+                ->get();
+        }
+
+        $reasons = $this->aggregateDetectionReasons($domainIds, $from, $to, false);
+        $maliciousReasons = $this->aggregateDetectionReasons($domainIds, $from, $to, true);
 
         return response()->json([
             'invalid_bot' => [
@@ -315,6 +354,8 @@ class BotProtectionController extends Controller
                 'labels' => $malicious->pluck('label')->values(),
                 'values' => $malicious->pluck('total')->map(fn ($n) => (int) $n)->values(),
             ],
+            'reasons' => $reasons,
+            'malicious_reasons' => $maliciousReasons,
         ]);
     }
 
@@ -865,8 +906,377 @@ class BotProtectionController extends Controller
             'valid_visits' => 0,
             'invalid_bot_visits' => 0,
             'invalid_malicious_visits' => 0,
+            'invalid_traffic' => 0,
             'known_crawlers' => 0,
+            'bots_detected' => 0,
+            'deltas' => [
+                'valid_visits' => 0,
+                'invalid_bot_visits' => 0,
+                'known_crawlers' => 0,
+                'invalid_traffic' => 0,
+                'invalid_malicious_visits' => 0,
+                'bot_impact' => 0,
+            ],
+            'paid' => [
+                'total' => 0,
+                'valid' => 0,
+                'invalid' => 0,
+                'bot_impact' => 0.0,
+            ],
+            'actions' => [
+                'block' => 0,
+                'challenge' => 0,
+                'allow' => 0,
+            ],
+            'signals' => [
+                ['key' => 'headless', 'label' => 'Headless Browser', 'active' => false],
+                ['key' => 'automation', 'label' => 'Automation Tool', 'active' => false],
+                ['key' => 'missing_events', 'label' => 'Missing Browser Events', 'active' => false],
+                ['key' => 'abnormal_rate', 'label' => 'Abnormal Request Rate', 'active' => false],
+            ],
+            'sparklines' => [
+                'valid' => [],
+                'automated' => [],
+                'crawlers' => [],
+                'invalid' => [],
+                'bot_impact' => [],
+            ],
         ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     * @return array<string, mixed>
+     */
+    private function visitClassificationStats($domainIds, Carbon $from, Carbon $to, Request $request): array
+    {
+        $base = $this->baseVisitsQuery($domainIds, $from, $to, $request);
+
+        $total = (clone $base)->count();
+        $invalidBot = (clone $base)->where('is_invalid_traffic', true)->where(function ($q): void {
+            $q->where('threat_group', 'data_center')
+                ->orWhere('threat_group', 'vpn')
+                ->orWhere('threat_group', 'abnormal_rate_limit')
+                ->orWhere('threat_group', 'proxy')
+                ->orWhere('threat_group', 'automation');
+        })->count();
+        $invalidMalicious = (clone $base)->where('is_invalid_traffic', true)->where('threat_group', 'malicious')->count();
+        $invalidTraffic = (clone $base)->where('is_invalid_traffic', true)->count();
+
+        if (Schema::hasColumn('visits', 'is_crawler')) {
+            $knownCrawlers = (clone $base)->where('is_crawler', true)->count();
+        } else {
+            $knownCrawlers = (clone $base)->where(function ($q): void {
+                foreach ($this->crawlerBrowserList() as $name) {
+                    $q->orWhere('user_agent', 'like', '%' . $name . '%');
+                }
+            })->count();
+        }
+
+        $valid = max(0, $total - $invalidBot - $invalidMalicious - $knownCrawlers);
+        $botsDetected = $invalidBot + $invalidMalicious;
+
+        $paidTotal = 0;
+        $paidInvalid = 0;
+        if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+            $paidTotal = (clone $base)->where('is_paid_traffic', true)->count();
+            $paidInvalid = (clone $base)->where('is_paid_traffic', true)->where('is_invalid_traffic', true)->count();
+        }
+        $paidValid = max(0, $paidTotal - $paidInvalid);
+        $botImpact = $paidTotal > 0 ? round(($paidInvalid / $paidTotal) * 100, 1) : 0.0;
+
+        $actions = ['block' => 0, 'challenge' => 0, 'allow' => 0];
+        if (Schema::hasColumn('visits', 'action_taken')) {
+            $actionRows = (clone $base)
+                ->where(function ($q): void {
+                    $q->where('is_invalid_traffic', true)->orWhereNotNull('threat_group');
+                })
+                ->select('action_taken', DB::raw('COUNT(*) as total'))
+                ->groupBy('action_taken')
+                ->get();
+            foreach ($actionRows as $row) {
+                $key = strtolower((string) ($row->action_taken ?? 'allow'));
+                if ($key === 'block') {
+                    $actions['block'] += (int) $row->total;
+                } elseif (in_array($key, ['challenge', 'flag', 'captcha'], true)) {
+                    $actions['challenge'] += (int) $row->total;
+                } else {
+                    $actions['allow'] += (int) $row->total;
+                }
+            }
+        }
+
+        return [
+            'total_visits' => $total,
+            'valid_visits' => $valid,
+            'invalid_bot_visits' => $invalidBot,
+            'invalid_malicious_visits' => $invalidMalicious,
+            'invalid_traffic' => $invalidTraffic,
+            'known_crawlers' => $knownCrawlers,
+            'bots_detected' => $botsDetected,
+            'paid' => [
+                'total' => $paidTotal,
+                'valid' => $paidValid,
+                'invalid' => $paidInvalid,
+                'bot_impact' => $botImpact,
+            ],
+            'actions' => $actions,
+            'signals' => $this->detectionSignalFlags($domainIds, $from, $to),
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     * @return array<string, list<int|float>>
+     */
+    private function visitSparklineSeries($domainIds, Carbon $from, Carbon $to, Request $request): array
+    {
+        $empty = [
+            'valid' => [],
+            'automated' => [],
+            'crawlers' => [],
+            'invalid' => [],
+            'bot_impact' => [],
+        ];
+
+        if (! Schema::hasTable('visits')) {
+            return $empty;
+        }
+
+        $crawlerSql = Schema::hasColumn('visits', 'is_crawler')
+            ? 'SUM(CASE WHEN is_crawler = 1 THEN 1 ELSE 0 END) as crawlers'
+            : '0 as crawlers';
+        $paidSql = Schema::hasColumn('visits', 'is_paid_traffic')
+            ? 'SUM(CASE WHEN is_paid_traffic = 1 THEN 1 ELSE 0 END) as paid_total, SUM(CASE WHEN is_paid_traffic = 1 AND is_invalid_traffic = 1 THEN 1 ELSE 0 END) as paid_invalid'
+            : '0 as paid_total, 0 as paid_invalid';
+
+        $rows = $this->baseVisitsQuery($domainIds, $from, $to, $request)
+            ->selectRaw("DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid, SUM(CASE WHEN is_invalid_traffic = 1 AND threat_group IN ('data_center','vpn','abnormal_rate_limit','proxy','automation') THEN 1 ELSE 0 END) as bad_bots, {$crawlerSql}, {$paidSql}")
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->keyBy('day');
+
+        $valid = [];
+        $automated = [];
+        $crawlers = [];
+        $invalid = [];
+        $botImpact = [];
+
+        $period = $from->copy()->startOfDay();
+        $endDay = $to->copy()->startOfDay();
+        while ($period->lte($endDay)) {
+            $key = $period->toDateString();
+            $row = $rows->get($key);
+            $total = (int) ($row->total ?? 0);
+            $inv = (int) ($row->invalid ?? 0);
+            $bots = (int) ($row->bad_bots ?? 0);
+            $crawl = (int) ($row->crawlers ?? 0);
+            $paidTotal = (int) ($row->paid_total ?? 0);
+            $paidInvalid = (int) ($row->paid_invalid ?? 0);
+
+            $valid[] = max(0, $total - $inv);
+            $automated[] = $bots;
+            $crawlers[] = $crawl;
+            $invalid[] = $inv;
+            $botImpact[] = $paidTotal > 0 ? round(($paidInvalid / $paidTotal) * 100, 1) : 0;
+
+            $period->addDay();
+        }
+
+        return [
+            'valid' => $valid,
+            'automated' => $automated,
+            'crawlers' => $crawlers,
+            'invalid' => $invalid,
+            'bot_impact' => $botImpact,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     * @return list<array{key: string, label: string, active: bool}>
+     */
+    private function detectionSignalFlags($domainIds, Carbon $from, Carbon $to): array
+    {
+        $signals = [
+            'headless' => ['key' => 'headless', 'label' => 'Headless Browser', 'active' => false, 'needles' => ['headless', 'crawler_ua']],
+            'automation' => ['key' => 'automation', 'label' => 'Automation Tool', 'active' => false, 'needles' => ['automation', 'scrap']],
+            'missing_events' => ['key' => 'missing_events', 'label' => 'Missing Browser Events', 'active' => false, 'needles' => ['missing_event', 'no_browser', 'browser_event']],
+            'abnormal_rate' => ['key' => 'abnormal_rate', 'label' => 'Abnormal Request Rate', 'active' => false, 'needles' => ['rapid', 'rate_limit', 'session_rate', 'ip_rate']],
+        ];
+
+        $blobs = [];
+        if (Schema::hasTable('detection_logs') && Schema::hasColumn('detection_logs', 'reasons')) {
+            $blobs = DB::table('detection_logs')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('detected_at', [$from, $to])
+                ->whereNotNull('reasons')
+                ->orderByDesc('detected_at')
+                ->limit(800)
+                ->pluck('reasons')
+                ->all();
+        } elseif (Schema::hasTable('visits') && Schema::hasColumn('visits', 'detection_reasons')) {
+            $blobs = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$from, $to])
+                ->whereNotNull('detection_reasons')
+                ->orderByDesc('visited_at')
+                ->limit(800)
+                ->pluck('detection_reasons')
+                ->all();
+        }
+
+        $haystack = strtolower(implode(' ', array_map(
+            static fn ($raw) => is_string($raw) ? $raw : json_encode($raw),
+            $blobs
+        )));
+
+        foreach ($signals as &$signal) {
+            foreach ($signal['needles'] as $needle) {
+                if ($haystack !== '' && str_contains($haystack, strtolower($needle))) {
+                    $signal['active'] = true;
+                    break;
+                }
+            }
+            unset($signal['needles']);
+        }
+        unset($signal);
+
+        // Fallback: rate-limit threat group implies abnormal rate signal.
+        if (! $signals['abnormal_rate']['active'] && Schema::hasTable('visits')) {
+            $hasRate = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$from, $to])
+                ->where('threat_group', 'abnormal_rate_limit')
+                ->exists();
+            $signals['abnormal_rate']['active'] = $hasRate;
+        }
+
+        return array_values($signals);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     * @return array{labels: list<string>, values: list<int>}
+     */
+    private function aggregateDetectionReasons($domainIds, Carbon $from, Carbon $to, bool $maliciousOnly): array
+    {
+        $counts = [];
+
+        if (Schema::hasTable('detection_logs') && Schema::hasColumn('detection_logs', 'reasons')) {
+            $q = DB::table('detection_logs')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('detected_at', [$from, $to])
+                ->whereNotNull('reasons');
+            if ($maliciousOnly) {
+                $q->where('threat_group', 'malicious');
+            } else {
+                $q->where(function ($inner): void {
+                    $inner->whereNull('threat_group')->orWhere('threat_group', '!=', 'malicious');
+                });
+            }
+            $rows = $q->orderByDesc('detected_at')->limit(1500)->pluck('reasons');
+            foreach ($rows as $raw) {
+                $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
+                if (! is_array($decoded)) {
+                    continue;
+                }
+                foreach ($decoded as $reason) {
+                    $key = $this->friendlyDetectionReason((string) $reason);
+                    if ($key === '') {
+                        continue;
+                    }
+                    $counts[$key] = ($counts[$key] ?? 0) + 1;
+                }
+            }
+        }
+
+        if ($counts === [] && Schema::hasTable('visits')) {
+            $q = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$from, $to])
+                ->where('is_invalid_traffic', true)
+                ->whereNotNull('threat_group');
+            if ($maliciousOnly) {
+                $q->where('threat_group', 'malicious');
+            } else {
+                $q->where('threat_group', '!=', 'malicious');
+            }
+            $groups = $q->select('threat_group', DB::raw('COUNT(*) as total'))
+                ->groupBy('threat_group')
+                ->orderByDesc('total')
+                ->limit(6)
+                ->get();
+            foreach ($groups as $row) {
+                $label = $this->friendlyThreatGroupLabel((string) $row->threat_group);
+                $counts[$label] = (int) $row->total;
+            }
+        }
+
+        arsort($counts);
+        $counts = array_slice($counts, 0, 6, true);
+
+        return [
+            'labels' => array_keys($counts),
+            'values' => array_map('intval', array_values($counts)),
+        ];
+    }
+
+    private function friendlyDetectionReason(string $reason): string
+    {
+        $key = strtolower(trim($reason));
+        if ($key === '') {
+            return '';
+        }
+
+        $map = [
+            'headless' => 'Headless Browser',
+            'crawler_ua' => 'Headless Browser',
+            'rapid_page_opens' => 'Rapid Requests',
+            'session_rate_limit' => 'Rapid Requests',
+            'ip_rate_limit' => 'Rapid Requests',
+            'rapid_repeat' => 'Repeated Click Pattern',
+            'rapid_repeat_block' => 'Repeated Click Pattern',
+            'ipdetails_hosting' => 'Datacenter Traffic',
+            'vpn_isp_match' => 'VPN / Proxy',
+            'proxy_isp_match' => 'VPN / Proxy',
+            'abuse_tor' => 'VPN / Proxy',
+            'abuse_confidence' => 'Suspicious Behavior',
+            'ipdetails_abuser_high' => 'Suspicious Behavior',
+            'ipdetails_abuser_medium' => 'Suspicious Behavior',
+            'out_of_geo' => 'Suspicious Navigation',
+            'blocked_country' => 'Suspicious Navigation',
+            'paid_daily_click_limit' => 'Same Device Multi Sessions',
+            'previously_blocked' => 'Unknown Automation',
+            'block_list' => 'Unknown Automation',
+            'automation' => 'Unknown Automation',
+        ];
+
+        if (isset($map[$key])) {
+            return $map[$key];
+        }
+
+        foreach ($map as $needle => $label) {
+            if (str_contains($key, $needle)) {
+                return $label;
+            }
+        }
+
+        return ucwords(str_replace('_', ' ', $key));
+    }
+
+    private function friendlyThreatGroupLabel(string $group): string
+    {
+        return match (strtolower($group)) {
+            'data_center', 'datacenter' => 'Datacenter Traffic',
+            'vpn' => 'VPN',
+            'proxy' => 'Proxy',
+            'abnormal_rate_limit' => 'Rapid Requests',
+            'automation' => 'Unknown Automation',
+            'malicious' => 'Malicious Behavior',
+            default => ucwords(str_replace('_', ' ', $group)),
+        };
     }
 
     /** @return array<string, mixed> */

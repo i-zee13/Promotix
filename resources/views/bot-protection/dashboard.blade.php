@@ -38,131 +38,423 @@
         </div>
 
         <div class="figma-bp-dashboard">
-            {{-- Row 1: Area chart + vertical pill bars --}}
-            <div class="figma-bp-visits-row">
-                <section class="figma-bp-visits-card min-w-0">
-                    <div class="figma-bp-visits-head">
-                    <h2 class="figma-bp-visits-title">Total Visits Breakdown</h2>
-                        <div class="figma-bp-visits-head__meta">
-                            <div class="figma-bp-legend figma-bp-legend--inline">
-                                <template x-for="ds in areaLegendItems()" :key="ds.name">
-                                    <button
-                                        type="button"
-                                        class="chart-legend-item"
-                                        :class="{ 'is-hidden': isSeriesHidden('area', ds.name) }"
-                                        @click="toggleChartSeries('area', ds.name)"
-                                    >
-                                        <i :style="legendSwatchStyle(ds)"></i>
-                                        <span x-text="ds.name"></span>
-                                    </button>
-                                </template>
-                            </div>
-                            <div class="relative" x-data="{ cardMenu: false }">
-                                <button type="button" @click.stop="cardMenu = !cardMenu" class="figma-bp-kebab" aria-label="Chart options">
-                                    <span class="flex flex-col items-center gap-[2px]" aria-hidden="true">
-                                        <span class="block h-[3px] w-[3px] rounded-full bg-current"></span>
-                                        <span class="block h-[3px] w-[3px] rounded-full bg-current"></span>
-                                        <span class="block h-[3px] w-[3px] rounded-full bg-current"></span>
-                                    </span>
-                                </button>
-                                <div x-show="cardMenu" x-cloak @click.outside="cardMenu = false" class="figma-bp-card-menu">
-                                    <button type="button" @click="reload(); cardMenu = false">Refresh data</button>
-                                    <a href="{{ route('bot-protection.advanced') }}">Advanced view</a>
-                                </div>
-                            </div>
+            <style>
+                .bpv2-kpi-row {
+                    display: grid;
+                    grid-template-columns: repeat(5, minmax(0, 1fr));
+                    gap: 12px;
+                    margin-bottom: 14px;
+                }
+                @media (max-width: 1200px) {
+                    .bpv2-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+                }
+                @media (max-width: 720px) {
+                    .bpv2-kpi-row { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+                }
+                .bpv2-kpi {
+                    border-radius: 12px;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background: #151515;
+                    padding: 14px 14px 10px;
+                    min-height: 148px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .bpv2-kpi__top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+                .bpv2-kpi__icon {
+                    width: 28px; height: 28px; border-radius: 999px;
+                    display: inline-flex; align-items: center; justify-content: center;
+                    flex-shrink: 0;
+                }
+                .bpv2-kpi__title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.72); }
+                .bpv2-kpi__value { font-size: 28px; font-weight: 700; line-height: 1; color: #fff; letter-spacing: -0.02em; }
+                .bpv2-kpi__sub { margin-top: 6px; font-size: 11px; color: rgba(255,255,255,0.45); }
+                .bpv2-kpi__trend { margin-top: 8px; font-size: 11px; font-weight: 600; }
+                .bpv2-kpi__trend.is-up { color: #34d399; }
+                .bpv2-kpi__trend.is-down { color: #f87171; }
+                .bpv2-kpi__spark { margin-top: auto; padding-top: 10px; height: 34px; }
+                .bpv2-kpi__spark svg { width: 100%; height: 34px; display: block; }
+                .bpv2-kpi.is-human .bpv2-kpi__icon { background: rgba(100,0,178,0.2); color: #B893D8; }
+                .bpv2-kpi.is-auto .bpv2-kpi__icon { background: rgba(244,63,94,0.18); color: #fb7185; }
+                .bpv2-kpi.is-crawl .bpv2-kpi__icon { background: rgba(59,130,246,0.18); color: #60a5fa; }
+                .bpv2-kpi.is-invalid .bpv2-kpi__icon { background: rgba(245,158,11,0.18); color: #fbbf24; }
+                .bpv2-kpi.is-impact .bpv2-kpi__icon { background: rgba(16,185,129,0.18); color: #34d399; }
+
+                .bpv2-grid {
+                    display: grid;
+                    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr) minmax(0, 1fr);
+                    gap: 12px;
+                    margin-bottom: 14px;
+                }
+                @media (max-width: 1100px) {
+                    .bpv2-grid { grid-template-columns: 1fr; }
+                }
+                .bpv2-card {
+                    border-radius: 12px;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background: #151515;
+                    padding: 14px 16px 16px;
+                    min-height: 280px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .bpv2-card__title {
+                    margin: 0 0 12px;
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: rgba(255,255,255,0.88);
+                }
+                .bpv2-card__head {
+                    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+                    margin-bottom: 12px;
+                }
+                .bpv2-card__head .bpv2-card__title { margin: 0; }
+                .bpv2-legend { display: flex; flex-wrap: wrap; gap: 10px; }
+                .bpv2-legend span {
+                    display: inline-flex; align-items: center; gap: 5px;
+                    font-size: 10px; color: rgba(255,255,255,0.55);
+                }
+                .bpv2-legend i {
+                    width: 8px; height: 8px; border-radius: 2px; display: inline-block;
+                }
+                .bpv2-class-body {
+                    display: grid;
+                    grid-template-columns: 150px minmax(0, 1fr);
+                    gap: 16px;
+                    align-items: center;
+                    flex: 1;
+                }
+                @media (max-width: 640px) {
+                    .bpv2-class-body { grid-template-columns: 1fr; }
+                }
+                .bpv2-donut {
+                    width: 140px; height: 140px; margin: 0 auto;
+                    border-radius: 999px; position: relative;
+                }
+                .bpv2-donut__hole {
+                    position: absolute; inset: 22%;
+                    border-radius: 999px; background: #151515;
+                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    text-align: center;
+                }
+                .bpv2-donut__hole strong { font-size: 16px; color: #fff; line-height: 1.1; }
+                .bpv2-donut__hole span { font-size: 9px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+                .bpv2-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                .bpv2-table th {
+                    text-align: left; font-weight: 600; color: rgba(255,255,255,0.4);
+                    padding: 0 0 8px; border-bottom: 1px solid rgba(255,255,255,0.06);
+                }
+                .bpv2-table td {
+                    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+                    color: rgba(255,255,255,0.78);
+                }
+                .bpv2-table tr:last-child td { border-bottom: 0; font-weight: 700; color: #fff; }
+                .bpv2-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+                .bpv2-swatch {
+                    display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle;
+                }
+                .bpv2-bars { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+                .bpv2-bar-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+                .bpv2-bar-row__label { font-size: 11px; color: rgba(255,255,255,0.7); }
+                .bpv2-bar-row__meta { font-size: 11px; color: rgba(255,255,255,0.55); white-space: nowrap; }
+                .bpv2-bar-track {
+                    grid-column: 1 / -1; height: 8px; border-radius: 999px;
+                    background: rgba(255,255,255,0.06); overflow: hidden;
+                }
+                .bpv2-bar-fill { height: 100%; border-radius: 999px; }
+                .bpv2-bar-fill.is-red { background: linear-gradient(90deg, #e11d48, #fb7185); }
+                .bpv2-bar-fill.is-purple { background: linear-gradient(90deg, #6400B2, #B893D8); }
+                .bpv2-card__foot {
+                    margin-top: auto; padding-top: 12px;
+                    text-align: right; font-size: 12px; color: rgba(255,255,255,0.55);
+                }
+                .bpv2-detect {
+                    display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; flex: 1;
+                }
+                @media (max-width: 640px) {
+                    .bpv2-detect { grid-template-columns: 1fr; }
+                }
+                .bpv2-detect__signals { margin-bottom: 14px; }
+                .bpv2-detect__signals h4,
+                .bpv2-detect__actions h4 {
+                    margin: 0 0 8px; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.55);
+                    text-transform: uppercase; letter-spacing: 0.04em;
+                }
+                .bpv2-signal {
+                    display: flex; align-items: center; gap: 7px;
+                    font-size: 11px; color: rgba(255,255,255,0.55); margin-bottom: 6px;
+                }
+                .bpv2-signal.is-on { color: rgba(255,255,255,0.85); }
+                .bpv2-signal svg { width: 14px; height: 14px; color: #B893D8; flex-shrink: 0; opacity: 0.35; }
+                .bpv2-signal.is-on svg { opacity: 1; }
+                .bpv2-action {
+                    display: flex; align-items: center; justify-content: space-between;
+                    font-size: 11px; color: rgba(255,255,255,0.75); margin-bottom: 6px;
+                }
+                .bpv2-action__left { display: inline-flex; align-items: center; gap: 7px; }
+                .bpv2-dot { width: 7px; height: 7px; border-radius: 999px; display: inline-block; }
+                .bpv2-ads {
+                    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; flex: 1; align-content: center;
+                }
+                @media (max-width: 900px) {
+                    .bpv2-ads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                }
+                .bpv2-ads__item {
+                    border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);
+                    background: #0f0f0f; padding: 14px 12px; text-align: left;
+                }
+                .bpv2-ads__icon {
+                    width: 26px; height: 26px; border-radius: 999px;
+                    display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px;
+                }
+                .bpv2-ads__icon.is-purple { background: rgba(100,0,178,0.22); color: #B893D8; }
+                .bpv2-ads__icon.is-green { background: rgba(16,185,129,0.18); color: #34d399; }
+                .bpv2-ads__icon.is-red { background: rgba(244,63,94,0.18); color: #fb7185; }
+                .bpv2-ads__icon.is-blue { background: rgba(59,130,246,0.18); color: #60a5fa; }
+                .bpv2-ads__value { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.1; }
+                .bpv2-ads__label { margin-top: 4px; font-size: 11px; color: rgba(255,255,255,0.45); }
+                .bpv2-ads__delta { margin-top: 4px; font-size: 11px; font-weight: 600; color: #34d399; }
+                .bpv2-mal {
+                    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; align-items: start;
+                }
+                @media (max-width: 640px) {
+                    .bpv2-mal { grid-template-columns: 1fr; }
+                }
+                .bpv2-mal__hero {
+                    display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding-top: 8px;
+                }
+                .bpv2-mal__badge {
+                    width: 56px; height: 56px; border-radius: 14px;
+                    background: rgba(244,63,94,0.15); color: #fb7185;
+                    display: inline-flex; align-items: center; justify-content: center;
+                }
+                .bpv2-mal__count { font-size: 28px; font-weight: 700; color: #fff; line-height: 1; }
+                .bpv2-mal__sub { font-size: 12px; color: rgba(255,255,255,0.5); }
+                .bpv2-mal__list h4 {
+                    margin: 0 0 10px; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.55);
+                    text-transform: uppercase; letter-spacing: 0.04em;
+                }
+                .bpv2-mal__item {
+                    display: flex; justify-content: space-between; gap: 8px;
+                    font-size: 11px; color: rgba(255,255,255,0.75); margin-bottom: 8px;
+                }
+                .bpv2-mal__item-left { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+                html.light-mode .bpv2-kpi,
+                html.light-mode .bpv2-card,
+                html.light-mode .bpv2-ads__item { background: #fff; border-color: #e7e1ef; }
+                html.light-mode .bpv2-kpi__value,
+                html.light-mode .bpv2-ads__value,
+                html.light-mode .bpv2-mal__count,
+                html.light-mode .bpv2-card__title { color: #1a1524; }
+                html.light-mode .bpv2-kpi__title,
+                html.light-mode .bpv2-kpi__sub,
+                html.light-mode .bpv2-ads__label,
+                html.light-mode .bpv2-bar-row__label,
+                html.light-mode .bpv2-table td { color: #5b5568; }
+                html.light-mode .bpv2-donut__hole { background: #fff; }
+                html.light-mode .bpv2-donut__hole strong { color: #1a1524; }
+                html.light-mode .bpv2-bar-track { background: #efeaf6; }
+            </style>
+
+            {{-- Row 1: KPI metric cards --}}
+            <div class="bpv2-kpi-row">
+                <template x-for="card in kpiCards()" :key="card.key">
+                    <article class="bpv2-kpi" :class="'is-' + card.tone">
+                        <div class="bpv2-kpi__top">
+                            <span class="bpv2-kpi__icon" x-html="card.icon"></span>
+                            <p class="bpv2-kpi__title" x-text="card.title"></p>
                         </div>
-                    </div>
-                    <div id="bp-area-chart" class="figma-bp-area-canvas"></div>
-                </section>
-                <div class="figma-bp-bars-col">
-                    <article class="figma-bp-pill-card">
-                        <p class="figma-bp-pill-label">Total Valid Visits</p>
-                        <div class="figma-bp-pill-track" aria-hidden="true">
-                            <div class="figma-bp-pill-fill figma-bp-pill-fill--valid" :style="`height:${barPct('valid')}%`"></div>
-                        </div>
+                        <p class="bpv2-kpi__value" x-text="card.value"></p>
+                        <p class="bpv2-kpi__sub" x-text="card.sub"></p>
+                        <p class="bpv2-kpi__trend" :class="card.delta >= 0 ? 'is-up' : 'is-down'" x-text="card.deltaLabel"></p>
+                        <div class="bpv2-kpi__spark" aria-hidden="true" x-html="sparkSvg(card.spark, card.color)"></div>
                     </article>
-                    <article class="figma-bp-pill-card">
-                        <p class="figma-bp-pill-label">Invalid bot Visits</p>
-                        <div class="figma-bp-pill-track" aria-hidden="true">
-                            <div class="figma-bp-pill-fill figma-bp-pill-fill--invalid" :style="`height:${barPct('invalid')}%`"></div>
-                        </div>
-                    </article>
-                    <article class="figma-bp-pill-card">
-                        <p class="figma-bp-pill-label">Known Crawlers</p>
-                        <div class="figma-bp-pill-track" aria-hidden="true">
-                            <div class="figma-bp-pill-fill figma-bp-pill-fill--crawler" :style="`height:${barPct('crawler')}%`"></div>
-                        </div>
-                    </article>
-                </div>
+                </template>
             </div>
 
-            {{-- Row 2–3: Chart + side (donuts + country) | full-width domain --}}
-            <div class="figma-bp-mid-section">
-                <section class="figma-bp-invalid-card min-w-0">
-                    <h2 class="figma-bp-invalid-title">Invalid Traffic Breakdown</h2>
-                    <div class="figma-bp-invalid-legend">
-                        <template x-for="ds in invalidLegendItems()" :key="ds.name">
-                            <button
-                                type="button"
-                                class="chart-legend-item"
-                                :class="{ 'is-hidden': isSeriesHidden('invalid', ds.name) }"
-                                @click="toggleChartSeries('invalid', ds.name)"
-                            >
-                                <i :style="legendSwatchStyle(ds)"></i>
-                                <span x-text="ds.name"></span>
-                            </button>
-                        </template>
+            {{-- Row 2: Classification / Threats / Detection --}}
+            <div class="bpv2-grid">
+                <section class="bpv2-card">
+                    <div class="bpv2-card__head">
+                        <h2 class="bpv2-card__title">Traffic Classification Overview</h2>
+                        <div class="bpv2-legend">
+                            <span><i style="background:#6400B2"></i>Valid Users</span>
+                            <span><i style="background:#F43F5E"></i>Automated Traffic</span>
+                            <span><i style="background:#3B82F6"></i>Known Crawlers</span>
+                            <span><i style="background:#F59E0B"></i>Invalid Traffic</span>
+                        </div>
                     </div>
-                    <div class="figma-bp-invalid-chart-wrap">
-                        <div id="bp-invalid-line" class="figma-bp-invalid-canvas"></div>
+                    <div class="bpv2-class-body">
+                        <div class="bpv2-donut" :style="classificationDonutStyle()" role="img" aria-label="Traffic classification">
+                            <div class="bpv2-donut__hole">
+                                <strong x-text="fmt(summary.total_visits || 0)"></strong>
+                                <span>Total Visits</span>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="bpv2-table">
+                                <thead>
+                                    <tr>
+                                        <th>Traffic Type</th>
+                                        <th class="num">Visits</th>
+                                        <th class="num">%</th>
+                                        <th class="num">Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="row in classificationRows()" :key="row.key">
+                                        <tr>
+                                            <td><span class="bpv2-swatch" :style="`background:${row.color}`"></span><span x-text="row.label"></span></td>
+                                            <td class="num" x-text="fmt(row.value)"></td>
+                                            <td class="num" x-text="row.pct + '%'"></td>
+                                            <td class="num" :style="`color:${row.delta >= 0 ? '#34d399' : '#f87171'}`" x-text="formatDelta(row.delta)"></td>
+                                        </tr>
+                                    </template>
+                                    <tr>
+                                        <td>Total</td>
+                                        <td class="num" x-text="fmt(summary.total_visits || 0)"></td>
+                                        <td class="num">100%</td>
+                                        <td class="num">—</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
 
-                <div class="figma-bp-side-col">
-                <div class="figma-bp-donuts-col">
-                    <section class="figma-bp-donut-card">
-                        <h3>Threat Groups</h3>
-                            <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.th?.values)" role="img" aria-label="Threat groups chart">
-                                <span class="figma-bp-donut-hole"><span class="figma-bp-donut-hole__text" x-text="donutTotal(cache.th?.values)"></span></span>
+                <section class="bpv2-card">
+                    <h2 class="bpv2-card__title">Threat Groups</h2>
+                    <div class="bpv2-bars">
+                        <template x-for="row in threatBarRows()" :key="row.label">
+                            <div class="bpv2-bar-row">
+                                <span class="bpv2-bar-row__label" x-text="row.label"></span>
+                                <span class="bpv2-bar-row__meta" x-text="`${fmt(row.value)} · ${row.pct}%`"></span>
+                                <div class="bpv2-bar-track"><div class="bpv2-bar-fill is-red" :style="`width:${row.bar}%`"></div></div>
                             </div>
-                            <p class="figma-bp-donut-legend text-center" x-text="donutFooter(cache.th)"></p>
-                    </section>
-                    <section class="figma-bp-donut-card">
-                            <h3>Invalid Bot Activity</h3>
-                            <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.ib?.values, 'ib')" role="img" aria-label="Invalid bot activity chart">
-                                <span class="figma-bp-donut-hole"><span class="figma-bp-donut-hole__text" x-text="donutTotal(cache.ib?.values)"></span></span>
-                            </div>
-                            <div class="figma-bp-donut-legend">
-                                <template x-for="(label, i) in (cache.ib?.labels || []).slice(0, 3)" :key="label + i">
-                                    <button
-                                        type="button"
-                                        class="chart-legend-item truncate text-left"
-                                        :class="{ 'is-hidden': isDonutSegmentHidden('ib', i) }"
-                                        @click="toggleDonutSegment('ib', i)"
-                                        x-text="donutLegendLine(label, cache.ib?.values?.[i])"
-                                    ></button>
-                                </template>
-                            </div>
-                    </section>
-                    <section class="figma-bp-donut-card">
-                        <h3>Invalid Malicious</h3>
-                            <div class="figma-bp-donut-ring" :style="donutRingStyle(cache.mal?.values, 'mal')" role="img" aria-label="Invalid malicious chart">
-                                <span class="figma-bp-donut-hole"><span class="figma-bp-donut-hole__text" x-text="donutTotal(cache.mal?.values)"></span></span>
-                            </div>
-                            <div class="figma-bp-donut-legend" x-show="(cache.mal?.labels || []).length">
-                                <template x-for="(label, i) in (cache.mal?.labels || []).slice(0, 2)" :key="label + i">
-                                    <button
-                                        type="button"
-                                        class="chart-legend-item truncate text-left"
-                                        :class="{ 'is-hidden': isDonutSegmentHidden('mal', i) }"
-                                        @click="toggleDonutSegment('mal', i)"
-                                        x-text="donutLegendLine(label, cache.mal?.values?.[i])"
-                                    ></button>
-                                </template>
-                            </div>
-                        </section>
+                        </template>
+                        <p x-show="threatBarRows().length === 0" class="text-[11px] text-white/45">No threat groups in this window.</p>
                     </div>
+                    <p class="bpv2-card__foot">Total <span x-text="fmt(threatBarTotal())"></span></p>
+                </section>
 
+                <section class="bpv2-card">
+                    <h2 class="bpv2-card__title">Bot Detection Summary</h2>
+                    <div class="bpv2-detect">
+                        <div class="bpv2-donut" :style="botsDonutStyle()" role="img" aria-label="Bots detected">
+                            <div class="bpv2-donut__hole">
+                                <strong x-text="fmt(summary.bots_detected || 0)"></strong>
+                                <span>Bots Detected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="bpv2-detect__signals">
+                                <h4>Detection Signals</h4>
+                                <template x-for="sig in (summary.signals || [])" :key="sig.key">
+                                    <div class="bpv2-signal" :class="{ 'is-on': sig.active }">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 13l4 4L19 7"/></svg>
+                                        <span x-text="sig.label"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="bpv2-detect__actions">
+                                <h4>Actions Taken</h4>
+                                <template x-for="row in actionRows()" :key="row.key">
+                                    <div class="bpv2-action">
+                                        <span class="bpv2-action__left">
+                                            <i class="bpv2-dot" :style="`background:${row.color}`"></i>
+                                            <span x-text="row.label"></span>
+                                        </span>
+                                        <span x-text="`${fmt(row.value)} · ${row.pct}%`"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            {{-- Row 3: Ads / Reasons / Malicious --}}
+            <div class="bpv2-grid">
+                <section class="bpv2-card">
+                    <h2 class="bpv2-card__title">Google Ads Sessions Summary</h2>
+                    <div class="bpv2-ads">
+                        <div class="bpv2-ads__item">
+                            <span class="bpv2-ads__icon is-purple">
+                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                            </span>
+                            <p class="bpv2-ads__value" x-text="fmt(summary.paid?.total || 0)"></p>
+                            <p class="bpv2-ads__label">Total Ad Sessions</p>
+                        </div>
+                        <div class="bpv2-ads__item">
+                            <span class="bpv2-ads__icon is-green">
+                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                            </span>
+                            <p class="bpv2-ads__value" x-text="fmt(summary.paid?.valid || 0)"></p>
+                            <p class="bpv2-ads__label">Valid Sessions</p>
+                        </div>
+                        <div class="bpv2-ads__item">
+                            <span class="bpv2-ads__icon is-red">
+                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                            </span>
+                            <p class="bpv2-ads__value" x-text="fmt(summary.paid?.invalid || 0)"></p>
+                            <p class="bpv2-ads__label">Invalid Sessions</p>
+                        </div>
+                        <div class="bpv2-ads__item">
+                            <span class="bpv2-ads__icon is-blue">
+                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke-width="1.8"/></svg>
+                            </span>
+                            <p class="bpv2-ads__value" x-text="(summary.paid?.bot_impact ?? 0) + '%'"></p>
+                            <p class="bpv2-ads__label">Bot Impact</p>
+                            <p class="bpv2-ads__delta" x-text="formatDelta(summary.deltas?.bot_impact || 0, true)"></p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="bpv2-card">
+                    <h2 class="bpv2-card__title">Invalid Traffic Reasons</h2>
+                    <div class="bpv2-bars">
+                        <template x-for="row in reasonBarRows()" :key="row.label">
+                            <div class="bpv2-bar-row">
+                                <span class="bpv2-bar-row__label" x-text="row.label"></span>
+                                <span class="bpv2-bar-row__meta" x-text="`${fmt(row.value)} · ${row.pct}%`"></span>
+                                <div class="bpv2-bar-track"><div class="bpv2-bar-fill is-purple" :style="`width:${row.bar}%`"></div></div>
+                            </div>
+                        </template>
+                        <p x-show="reasonBarRows().length === 0" class="text-[11px] text-white/45">No invalid reasons yet.</p>
+                    </div>
+                    <p class="bpv2-card__foot">Total <span x-text="fmt(reasonBarTotal())"></span></p>
+                </section>
+
+                <section class="bpv2-card">
+                    <h2 class="bpv2-card__title">Malicious Behavior</h2>
+                    <div class="bpv2-mal">
+                        <div class="bpv2-mal__hero">
+                            <span class="bpv2-mal__badge" aria-hidden="true">
+                                <svg class="h-[28px] w-[28px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 3v5c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V6l8-3z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4"/></svg>
+                            </span>
+                            <p class="bpv2-mal__count" x-text="fmt(summary.invalid_malicious_visits || 0)"></p>
+                            <p class="bpv2-mal__sub">Malicious Activities</p>
+                        </div>
+                        <div class="bpv2-mal__list">
+                            <h4>Top Reasons</h4>
+                            <template x-for="row in maliciousReasonRows()" :key="row.label">
+                                <div class="bpv2-mal__item">
+                                    <span class="bpv2-mal__item-left">
+                                        <i class="bpv2-dot" style="background:#F43F5E"></i>
+                                        <span class="truncate" x-text="row.label"></span>
+                                    </span>
+                                    <span x-text="`${fmt(row.value)} · ${row.pct}%`"></span>
+                                </div>
+                            </template>
+                            <p x-show="maliciousReasonRows().length === 0" class="text-[11px] text-white/45">No malicious reasons.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            {{-- Existing tables --}}
+            <div class="figma-bp-mid-section" style="margin-top:4px;">
+                <div class="figma-bp-side-col" style="grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:12px;">
                     <section class="figma-bp-table figma-bp-country-panel min-w-0">
                         <div class="figma-bp-table-head figma-bp-table-head--country">
                             <span>Country</span>
@@ -191,32 +483,32 @@
                             <p x-show="countries.length === 0" class="px-[10px] py-[16px] text-center text-[10px] text-[#a9a9a9]">No country data.</p>
                         </div>
                     </section>
-            </div>
 
-                <section class="figma-bp-table figma-bp-domain-panel min-w-0">
-                    <div class="figma-bp-table-head figma-bp-table-head--domain">
-                        <span>Domain</span>
-                        <span class="text-center">Total Valid Visits</span>
-                        <span class="text-center">Invalid Traffic</span>
-                        <span class="text-center">Known Crawlers</span>
-                        <span class="sr-only">Action</span>
-                    </div>
-                    <div class="figma-bp-table-body promotix-slim-scroll">
-                        <template x-for="row in domainsList" :key="row.id">
-                            <div class="figma-bp-table-row--domain">
-                                <span class="flex min-w-0 items-center gap-[6px] truncate font-medium">
-                                    <svg class="h-[12px] w-[12px] shrink-0 text-[#6400b2]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/></svg>
-                                    <span class="truncate" x-text="row.hostname"></span>
-                                </span>
-                                <span class="text-center" x-text="fmt(row.valid_visits)"></span>
-                                <span class="text-center" x-text="fmt(row.invalid_visits)"></span>
-                                <span class="text-center" x-text="fmt(row.known_crawlers)"></span>
-                                <a href="{{ route('paid-marketing.detection-settings') }}" class="figma-bp-protect-btn">Get Protected</a>
-                            </div>
-                        </template>
-                        <p x-show="domainsList.length === 0" class="px-[14px] py-[20px] text-center text-[11px] text-[#a9a9a9]">No domains in this window.</p>
-                    </div>
-                </section>
+                    <section class="figma-bp-table figma-bp-domain-panel min-w-0">
+                        <div class="figma-bp-table-head figma-bp-table-head--domain">
+                            <span>Domain</span>
+                            <span class="text-center">Total Valid Visits</span>
+                            <span class="text-center">Invalid Traffic</span>
+                            <span class="text-center">Known Crawlers</span>
+                            <span class="sr-only">Action</span>
+                        </div>
+                        <div class="figma-bp-table-body promotix-slim-scroll">
+                            <template x-for="row in domainsList" :key="row.id">
+                                <div class="figma-bp-table-row--domain">
+                                    <span class="flex min-w-0 items-center gap-[6px] truncate font-medium">
+                                        <svg class="h-[12px] w-[12px] shrink-0 text-[#6400b2]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/></svg>
+                                        <span class="truncate" x-text="row.hostname"></span>
+                                    </span>
+                                    <span class="text-center" x-text="fmt(row.valid_visits)"></span>
+                                    <span class="text-center" x-text="fmt(row.invalid_visits)"></span>
+                                    <span class="text-center" x-text="fmt(row.known_crawlers)"></span>
+                                    <a href="{{ route('paid-marketing.detection-settings') }}" class="figma-bp-protect-btn">Get Protected</a>
+                                </div>
+                            </template>
+                            <p x-show="domainsList.length === 0" class="px-[14px] py-[20px] text-center text-[11px] text-[#a9a9a9]">No domains in this window.</p>
+                        </div>
+                    </section>
+                </div>
             </div>
         </div>
 
@@ -251,29 +543,41 @@
 
 <script>
 function buildBpDemoPayload() {
-    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const wave = (base, amp, phase = 0) => dayLabels.map((_, i) => {
-        const v = base + Math.sin((i + phase) * 0.9) * amp + (Math.random() - 0.5) * amp * 0.35;
-        return Math.max(0, Math.round(v));
-    });
-    const valid = wave(3600, 700, 0);
-    const badBots = wave(520, 200, 1);
-    const crawlers = wave(980, 280, 2);
-    const invalid = wave(1200, 350, 0.5);
-    const total = dayLabels.map((_, i) => Math.max(valid[i], invalid[i] + crawlers[i]) + 400);
-    const thisWeek = wave(4200, 1100, 0);
-    const siteInteraction = wave(1600, 520, 1.1);
-
+    const spark = (base, amp) => Array.from({ length: 7 }, (_, i) => Math.max(0, Math.round(base + Math.sin(i * 0.9) * amp)));
     return {
         summary: {
-            total_visits: 48200,
-            valid_visits: 29400,
-            invalid_bot_visits: 12800,
-            invalid_malicious_visits: 2100,
-            known_crawlers: 5900,
+            total_visits: 25430,
+            valid_visits: 23800,
+            invalid_bot_visits: 900,
+            invalid_malicious_visits: 50,
+            invalid_traffic: 230,
+            known_crawlers: 500,
+            bots_detected: 342,
+            deltas: {
+                valid_visits: 12.5,
+                invalid_bot_visits: -8.7,
+                known_crawlers: 3.4,
+                invalid_traffic: -15.3,
+                bot_impact: -0.8,
+            },
+            paid: { total: 10532, valid: 8945, invalid: 1587, bot_impact: 3.2 },
+            actions: { block: 280, challenge: 42, allow: 20 },
+            signals: [
+                { key: 'headless', label: 'Headless Browser', active: true },
+                { key: 'automation', label: 'Automation Tool', active: true },
+                { key: 'missing_events', label: 'Missing Browser Events', active: true },
+                { key: 'abnormal_rate', label: 'Abnormal Request Rate', active: true },
+            ],
+            sparklines: {
+                valid: spark(3400, 400),
+                automated: spark(50, 18),
+                crawlers: spark(70, 16),
+                invalid: spark(220, 40),
+                bot_impact: spark(3.2, 0.6),
+            },
         },
         domainsList: [
-            { id: 1, hostname: 'www.example.com', valid_visits: 29400, invalid_visits: 12800, known_crawlers: 5900 },
+            { id: 1, hostname: 'www.example.com', valid_visits: 23800, invalid_visits: 230, known_crawlers: 500 },
             { id: 2, hostname: 'www.infinitdigi.com', valid_visits: 8200, invalid_visits: 2100, known_crawlers: 340 },
         ],
         countries: [
@@ -283,28 +587,14 @@ function buildBpDemoPayload() {
             { country: 'PK', total: 4100, invalid: 1200, percent: 10 },
             { country: 'AE', total: 2900, invalid: 980, percent: 8 },
         ],
-        invalidTrends: {
-            labels: dayLabels,
-            datasets: [
-                { name: 'Invalid Pageloads', values: thisWeek, color: '#6625F8' },
-                { name: 'Invalid Site Interaction', values: siteInteraction, color: '#FF4BC1', dashed: true },
-            ],
-            stats: { pageloads: thisWeek.reduce((a, b) => a + b, 0), interactions: siteInteraction.reduce((a, b) => a + b, 0) },
-        },
+        invalidTrends: { labels: [], datasets: [], stats: { pageloads: 0, interactions: 0 } },
         cache: {
-            traffic: {
-                labels: dayLabels,
-                datasets: [
-                    { name: 'Valid Visits', values: valid, color: '#FFFFFF' },
-                    { name: 'Bad Bots', values: badBots, color: '#0D0D0D' },
-                    { name: 'Crawler', values: crawlers, color: '#6625F8' },
-                    { name: 'Invalid', values: invalid, color: '#FF4BC1' },
-                    { name: 'Total Visits', values: total, color: '#B893D8', line: true },
-                ],
-            },
-            th: { labels: ['vpn', 'data_center', 'abnormal_rate_limit'], values: [12, 7, 3] },
-            ib: { labels: ['automation_tool', 'scrapers'], values: [19, 3] },
-            mal: { labels: ['malicious'], values: [14] },
+            traffic: { labels: [], datasets: [] },
+            th: { labels: ['automation', 'vpn', 'proxy', 'data_center', 'suspicious', 'other'], values: [48, 32, 21, 18, 15, 16] },
+            ib: { labels: [], values: [] },
+            mal: { labels: [], values: [] },
+            reasons: { labels: ['Headless Browser', 'Rapid Requests', 'Datacenter Traffic', 'Unknown Automation'], values: [120, 90, 80, 50] },
+            malicious_reasons: { labels: ['Repeated Click Pattern', 'Same Device Multi Sessions', 'Suspicious Navigation', 'Abnormal Interaction'], values: [18, 12, 11, 9] },
         },
     };
 }
@@ -315,7 +605,15 @@ function botProtectionFigma(config = {}) {
     return {
         useDemo: Boolean(config.useDemo),
         filters: { domain_id: '', path: '', from: '', to: '' },
-        summary: { total_visits: 0, valid_visits: 0, invalid_bot_visits: 0, known_crawlers: 0 },
+        summary: {
+            total_visits: 0, valid_visits: 0, invalid_bot_visits: 0, invalid_malicious_visits: 0,
+            invalid_traffic: 0, known_crawlers: 0, bots_detected: 0,
+            deltas: { valid_visits: 0, invalid_bot_visits: 0, known_crawlers: 0, invalid_traffic: 0, bot_impact: 0 },
+            paid: { total: 0, valid: 0, invalid: 0, bot_impact: 0 },
+            actions: { block: 0, challenge: 0, allow: 0 },
+            signals: [],
+            sparklines: { valid: [], automated: [], crawlers: [], invalid: [], bot_impact: [] },
+        },
         countries: [],
         countryModal: { open: false, country: '', rows: [], loading: false },
         domainsList: [],
@@ -355,10 +653,165 @@ function botProtectionFigma(config = {}) {
             this.countryModal = { open: false, country: '', rows: [], loading: false };
         },
         threatLabel(key) {
-            const map = { vpn: 'VPN', data_center: 'Data center', abnormal_rate_limit: 'Rate limit', malicious: 'Malicious' };
+            const map = {
+                vpn: 'VPN', proxy: 'Proxy', data_center: 'Datacenter', abnormal_rate_limit: 'Suspicious Behavior',
+                malicious: 'Malicious', automation: 'Automation', suspicious: 'Suspicious Behavior', other: 'Other',
+            };
             const k = String(key || '').toLowerCase();
             return map[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
         },
+
+        formatDelta(delta, pts = false) {
+            const n = Number(delta || 0);
+            const arrow = n >= 0 ? '↑' : '↓';
+            const abs = Math.abs(n).toFixed(1).replace(/\.0$/, '');
+            return pts ? `${n >= 0 ? '+' : ''}${abs}%` : `${arrow} ${abs}% vs previous period`;
+        },
+        sharePct(part, total) {
+            const t = Number(total || 0);
+            if (!t) return 0;
+            return Math.round((Number(part || 0) / t) * 10000) / 100;
+        },
+        sparkSvg(values, color) {
+            const vals = (values || []).map(v => Number(v || 0));
+            if (!vals.length) {
+                return `<svg viewBox="0 0 120 34" preserveAspectRatio="none"><path d="M0 28 H120" fill="none" stroke="${color}" stroke-opacity="0.25" stroke-width="2"/></svg>`;
+            }
+            const min = Math.min(...vals);
+            const max = Math.max(...vals);
+            const span = Math.max(max - min, 0.0001);
+            const w = 120, h = 34, pad = 3;
+            const pts = vals.map((v, i) => {
+                const x = vals.length === 1 ? w / 2 : (i / (vals.length - 1)) * w;
+                const y = pad + (1 - ((v - min) / span)) * (h - pad * 2);
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${pts}"/></svg>`;
+        },
+        kpiCards() {
+            const s = this.summary || {};
+            const total = Number(s.total_visits || 0);
+            const paid = s.paid || {};
+            const deltas = s.deltas || {};
+            const sparks = s.sparklines || {};
+            const icon = (path) => `<svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">${path}</svg>`;
+            return [
+                {
+                    key: 'human', tone: 'human', title: 'Human Visitors', color: '#B893D8',
+                    value: this.fmt(s.valid_visits || 0),
+                    sub: `${this.sharePct(s.valid_visits, total)}% of total traffic`,
+                    delta: Number(deltas.valid_visits || 0),
+                    deltaLabel: this.formatDelta(deltas.valid_visits),
+                    spark: sparks.valid || [],
+                    icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>'),
+                },
+                {
+                    key: 'auto', tone: 'auto', title: 'Automated Threats', color: '#fb7185',
+                    value: this.fmt(s.invalid_bot_visits || 0),
+                    sub: `${this.sharePct(s.invalid_bot_visits, total)}% of total traffic`,
+                    delta: Number(deltas.invalid_bot_visits || 0),
+                    deltaLabel: this.formatDelta(deltas.invalid_bot_visits),
+                    spark: sparks.automated || [],
+                    icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3h6v2h2a2 2 0 012 2v3h-2v2h2v3a2 2 0 01-2 2h-2v2H9v-2H7a2 2 0 01-2-2v-3h2v-2H5V7a2 2 0 012-2h2V3z"/>'),
+                },
+                {
+                    key: 'crawl', tone: 'crawl', title: 'Verified Crawlers', color: '#60a5fa',
+                    value: this.fmt(s.known_crawlers || 0),
+                    sub: `${this.sharePct(s.known_crawlers, total)}% of total traffic`,
+                    delta: Number(deltas.known_crawlers || 0),
+                    deltaLabel: this.formatDelta(deltas.known_crawlers),
+                    spark: sparks.crawlers || [],
+                    icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'),
+                },
+                {
+                    key: 'invalid', tone: 'invalid', title: 'Invalid Traffic', color: '#fbbf24',
+                    value: this.fmt(s.invalid_traffic || 0),
+                    sub: `${this.sharePct(s.invalid_traffic, total)}% of total traffic`,
+                    delta: Number(deltas.invalid_traffic || 0),
+                    deltaLabel: this.formatDelta(deltas.invalid_traffic),
+                    spark: sparks.invalid || [],
+                    icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'),
+                },
+                {
+                    key: 'impact', tone: 'impact', title: 'Bot Impact (Ads Traffic)', color: '#34d399',
+                    value: `${paid.bot_impact ?? 0}%`,
+                    sub: `${this.fmt(paid.invalid || 0)} invalid of ${this.fmt(paid.total || 0)} sessions`,
+                    delta: Number(deltas.bot_impact || 0),
+                    deltaLabel: this.formatDelta(deltas.bot_impact),
+                    spark: sparks.bot_impact || [],
+                    icon: icon('<circle cx="12" cy="12" r="8" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke-width="1.8"/>'),
+                },
+            ];
+        },
+        classificationRows() {
+            const s = this.summary || {};
+            const total = Number(s.total_visits || 0) || 1;
+            const deltas = s.deltas || {};
+            const rows = [
+                { key: 'valid', label: 'Valid Users', value: s.valid_visits || 0, color: '#6400B2', delta: deltas.valid_visits || 0 },
+                { key: 'auto', label: 'Automated Traffic', value: s.invalid_bot_visits || 0, color: '#F43F5E', delta: deltas.invalid_bot_visits || 0 },
+                { key: 'crawl', label: 'Known Crawlers', value: s.known_crawlers || 0, color: '#3B82F6', delta: deltas.known_crawlers || 0 },
+                { key: 'invalid', label: 'Invalid Traffic', value: s.invalid_malicious_visits || Math.max(0, Number(s.invalid_traffic || 0) - Number(s.invalid_bot_visits || 0)), color: '#F59E0B', delta: (deltas.invalid_malicious_visits ?? deltas.invalid_traffic) || 0 },
+            ];
+            return rows.map(r => ({ ...r, pct: this.sharePct(r.value, total) }));
+        },
+        classificationDonutStyle() {
+            const rows = this.classificationRows();
+            const total = rows.reduce((a, r) => a + Number(r.value || 0), 0);
+            if (!total) return { background: 'conic-gradient(rgba(255,255,255,0.2) 0 100%)' };
+            let deg = 0;
+            const stops = rows.map(r => {
+                const span = (Number(r.value || 0) / total) * 360;
+                const start = deg;
+                deg += span;
+                return `${r.color} ${start}deg ${deg}deg`;
+            });
+            return { background: `conic-gradient(${stops.join(', ')})` };
+        },
+        barRowsFrom(block) {
+            const labels = block?.labels || [];
+            const values = (block?.values || []).map(v => Number(v || 0));
+            const total = values.reduce((a, b) => a + b, 0) || 1;
+            const max = Math.max(...values, 1);
+            return labels.map((label, i) => {
+                const value = values[i] || 0;
+                return {
+                    label: this.threatLabel(label),
+                    value,
+                    pct: Math.round((value / total) * 1000) / 10,
+                    bar: Math.max(4, Math.round((value / max) * 100)),
+                };
+            });
+        },
+        threatBarRows() { return this.barRowsFrom(this.cache?.th); },
+        threatBarTotal() { return (this.cache?.th?.values || []).reduce((a, b) => a + Number(b || 0), 0); },
+        reasonBarRows() { return this.barRowsFrom(this.cache?.reasons); },
+        reasonBarTotal() { return (this.cache?.reasons?.values || []).reduce((a, b) => a + Number(b || 0), 0); },
+        maliciousReasonRows() { return this.barRowsFrom(this.cache?.malicious_reasons); },
+        actionRows() {
+            const a = this.summary?.actions || {};
+            const rows = [
+                { key: 'block', label: 'Blocked', value: a.block || 0, color: '#F43F5E' },
+                { key: 'challenge', label: 'Challenge', value: a.challenge || 0, color: '#F59E0B' },
+                { key: 'allow', label: 'Allowed', value: a.allow || 0, color: '#22C55E' },
+            ];
+            const total = rows.reduce((s, r) => s + r.value, 0) || 1;
+            return rows.map(r => ({ ...r, pct: Math.round((r.value / total) * 1000) / 10 }));
+        },
+        botsDonutStyle() {
+            const rows = this.actionRows();
+            const total = rows.reduce((a, r) => a + r.value, 0);
+            if (!total) return { background: 'conic-gradient(rgba(100,0,178,0.35) 0 100%)' };
+            let deg = 0;
+            const stops = rows.map(r => {
+                const span = (r.value / total) * 360;
+                const start = deg;
+                deg += span;
+                return `${r.color} ${start}deg ${deg}deg`;
+            });
+            return { background: `conic-gradient(${stops.join(', ')})` };
+        },
+
         get thisWeekInvalid() {
             const ds = (this.invalidTrends.datasets || []).find(d => !d.dashed);
             return (ds?.values || []).reduce((a, b) => a + Number(b || 0), 0);
@@ -536,11 +989,7 @@ function botProtectionFigma(config = {}) {
             return `${name}: ${Number(value || 0)}`;
         },
         dataIsEmpty() {
-            const traffic = this.cache?.traffic?.datasets || [];
-            const hasTraffic = traffic.some(d => (d.values || []).some(v => Number(v) > 0));
-            const trends = this.invalidTrends?.datasets || [];
-            const hasTrends = trends.some(d => (d.values || []).some(v => Number(v) > 0));
-            return !hasTraffic && !hasTrends;
+            return Number(this.summary?.total_visits || 0) === 0;
         },
         async reload() {
             window.promotixPageLoader?.show('Loading Bot Protection…');
@@ -569,6 +1018,8 @@ function botProtectionFigma(config = {}) {
                     th,
                     ib: ib?.invalid_bot ?? { labels: [], values: [] },
                     mal: ib?.invalid_malicious ?? { labels: [], values: [] },
+                    reasons: ib?.reasons ?? { labels: [], values: [] },
+                    malicious_reasons: ib?.malicious_reasons ?? { labels: [], values: [] },
                 };
                 if (this.useDemo && this.dataIsEmpty()) {
                     this.applyDemoPayload();
@@ -844,9 +1295,7 @@ function botProtectionFigma(config = {}) {
             this.applyHiddenSeries('invalid');
         },
         renderCharts() {
-            if (!window.ApexCharts) return;
-            this.renderAreaChart();
-            this.renderInvalidChart();
+            // Apex charts from older layout removed; KPI/panel UI is Alpine-driven.
         },
     };
 }

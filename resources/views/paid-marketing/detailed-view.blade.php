@@ -1776,7 +1776,12 @@
                     const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
                         headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     });
-                    if (!res.ok) throw new Error('fetch failed');
+                    if (!res.ok) {
+                        const msg = res.status === 403
+                            ? 'Request blocked (403). Try a shorter date range — All time can be heavy.'
+                            : `Failed to load visits (${res.status}).`;
+                        throw new Error(msg);
+                    }
                     const data = await res.json();
                     this.rows = data.rows || [];
                     this.statCards = data.stats?.cards || [];
@@ -1821,6 +1826,8 @@
                     }
                 } catch (e) {
                     console.error(e);
+                    this.rows = [];
+                    window.alert?.(e?.message || 'Failed to load Advanced View data.');
                 } finally {
                     this.loading = false;
                     window.promotixPageLoader?.hide();

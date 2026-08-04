@@ -420,11 +420,23 @@ class UserTimezone
             [$fromDate, $toDate] = [$toDate, $fromDate];
         }
 
+        // Guard against multi-year "All time" payloads that overload paid queries.
+        $maxDays = 800;
+        $from = Carbon::parse($fromDate, $tz)->startOfDay();
+        $to = Carbon::parse($toDate, $tz)->startOfDay();
+        if ($from->diffInDays($to) > $maxDays) {
+            $fromDate = $to->copy()->subDays($maxDays)->toDateString();
+        }
+
         return [$fromDate, $toDate];
     }
 
     /**
      * Strict calendar-day bounds in the user's timezone (inclusive).
+     *
+     * Uses a single UTC whereBetween spanning fromDate start → toDate end.
+     * (Previously expanded into one OR per day, which exploded SQL for "All time"
+     * ranges and caused host/WAF 403 timeouts.)
      *
      * @param  \Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
      */
@@ -437,18 +449,15 @@ class UserTimezone
         ?string $timezone = null,
     ): void {
         $tz = $timezone && self::isValid($timezone) ? $timezone : self::reportingTimezoneForUser($user);
-        $query->where(function ($days) use ($fromDate, $toDate, $tz, $column): void {
-            $cursor = Carbon::parse($fromDate, $tz)->startOfDay();
-            $end = Carbon::parse($toDate, $tz)->startOfDay();
 
-            while ($cursor->lte($end)) {
-                $days->orWhereBetween($column, [
-                    $cursor->copy()->startOfDay()->utc()->toDateTimeString(),
-                    $cursor->copy()->endOfDay()->utc()->toDateTimeString(),
-                ]);
-                $cursor->addDay();
-            }
-        });
+        if ($fromDate > $toDate) {
+            [$fromDate, $toDate] = [$toDate, $fromDate];
+        }
+
+        $fromUtc = Carbon::parse($fromDate, $tz)->startOfDay()->utc()->toDateTimeString();
+        $toUtc = Carbon::parse($toDate, $tz)->endOfDay()->utc()->toDateTimeString();
+
+        $query->whereBetween($column, [$fromUtc, $toUtc]);
     }
 
     /** SQL expression for the visit timestamp's calendar date in the user's timezone. */

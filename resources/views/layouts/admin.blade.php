@@ -67,14 +67,10 @@
     </style>
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
+@include('partials.promotix-page-loader')
 @php
     // Date range lives on each dashboard page filter bar — not the top header.
     $usesDashboardDateRange = false;
-@endphp
-@if ($usesDashboardDateRange)
-    @include('partials.promotix-page-loader')
-@endif
-@php
     $user = auth()->user();
     $brandCompany = $branding['company_name'] ?? 'Digital Promotix';
     $navGroups = [

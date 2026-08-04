@@ -3,12 +3,13 @@
         pointer-events: none;
         position: fixed;
         inset: 0;
-        z-index: 250;
+        z-index: 9999;
         display: none;
         align-items: center;
         justify-content: center;
-        background: rgba(13, 13, 13, 0.72);
-        backdrop-filter: blur(2px);
+        background: rgba(8, 8, 10, 0.78);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
     }
     #promotix-page-loader.is-visible {
         display: flex;
@@ -20,18 +21,20 @@
         align-items: center;
         gap: 14px;
         border-radius: 12px;
-        border: 1px solid rgba(100, 0, 178, 0.5);
-        background: rgba(17, 17, 17, 0.95);
+        border: 1px solid rgba(184, 147, 216, 0.55);
+        background: rgba(17, 17, 17, 0.96);
         padding: 22px 28px;
         box-shadow: 0 0 40px rgba(100, 0, 179, 0.45);
     }
     #promotix-page-loader .pmx-loader-spin {
-        width: 44px;
-        height: 44px;
+        width: 48px;
+        height: 48px;
         border-radius: 999px;
-        border: 3px solid rgba(100, 0, 178, 0.3);
+        border: 3px solid rgba(184, 147, 216, 0.25);
         border-top-color: #B893D8;
-        animation: pmx-loader-spin 0.8s linear infinite;
+        border-right-color: #6400B2;
+        animation: pmx-loader-spin 0.75s linear infinite;
+        box-shadow: 0 0 18px rgba(184, 147, 216, 0.35);
     }
     #promotix-page-loader .pmx-loader-msg {
         margin: 0;
@@ -43,7 +46,9 @@
         to { transform: rotate(360deg); }
     }
     html.light-mode #promotix-page-loader {
-        background: rgba(247, 245, 250, 0.78);
+        background: rgba(247, 245, 250, 0.82);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
     }
     html.light-mode #promotix-page-loader .pmx-loader-card {
         background: rgba(255, 255, 255, 0.98);
@@ -66,7 +71,7 @@ window.promotixPageLoader = (function () {
     let shownAt = 0;
     let hideTimer = null;
     let safetyTimer = null;
-    const minMs = 400;
+    const minMs = 700;
 
     function node() {
         return document.getElementById('promotix-page-loader');

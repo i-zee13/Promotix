@@ -74,7 +74,7 @@ export function figmaDateRangePicker() {
         { id: 'this_month', label: 'This month' },
         { id: 'last_month', label: 'Last month' },
         { id: 'this_year', label: 'This year' },
-        { id: 'all_time', label: 'All time' },
+        { id: 'all_time', label: 'All time (24 mo)' },
     ];
 
     const rangeForPreset = (id) => {
@@ -105,7 +105,8 @@ export function figmaDateRangePicker() {
             return { from: fmt(startOfMonth(prev)), to: fmt(endOfMonth(prev)) };
         }
         if (id === 'this_year') return { from: fmt(new Date(t.getFullYear(), 0, 1, 12, 0, 0)), to: fmt(t) };
-        if (id === 'all_time') return { from: '2020-01-01', to: fmt(t) };
+        // Cap "All time" to last 24 months — unbounded 2020→now blew up heavy paid queries.
+        if (id === 'all_time') return { from: fmt(new Date(t.getFullYear() - 2, t.getMonth(), t.getDate(), 12, 0, 0)), to: fmt(t) };
         return { from: todayStr, to: todayStr };
     };
 

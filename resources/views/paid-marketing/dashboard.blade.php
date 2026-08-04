@@ -61,6 +61,13 @@
 @endsection
 
 @section('content')
+<script>
+    (function () {
+        const show = () => window.promotixPageLoader?.show('Loading dashboard…');
+        if (window.promotixPageLoader) show();
+        else document.addEventListener('DOMContentLoaded', show);
+    })();
+</script>
 <style>
     /* Layout guards — work even if Vite assets are stale */
     .paid-kpi-card {
@@ -527,7 +534,7 @@
                 <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                     <div class="figma-filter-select-wrap">
-                        <select x-model="filters.traffic_source" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                        <select x-model="filters.traffic_source" @change="reload(false, true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="google_ads">Google Ads</option>
                             <option value="meta_ads" disabled>Meta Ads</option>
                             <option value="microsoft_ads" disabled>Microsoft Ads</option>
@@ -537,7 +544,7 @@
                 <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
                     <div class="figma-filter-select-wrap">
-                        <select x-model="filters.google_ads_account_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                        <select x-model="filters.google_ads_account_id" @change="reload(false, true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All Accounts</option>
                             @foreach (($googleAdsAccounts ?? []) as $account)
                                 <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
@@ -548,7 +555,7 @@
                 <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
                     <div class="figma-filter-select-wrap">
-                        <select x-model="filters.campaign" @change="onCampaignChange(); reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                        <select x-model="filters.campaign" @change="onCampaignChange(); reload(false, true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All Campaigns</option>
                             <template x-for="row in campaignOptions" :key="row.campaign + '-' + (row.campaign_id || '')">
                                 <option :value="row.campaign" x-text="row.campaign"></option>
@@ -1605,7 +1612,7 @@ function paidAdvertisingFigma(config = {}) {
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         scheduleReload() {
             clearTimeout(this.reloadTimer);
-            this.reloadTimer = setTimeout(() => this.reload(), this.debounceMs);
+            this.reloadTimer = setTimeout(() => this.reload(false, true), this.debounceMs);
         },
         syncHeaderDates() {
             try {
@@ -1625,7 +1632,7 @@ function paidAdvertisingFigma(config = {}) {
             window.dispatchEvent(new CustomEvent('promotix:date-range', {
                 detail: { from: this.filters.from, to: this.filters.to },
             }));
-            this.reload();
+            this.reload(false, true);
         },
         applyDomainFromUrl() {
             const params = new URLSearchParams(window.location.search);
@@ -1817,7 +1824,9 @@ function paidAdvertisingFigma(config = {}) {
                 this.ips = Array.isArray(ips) ? ips : (ips?.data || []);
                 this.heatmap = heatmap && typeof heatmap === 'object' ? heatmap : { days: [], hours: [], matrix: [] };
                 this.lastReloadAt = Date.now();
-                this.$nextTick(() => this.render(false));
+                await this.$nextTick();
+                this.render(false);
+                await this.$nextTick();
             } finally {
                 this.reloadInFlight = false;
                 if (withLoader) window.promotixPageLoader?.hide();
@@ -1825,7 +1834,7 @@ function paidAdvertisingFigma(config = {}) {
                     const queuedForce = this.reloadQueuedForceGoogle;
                     this.reloadQueued = false;
                     this.reloadQueuedForceGoogle = false;
-                    this.reload(queuedForce, false);
+                    this.reload(queuedForce, withLoader);
                 }
             }
         },
