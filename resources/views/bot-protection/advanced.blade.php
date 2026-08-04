@@ -172,6 +172,296 @@
                 color: #2d2d3a !important;
                 border-color: #d4c4e8 !important;
             }
+
+            .bp-adv-charts {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 14px;
+                margin-top: 18px;
+            }
+            @media (min-width: 900px) {
+                .bp-adv-charts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            }
+            .bp-adv-chart-card {
+                display: flex;
+                flex-direction: column;
+                min-height: 280px;
+                border-radius: 10px;
+                border: 1px solid rgba(103, 6, 179, 0.55);
+                background: #111111;
+                padding: 16px 16px 12px;
+            }
+            .bp-adv-chart-card__title {
+                margin: 0 0 14px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .bp-adv-chart-card__body {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                flex: 1;
+                min-width: 0;
+            }
+            .bp-adv-donut {
+                --bp-donut: conic-gradient(rgba(100,0,178,0.25) 0 100%);
+                width: 118px;
+                height: 118px;
+                border-radius: 999px;
+                background: var(--bp-donut);
+                display: grid;
+                place-items: center;
+                flex-shrink: 0;
+            }
+            .bp-adv-donut__inner {
+                width: 78px;
+                height: 78px;
+                border-radius: 999px;
+                background: #111111;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 4px;
+            }
+            .bp-adv-donut__value {
+                font-size: 16px;
+                font-weight: 700;
+                color: #fff;
+                line-height: 1.1;
+            }
+            .bp-adv-donut__label {
+                margin-top: 2px;
+                font-size: 9px;
+                color: rgba(255, 255, 255, 0.45);
+                line-height: 1.2;
+            }
+            .bp-adv-legend {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                min-width: 0;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 7px;
+                max-height: 190px;
+                overflow-y: auto;
+            }
+            .bp-adv-legend li {
+                display: grid;
+                grid-template-columns: 10px minmax(0, 1fr) auto;
+                align-items: center;
+                gap: 8px;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.82);
+            }
+            .bp-adv-legend__swatch {
+                width: 10px;
+                height: 10px;
+                border-radius: 2px;
+            }
+            .bp-adv-legend__name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .bp-adv-legend__meta {
+                white-space: nowrap;
+                font-variant-numeric: tabular-nums;
+                color: rgba(255, 255, 255, 0.7);
+            }
+            .bp-adv-countries {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                flex: 1;
+                padding-top: 4px;
+            }
+            .bp-adv-country-row {
+                display: grid;
+                grid-template-columns: 22px minmax(72px, 0.9fr) minmax(0, 1.4fr) auto;
+                align-items: center;
+                gap: 8px;
+            }
+            .bp-adv-country-row__flag { font-size: 14px; line-height: 1; }
+            .bp-adv-country-row__name {
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.88);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .bp-adv-country-row__track {
+                height: 6px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
+                overflow: hidden;
+            }
+            .bp-adv-country-row__bar {
+                display: block;
+                height: 100%;
+                border-radius: 999px;
+                background: #6400B2;
+            }
+            .bp-adv-country-row__meta {
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.75);
+                white-space: nowrap;
+                font-variant-numeric: tabular-nums;
+            }
+            .bp-adv-chart-card__updated {
+                margin: 14px 0 0;
+                text-align: right;
+                font-size: 10px;
+                color: rgba(255, 255, 255, 0.38);
+            }
+            .bp-adv-hip { margin-top: 18px; }
+            .bp-adv-hip__head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .bp-adv-hip__title {
+                margin: 0;
+                font-size: 16px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .bp-adv-hip__nav { display: flex; gap: 8px; }
+            .bp-adv-hip__btn {
+                display: grid;
+                place-items: center;
+                width: 32px;
+                height: 32px;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                background: #1a1a1a;
+                color: rgba(255, 255, 255, 0.75);
+                cursor: pointer;
+            }
+            .bp-adv-hip__btn:hover {
+                background: #222;
+                color: #fff;
+                border-color: rgba(100, 0, 178, 0.55);
+            }
+            .bp-adv-hip__track {
+                display: flex;
+                gap: 12px;
+                overflow-x: auto;
+                scroll-snap-type: x mandatory;
+                scroll-behavior: smooth;
+                padding-bottom: 6px;
+            }
+            .bp-adv-hip-card {
+                flex: 0 0 min(220px, 78vw);
+                scroll-snap-align: start;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                padding: 16px 14px 14px;
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: #161616;
+                text-align: left;
+                cursor: pointer;
+            }
+            .bp-adv-hip-card:hover {
+                border-color: rgba(100, 0, 178, 0.55);
+                background: #1a1a1a;
+            }
+            .bp-adv-hip-card__ip {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 700;
+                color: #fff;
+                font-variant-numeric: tabular-nums;
+            }
+            .bp-adv-hip-card__risk { margin: 0; font-size: 13px; font-weight: 600; }
+            .bp-adv-hip-card__risk--high { color: #F43F5E; }
+            .bp-adv-hip-card__risk--medium { color: #F59E0B; }
+            .bp-adv-hip-card__badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                width: fit-content;
+                padding: 4px 10px 4px 8px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                font-size: 11px;
+                font-weight: 500;
+                color: rgba(255, 255, 255, 0.88);
+            }
+            .bp-adv-hip-card__dot {
+                width: 7px;
+                height: 7px;
+                border-radius: 999px;
+                flex-shrink: 0;
+            }
+            .bp-adv-hip-card__meta {
+                margin: 2px 0 0;
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.45);
+            }
+            .bp-adv-hip-card__ago {
+                margin: 0;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.38);
+            }
+            .bp-adv-hip__empty {
+                margin: 0;
+                padding: 22px 12px;
+                text-align: center;
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.4);
+                border: 1px dashed rgba(255, 255, 255, 0.18);
+                border-radius: 10px;
+                background: #111111;
+            }
+            html.light-mode .bp-adv-chart-card,
+            html.light-mode .bp-adv-hip-card {
+                background: #fff;
+                border-color: #d4c4e8;
+            }
+            html.light-mode .bp-adv-donut__inner { background: #fff; }
+            html.light-mode .bp-adv-chart-card__title,
+            html.light-mode .bp-adv-hip__title,
+            html.light-mode .bp-adv-hip-card__ip,
+            html.light-mode .bp-adv-legend li,
+            html.light-mode .bp-adv-country-row__name { color: #1a1a1a; }
+            html.light-mode .bp-adv-donut__label,
+            html.light-mode .bp-adv-chart-card__updated,
+            html.light-mode .bp-adv-hip-card__meta,
+            html.light-mode .bp-adv-hip-card__ago,
+            html.light-mode .bp-adv-hip__empty { color: #6b6280; }
+            html.light-mode .bp-adv-country-row__track { background: rgba(100, 0, 178, 0.1); }
+            html.light-mode .bp-adv-hip__empty {
+                background: #faf8fc;
+                border-color: #d4c4e8;
+            }
+            html.light-mode .bp-adv-hip__btn {
+                background: #fff;
+                border-color: #d4c4e8;
+                color: #5c5470;
+            }
+            @media (max-width: 520px) {
+                .bp-adv-chart-card__body { flex-direction: column; align-items: flex-start; }
+                .bp-adv-country-row {
+                    grid-template-columns: 22px minmax(0, 1fr) auto;
+                    grid-template-areas:
+                        "flag name meta"
+                        "track track track";
+                }
+                .bp-adv-country-row__flag { grid-area: flag; }
+                .bp-adv-country-row__name { grid-area: name; }
+                .bp-adv-country-row__meta { grid-area: meta; }
+                .bp-adv-country-row__track { grid-area: track; }
+            }
         </style>
 
         <div class="bp-adv-page-head">
@@ -401,6 +691,111 @@
             </div>
         </div>
 
+        <section class="bp-adv-charts">
+            <article class="bp-adv-chart-card">
+                <h3 class="bp-adv-chart-card__title">Threat Distribution</h3>
+                <div class="bp-adv-chart-card__body">
+                    <div class="bp-adv-donut" :style="`--bp-donut: ${chartThreat.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                        <div class="bp-adv-donut__inner">
+                            <p class="bp-adv-donut__value" x-text="chartThreat.total_label || '0'"></p>
+                            <p class="bp-adv-donut__label" x-text="chartThreat.center_label || 'Invalid Clicks'"></p>
+                        </div>
+                    </div>
+                    <ul class="bp-adv-legend">
+                        <template x-for="item in (chartThreat.items || [])" :key="'threat-' + item.label">
+                            <li>
+                                <span class="bp-adv-legend__swatch" :style="`background:${item.color}`"></span>
+                                <span class="bp-adv-legend__name" x-text="item.label"></span>
+                                <span class="bp-adv-legend__meta">
+                                    <span x-text="item.pct + '%'"></span>
+                                    <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
+                                </span>
+                            </li>
+                        </template>
+                        <li x-show="!(chartThreat.items || []).length" class="!text-white/40">No invalid threat data in range.</li>
+                    </ul>
+                </div>
+                <p class="bp-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
+            </article>
+
+            <article class="bp-adv-chart-card">
+                <h3 class="bp-adv-chart-card__title">Risk Level Distribution</h3>
+                <div class="bp-adv-chart-card__body">
+                    <div class="bp-adv-donut" :style="`--bp-donut: ${chartRisk.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                        <div class="bp-adv-donut__inner">
+                            <p class="bp-adv-donut__value" x-text="chartRisk.total_label || '0'"></p>
+                            <p class="bp-adv-donut__label" x-text="chartRisk.center_label || 'Unique IPs'"></p>
+                        </div>
+                    </div>
+                    <ul class="bp-adv-legend">
+                        <template x-for="item in (chartRisk.items || [])" :key="'risk-' + item.label">
+                            <li>
+                                <span class="bp-adv-legend__swatch" :style="`background:${item.color}`"></span>
+                                <span class="bp-adv-legend__name" x-text="item.label"></span>
+                                <span class="bp-adv-legend__meta">
+                                    <span x-text="item.pct + '%'"></span>
+                                    <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
+                                </span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+                <p class="bp-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
+            </article>
+
+            <article class="bp-adv-chart-card">
+                <h3 class="bp-adv-chart-card__title">Top Countries by Invalid Clicks</h3>
+                <div class="bp-adv-countries">
+                    <template x-for="row in chartCountries" :key="'country-' + row.name">
+                        <div class="bp-adv-country-row">
+                            <span class="bp-adv-country-row__flag" x-text="row.flag || '🌐'"></span>
+                            <span class="bp-adv-country-row__name" x-text="row.name"></span>
+                            <div class="bp-adv-country-row__track">
+                                <span class="bp-adv-country-row__bar" :style="`width:${row.bar || 0}%`"></span>
+                            </div>
+                            <span class="bp-adv-country-row__meta">
+                                <span x-text="row.count_label"></span>
+                                <span class="opacity-55" x-text="'(' + row.pct + '%)'"></span>
+                            </span>
+                        </div>
+                    </template>
+                    <p x-show="chartCountries.length === 0" class="py-[18px] text-center text-[12px] text-white/40">No country invalid-click data in range.</p>
+                </div>
+                <p class="bp-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
+            </article>
+        </section>
+
+        <section class="bp-adv-hip">
+            <div class="bp-adv-hip__head">
+                <h2 class="bp-adv-hip__title">Recent High Risk IPs</h2>
+                <div class="bp-adv-hip__nav" x-show="highRiskIps.length > 1">
+                    <button type="button" class="bp-adv-hip__btn" @click="scrollHighRisk(-1)" aria-label="Previous high risk IPs">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button type="button" class="bp-adv-hip__btn" @click="scrollHighRisk(1)" aria-label="Next high risk IPs">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="bp-adv-hip__track" x-ref="highRiskTrack" x-show="highRiskIps.length">
+                <template x-for="card in highRiskIps" :key="'hip-' + (card.id || card.ip)">
+                    <button type="button" class="bp-adv-hip-card" @click="filterByIp(card.ip)">
+                        <p class="bp-adv-hip-card__ip" x-text="card.ip"></p>
+                        <p class="bp-adv-hip-card__risk" :class="card.risk_tone === 'high' ? 'bp-adv-hip-card__risk--high' : 'bp-adv-hip-card__risk--medium'">
+                            Risk: <span x-text="card.risk"></span>/100
+                        </p>
+                        <span class="bp-adv-hip-card__badge" :style="card.risk_tone === 'high' ? 'color:#F43F5E' : 'color:#F59E0B'">
+                            <span class="bp-adv-hip-card__dot" :style="`background:${card.dot || '#F43F5E'}`"></span>
+                            <span x-text="card.category"></span>
+                        </span>
+                        <p class="bp-adv-hip-card__meta" x-text="card.invalid_label"></p>
+                        <p class="bp-adv-hip-card__ago" x-text="card.ago"></p>
+                    </button>
+                </template>
+            </div>
+            <p class="bp-adv-hip__empty" x-show="highRiskIps.length === 0">No high-risk IPs in this range.</p>
+        </section>
+
         <p class="mt-[12px] text-right">
             <a href="{{ route('bot-protection.dashboard') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">&larr; Back to Dashboard</a>
         </p>
@@ -537,6 +932,24 @@ function botProtectionAdvancedFigma() {
         meta: { total: 0, page: 1, per_page: 25 },
         moreFiltersOpen: false,
         stats: { blocked: 0, invalid_traffic: 0, paid_traffic: 0, bot_detection: 0, country: 0, overall: 0 },
+        chartThreat: { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' },
+        chartRisk: { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' },
+        chartCountries: [],
+        highRiskIps: [],
+        chartsUpdatedAt: null,
+        get chartsUpdatedLabel() {
+            if (!this.chartsUpdatedAt) return 'Updated: —';
+            try {
+                const ts = new Date(this.chartsUpdatedAt).getTime();
+                const sec = Math.max(0, Math.round((Date.now() - ts) / 1000));
+                if (sec < 5) return 'Updated: 1s ago';
+                if (sec < 60) return `Updated: ${sec}s ago`;
+                const min = Math.round(sec / 60);
+                return `Updated: ${min}m ago`;
+            } catch (e) {
+                return 'Updated: —';
+            }
+        },
         get statCards() {
             return [
                 { key: 'blocked', label: 'Blocked', value: this.stats.blocked ?? 0, tone: 'rose', sub: 'Blocked actions in range' },
@@ -606,10 +1019,34 @@ function botProtectionAdvancedFigma() {
                 ]);
                 this.rows = visits.data || [];
                 this.meta = { ...this.meta, ...(visits.meta || {}) };
-                this.stats = stats;
+                this.stats = {
+                    blocked: stats.blocked ?? 0,
+                    invalid_traffic: stats.invalid_traffic ?? 0,
+                    paid_traffic: stats.paid_traffic ?? 0,
+                    bot_detection: stats.bot_detection ?? 0,
+                    country: stats.country ?? 0,
+                    overall: stats.overall ?? 0,
+                };
+                const charts = stats.charts || {};
+                this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
+                this.chartRisk = charts.risk || { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' };
+                this.chartCountries = charts.countries || [];
+                this.highRiskIps = charts.high_risk_ips || [];
+                this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
             } finally {
                 window.promotixPageLoader?.hide();
             }
+        },
+        scrollHighRisk(dir) {
+            const track = this.$refs.highRiskTrack;
+            if (!track) return;
+            track.scrollBy({ left: dir * 240, behavior: 'smooth' });
+        },
+        filterByIp(ip) {
+            if (!ip) return;
+            this.filters.ip = ip;
+            this.reload(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         },
         async changePage(p) {
             this.meta.page = Math.max(1, p);

@@ -351,22 +351,22 @@
             .figma-bip, .figma-gaem {
                 min-width: 0;
                 border-radius: 12px;
-                border: 1px solid rgba(255,255,255,.12);
-                background: rgba(18,18,18,.92);
+                border: 1px solid #e4dceb;
+                background: #fff;
                 padding: 16px;
             }
             .figma-bip-head, .figma-gaem-head {
                 display: flex; flex-wrap: wrap; align-items: flex-start;
                 justify-content: space-between; gap: 10px; margin-bottom: 14px;
             }
-            .figma-bip-title, .figma-gaem-title { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #fff; }
-            .figma-bip-lead, .figma-gaem-lead { margin: 0; font-size: 11px; color: rgba(255,255,255,.5); }
+            .figma-bip-title, .figma-gaem-title { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #2d2d3a; }
+            .figma-bip-lead, .figma-gaem-lead { margin: 0; font-size: 11px; color: #6b6578; }
             .figma-bip-head-actions, .figma-gaem-head-actions { display: flex; align-items: center; gap: 8px; }
             .figma-bip-upload, .figma-gaem-bulk {
-                border-radius: 8px; border: 1px solid rgba(255,255,255,.3);
-                background: transparent; padding: 7px 12px; font-size: 11px; color: #fff; cursor: pointer;
+                border-radius: 8px; border: 1px solid #c9bdd9;
+                background: #fff; padding: 7px 12px; font-size: 11px; color: #2d2d3a; cursor: pointer;
             }
-            .figma-bip-upload:hover, .figma-gaem-bulk:hover { background: rgba(255,255,255,.06); }
+            .figma-bip-upload:hover, .figma-gaem-bulk:hover { background: #f7f5fa; }
             .figma-bip-add {
                 display: grid;
                 grid-template-columns: 1fr;
@@ -377,7 +377,7 @@
                 .figma-bip-add { grid-template-columns: 1.4fr 0.7fr 1fr auto; align-items: end; }
             }
             .figma-bip-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-            .figma-bip-field span { font-size: 10px; color: rgba(255,255,255,.5); }
+            .figma-bip-field span { font-size: 10px; color: #6b6578; }
             .figma-bip-field input, .figma-bip-field select {
                 height: 34px; border-radius: 8px; border: 1px solid rgba(154, 26, 255, 0.55);
                 background: #6400B2; color: #fff; padding: 0 10px; font-size: 11px;
@@ -389,25 +389,26 @@
                 color: #fff; font-size: 11px; font-weight: 600; padding: 0 14px; cursor: pointer;
             }
             .figma-gaem-ghost-btn {
-                height: 34px; border-radius: 8px; border: 1px solid rgba(255,255,255,.3);
-                background: transparent; color: #fff; font-size: 11px; padding: 0 12px; cursor: pointer;
+                height: 34px; border-radius: 8px; border: 1px solid #c9bdd9;
+                background: #fff; color: #2d2d3a; font-size: 11px; padding: 0 12px; cursor: pointer;
             }
-            .figma-bip-table-wrap, .figma-gaem-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); }
-            .figma-bip-table, .figma-gaem-table { width: 100%; border-collapse: collapse; font-size: 11px; color: rgba(255,255,255,.85); }
+            .figma-gaem-ghost-btn:hover { background: #f7f5fa; }
+            .figma-bip-table-wrap, .figma-gaem-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #e4dceb; }
+            .figma-bip-table, .figma-gaem-table { width: 100%; border-collapse: collapse; font-size: 11px; color: #2d2d3a; }
             .figma-bip-table th, .figma-gaem-table th {
-                text-align: left; font-weight: 500; color: rgba(255,255,255,.5);
-                padding: 8px 10px; background: #101010; white-space: nowrap;
+                text-align: left; font-weight: 500; color: #6b6578;
+                padding: 8px 10px; background: #f7f5fa; white-space: nowrap;
             }
             .figma-bip-table td, .figma-gaem-table td {
-                padding: 9px 10px; border-top: 1px solid rgba(255,255,255,.08); vertical-align: middle;
+                padding: 9px 10px; border-top: 1px solid #ece7f2; vertical-align: middle;
             }
-            .figma-bip-empty { color: rgba(255,255,255,.4) !important; }
+            .figma-bip-empty { color: #8a8399 !important; }
             .figma-bip-risk {
                 display: inline-block; border-radius: 999px; padding: 2px 7px;
-                background: rgba(255,176,32,.15); color: #ffb020; font-size: 10px; font-weight: 600;
+                background: rgba(255,176,32,.15); color: #b45309; font-size: 10px; font-weight: 600;
             }
             .figma-bip-view-all {
-                margin-top: 10px; background: none; border: 0; color: #c084fc;
+                margin-top: 10px; background: none; border: 0; color: #6400B2;
                 font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
             }
             .figma-gaem-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
@@ -418,21 +419,21 @@
             }
             .figma-gaem-ip-input::placeholder { color: rgba(255,255,255,.65); }
             .figma-gaem-bulk-box { margin-bottom: 12px; }
-            .figma-gaem-bulk-hint { margin: 0 0 6px; font-size: 10px; color: rgba(255,255,255,.45); }
+            .figma-gaem-bulk-hint { margin: 0 0 6px; font-size: 10px; color: #6b6578; }
             .figma-gaem-status {
                 display: inline-block; border-radius: 999px; padding: 3px 8px;
                 font-size: 10px; font-weight: 600;
             }
-            .figma-gaem-status.is-pending { background: rgba(255,176,32,.18); color: #ffb020; }
-            .figma-gaem-status.is-sent, .figma-gaem-status.is-applied { background: rgba(52,199,89,.18); color: #34c759; }
-            .figma-gaem-status.is-failed { background: rgba(255,80,80,.18); color: #ff7070; }
-            .figma-gaem-status.is-off { background: rgba(255,255,255,.08); color: rgba(255,255,255,.45); }
+            .figma-gaem-status.is-pending { background: rgba(255,176,32,.18); color: #b45309; }
+            .figma-gaem-status.is-sent, .figma-gaem-status.is-applied { background: rgba(52,199,89,.18); color: #15803d; }
+            .figma-gaem-status.is-failed { background: rgba(255,80,80,.18); color: #be123c; }
+            .figma-gaem-status.is-off { background: #f0ecf5; color: #6b6578; }
             .figma-gaem-actions-cell { display: flex; align-items: center; gap: 8px; }
             .figma-gaem-row-btn {
-                border-radius: 6px; border: 1px solid rgba(255,255,255,.25);
-                background: transparent; color: #fff; font-size: 10px; padding: 5px 10px; cursor: pointer;
+                border-radius: 6px; border: 1px solid #c9bdd9;
+                background: #fff; color: #2d2d3a; font-size: 10px; padding: 5px 10px; cursor: pointer;
             }
-            .figma-gaem-row-btn--primary { background: #6400B2; border-color: #6400B2; }
+            .figma-gaem-row-btn--primary { background: #6400B2; border-color: #6400B2; color: #fff; }
 
             html.light-mode .figma-dem-title,
             html.light-mode .figma-bip-title,
@@ -490,31 +491,71 @@
                 color: #6b6578 !important;
             }
 
-            /* Lite Block IP panel (always light surface) */
-            .figma-bip {
-                background: #f7f5fa !important;
-                border-color: #d4c4e8 !important;
+            /* Always-white surfaces: Block IP + Google Ads Exclusion */
+            .figma-bip,
+            .figma-gaem {
+                background: #fff !important;
+                border-color: #e4dceb !important;
             }
-            .figma-bip .figma-bip-title { color: #2d2d3a !important; }
-            .figma-bip .figma-bip-lead { color: #6b6578 !important; }
-            .figma-bip .figma-bip-upload {
+            .figma-bip .figma-bip-title,
+            .figma-gaem .figma-gaem-title { color: #2d2d3a !important; }
+            .figma-bip .figma-bip-lead,
+            .figma-gaem .figma-gaem-lead { color: #6b6578 !important; }
+            .figma-bip .figma-bip-upload,
+            .figma-gaem .figma-gaem-bulk,
+            .figma-gaem .figma-gaem-ghost-btn,
+            .figma-gaem .figma-gaem-row-btn:not(.figma-gaem-row-btn--primary) {
                 border-color: #c9bdd9 !important;
                 color: #2d2d3a !important;
                 background: #fff !important;
             }
             .figma-bip .figma-bip-field span { color: #6b6578 !important; }
-            .figma-bip .figma-bip-table-wrap {
-                border-color: #d4c4e8 !important;
+            .figma-gaem .figma-gaem-bulk-hint { color: #6b6578 !important; }
+            .figma-bip .figma-bip-table-wrap,
+            .figma-gaem .figma-gaem-table-wrap {
+                border-color: #e4dceb !important;
                 background: #fff;
             }
-            .figma-bip .figma-bip-table { color: #2d2d3a !important; }
-            .figma-bip .figma-bip-table th {
-                background: #efeaf6 !important;
+            .figma-bip .figma-bip-table,
+            .figma-gaem .figma-gaem-table { color: #2d2d3a !important; }
+            .figma-bip .figma-bip-table th,
+            .figma-gaem .figma-gaem-table th {
+                background: #f7f5fa !important;
                 color: #6b6578 !important;
             }
-            .figma-bip .figma-bip-table td { border-top-color: #ece7f2 !important; }
-            .figma-bip .figma-bip-empty { color: #8a8399 !important; }
-            .figma-bip .figma-bip-view-all { color: #6400B2 !important; }
+            .figma-bip .figma-bip-table td,
+            .figma-gaem .figma-gaem-table td { border-top-color: #ece7f2 !important; color: #2d2d3a !important; }
+            .figma-bip .figma-bip-empty,
+            .figma-gaem .figma-bip-empty { color: #8a8399 !important; }
+            .figma-bip .figma-bip-view-all,
+            .figma-gaem .figma-bip-view-all { color: #6400B2 !important; }
+            .figma-gaem .figma-gaem-row-btn--primary {
+                background: #6400B2 !important;
+                border-color: #6400B2 !important;
+                color: #fff !important;
+            }
+            .figma-gaem .figma-gaem-status.is-pending {
+                background: rgba(255,176,32,.18) !important;
+                color: #b45309 !important;
+            }
+            .figma-gaem .figma-gaem-status.is-sent,
+            .figma-gaem .figma-gaem-status.is-applied {
+                background: rgba(52,199,89,.18) !important;
+                color: #15803d !important;
+            }
+            .figma-gaem .figma-gaem-status.is-failed {
+                background: rgba(255,80,80,.18) !important;
+                color: #be123c !important;
+            }
+            .figma-gaem .figma-gaem-status.is-off {
+                background: #f0ecf5 !important;
+                color: #6b6578 !important;
+            }
+            .figma-gaem .figma-textarea {
+                background: #f7f5fa !important;
+                color: #2d2d3a !important;
+                border-color: #d4c4e8 !important;
+            }
 
             .figma-rule-editors-geo {
                 display: grid;
@@ -1588,7 +1629,7 @@
                                 </div>
                                 <div class="figma-gaem-head-actions">
                                     <button type="button" class="figma-gaem-bulk" @click="showBulk = !showBulk" x-text="showBulk ? 'Hide Bulk' : 'Bulk Exclusion'"></button>
-                                    <x-figma-toggle name="google_exclusion_enabled" value="1" :checked="$exclusionRules['enabled'] ?? true" size="sm" label-on="On" label-off="Off" />
+                                    <x-figma-toggle name="google_exclusion_enabled" value="1" :checked="$exclusionRules['enabled'] ?? true" size="sm" label-on="On" label-off="Off" variant="on-light" />
                                 </div>
                             </div>
 
