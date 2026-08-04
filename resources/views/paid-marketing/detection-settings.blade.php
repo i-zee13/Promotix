@@ -448,6 +448,122 @@
             html.light-mode .figma-gaem-bulk,
             html.light-mode .figma-gaem-ghost-btn,
             html.light-mode .figma-gaem-row-btn { color: #2d2d3a; border-color: #c9bdd9; }
+
+            /* Advanced Detection Settings */
+            .figma-ads { margin-top: 18px; margin-bottom: 18px; }
+            .figma-ads-head { margin-bottom: 14px; }
+            .figma-ads-title { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: #fff; }
+            .figma-ads-lead { margin: 0; font-size: 12px; color: rgba(255,255,255,.55); }
+            .figma-ads-card {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 0;
+                border-radius: 12px;
+                border: 1px solid rgba(255,255,255,.12);
+                background: rgba(18,18,18,.92);
+                margin-bottom: 18px;
+                overflow: hidden;
+            }
+            @media (min-width: 1100px) {
+                .figma-ads-card { grid-template-columns: 1.1fr 1.2fr 1fr; }
+                .figma-ads-col + .figma-ads-col { border-left: 1px solid rgba(255,255,255,.1); }
+            }
+            .figma-ads-col { padding: 16px; min-width: 0; }
+            .figma-ads-col-title {
+                margin: 0 0 12px;
+                font-size: 12px;
+                font-weight: 600;
+                color: rgba(255,255,255,.88);
+            }
+            .figma-ads-pills, .figma-ads-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .figma-ads-pill {
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,.22);
+                background: transparent;
+                color: #fff;
+                font-size: 11px;
+                font-weight: 500;
+                padding: 7px 12px;
+                cursor: pointer;
+            }
+            .figma-ads-pill.is-active {
+                background: #6400B2;
+                border-color: #6400B2;
+            }
+            .figma-ads-limits {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+            @media (min-width: 700px) {
+                .figma-ads-limits { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            }
+            .figma-ads-limits label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+            .figma-ads-limits span { font-size: 10px; color: rgba(255,255,255,.5); }
+            .figma-ads-limits select,
+            .figma-ads-custom input {
+                height: 32px;
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,.18);
+                background: #101010;
+                color: #fff;
+                font-size: 11px;
+                padding: 0 8px;
+            }
+            .figma-ads-custom { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+            .figma-ads-custom span { font-size: 10px; color: rgba(255,255,255,.5); }
+            .figma-ads-action {
+                border-radius: 8px;
+                border: 1px solid;
+                background: transparent;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 7px 12px;
+                cursor: pointer;
+            }
+            .figma-ads-action--allow { border-color: #34c759; color: #34c759; }
+            .figma-ads-action--monitor { border-color: #ffb020; color: #ffb020; }
+            .figma-ads-action--challenge { border-color: #e8c547; color: #e8c547; }
+            .figma-ads-action--redirect { border-color: #409cff; color: #409cff; }
+            .figma-ads-action--block { border-color: #ff5050; color: #ff5050; }
+            .figma-ads-action.is-selected { background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px currentColor; }
+            .figma-ads-more { padding-top: 4px; }
+
+            html.light-mode .figma-ads-title { color: #2d2d3a; }
+            html.light-mode .figma-ads-lead,
+            html.light-mode .figma-ads-limits span,
+            html.light-mode .figma-ads-custom span { color: #6b6578; }
+            html.light-mode .figma-ads-col-title { color: #2d2d3a; }
+            html.light-mode .figma-ads-card { background: #fff; border-color: #e4dceb; }
+            html.light-mode .figma-ads-col + .figma-ads-col { border-left-color: #ece7f2; }
+            html.light-mode .figma-ads-pill { color: #2d2d3a; border-color: #c9bdd9; }
+            html.light-mode .figma-ads-pill.is-active { color: #fff; }
+            html.light-mode .figma-ads-limits select,
+            html.light-mode .figma-ads-custom input {
+                background: #f7f5fa; color: #2d2d3a; border-color: #d4c4e8;
+            }
+
+            .figma-rule-editor {
+                border-radius: 12px;
+                border: 1px solid rgba(255,255,255,.12);
+                background: rgba(18,18,18,.92);
+                padding: 14px;
+            }
+            .figma-rule-editor-title {
+                margin: 0 0 10px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #fff;
+            }
+            html.light-mode .figma-rule-editor {
+                background: #fff;
+                border-color: #e4dceb;
+            }
+            html.light-mode .figma-rule-editor-title { color: #2d2d3a; }
         </style>
 
         <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
@@ -890,7 +1006,6 @@
                                 </article>
                             @endforeach
                         </div>
-                        {{-- Keep invalid_bot_action in form (still edited in left panel below) --}}
                     </section>
 
                     {{-- Block IP + Google Ads Exclusion Manager --}}
@@ -1078,243 +1193,245 @@
                         </section>
                     </div>
 
-                    <div class="mb-[18px] rounded-[10px] border border-amber-400/40 bg-amber-500/10 px-[14px] py-[12px] text-[11px] leading-relaxed text-amber-100/90">
-                        <p class="font-semibold text-amber-100">Ad-platform limitation</p>
-                        <p class="mt-[4px]">Website blocking can stop future site access, but it cannot guarantee Google Ads will not count the original ad click. Prefer Google Ads IP / location exclusions where eligible, and treat platform block stats separately from Google-reported invalid clicks.</p>
+                    {{-- Persist fields from removed old panels + compact editors for Manage buttons --}}
+                    <div class="sr-only" aria-hidden="true">
+                        <input type="hidden" name="invalid_bot_action" value="{{ old('invalid_bot_action', $settings->invalid_bot_action ?? 'block') }}">
+                        <input type="hidden" name="session_recordings" value="0">
+                        @if ($settings->session_recordings)
+                            <input type="hidden" name="session_recordings" value="1">
+                        @endif
+                        <input type="hidden" name="audience_exclusion_event" value="{{ old('audience_exclusion_event', $settings->audience_exclusion_event ?? 'exclude_all_threat_groups_auto') }}">
+                        @foreach ([
+                            'google_exclude_invalid' => $exclusionRules['exclude_invalid'] ?? true,
+                            'google_exclude_malicious' => $exclusionRules['exclude_malicious'] ?? true,
+                            'google_exclude_vpn' => $exclusionRules['exclude_vpn'] ?? true,
+                            'google_exclude_data_center' => $exclusionRules['exclude_data_center'] ?? true,
+                            'google_exclude_proxy' => $exclusionRules['exclude_proxy'] ?? true,
+                            'google_exclude_rate_limit' => $exclusionRules['exclude_rate_limit'] ?? true,
+                            'google_exclude_out_of_geo' => $exclusionRules['exclude_out_of_geo'] ?? true,
+                        ] as $exName => $exOn)
+                            <input type="hidden" name="{{ $exName }}" value="0">
+                            @if ($exOn)
+                                <input type="hidden" name="{{ $exName }}" value="1">
+                            @endif
+                        @endforeach
                     </div>
 
-                    <div class="figma-detection-layout">
-                        {{-- Left: threat groups (Figma gray panel) --}}
-                        <div class="figma-detection-left">
-                            <div class="figma-detection-section">
-                                <h2 class="figma-detection-section-title">Invalid Bot Activity</h2>
-                                <div class="figma-detection-card figma-detection-card--row">
-                                    <p class="figma-detection-card-text">Block non-Human tools that can be for malicious purpose such as false-clicks or other type of fraud or fake</p>
-                                    <select name="invalid_bot_action" class="figma-detection-inline-select" aria-label="Invalid Bot Activity action">
-                                        <option value="block" @selected($settings->invalid_bot_action === 'block')>Block</option>
-                                        <option value="flag" @selected($settings->invalid_bot_action === 'flag')>Flag</option>
-                                        <option value="allow" @selected($settings->invalid_bot_action === 'allow')>Allow</option>
-                                    </select>
+                    <div class="figma-rule-editors mb-[18px] space-y-[12px]">
+                        <div id="detection-panel-geo-allow" class="figma-rule-editor" x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
+                            <h3 class="figma-rule-editor-title">Geo Targeting — Allowed Countries</h3>
+                            <input type="hidden" name="out_of_geo_audience" :value="jsonValue">
+                            <div class="figma-detection-card-inset space-y-[8px]">
+                                <div class="flex flex-wrap items-end gap-[8px]">
+                                    @include('paid-marketing.partials.geo-audience-comboboxes')
+                                    <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
                                 </div>
-                            </div>
-
-                            <div class="figma-detection-section">
-                                <h2 class="figma-detection-section-title">Session recordings</h2>
-                                <div class="figma-detection-card figma-detection-session">
-                                    <p class="figma-detection-card-text">Allow session recordings to capture and review mouse movements for detailed analysis and observation. Currently available for Invalid Malicious Activity Threat Group only</p>
-                                    <x-figma-toggle
-                                        name="session_recordings"
-                                        value="1"
-                                        :checked="$settings->session_recordings"
-                                        label-on="On"
-                                        label-off="Off"
-                                    />
-                                </div>
-                            </div>
-
-                            <div id="detection-panel-geo-block" class="figma-detection-section" x-data="geoAudiencePicker({{ json_encode(['rules' => $googleGeoBlockRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
-                                <h2 class="figma-detection-section-title">Block countries from Google Ads</h2>
-                                <div class="figma-detection-card figma-detection-geo-block">
-                                    <div class="figma-detection-geo-block-header">
-                                        <p class="figma-detection-card-text">Selected countries / regions / cities are pushed as Google Ads location exclusions so ads do not show in those geos.</p>
-                                    </div>
-                                    <input type="hidden" name="google_geo_block_audience" :value="jsonValue">
-                                    <div class="figma-detection-card-inset space-y-[8px]">
-                                        <div class="flex flex-wrap items-end gap-[8px]">
-                                            @include('paid-marketing.partials.geo-audience-comboboxes')
-                                            <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
-                                        </div>
-                                        <template x-if="rules.length">
-                                            <div class="space-y-[4px]">
-                                                <template x-for="(rule, idx) in rules" :key="idx">
-                                                    <div class="figma-detection-geo-rule-row">
-                                                        <span x-text="ruleLabel(rule)"></span>
-                                                        <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
-                                                    </div>
-                                                </template>
+                                <template x-if="rules.length">
+                                    <div class="space-y-[4px]">
+                                        <template x-for="(rule, idx) in rules" :key="idx">
+                                            <div class="figma-detection-geo-rule-row">
+                                                <span x-text="ruleLabel(rule)"></span>
+                                                <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
                                             </div>
                                         </template>
-                                        <p x-show="!rules.length" class="figma-detection-geo-empty">No blocked locations added yet. Add a country (optional region/city), then Save changes.</p>
                                     </div>
-                                </div>
+                                </template>
+                                <p x-show="!rules.length" class="figma-detection-geo-empty">No audience locations added yet.</p>
                             </div>
-
-                            <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-detection-add-domain">
-                                <svg class="figma-detection-add-domain-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                Add domain
-                            </a>
                         </div>
 
-                        {{-- Right: marketing optimization (Figma purple panel) --}}
-                        <section class="figma-detection-right">
-                            <div class="figma-detection-right-inner space-y-[40px]">
-                                <div>
-                                    <h2 class="figma-detection-right-title">Marketing Optimization Rules</h2>
-                                    <div class="figma-detection-right-card">
-                                        <p class="mb-[10px]">Ad fatigue occurs when your audience sees your ads too often which causes your campaigns to become less effective and prevents users from moving down the sales funnel. Using Frequency capping you can limit the number of times your ads appear to the same user. Control this from <strong>Repeated Click Detection</strong> in Detection Engine Modules above.</p>
-                                    </div>
+                        <div id="detection-panel-geo-block" class="figma-rule-editor" x-data="geoAudiencePicker({{ json_encode(['rules' => $googleGeoBlockRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
+                            <h3 class="figma-rule-editor-title">Blocked Countries (Google Ads)</h3>
+                            <input type="hidden" name="google_geo_block_audience" :value="jsonValue">
+                            <div class="figma-detection-card-inset space-y-[8px]">
+                                <div class="flex flex-wrap items-end gap-[8px]">
+                                    @include('paid-marketing.partials.geo-audience-comboboxes')
+                                    <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
                                 </div>
-
-                                <div id="detection-panel-geo-allow">
-                                    <h2 class="figma-detection-right-title">Marketing Optimization Rules</h2>
-                                    <div x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
-                                    <div class="figma-detection-right-row">
-                                        <span>Only allow click coming from the following Countries</span>
-                                    </div>
-                                    <input type="hidden" name="out_of_geo_audience" :value="jsonValue">
-                                    <div class="mt-[8px] figma-detection-card-inset space-y-[8px]">
-                                        <div class="flex flex-wrap items-end gap-[8px]">
-                                        @include('paid-marketing.partials.geo-audience-comboboxes')
-                                            <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
-                                        </div>
-                                        <template x-if="rules.length">
-                                            <div class="space-y-[4px]">
-                                                <template x-for="(rule, idx) in rules" :key="idx">
-                                                    <div class="figma-detection-geo-rule-row">
-                                                        <span x-text="ruleLabel(rule)"></span>
-                                                        <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
-                                                    </div>
-                                                </template>
+                                <template x-if="rules.length">
+                                    <div class="space-y-[4px]">
+                                        <template x-for="(rule, idx) in rules" :key="idx">
+                                            <div class="figma-detection-geo-rule-row">
+                                                <span x-text="ruleLabel(rule)"></span>
+                                                <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
                                             </div>
                                         </template>
-                                        <p x-show="!rules.length" class="figma-detection-geo-empty">No audience locations added yet.</p>
                                     </div>
-                                    </div>
-                                </div>
-
-                                <div id="detection-panel-ip-allow" x-data="ipListFileUpload('allow_list_ips')">
-                                    <div class="figma-detection-right-row flex-wrap gap-[8px]">
-                                        <span class="min-w-0 flex-1">Ensure predefined IPs will always be able to see your ads</span>
-                                        <div class="flex shrink-0 flex-wrap items-center gap-[8px]">
-                                            <label class="cursor-pointer rounded-[6px] border border-white/30 px-[10px] py-[6px] text-[10px] text-white hover:bg-white/10">
-                                                <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onFile($event)">
-                                                Choose file
-                                            </label>
-                                            <span class="max-w-[120px] truncate text-[9px] text-white/45" x-text="fileName || ''"></span>
-                                        </div>
-                                    </div>
-                                    <p class="mt-[6px] text-[9px] text-white/45">Upload .txt / .csv (one IP per line). IPs are merged into the list below — click Save changes to apply.</p>
-                                    <textarea id="allow_list_ips" name="allow_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="figma-textarea mt-[8px] text-[11px]">{{ $settings->allow_list_ips }}</textarea>
-                                </div>
-
-                                <div>
-                                    <h2 class="figma-detection-right-title">Audience Exclusion Event Settings</h2>
-                                    <select name="audience_exclusion_event" class="figma-panel-select figma-panel-select-lg w-full">
-                                        <option value="exclude_all_threat_groups_auto" @selected($settings->audience_exclusion_event === 'exclude_all_threat_groups_auto')>Exclude all Threat Groups automatically</option>
-                                        <option value="exclude_bot_malicious_only" @selected($settings->audience_exclusion_event === 'exclude_bot_malicious_only')>Exclude only Bot and Malicious Threat Groups</option>
-                                        <option value="disable_auto_exclusions" @selected($settings->audience_exclusion_event === 'disable_auto_exclusions')>Disable automatic exclusions</option>
-                                    </select>
-
-                                    <div class="mt-[12px] rounded-[8px] border border-white/15 bg-black/20 p-[12px] space-y-[10px]">
-                                        <div class="flex items-center justify-between gap-[8px]">
-                                            <span class="text-[12px] text-white">Google Ads exclusion filters</span>
-                                            <span class="text-[10px] text-white/45">Master switch is on Exclusion Manager above</span>
-                                        </div>
-                                        <div class="grid grid-cols-1 gap-[8px] sm:grid-cols-2">
-                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
-                                                <input type="hidden" name="google_exclude_invalid" value="0">
-                                                <input type="checkbox" name="google_exclude_invalid" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_invalid'] ?? true)>
-                                                Exclude invalid IPs
-                                            </label>
-                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
-                                                <input type="hidden" name="google_exclude_malicious" value="0">
-                                                <input type="checkbox" name="google_exclude_malicious" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_malicious'] ?? true)>
-                                                Exclude malicious IPs
-                                            </label>
-                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
-                                                <input type="hidden" name="google_exclude_vpn" value="0">
-                                                <input type="checkbox" name="google_exclude_vpn" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_vpn'] ?? true)>
-                                                Exclude VPN
-                                            </label>
-                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
-                                                <input type="hidden" name="google_exclude_data_center" value="0">
-                                                <input type="checkbox" name="google_exclude_data_center" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_data_center'] ?? true)>
-                                                Exclude data center
-                                            </label>
-                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
-                                                <input type="hidden" name="google_exclude_proxy" value="0">
-                                                <input type="checkbox" name="google_exclude_proxy" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_proxy'] ?? true)>
-                                                Exclude proxy
-                                            </label>
-                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90">
-                                                <input type="hidden" name="google_exclude_rate_limit" value="0">
-                                                <input type="checkbox" name="google_exclude_rate_limit" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_rate_limit'] ?? true)>
-                                                Exclude rate limit
-                                            </label>
-                                            <label class="flex items-center gap-[8px] text-[11px] text-white/90 sm:col-span-2">
-                                                <input type="hidden" name="google_exclude_out_of_geo" value="0">
-                                                <input type="checkbox" name="google_exclude_out_of_geo" value="1" class="rounded border-white/30" @checked($exclusionRules['exclude_out_of_geo'] ?? true)>
-                                                Exclude out-of-geo
-                                            </label>
-                                        </div>
-                                        <p class="text-[10px] text-white/50">When a paid visit is blocked, matching checked types are sent to Google Ads campaign IP exclusions. Unchecked types are blocked on-site only. Manage IP push queue in <strong>Google Ads Exclusion Manager</strong> above.</p>
-                                    </div>
-                                </div>
-
-                                <div class="figma-detection-save-row flex justify-end pt-[4px]">
-                                    <button type="submit" class="rounded-[6px] bg-white px-[22px] py-[9px] text-[13px] font-semibold text-[#6400B2] shadow-[0_8px_20px_rgba(0,0,0,.25)]">Save changes</button>
-                                </div>
-
-                                @if (!empty($countryAudits) && $countryAudits->isNotEmpty())
-                                    <div class="figma-detection-section mt-[18px]">
-                                        <h2 class="figma-detection-section-title">Country rule audit log</h2>
-                                        <div class="figma-detection-card overflow-x-auto">
-                                            <table class="w-full text-left text-[11px] text-white/80">
-                                                <thead>
-                                                    <tr class="border-b border-white/15 text-white/50">
-                                                        <th class="py-[6px] pr-[8px] font-medium">When</th>
-                                                        <th class="py-[6px] pr-[8px] font-medium">Admin</th>
-                                                        <th class="py-[6px] pr-[8px] font-medium">Action</th>
-                                                        <th class="py-[6px] pr-[8px] font-medium">Field</th>
-                                                        <th class="py-[6px] pr-[8px] font-medium">Scope</th>
-                                                        <th class="py-[6px] font-medium">Change</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach ($countryAudits as $audit)
-                                                        <tr class="border-b border-white/10 align-top">
-                                                            <td class="py-[6px] pr-[8px] whitespace-nowrap">{{ optional($audit->created_at)?->timezone(config('app.timezone'))->format('Y-m-d H:i') }}</td>
-                                                            <td class="py-[6px] pr-[8px]">{{ $audit->user?->email ?? $audit->user?->name ?? ('#'.$audit->user_id) }}</td>
-                                                            <td class="py-[6px] pr-[8px]">{{ $audit->action }}</td>
-                                                            <td class="py-[6px] pr-[8px]">{{ $audit->field }}</td>
-                                                            <td class="py-[6px] pr-[8px]">{{ $audit->scope }}</td>
-                                                            <td class="py-[6px] max-w-[280px] break-all text-white/60">
-                                                                <span class="text-white/40">from</span>
-                                                                {{ \Illuminate\Support\Str::limit(json_encode($audit->previous_value['value'] ?? null), 80) }}
-                                                                <span class="text-white/40">→</span>
-                                                                {{ \Illuminate\Support\Str::limit(json_encode($audit->new_value['value'] ?? null), 80) }}
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                @endif
+                                </template>
+                                <p x-show="!rules.length" class="figma-detection-geo-empty">No blocked locations added yet.</p>
                             </div>
-                        </section>
+                        </div>
+
+                        <div id="detection-panel-ip-allow" class="figma-rule-editor" x-data="ipListFileUpload('allow_list_ips')">
+                            <div class="flex flex-wrap items-center justify-between gap-[8px] mb-[8px]">
+                                <h3 class="figma-rule-editor-title !mb-0">Whitelist IP Addresses</h3>
+                                <label class="cursor-pointer rounded-[6px] border border-white/30 px-[10px] py-[6px] text-[10px] text-white hover:bg-white/10">
+                                    <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onFile($event)">
+                                    Choose file
+                                </label>
+                            </div>
+                            <textarea id="allow_list_ips" name="allow_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="figma-textarea text-[11px]">{{ $settings->allow_list_ips }}</textarea>
+                        </div>
                     </div>
+
+                    @if (!empty($countryAudits) && $countryAudits->isNotEmpty())
+                        <div class="figma-detection-section mb-[18px]">
+                            <h2 class="figma-detection-section-title">Country rule audit log</h2>
+                            <div class="figma-detection-card overflow-x-auto">
+                                <table class="w-full text-left text-[11px] text-white/80">
+                                    <thead>
+                                        <tr class="border-b border-white/15 text-white/50">
+                                            <th class="py-[6px] pr-[8px] font-medium">When</th>
+                                            <th class="py-[6px] pr-[8px] font-medium">Admin</th>
+                                            <th class="py-[6px] pr-[8px] font-medium">Action</th>
+                                            <th class="py-[6px] pr-[8px] font-medium">Field</th>
+                                            <th class="py-[6px] pr-[8px] font-medium">Scope</th>
+                                            <th class="py-[6px] font-medium">Change</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($countryAudits as $audit)
+                                            <tr class="border-b border-white/10 align-top">
+                                                <td class="py-[6px] pr-[8px] whitespace-nowrap">{{ optional($audit->created_at)?->timezone(config('app.timezone'))->format('Y-m-d H:i') }}</td>
+                                                <td class="py-[6px] pr-[8px]">{{ $audit->user?->email ?? $audit->user?->name ?? ('#'.$audit->user_id) }}</td>
+                                                <td class="py-[6px] pr-[8px]">{{ $audit->action }}</td>
+                                                <td class="py-[6px] pr-[8px]">{{ $audit->field }}</td>
+                                                <td class="py-[6px] pr-[8px]">{{ $audit->scope }}</td>
+                                                <td class="py-[6px] max-w-[280px] break-all text-white/60">
+                                                    <span class="text-white/40">from</span>
+                                                    {{ \Illuminate\Support\Str::limit(json_encode($audit->previous_value['value'] ?? null), 80) }}
+                                                    <span class="text-white/40">→</span>
+                                                    {{ \Illuminate\Support\Str::limit(json_encode($audit->new_value['value'] ?? null), 80) }}
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
 
                     @php
                         $profileKey = $settings->detection_profile ?? 'standard';
                         $thr = $settings->detection_thresholds ?? [];
                         $profiles = $detectionProfiles ?? \App\Support\DetectionProfiles::catalog();
+                        $rapidWindow = (int) ($thr['rapid_window_seconds'] ?? 60);
+                        $rapidPreset = match ($rapidWindow) {
+                            10 => '10',
+                            30 => '30',
+                            60 => '60',
+                            300 => '300',
+                            default => 'custom',
+                        };
+                        $blockResponse = (string) ($settings->block_response ?? 'hide');
+                        $blockResponseUi = match ($blockResponse) {
+                            'blank' => 'monitor',
+                            'challenge' => 'challenge',
+                            'redirect' => 'redirect',
+                            'forbid' => 'block',
+                            default => 'allow', // hide → Allow (softest)
+                        };
                     @endphp
-                    <details
+                    <section
                         id="detection-advanced"
-                        class="figma-detection-advanced mt-[18px]"
-                        @toggle="if ($el.open) { setTimeout(() => $el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80) }"
+                        class="figma-ads"
+                        x-data="{
+                            rapidPreset: @js($rapidPreset),
+                            rapidCustom: @js($rapidWindow),
+                            blockAction: @js($blockResponseUi),
+                            responseMap: { allow: 'hide', monitor: 'blank', challenge: 'challenge', redirect: 'redirect', block: 'forbid' },
+                            setRapid(preset) {
+                                this.rapidPreset = preset;
+                                if (preset !== 'custom') this.rapidCustom = Number(preset);
+                            },
+                            get rapidValue() {
+                                return this.rapidPreset === 'custom' ? Number(this.rapidCustom || 60) : Number(this.rapidPreset);
+                            },
+                            get blockResponseValue() {
+                                return this.responseMap[this.blockAction] || 'hide';
+                            }
+                        }"
                     >
-                        <summary class="figma-detection-advanced-summary">
-                            <span class="figma-detection-advanced-summary-label">
-                                <svg class="figma-detection-advanced-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                Advanced detection settings
-                            </span>
-                            <span class="figma-detection-advanced-hint">Profiles, rapid-click thresholds, block behavior, privacy &amp; recordings</span>
-                        </summary>
-                        <div class="figma-detection-advanced-body space-y-[12px]">
+                        <div class="figma-ads-head">
+                            <h2 class="figma-ads-title">Advanced Detection Settings</h2>
+                            <p class="figma-ads-lead">Configure how PromoTix detects and protects your traffic.</p>
+                        </div>
+
+                        <div class="figma-ads-card">
+                            <div class="figma-ads-col">
+                                <h3 class="figma-ads-col-title">Rapid Click Rules (Same IP)</h3>
+                                <input type="hidden" name="rapid_window_seconds" :value="rapidValue">
+                                <div class="figma-ads-pills">
+                                    <button type="button" class="figma-ads-pill" :class="{ 'is-active': rapidPreset === '10' }" @click="setRapid('10')">10 sec</button>
+                                    <button type="button" class="figma-ads-pill" :class="{ 'is-active': rapidPreset === '30' }" @click="setRapid('30')">30 sec</button>
+                                    <button type="button" class="figma-ads-pill" :class="{ 'is-active': rapidPreset === '60' }" @click="setRapid('60')">60 sec</button>
+                                    <button type="button" class="figma-ads-pill" :class="{ 'is-active': rapidPreset === '300' }" @click="setRapid('300')">5 min</button>
+                                    <button type="button" class="figma-ads-pill" :class="{ 'is-active': rapidPreset === 'custom' }" @click="setRapid('custom')">Custom</button>
+                                </div>
+                                <label class="figma-ads-custom" x-show="rapidPreset === 'custom'" x-cloak>
+                                    <span>Custom window (sec)</span>
+                                    <input type="number" min="10" max="600" x-model.number="rapidCustom">
+                                </label>
+                            </div>
+
+                            <div class="figma-ads-col">
+                                <h3 class="figma-ads-col-title">Click Frequency Limits (Same IP)</h3>
+                                <div class="figma-ads-limits">
+                                    <label>
+                                        <span>Hourly Limit</span>
+                                        <select name="hourly_valid_click_limit">
+                                            @foreach ([1,2,3,5,10,20] as $n)
+                                                <option value="{{ $n }}" @selected((int) ($thr['hourly_valid_click_limit'] ?? 3) === $n)>{{ $n }} Clicks</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span>Daily Limit</span>
+                                        <select name="daily_valid_click_limit">
+                                            @foreach ([1,2,3,5,10,20,50,100] as $n)
+                                                <option value="{{ $n }}" @selected((int) ($thr['daily_valid_click_limit'] ?? 20) === $n)>{{ $n }} Clicks</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span>Weekly Limit</span>
+                                        <select name="weekly_valid_click_limit">
+                                            @foreach ([10,20,50,100,200,500] as $n)
+                                                <option value="{{ $n }}" @selected((int) ($thr['weekly_valid_click_limit'] ?? 100) === $n)>{{ $n }} Clicks</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span>Monthly Limit</span>
+                                        <select name="monthly_valid_click_limit">
+                                            @foreach ([50,100,200,300,500,1000] as $n)
+                                                <option value="{{ $n }}" @selected((int) ($thr['monthly_valid_click_limit'] ?? 300) === $n)>{{ $n }} Clicks</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="figma-ads-col">
+                                <h3 class="figma-ads-col-title">Block Response Action</h3>
+                                <input type="hidden" name="block_response" :value="blockResponseValue">
+                                <div class="figma-ads-actions">
+                                    <button type="button" class="figma-ads-action figma-ads-action--allow" :class="{ 'is-selected': blockAction === 'allow' }" @click="blockAction = 'allow'">Allow</button>
+                                    <button type="button" class="figma-ads-action figma-ads-action--monitor" :class="{ 'is-selected': blockAction === 'monitor' }" @click="blockAction = 'monitor'">Monitor</button>
+                                    <button type="button" class="figma-ads-action figma-ads-action--challenge" :class="{ 'is-selected': blockAction === 'challenge' }" @click="blockAction = 'challenge'">Challenge</button>
+                                    <button type="button" class="figma-ads-action figma-ads-action--redirect" :class="{ 'is-selected': blockAction === 'redirect' }" @click="blockAction = 'redirect'">Redirect</button>
+                                    <button type="button" class="figma-ads-action figma-ads-action--block" :class="{ 'is-selected': blockAction === 'block' }" @click="blockAction = 'block'">Block</button>
+                                </div>
+                                <label class="figma-ads-custom" x-show="blockAction === 'redirect'" x-cloak>
+                                    <span>Redirect URL</span>
+                                    <input type="url" name="block_redirect_url" value="{{ $settings->block_redirect_url }}" placeholder="https://example.com/safe">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="figma-ads-more space-y-[12px]">
                             <p class="text-[11px] leading-relaxed text-[#a9a9a9]">
-                                These controls tune how aggressively PromoTix flags or blocks paid clicks (checklist items DE-04–DE-08, BL-02, BL-05, SR-06, SE-04). They are optional fine-tuning on top of the main threat rules in the panels above.
+                                These controls tune how aggressively PromoTix flags or blocks paid clicks. Optional fine-tuning on top of the main threat rules above.
                             </p>
                             <h3 class="figma-detection-section-title !mb-[6px]">Detection profile</h3>
                             <div class="figma-detection-profile-grid">
@@ -1331,11 +1448,8 @@
                                     </label>
                                 @endforeach
                             </div>
-                            <div class="figma-detection-advanced-panel grid gap-[10px] sm:grid-cols-4">
-                                <label class="figma-detection-advanced-field">
-                                    Rapid window (sec)
-                                    <input type="number" name="rapid_window_seconds" min="30" max="600" value="{{ $thr['rapid_window_seconds'] ?? 120 }}" class="figma-detection-advanced-input mt-[4px] w-full">
-                                </label>
+
+                            <div class="figma-detection-advanced-panel grid gap-[10px] sm:grid-cols-2">
                                 <label class="figma-detection-advanced-field">
                                     Flag at prior clicks
                                     <input type="number" name="rapid_flag_at" min="1" max="10" value="{{ $thr['rapid_flag_at'] ?? 1 }}" class="figma-detection-advanced-input mt-[4px] w-full">
@@ -1344,11 +1458,8 @@
                                     Block at prior clicks
                                     <input type="number" name="rapid_block_at" min="1" max="20" value="{{ $thr['rapid_block_at'] ?? 2 }}" class="figma-detection-advanced-input mt-[4px] w-full">
                                 </label>
-                                <label class="figma-detection-advanced-field">
-                                    Daily valid click limit
-                                    <input type="number" name="daily_valid_click_limit" min="1" max="20" value="{{ $thr['daily_valid_click_limit'] ?? 2 }}" class="figma-detection-advanced-input mt-[4px] w-full">
-                                </label>
                             </div>
+
                             <label class="figma-detection-advanced-inline">
                                 Fail-safe when detection is unavailable
                                 <select name="fail_mode" class="figma-detection-advanced-input">
@@ -1356,21 +1467,8 @@
                                     <option value="closed" @selected(($settings->fail_mode ?? 'open') === 'closed')>Fail closed (block)</option>
                                 </select>
                             </label>
+
                             <div class="figma-detection-advanced-panel grid gap-[10px] sm:grid-cols-2">
-                                <label class="figma-detection-advanced-field">
-                                    Block response
-                                    <select name="block_response" class="figma-detection-advanced-input mt-[4px] w-full">
-                                        <option value="hide" @selected(($settings->block_response ?? 'hide') === 'hide')>Hide page</option>
-                                        <option value="blank" @selected(($settings->block_response ?? '') === 'blank')>Blank page</option>
-                                        <option value="forbid" @selected(($settings->block_response ?? '') === 'forbid')>403 Forbidden screen</option>
-                                        <option value="challenge" @selected(($settings->block_response ?? '') === 'challenge')>Challenge / CAPTCHA</option>
-                                        <option value="redirect" @selected(($settings->block_response ?? '') === 'redirect')>Safe redirect</option>
-                                    </select>
-                                </label>
-                                <label class="figma-detection-advanced-field">
-                                    Redirect URL (when redirect selected)
-                                    <input type="url" name="block_redirect_url" value="{{ $settings->block_redirect_url }}" placeholder="https://example.com/safe" class="figma-detection-advanced-input mt-[4px] w-full">
-                                </label>
                                 <label class="figma-detection-advanced-field sm:col-span-2">
                                     Session recording retention (days)
                                     <input type="number" name="recording_retention_days" min="1" max="3650" value="{{ $settings->recording_retention_days ?? 30 }}" class="figma-detection-advanced-input mt-[4px] w-full max-w-[160px]">
@@ -1402,7 +1500,11 @@
                                 </label>
                             </div>
                         </div>
-                    </details>
+
+                        <div class="figma-detection-save-row flex justify-end pt-[16px]">
+                            <button type="submit" class="rounded-[6px] bg-white px-[22px] py-[9px] text-[13px] font-semibold text-[#6400B2] shadow-[0_8px_20px_rgba(0,0,0,.25)]">Save changes</button>
+                        </div>
+                    </section>
                 </form>
             @endif
         @endif
