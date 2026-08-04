@@ -459,3 +459,32 @@ PNG paths prod/local pe toot rahe hain — icons ko page ke andar base64 se embe
 Fix ho gaya. Icons ab file path se nahi — page ke andar **embedded** hain, is liye broken image nahi aayega.
 
 Hard refresh karke Overview check karo — Google Ads aur Bot dono cards pe logos dikhne chahiye.
+---
+
+## QUEUED — Settings modal (Clickronix-style)
+
+**Status:** Parked — do after other page updates.  
+**Entry:** Gear icon click → ChatGPT/Clickronix settings popup (not just dropdown).
+
+### Tabs (reference mockups shared)
+1. General
+2. Notifications
+3. Data Reports
+4. Billing
+5. Domains
+6. Safety
+7. Security & Login
+8. Trusted Contacts
+9. Account
+
+### Build path when we resume
+- **Phase 1:** Modal shell + wire existing (General basic, Billing, Domains, Account, Data Reports exports, Safety → Detection link)
+- **Phase 2:** Notification prefs, report history/generate, billing cancel, Safety account panel, persisted General prefs
+- **Phase 3:** 2FA, sessions, API keys, Trusted Contacts, SMS/Push
+
+### Mostly NEW
+Settings modal shell, Notifications settings, Trusted Contacts, 2FA/sessions/API keys, Report history
+
+### Mostly REUSE
+Billing, Domains, Account, parts of Safety/Reports
+

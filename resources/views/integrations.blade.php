@@ -31,6 +31,9 @@
         'paidMarketingConnectUrl' => route('domains.paid-marketing.connect', ['domain' => 0]),
         'domainConnections' => $domainConnections,
         'connectionHealth' => $connectionHealth ?? [],
+        'tagReady' => (bool) ($tagReady ?? false),
+        'botReady' => (bool) ($botReady ?? false),
+        'googleOAuthConnected' => (bool) $googleOAuthConnected,
         'syncLogs' => ($syncLogs ?? collect())->map(fn ($log) => [
             'id' => $log->id,
             'action' => $log->action,
@@ -46,6 +49,8 @@
             'account_id' => $row->account_id,
             'tag_id' => $row->tag_id,
         ])->values(),
+        'platformRows' => ($platformRows ?? collect())->values(),
+        'setupProgress' => $setupProgress ?? [],
     ]))"
     @platform-menu.window="handlePlatformMenu($event.detail)"
 >
@@ -54,7 +59,7 @@
             <div class="flex flex-wrap items-center gap-[12px]">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
-                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Platform</span>
+                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Platform Integration</span>
             </div>
 
             <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
@@ -80,52 +85,53 @@
             <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[#6400B2]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
         @endif
 
-        <div class="grid gap-[12px] xl:grid-cols-[minmax(0,720px)_minmax(320px,1fr)]">
-            <section class="rounded-[10px] border border-white/40 bg-[#6400B2] p-[16px] shadow-[0_0_18px_rgba(100,0,179,.35)]">
-                <h2 class="mb-[16px] text-[24px] font-medium text-white">Connect Your Platforms</h2>
+        {{-- First row: Connect Platforms | Status + Health --}}
+        <div class="pi-first-row">
+            <section class="pi-connect-card">
+                <h2 class="pi-section-title">Connect Your Platforms</h2>
 
-                <div class="grid gap-[16px] lg:grid-cols-2">
-                    <article class="min-h-[232px] rounded-[10px] border border-[#d9d9d9]/60 p-[18px]">
+                <div class="pi-connect-grid">
+                    {{-- Google Ads OAuth panel --}}
+                    <article class="pi-panel">
                         <div class="flex items-start justify-between gap-[8px]">
-                            <div class="flex min-w-0 flex-1 gap-[18px]">
-                                <div class="w-[90px] shrink-0">
-                                    <div class="mb-[12px] flex h-[79px] w-[90px] items-center justify-center rounded bg-white">
-                                        @include('partials.icons.google', ['class' => 'h-[55px] w-[55px]'])
+                            <div class="flex min-w-0 flex-1 gap-[16px]">
+                                <div class="w-[88px] shrink-0 text-center">
+                                    <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
+                                        @include('partials.icons.google', ['class' => 'h-[44px] w-[44px]'])
                                     </div>
-                                    <p class="text-center text-[20px] font-medium leading-none text-white">Google</p>
-                                    <div class="mx-auto mt-[8px] min-h-[15px] w-[72px] rounded-sm px-[4px] py-[2px] text-center text-[8px] font-semibold {{ $googleStatusConnected ? 'bg-white text-[#6706B3]' : 'bg-black/55 text-white/70' }}">
-                                        {{ $googleStatusConnected ? 'Connected' : 'Setup' }}
-                                    </div>
+                                    <p class="text-[15px] font-semibold leading-none text-white">Google Ads</p>
+                                    <span class="pi-status-pill mt-[8px]" :class="googleConnected || {{ $googleOAuthConnected ? 'true' : 'false' }} ? 'is-on' : 'is-off'">
+                                        <span class="pi-status-dot"></span>
+                                        <span x-text="(googleConnected || {{ $googleOAuthConnected ? 'true' : 'false' }}) ? 'Connected' : 'Not connected'"></span>
+                                    </span>
                                 </div>
 
-                                <div class="flex min-w-0 flex-1 flex-col justify-center gap-[10px]">
-                                    <a href="{{ route('domains.index') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[11px] leading-none text-white">
-                                        @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                        <span class="whitespace-nowrap">Tag Manager</span>
+                                <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
+                                    <a href="{{ route('domains.index') }}" class="pi-ghost-btn">
+                                        <span class="font-mono text-[11px]">&lt;/&gt;</span>
+                                        <span>Tag Manager</span>
                                     </a>
-                                    <a href="{{ route('paid-marketing.detection-settings') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[11px] leading-none text-white">
+                                    <a href="{{ route('paid-marketing.dashboard') }}" class="pi-ghost-btn">
                                         @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                        <span class="whitespace-nowrap">Paid Marketing</span>
+                                        <span>Paid Marketing</span>
                                     </a>
-                                    <a href="{{ route('bot-protection.dashboard') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white/95 bg-[#6706B3] px-[9px] text-[11px] leading-none text-white">
+                                    <a href="{{ route('bot-protection.dashboard') }}" class="pi-ghost-btn">
                                         @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                        <span class="whitespace-nowrap">Bot Protection</span>
+                                        <span>Bot Protection</span>
                                     </a>
-                                    @if ($googleOAuthConnected && ($primaryConnection = $connections->first()))
+
+                                    @if ($googleOAuthConnected && $primaryConnection)
                                         <form method="POST" action="{{ route('integrations.google.sync-accounts', $primaryConnection) }}">
                                             @csrf
-                                            <button type="submit" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[11px] font-normal text-[#6706B3] hover:bg-white/90">
+                                            <button type="submit" class="pi-primary-btn">
                                                 <svg class="h-[14px] w-[14px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                                 Sync Ads
                                             </button>
                                         </form>
-                                        <a href="{{ route('integrations.google.redirect') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white/60 bg-transparent px-[9px] text-[11px] font-normal text-white/90 hover:border-white">
-                                            <span class="text-[12px]">+</span>
-                                            Add Google login
-                                        </a>
+                                        <a href="{{ route('integrations.google.redirect') }}" class="pi-text-link">+ Add Google Login</a>
                                     @else
-                                        <a href="{{ route('integrations.google.redirect') }}" class="figma-platform-action flex h-[28px] w-full max-w-[152px] items-center gap-[8px] rounded border border-white bg-white px-[9px] text-[11px] font-normal text-[#6706B3]">
-                                            <span class="flex h-[17px] w-[17px] items-center justify-center rounded-full border border-[#6706B3] text-[12px]">+</span>
+                                        <a href="{{ route('integrations.google.redirect') }}" class="pi-primary-btn">
+                                            <span class="text-[14px] leading-none">+</span>
                                             Connect Google
                                         </a>
                                     @endif
@@ -140,211 +146,733 @@
                         </div>
                     </article>
 
-                    <article class="min-h-[232px] rounded-[10px] border border-[#d9d9d9]/60 p-[18px]">
-                        <div class="flex items-start justify-between">
-                            <div class="flex items-center gap-[20px] pt-[28px]">
-                                @include('partials.icons.google-ads', ['class' => 'h-[64px] w-[64px]'])
-                                <p class="text-[20px] font-medium leading-none text-white">Direct Ads</p>
+                    {{-- Direct Ads panel --}}
+                    <article class="pi-panel">
+                        <div class="mb-[14px] flex items-start justify-between gap-[8px]">
+                            <div class="flex items-center gap-[12px]">
+                                @include('partials.icons.google-ads', ['class' => 'h-[36px] w-[36px]'])
+                                <p class="text-[16px] font-semibold text-white">Direct Ads</p>
                             </div>
                             <x-integrations.direct-ads-platform-menu menu-id="direct" />
                         </div>
 
-                        <form class="mt-[12px] grid gap-[9px] sm:grid-cols-[1fr_auto]" @submit.prevent="addDirectAds()">
-                            <input id="direct-account-id" x-model="directForm.account_id" placeholder="Customer ID (e.g. 123-456-7890)" class="h-[26px] rounded border border-white bg-white px-[8px] text-[12px] text-[#6706B3] placeholder:text-[#6706B3]/80 focus:ring-[#6400B2]">
-                            <button type="submit" class="h-[26px] rounded border border-white bg-white px-[10px] text-[12px] text-[#6706B3]">Add</button>
-                            <input id="direct-tag-id" x-model="directForm.tag_id" placeholder="Conversion tag ID (e.g. AW-123456789)" class="h-[26px] rounded border border-white bg-white px-[8px] text-[12px] text-[#6706B3] placeholder:text-[#6706B3]/80 focus:ring-[#6400B2] sm:col-span-2">
+                        <form class="flex flex-col gap-[12px]" @submit.prevent="addDirectAds()">
+                            <label class="block">
+                                <span class="mb-[5px] flex items-center gap-[5px] text-[10px] font-medium text-white/65">
+                                    Google Ads Customer ID
+                                    <span class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border border-white/35 text-[8px]" title="Your Google Ads customer ID, e.g. 123-456-7890">i</span>
+                                </span>
+                                <div class="pi-field">
+                                    <input
+                                        id="direct-account-id"
+                                        x-model="directForm.account_id"
+                                        placeholder="123-456-7890"
+                                        class="pi-field__input"
+                                    >
+                                    <button type="button" class="pi-field__copy" title="Copy" @click="copyText(directForm.account_id)">
+                                        <svg class="h-[13px] w-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 8h10v12H8z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 16H4V4h12v2"/></svg>
+                                    </button>
+                                </div>
+                            </label>
+                            <label class="block">
+                                <span class="mb-[5px] flex items-center gap-[5px] text-[10px] font-medium text-white/65">
+                                    Conversion Tag ID
+                                    <span class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border border-white/35 text-[8px]" title="Google conversion / AW tag ID">i</span>
+                                </span>
+                                <div class="pi-field">
+                                    <input
+                                        id="direct-tag-id"
+                                        x-model="directForm.tag_id"
+                                        placeholder="AW-123456789"
+                                        class="pi-field__input"
+                                    >
+                                    <button type="button" class="pi-field__copy" title="Copy" @click="copyText(directForm.tag_id)">
+                                        <svg class="h-[13px] w-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 8h10v12H8z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 16H4V4h12v2"/></svg>
+                                    </button>
+                                </div>
+                            </label>
+                            <button type="submit" class="pi-primary-btn pi-primary-btn--wide">Save &amp; Connect</button>
                         </form>
                     </article>
                 </div>
             </section>
 
-            <div class="grid gap-[12px] sm:grid-cols-2 xl:grid-cols-1">
-                <section class="rounded-[10px] bg-[#6706B3] p-[10px]">
-                    <p class="mb-[12px] text-center text-[8px] uppercase text-white">Connection Status</p>
-                    <div class="grid grid-cols-2 gap-[6px]">
-                        <div class="rounded border border-white p-[8px] text-center" :class="googleConnected ? 'bg-[#606060]/55' : 'bg-white/50'">
-                            <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center rounded bg-white">
-                                @include('partials.icons.google', ['class' => 'h-[32px] w-[32px]'])
-                            </div>
-                            <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold" :class="googleConnected ? 'text-[#6706B3]' : 'text-[#101010]'" x-text="googleConnected ? 'Connected' : 'Not Connected'"></div>
-                        </div>
-                        <div class="rounded border border-white p-[8px] text-center" :class="googleAdsConnected ? 'bg-[#606060]/55' : 'bg-white/50'">
-                            <div class="mx-auto mb-[8px] flex h-[50px] w-[50px] items-center justify-center">
-                                @include('partials.icons.google-ads', ['class' => 'h-[50px] w-[50px]'])
-                            </div>
-                            <div class="bg-white px-[4px] py-[2px] text-[8px] font-semibold" :class="googleAdsConnected ? 'text-[#6706B3]' : 'text-[#101010]'" x-text="googleAdsConnected ? 'Connected' : 'Not Connected'"></div>
-                        </div>
+            <div class="pi-side-stack">
+                <section class="pi-side-card">
+                    <div class="mb-[12px] flex items-center justify-between gap-[8px]">
+                        <h2 class="text-[14px] font-semibold text-white">Connection Status</h2>
+                        <a href="#connected-platforms" class="text-[11px] font-semibold text-[#B893D8] hover:text-white">View All</a>
                     </div>
-                    <div class="mt-[10px] space-y-[4px] rounded border border-white/25 bg-black/20 px-[8px] py-[8px] text-[9px] text-white/85">
-                        <div class="flex items-center justify-between gap-2">
-                            <span>Health</span>
-                            <span class="font-semibold uppercase" x-text="connectionHealth.health_status || '—'"></span>
+                    <div class="space-y-[8px]">
+                        <div class="pi-status-row">
+                            <span class="flex h-[28px] w-[28px] items-center justify-center rounded-[6px] bg-white">
+                                @include('partials.icons.google', ['class' => 'h-[16px] w-[16px]'])
+                            </span>
+                            <span class="min-w-0 flex-1 truncate text-[12px] text-white/90">Google Ads API</span>
+                            <span class="pi-status-pill" :class="(googleConnected || {{ $googleOAuthConnected ? 'true' : 'false' }}) ? 'is-on' : 'is-off'">
+                                <span class="pi-status-dot"></span>
+                                <span x-text="(googleConnected || {{ $googleOAuthConnected ? 'true' : 'false' }}) ? 'Connected' : 'Offline'"></span>
+                            </span>
                         </div>
-                        <div class="flex items-center justify-between gap-2">
-                            <span>Google account</span>
-                            <span class="truncate font-medium" x-text="connectionHealth.email || 'Not connected'"></span>
+                        <div class="pi-status-row">
+                            <span class="flex h-[28px] w-[28px] items-center justify-center rounded-[6px] bg-white p-[3px]">
+                                <img src="{{ asset('images/google-tag-manager.svg') }}" alt="" class="h-[18px] w-[18px]">
+                            </span>
+                            <span class="min-w-0 flex-1 truncate text-[12px] text-white/90">Google Tag Manager</span>
+                            <span class="pi-status-pill" :class="tagManagerConnected ? 'is-on' : 'is-off'">
+                                <span class="pi-status-dot"></span>
+                                <span x-text="tagManagerConnected ? 'Connected' : 'Offline'"></span>
+                            </span>
                         </div>
-                        <div class="flex items-center justify-between gap-2">
-                            <span>Last sync</span>
-                            <span x-text="formatHealthTime(connectionHealth.last_sync_at)"></span>
-                        </div>
-                        <div class="flex items-center justify-between gap-2">
-                            <span>Tracking script</span>
-                            <span x-text="connectionHealth.tracking_active ? 'Active' : 'Pending'"></span>
-                        </div>
-                        <div class="flex items-center justify-between gap-2">
-                            <span>Events today</span>
-                            <span x-text="connectionHealth.events_today ?? 0"></span>
-                        </div>
-                        @if ($primaryConnection)
-                            <button type="button"
-                                    class="mt-[6px] w-full rounded border border-white/40 bg-white/10 px-[8px] py-[5px] text-[9px] font-semibold text-white hover:bg-white/20"
-                                    @click="testGoogleHealth()">
-                                Test connection health
-                            </button>
-                        @endif
                     </div>
                 </section>
 
-                <section class="rounded-[10px] bg-[#3c3c3c] p-[16px]">
-                    <div class="mb-[20px] text-center">
-                        <h2 class="text-[16px] font-medium text-[#d9d9d9]">Connection Requirement</h2>
-                        <div class="mt-[10px] flex items-center justify-center gap-[8px]">
-                        <span x-show="requirementLive" class="platform-requirement-status platform-requirement-status--live">
-                            <span class="platform-requirement-status__dot"></span>
-                            Live
+                <section class="pi-side-card">
+                    <div class="mb-[12px] flex items-center justify-between gap-[8px]">
+                        <h2 class="text-[14px] font-semibold text-white">Connection Health</h2>
+                        <span class="pi-status-pill" :class="healthLive ? 'is-on' : 'is-off'">
+                            <span class="pi-status-dot"></span>
+                            <span x-text="healthLive ? 'Live' : 'Pending'"></span>
                         </span>
-                        <span x-show="!requirementLive" x-cloak class="platform-requirement-status platform-requirement-status--pending">
-                            <span class="platform-requirement-status__dot"></span>
-                            Setup in progress
-                        </span>
-                        </div>
                     </div>
-                    <div class="platform-requirement-layout flex items-center justify-center gap-[18px] xl:gap-[24px]">
-                        <div class="relative h-[84px] w-[84px] shrink-0">
-                            <div class="h-full w-full rounded-full" :style="`background: conic-gradient(#7a56a9 ${requirementRingPct}%, #ffffff 0)`"></div>
-                            <div class="absolute inset-[14px] rounded-full bg-[#3c3c3c]"></div>
+                    <div class="flex items-center gap-[14px]">
+                        <div class="pi-health-ring shrink-0" :style="`--pi-health:${healthPct}`">
+                            <div class="pi-health-ring__inner">
+                                <span class="text-[13px] font-bold leading-none text-white" x-text="healthPct + '%'"></span>
+                                <span class="mt-[2px] text-[8px] uppercase tracking-wide text-white/55">Healthy</span>
+                            </div>
                         </div>
-                        <div class="platform-requirement-steps min-w-0">
-                            <template x-for="step in requirementSteps" :key="step.label">
-                                <button
-                                    type="button"
-                                    class="platform-requirement-bar"
-                                    :class="step.done ? '' : 'has-setup'"
-                                    @click="handleRequirementClick(step)"
-                                >
-                                    <span class="platform-requirement-bar__fill" :class="step.done ? 'is-done' : ''"></span>
-                                    <span class="platform-requirement-bar__label" x-text="step.label"></span>
-                                    <span x-show="!step.done" x-cloak class="platform-requirement-bar__setup">Setup</span>
-                                </button>
+                        <div class="min-w-0 flex-1 space-y-[7px]">
+                            <template x-for="item in healthItems" :key="item.key">
+                                <div class="flex items-center gap-[8px] text-[11px]">
+                                    <span class="min-w-0 flex-1 truncate text-white/80" x-text="item.label"></span>
+                                    <span class="inline-flex items-center gap-[4px] shrink-0" :class="item.ok ? 'text-emerald-300' : 'text-amber-300'">
+                                        <svg x-show="item.ok" class="h-[12px] w-[12px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7"/></svg>
+                                        <span x-text="item.ok ? 'Healthy' : 'Pending'"></span>
+                                    </span>
+                                    <span class="w-[42px] shrink-0 text-right text-[10px] text-white/40" x-text="item.ago"></span>
+                                </div>
                             </template>
                         </div>
                     </div>
+                    @if ($primaryConnection)
+                        <button type="button" class="pi-text-link mt-[12px]" @click="testGoogleHealth()">Test connection health →</button>
+                    @endif
                 </section>
             </div>
         </div>
 
-        <section id="connected-platforms" class="mt-[20px] scroll-mt-[80px] rounded-[10px] border border-[#6706B3] p-[16px]">
-            <div class="mb-[26px]">
-                <h2 class="text-[24px] font-medium text-white">Connected Platforms</h2>
-                <p class="mt-[5px] text-[14px] font-medium text-white">Linked accounts &amp; domains</p>
+        <style>
+            .pi-first-row {
+                display: grid;
+                gap: 14px;
+                align-items: stretch;
+            }
+            @media (min-width: 1100px) {
+                .pi-first-row {
+                    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr);
+                }
+            }
+            .pi-connect-card,
+            .pi-side-card {
+                border-radius: 10px;
+                border: 1px solid rgba(90, 42, 153, 0.65);
+                background: #111111;
+                padding: 16px 18px;
+            }
+            .pi-section-title {
+                margin-bottom: 14px;
+                font-size: 18px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .pi-connect-grid {
+                display: grid;
+                gap: 14px;
+            }
+            @media (min-width: 720px) {
+                .pi-connect-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+            }
+            .pi-panel {
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: rgba(0, 0, 0, 0.28);
+                padding: 14px;
+                min-height: 230px;
+            }
+            .pi-side-stack {
+                display: grid;
+                gap: 14px;
+                align-content: start;
+            }
+            .pi-ghost-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                height: 28px;
+                max-width: 168px;
+                width: 100%;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.28);
+                background: transparent;
+                padding: 0 10px;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.9);
+            }
+            .pi-ghost-btn:hover { background: rgba(255, 255, 255, 0.06); }
+            .pi-primary-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                height: 30px;
+                max-width: 168px;
+                width: 100%;
+                border-radius: 6px;
+                border: 0;
+                background: #6400B2;
+                padding: 0 10px;
+                font-size: 11px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .pi-primary-btn:hover { background: #7B13C8; }
+            .pi-primary-btn--wide { max-width: none; height: 34px; margin-top: 4px; }
+            .pi-text-link {
+                display: inline-flex;
+                font-size: 11px;
+                font-weight: 600;
+                color: #B893D8;
+            }
+            .pi-text-link:hover { color: #fff; }
+            .pi-status-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                border-radius: 999px;
+                padding: 3px 8px;
+                font-size: 10px;
+                font-weight: 600;
+                line-height: 1;
+                white-space: nowrap;
+            }
+            .pi-status-pill.is-on { background: rgba(34, 197, 94, 0.16); color: #86efac; }
+            .pi-status-pill.is-off { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.55); }
+            .pi-status-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 999px;
+                background: currentColor;
+            }
+            .pi-field {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                height: 34px;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                background: #0a0a0a;
+                padding: 0 8px;
+            }
+            .pi-field__input {
+                min-width: 0;
+                flex: 1;
+                border: 0;
+                background: transparent;
+                color: #fff;
+                font-size: 12px;
+                outline: none;
+            }
+            .pi-field__input::placeholder { color: rgba(255, 255, 255, 0.35); }
+            .pi-field__copy {
+                display: inline-flex;
+                color: rgba(255, 255, 255, 0.55);
+            }
+            .pi-field__copy:hover { color: #fff; }
+            .pi-status-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(0, 0, 0, 0.28);
+                padding: 10px 12px;
+            }
+            .pi-health-ring {
+                --pi-health: 0;
+                width: 92px;
+                height: 92px;
+                border-radius: 999px;
+                background: conic-gradient(#22c55e calc(var(--pi-health) * 1%), rgba(100, 0, 178, 0.55) 0);
+                display: grid;
+                place-items: center;
+            }
+            .pi-health-ring__inner {
+                width: 68px;
+                height: 68px;
+                border-radius: 999px;
+                background: #111111;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .pi-setup-card,
+            .pi-platforms-card {
+                margin-top: 20px;
+                scroll-margin-top: 80px;
+                border-radius: 10px;
+                border: 1px solid #6706B3;
+                background: #0d0d0d;
+                padding: 18px 18px 16px;
+            }
+            .pi-setup-title {
+                margin: 0 0 22px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .pi-setup-track {
+                display: grid;
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+                gap: 8px;
+                position: relative;
+            }
+            .pi-setup-track::before {
+                content: '';
+                position: absolute;
+                left: 8%;
+                right: 8%;
+                top: 18px;
+                height: 2px;
+                background: #6400B2;
+                opacity: 0.9;
+                z-index: 0;
+            }
+            .pi-setup-step {
+                position: relative;
+                z-index: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                min-width: 0;
+            }
+            .pi-setup-icon {
+                width: 36px;
+                height: 36px;
+                border-radius: 999px;
+                display: grid;
+                place-items: center;
+                background: #6400B2;
+                color: #fff;
+                box-shadow: 0 0 0 4px #0d0d0d;
+            }
+            .pi-setup-icon.is-pending {
+                background: rgba(100, 0, 178, 0.35);
+                color: rgba(255, 255, 255, 0.55);
+            }
+            .pi-setup-label {
+                margin-top: 10px;
+                font-size: 12px;
+                font-weight: 600;
+                color: #fff;
+                line-height: 1.25;
+            }
+            .pi-setup-detail {
+                margin-top: 4px;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.45);
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .pi-platforms-head {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 14px;
+                margin-bottom: 16px;
+            }
+            .pi-platforms-head h2 {
+                margin: 0;
+                font-size: 22px;
+                font-weight: 600;
+                color: #fff;
+                line-height: 1.1;
+            }
+            .pi-platforms-head p {
+                margin: 4px 0 0;
+                font-size: 13px;
+                color: rgba(255, 255, 255, 0.55);
+            }
+            .pi-platforms-tools {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 10px;
+            }
+            .pi-search {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                min-width: 200px;
+                height: 36px;
+                padding: 0 12px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: #151515;
+                color: rgba(255, 255, 255, 0.55);
+            }
+            .pi-search input {
+                width: 100%;
+                border: 0;
+                background: transparent;
+                color: #fff;
+                font-size: 12px;
+                outline: none;
+            }
+            .pi-search input::placeholder { color: rgba(255, 255, 255, 0.35); }
+            .pi-refresh-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                height: 36px;
+                padding: 0 14px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                background: #151515;
+                color: rgba(255, 255, 255, 0.85);
+                font-size: 12px;
+                font-weight: 500;
+            }
+            .pi-refresh-btn:hover { background: #1c1c1c; color: #fff; }
+            .pi-add-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                height: 36px;
+                padding: 0 14px;
+                border-radius: 8px;
+                border: 0;
+                background: #6400B2;
+                color: #fff;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            .pi-add-btn:hover { background: #7B13C8; }
+            .pi-table-wrap {
+                overflow-x: auto;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                background: #121212;
+            }
+            .pi-table {
+                width: 100%;
+                min-width: 980px;
+                border-collapse: collapse;
+                text-align: left;
+            }
+            .pi-table thead th {
+                padding: 12px 14px;
+                font-size: 12px;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.72);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                white-space: nowrap;
+            }
+            .pi-table tbody td {
+                padding: 14px;
+                font-size: 12px;
+                color: #fff;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                vertical-align: middle;
+            }
+            .pi-table tbody tr:last-child td { border-bottom: 0; }
+            .pi-table tbody tr:hover td { background: rgba(100, 0, 178, 0.08); }
+            .pi-plat-name {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .pi-plat-logo {
+                width: 28px;
+                height: 28px;
+                border-radius: 6px;
+                background: #fff;
+                display: grid;
+                place-items: center;
+                overflow: hidden;
+                flex-shrink: 0;
+            }
+            .pi-acct-primary { font-size: 13px; font-weight: 500; color: #fff; }
+            .pi-acct-secondary { margin-top: 2px; font-size: 11px; color: rgba(255, 255, 255, 0.45); }
+            .pi-prot {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                color: rgba(255, 255, 255, 0.88);
+                white-space: nowrap;
+            }
+            .pi-prot svg { flex-shrink: 0; }
+            .pi-prot.is-audience svg { color: #a78bfa; }
+            .pi-prot.is-track svg { color: #60a5fa; }
+            .pi-status-connected {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                height: 26px;
+                padding: 0 10px;
+                border-radius: 999px;
+                background: rgba(34, 197, 94, 0.12);
+                color: #4ade80;
+                font-size: 12px;
+                font-weight: 500;
+                white-space: nowrap;
+            }
+            .pi-status-connected::before {
+                content: '';
+                width: 7px;
+                height: 7px;
+                border-radius: 999px;
+                background: #22c55e;
+            }
+            .pi-status-pending {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                height: 26px;
+                padding: 0 10px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
+                color: rgba(255, 255, 255, 0.55);
+                font-size: 12px;
+                white-space: nowrap;
+            }
+            .pi-status-pending::before {
+                content: '';
+                width: 7px;
+                height: 7px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.35);
+            }
+            .pi-row-actions {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                white-space: nowrap;
+            }
+            .pi-row-link {
+                color: #B893D8;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            .pi-row-link:hover { color: #fff; }
+            .pi-table-foot {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                margin-top: 14px;
+                padding-top: 4px;
+            }
+            .pi-table-foot__meta {
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.45);
+            }
+            .pi-pager {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .pi-pager button {
+                width: 28px;
+                height: 28px;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: transparent;
+                color: rgba(255, 255, 255, 0.55);
+                display: grid;
+                place-items: center;
+            }
+            .pi-pager button.is-active {
+                border-color: transparent;
+                background: #6400B2;
+                color: #fff;
+            }
+            .pi-pager button:disabled { opacity: 0.35; cursor: not-allowed; }
+            @media (max-width: 900px) {
+                .pi-setup-track {
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    row-gap: 18px;
+                }
+                .pi-setup-track::before { display: none; }
+            }
+            @media (max-width: 640px) {
+                .pi-setup-track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            }
+        </style>
+
+        {{-- Setup Progress --}}
+        <section class="pi-setup-card">
+            <h2 class="pi-setup-title">Setup Progress</h2>
+            <div class="pi-setup-track">
+                @foreach (($setupProgress ?? []) as $step)
+                    @php $done = (bool) ($step['done'] ?? false); @endphp
+                    <div class="pi-setup-step">
+                        <div class="pi-setup-icon {{ $done ? '' : 'is-pending' }}">
+                            @if (($step['key'] ?? '') === 'domain')
+                                <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21a9 9 0 100-18 9 9 0 000 18z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.6 9h16.8M3.6 15h16.8M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/>
+                                </svg>
+                            @elseif ($done)
+                                <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            @else
+                                <span class="h-[8px] w-[8px] rounded-full bg-white/40"></span>
+                            @endif
+                        </div>
+                        <div class="pi-setup-label">{{ $step['label'] }}</div>
+                        <div class="pi-setup-detail" title="{{ $step['detail'] ?? '' }}">{{ $step['detail'] ?? '—' }}</div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
+        {{-- Connected Platforms --}}
+        <section id="connected-platforms" class="pi-platforms-card">
+            <div class="pi-platforms-head">
+                <div>
+                    <h2>Connected Platforms</h2>
+                    <p>Linked accounts &amp; domains</p>
+                </div>
+                <div class="pi-platforms-tools">
+                    <label class="pi-search">
+                        <svg class="h-[14px] w-[14px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/>
+                        </svg>
+                        <input type="search" placeholder="Search platform..." x-model="platformSearch" @input="platformPage = 1">
+                    </label>
+                    <button type="button" class="pi-refresh-btn" @click="refreshPlatforms()">
+                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M5 13a7 7 0 0112.2-4.5L20 11M4 13l2.8 2.5A7 7 0 0019 13"/>
+                        </svg>
+                        Refresh
+                    </button>
+                    <a href="{{ route('integrations.google.redirect') }}" class="pi-add-btn">+ Add Connection</a>
+                </div>
             </div>
 
-            <div>
-                <table class="w-full table-fixed border-separate border-spacing-y-[5px] text-left">
-                    <colgroup>
-                        <col class="w-[11%]">
-                        <col class="w-[15%]">
-                        <col class="w-[27%]">
-                        <col class="w-[23%]">
-                        <col class="w-[20%]">
-                        <col class="w-[4%]">
-                    </colgroup>
+            <div class="pi-table-wrap">
+                <table class="pi-table">
                     <thead>
-                        <tr class="text-[13px] font-medium text-white">
-                            <th class="px-[12px] py-[8px]">Platform</th>
-                            <th class="px-[12px] py-[8px]">Protection Type</th>
-                            <th class="px-[12px] py-[8px]">Connected Entity ID</th>
-                            <th class="px-[12px] py-[8px]">Tag</th>
-                            <th class="px-[12px] py-[8px]">Settings</th>
-                            <th class="px-[8px] py-[8px]"><span class="sr-only">Options</span></th>
+                        <tr>
+                            <th>Platform</th>
+                            <th>Account / Domain</th>
+                            <th>Protection Type</th>
+                            <th>Connected Entity ID</th>
+                            <th>Status</th>
+                            <th>Last Sync</th>
+                            <th>Clicks Imported</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($mappings as $mapping)
-                            <tr class="rounded-[5px] bg-[#d9d9d9] text-[#121212]">
-                                <td class="rounded-l-[5px] px-[12px] py-[10px] text-[14px] font-medium">
-                                    <span class="inline-flex min-w-0 items-center gap-[8px]">
-                                        @include('partials.icons.google', ['class' => 'h-[20px] w-[20px] shrink-0'])
-                                        <span class="truncate">Google</span>
+                        @forelse (($platformRows ?? collect()) as $row)
+                            <tr x-show="platformRowVisible(@js($row['search'] ?? ''))">
+                                <td>
+                                    <span class="pi-plat-name">
+                                        <span class="pi-plat-logo">
+                                            @if (($row['kind'] ?? '') === 'gtm')
+                                                <img src="{{ url('/images/google-tag-manager.svg') }}" alt="" width="18" height="18">
+                                            @elseif (($row['kind'] ?? '') === 'direct')
+                                                <svg class="h-[14px] w-[14px] text-[#6400B2]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
+                                            @else
+                                                @include('partials.icons.google', ['class' => 'h-[16px] w-[16px]'])
+                                            @endif
+                                        </span>
+                                        <span>{{ $row['platform'] }}</span>
                                     </span>
                                 </td>
-                                <td class="px-[12px] py-[10px] text-[10px] leading-snug">{{ $mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion' }}</td>
-                                <td class="px-[12px] py-[10px] text-[12px]">
-                                    <span class="block truncate font-medium" title="{{ $mapping->account->displayLabel() }}">{{ $mapping->account->displayLabel() }}</span>
-                                    <span class="block truncate text-[10px] text-[#121212]/65">{{ $mapping->account->display_customer_id ?: $mapping->account->customer_id }}</span>
-                                    @if ($mapping->account->time_zone)
-                                        <span class="mt-[3px] inline-flex items-center gap-[4px] rounded-[4px] bg-[#6706B3]/10 px-[6px] py-[2px] text-[9px] font-medium text-[#4a0088]">
-                                            <svg class="h-[10px] w-[10px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                            {{ \App\Support\UserTimezone::formatDisplay($mapping->account->time_zone) }}
-                                        </span>
-                                    @endif
+                                <td>
+                                    <div class="pi-acct-primary truncate" title="{{ $row['account_primary'] }}">{{ $row['account_primary'] }}</div>
+                                    <div class="pi-acct-secondary truncate" title="{{ $row['account_secondary'] }}">{{ $row['account_secondary'] }}</div>
                                 </td>
-                                <td class="truncate px-[12px] py-[10px] text-[12px]" title="{{ $mapping->domain->hostname }}">
-                                    <span class="block truncate">{{ $mapping->domain->hostname }}</span>
-                                    @if ($mapping->account?->google_tag_id)
-                                        <span class="mt-[2px] block truncate font-mono text-[10px] text-[#121212]/65">Tag: {{ $mapping->account->google_tag_id }}</span>
-                                    @endif
-                                    @if ($mapping->domain?->tag_connected)
-                                        <span class="mt-[2px] inline-flex rounded bg-emerald-500/15 px-[5px] py-[1px] text-[9px] font-semibold text-emerald-700">Tracking verified</span>
+                                <td>
+                                    <span class="pi-prot {{ ($row['protection_tone'] ?? '') === 'track' ? 'is-track' : 'is-audience' }}">
+                                        <svg class="h-[14px] w-[14px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z"/></svg>
+                                        <span>{{ $row['protection'] }}</span>
+                                    </span>
+                                </td>
+                                <td class="font-mono text-[12px]">{{ $row['entity_id'] }}</td>
+                                <td>
+                                    <span class="{{ ($row['status'] ?? '') === 'Connected' ? 'pi-status-connected' : 'pi-status-pending' }}">{{ $row['status'] }}</span>
+                                </td>
+                                <td>
+                                    @if (! empty($row['last_sync_at']))
+                                        <span x-text="relativeAgo(@js($row['last_sync_at']))">{{ $row['last_sync'] }}</span>
                                     @else
-                                        <span class="mt-[2px] inline-flex rounded bg-amber-500/15 px-[5px] py-[1px] text-[9px] font-semibold text-amber-800">Verify tracking</span>
+                                        {{ $row['last_sync'] }}
                                     @endif
                                 </td>
-                                <td class="px-[12px] py-[10px] text-[11px] font-medium text-[#6706B3]">
-                                    <a href="{{ route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]) }}" class="inline-flex min-w-0 items-center gap-[5px] hover:underline">
-                                        @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[16px] w-[16px] shrink-0'])
-                                        <span class="truncate">Campaign Settings</span>
-                                    </a>
-                                </td>
-                                <td class="rounded-r-[5px] px-[8px] py-[10px] text-right">
-                                    <div class="integration-row-menu inline-flex justify-end">
-                                        <x-integrations.platform-card-dropdown :menu-id="'mapping-' . $mapping->id" label="Platform row options">
-                                            <form method="POST" action="{{ route('integrations.destroy-mapping', $mapping) }}" onsubmit="return confirm('Remove this platform link?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="figma-platform-menu-item figma-platform-menu-item--danger w-full text-left">
-                                                    @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'mr-[8px] inline h-[14px] w-[14px]'])
-                                                    Delete
-                                                </button>
-                                            </form>
-                                        </x-integrations.platform-card-dropdown>
+                                <td>{{ $row['clicks_label'] }}</td>
+                                <td>
+                                    <div class="pi-row-actions">
+                                        <a href="{{ $row['action_url'] }}" class="pi-row-link">{{ $row['action_label'] }}</a>
+                                        @if (! empty($row['delete_url']))
+                                            <div class="integration-row-menu inline-flex">
+                                                <x-integrations.platform-card-dropdown :menu-id="$row['menu_id']" label="Platform row options">
+                                                    <form method="POST" action="{{ $row['delete_url'] }}" onsubmit="return confirm('Remove this platform link?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="figma-platform-menu-item figma-platform-menu-item--danger w-full text-left">
+                                                            @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'mr-[8px] inline h-[14px] w-[14px]'])
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                </x-integrations.platform-card-dropdown>
+                                            </div>
+                                        @else
+                                            <button type="button" class="rounded p-[4px] text-white/45 hover:text-white" title="More" aria-label="More options">
+                                                <svg class="h-[16px] w-[16px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="19" r="1.6"/><circle cx="12" cy="12" r="1.6"/></svg>
+                                            </button>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="rounded-[5px] bg-[#d9d9d9] px-[12px] py-[20px] text-center text-[13px] text-[#121212]">No platform mappings yet.</td>
+                                <td colspan="8" class="!py-[28px] text-center text-[13px] text-white/45">No connected platforms yet. Add a connection to get started.</td>
                             </tr>
                         @endforelse
-
-                        <template x-for="row in directList" :key="`direct-${row.id}`">
-                            <tr class="rounded-[5px] bg-[#d9d9d9] text-[#121212]">
-                                <td class="rounded-l-[5px] px-[12px] py-[10px] text-[14px] font-medium">Direct Ads</td>
-                                <td class="px-[12px] py-[10px] text-[12px]">ID Tracking</td>
-                                <td class="truncate px-[12px] py-[10px] text-[12px]" x-text="row.account_id || 'N/A'"></td>
-                                <td class="truncate px-[12px] py-[10px] text-[12px]" x-text="row.tag_id || 'N/A'"></td>
-                                <td class="px-[12px] py-[10px] text-[11px] font-medium text-[#6706B3]">Campaign Settings</td>
-                                <td class="rounded-r-[5px] px-[8px] py-[10px] text-right"></td>
-                            </tr>
-                        </template>
+                        <tr x-show="filteredPlatformRows.length === 0 && platformRows.length > 0" x-cloak>
+                            <td colspan="8" class="!py-[28px] text-center text-[13px] text-white/45">No platforms match your search.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            @if ($mappings->hasPages())
-                <div class="mt-[12px] border-t border-white/20 pt-[10px]">{{ $mappings->links() }}</div>
-            @endif
+            <div class="pi-table-foot" x-show="filteredPlatformRows.length > 0" x-cloak>
+                <div class="pi-table-foot__meta" x-text="platformRangeLabel"></div>
+                <div class="pi-pager">
+                    <button type="button" @click="platformPage = Math.max(1, platformPage - 1)" :disabled="platformPage <= 1" aria-label="Previous page">
+                        <svg class="h-[12px] w-[12px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button type="button" class="is-active" aria-current="page">1</button>
+                    <button type="button" @click="platformPage = Math.min(platformPageCount, platformPage + 1)" :disabled="platformPage >= platformPageCount" aria-label="Next page">
+                        <svg class="h-[12px] w-[12px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
         </section>
 
         <div class="mt-[16px] grid gap-[12px] xl:grid-cols-2">
@@ -526,7 +1054,14 @@ function platformIntegrations(config) {
         directList: config.directInitial || [],
         domainConnections: config.domainConnections || [],
         connectionHealth: config.connectionHealth || {},
+        tagReady: Boolean(config.tagReady),
+        botReady: Boolean(config.botReady),
+        googleOAuthConnected: Boolean(config.googleOAuthConnected),
         syncLogs: config.syncLogs || [],
+        platformRows: config.platformRows || [],
+        platformSearch: '',
+        platformPage: 1,
+        platformPerPage: 8,
         selectedDomainId: '',
         keysModal: {
             open: false,
@@ -537,15 +1072,100 @@ function platformIntegrations(config) {
             wpAdminUrl: '#',
             wpPluginSettingsUrl: '#',
         },
-        directForm: { platform: 'custom', account_label: 'Direct Ads', account_id: '', tag_id: '' },
+        directForm: {
+            platform: 'custom',
+            account_label: 'Direct Ads',
+            account_id: (config.directInitial && config.directInitial[0] && config.directInitial[0].account_id) || '',
+            tag_id: (config.directInitial && config.directInitial[0] && config.directInitial[0].tag_id) || '',
+        },
         menuToast: '',
         menuToastType: 'info',
         menuToastTimer: null,
+        copyText(value) {
+            const text = String(value || '').trim();
+            if (!text) {
+                this.showMenuToast('Nothing to copy.', 'error');
+                return;
+            }
+            navigator.clipboard?.writeText(text)
+                .then(() => this.showMenuToast('Copied.', 'success'))
+                .catch(() => this.showMenuToast('Copy failed.', 'error'));
+        },
+        relativeAgo(value) {
+            if (!value) return '—';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return '—';
+            const sec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
+            if (sec < 60) return `${sec}s ago`;
+            const min = Math.round(sec / 60);
+            if (min < 60) return `${min}m ago`;
+            const hr = Math.round(min / 60);
+            if (hr < 48) return `${hr}h ago`;
+            return this.formatHealthTime(value);
+        },
         formatHealthTime(value) {
             if (!value) return '—';
             const d = new Date(value);
             if (Number.isNaN(d.getTime())) return '—';
             return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        },
+        get tagManagerConnected() {
+            if (this.activeDomainStatus) {
+                return Boolean(this.activeDomainStatus.tag_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
+            }
+            return Boolean(this.tagReady || this.connectionHealth.tracking_active);
+        },
+        get healthItems() {
+            const syncAgo = this.relativeAgo(this.connectionHealth.last_sync_at);
+            const eventAgo = this.relativeAgo(this.connectionHealth.last_event_at);
+            const apiOk = Boolean(this.googleOAuthConnected || this.googleConnected)
+                && String(this.connectionHealth.health_status || '').toLowerCase() !== 'error';
+            const tagOk = this.tagManagerConnected;
+            const trackOk = Boolean(this.connectionHealth.tracking_active || this.tagReady);
+            const botOk = Boolean(this.botReady || this.domainConnections.some((d) => (d.steps || []).find((s) => s.label === 'Bot Protection')?.done));
+            return [
+                { key: 'api', label: 'Google Ads API', ok: apiOk, ago: syncAgo },
+                { key: 'gtm', label: 'Tag Manager', ok: tagOk, ago: eventAgo },
+                { key: 'script', label: 'Tracking Script', ok: trackOk, ago: eventAgo },
+                { key: 'bot', label: 'Bot Protection', ok: botOk, ago: eventAgo },
+            ];
+        },
+        get healthPct() {
+            const items = this.healthItems;
+            if (!items.length) return 0;
+            return Math.round((items.filter((i) => i.ok).length / items.length) * 100);
+        },
+        get healthLive() {
+            return this.healthPct >= 75;
+        },
+        get filteredPlatformRows() {
+            const q = String(this.platformSearch || '').trim().toLowerCase();
+            if (!q) return this.platformRows;
+            return this.platformRows.filter((row) => String(row.search || '').includes(q)
+                || String(row.platform || '').toLowerCase().includes(q)
+                || String(row.account_primary || '').toLowerCase().includes(q)
+                || String(row.entity_id || '').toLowerCase().includes(q));
+        },
+        get platformPageCount() {
+            return Math.max(1, Math.ceil(this.filteredPlatformRows.length / this.platformPerPage));
+        },
+        get pagedPlatformRows() {
+            const page = Math.min(this.platformPage, this.platformPageCount);
+            const start = (page - 1) * this.platformPerPage;
+            return this.filteredPlatformRows.slice(start, start + this.platformPerPage);
+        },
+        get platformRangeLabel() {
+            const total = this.filteredPlatformRows.length;
+            if (!total) return 'Showing 0 results';
+            return `Showing 1 to ${total} of ${total} results`;
+        },
+        platformRowVisible(searchText) {
+            const q = String(this.platformSearch || '').trim().toLowerCase();
+            if (!q) return true;
+            return String(searchText || '').includes(q);
+        },
+        refreshPlatforms() {
+            window.location.reload();
         },
         async refreshSyncLogs() {
             try {
