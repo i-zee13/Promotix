@@ -14,9 +14,9 @@
 <div class="figma-rightbar-default pi-rightbar">
     @include('partials.figma-rightbar-header-actions')
 
-    <div class="mt-[16px] border-t-2 border-[#5a2a99] pt-[14px]">
-        <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
-        <div class="grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
+    <div class="mt-[16px] flex w-full flex-col items-center border-t-2 border-[#5a2a99] pt-[14px]">
+        <h2 class="mb-[10px] w-full text-center text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
+        <div class="mx-auto grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
             <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Test Tracking">
                 @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
                 <span>Test Tracking</span>

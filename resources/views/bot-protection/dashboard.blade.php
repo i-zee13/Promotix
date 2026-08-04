@@ -14,30 +14,117 @@
     <section class="mx-auto w-full px-[12px] pb-[24px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         {{-- Header --}}
         <div class="mb-[18px] flex flex-col gap-[14px] lg:flex-row lg:items-center lg:justify-between">
-            <div class="flex flex-wrap items-center gap-[12px]">
+            <div class="flex flex-wrap items-center gap-[12px] shrink-0">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Bot Protection</h1>
                 <span class="hidden h-[34px] w-[2px] bg-[#a9a9a9] sm:block sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
                 <span x-show="useDemo" x-cloak class="figma-bp-demo-badge">Sample data</span>
             </div>
 
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
-                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
+            <style>
+                .figma-filter-bar--bp-dash.ov-filter-bar,
+                .figma-filter-bar--bp-dash {
+                    width: fit-content !important;
+                    max-width: 100% !important;
+                    min-width: 0 !important;
+                    margin-left: auto !important;
+                    align-self: flex-end;
+                    flex: 0 0 auto !important;
+                    display: inline-flex !important;
+                    flex-wrap: nowrap !important;
+                    align-items: stretch;
+                    gap: 0 !important;
+                    overflow: visible;
+                    box-sizing: border-box;
+                }
+                .figma-filter-bar--bp-dash > label {
+                    flex: 0 0 auto !important;
+                    margin: 0 !important;
+                    padding-left: 6px !important;
+                    padding-right: 6px !important;
+                }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-domain { width: 128px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-traffic { width: 108px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-account { width: 128px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-campaign { width: 118px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-path { width: 112px !important; }
+                .figma-filter-bar--bp-dash .figma-filter-calendar-host {
+                    display: flex !important;
+                    flex: 0 0 auto !important;
+                    align-items: center;
+                    justify-content: center;
+                    align-self: stretch;
+                    border-left: 1px solid rgba(0, 0, 0, 0.2);
+                    padding: 6px 8px !important;
+                    margin: 0 !important;
+                }
+                @media (max-width: 900px) {
+                    .figma-filter-bar--bp-dash {
+                        width: 100% !important;
+                        align-self: stretch;
+                        margin-left: 0 !important;
+                        flex-wrap: wrap !important;
+                        display: flex !important;
+                    }
+                    .figma-filter-bar--bp-dash > label {
+                        flex: 1 1 130px !important;
+                        width: auto !important;
+                    }
+                    .figma-filter-bar--bp-dash .figma-filter-calendar-host {
+                        flex: 1 1 100% !important;
+                        justify-content: flex-start;
+                        border-left: 0;
+                        border-top: 1px solid rgba(0, 0, 0, 0.12);
+                    }
+                }
+            </style>
+
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                <label class="bp-dash-f-domain flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All domains</option>
-                        @foreach ($domains as $d)
-                            <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                        @endforeach
-                    </select>
+                            <option value="">All Domains</option>
+                            @foreach ($domains as $d)
+                                <option value="{{ $d->id }}">{{ $d->hostname }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </label>
-                <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
+                <label class="bp-dash-f-traffic flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.traffic_source" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="google_ads">Google Ads</option>
+                            <option value="meta_ads" disabled>Meta Ads</option>
+                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                        </select>
+                    </div>
+                </label>
+                <label class="bp-dash-f-account flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.google_ads_account_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All Accounts</option>
+                            @foreach (($googleAdsAccounts ?? []) as $account)
+                                <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </label>
+                <label class="bp-dash-f-campaign flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.campaign" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All Campaigns</option>
+                        </select>
+                    </div>
+                </label>
+                <label class="bp-dash-f-path flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input x-model="filters.path" @input="scheduleReload()" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                        <input x-model="filters.path" @input="scheduleReload()" placeholder="All Pages" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                     </div>
                 </label>
                 @include('partials.figma-filter-date-fields')
@@ -824,7 +911,15 @@ function botProtectionFigma(config = {}) {
 
     return {
         useDemo: Boolean(config.useDemo),
-        filters: { domain_id: '', path: '', from: '', to: '' },
+        filters: {
+            domain_id: '',
+            traffic_source: 'google_ads',
+            google_ads_account_id: '',
+            campaign: '',
+            path: '',
+            from: '',
+            to: '',
+        },
         summary: {
             total_visits: 0, valid_visits: 0, invalid_bot_visits: 0, invalid_malicious_visits: 0,
             invalid_traffic: 0, known_crawlers: 0, bots_detected: 0,
@@ -1084,6 +1179,9 @@ function botProtectionFigma(config = {}) {
         qs() {
             const p = new URLSearchParams();
             if (this.filters.domain_id) p.set('domain_id', this.filters.domain_id);
+            if (this.filters.traffic_source) p.set('traffic_source', this.filters.traffic_source);
+            if (this.filters.google_ads_account_id) p.set('google_ads_account_id', this.filters.google_ads_account_id);
+            if (this.filters.campaign) p.set('campaign', this.filters.campaign);
             if (this.filters.path) p.set('path', this.filters.path);
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);

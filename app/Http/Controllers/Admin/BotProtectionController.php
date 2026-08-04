@@ -28,8 +28,15 @@ class BotProtectionController extends Controller
             ->orderBy('hostname')
             ->get(['id', 'hostname']);
 
+        $googleAdsAccounts = GoogleAdsAccount::query()
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->synced()
+            ->orderBy('account_name')
+            ->get();
+
         return view('bot-protection.dashboard', [
             'domains' => $domains,
+            'googleAdsAccounts' => $googleAdsAccounts,
             'useDemo' => app()->environment('local'),
         ]);
     }
@@ -877,21 +884,30 @@ class BotProtectionController extends Controller
             $query->where($column, 'like', '%' . $path . '%');
         }
 
+        $campaign = trim((string) $request->query('campaign', ''));
+        if ($campaign !== '' && Schema::hasColumn('visits', 'utm_campaign')) {
+            $campaignCol = str_contains($column, '.') ? 'visits.utm_campaign' : 'utm_campaign';
+            $query->where($campaignCol, $campaign);
+        }
+
         return $query;
     }
 
     private function scopedDomainIds(Request $request)
     {
-        $userDomainIds = Domain::query()
+        $query = Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forBotProtection()
-            ->pluck('id');
+            ->forBotProtection();
 
         if ($id = (int) $request->query('domain_id', 0)) {
-            return $userDomainIds->filter(fn ($v) => (int) $v === $id)->values();
+            $query->where('id', $id);
         }
 
-        return $userDomainIds;
+        if ($accountId = (int) $request->query('google_ads_account_id', 0)) {
+            $query->where('google_ads_account_id', $accountId);
+        }
+
+        return $query->pluck('id');
     }
 
     private function dateRange(Request $request): array

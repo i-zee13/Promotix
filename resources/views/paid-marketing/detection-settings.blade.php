@@ -16,9 +16,9 @@
         </div>
     @endif
 
-    <div class="mt-[14px] pt-[4px]">
-        <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
-        <div class="grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
+    <div class="mt-[14px] flex w-full flex-col items-center pt-[4px]">
+        <h2 class="mb-[10px] w-full text-center text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
+        <div class="mx-auto grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
             <a href="{{ route('paid-marketing.detection-settings') }}" title="Detection" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
                 @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[18px] w-[18px]'])
             </a>
@@ -29,7 +29,7 @@
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[18px] w-[18px]'])
             </a>
         </div>
-        <a href="{{ route('billing.index') }}" class="figma-rightbar-extra figma-rightbar-billing mt-[16px] block rounded-[5px] bg-[#6603B3] p-[8px] text-white">
+        <a href="{{ route('billing.index') }}" class="figma-rightbar-extra figma-rightbar-billing mt-[16px] block w-full rounded-[5px] bg-[#6603B3] p-[8px] text-white">
             <div class="figma-rightbar-billing__cols">
                 <div class="figma-rightbar-billing__col">
                     <span class="figma-rightbar-billing__label">Invalid / Blocked</span>

@@ -4449,6 +4449,29 @@ select.figma-sa-subs-status-pill {
     }
 }
 
+.figma-rightbar-default {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.figma-rightbar-default > * {
+    width: 100%;
+    max-width: 180px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.figma-rightbar-default h2 {
+    text-align: center;
+}
+
+.figma-rightbar-default .grid {
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .figma-rightbar-default .figma-rightbar-notify > div {
     padding-bottom: 6px;
 }
