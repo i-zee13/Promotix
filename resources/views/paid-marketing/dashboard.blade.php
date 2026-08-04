@@ -255,16 +255,17 @@
     }
     .figma-filter-bar--paid .paid-filter-secondary {
         display: flex;
-        flex: 1 1 100%;
-        flex-wrap: wrap;
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
         align-items: stretch;
         min-width: 0;
-        border-top: 1px solid rgba(0, 0, 0, 0.12);
+        border-top: 0;
     }
-    .figma-filter-bar--paid .paid-filter-secondary > label {
-        flex: 1 1 160px;
-        min-width: 140px;
-        max-width: none;
+    .figma-filter-bar--paid .paid-filter-secondary > label.paid-filter-landing {
+        flex: 0 0 150px;
+        width: 150px;
+        min-width: 150px;
+        max-width: 150px;
     }
     .figma-filter-bar--paid .paid-filter-secondary > label:last-child {
         flex: 0 0 auto;
@@ -278,13 +279,14 @@
     .figma-filter-bar--paid .figma-filter-calendar-host {
         flex: 0 0 auto !important;
     }
-    /* Wide enough: keep Landing + calendar + Compare on the primary row */
-    @container paid-page (min-width: 1100px) {
+    @container paid-page (max-width: 900px) {
         .figma-filter-bar--paid .paid-filter-secondary {
-            flex: 1 1 auto;
-            border-top: 0;
-            min-width: 280px;
+            flex: 1 1 100%;
+            flex-wrap: wrap;
+            border-top: 1px solid rgba(0, 0, 0, 0.12);
         }
+    }
+    @container paid-page (min-width: 1100px) {
         .figma-filter-bar--paid > label {
             flex: 1 1 0;
             min-width: 0;
@@ -558,7 +560,7 @@
                     </div>
                 </label>
                 <div class="paid-filter-secondary">
-                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="paid-filter-landing flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
