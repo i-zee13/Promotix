@@ -13,6 +13,56 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @php $branding = \App\Support\Branding::cssVars(); @endphp
     <style>{!! \App\Support\Branding::rootStyleBlock() !!}</style>
+    <style>
+        .figma-sidebar-settings-wrap { position: relative; }
+        .figma-sidebar-settings-menu {
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + 8px);
+            z-index: 80;
+            display: none;
+            min-width: 168px;
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid rgba(90, 42, 153, 0.55);
+            background: #121212;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+        }
+        .figma-sidebar-settings-wrap:hover .figma-sidebar-settings-menu,
+        .figma-sidebar-settings-wrap:focus-within .figma-sidebar-settings-menu { display: block; }
+        .figma-sidebar-settings-wrap:hover .figma-sidebar-settings,
+        .figma-sidebar-settings-wrap:focus-within .figma-sidebar-settings {
+            background: rgba(100, 0, 178, 0.25);
+            color: #fff;
+        }
+        .figma-sidebar-settings-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 32px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 12px;
+            line-height: 1.2;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .figma-sidebar-settings-item:hover {
+            background: rgba(100, 0, 178, 0.35);
+            color: #fff;
+        }
+        html.light-mode .figma-sidebar-settings-menu {
+            background: #fff;
+            border-color: #d4c4e8;
+            box-shadow: 0 10px 24px rgba(60, 40, 90, 0.14);
+        }
+        html.light-mode .figma-sidebar-settings-item { color: #3d3848; }
+        html.light-mode .figma-sidebar-settings-item:hover {
+            background: rgba(100, 0, 178, 0.1);
+            color: #6400b2;
+        }
+    </style>
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
 @php
@@ -41,10 +91,6 @@
         ],
         'SITE MANAGEMENT' => [
             ['label' => 'Domains', 'route' => 'domains.index', 'icon' => 'globe', 'permission' => 'domain-management'],
-        ],
-        'SETTINGS' => [
-            ['label' => 'Reports', 'route' => 'reports.index', 'icon' => 'chart', 'permission' => 'dashboard'],
-            ['label' => 'Billing', 'route' => 'billing.index', 'icon' => 'card', 'permission' => 'upgrade-plan'],
         ],
     ];
     $toolLinks = [
@@ -122,9 +168,35 @@
                             <span class="figma-toggle-track"><span class="figma-toggle-thumb"></span></span>
                         </button>
                     </div>
-                    <a href="{{ route('profile.edit') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" aria-label="Account settings">
-                        @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
-                    </a>
+                    <div class="figma-sidebar-settings-wrap relative shrink-0">
+                        <button
+                            type="button"
+                            class="figma-sidebar-settings flex h-[32px] w-[32px] items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25"
+                            aria-label="Settings"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                        >
+                            @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
+                        </button>
+                        <div class="figma-sidebar-settings-menu" role="menu">
+                            @if (! $user || $user->canAccess('dashboard'))
+                                <a href="{{ route('reports.index') }}" class="figma-sidebar-settings-item" role="menuitem">
+                                    @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px]'])
+                                    <span>Reports</span>
+                                </a>
+                            @endif
+                            @if (! $user || $user->canAccess('upgrade-plan'))
+                                <a href="{{ route('billing.index') }}" class="figma-sidebar-settings-item" role="menuitem">
+                                    @include('partials.sidebar-icon', ['name' => 'card', 'class' => 'h-[14px] w-[14px]'])
+                                    <span>Billing</span>
+                                </a>
+                            @endif
+                            <a href="{{ route('profile.edit') }}" class="figma-sidebar-settings-item" role="menuitem">
+                                @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[14px] w-[14px]'])
+                                <span>Account Settings</span>
+                            </a>
+                        </div>
+                    </div>
                 </div>
                 @include('partials.sidebar-logo')
             </footer>
