@@ -15,6 +15,7 @@ use App\Models\GoogleConnection;
 use App\Models\IntegrationSyncLog;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\AdminIntegrationCatalog;
 use App\Support\UserTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -54,6 +55,7 @@ class IntegrationsController extends Controller
         $manualDomains = Domain::query()
             ->where('user_id', $user->id)
             ->forBotProtection()
+            ->with(['googleAdsAccount', 'googleAdsMappings.account'])
             ->withCount('googleAdsMappings')
             ->orderBy('hostname')
             ->get();
@@ -130,6 +132,98 @@ class IntegrationsController extends Controller
             ? (string) ($firstAccount->display_customer_id ?: $firstAccount->customer_id ?: '')
             : '';
 
+        $domainVisitTotals = collect();
+        if (Schema::hasTable('visits') && $manualDomains->isNotEmpty()) {
+            $domainVisitTotals = DB::table('visits')
+                ->whereIn('domain_id', $manualDomains->pluck('id'))
+                ->selectRaw('domain_id, COUNT(*) as total')
+                ->groupBy('domain_id')
+                ->pluck('total', 'domain_id');
+        }
+
+        $googleEmail = $primary?->google_email ?: '';
+        $googleConnected = $connections->isNotEmpty();
+
+        $buildSetupProgressForDomain = function (?Domain $domain) use (
+            $googleConnected,
+            $googleEmail,
+            $domainVisitTotals
+        ): array {
+            if (! $domain) {
+                return [];
+            }
+
+            $linkedAccount = $domain->googleAdsAccount
+                ?: $domain->googleAdsMappings->first()?->account;
+            $adsDone = $linkedAccount !== null
+                || $domain->google_ads_account_id !== null
+                || (int) ($domain->google_ads_mappings_count ?? 0) > 0;
+            $adsDetail = 'Link an ads account';
+            if ($linkedAccount) {
+                $tag = (string) ($linkedAccount->google_tag_id ?: '');
+                $cid = (string) ($linkedAccount->display_customer_id ?: $linkedAccount->customer_id ?: '');
+                $adsDetail = $tag !== '' ? $tag : ($cid !== '' ? $cid : $adsDetail);
+            }
+
+            $trackingDone = (bool) $domain->tag_connected;
+            $visitCount = (int) ($domainVisitTotals[$domain->id] ?? 0);
+            $clickDone = $visitCount > 0 || filled($domain->last_seen_at);
+            $clickDetail = 'Waiting for traffic';
+            if ($clickDone) {
+                $clickDetail = filled($domain->last_seen_at)
+                    ? \Illuminate\Support\Carbon::parse((string) $domain->last_seen_at)->diffForHumans()
+                    : number_format($visitCount).' clicks';
+            }
+
+            $protectionDone = (bool) $domain->bot_mitigation_connected
+                || (bool) $domain->paid_marketing_connected;
+
+            return [
+                [
+                    'key' => 'domain',
+                    'label' => 'Domain Added',
+                    'done' => true,
+                    'detail' => $domain->hostname ?: 'Domain added',
+                ],
+                [
+                    'key' => 'google',
+                    'label' => 'Google Account Connected',
+                    'done' => $googleConnected,
+                    'detail' => $googleConnected ? ($googleEmail ?: 'Connected') : 'Connect Google',
+                ],
+                [
+                    'key' => 'ads',
+                    'label' => 'Google Ads Connected',
+                    'done' => $adsDone,
+                    'detail' => $adsDetail,
+                ],
+                [
+                    'key' => 'tracking',
+                    'label' => 'Tracking Script Installed',
+                    'done' => $trackingDone,
+                    'detail' => $trackingDone ? 'Active' : 'Pending',
+                ],
+                [
+                    'key' => 'click',
+                    'label' => 'First Click Received',
+                    'done' => $clickDone,
+                    'detail' => $clickDetail,
+                ],
+                [
+                    'key' => 'protection',
+                    'label' => 'Protection Enabled',
+                    'done' => $protectionDone,
+                    'detail' => $protectionDone ? 'Active' : 'Pending',
+                ],
+            ];
+        };
+
+        $setupProgressByDomain = [];
+        foreach ($manualDomains as $domain) {
+            $setupProgressByDomain[(string) $domain->id] = $buildSetupProgressForDomain($domain);
+        }
+
+        // "All Domains" = best available aggregate (any domain completing a step counts).
         $setupProgress = [
             [
                 'key' => 'domain',
@@ -140,14 +234,18 @@ class IntegrationsController extends Controller
             [
                 'key' => 'google',
                 'label' => 'Google Account Connected',
-                'done' => $connections->isNotEmpty(),
-                'detail' => $primary?->google_email ?: 'Connect Google',
+                'done' => $googleConnected,
+                'detail' => $googleConnected ? ($googleEmail ?: 'Connected') : 'Connect Google',
             ],
             [
                 'key' => 'ads',
                 'label' => 'Google Ads Connected',
-                'done' => $accounts->isNotEmpty(),
-                'detail' => $adsCustomerId !== '' ? $adsCustomerId : 'Link an ads account',
+                'done' => $accounts->isNotEmpty() || $manualDomains->contains(
+                    fn (Domain $d) => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0
+                ),
+                'detail' => $adsCustomerId !== ''
+                    ? ((string) ($firstAccount?->google_tag_id ?: $adsCustomerId))
+                    : 'Link an ads account',
             ],
             [
                 'key' => 'tracking',
@@ -168,19 +266,16 @@ class IntegrationsController extends Controller
             [
                 'key' => 'protection',
                 'label' => 'Protection Enabled',
-                'done' => $botReady || $paidReady,
-                'detail' => ($botReady || $paidReady) ? 'Active' : 'Pending',
+                'done' => $botReady || $paidReady || $manualDomains->contains(
+                    fn (Domain $d) => (bool) $d->bot_mitigation_connected || (bool) $d->paid_marketing_connected
+                ),
+                'detail' => ($botReady || $paidReady || $manualDomains->contains(
+                    fn (Domain $d) => (bool) $d->bot_mitigation_connected || (bool) $d->paid_marketing_connected
+                )) ? 'Active' : 'Pending',
             ],
         ];
 
-        $domainVisitCounts = collect();
-        if (Schema::hasTable('visits') && $manualDomains->isNotEmpty()) {
-            $domainVisitCounts = DB::table('visits')
-                ->whereIn('domain_id', $manualDomains->pluck('id'))
-                ->selectRaw('domain_id, COUNT(*) as total')
-                ->groupBy('domain_id')
-                ->pluck('total', 'domain_id');
-        }
+        $domainVisitCounts = $domainVisitTotals;
 
         $platformRows = collect();
 
@@ -305,6 +400,8 @@ class IntegrationsController extends Controller
                 ->get()
             : collect();
 
+        $enabledAdPlatforms = AdminIntegrationCatalog::enabledAdPlatforms();
+
         return view('integrations', compact(
             'connections',
             'domains',
@@ -321,10 +418,12 @@ class IntegrationsController extends Controller
             'domainConnections',
             'connectionHealth',
             'setupProgress',
+            'setupProgressByDomain',
             'domainVisitCounts',
             'platformRows',
             'trackingIds',
             'syncLogs',
+            'enabledAdPlatforms',
         ));
     }
 

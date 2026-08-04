@@ -51,6 +51,7 @@
         ])->values(),
         'platformRows' => ($platformRows ?? collect())->values(),
         'setupProgress' => $setupProgress ?? [],
+        'setupProgressByDomain' => $setupProgressByDomain ?? [],
     ]))"
     @platform-menu.window="handlePlatformMenu($event.detail)"
 >
@@ -210,6 +211,77 @@
                             <button type="submit" class="pi-primary-btn pi-primary-btn--wide">Save &amp; Connect</button>
                         </form>
                     </article>
+
+                    @if (! empty($enabledAdPlatforms['meta']))
+                        <article class="pi-panel">
+                            <div class="flex items-start justify-between gap-[8px]">
+                                <div class="flex min-w-0 flex-1 gap-[16px]">
+                                    <div class="w-[88px] shrink-0 text-center">
+                                        <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
+                                            <svg class="h-[40px] w-[40px] text-[#1877F2]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.52 1.49-3.91 3.78-3.91 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.45 2.9h-2.33v7c4.78-.75 8.44-4.9 8.44-9.9 0-5.53-4.5-10.02-10-10.02z"/></svg>
+                                        </div>
+                                        <p class="text-[15px] font-semibold leading-none text-white">Meta Ads</p>
+                                        <span class="pi-status-pill is-off mt-[8px]">
+                                            <span class="pi-status-dot"></span>
+                                            <span>Not connected</span>
+                                        </span>
+                                    </div>
+                                    <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
+                                        <a href="{{ route('paid-marketing.dashboard') }}" class="pi-ghost-btn">
+                                            @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                            <span>Paid Marketing</span>
+                                        </a>
+                                        <a href="{{ route('bot-protection.dashboard') }}" class="pi-ghost-btn">
+                                            @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                            <span>Bot Protection</span>
+                                        </a>
+                                        <button type="button" class="pi-primary-btn" @click="showMenuToast('Meta Ads connect is coming soon.', 'info')">
+                                            <span class="text-[14px] leading-none">+</span>
+                                            Connect Meta
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    @endif
+
+                    @if (! empty($enabledAdPlatforms['microsoft']))
+                        <article class="pi-panel">
+                            <div class="flex items-start justify-between gap-[8px]">
+                                <div class="flex min-w-0 flex-1 gap-[16px]">
+                                    <div class="w-[88px] shrink-0 text-center">
+                                        <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
+                                            <svg class="h-[36px] w-[36px]" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path fill="#F25022" d="M3 3h8.5v8.5H3z"/>
+                                                <path fill="#7FBA00" d="M12.5 3H21v8.5h-8.5z"/>
+                                                <path fill="#00A4EF" d="M3 12.5H11.5V21H3z"/>
+                                                <path fill="#FFB900" d="M12.5 12.5H21V21h-8.5z"/>
+                                            </svg>
+                                        </div>
+                                        <p class="text-[15px] font-semibold leading-none text-white">Microsoft Ads</p>
+                                        <span class="pi-status-pill is-off mt-[8px]">
+                                            <span class="pi-status-dot"></span>
+                                            <span>Not connected</span>
+                                        </span>
+                                    </div>
+                                    <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
+                                        <a href="{{ route('paid-marketing.dashboard') }}" class="pi-ghost-btn">
+                                            @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                            <span>Paid Marketing</span>
+                                        </a>
+                                        <a href="{{ route('bot-protection.dashboard') }}" class="pi-ghost-btn">
+                                            @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                            <span>Bot Protection</span>
+                                        </a>
+                                        <button type="button" class="pi-primary-btn" @click="showMenuToast('Microsoft Ads connect is coming soon.', 'info')">
+                                            <span class="text-[14px] leading-none">+</span>
+                                            Connect Microsoft
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    @endif
                 </div>
             </section>
 
@@ -324,7 +396,10 @@
                 gap: 14px;
             }
             @media (min-width: 720px) {
-                .pi-connect-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+                .pi-connect-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            }
+            @media (min-width: 1400px) {
+                .pi-connect-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
             }
             .pi-panel {
                 border-radius: 10px;
@@ -617,10 +692,10 @@
                 padding: 12px 14px;
                 font-size: 12px;
                 font-weight: 600;
-                color: rgba(18, 18, 18, 0.65);
-                border-bottom: 1px solid rgba(18, 18, 18, 0.1);
+                color: #ffffff;
+                border-bottom: 1px solid rgba(100, 0, 178, 0.35);
                 white-space: nowrap;
-                background: #f7f7f7;
+                background: #6400B2;
             }
             .pi-table tbody td {
                 padding: 14px;
@@ -794,27 +869,28 @@
         <section class="pi-setup-card">
             <h2 class="pi-setup-title">Setup Progress</h2>
             <div class="pi-setup-track">
-                @foreach (($setupProgress ?? []) as $step)
-                    @php $done = (bool) ($step['done'] ?? false); @endphp
+                <template x-for="step in activeSetupProgress" :key="step.key">
                     <div class="pi-setup-step">
-                        <div class="pi-setup-icon {{ $done ? '' : 'is-pending' }}">
-                            @if (($step['key'] ?? '') === 'domain')
+                        <div class="pi-setup-icon" :class="step.done ? '' : 'is-pending'">
+                            <template x-if="step.key === 'domain'">
                                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21a9 9 0 100-18 9 9 0 000 18z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.6 9h16.8M3.6 15h16.8M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/>
                                 </svg>
-                            @elseif ($done)
+                            </template>
+                            <template x-if="step.key !== 'domain' && step.done">
                                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
                                 </svg>
-                            @else
+                            </template>
+                            <template x-if="step.key !== 'domain' && !step.done">
                                 <span class="h-[8px] w-[8px] rounded-full bg-white/40"></span>
-                            @endif
+                            </template>
                         </div>
-                        <div class="pi-setup-label">{{ $step['label'] }}</div>
-                        <div class="pi-setup-detail" title="{{ $step['detail'] ?? '' }}">{{ $step['detail'] ?? '—' }}</div>
+                        <div class="pi-setup-label" x-text="step.label"></div>
+                        <div class="pi-setup-detail" :title="step.detail || ''" x-text="step.detail || '—'"></div>
                     </div>
-                @endforeach
+                </template>
             </div>
         </section>
 
@@ -1129,6 +1205,8 @@ function platformIntegrations(config) {
         googleOAuthConnected: Boolean(config.googleOAuthConnected),
         syncLogs: config.syncLogs || [],
         platformRows: config.platformRows || [],
+        setupProgressAll: config.setupProgress || [],
+        setupProgressByDomain: config.setupProgressByDomain || {},
         platformSearch: '',
         platformPage: 1,
         platformPerPage: 8,
@@ -1290,6 +1368,13 @@ function platformIntegrations(config) {
         get activeDomainStatus() {
             if (!this.selectedDomainId) return null;
             return this.domainConnections.find((d) => String(d.id) === String(this.selectedDomainId)) || null;
+        },
+        get activeSetupProgress() {
+            if (this.selectedDomainId) {
+                const steps = this.setupProgressByDomain[String(this.selectedDomainId)];
+                if (Array.isArray(steps) && steps.length) return steps;
+            }
+            return this.setupProgressAll;
         },
         get googleConnected() {
             if (this.activeDomainStatus) return Boolean(this.activeDomainStatus.google_connected);

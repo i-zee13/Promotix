@@ -46,7 +46,9 @@
                                 <svg x-show="integration.name === 'google-cloud'" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 17a4 4 0 01-1-7.87A5.5 5.5 0 0115.5 6a4.5 4.5 0 011 8.88M8 17h9"/></svg>
                                 <svg x-show="integration.name === 'smtp'" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                                 <svg x-show="integration.name === 'oauth'" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 2l7 3v6c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V5l7-3z"/></svg>
-                                <template x-if="!['stripe','google-cloud','smtp','oauth'].includes(integration.name)"><span x-text="integration.icon"></span></template>
+                                <svg x-show="integration.name === 'meta-ads'" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.52 1.49-3.91 3.78-3.91 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.45 2.9h-2.33v7c4.78-.75 8.44-4.9 8.44-9.9 0-5.53-4.5-10.02-10-10.02z"/></svg>
+                                <svg x-show="integration.name === 'microsoft-ads'" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8.5v8.5H3V3zm9.5 0H21v8.5h-8.5V3zM3 12.5H11.5V21H3v-8.5zm9.5 0H21V21h-8.5v-8.5z"/></svg>
+                                <template x-if="!['stripe','google-cloud','smtp','oauth','meta-ads','microsoft-ads'].includes(integration.name)"><span x-text="integration.icon"></span></template>
                             </span>
                             <div class="min-w-0">
                                 <h3 class="text-[20px] font-medium text-white" x-text="integration.display_name"></h3>
