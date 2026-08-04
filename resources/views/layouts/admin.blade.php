@@ -286,7 +286,7 @@
             @include('partials.figma-rightbar-ip-investigation')
         </div>
 
-        <div class="mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
+        <div class="mt-[14px] pt-[4px]">
             <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
             <div class="grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
                 @foreach ($toolLinks as $tool)

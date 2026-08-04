@@ -1722,18 +1722,32 @@
                         this.reportingTimezone = this.timezoneContext.reporting_timezone;
                     }
                     this.syncPaidTimezoneHeader();
-                    // Prefer the top high-risk IP for the rightbar investigation panel.
-                    const topHip = this.highRiskIps[0];
-                    if (topHip?.id) {
-                        const visit = this.rows.find((r) => String(r.id) === String(topHip.id));
+                    // Auto-catch highest-risk IP for rightbar (no manual select required).
+                    const rank = (r) => {
+                        let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
+                        if (score > 0 && score < 1) score *= 100;
+                        if (!Number.isFinite(score)) score = 0;
+                        if (r.ip_is_blocked) score += 40;
+                        if (r.intel_vpn === 'Yes' || Number(r.vpn_hits) > 0) score += 15;
+                        if (r.intel_datacenter === 'Yes' || Number(r.data_center_hits) > 0) score += 15;
+                        if (Number(r.invalid_clicks) > 0) score += 10;
+                        if (r.threat_group) score += 8;
+                        return score;
+                    };
+                    let best = null;
+                    let bestScore = -1;
+                    for (const row of this.rows) {
+                        const s = rank(row);
+                        if (s > bestScore) {
+                            bestScore = s;
+                            best = row;
+                        }
+                    }
+                    if (best && bestScore > 0) {
+                        this.publishInvestigation(best);
+                    } else if (this.highRiskIps[0]?.id) {
+                        const visit = this.rows.find((r) => String(r.id) === String(this.highRiskIps[0].id));
                         if (visit) this.publishInvestigation(visit);
-                    } else if (this.rows.length) {
-                        const risky = this.rows.find((r) => {
-                            const score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
-                            const level = String(r.intel_risk_level || r.risk_summary?.level || '').toLowerCase();
-                            return score >= 55 || level === 'high';
-                        });
-                        if (risky) this.publishInvestigation(risky);
                     }
                 } catch (e) {
                     console.error(e);
@@ -1744,6 +1758,7 @@
             },
             publishInvestigation(visit) {
                 if (!visit) return;
+                try { window.__promotixIpInvestigationVisit = visit; } catch (_) {}
                 window.dispatchEvent(new CustomEvent('promotix-ip-investigation', { detail: visit }));
             },
             scrollHighRisk(dir) {
