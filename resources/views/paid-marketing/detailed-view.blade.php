@@ -21,46 +21,174 @@
     'csrf' => csrf_token(),
 ]))" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
-        <div class="mb-[23px] flex flex-col gap-[10px] sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex flex-wrap items-center gap-[8px]">
+        <style>
+            .pm-adv-kpi-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+            @media (min-width: 768px) {
+                .pm-adv-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            }
+            @media (min-width: 1200px) {
+                .pm-adv-kpi-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+            }
+            .pm-adv-kpi-card {
+                display: flex;
+                flex-direction: column;
+                min-height: 148px;
+                border-radius: 10px;
+                border: 1px solid rgba(103, 6, 179, 0.55);
+                background: #111111;
+                padding: 14px 14px 12px;
+            }
+            .pm-adv-kpi-card__icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                border-radius: 7px;
+                margin-bottom: 10px;
+            }
+            .pm-adv-kpi-card__icon.is-purple { background: rgba(100, 0, 178, 0.28); color: #c4b5fd; }
+            .pm-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+            .pm-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.18); color: #fda4af; }
+            .pm-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+            .pm-adv-kpi-card__label {
+                font-size: 11px;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.55);
+                line-height: 1.25;
+                margin-bottom: 8px;
+            }
+            .pm-adv-kpi-card__value {
+                font-size: 26px;
+                font-weight: 700;
+                color: #fff;
+                line-height: 1.1;
+                letter-spacing: -0.02em;
+            }
+            .pm-adv-kpi-card__sub {
+                margin-top: auto;
+                padding-top: 10px;
+                font-size: 10px;
+                color: rgba(255, 255, 255, 0.42);
+            }
+            .figma-filter-bar--pm-adv {
+                overflow: visible;
+                width: fit-content;
+                max-width: 100%;
+            }
+            .figma-filter-bar--pm-adv > label {
+                flex: 0 0 auto;
+            }
+            @media (max-width: 900px) {
+                .figma-filter-bar--pm-adv {
+                    width: 100%;
+                    flex-wrap: wrap;
+                }
+            }
+        </style>
+
+        <div class="mb-[18px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-wrap items-center gap-[8px] shrink-0">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
             </div>
 
-            <div class="figma-filter-bar relative z-20 flex h-[54px] w-full overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black" :class="filters.domain_id ? 'max-w-[560px]' : 'max-w-[370px]'">
-                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--pm-adv ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                <label class="flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All domains</option>
+                            <option value="">All Domains</option>
                             @foreach ($domains as $domain)
                                 <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
                             @endforeach
                         </select>
                     </div>
                 </label>
-                <label x-show="filters.domain_id" x-cloak class="relative flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]" @click.outside="campaignMenuOpen = false">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaigns</span>
+                <label class="flex w-[118px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.traffic_source" @change="scheduleFetch(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="google_ads">Google Ads</option>
+                            <option value="meta_ads" disabled>Meta Ads</option>
+                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                        </select>
+                    </div>
+                </label>
+                <label class="flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.google_ads_account_id" @change="scheduleFetch(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All Accounts</option>
+                            @foreach (($googleAdsAccounts ?? []) as $account)
+                                <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </label>
+                <label class="relative flex w-[140px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="campaignMenuOpen = false">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
                     <button type="button" @click="openCampaignMenu()" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
-                        <span class="truncate" x-text="filters.campaign || 'All campaigns'"></span>
+                        <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
                     </button>
-                    <div x-show="campaignMenuOpen" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[12px] !right-auto !min-w-[180px]">
-                        <button type="button" @click="selectCampaign('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">All campaigns</button>
+                    <div x-show="campaignMenuOpen" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !min-w-[180px]">
+                        <button type="button" @click="selectCampaign('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">All Campaigns</button>
                         <template x-for="name in campaignOptions" :key="name">
                             <button type="button" @click="selectCampaign(name)" class="paid-advanced-campaign-option" :class="filters.campaign === name && 'is-active'" x-text="name"></button>
                         </template>
                     </div>
                 </label>
-                <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
+                <label class="flex w-[128px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input x-model="filters.path" @input="scheduleFetch()" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                        <input x-model="filters.path" @input="scheduleFetch()" placeholder="All Pages" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                     </div>
                 </label>
                 @include('partials.figma-filter-date-fields')
             </div>
+        </div>
+
+        {{-- KPI cards (mockup row 3) — no second filter toolbar row --}}
+        <div class="pm-adv-kpi-grid">
+            <template x-for="card in kpiCards" :key="card.key">
+                <article class="pm-adv-kpi-card">
+                    <span class="pm-adv-kpi-card__icon" :class="'is-' + (card.tone || 'purple')" aria-hidden="true">
+                        <template x-if="card.key === 'total'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 19V5m4 14V9m4 10V7m4 12v-6m4 6V4"/></svg>
+                        </template>
+                        <template x-if="card.key === 'valid'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </template>
+                        <template x-if="card.key === 'invalid'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                        </template>
+                        <template x-if="card.key === 'blocked'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 3v5c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V6l8-3z"/></svg>
+                        </template>
+                        <template x-if="card.key === 'waste'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                        </template>
+                        <template x-if="card.key === 'risk'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l2.5 2.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </template>
+                    </span>
+                    <p class="pm-adv-kpi-card__label" x-text="card.label"></p>
+                    <p class="pm-adv-kpi-card__value" x-text="card.value"></p>
+                    <p class="pm-adv-kpi-card__sub" x-text="card.sub"></p>
+                </article>
+            </template>
+            <template x-if="kpiCards.length === 0">
+                <article class="pm-adv-kpi-card col-span-full min-h-[80px] items-center justify-center text-center text-[12px] text-white/45" style="grid-column: 1 / -1;">
+                    Loading metrics…
+                </article>
+            </template>
         </div>
 
         <section class="overflow-visible rounded-[12px] border border-[#6706b3]">
@@ -251,21 +379,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <section class="mt-[20px]">
-            <h2 class="mb-[20px] text-center text-[24px] font-semibold leading-none text-[#a9a9a9]">Paid Stats</h2>
-            <div class="grid grid-cols-2 gap-[14px] sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
-                <template x-for="card in statCards" :key="card.label">
-                    <article class="relative h-[228px] overflow-hidden rounded-[10px] border border-white/40 bg-[#6400B2]">
-                        <div class="absolute inset-x-0 bottom-0 rounded-t-[10px] opacity-40" :class="card.fillClass + ' ' + card.toneClass"></div>
-                        <div class="relative z-10 pt-[31px] text-center">
-                            <p class="mb-[26px] text-[14px] text-[#a9a9a9]" x-text="card.label"></p>
-                            <p class="text-[36px] font-medium leading-none text-white" x-text="card.value + '%'"></p>
-                        </div>
-                    </article>
-                </template>
             </div>
         </section>
 
@@ -665,6 +778,7 @@
             optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
             filters: {
                 ip: '', path: '', domain_id: '', campaign: '', from: '', to: '',
+                traffic_source: 'google_ads', google_ads_account_id: '',
                 country: '', keyword: '', ad_group: '', source: '', browser: '', device: '',
                 detection: '', threat_group: '', risk_level: '', block_status: '',
             },
@@ -684,6 +798,7 @@
                 'intel_risk_score', 'intel_confidence', 'intel_latitude', 'intel_longitude', 'ip_count',
             ],
             statCards: [],
+            kpiCards: [],
             modal: { open: false, visit: null, clicks: [], activeIndex: 0, timeline: [], timelineOpen: true, timelineLoading: false },
             recordingModal: { open: false, id: null, visit_id: null, ip: '', page_url: '', events: [] },
             recordingController: null,
@@ -959,9 +1074,7 @@
                     this.filters.from = fmt(start);
                     this.filters.to = fmt(today);
                 }
-                if (this.filters.domain_id) {
-                    this.loadCampaignsForDomain();
-                }
+                this.loadCampaignsForDomain();
                 this.fetchNow();
                 window.addEventListener('promotix:date-range', () => {
                     this.syncHeaderDates();
@@ -1036,12 +1149,8 @@
                 this.scheduleFetch(true);
             },
             async loadCampaignsForDomain() {
-                if (!this.filters.domain_id) {
-                    this.campaignOptions = [];
-                    return;
-                }
                 const params = new URLSearchParams();
-                params.set('domain_id', this.filters.domain_id);
+                if (this.filters.domain_id) params.set('domain_id', this.filters.domain_id);
                 if (this.filters.from) params.set('from', this.filters.from);
                 if (this.filters.to) params.set('to', this.filters.to);
                 try {
@@ -1057,6 +1166,7 @@
             queryString() {
                 const p = new URLSearchParams();
                 Object.entries(this.filters).forEach(([k, v]) => {
+                    if (k === 'traffic_source') return; // UI-only until multi-source backend ships
                     if (v !== '' && v != null) p.set(k, v);
                 });
                 if (this.sortKey) {
@@ -1084,6 +1194,7 @@
                     const data = await res.json();
                     this.rows = data.rows || [];
                     this.statCards = data.stats?.cards || [];
+                    this.kpiCards = data.stats?.kpis || [];
                     this.timezoneContext = data.timezone_context || null;
                     if (this.timezoneContext?.reporting_timezone) {
                         this.reportingTimezone = this.timezoneContext.reporting_timezone;

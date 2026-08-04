@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DetectionSettingsAudit;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
+use App\Models\GoogleAdsAccount;
 use App\Models\IpLog;
 use App\Models\PaidMarketingVisit;
 use App\Services\DetectionSettingsAuditLogger;
@@ -47,6 +48,12 @@ class PaidMarketingController extends Controller
             ->orderBy('hostname')
             ->get(['id', 'hostname', 'google_ads_account_id']);
 
+        $googleAdsAccounts = GoogleAdsAccount::query()
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->synced()
+            ->orderBy('account_name')
+            ->get();
+
         $domainId = (int) $request->query('domain_id', 0);
         $googleTz = UserTimezone::resolveGoogleAccountTimezone(
             $request->user(),
@@ -56,6 +63,7 @@ class PaidMarketingController extends Controller
 
         return view('paid-marketing.detailed-view', [
             'domains' => $domains,
+            'googleAdsAccounts' => $googleAdsAccounts,
             'domainCatalog' => UserTimezone::domainCatalog($domains),
             'reportingTimezone' => $reportingTz,
             'googleAccountTimezone' => $googleTz,
@@ -652,6 +660,10 @@ class PaidMarketingController extends Controller
 
         if ($domainId = (int) $request->query('domain_id', 0)) {
             $query->where('domain_id', $domainId);
+        }
+
+        if ($accountId = (int) $request->query('google_ads_account_id', 0)) {
+            $query->whereHas('domain', fn ($q) => $q->where('google_ads_account_id', $accountId));
         }
 
         if ($ip = trim((string) $request->query('ip', ''))) {
@@ -1347,7 +1359,77 @@ class PaidMarketingController extends Controller
             || str_contains(strtolower((string) ($visit['threat_group'] ?? '')), 'bot'))->count();
         $countryCount = $rows->pluck('country')->filter()->unique()->count();
 
+        $totalClicks = (int) $rows->sum(fn ($visit) => (int) ($visit['visits'] ?? 1));
+        $validClicks = (int) $rows->sum(fn ($visit) => (int) ($visit['valid_clicks'] ?? 0));
+        $invalidClicks = (int) $rows->sum(fn ($visit) => (int) ($visit['invalid_clicks'] ?? 0));
+        if ($validClicks === 0 && $invalidClicks === 0 && $totalClicks > 0) {
+            $invalidClicks = $threatCount;
+            $validClicks = max(0, $totalClicks - $invalidClicks);
+        }
+        $blockedClicks = (int) $rows->sum(fn ($visit) => (bool) ($visit['ip_is_blocked'] ?? false)
+            ? (int) ($visit['visits'] ?? 1)
+            : 0);
+        if ($blockedClicks === 0) {
+            $blockedClicks = $blockedCount;
+        }
+
+        $riskScores = $rows
+            ->map(fn ($visit) => $visit['intel_risk_score'] ?? $visit['risk_summary']['score'] ?? null)
+            ->filter(fn ($score) => is_numeric($score))
+            ->map(fn ($score) => (float) $score)
+            ->values();
+        $avgRisk = $riskScores->isNotEmpty() ? (int) round($riskScores->avg()) : 0;
+
+        // Rough waste estimate when CPC isn't available: $1.50 per invalid click.
+        $wastePrevented = round($invalidClicks * 1.5, 2);
+        $validPct = $totalClicks > 0 ? round(($validClicks / $totalClicks) * 100, 1) : 0.0;
+        $invalidPct = $totalClicks > 0 ? round(($invalidClicks / $totalClicks) * 100, 1) : 0.0;
+
         return [
+            'kpis' => [
+                [
+                    'key' => 'total',
+                    'label' => 'Total Clicks (Google Ads)',
+                    'value' => number_format($totalClicks),
+                    'sub' => 'Imported from Google Ads',
+                    'tone' => 'purple',
+                ],
+                [
+                    'key' => 'valid',
+                    'label' => 'Valid Clicks',
+                    'value' => number_format($validClicks),
+                    'sub' => number_format($validPct, 1).'% of total clicks',
+                    'tone' => 'green',
+                ],
+                [
+                    'key' => 'invalid',
+                    'label' => 'Invalid Clicks',
+                    'value' => number_format($invalidClicks),
+                    'sub' => number_format($invalidPct, 1).'% of total clicks',
+                    'tone' => 'rose',
+                ],
+                [
+                    'key' => 'blocked',
+                    'label' => 'Blocked Clicks',
+                    'value' => number_format($blockedClicks),
+                    'sub' => 'Blocked by protection',
+                    'tone' => 'rose',
+                ],
+                [
+                    'key' => 'waste',
+                    'label' => 'Estimated Waste Prevented',
+                    'value' => '$'.number_format($wastePrevented, 2),
+                    'sub' => 'Saved from invalid traffic',
+                    'tone' => 'green',
+                ],
+                [
+                    'key' => 'risk',
+                    'label' => 'Avg. Risk Score',
+                    'value' => (string) $avgRisk,
+                    'sub' => 'Out of 100',
+                    'tone' => 'amber',
+                ],
+            ],
             'cards' => [
                 ['label' => 'VPN Tracking', 'value' => (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[45%]', 'toneClass' => 'bg-[#9A1AFF]/50'],
                 ['label' => 'Threats', 'value' => (int) round(($threatCount / $rowCount) * 100), 'fillClass' => 'h-[32%]', 'toneClass' => 'bg-white/25'],
