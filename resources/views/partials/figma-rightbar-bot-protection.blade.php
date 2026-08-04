@@ -2,9 +2,9 @@
 @php
     $isAdvanced = request()->routeIs('bot-protection.advanced');
 @endphp
-<div class="mt-[8px] border-t-2 border-[#5a2a99] pt-[14px]">
-    <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
-    <div class="grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
+<div class="mt-[8px] flex w-full flex-col items-center border-t-2 border-[#5a2a99] pt-[14px]">
+    <h2 class="mb-[10px] w-full max-w-[168px] text-center text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
+    <div class="mx-auto grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
         @if ($isAdvanced)
             <a href="{{ route('bot-protection.dashboard') }}" class="paid-quick-action" title="Dashboard">
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[16px] w-[16px]'])

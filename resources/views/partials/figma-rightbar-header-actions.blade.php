@@ -1,6 +1,6 @@
 {{-- Replaces “Digital Promotix” text in the account rightbar --}}
-<div class="mb-[16px]" id="rightbar-notify-root">
-    <div class="grid max-w-[168px] grid-cols-4 gap-[9px]" role="toolbar" aria-label="Quick panel actions">
+<div class="mb-[16px] flex w-full flex-col items-center" id="rightbar-notify-root">
+    <div class="mx-auto grid w-full max-w-[168px] grid-cols-4 gap-[9px]" role="toolbar" aria-label="Quick panel actions">
         <button
             type="button"
             id="rightbar-notify-toggle"
@@ -59,7 +59,7 @@
 
     <div
         id="right-notifications"
-        class="figma-rightbar-notify mt-[12px] hidden max-h-[240px] space-y-[10px] overflow-y-auto border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9] promotix-slim-scroll"
+        class="figma-rightbar-notify mt-[12px] hidden w-full max-w-[168px] max-h-[240px] space-y-[10px] overflow-y-auto border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9] promotix-slim-scroll"
         hidden
         role="region"
         aria-label="Notifications"

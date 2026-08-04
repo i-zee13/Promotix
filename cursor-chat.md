@@ -463,8 +463,8 @@ Hard refresh karke Overview check karo — Google Ads aur Bot dono cards pe logo
 
 ## QUEUED — Settings modal (Clickronix-style)
 
-**Status:** Parked — do after other page updates.  
-**Entry:** Gear icon click → ChatGPT/Clickronix settings popup (not just dropdown).
+**Status:** Phase 1 demo wired — gear opens ChatGPT-style modal; tabs link to existing pages only (no new backends).
+**Entry:** Gear icon click → Settings popup.
 
 ### Tabs (reference mockups shared)
 1. General
