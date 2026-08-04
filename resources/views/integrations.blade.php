@@ -295,8 +295,8 @@
             }
             .pi-panel {
                 border-radius: 10px;
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                background: rgba(0, 0, 0, 0.28);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                background: #6400B2;
                 padding: 14px;
                 min-height: 230px;
             }
@@ -313,13 +313,13 @@
                 max-width: 168px;
                 width: 100%;
                 border-radius: 6px;
-                border: 1px solid rgba(255, 255, 255, 0.28);
-                background: transparent;
+                border: 1px solid rgba(255, 255, 255, 0.35);
+                background: rgba(0, 0, 0, 0.12);
                 padding: 0 10px;
                 font-size: 11px;
-                color: rgba(255, 255, 255, 0.9);
+                color: rgba(255, 255, 255, 0.95);
             }
-            .pi-ghost-btn:hover { background: rgba(255, 255, 255, 0.06); }
+            .pi-ghost-btn:hover { background: rgba(0, 0, 0, 0.22); }
             .pi-primary-btn {
                 display: inline-flex;
                 align-items: center;
@@ -330,21 +330,21 @@
                 width: 100%;
                 border-radius: 6px;
                 border: 0;
-                background: #6400B2;
+                background: #ffffff;
                 padding: 0 10px;
                 font-size: 11px;
                 font-weight: 600;
-                color: #fff;
+                color: #6400B2;
             }
-            .pi-primary-btn:hover { background: #7B13C8; }
+            .pi-primary-btn:hover { background: #f3e8ff; color: #4a0088; }
             .pi-primary-btn--wide { max-width: none; height: 34px; margin-top: 4px; }
             .pi-text-link {
                 display: inline-flex;
                 font-size: 11px;
                 font-weight: 600;
-                color: #B893D8;
+                color: #ffffff;
             }
-            .pi-text-link:hover { color: #fff; }
+            .pi-text-link:hover { color: rgba(255, 255, 255, 0.8); }
             .pi-status-pill {
                 display: inline-flex;
                 align-items: center;
@@ -356,8 +356,8 @@
                 line-height: 1;
                 white-space: nowrap;
             }
-            .pi-status-pill.is-on { background: rgba(34, 197, 94, 0.16); color: #86efac; }
-            .pi-status-pill.is-off { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.55); }
+            .pi-status-pill.is-on { background: rgba(34, 197, 94, 0.22); color: #bbf7d0; }
+            .pi-status-pill.is-off { background: rgba(0, 0, 0, 0.2); color: rgba(255, 255, 255, 0.7); }
             .pi-status-dot {
                 width: 6px;
                 height: 6px;
@@ -370,8 +370,8 @@
                 gap: 6px;
                 height: 34px;
                 border-radius: 6px;
-                border: 1px solid rgba(255, 255, 255, 0.16);
-                background: #0a0a0a;
+                border: 1px solid rgba(255, 255, 255, 0.28);
+                background: rgba(0, 0, 0, 0.28);
                 padding: 0 8px;
             }
             .pi-field__input {
@@ -383,10 +383,10 @@
                 font-size: 12px;
                 outline: none;
             }
-            .pi-field__input::placeholder { color: rgba(255, 255, 255, 0.35); }
+            .pi-field__input::placeholder { color: rgba(255, 255, 255, 0.4); }
             .pi-field__copy {
                 display: inline-flex;
-                color: rgba(255, 255, 255, 0.55);
+                color: rgba(255, 255, 255, 0.65);
             }
             .pi-field__copy:hover { color: #fff; }
             .pi-status-row {
@@ -426,6 +426,10 @@
                 border: 1px solid #6706B3;
                 background: #0d0d0d;
                 padding: 18px 18px 16px;
+            }
+            .pi-platforms-card {
+                background: #ffffff;
+                border-color: rgba(100, 0, 178, 0.35);
             }
             .pi-setup-title {
                 margin: 0 0 22px;
@@ -501,13 +505,13 @@
                 margin: 0;
                 font-size: 22px;
                 font-weight: 600;
-                color: #fff;
+                color: #121212;
                 line-height: 1.1;
             }
             .pi-platforms-head p {
                 margin: 4px 0 0;
                 font-size: 13px;
-                color: rgba(255, 255, 255, 0.55);
+                color: rgba(18, 18, 18, 0.55);
             }
             .pi-platforms-tools {
                 display: flex;
@@ -523,19 +527,19 @@
                 height: 36px;
                 padding: 0 12px;
                 border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                background: #151515;
-                color: rgba(255, 255, 255, 0.55);
+                border: 1px solid rgba(18, 18, 18, 0.16);
+                background: #f4f4f4;
+                color: rgba(18, 18, 18, 0.45);
             }
             .pi-search input {
                 width: 100%;
                 border: 0;
                 background: transparent;
-                color: #fff;
+                color: #121212;
                 font-size: 12px;
                 outline: none;
             }
-            .pi-search input::placeholder { color: rgba(255, 255, 255, 0.35); }
+            .pi-search input::placeholder { color: rgba(18, 18, 18, 0.4); }
             .pi-refresh-btn {
                 display: inline-flex;
                 align-items: center;
@@ -543,13 +547,13 @@
                 height: 36px;
                 padding: 0 14px;
                 border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.14);
-                background: #151515;
-                color: rgba(255, 255, 255, 0.85);
+                border: 1px solid rgba(18, 18, 18, 0.16);
+                background: #ffffff;
+                color: #121212;
                 font-size: 12px;
                 font-weight: 500;
             }
-            .pi-refresh-btn:hover { background: #1c1c1c; color: #fff; }
+            .pi-refresh-btn:hover { background: #f4f4f4; }
             .pi-add-btn {
                 display: inline-flex;
                 align-items: center;
@@ -557,18 +561,18 @@
                 height: 36px;
                 padding: 0 14px;
                 border-radius: 8px;
-                border: 0;
-                background: #6400B2;
-                color: #fff;
+                border: 1px solid rgba(100, 0, 178, 0.25);
+                background: #ffffff;
+                color: #6400B2;
                 font-size: 12px;
                 font-weight: 600;
             }
-            .pi-add-btn:hover { background: #7B13C8; }
+            .pi-add-btn:hover { background: #f8f0ff; }
             .pi-table-wrap {
                 overflow-x: auto;
                 border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                background: #121212;
+                border: 1px solid rgba(18, 18, 18, 0.1);
+                background: #ffffff;
             }
             .pi-table {
                 width: 100%;
@@ -580,49 +584,51 @@
                 padding: 12px 14px;
                 font-size: 12px;
                 font-weight: 600;
-                color: rgba(255, 255, 255, 0.72);
-                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                color: rgba(18, 18, 18, 0.65);
+                border-bottom: 1px solid rgba(18, 18, 18, 0.1);
                 white-space: nowrap;
+                background: #f7f7f7;
             }
             .pi-table tbody td {
                 padding: 14px;
                 font-size: 12px;
-                color: #fff;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                color: #121212;
+                border-bottom: 1px solid rgba(18, 18, 18, 0.06);
                 vertical-align: middle;
+                background: #ffffff;
             }
             .pi-table tbody tr:last-child td { border-bottom: 0; }
-            .pi-table tbody tr:hover td { background: rgba(100, 0, 178, 0.08); }
+            .pi-table tbody tr:hover td { background: #f8f0ff; }
             .pi-plat-name {
                 display: inline-flex;
                 align-items: center;
                 gap: 10px;
                 font-size: 13px;
                 font-weight: 600;
-                color: #fff;
+                color: #121212;
             }
             .pi-plat-logo {
                 width: 28px;
                 height: 28px;
                 border-radius: 6px;
-                background: #fff;
+                background: #f4f4f4;
                 display: grid;
                 place-items: center;
                 overflow: hidden;
                 flex-shrink: 0;
             }
-            .pi-acct-primary { font-size: 13px; font-weight: 500; color: #fff; }
-            .pi-acct-secondary { margin-top: 2px; font-size: 11px; color: rgba(255, 255, 255, 0.45); }
+            .pi-acct-primary { font-size: 13px; font-weight: 500; color: #121212; }
+            .pi-acct-secondary { margin-top: 2px; font-size: 11px; color: rgba(18, 18, 18, 0.5); }
             .pi-prot {
                 display: inline-flex;
                 align-items: center;
                 gap: 6px;
-                color: rgba(255, 255, 255, 0.88);
+                color: rgba(18, 18, 18, 0.88);
                 white-space: nowrap;
             }
             .pi-prot svg { flex-shrink: 0; }
-            .pi-prot.is-audience svg { color: #a78bfa; }
-            .pi-prot.is-track svg { color: #60a5fa; }
+            .pi-prot.is-audience svg { color: #6400B2; }
+            .pi-prot.is-track svg { color: #2563eb; }
             .pi-status-connected {
                 display: inline-flex;
                 align-items: center;
@@ -631,7 +637,7 @@
                 padding: 0 10px;
                 border-radius: 999px;
                 background: rgba(34, 197, 94, 0.12);
-                color: #4ade80;
+                color: #15803d;
                 font-size: 12px;
                 font-weight: 500;
                 white-space: nowrap;
@@ -650,8 +656,8 @@
                 height: 26px;
                 padding: 0 10px;
                 border-radius: 999px;
-                background: rgba(255, 255, 255, 0.08);
-                color: rgba(255, 255, 255, 0.55);
+                background: rgba(18, 18, 18, 0.06);
+                color: rgba(18, 18, 18, 0.55);
                 font-size: 12px;
                 white-space: nowrap;
             }
@@ -660,7 +666,7 @@
                 width: 7px;
                 height: 7px;
                 border-radius: 999px;
-                background: rgba(255, 255, 255, 0.35);
+                background: rgba(18, 18, 18, 0.35);
             }
             .pi-row-actions {
                 display: inline-flex;
@@ -669,11 +675,18 @@
                 white-space: nowrap;
             }
             .pi-row-link {
-                color: #B893D8;
+                color: #6400B2;
                 font-size: 12px;
                 font-weight: 600;
             }
-            .pi-row-link:hover { color: #fff; }
+            .pi-row-link:hover { color: #4a0088; }
+            .pi-platforms-card .integration-row-menu button,
+            .pi-platforms-card .text-white\/45 {
+                color: rgba(18, 18, 18, 0.45) !important;
+            }
+            .pi-platforms-card .hover\:text-white:hover {
+                color: #121212 !important;
+            }
             .pi-table-foot {
                 display: flex;
                 flex-wrap: wrap;
@@ -685,7 +698,7 @@
             }
             .pi-table-foot__meta {
                 font-size: 12px;
-                color: rgba(255, 255, 255, 0.45);
+                color: rgba(18, 18, 18, 0.5);
             }
             .pi-pager {
                 display: inline-flex;
@@ -696,9 +709,9 @@
                 width: 28px;
                 height: 28px;
                 border-radius: 6px;
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                background: transparent;
-                color: rgba(255, 255, 255, 0.55);
+                border: 1px solid rgba(18, 18, 18, 0.14);
+                background: #ffffff;
+                color: rgba(18, 18, 18, 0.55);
                 display: grid;
                 place-items: center;
             }
@@ -708,6 +721,10 @@
                 color: #fff;
             }
             .pi-pager button:disabled { opacity: 0.35; cursor: not-allowed; }
+            .pi-platforms-card td.text-white\/45,
+            .pi-platforms-card .text-\[13px\].text-white\/45 {
+                color: rgba(18, 18, 18, 0.45) !important;
+            }
             @media (max-width: 900px) {
                 .pi-setup-track {
                     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -842,7 +859,7 @@
                                                 </x-integrations.platform-card-dropdown>
                                             </div>
                                         @else
-                                            <button type="button" class="rounded p-[4px] text-white/45 hover:text-white" title="More" aria-label="More options">
+                                            <button type="button" class="rounded p-[4px] text-black/40 hover:text-black" title="More" aria-label="More options">
                                                 <svg class="h-[16px] w-[16px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="19" r="1.6"/><circle cx="12" cy="12" r="1.6"/></svg>
                                             </button>
                                         @endif
@@ -851,11 +868,11 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="!py-[28px] text-center text-[13px] text-white/45">No connected platforms yet. Add a connection to get started.</td>
+                                <td colspan="8" class="!py-[28px] text-center text-[13px] text-black/45">No connected platforms yet. Add a connection to get started.</td>
                             </tr>
                         @endforelse
                         <tr x-show="filteredPlatformRows.length === 0 && platformRows.length > 0" x-cloak>
-                            <td colspan="8" class="!py-[28px] text-center text-[13px] text-white/45">No platforms match your search.</td>
+                            <td colspan="8" class="!py-[28px] text-center text-[13px] text-black/45">No platforms match your search.</td>
                         </tr>
                     </tbody>
                 </table>
