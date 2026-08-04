@@ -241,6 +241,7 @@ Route::middleware('auth')->group(function () {
 
 
 
+
 Route::middleware('auth')->group(function () {
     Route::get('/overview/summary', [DashboardController::class, 'summary']);
     Route::get('/overview/search', [DashboardController::class, 'search']);
