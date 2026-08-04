@@ -53,12 +53,13 @@
                 }
                 .bpv2-kpi {
                     border-radius: 12px;
-                    border: 1px solid rgba(255,255,255,0.08);
-                    background: #151515;
+                    border: 1px solid rgba(100, 0, 178, 0.45);
+                    background: linear-gradient(180deg, rgba(100, 0, 178, 0.22) 0%, #151515 55%);
                     padding: 14px 14px 10px;
                     min-height: 148px;
                     display: flex;
                     flex-direction: column;
+                    box-shadow: 0 0 24px rgba(100, 0, 178, 0.12);
                 }
                 .bpv2-kpi__top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
                 .bpv2-kpi__icon {
@@ -74,11 +75,14 @@
                 .bpv2-kpi__trend.is-down { color: #f87171; }
                 .bpv2-kpi__spark { margin-top: auto; padding-top: 10px; height: 34px; }
                 .bpv2-kpi__spark svg { width: 100%; height: 34px; display: block; }
-                .bpv2-kpi.is-human .bpv2-kpi__icon { background: rgba(100,0,178,0.2); color: #B893D8; }
-                .bpv2-kpi.is-auto .bpv2-kpi__icon { background: rgba(244,63,94,0.18); color: #fb7185; }
-                .bpv2-kpi.is-crawl .bpv2-kpi__icon { background: rgba(59,130,246,0.18); color: #60a5fa; }
-                .bpv2-kpi.is-invalid .bpv2-kpi__icon { background: rgba(245,158,11,0.18); color: #fbbf24; }
-                .bpv2-kpi.is-impact .bpv2-kpi__icon { background: rgba(16,185,129,0.18); color: #34d399; }
+                .bpv2-kpi.is-human .bpv2-kpi__icon,
+                .bpv2-kpi.is-auto .bpv2-kpi__icon,
+                .bpv2-kpi.is-crawl .bpv2-kpi__icon,
+                .bpv2-kpi.is-invalid .bpv2-kpi__icon,
+                .bpv2-kpi.is-impact .bpv2-kpi__icon {
+                    background: rgba(100, 0, 178, 0.28);
+                    color: #B893D8;
+                }
 
                 .bpv2-grid {
                     display: grid;
@@ -239,7 +243,11 @@
                     font-size: 11px; color: rgba(255,255,255,0.75); margin-bottom: 8px;
                 }
                 .bpv2-mal__item-left { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
-                html.light-mode .bpv2-kpi,
+                html.light-mode .bpv2-kpi {
+                    background: linear-gradient(180deg, rgba(100, 0, 178, 0.08) 0%, #fff 50%);
+                    border-color: #d4c4e8;
+                    box-shadow: 0 6px 18px rgba(100, 0, 178, 0.08);
+                }
                 html.light-mode .bpv2-card,
                 html.light-mode .bpv2-ads__item { background: #fff; border-color: #e7e1ef; }
                 html.light-mode .bpv2-kpi__value,
@@ -838,7 +846,7 @@ function botProtectionFigma(config = {}) {
             const deltas = s.deltas || {};
             const sparks = s.sparklines || {};
             const icon = (path) => `<svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">${path}</svg>`;
-            return [
+                    return [
                 {
                     key: 'human', tone: 'human', title: 'Human Visitors', color: '#B893D8',
                     value: this.fmt(s.valid_visits || 0),
@@ -849,7 +857,7 @@ function botProtectionFigma(config = {}) {
                     icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>'),
                 },
                 {
-                    key: 'auto', tone: 'auto', title: 'Automated Threats', color: '#fb7185',
+                    key: 'auto', tone: 'auto', title: 'Automated Threats', color: '#B893D8',
                     value: this.fmt(s.invalid_bot_visits || 0),
                     sub: `${this.sharePct(s.invalid_bot_visits, total)}% of total traffic`,
                     delta: Number(deltas.invalid_bot_visits || 0),
@@ -858,7 +866,7 @@ function botProtectionFigma(config = {}) {
                     icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3h6v2h2a2 2 0 012 2v3h-2v2h2v3a2 2 0 01-2 2h-2v2H9v-2H7a2 2 0 01-2-2v-3h2v-2H5V7a2 2 0 012-2h2V3z"/>'),
                 },
                 {
-                    key: 'crawl', tone: 'crawl', title: 'Verified Crawlers', color: '#60a5fa',
+                    key: 'crawl', tone: 'crawl', title: 'Verified Crawlers', color: '#B893D8',
                     value: this.fmt(s.known_crawlers || 0),
                     sub: `${this.sharePct(s.known_crawlers, total)}% of total traffic`,
                     delta: Number(deltas.known_crawlers || 0),
@@ -867,7 +875,7 @@ function botProtectionFigma(config = {}) {
                     icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'),
                 },
                 {
-                    key: 'invalid', tone: 'invalid', title: 'Invalid Traffic', color: '#fbbf24',
+                    key: 'invalid', tone: 'invalid', title: 'Invalid Traffic', color: '#B893D8',
                     value: this.fmt(s.invalid_traffic || 0),
                     sub: `${this.sharePct(s.invalid_traffic, total)}% of total traffic`,
                     delta: Number(deltas.invalid_traffic || 0),
@@ -876,7 +884,7 @@ function botProtectionFigma(config = {}) {
                     icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'),
                 },
                 {
-                    key: 'impact', tone: 'impact', title: 'Bot Impact (Ads Traffic)', color: '#34d399',
+                    key: 'impact', tone: 'impact', title: 'Bot Impact (Ads Traffic)', color: '#B893D8',
                     value: `${paid.bot_impact ?? 0}%`,
                     sub: `${this.fmt(paid.invalid || 0)} invalid of ${this.fmt(paid.total || 0)} sessions`,
                     delta: Number(deltas.bot_impact || 0),
