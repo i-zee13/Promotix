@@ -9502,8 +9502,9 @@ button.figma-bp-advanced-select-wrap:focus {
     overflow: visible;
 }
 
-/* Paid filter: keep calendar inside the bar; avoid orphaned wrap under Domain */
+/* Paid filter: hug controls; calendar stays in-bar */
 .figma-filter-bar--paid {
+    width: fit-content !important;
     max-width: 100% !important;
     align-items: stretch;
 }
