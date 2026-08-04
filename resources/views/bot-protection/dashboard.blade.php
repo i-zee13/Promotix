@@ -254,6 +254,120 @@
                 html.light-mode .bpv2-donut__hole { background: #fff; }
                 html.light-mode .bpv2-donut__hole strong { color: #1a1524; }
                 html.light-mode .bpv2-bar-track { background: #efeaf6; }
+
+                .bpv2-tables-row {
+                    display: grid;
+                    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr);
+                    gap: 12px;
+                    align-items: stretch;
+                }
+                @media (max-width: 1100px) {
+                    .bpv2-tables-row { grid-template-columns: 1fr; }
+                }
+                .bpv2-card--table {
+                    min-height: 280px;
+                    padding-bottom: 10px;
+                }
+                .bpv2-data-table-wrap {
+                    flex: 1;
+                    min-height: 0;
+                    max-height: 360px;
+                    overflow: auto;
+                }
+                .bpv2-data-table {
+                    width: 100%;
+                    border-collapse: separate;
+                    border-spacing: 0;
+                    font-size: 12px;
+                }
+                .bpv2-data-table thead th {
+                    position: sticky;
+                    top: 0;
+                    z-index: 1;
+                    background: #1d1d1d;
+                    color: rgba(255,255,255,0.55);
+                    font-size: 11px;
+                    font-weight: 600;
+                    text-align: left;
+                    padding: 8px 10px;
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
+                    white-space: nowrap;
+                }
+                .bpv2-data-table tbody td {
+                    padding: 10px;
+                    border-bottom: 1px solid rgba(255,255,255,0.06);
+                    color: rgba(255,255,255,0.85);
+                    vertical-align: middle;
+                }
+                .bpv2-data-table tbody tr:last-child td { border-bottom: 0; }
+                .bpv2-data-table tr.is-clickable { cursor: pointer; }
+                .bpv2-data-table tr.is-clickable:hover td { background: rgba(255,255,255,0.04); }
+                .bpv2-data-table .num {
+                    text-align: right;
+                    font-variant-numeric: tabular-nums;
+                    white-space: nowrap;
+                }
+                .bpv2-country-cell,
+                .bpv2-domain-cell {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    min-width: 0;
+                    max-width: 100%;
+                }
+                .bpv2-flag {
+                    width: 16px;
+                    height: 11px;
+                    border-radius: 2px;
+                    object-fit: cover;
+                    flex-shrink: 0;
+                }
+                .bpv2-domain-icon {
+                    width: 14px;
+                    height: 14px;
+                    color: #6400B2;
+                    flex-shrink: 0;
+                }
+                .bpv2-action-cell {
+                    text-align: right;
+                    width: 1%;
+                    white-space: nowrap;
+                }
+                .bpv2-protect-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 28px;
+                    padding: 0 12px;
+                    border-radius: 6px;
+                    background: #6400B2;
+                    color: #fff;
+                    font-size: 11px;
+                    font-weight: 600;
+                    text-decoration: none;
+                    white-space: nowrap;
+                }
+                .bpv2-protect-btn:hover { background: #7b13c8; }
+                .bpv2-empty {
+                    margin: 0;
+                    padding: 24px 10px;
+                    text-align: center;
+                    font-size: 12px;
+                    color: rgba(255,255,255,0.45);
+                }
+                .bpv2-data-table--domain td:first-child {
+                    max-width: 220px;
+                }
+                html.light-mode .bpv2-data-table thead th {
+                    background: #f4f0f8;
+                    color: #6b6478;
+                    border-bottom-color: #e7e1ef;
+                }
+                html.light-mode .bpv2-data-table tbody td {
+                    color: #2d2d3a;
+                    border-bottom-color: #efeaf6;
+                }
+                html.light-mode .bpv2-data-table tr.is-clickable:hover td { background: rgba(100,0,178,0.04); }
             </style>
 
             {{-- Row 1: KPI metric cards --}}
@@ -452,63 +566,81 @@
                 </section>
             </div>
 
-            {{-- Existing tables --}}
-            <div class="figma-bp-mid-section" style="margin-top:4px;">
-                <div class="figma-bp-side-col" style="grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:12px;">
-                    <section class="figma-bp-table figma-bp-country-panel min-w-0">
-                        <div class="figma-bp-table-head figma-bp-table-head--country">
-                            <span>Country</span>
-                            <span class="text-right">Visits</span>
-                            <span class="text-right">Invalid</span>
-                            <span class="text-right">%</span>
-                        </div>
-                        <div class="figma-bp-table-body figma-bp-table-body--country promotix-slim-scroll">
-                            <template x-for="row in countries" :key="row.country">
-                                <div class="figma-bp-table-row--country cursor-pointer transition hover:bg-white/5" @click="openCountryIps(row.country)">
-                                    <span class="flex min-w-0 items-center gap-[4px] truncate">
-                                        <img
-                                            x-show="countryFlagUrl(row.country)"
-                                            :src="countryFlagUrl(row.country)"
-                                            :alt="countryLabel(row.country)"
-                                            class="h-[8px] w-[12px] shrink-0 rounded-[1px] object-cover"
-                                            loading="lazy"
-                                        >
-                                        <span x-text="countryLabel(row.country)"></span>
-                                    </span>
-                                    <span class="text-right" x-text="fmt(row.total ?? 0)"></span>
-                                    <span class="text-right" x-text="fmt(row.invalid)"></span>
-                                    <span class="text-right" x-text="(row.percent ?? 0) + '%'"></span>
-                                </div>
-                            </template>
-                            <p x-show="countries.length === 0" class="px-[10px] py-[16px] text-center text-[10px] text-[#a9a9a9]">No country data.</p>
-                        </div>
-                    </section>
+            {{-- Country + Domain tables --}}
+            <div class="bpv2-tables-row">
+                <section class="bpv2-card bpv2-card--table">
+                    <h2 class="bpv2-card__title">Country Breakdown</h2>
+                    <div class="bpv2-data-table-wrap promotix-slim-scroll">
+                        <table class="bpv2-data-table">
+                            <thead>
+                                <tr>
+                                    <th>Country</th>
+                                    <th class="num">Visits</th>
+                                    <th class="num">Invalid</th>
+                                    <th class="num">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="row in countries" :key="row.country">
+                                    <tr class="is-clickable" @click="openCountryIps(row.country)">
+                                        <td>
+                                            <span class="bpv2-country-cell">
+                                                <img
+                                                    x-show="countryFlagUrl(row.country)"
+                                                    :src="countryFlagUrl(row.country)"
+                                                    :alt="countryLabel(row.country)"
+                                                    class="bpv2-flag"
+                                                    loading="lazy"
+                                                >
+                                                <span x-text="countryLabel(row.country)"></span>
+                                            </span>
+                                        </td>
+                                        <td class="num" x-text="fmt(row.total ?? 0)"></td>
+                                        <td class="num" x-text="fmt(row.invalid)"></td>
+                                        <td class="num" x-text="(row.percent ?? 0) + '%'"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        <p x-show="countries.length === 0" class="bpv2-empty">No country data.</p>
+                    </div>
+                </section>
 
-                    <section class="figma-bp-table figma-bp-domain-panel min-w-0">
-                        <div class="figma-bp-table-head figma-bp-table-head--domain">
-                            <span>Domain</span>
-                            <span class="text-center">Total Valid Visits</span>
-                            <span class="text-center">Invalid Traffic</span>
-                            <span class="text-center">Known Crawlers</span>
-                            <span class="sr-only">Action</span>
-                        </div>
-                        <div class="figma-bp-table-body promotix-slim-scroll">
-                            <template x-for="row in domainsList" :key="row.id">
-                                <div class="figma-bp-table-row--domain">
-                                    <span class="flex min-w-0 items-center gap-[6px] truncate font-medium">
-                                        <svg class="h-[12px] w-[12px] shrink-0 text-[#6400b2]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/></svg>
-                                        <span class="truncate" x-text="row.hostname"></span>
-                                    </span>
-                                    <span class="text-center" x-text="fmt(row.valid_visits)"></span>
-                                    <span class="text-center" x-text="fmt(row.invalid_visits)"></span>
-                                    <span class="text-center" x-text="fmt(row.known_crawlers)"></span>
-                                    <a href="{{ route('paid-marketing.detection-settings') }}" class="figma-bp-protect-btn">Get Protected</a>
-                                </div>
-                            </template>
-                            <p x-show="domainsList.length === 0" class="px-[14px] py-[20px] text-center text-[11px] text-[#a9a9a9]">No domains in this window.</p>
-                        </div>
-                    </section>
-                </div>
+                <section class="bpv2-card bpv2-card--table">
+                    <h2 class="bpv2-card__title">Domain Performance</h2>
+                    <div class="bpv2-data-table-wrap promotix-slim-scroll">
+                        <table class="bpv2-data-table bpv2-data-table--domain">
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th class="num">Valid</th>
+                                    <th class="num">Invalid</th>
+                                    <th class="num">Crawlers</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="row in domainsList" :key="row.id">
+                                    <tr>
+                                        <td>
+                                            <span class="bpv2-domain-cell">
+                                                <svg class="bpv2-domain-icon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/></svg>
+                                                <span class="truncate" x-text="row.hostname"></span>
+                                            </span>
+                                        </td>
+                                        <td class="num" x-text="fmt(row.valid_visits)"></td>
+                                        <td class="num" x-text="fmt(row.invalid_visits)"></td>
+                                        <td class="num" x-text="fmt(row.known_crawlers)"></td>
+                                        <td class="bpv2-action-cell">
+                                            <a href="{{ route('paid-marketing.detection-settings') }}" class="bpv2-protect-btn">Get Protected</a>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        <p x-show="domainsList.length === 0" class="bpv2-empty">No domains in this window.</p>
+                    </div>
+                </section>
             </div>
         </div>
 
