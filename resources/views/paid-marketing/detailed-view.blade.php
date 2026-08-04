@@ -361,6 +361,22 @@
                 border: 1px dashed rgba(255, 255, 255, 0.12);
                 background: #111;
             }
+            /* Click Details modal: wider, not full-page */
+            .figma-modal-overlay {
+                align-items: center;
+                padding: max(28px, env(safe-area-inset-top)) 28px max(28px, env(safe-area-inset-bottom));
+            }
+            .figma-modal--click-details {
+                width: min(1100px, 90vw);
+                max-width: min(1100px, 90vw);
+                max-height: min(780px, 82dvh);
+            }
+            @media (min-width: 900px) {
+                .figma-modal--click-details .figma-click-modal-compact {
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 12px 22px;
+                }
+            }
             @media (max-width: 520px) {
                 .pm-adv-chart-card__body { flex-direction: column; align-items: flex-start; }
                 .pm-adv-country-row {

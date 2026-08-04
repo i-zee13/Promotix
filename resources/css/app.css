@@ -280,22 +280,22 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     inset: 0;
     z-index: 120;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     background: rgba(0, 0, 0, 0.82);
     backdrop-filter: blur(4px);
-    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    padding: max(28px, env(safe-area-inset-top)) 28px max(28px, env(safe-area-inset-bottom));
     -webkit-overflow-scrolling: touch;
 }
 
 .figma-modal {
     width: 100%;
     max-width: 520px;
-    max-height: calc(100dvh - 32px);
-    margin: auto 0;
+    max-height: min(720px, calc(100dvh - 72px));
+    margin: auto;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -328,9 +328,17 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 }
 
 .figma-modal--click-details {
-    max-width: min(920px, 96vw);
-    max-height: calc(100dvh - 32px);
+    width: min(1100px, 90vw);
+    max-width: min(1100px, 90vw);
+    max-height: min(780px, 82dvh);
     padding: 22px 24px 24px;
+}
+
+@media (min-width: 900px) {
+    .figma-modal--click-details .figma-click-modal-compact {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px 22px;
+    }
 }
 
 .figma-click-modal-layout {
@@ -343,7 +351,7 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
 .figma-click-modal-sidebar {
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     padding-right: 10px;
-    max-height: min(480px, calc(100vh - 200px));
+    max-height: min(420px, calc(82dvh - 220px));
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
