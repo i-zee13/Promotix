@@ -66,10 +66,78 @@
 @section('content')
 <style>
     /* Layout guards — work even if Vite assets are stale */
+    .paid-kpi-card {
+        display: flex;
+        flex-direction: column;
+        min-height: 168px;
+    }
+    .paid-kpi-card__head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .paid-kpi-card__icon {
+        display: inline-flex;
+        height: 22px;
+        width: 22px;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.25);
+        color: #fff;
+    }
+    .paid-kpi-card__big {
+        margin: 4px 0 0;
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1;
+        color: #fff;
+    }
+    .paid-kpi-card__mid {
+        margin: 4px 0 0;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1.1;
+        color: #fff;
+    }
+    .paid-kpi-card__link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 12px;
+        font-size: 10px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.88);
+    }
+    .paid-kpi-card__link:hover { color: #fff; }
+    .paid-metric-bar--lg { height: 8px; }
+    .paid-panel-card {
+        border-radius: 12px;
+        border: 1px solid #5a2a99;
+        background: #111111;
+        box-shadow: 0 0 18px rgba(100, 0, 178, 0.18);
+    }
+    .paid-heatmap-legend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.5);
+    }
+    .paid-heatmap-legend__bar {
+        height: 6px;
+        flex: 1;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #2a1248 0%, #6625F8 45%, #f59e0b 78%, #ef4444 100%);
+    }
     .paid-mid-row { align-items: start; }
     .paid-trends-card { align-self: start; height: fit-content; min-height: 0; }
     .paid-trends-wrap { line-height: 0; }
     .paid-trends-canvas { display: block; width: 100%; }
+    @media (max-width: 1023px) {
+        .paid-kpi-card__big { font-size: 18px; }
+    }
 </style>
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js([
     'countryGetStarted' => $countryGetStarted,
@@ -159,104 +227,114 @@
 
         <div class="paid-dashboard-cards-wrap">
         <div class="paid-dashboard-cards">
-            <article class="paid-dashboard-card paid-dashboard-card--traffic">
-                <div class="flex items-start justify-between gap-[8px]">
+            {{-- Row 1 / Card 1 — Google Ads Click Summary --}}
+            <article class="paid-dashboard-card paid-kpi-card">
+                <div class="paid-kpi-card__head">
+                    <span class="paid-kpi-card__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" class="h-[14px] w-[14px]"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    </span>
                     <h2 class="paid-dashboard-card__title">Google Ads Click Summary</h2>
-                    <div class="flex shrink-0 items-center gap-[6px]">
-                        <button type="button" class="paid-dashboard-card__icon-btn" aria-label="Refresh" @click="reload(true, true)" title="Refresh Google Ads sync">
-                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
-                        </button>
-                        <span class="paid-dashboard-card__icon-btn text-[11px]" title="1 Google click ID (gclid/gbraid/wbraid) = 1 click. Tracking accuracy = tracked ÷ Google Ads clicks.">i</span>
-                    </div>
+                    <button type="button" class="paid-dashboard-card__icon-btn ml-auto" aria-label="Refresh" @click="reload(true, true)" title="Refresh Google Ads sync">
+                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
+                    </button>
                 </div>
-                <div class="mt-[8px] grid grid-cols-2 gap-x-[10px] gap-y-[6px]">
+                <div class="mt-[10px] grid grid-cols-2 gap-x-[12px] gap-y-[10px]">
                     <div>
-                        <p class="paid-traffic-metrics__label">Total Clicks</p>
-                        <p class="paid-traffic-metrics__value" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
+                        <p class="paid-traffic-metrics__label">Total Google Ads Clicks</p>
+                        <p class="paid-kpi-card__big" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
                     </div>
                     <div>
                         <p class="paid-traffic-metrics__label">Tracked Clicks</p>
-                        <p class="paid-traffic-metrics__value" x-text="fmt(summary.tracked_clicks ?? summary.unique_paid_clicks)"></p>
+                        <p class="paid-kpi-card__big" x-text="fmt(summary.tracked_clicks ?? summary.unique_paid_clicks)"></p>
+                    </div>
+                    <div>
+                        <p class="paid-traffic-metrics__label">Valid Clicks</p>
+                        <p class="text-[15px] font-semibold leading-none text-emerald-300">
+                            <span x-text="fmt(summary.unique_valid_paid_clicks ?? summary.valid_paid_visits)"></span>
+                            <span class="text-[11px] font-medium opacity-90">(<span x-text="validClickPct"></span>%)</span>
+                        </p>
+                    </div>
+                    <div>
+                        <p class="paid-traffic-metrics__label">Invalid Clicks</p>
+                        <p class="text-[15px] font-semibold leading-none text-rose-300">
+                            <span x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></span>
+                            <span class="text-[11px] font-medium opacity-90">(<span x-text="invalidClickPct"></span>%)</span>
+                        </p>
                     </div>
                 </div>
-                <div class="mt-[10px] space-y-[8px]">
-                    <div>
-                        <div class="mb-[3px] flex items-center justify-between text-[9px]">
-                            <span class="text-emerald-300">Valid Clicks</span>
-                            <span class="text-white/85"><span x-text="fmt(summary.unique_valid_paid_clicks ?? summary.valid_paid_visits)"></span> · <span x-text="validClickPct"></span>%</span>
-                        </div>
-                        <div class="paid-metric-bar"><span class="paid-metric-bar__fill is-valid" :style="'width:' + validClickPct + '%'"></span></div>
+                <div class="mt-auto pt-[12px]">
+                    <div class="mb-[4px] flex items-center justify-between text-[9px]">
+                        <span class="text-white/70">Tracking Accuracy</span>
+                        <span class="font-semibold text-white"><span x-text="fmt(summary.tracking_accuracy_pct ?? summary.tag_capture_pct)"></span>%</span>
                     </div>
-                    <div>
-                        <div class="mb-[3px] flex items-center justify-between text-[9px]">
-                            <span class="text-rose-300">Invalid Clicks</span>
-                            <span class="text-white/85"><span x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></span> · <span x-text="invalidClickPct"></span>%</span>
-                        </div>
-                        <div class="paid-metric-bar"><span class="paid-metric-bar__fill is-invalid" :style="'width:' + invalidClickPct + '%'"></span></div>
-                    </div>
-                    <div>
-                        <div class="mb-[3px] flex items-center justify-between text-[9px]">
-                            <span class="text-white/70">Tracking Accuracy</span>
-                            <span class="text-white/85"><span x-text="fmt(summary.tracking_accuracy_pct ?? summary.tag_capture_pct)"></span>%</span>
-                        </div>
-                        <div class="paid-metric-bar"><span class="paid-metric-bar__fill is-accuracy" :style="'width:' + Number(summary.tracking_accuracy_pct ?? summary.tag_capture_pct ?? 0) + '%'"></span></div>
-                        <p class="paid-traffic-metrics__hint" x-show="summary.tag_gap_warning">Tracking gap vs Google Ads — check GCLID capture</p>
-                    </div>
+                    <div class="paid-metric-bar paid-metric-bar--lg"><span class="paid-metric-bar__fill is-accuracy" :style="'width:' + Number(summary.tracking_accuracy_pct ?? summary.tag_capture_pct ?? 0) + '%'"></span></div>
+                    <p class="paid-traffic-metrics__hint" x-show="summary.tag_gap_warning">Tracking gap vs Google Ads — check GCLID capture</p>
                 </div>
             </article>
 
-            <article class="paid-dashboard-card">
-                <h2 class="paid-dashboard-card__title">Bot Protection</h2>
-                <div class="grid grid-cols-[minmax(0,1fr)_1fr] items-end gap-[10px]">
-                    <div class="grid grid-cols-2 gap-x-[8px] gap-y-[6px] pt-[6px] text-left">
-                        <div>
-                            <p class="text-[8px] text-white/65">Visitors</p>
-                            <p class="text-[16px] font-semibold text-white" x-text="fmt(summary.tag_paid_visits)"></p>
-                        </div>
-                        <div>
-                            <p class="text-[8px] text-white/65">Bots Detected</p>
-                            <p class="text-[16px] font-semibold text-emerald-300" x-text="fmt(summary.invalid_paid_visits)"></p>
-                        </div>
-                        <div>
-                            <p class="text-[8px] text-white/65">Blocked Bots</p>
-                            <p class="text-[16px] font-semibold text-rose-300" x-text="fmt(summary.block_enforced || summary.block_attempts || 0)"></p>
-                        </div>
-                        <div>
-                            <p class="text-[8px] text-white/65">Detection Rate</p>
-                            <p class="text-[16px] font-semibold text-white"><span x-text="botRate"></span>%</p>
-                        </div>
+            {{-- Row 1 / Card 2 — Bot Protection --}}
+            <article class="paid-dashboard-card paid-kpi-card">
+                <div class="paid-kpi-card__head">
+                    <span class="paid-kpi-card__icon" aria-hidden="true">
+                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 2a4 4 0 014 4v1h1a3 3 0 013 3v2a3 3 0 01-1 2.236V15a5 5 0 01-10 0v-.764A3 3 0 018 10V8a3 3 0 013-3h1V6a4 4 0 014-4z"/><circle cx="10" cy="11" r="1" fill="currentColor"/><circle cx="14" cy="11" r="1" fill="currentColor"/></svg>
+                    </span>
+                    <h2 class="paid-dashboard-card__title">Bot Protection</h2>
+                </div>
+                <div class="mt-[10px] grid flex-1 grid-cols-2 gap-x-[12px] gap-y-[12px]">
+                    <div>
+                        <p class="paid-traffic-metrics__label">Total Visitors</p>
+                        <p class="paid-kpi-card__mid" x-text="fmt(summary.tag_paid_visits)"></p>
                     </div>
-                    <div class="relative h-[80px] w-full min-w-0">
-                        <canvas id="bot-bars" class="h-full w-full" aria-label="Invalid traffic trend"></canvas>
+                    <div>
+                        <p class="paid-traffic-metrics__label">Bots Detected</p>
+                        <p class="paid-kpi-card__mid text-emerald-300">
+                            <span x-text="fmt(summary.invalid_paid_visits)"></span>
+                            <span class="text-[10px] opacity-90">(<span x-text="botRate"></span>%)</span>
+                        </p>
+                    </div>
+                    <div>
+                        <p class="paid-traffic-metrics__label">Blocked Bots</p>
+                        <p class="paid-kpi-card__mid text-rose-300">
+                            <span x-text="fmt(summary.block_enforced || summary.block_attempts || 0)"></span>
+                            <span class="text-[10px] opacity-90">(<span x-text="blockedBotPct"></span>%)</span>
+                        </p>
+                    </div>
+                    <div>
+                        <p class="paid-traffic-metrics__label">Detection Rate</p>
+                        <p class="paid-kpi-card__mid text-emerald-300"><span x-text="botRate"></span>%</p>
                     </div>
                 </div>
+                <a href="{{ route('bot-protection.dashboard') }}" class="paid-kpi-card__link mt-auto">View Bot Investigation <span aria-hidden="true">→</span></a>
             </article>
 
-            <article class="paid-dashboard-card">
-                <div class="flex items-start justify-between">
+            {{-- Row 1 / Card 3 — Invalid Traffic Actions --}}
+            <article class="paid-dashboard-card paid-kpi-card">
+                <div class="paid-kpi-card__head">
+                    <span class="paid-kpi-card__icon" aria-hidden="true">
+                        @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px]'])
+                    </span>
                     <h2 class="paid-dashboard-card__title">Invalid Traffic Actions</h2>
-                    <span class="paid-dashboard-card__icon-btn text-[12px]" title="What happened after invalid traffic detection">i</span>
                 </div>
-                <div class="mt-[6px] grid grid-cols-2 gap-[8px]">
-                    <div class="text-center">
-                        <p class="text-[9px] text-white/70">Invalid Clicks</p>
-                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-[9px] text-white/70">Detection Events</p>
-                        <p class="text-[22px] font-semibold leading-none text-white" x-text="fmt(summary.invalid_paid_events || summary.invalid_paid_visits)"></p>
-                    </div>
+                <div class="mt-[8px] flex-1 space-y-0">
+                    <div class="paid-blocking-row"><span>Invalid Clicks</span><span x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></span></div>
+                    <div class="paid-blocking-row"><span>Detection Events</span><span x-text="fmt(summary.invalid_paid_events || summary.invalid_paid_visits)"></span></div>
+                    <div class="paid-blocking-row"><span class="text-rose-300">Blocked</span><span class="text-rose-300"><span x-text="fmt(summary.block_enforced || 0)"></span> (<span x-text="actionBlockedPct"></span>%)</span></div>
+                    <div class="paid-blocking-row"><span class="text-amber-200">Monitored</span><span class="text-amber-200"><span x-text="fmt(summary.flagged_paid_visits)"></span> (<span x-text="actionMonitoredPct"></span>%)</span></div>
+                    <div class="paid-blocking-row"><span class="text-emerald-300">Whitelisted</span><span class="text-emerald-300"><span x-text="fmt(whitelistedIpCount)"></span> (<span x-text="actionWhitelistedPct"></span>%)</span></div>
                 </div>
-                <div class="mt-[8px] space-y-0">
-                    <div class="paid-blocking-row"><span class="text-rose-300">Blocked</span><span x-text="fmt(summary.block_enforced || 0)"></span></div>
-                    <div class="paid-blocking-row"><span class="text-amber-200">Monitored</span><span x-text="fmt(summary.flagged_paid_visits)"></span></div>
-                    <div class="paid-blocking-row"><span class="text-emerald-300">Whitelisted</span><span x-text="fmt(whitelistedIpCount)"></span></div>
-                </div>
+                <a href="{{ route('paid-marketing.detailed') }}" class="paid-kpi-card__link mt-auto">View All Threats <span aria-hidden="true">→</span></a>
             </article>
 
-            <article class="paid-dashboard-card">
-                <h2 class="paid-dashboard-card__title">Campaign Performance</h2>
-                <div class="paid-campaign-breakdown !items-stretch">
+            {{-- Row 1 / Card 4 — Campaign Performance --}}
+            <article class="paid-dashboard-card paid-kpi-card">
+                <div class="paid-kpi-card__head">
+                    <span class="paid-kpi-card__icon" aria-hidden="true">
+                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M4 15l4-4 4 3 6-7"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M14 7h6v6"/></svg>
+                    </span>
+                    <h2 class="paid-dashboard-card__title">Campaign Performance</h2>
+                    <a href="{{ route('paid-marketing.detailed') }}" class="ml-auto text-[10px] font-semibold text-white/85 hover:text-white">View All</a>
+                </div>
+                <div class="paid-campaign-breakdown !items-stretch mt-[6px] flex-1">
                     <template x-if="untaggedDomains.length > 0">
                         <div class="w-full space-y-[4px] px-[2px] text-left">
                             <template x-for="d in untaggedDomains.slice(0, 3)" :key="d.id">
@@ -265,14 +343,14 @@
                         </div>
                     </template>
                     <template x-if="untaggedDomains.length === 0">
-                        <div class="paid-campaign-table-wrap w-full">
+                        <div class="paid-campaign-table-wrap w-full flex-1">
                             <table class="paid-campaign-table">
                                 <thead>
                                     <tr>
                                         <th>Campaign</th>
                                         <th>Clicks</th>
-                                        <th>Inv %</th>
-                                        <th>Saved</th>
+                                        <th>Invalid %</th>
+                                        <th>Cost Saved</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -281,7 +359,7 @@
                                             <td class="truncate" :title="row.campaign" x-text="row.campaign"></td>
                                             <td x-text="fmt(row.total)"></td>
                                             <td x-text="(row.invalid_pct != null ? row.invalid_pct : 0) + '%'"></td>
-                                            <td>$<span x-text="Number(row.cost_saved || 0).toFixed(0)"></span></td>
+                                            <td>$<span x-text="Number(row.cost_saved || 0).toFixed(2)"></span></td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -289,62 +367,70 @@
                             <p x-show="campaignOptions.length === 0" class="px-[2px] text-[10px] text-white/55">No campaign data yet</p>
                         </div>
                     </template>
-                    <a
-                        :href="campaignBreakdownLink()"
-                        class="paid-campaign-link"
-                        x-text="untaggedDomains.length ? 'Add Tag Management' : (topCampaign ? 'Detection Settings' : 'Add Tag Management')"
-                    ></a>
                 </div>
+                <a
+                    :href="campaignBreakdownLink()"
+                    class="paid-kpi-card__link mt-auto"
+                    x-text="untaggedDomains.length ? 'Add Tag Management →' : 'Set Tracking Template →'"
+                ></a>
             </article>
         </div>
         </div>
 
-        <div class="paid-mid-row mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,589px)_minmax(260px,1fr)]" style="align-items: start;">
-            <section class="paid-trends-card rounded-[12px] border border-[#6400B2] bg-[#6400B2] p-[16px] shadow-[0_0_24px_rgba(100,0,179,.45)] sm:p-[20px]" style="align-self: start; height: fit-content; min-height: 0;">
-                <div class="mb-[8px] flex flex-wrap items-center justify-between gap-[8px]">
-                    <div class="flex flex-wrap items-center gap-[10px]">
-                        <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trend</h2>
-                        <template x-for="item in trendsLegendItems()" :key="item.key">
-                            <button
-                                type="button"
-                                class="chart-legend-item text-[12px] text-white"
-                                :class="{ 'is-hidden': isTrendSeriesHidden(item.key) }"
-                                @click="toggleTrendSeries(item.key)"
-                            >
-                                <i class="mr-[4px] inline-block h-[12px] w-[12px] rounded-[1px]" :style="`background:${item.color}`"></i>
-                                <span x-text="item.name"></span>
-                            </button>
-                        </template>
+        {{-- Row 2 — Trend | Heatmap | Keywords --}}
+        <div class="paid-row2 mt-[15px] grid grid-cols-1 gap-[14px] lg:grid-cols-2 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]" style="align-items: stretch;">
+            <section class="paid-panel-card flex min-h-0 flex-col p-[16px] sm:p-[18px]">
+                <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[8px]">
+                    <div class="flex min-w-0 flex-wrap items-center gap-[8px]">
+                        <h2 class="text-[15px] font-semibold text-[#a9a9a9] sm:text-[16px]">Paid Traffic Trend</h2>
+                        <div class="flex flex-wrap items-center gap-[6px]">
+                            <template x-for="item in trendsLegendItems()" :key="item.key">
+                                <button
+                                    type="button"
+                                    class="chart-legend-item text-[10px] text-white/90 sm:text-[11px]"
+                                    :class="{ 'is-hidden': isTrendSeriesHidden(item.key) }"
+                                    @click="toggleTrendSeries(item.key)"
+                                >
+                                    <i class="mr-[3px] inline-block h-[8px] w-[8px] rounded-full" :style="`background:${item.color}`"></i>
+                                    <span x-text="item.name"></span>
+                                </button>
+                            </template>
+                        </div>
                     </div>
-                    <select x-model="filters.window" @change="setWindow()" class="h-[36px] rounded-full border border-white/30 bg-[#101010] px-[16px] text-[13px] text-white focus:border-[#9a1aff] focus:ring-1 focus:ring-[#9a1aff]/40 sm:h-[41px] sm:px-[20px] sm:text-[14px]">
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
+                    <select x-model="filters.window" @change="setWindow()" class="h-[30px] rounded-full border border-white/20 bg-[#101010] px-[12px] text-[11px] text-white focus:border-[#9a1aff] focus:ring-1 focus:ring-[#9a1aff]/40">
+                        <option value="weekly">This Week</option>
+                        <option value="monthly">This Month</option>
                     </select>
                 </div>
-                <div class="paid-trends-wrap" style="line-height: 0;">
+                <div class="paid-trends-wrap flex-1" style="line-height: 0;">
                     <div id="paid-trends-tooltip" class="paid-trends-tooltip" hidden></div>
-                    <canvas id="paid-trends" class="paid-trends-canvas h-[200px] w-full sm:h-[240px]" style="display: block; width: 100%;"></canvas>
+                    <canvas id="paid-trends" class="paid-trends-canvas h-[210px] w-full xl:h-[230px]" style="display: block; width: 100%;"></canvas>
                 </div>
             </section>
 
-            <div class="grid grid-cols-1 gap-[12px] sm:grid-cols-2" style="align-self: start; height: fit-content;">
-                <section class="paid-sidebar-card">
-                    <div class="paid-sidebar-card__head">
-                        <svg class="h-[16px] w-[16px] text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 9v4m0 3h.01"/></svg>
-                        <h2>Click Activity Heatmap</h2>
-                    </div>
-                    <div id="heatmap-grid" class="paid-heatmap-grid mt-[10px]"></div>
-                    <div class="paid-heatmap-bar mt-[8px]"><span :style="'width:' + heatmapIntensity + '%'"></span></div>
-                </section>
+            <section class="paid-panel-card flex min-h-0 flex-col p-[16px] sm:p-[18px]">
+                <div class="mb-[10px] flex items-center justify-between gap-[8px]">
+                    <h2 class="text-[15px] font-semibold text-[#a9a9a9] sm:text-[16px]">Click Activity Heatmap</h2>
+                    <select x-model="filters.window" @change="setWindow()" class="h-[30px] rounded-full border border-white/20 bg-[#101010] px-[12px] text-[11px] text-white focus:border-[#9a1aff] focus:ring-1 focus:ring-[#9a1aff]/40">
+                        <option value="weekly">This Week</option>
+                        <option value="monthly">This Month</option>
+                    </select>
+                </div>
+                <div id="heatmap-grid" class="paid-heatmap-grid flex-1"></div>
+                <div class="paid-heatmap-legend mt-[10px]">
+                    <span>Low</span>
+                    <div class="paid-heatmap-legend__bar"></div>
+                    <span>High</span>
+                </div>
+            </section>
 
-                <section class="paid-sidebar-card">
-                    <div class="paid-sidebar-card__head">
-                        <svg class="h-[16px] w-[16px] text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
-                        <h2>Keyword Performance</h2>
-                    </div>
-                    <div id="keyword-list" class="mt-[10px] overflow-x-auto"></div>
-                </section>
-            </div>
+            <section class="paid-panel-card flex min-h-0 flex-col p-[16px] sm:p-[18px]">
+                <div class="mb-[10px] flex items-center justify-between gap-[8px]">
+                    <h2 class="text-[15px] font-semibold text-[#a9a9a9] sm:text-[16px]">Keyword Performance</h2>
+                    <a href="{{ route('paid-marketing.detailed') }}" class="text-[10px] font-semibold text-[#B893D8] hover:text-white">View All</a>
+                </div>
+                <div id="keyword-list" class="min-h-0 flex-1 overflow-x-auto overflow-y-auto"></div>
+            </section>
         </div>
 
         <section class="paid-invalid-card mt-[15px]">
@@ -741,7 +827,7 @@ function paidAdvertisingFigma(config = {}) {
         },
         heatmap: { days: [], hours: [], matrix: [] },
         trendsHoverIndex: null,
-        hiddenTrendSeries: { lastWeek: false, thisWeek: false, clicks: false, valid: false, invalid: false },
+        hiddenTrendSeries: { lastWeek: false, thisWeek: false, clicks: false, valid: false, invalid: false, blocked: false },
         compareEnabled: false,
         ipViewMode: 'basic',
         cardCharts: {},
@@ -759,6 +845,23 @@ function paidAdvertisingFigma(config = {}) {
             const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || 0);
             const invalid = Number(this.summary.unique_invalid_paid_clicks ?? this.summary.invalid_paid_visits ?? 0);
             return tracked ? Math.min(100, Math.round((invalid / tracked) * 1000) / 10) : 0;
+        },
+        get blockedBotPct() {
+            const visitors = Number(this.summary.tag_paid_visits || 0);
+            const blocked = Number(this.summary.block_enforced || this.summary.block_attempts || 0);
+            return visitors ? Math.min(100, Math.round((blocked / visitors) * 1000) / 10) : 0;
+        },
+        get actionEventsBase() {
+            return Math.max(1, Number(this.summary.invalid_paid_events || this.summary.invalid_paid_visits || 0));
+        },
+        get actionBlockedPct() {
+            return Math.min(100, Math.round((Number(this.summary.block_enforced || 0) / this.actionEventsBase) * 1000) / 10);
+        },
+        get actionMonitoredPct() {
+            return Math.min(100, Math.round((Number(this.summary.flagged_paid_visits || 0) / this.actionEventsBase) * 1000) / 10);
+        },
+        get actionWhitelistedPct() {
+            return Math.min(100, Math.round((Number(this.whitelistedIpCount || 0) / this.actionEventsBase) * 1000) / 10);
         },
         get whitelistedIpCount() {
             return (this.ips || []).filter((row) => row.is_allowlisted).length;
@@ -781,7 +884,7 @@ function paidAdvertisingFigma(config = {}) {
             this.compareEnabled = !this.compareEnabled;
             this.hiddenTrendSeries = this.compareEnabled
                 ? { lastWeek: false, thisWeek: false }
-                : { clicks: false, valid: false, invalid: false };
+                : { clicks: false, valid: false, invalid: false, blocked: false };
             this.render(true);
         },
         riskBadgeClass(level) {
@@ -1372,9 +1475,10 @@ function paidAdvertisingFigma(config = {}) {
                 ];
             }
             return [
-                { key: 'clicks', name: 'Clicks', color: '#FFFFFF' },
+                { key: 'clicks', name: 'Clicks', color: '#B893D8' },
                 { key: 'valid', name: 'Valid', color: '#4ade80' },
                 { key: 'invalid', name: 'Invalid', color: '#f87171' },
+                { key: 'blocked', name: 'Blocked', color: '#f59e0b' },
             ];
         },
         isTrendSeriesHidden(key) {
@@ -1390,8 +1494,10 @@ function paidAdvertisingFigma(config = {}) {
         qualityTrendDatasets() {
             const paid = (this.trends.datasets || []).find((ds) => !ds.dashed)?.values || [];
             const invalid = this.trends.invalid_daily || [];
+            const blockedSrc = (this.blocking.datasets || []).find((ds) => String(ds.name || '').toLowerCase().includes('block'))?.values || [];
+            const blocked = paid.map((_, i) => Number(blockedSrc[i] || 0));
             return [
-                { key: 'clicks', name: 'Clicks', values: paid, color: '#FFFFFF' },
+                { key: 'clicks', name: 'Clicks', values: paid, color: '#B893D8' },
                 {
                     key: 'valid',
                     name: 'Valid',
@@ -1399,6 +1505,7 @@ function paidAdvertisingFigma(config = {}) {
                     color: '#4ade80',
                 },
                 { key: 'invalid', name: 'Invalid', values: invalid, color: '#f87171' },
+                { key: 'blocked', name: 'Blocked', values: blocked, color: '#f59e0b' },
             ];
         },
         visibleTrendDatasets() {
@@ -1426,60 +1533,15 @@ function paidAdvertisingFigma(config = {}) {
             };
         },
         renderCardCharts(retry = 0) {
-            if (!window.Chart) {
-                if (retry < 20) {
-                    requestAnimationFrame(() => this.renderCardCharts(retry + 1));
-                }
-                return;
-            }
+            // Mini bot bars removed from KPI card layout.
             this.destroyCardChart('invalidDonut');
-            this.renderBotBars();
+            this.destroyCardChart('botBars');
         },
         renderInvalidDonut() {
             // Donut removed from summary card layout; keep no-op for safety.
         },
         renderBotBars() {
-            const el = document.getElementById('bot-bars');
-            if (!el) return;
-            const values = (this.trends.invalid_daily || []).slice(-7);
-            const labels = (this.trends.labels || []).slice(-7);
-            const barValues = values.length ? values : [0, 0, 0, 0, 0, 0, 0];
-            const barLabels = labels.length ? labels : barValues.map((_, i) => i + 1);
-
-            if (this.cardCharts.botBars) {
-                const chart = this.cardCharts.botBars;
-                chart.data.labels = barLabels;
-                chart.data.datasets[0].data = barValues;
-                chart.update('none');
-                return;
-            }
-
-            this.cardCharts.botBars = new Chart(el, {
-                type: 'bar',
-                data: {
-                    labels: barLabels,
-                    datasets: [{
-                        data: barValues,
-                        backgroundColor: (ctx) => {
-                            const chart = ctx.chart;
-                            const { chartArea } = chart;
-                            if (!chartArea) return '#6625F8';
-                            const g = chart.ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-                            g.addColorStop(0, 'rgba(102,37,248,0.05)');
-                            g.addColorStop(1, '#6625F8');
-                            return g;
-                        },
-                        borderRadius: 3,
-                        borderSkipped: false,
-                    }],
-                },
-                options: this.miniChartOptions({
-                    scales: {
-                        x: { display: false, grid: { display: false } },
-                        y: { display: false, grid: { display: false }, beginAtZero: true },
-                    },
-                }),
-            });
+            // Bot bars removed from KPI card layout; keep no-op for safety.
         },
         bindPaidTrendHover(id, labels, datasets) {
             const canvas = document.getElementById(id);
@@ -1648,12 +1710,13 @@ function paidAdvertisingFigma(config = {}) {
         renderHeatmap() {
             const el = document.getElementById('heatmap-grid');
             if (!el) return;
-            const days = this.heatmap.days?.length ? this.heatmap.days : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const hours = this.heatmap.hours?.length ? this.heatmap.hours : Array.from({ length: 24 }, (_, i) => i);
+            // API returns Sun..Sat (DAYOFWEEK). Mockup shows Mon..Sun.
+            const apiDays = this.heatmap.days?.length ? this.heatmap.days : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const matrix = this.heatmap.matrix || [];
+            const order = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun indices into Sun-first matrix
+            const days = order.map((i) => apiDays[i] || ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i]);
             const flat = matrix.flat();
             const max = Math.max(...flat, 1);
-            // Show every 3rd hour label to keep mobile readable
             const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21];
             const head = ['<div class="paid-heatmap-corner"></div>']
                 .concat(hourTicks.map((h) => {
@@ -1661,11 +1724,17 @@ function paidAdvertisingFigma(config = {}) {
                     return `<div class="paid-heatmap-hour">${label}</div>`;
                 }))
                 .join('');
-            const body = days.map((day, d) => {
+            const body = order.map((dIdx, rowIdx) => {
+                const day = days[rowIdx];
                 const cells = hourTicks.map((h) => {
-                    const v = Number(matrix?.[d]?.[h] || 0);
+                    const v = Number(matrix?.[dIdx]?.[h] || 0);
                     const t = max ? v / max : 0;
-                    const bg = t > 0.65 ? '#6625F8' : t > 0.35 ? '#8B4FD4' : t > 0.1 ? 'rgba(139,79,212,0.45)' : 'rgba(255,255,255,0.14)';
+                    let bg = 'rgba(255,255,255,0.08)';
+                    if (t > 0.85) bg = '#ef4444';
+                    else if (t > 0.65) bg = '#f59e0b';
+                    else if (t > 0.4) bg = '#6625F8';
+                    else if (t > 0.15) bg = '#4a1d8a';
+                    else if (t > 0) bg = '#2a1248';
                     return `<span class="paid-heatmap-cell" title="${day} ${h}:00 — ${v}" style="background:${bg}"></span>`;
                 }).join('');
                 return `<div class="paid-heatmap-day">${day}</div>${cells}`;
@@ -1686,7 +1755,7 @@ function paidAdvertisingFigma(config = {}) {
                         <tr>
                             <th>Keyword</th>
                             <th>Clicks</th>
-                            <th>Inv %</th>
+                            <th>Invalid %</th>
                             <th>Risk</th>
                         </tr>
                     </thead>

@@ -5978,7 +5978,9 @@ select:autofill {
 }
 
 .paid-dashboard-card {
-    min-height: 148px;
+    min-height: 168px;
+    display: flex;
+    flex-direction: column;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.4);
     background: var(--brand-primary, #6400B2);
