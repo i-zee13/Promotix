@@ -268,10 +268,26 @@
                     text-align: right; font-size: 12px; color: rgba(255,255,255,0.55);
                 }
                 .bpv2-detect {
-                    display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; flex: 1;
+                    display: grid;
+                    grid-template-columns: 120px minmax(0, 1fr);
+                    gap: 8px;
+                    align-items: start;
+                    justify-content: start;
+                    flex: 1;
                 }
                 @media (max-width: 640px) {
                     .bpv2-detect { grid-template-columns: 1fr; }
+                }
+                .bpv2-detect .bpv2-donut {
+                    width: 112px;
+                    height: 112px;
+                    margin: 0;
+                }
+                .bpv2-detect .bpv2-donut__hole strong { font-size: 14px; }
+                .bpv2-detect .bpv2-donut__hole span { font-size: 8px; }
+                .bpv2-detect__copy {
+                    min-width: 0;
+                    padding-left: 0;
                 }
                 .bpv2-detect__signals { margin-bottom: 14px; }
                 .bpv2-detect__signals h4,
@@ -614,7 +630,7 @@
                                 <span>Bots Detected</span>
                             </div>
                         </div>
-                        <div>
+                        <div class="bpv2-detect__copy">
                             <div class="bpv2-detect__signals">
                                 <h4>Detection Signals</h4>
                                 <template x-for="sig in (summary.signals || [])" :key="sig.key">
