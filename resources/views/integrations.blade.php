@@ -55,29 +55,47 @@
     @platform-menu.window="handlePlatformMenu($event.detail)"
 >
     <section class="mx-auto w-full max-w-[1180px] px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[19px] xl:pt-[68px]">
-        <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex flex-wrap items-center gap-[12px]">
-                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
-                <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
-                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Platform Integration</span>
-            </div>
+        <div class="mb-[23px] flex flex-col gap-[14px]">
+            <div class="flex flex-wrap items-start justify-between gap-[14px]">
+                <div class="flex flex-wrap items-center gap-[12px] shrink-0">
+                    <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
+                    <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
+                    <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Platform Integration</span>
+                </div>
 
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
-                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/70">Domains</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="selectedDomainId" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All domains</option>
-                            @foreach ($manualDomains as $domain)
-                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </label>
-                <label class="flex w-[178px] flex-col justify-center px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold text-black/70">Landing Page</span>
-                    <input placeholder="Landing page" class="figma-filter-control h-[23px] rounded-[3px] border-0 bg-[#101010] px-[8px] py-0 text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
-                </label>
+                <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--pi flex min-h-[54px] w-full max-w-full flex-wrap rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)] lg:ml-auto lg:w-auto lg:max-w-[min(100%,760px)]">
+                    <label class="flex min-w-[140px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
+                        <div class="figma-filter-select-wrap">
+                            <select x-model="selectedDomainId" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                                <option value="">All Domains</option>
+                                @foreach ($manualDomains as $domain)
+                                    <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </label>
+                    <label class="flex min-w-[160px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
+                        <div class="figma-filter-select-wrap">
+                            <select x-model="selectedAdsAccountId" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                                <option value="">All Accounts</option>
+                                @foreach (($accounts ?? []) as $account)
+                                    <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </label>
+                    <label class="flex min-w-[140px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
+                        <div class="figma-filter-select-wrap">
+                            <select x-model="selectedLandingPage" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                                <option value="">All Pages</option>
+                            </select>
+                        </div>
+                    </label>
+                    @include('partials.figma-filter-date-fields')
+                </div>
             </div>
         </div>
 
@@ -272,6 +290,16 @@
                 .pi-first-row {
                     grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr);
                 }
+            }
+            .figma-filter-bar--pi {
+                overflow: visible;
+            }
+            .figma-filter-bar--pi > label {
+                min-width: 130px;
+            }
+            .figma-filter-bar--pi .figma-filter-calendar-host {
+                flex: 0 0 auto;
+                border-left: 0;
             }
             .pi-connect-card,
             .pi-side-card {
@@ -1100,6 +1128,8 @@ function platformIntegrations(config) {
         platformPage: 1,
         platformPerPage: 8,
         selectedDomainId: '',
+        selectedAdsAccountId: '',
+        selectedLandingPage: '',
         keysModal: {
             open: false,
             id: null,
