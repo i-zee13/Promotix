@@ -2,6 +2,13 @@
 
 @section('title', 'Bot Protection | Dashboard')
 
+@section('rightbar')
+<div class="figma-rightbar-default paid-rightbar">
+    @include('partials.figma-rightbar-header-actions')
+    @include('partials.figma-rightbar-bot-protection')
+</div>
+@endsection
+
 @section('content')
 <div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="botProtectionFigma(@js(['useDemo' => $useDemo]))" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[24px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
@@ -53,13 +60,14 @@
                 }
                 .bpv2-kpi {
                     border-radius: 12px;
-                    border: 1px solid rgba(100, 0, 178, 0.45);
-                    background: linear-gradient(180deg, rgba(100, 0, 178, 0.22) 0%, #151515 55%);
+                    border: 1px solid rgba(100, 0, 178, 0.5);
+                    background:
+                        linear-gradient(180deg, rgba(100, 0, 178, 0.38) 0%, rgba(77, 0, 142, 0.14) 42%, #151515 78%);
                     padding: 14px 14px 10px;
                     min-height: 148px;
                     display: flex;
                     flex-direction: column;
-                    box-shadow: 0 0 24px rgba(100, 0, 178, 0.12);
+                    box-shadow: 0 8px 22px rgba(100, 0, 178, 0.16);
                 }
                 .bpv2-kpi__top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
                 .bpv2-kpi__icon {
@@ -80,8 +88,8 @@
                 .bpv2-kpi.is-crawl .bpv2-kpi__icon,
                 .bpv2-kpi.is-invalid .bpv2-kpi__icon,
                 .bpv2-kpi.is-impact .bpv2-kpi__icon {
-                    background: rgba(100, 0, 178, 0.28);
-                    color: #B893D8;
+                    background: rgba(100, 0, 178, 0.32);
+                    color: #C4A0E8;
                 }
 
                 .bpv2-grid {
@@ -300,9 +308,9 @@
                 }
                 .bpv2-mal__item-left { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
                 html.light-mode .bpv2-kpi {
-                    background: linear-gradient(180deg, rgba(100, 0, 178, 0.08) 0%, #fff 50%);
-                    border-color: #d4c4e8;
-                    box-shadow: 0 6px 18px rgba(100, 0, 178, 0.08);
+                    background: linear-gradient(180deg, rgba(100, 0, 178, 0.12) 0%, rgba(100, 0, 178, 0.03) 40%, #fff 72%);
+                    border-color: rgba(100, 0, 178, 0.28);
+                    box-shadow: 0 6px 18px rgba(100, 0, 178, 0.1);
                 }
                 html.light-mode .bpv2-card { background: #fff; border-color: #e7e1ef; }
                 html.light-mode .bpv2-kpi__value,
@@ -894,20 +902,35 @@ function botProtectionFigma(config = {}) {
             return this.sharePct(this.summary?.paid?.invalid, this.summary?.paid?.total);
         },
         sparkSvg(values, color) {
+            const brand = '#6400B2';
+            const stroke = color || brand;
             const vals = (values || []).map(v => Number(v || 0));
+            const gid = 'bpSpark' + Math.random().toString(36).slice(2, 8);
             if (!vals.length) {
-                return `<svg viewBox="0 0 120 34" preserveAspectRatio="none"><path d="M0 28 H120" fill="none" stroke="${color}" stroke-opacity="0.25" stroke-width="2"/></svg>`;
+                return `<svg viewBox="0 0 120 34" preserveAspectRatio="none"><path d="M0 28 H120" fill="none" stroke="${brand}" stroke-opacity="0.35" stroke-width="2"/></svg>`;
             }
             const min = Math.min(...vals);
             const max = Math.max(...vals);
             const span = Math.max(max - min, 0.0001);
             const w = 120, h = 34, pad = 3;
-            const pts = vals.map((v, i) => {
+            const coords = vals.map((v, i) => {
                 const x = vals.length === 1 ? w / 2 : (i / (vals.length - 1)) * w;
                 const y = pad + (1 - ((v - min) / span)) * (h - pad * 2);
-                return `${x.toFixed(1)},${y.toFixed(1)}`;
-            }).join(' ');
-            return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${pts}"/></svg>`;
+                return [x, y];
+            });
+            const line = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+            const area = `M0,${h} ` + coords.map(([x, y]) => `L${x.toFixed(1)},${y.toFixed(1)}`).join(' ') + ` L${w},${h} Z`;
+            return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="${brand}" stop-opacity="0.45"/>
+                        <stop offset="55%" stop-color="${brand}" stop-opacity="0.16"/>
+                        <stop offset="100%" stop-color="${brand}" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <path d="${area}" fill="url(#${gid})"/>
+                <polyline fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${line}"/>
+            </svg>`;
         },
         kpiCards() {
             const s = this.summary || {};
@@ -915,10 +938,11 @@ function botProtectionFigma(config = {}) {
             const paid = s.paid || {};
             const deltas = s.deltas || {};
             const sparks = s.sparklines || {};
+            const brandSpark = '#6400B2';
             const icon = (path) => `<svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">${path}</svg>`;
                     return [
                 {
-                    key: 'human', tone: 'human', title: 'Human Visitors', color: '#B893D8',
+                    key: 'human', tone: 'human', title: 'Human Visitors', color: brandSpark,
                     value: this.fmt(s.valid_visits || 0),
                     sub: `${this.sharePct(s.valid_visits, total)}% of total traffic`,
                     delta: Number(deltas.valid_visits || 0),
@@ -927,7 +951,7 @@ function botProtectionFigma(config = {}) {
                     icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>'),
                 },
                 {
-                    key: 'auto', tone: 'auto', title: 'Automated Threats', color: '#B893D8',
+                    key: 'auto', tone: 'auto', title: 'Automated Threats', color: brandSpark,
                     value: this.fmt(s.invalid_bot_visits || 0),
                     sub: `${this.sharePct(s.invalid_bot_visits, total)}% of total traffic`,
                     delta: Number(deltas.invalid_bot_visits || 0),
@@ -936,7 +960,7 @@ function botProtectionFigma(config = {}) {
                     icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3h6v2h2a2 2 0 012 2v3h-2v2h2v3a2 2 0 01-2 2h-2v2H9v-2H7a2 2 0 01-2-2v-3h2v-2H5V7a2 2 0 012-2h2V3z"/>'),
                 },
                 {
-                    key: 'crawl', tone: 'crawl', title: 'Verified Crawlers', color: '#B893D8',
+                    key: 'crawl', tone: 'crawl', title: 'Verified Crawlers', color: brandSpark,
                     value: this.fmt(s.known_crawlers || 0),
                     sub: `${this.sharePct(s.known_crawlers, total)}% of total traffic`,
                     delta: Number(deltas.known_crawlers || 0),
@@ -945,7 +969,7 @@ function botProtectionFigma(config = {}) {
                     icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'),
                 },
                 {
-                    key: 'invalid', tone: 'invalid', title: 'Invalid Traffic', color: '#B893D8',
+                    key: 'invalid', tone: 'invalid', title: 'Invalid Traffic', color: brandSpark,
                     value: this.fmt(s.invalid_traffic || 0),
                     sub: `${this.sharePct(s.invalid_traffic, total)}% of total traffic`,
                     delta: Number(deltas.invalid_traffic || 0),
@@ -954,7 +978,7 @@ function botProtectionFigma(config = {}) {
                     icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'),
                 },
                 {
-                    key: 'impact', tone: 'impact', title: 'Bot Impact (Ads Traffic)', color: '#B893D8',
+                    key: 'impact', tone: 'impact', title: 'Bot Impact (Ads Traffic)', color: brandSpark,
                     value: `${paid.bot_impact ?? 0}%`,
                     sub: `${this.fmt(paid.invalid || 0)} invalid of ${this.fmt(paid.total || 0)} sessions`,
                     delta: Number(deltas.bot_impact || 0),
