@@ -67,6 +67,9 @@
 </div>
 <script>
 window.promotixPageLoader = (function () {
+    // Temporarily disabled — flip to true to restore blur + spinner.
+    const ENABLED = false;
+
     let visible = false;
     let shownAt = 0;
     let hideTimer = null;
@@ -98,6 +101,7 @@ window.promotixPageLoader = (function () {
 
     const api = {
         show(msg) {
+            if (!ENABLED) return;
             clearTimeout(hideTimer);
             clearTimeout(safetyTimer);
             const el = node();
@@ -111,6 +115,15 @@ window.promotixPageLoader = (function () {
             safetyTimer = setTimeout(() => api.hide(), 15000);
         },
         hide() {
+            if (!ENABLED) {
+                visible = false;
+                const el = node();
+                if (el) {
+                    el.classList.remove('is-visible');
+                    el.setAttribute('aria-hidden', 'true');
+                }
+                return;
+            }
             if (!visible) return;
             visible = false;
             clearTimeout(safetyTimer);
@@ -124,11 +137,15 @@ window.promotixPageLoader = (function () {
             }, wait);
         },
         isVisible() {
-            return visible;
+            return ENABLED && visible;
+        },
+        isEnabled() {
+            return ENABLED;
         },
     };
 
     document.addEventListener('click', function (e) {
+        if (!ENABLED) return;
         if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         const a = e.target.closest && e.target.closest('a[href]');
         if (!isInternalNavLink(a)) return;
@@ -136,6 +153,7 @@ window.promotixPageLoader = (function () {
     }, true);
 
     document.addEventListener('submit', function (e) {
+        if (!ENABLED) return;
         const form = e.target;
         if (!form || form.tagName !== 'FORM') return;
         if (form.hasAttribute('data-no-loader') || form.getAttribute('target') === '_blank') return;
@@ -146,6 +164,9 @@ window.promotixPageLoader = (function () {
     window.addEventListener('pageshow', function (ev) {
         if (ev.persisted) api.hide();
     });
+
+    // Ensure any leftover visible state is cleared while disabled.
+    api.hide();
 
     return api;
 })();
