@@ -240,6 +240,8 @@ Route::middleware('auth')->group(function () {
 });
 
 
+
+
 Route::middleware('auth')->group(function () {
     Route::get('/overview/summary', [DashboardController::class, 'summary']);
     Route::get('/overview/search', [DashboardController::class, 'search']);
@@ -346,6 +348,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::post('/tickets/{id}/escalate', [AdminOperationsApiController::class, 'escalateTicket'])->name('tickets.escalate');
         Route::post('/tickets/{id}/close', [AdminOperationsApiController::class, 'closeTicket'])->name('tickets.close');
     });
+
 
 /*
 | Fallback for branding assets when the web server does not map /public correctly.

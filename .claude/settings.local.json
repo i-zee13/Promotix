@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/c/Users/TECHES~1/AppData/Local/Temp/claude/d--Zee-data-Projects-promotix/0c459635-501e-4a1d-b37b-9d3d3938c806/scratchpad/figma\" *)",
+      "Bash(grep -n 'protected $fillable\\\\|protected $casts\\\\|status\\\\|amount_cents\\\\|is_trial\\\\|trial_ends_at\\\\|billing_interval\\\\|cancelled_at\\\\|current_period' 'd:/Zee data/Projects/promotix/app/Models/Subscription.php')",
+      "Bash(grep -n 'protected $fillable\\\\|protected $casts\\\\|status\\\\|amount_cents\\\\|paid_at' 'd:/Zee data/Projects/promotix/app/Models/Payment.php')",
+      "Bash(php -l \"d:/Zee data/Projects/promotix/app/Http/Controllers/SuperAdmin/SupportPagesController.php\")",
+      "Bash(php artisan *)",
+      "Bash(npm run *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\TECHES~1\\AppData\\Local\\Temp\\claude\\d--Zee-data-Projects-promotix\\0c459635-501e-4a1d-b37b-9d3d3938c806\\scratchpad\\figma"
+    ]
+  }
+}
