@@ -1788,16 +1788,9 @@ function paidAdvertisingFigma(config = {}) {
             if (withLoader) window.promotixPageLoader?.show('Refreshing dashboard…');
             try {
                 const qs = this.qs(forceGoogle);
-                const [summary, trends, blocking, campaigns, keywords, countries, ips, heatmap] = await Promise.all([
-                    fetch(`/paid-marketing/summary?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/trends?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/keywords?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/countries?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/ips?${this.ipsQueryString()}`).then(r => r.json()),
-                    fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
-                ]);
+
+                // 1) Top KPI cards first — release the blur as soon as numbers can paint.
+                const summary = await fetch(`/paid-marketing/summary?${qs}`).then(r => r.json());
                 this.summary = summary;
                 this.lastSummaryFingerprint = JSON.stringify({
                     paid_visits: summary?.paid_visits,
@@ -1814,6 +1807,19 @@ function paidAdvertisingFigma(config = {}) {
                     this.userTimezone = summary.timezone_context.reporting_timezone;
                 }
                 this.syncPaidTimezoneHeader();
+                await this.$nextTick();
+                if (withLoader) window.promotixPageLoader?.hide();
+
+                // 2) Charts / tables continue in the background.
+                const [trends, blocking, campaigns, keywords, countries, ips, heatmap] = await Promise.all([
+                    fetch(`/paid-marketing/trends?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/keywords?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/countries?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/ips?${this.ipsQueryString()}`).then(r => r.json()),
+                    fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
+                ]);
                 this.trends = trends;
                 this.blocking = blocking;
                 this.campaigns = Array.isArray(campaigns) ? campaigns : (campaigns.campaigns || []);

@@ -1142,19 +1142,26 @@ function botProtectionFigma(config = {}) {
                     this.$nextTick(() => this.renderCharts());
                     return;
                 }
-            const qs = this.qs();
-            const [s, traffic, trends, th, ib, c, ds] = await Promise.all([
-                fetch(`/bot-protection/summary?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/threat-groups?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/countries?${qs}`).then(r => r.json()),
-                fetch(`/bot-protection/domains-summary?${qs}`).then(r => r.json()),
-            ]);
-            this.summary = s;
-            this.invalidTrends = trends;
-            this.countries = c;
+
+                const qs = this.qs();
+
+                // 1) Top cards first — hide loader as soon as the viewport KPIs can paint.
+                const summary = await fetch(`/bot-protection/summary?${qs}`).then(r => r.json());
+                this.summary = summary;
+                await this.$nextTick();
+                window.promotixPageLoader?.hide();
+
+                // 2) Remaining panels load in the background.
+                const [traffic, trends, th, ib, c, ds] = await Promise.all([
+                    fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/threat-groups?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/countries?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/domains-summary?${qs}`).then(r => r.json()),
+                ]);
+                this.invalidTrends = trends;
+                this.countries = c;
                 this.domainsList = Array.isArray(ds) ? ds : [];
                 this.cache = {
                     traffic,
@@ -1168,6 +1175,8 @@ function botProtectionFigma(config = {}) {
                     this.applyDemoPayload();
                 }
                 this.$nextTick(() => this.renderCharts());
+            } catch (e) {
+                console.error(e);
             } finally {
                 window.promotixPageLoader?.hide();
             }

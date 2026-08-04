@@ -1013,13 +1013,8 @@ function botProtectionAdvancedFigma() {
             if (resetPage) this.meta.page = 1;
             window.promotixPageLoader?.show('Loading Advanced View…');
             try {
-                const qs = this.qs({ page: this.meta.page, per_page: this.meta.per_page });
-                const [visits, stats] = await Promise.all([
-                    fetch(`/bot-protection/visits?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/bot-stats?${this.qs()}`).then(r => r.json()),
-                ]);
-                this.rows = visits.data || [];
-                this.meta = { ...this.meta, ...(visits.meta || {}) };
+                // KPI cards first so the page feels responsive.
+                const stats = await fetch(`/bot-protection/bot-stats?${this.qs()}`).then(r => r.json());
                 this.stats = {
                     blocked: stats.blocked ?? 0,
                     invalid_traffic: stats.invalid_traffic ?? 0,
@@ -1034,6 +1029,13 @@ function botProtectionAdvancedFigma() {
                 this.chartCountries = charts.countries || [];
                 this.highRiskIps = charts.high_risk_ips || [];
                 this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
+                await this.$nextTick();
+                window.promotixPageLoader?.hide();
+
+                const qs = this.qs({ page: this.meta.page, per_page: this.meta.per_page });
+                const visits = await fetch(`/bot-protection/visits?${qs}`).then(r => r.json());
+                this.rows = visits.data || [];
+                this.meta = { ...this.meta, ...(visits.meta || {}) };
             } finally {
                 window.promotixPageLoader?.hide();
             }
