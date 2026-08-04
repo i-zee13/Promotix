@@ -197,40 +197,78 @@
                 }
                 .bpv2-action__left { display: inline-flex; align-items: center; gap: 7px; }
                 .bpv2-dot { width: 7px; height: 7px; border-radius: 999px; display: inline-block; }
+                /* Classic purple vertical pills for Google Ads Sessions */
                 .bpv2-ads {
-                    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; flex: 1; align-content: center;
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 12px;
+                    flex: 1;
+                    align-content: stretch;
+                    min-height: 0;
                 }
                 @media (max-width: 900px) {
                     .bpv2-ads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
                 }
-                .bpv2-ads__item {
-                    border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);
-                    background: #0f0f0f; padding: 14px 12px; text-align: left;
+                .bpv2-ads__col {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: stretch;
+                    min-width: 0;
+                    min-height: 220px;
                 }
-                .bpv2-ads__icon {
-                    width: 26px; height: 26px; border-radius: 999px;
-                    display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px;
-                }
-                .bpv2-ads__icon.is-purple,
-                .bpv2-ads__icon.is-green,
-                .bpv2-ads__icon.is-red,
-                .bpv2-ads__icon.is-blue { background: rgba(100,0,178,0.28); color: #B893D8; }
-                .bpv2-ads__value { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.1; }
-                .bpv2-ads__value .pct {
-                    margin-left: 5px;
+                .bpv2-ads__label {
+                    margin: 0 0 8px;
+                    text-align: center;
                     font-size: 12px;
-                    font-weight: 600;
-                    color: rgba(255,255,255,0.55);
+                    font-weight: 500;
+                    color: rgba(255,255,255,0.78);
+                    line-height: 1.25;
                 }
-                .bpv2-ads__value .pct.is-valid { color: #6ee7b7; }
-                .bpv2-ads__value .pct.is-invalid { color: #fda4af; }
-                .bpv2-ads__label { margin-top: 4px; font-size: 11px; color: rgba(255,255,255,0.45); }
-                .bpv2-ads__sub {
+                .bpv2-ads__pill {
+                    position: relative;
+                    display: flex;
+                    flex: 1;
+                    flex-direction: column;
+                    justify-content: flex-end;
+                    overflow: hidden;
+                    border-radius: 12px;
+                    border: 1px solid rgba(255,255,255,0.35);
+                    background: #6400B2;
+                    min-height: 180px;
+                }
+                .bpv2-ads__fill {
+                    position: absolute;
+                    left: 4px;
+                    right: 4px;
+                    bottom: 4px;
+                    min-height: 8px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(255,255,255,0.35);
+                    background: rgba(255, 255, 255, 0.56);
+                    transition: height 0.35s ease;
+                }
+                .bpv2-ads__fill.is-strong { background: #9a1aff; }
+                .bpv2-ads__fill.is-light { background: #C9B0E8; }
+                .bpv2-ads__value {
+                    position: relative;
+                    z-index: 1;
+                    margin: 0;
+                    padding: 14px 6px 18px;
+                    text-align: center;
+                    font-size: 22px;
+                    font-weight: 700;
+                    color: #fff;
+                    line-height: 1.1;
+                    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+                }
+                .bpv2-ads__count {
+                    display: block;
                     margin-top: 4px;
                     font-size: 10px;
-                    color: rgba(255,255,255,0.4);
+                    font-weight: 500;
+                    color: rgba(255,255,255,0.85);
                 }
-                .bpv2-ads__delta { margin-top: 4px; font-size: 11px; font-weight: 600; color: #34d399; }
+                html.light-mode .bpv2-ads__label { color: #4a4458; }
                 .bpv2-mal {
                     display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; align-items: start;
                 }
@@ -509,47 +547,45 @@
                 <section class="bpv2-card">
                     <h2 class="bpv2-card__title">Google Ads Sessions Summary</h2>
                     <div class="bpv2-ads">
-                        <div class="bpv2-ads__item">
-                            <span class="bpv2-ads__icon is-purple">
-                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                            </span>
-                            <p class="bpv2-ads__value">
-                                <span x-text="fmt(summary.paid?.total || 0)"></span>
-                                <span class="pct" x-text="'(' + paidOfAllPct() + '%)'"></span>
-                            </p>
+                        <div class="bpv2-ads__col">
                             <p class="bpv2-ads__label">Total Ad Sessions</p>
-                            <p class="bpv2-ads__sub" x-text="fmt(summary.total_visits || 0) + ' total visits'"></p>
+                            <div class="bpv2-ads__pill">
+                                <div class="bpv2-ads__fill is-strong" :style="'height:' + Math.max(0, Math.min(100, paidOfAllPct())) + '%'"></div>
+                                <p class="bpv2-ads__value">
+                                    <span x-text="paidOfAllPct() + '%'"></span>
+                                    <span class="bpv2-ads__count" x-text="fmt(summary.paid?.total || 0) + ' sessions'"></span>
+                                </p>
+                            </div>
                         </div>
-                        <div class="bpv2-ads__item">
-                            <span class="bpv2-ads__icon is-green">
-                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                            </span>
-                            <p class="bpv2-ads__value">
-                                <span x-text="fmt(summary.paid?.valid || 0)"></span>
-                                <span class="pct is-valid" x-text="'(' + paidValidPct() + '%)'"></span>
-                            </p>
+                        <div class="bpv2-ads__col">
                             <p class="bpv2-ads__label">Valid Sessions</p>
-                            <p class="bpv2-ads__sub">of ad sessions</p>
+                            <div class="bpv2-ads__pill">
+                                <div class="bpv2-ads__fill is-light" :style="'height:' + Math.max(0, Math.min(100, paidValidPct())) + '%'"></div>
+                                <p class="bpv2-ads__value">
+                                    <span x-text="paidValidPct() + '%'"></span>
+                                    <span class="bpv2-ads__count" x-text="fmt(summary.paid?.valid || 0) + ' valid'"></span>
+                                </p>
+                            </div>
                         </div>
-                        <div class="bpv2-ads__item">
-                            <span class="bpv2-ads__icon is-red">
-                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-                            </span>
-                            <p class="bpv2-ads__value">
-                                <span x-text="fmt(summary.paid?.invalid || 0)"></span>
-                                <span class="pct is-invalid" x-text="'(' + paidInvalidPct() + '%)'"></span>
-                            </p>
+                        <div class="bpv2-ads__col">
                             <p class="bpv2-ads__label">Invalid Sessions</p>
-                            <p class="bpv2-ads__sub">of ad sessions</p>
+                            <div class="bpv2-ads__pill">
+                                <div class="bpv2-ads__fill is-light" :style="'height:' + Math.max(0, Math.min(100, paidInvalidPct())) + '%'"></div>
+                                <p class="bpv2-ads__value">
+                                    <span x-text="paidInvalidPct() + '%'"></span>
+                                    <span class="bpv2-ads__count" x-text="fmt(summary.paid?.invalid || 0) + ' invalid'"></span>
+                                </p>
+                            </div>
                         </div>
-                        <div class="bpv2-ads__item">
-                            <span class="bpv2-ads__icon is-blue">
-                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke-width="1.8"/></svg>
-                            </span>
-                            <p class="bpv2-ads__value" x-text="(summary.paid?.bot_impact ?? 0) + '%'"></p>
+                        <div class="bpv2-ads__col">
                             <p class="bpv2-ads__label">Bot Impact</p>
-                            <p class="bpv2-ads__sub" x-text="fmt(summary.paid?.invalid || 0) + ' invalid of ' + fmt(summary.paid?.total || 0)"></p>
-                            <p class="bpv2-ads__delta" x-text="formatDelta(summary.deltas?.bot_impact || 0, true)"></p>
+                            <div class="bpv2-ads__pill">
+                                <div class="bpv2-ads__fill is-light" :style="'height:' + Math.max(0, Math.min(100, Number(summary.paid?.bot_impact || 0))) + '%'"></div>
+                                <p class="bpv2-ads__value">
+                                    <span x-text="(summary.paid?.bot_impact ?? 0) + '%'"></span>
+                                    <span class="bpv2-ads__count" x-text="formatDelta(summary.deltas?.bot_impact || 0, true)"></span>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </section>
