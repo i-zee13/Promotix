@@ -4297,6 +4297,12 @@ select.figma-sa-subs-status-pill {
 
 .figma-rightbar-collapsed {
     --figma-right: 0px;
+    padding-right: 0;
+}
+
+.figma-shell.figma-rightbar-collapsed {
+    --figma-right: 0px;
+    padding-right: 0;
 }
 
 .figma-rightbar-collapsed .figma-rightbar {

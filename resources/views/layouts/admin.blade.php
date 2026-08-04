@@ -63,6 +63,7 @@
             color: #6400b2;
         }
         .figma-shell { --figma-right: 220px; }
+        .figma-shell.figma-rightbar-collapsed { --figma-right: 0px; padding-right: 0; }
     </style>
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
