@@ -80,47 +80,42 @@
                 width: 100% !important;
                 max-width: 100% !important;
                 min-width: 0;
+                display: flex;
                 flex-wrap: nowrap;
                 align-items: stretch;
-                overflow-x: auto;
-                overflow-y: visible;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: thin;
+                overflow: visible;
             }
             .figma-filter-bar--pm-adv > label {
                 flex: 1 1 0;
-                min-width: 110px;
-                max-width: 170px;
+                min-width: 0;
+                max-width: none;
             }
             .figma-filter-bar--pm-adv .figma-filter-calendar-host {
                 display: flex;
                 flex: 0 0 auto;
                 align-items: center;
                 justify-content: center;
+                align-self: stretch;
                 min-height: 100%;
-                margin-left: auto;
+                margin-left: 0;
                 border-left: 1px solid rgba(0, 0, 0, 0.2);
-                padding-top: 6px;
-                padding-bottom: 6px;
-                padding-left: 10px;
-                padding-right: 10px;
+                padding: 6px 12px;
             }
             .figma-filter-bar--pm-adv .figma-filter-calendar-btn {
                 flex-shrink: 0;
+                width: 36px;
+                height: 36px;
             }
             @media (max-width: 900px) {
                 .figma-filter-bar--pm-adv {
                     flex-wrap: wrap;
-                    overflow-x: visible;
                 }
                 .figma-filter-bar--pm-adv > label {
                     flex: 1 1 140px;
-                    max-width: none;
                 }
                 .figma-filter-bar--pm-adv .figma-filter-calendar-host {
                     flex: 1 1 100%;
                     justify-content: flex-start;
-                    margin-left: 0;
                     border-left: 0;
                     border-top: 1px solid rgba(0, 0, 0, 0.12);
                     padding: 8px 10px;
