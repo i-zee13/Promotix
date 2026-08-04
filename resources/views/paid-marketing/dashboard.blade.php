@@ -64,6 +64,13 @@
 @endsection
 
 @section('content')
+<style>
+    /* Layout guards — work even if Vite assets are stale */
+    .paid-mid-row { align-items: start; }
+    .paid-trends-card { align-self: start; height: fit-content; min-height: 0; }
+    .paid-trends-wrap { line-height: 0; }
+    .paid-trends-canvas { display: block; width: 100%; }
+</style>
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js([
     'countryGetStarted' => $countryGetStarted,
     'userTimezone' => \App\Support\UserTimezone::reportingTimezoneForUser(
@@ -292,8 +299,8 @@
         </div>
         </div>
 
-        <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,589px)_minmax(260px,1fr)]">
-            <section class="paid-trends-card self-start rounded-[12px] border border-[#6400B2] bg-[#6400B2] p-[16px] shadow-[0_0_24px_rgba(100,0,179,.45)] sm:p-[20px]">
+        <div class="paid-mid-row mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,589px)_minmax(260px,1fr)]" style="align-items: start;">
+            <section class="paid-trends-card rounded-[12px] border border-[#6400B2] bg-[#6400B2] p-[16px] shadow-[0_0_24px_rgba(100,0,179,.45)] sm:p-[20px]" style="align-self: start; height: fit-content; min-height: 0;">
                 <div class="mb-[8px] flex flex-wrap items-center justify-between gap-[8px]">
                     <div class="flex flex-wrap items-center gap-[10px]">
                         <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trend</h2>
@@ -314,13 +321,13 @@
                         <option value="monthly">Monthly</option>
                     </select>
                 </div>
-                <div class="paid-trends-wrap">
+                <div class="paid-trends-wrap" style="line-height: 0;">
                     <div id="paid-trends-tooltip" class="paid-trends-tooltip" hidden></div>
-                    <canvas id="paid-trends" class="paid-trends-canvas h-[200px] w-full sm:h-[240px]"></canvas>
+                    <canvas id="paid-trends" class="paid-trends-canvas h-[200px] w-full sm:h-[240px]" style="display: block; width: 100%;"></canvas>
                 </div>
             </section>
 
-            <div class="grid grid-cols-1 gap-[12px] sm:grid-cols-2 xl:grid-cols-2">
+            <div class="grid grid-cols-1 gap-[12px] sm:grid-cols-2" style="align-self: start; height: fit-content;">
                 <section class="paid-sidebar-card">
                     <div class="paid-sidebar-card__head">
                         <svg class="h-[16px] w-[16px] text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 9v4m0 3h.01"/></svg>
@@ -337,44 +344,44 @@
                     </div>
                     <div id="keyword-list" class="mt-[10px] overflow-x-auto"></div>
                 </section>
-
-                <section class="paid-invalid-card sm:col-span-2 xl:col-span-2">
-                    <div class="flex flex-wrap items-start justify-between gap-[8px]">
-                        <div>
-                            <h2 class="text-[16px] font-normal text-[#a9a9a9]">Invalid Traffic Protection Engine</h2>
-                            <p class="mt-[2px] text-[10px] text-white/55">Detection rules and protection actions</p>
-                        </div>
-                        <a href="{{ route('paid-marketing.detection-settings') }}" class="rounded-[5px] border border-white/20 px-[10px] py-[4px] text-[10px] text-white/80 hover:bg-white/10">Configure</a>
-                    </div>
-                    <div class="mt-[10px] grid grid-cols-1 gap-[8px] sm:grid-cols-2" x-show="(blocking.rules || []).length">
-                        <template x-for="rule in (blocking.rules || [])" :key="rule.label">
-                            <div class="flex items-center justify-between gap-[10px] rounded-[6px] border border-white/15 bg-black/25 px-[10px] py-[8px]">
-                                <div class="min-w-0">
-                                    <p class="truncate text-[11px] text-white/90" x-text="rule.label"></p>
-                                    <p class="mt-[2px] text-[9px] text-white/50" x-text="rule.action"></p>
-                                </div>
-                                <span
-                                    class="paid-rule-toggle"
-                                    :class="{
-                                        'is-on': rule.tone !== 'off',
-                                        'is-block': rule.tone === 'block',
-                                        'is-challenge': rule.tone === 'challenge',
-                                        'is-monitor': rule.tone === 'monitor'
-                                    }"
-                                    :title="rule.action"
-                                >
-                                    <span class="paid-rule-toggle__knob"></span>
-                                </span>
-                            </div>
-                        </template>
-                    </div>
-                    <canvas id="invalid-protection" class="mt-[8px] h-[105px] w-full"></canvas>
-                </section>
             </div>
         </div>
 
-        <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-            <section class="min-h-[451px] rounded-[10px] border border-[#5a2a99] bg-[#111111] p-[18px]">
+        <section class="paid-invalid-card mt-[15px]">
+            <div class="flex flex-wrap items-start justify-between gap-[8px]">
+                <div>
+                    <h2 class="text-[16px] font-normal text-[#a9a9a9]">Invalid Traffic Protection Engine</h2>
+                    <p class="mt-[2px] text-[10px] text-white/55">Detection rules and protection actions</p>
+                </div>
+                <a href="{{ route('paid-marketing.detection-settings') }}" class="rounded-[5px] border border-white/20 px-[10px] py-[4px] text-[10px] text-white/80 hover:bg-white/10">Configure</a>
+            </div>
+            <div class="mt-[10px] grid grid-cols-1 gap-[8px] sm:grid-cols-2 lg:grid-cols-4" x-show="(blocking.rules || []).length">
+                <template x-for="rule in (blocking.rules || [])" :key="rule.label">
+                    <div class="flex items-center justify-between gap-[10px] rounded-[6px] border border-white/15 bg-black/25 px-[10px] py-[8px]">
+                        <div class="min-w-0">
+                            <p class="truncate text-[11px] text-white/90" x-text="rule.label"></p>
+                            <p class="mt-[2px] text-[9px] text-white/50" x-text="rule.action"></p>
+                        </div>
+                        <span
+                            class="paid-rule-toggle"
+                            :class="{
+                                'is-on': rule.tone !== 'off',
+                                'is-block': rule.tone === 'block',
+                                'is-challenge': rule.tone === 'challenge',
+                                'is-monitor': rule.tone === 'monitor'
+                            }"
+                            :title="rule.action"
+                        >
+                            <span class="paid-rule-toggle__knob"></span>
+                        </span>
+                    </div>
+                </template>
+            </div>
+            <canvas id="invalid-protection" class="mt-[8px] h-[105px] w-full"></canvas>
+        </section>
+
+        <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]" style="align-items: start;">
+            <section class="rounded-[10px] border border-[#5a2a99] bg-[#111111] p-[18px]" style="height: fit-content;">
                 <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[10px]">
                     <div class="flex flex-wrap items-center gap-[10px]">
                         <h2 class="text-[24px] font-semibold leading-none text-[#a9a9a9]">Recent IP Activity</h2>
@@ -464,7 +471,7 @@
                 </div>
             </section>
 
-            <section class="min-h-[329px] rounded-[10px] border border-[#5a2a99] bg-[#111111] p-[14px]">
+            <section class="rounded-[10px] border border-[#5a2a99] bg-[#111111] p-[14px]" style="height: fit-content; align-self: start;">
                 <div class="mb-[10px] flex items-center justify-between">
                     <h2 class="text-[16px] font-semibold text-[#a9a9a9]">Top High Risk IPs</h2>
                     <span class="text-[9px] text-white/45">Risk ≥ Medium</span>
