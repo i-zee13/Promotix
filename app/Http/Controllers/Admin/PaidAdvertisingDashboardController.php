@@ -707,6 +707,35 @@ class PaidAdvertisingDashboardController extends Controller
 
                 $merged = $merged->merge($metaRows);
             }
+
+            // Recover keywords from landing URL query when columns were empty historically.
+            if (Schema::hasColumn('visits', 'url')) {
+                $urlVisits = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
+                    ->where(function ($query) {
+                        $query->where('url', 'like', '%keyword=%')
+                            ->orWhere('url', 'like', '%utm_term=%');
+                    })
+                    ->limit(2000)
+                    ->get(['url', 'is_invalid_traffic']);
+
+                $fromUrl = [];
+                foreach ($urlVisits as $visit) {
+                    $keyword = $this->keywordFromLandingUrl((string) ($visit->url ?? ''));
+                    if ($keyword === null) {
+                        continue;
+                    }
+                    $key = mb_strtolower($keyword);
+                    if (! isset($fromUrl[$key])) {
+                        $fromUrl[$key] = (object) ['keyword' => $keyword, 'total' => 0, 'invalid' => 0];
+                    }
+                    $fromUrl[$key]->total++;
+                    if ((int) ($visit->is_invalid_traffic ?? 0) === 1) {
+                        $fromUrl[$key]->invalid++;
+                    }
+                }
+
+                $merged = $merged->merge(array_values($fromUrl));
+            }
         }
 
         if (Schema::hasTable('paid_marketing_clicks')
@@ -1524,28 +1553,40 @@ class PaidAdvertisingDashboardController extends Controller
                     : (array) $intel->ipdetails_raw;
                 $raw = is_array($decoded) ? $decoded : [];
             }
+            $invalid = (int) ($row->invalid ?? 0);
+            $totalClicks = (int) ($row->total ?? 0);
             $riskScore = $intel?->ipdetails_abuser_score ?? $intel?->abuse_confidence_score;
-            $riskLevel = null;
+            $scorePct = null;
             if (is_numeric($riskScore)) {
                 $score = (float) $riskScore;
-                if ($score <= 1) {
-                    $riskLevel = $score >= 0.7 ? 'High' : ($score >= 0.2 ? 'Medium' : 'Low');
-                } else {
-                    $riskLevel = $score >= 50 ? 'High' : ($score >= 20 ? 'Medium' : 'Low');
-                }
-            } elseif ((int) ($row->invalid ?? 0) > 0) {
-                $riskLevel = 'Medium';
+                $scorePct = $score <= 1 ? (int) round($score * 100) : (int) round($score);
+            } elseif ($invalid > 0) {
+                // No intel score — derive a usable score from invalid share so High Risk panel can rank IPs.
+                $scorePct = (int) min(99, max(28, round(($invalid / max(1, $totalClicks)) * 100)));
+            }
+
+            if ($scorePct !== null) {
+                $riskLevel = $scorePct >= 70 ? 'High' : ($scorePct >= 20 ? 'Medium' : 'Low');
             } else {
                 $riskLevel = 'Low';
             }
 
+            // Invalid paid traffic should never look "Low" just because a vendor score is soft.
+            if ($invalid > 0 && $riskLevel === 'Low') {
+                $riskLevel = 'Medium';
+                $scorePct = max($scorePct ?? 0, 28);
+            }
+            if ($invalid > 0 && ($invalid / max(1, $totalClicks)) >= 0.5 && $riskLevel !== 'High') {
+                $riskLevel = 'High';
+                $scorePct = max($scorePct ?? 0, 70);
+            }
+
             $actionRaw = strtolower(trim((string) data_get($row, 'action', '')));
             $isAllowlisted = IpFraudEvaluator::isIpAllowListed($ip, implode("\n", $allowListIps));
-            $invalid = (int) ($row->invalid ?? 0);
             if ($isAllowlisted) {
                 $actionLabel = 'Whitelisted';
                 $actionTone = 'allow';
-            } elseif (in_array($actionRaw, ['block', 'blocked', 'deny'], true) || ($actionRaw === '' && $invalid > 0 && $riskLevel === 'High')) {
+            } elseif (in_array($actionRaw, ['block', 'blocked', 'deny'], true) || ($invalid > 0 && $riskLevel === 'High')) {
                 $actionLabel = 'Blocked';
                 $actionTone = 'block';
             } elseif (in_array($actionRaw, ['flag', 'flagged', 'monitor', 'monitored', 'challenge'], true) || $invalid > 0) {
@@ -1616,9 +1657,7 @@ class PaidAdvertisingDashboardController extends Controller
                 'threats' => $threatLabels,
                 'threats_label' => $threatLabels !== [] ? implode(', ', $threatLabels) : '—',
                 'risk_level' => $riskLevel,
-                'risk_score' => is_numeric($riskScore)
-                    ? (((float) $riskScore) <= 1 ? (int) round(((float) $riskScore) * 100) : (int) round((float) $riskScore))
-                    : null,
+                'risk_score' => $scorePct,
                 'isp' => $intel?->intel_isp ?? ($raw['isp'] ?? $raw['company'] ?? null),
                 'asn' => $raw['asn'] ?? null,
                 'is_allowlisted' => $isAllowlisted,
@@ -2422,6 +2461,28 @@ class PaidAdvertisingDashboardController extends Controller
             in_array($action, ['monitor', 'log', 'allow', 'observe'], true) => ['label' => 'Monitor', 'tone' => 'monitor'],
             default => ['label' => $raw !== '' ? ucfirst($action) : 'Monitor', 'tone' => 'monitor'],
         };
+    }
+
+    private function keywordFromLandingUrl(string $url): ?string
+    {
+        if ($url === '') {
+            return null;
+        }
+
+        $query = parse_url($url, PHP_URL_QUERY);
+        if (! is_string($query) || $query === '') {
+            return null;
+        }
+
+        parse_str($query, $params);
+        $raw = trim((string) ($params['utm_term'] ?? $params['keyword'] ?? ''));
+        $lower = mb_strtolower($raw);
+
+        if ($raw === '' || in_array($lower, ['null', 'undefined', '{keyword}'], true)) {
+            return null;
+        }
+
+        return $raw;
     }
 
     /**

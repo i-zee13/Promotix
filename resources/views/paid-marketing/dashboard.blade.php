@@ -1237,11 +1237,20 @@ function paidAdvertisingFigma(config = {}) {
             return (this.sortedIps || [])
                 .filter((row) => {
                     const level = String(row.risk_level || '');
-                    return level === 'High' || level === 'Medium' || Number(row.risk_score || 0) >= 20;
+                    const action = String(row.action || '').toLowerCase();
+                    return level === 'High'
+                        || level === 'Medium'
+                        || Number(row.risk_score || 0) >= 20
+                        || Number(row.invalid || 0) > 0
+                        || action === 'blocked'
+                        || action === 'block'
+                        || action === 'monitored';
                 })
                 .sort((a, b) => {
                     const lr = (rank[b.risk_level] || 0) - (rank[a.risk_level] || 0);
                     if (lr !== 0) return lr;
+                    const inv = Number(b.invalid || 0) - Number(a.invalid || 0);
+                    if (inv !== 0) return inv;
                     return Number(b.risk_score || 0) - Number(a.risk_score || 0);
                 })
                 .slice(0, 6);
