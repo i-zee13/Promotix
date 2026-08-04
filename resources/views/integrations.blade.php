@@ -11,10 +11,126 @@
 @endphp
 
 @section('rightbar')
+<div class="figma-rightbar-default pi-rightbar">
     @include('partials.figma-rightbar-header-actions')
 
-    <div id="right-notifications" class="space-y-[13px] border-b-2 border-[#5a2a99] pb-[18px] text-[10px] text-[#a9a9a9]"></div>
+    <div class="mb-[6px]">
+        <h2 class="mb-[8px] text-[14px] font-bold text-[#a9a9a9]">Recent Activity</h2>
+        <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]"></div>
+    </div>
     @include('partials.figma-notifications-script')
+
+    <div class="mt-[16px] border-t-2 border-[#5a2a99] pt-[14px]">
+        <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
+        <div class="grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
+            <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Test Tracking">
+                @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
+                <span>Test Tracking</span>
+            </a>
+            @if ($primaryConnection)
+                <form method="POST" action="{{ route('integrations.google.sync-accounts', $primaryConnection) }}" class="contents">
+                    @csrf
+                    <button type="submit" class="paid-quick-action" title="Sync Ads">
+                        @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
+                        <span>Sync Ads</span>
+                    </button>
+                </form>
+            @else
+                <a href="{{ route('integrations.google.redirect') }}" class="paid-quick-action" title="Sync Ads">
+                    @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
+                    <span>Sync Ads</span>
+                </a>
+            @endif
+            <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Generate Tag">
+                @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[16px] w-[16px]'])
+                <span>Generate Tag</span>
+            </a>
+            <a href="{{ route('reports.index') }}" class="paid-quick-action" title="View Reports">
+                @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[16px] w-[16px]'])
+                <span>View Reports</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
+        <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">System Overview</h2>
+        <div class="space-y-[8px] text-[10px] text-white/75">
+            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                <span>Server status</span>
+                <span id="pi-sys-server-status" class="text-emerald-200">Online</span>
+            </div>
+            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                <span>Events today</span>
+                <span id="pi-sys-events-today" class="text-white/90">{{ number_format((int) ($connectionHealth['events_today'] ?? 0)) }}</span>
+            </div>
+            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                <span>Tracking</span>
+                <span id="pi-sys-tracking" class="{{ ($tagReady ?? false) ? 'text-emerald-200' : 'text-white/55' }}">
+                    {{ ($tagReady ?? false) ? 'Active' : 'Pending' }}
+                </span>
+            </div>
+            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+                <span>Google Ads API</span>
+                <span id="pi-sys-google-api" class="{{ $googleOAuthConnected ? 'text-emerald-200' : 'text-white/55' }}">
+                    {{ $googleOAuthConnected ? 'Connected' : 'Not connected' }}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    .pi-rightbar .paid-quick-action {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 64px;
+        padding: 8px 6px;
+        border-radius: 6px;
+        background: #6400B2;
+        color: #fff;
+        text-align: center;
+        font-size: 9px;
+        font-weight: 600;
+        line-height: 1.2;
+        border: 0;
+        cursor: pointer;
+        text-decoration: none;
+        width: 100%;
+    }
+    .pi-rightbar .paid-quick-action:hover {
+        background: #7B13C8;
+        color: #fff;
+    }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/overview/summary', { headers: { Accept: 'application/json' } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+            if (!data) return;
+            const conn = data.connectionStatus || {};
+            const eventsEl = document.getElementById('pi-sys-events-today');
+            const apiEl = document.getElementById('pi-sys-google-api');
+            const trackEl = document.getElementById('pi-sys-tracking');
+            if (eventsEl && conn.eventsToday != null) {
+                eventsEl.textContent = Number(conn.eventsToday).toLocaleString();
+            }
+            if (apiEl && conn.googleAdsApi) {
+                const label = String(conn.googleAdsApi);
+                apiEl.textContent = label;
+                apiEl.className = /not connected|error/i.test(label) ? 'text-white/55' : 'text-emerald-200';
+            }
+            if (trackEl && conn.tracking) {
+                const on = /healthy|active/i.test(String(conn.tracking));
+                trackEl.textContent = on ? 'Active' : 'Pending';
+                trackEl.className = on ? 'text-emerald-200' : 'text-white/55';
+            }
+        })
+        .catch(() => {});
+});
+</script>
 @endsection
 
 @section('content')
