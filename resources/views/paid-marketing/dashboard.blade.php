@@ -252,6 +252,204 @@
         .paid-kpi-card { min-height: 0; padding: 10px 12px; }
         .paid-dashboard-card__title { font-size: 12px; }
     }
+    .paid-engine-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+        align-items: stretch;
+        width: 100%;
+    }
+    @container paid-page (min-width: 900px) {
+        .paid-engine-row {
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        }
+    }
+    .paid-engine-card {
+        border-radius: 10px;
+        border: 1px solid #5a2a99;
+        background: #111111;
+        padding: 16px 18px;
+        min-width: 0;
+        height: 100%;
+    }
+    .paid-engine-active {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border-radius: 999px;
+        background: rgba(34, 197, 94, 0.16);
+        color: #86efac;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 3px 9px;
+        line-height: 1;
+    }
+    .paid-engine-active__dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #22c55e;
+        box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+    }
+    .paid-engine-active.is-off {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.55);
+    }
+    .paid-engine-active.is-off .paid-engine-active__dot {
+        background: rgba(255, 255, 255, 0.35);
+        box-shadow: none;
+    }
+    .paid-engine-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+        margin-top: 14px;
+    }
+    @media (min-width: 640px) {
+        .paid-engine-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); }
+    }
+    .paid-engine-col__title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #93a4b8;
+        margin-bottom: 10px;
+    }
+    .paid-engine-rule {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 28px;
+        margin-bottom: 6px;
+    }
+    .paid-engine-rule__icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: rgba(100, 0, 178, 0.28);
+        color: #c4a0e8;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .paid-engine-rule__label {
+        flex: 1;
+        min-width: 0;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.88);
+    }
+    .paid-engine-on {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        height: 18px;
+        border-radius: 4px;
+        background: #16a34a;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 0 6px;
+    }
+    .paid-engine-on.is-off {
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.5);
+    }
+    .paid-engine-action {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        margin-bottom: 8px;
+    }
+    .paid-engine-action__name {
+        font-size: 12px;
+        font-weight: 600;
+        color: #fff;
+    }
+    .paid-engine-action__desc { font-size: 11px; }
+    .paid-engine-action__desc.is-low { color: #60a5fa; }
+    .paid-engine-action__desc.is-medium { color: #fb923c; }
+    .paid-engine-action__desc.is-high { color: #f87171; }
+    .paid-engine-action-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 52px;
+        height: 20px;
+        border-radius: 4px;
+        border: 1px solid rgba(34, 197, 94, 0.65);
+        color: #86efac;
+        font-size: 9px;
+        font-weight: 600;
+        padding: 0 7px;
+    }
+    .paid-engine-action-badge.is-off {
+        border-color: rgba(255, 255, 255, 0.2);
+        color: rgba(255, 255, 255, 0.45);
+    }
+    .paid-engine-link {
+        display: inline-flex;
+        margin-top: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #a78bfa;
+    }
+    .paid-engine-link:hover { color: #c4b5fd; }
+    .paid-hrisk-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10px;
+        color: #a9a9a9;
+    }
+    .paid-hrisk-table th {
+        text-align: left;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.55);
+        padding: 7px 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+    }
+    .paid-hrisk-table td {
+        padding: 9px 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        vertical-align: middle;
+    }
+    .paid-hrisk-table tr:last-child td { border-bottom: 0; }
+    .paid-hrisk-table tr { cursor: pointer; }
+    .paid-hrisk-table tr:hover td { background: rgba(255, 255, 255, 0.03); }
+    .paid-score-high { color: #f87171; font-weight: 600; }
+    .paid-score-medium { color: #fb923c; font-weight: 600; }
+    .paid-score-low { color: #86efac; font-weight: 600; }
+    .paid-outline-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        border: 1px solid;
+        padding: 1px 7px;
+        font-size: 9px;
+        font-weight: 600;
+        line-height: 1.3;
+        white-space: nowrap;
+    }
+    .paid-outline-badge.is-high { border-color: rgba(248, 113, 113, 0.7); color: #fca5a5; }
+    .paid-outline-badge.is-medium { border-color: rgba(251, 146, 60, 0.7); color: #fdba74; }
+    .paid-outline-badge.is-low { border-color: rgba(134, 239, 172, 0.55); color: #86efac; }
+    .paid-outline-badge.is-block { border-color: rgba(248, 113, 113, 0.7); color: #fca5a5; }
+    .paid-outline-badge.is-monitor { border-color: rgba(251, 146, 60, 0.7); color: #fdba74; }
+    .paid-outline-badge.is-allow { border-color: rgba(134, 239, 172, 0.55); color: #86efac; }
+    .paid-status-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: #f87171;
+    }
+    .paid-status-dot.is-monitor { background: #fb923c; }
+    .paid-status-dot.is-allow { background: #22c55e; }
 </style>
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js([
     'countryGetStarted' => $countryGetStarted,
@@ -556,164 +754,182 @@
             </section>
         </div>
 
-        <section class="paid-invalid-card mt-[15px]">
-            <div class="flex flex-wrap items-start justify-between gap-[8px]">
-                <div>
-                    <h2 class="text-[16px] font-normal text-[#a9a9a9]">Invalid Traffic Protection Engine</h2>
-                    <p class="mt-[2px] text-[10px] text-white/55">Detection rules and protection actions</p>
+        {{-- Protection Engine | Top High Risk IPs --}}
+        <div class="paid-engine-row mt-[15px]">
+            <section class="paid-engine-card">
+                <div class="flex flex-wrap items-center gap-[10px]">
+                    <h2 class="text-[15px] font-semibold text-white sm:text-[16px]">Invalid Traffic Protection Engine</h2>
+                    <span class="paid-engine-active" :class="{ 'is-off': !engineIsActive }">
+                        <span class="paid-engine-active__dot" aria-hidden="true"></span>
+                        <span x-text="engineIsActive ? 'Active' : 'Inactive'"></span>
+                    </span>
                 </div>
-                <a href="{{ route('paid-marketing.detection-settings') }}" class="rounded-[5px] border border-white/20 px-[10px] py-[4px] text-[10px] text-white/80 hover:bg-white/10">Configure</a>
-            </div>
-            <div class="mt-[10px] grid grid-cols-1 gap-[8px] sm:grid-cols-2 lg:grid-cols-4" x-show="(blocking.rules || []).length">
-                <template x-for="rule in (blocking.rules || [])" :key="rule.label">
-                    <div class="flex items-center justify-between gap-[10px] rounded-[6px] border border-white/15 bg-black/25 px-[10px] py-[8px]">
-                        <div class="min-w-0">
-                            <p class="truncate text-[11px] text-white/90" x-text="rule.label"></p>
-                            <p class="mt-[2px] text-[9px] text-white/50" x-text="rule.action"></p>
-                        </div>
-                        <span
-                            class="paid-rule-toggle"
-                            :class="{
-                                'is-on': rule.tone !== 'off',
-                                'is-block': rule.tone === 'block',
-                                'is-challenge': rule.tone === 'challenge',
-                                'is-monitor': rule.tone === 'monitor'
-                            }"
-                            :title="rule.action"
-                        >
-                            <span class="paid-rule-toggle__knob"></span>
-                        </span>
-                    </div>
-                </template>
-            </div>
-            <canvas id="invalid-protection" class="mt-[8px] h-[105px] w-full"></canvas>
-        </section>
 
-        <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]" style="align-items: start;">
-            <section class="rounded-[10px] border border-[#5a2a99] bg-[#111111] p-[18px]" style="height: fit-content;">
-                <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[10px]">
-                    <div class="flex flex-wrap items-center gap-[10px]">
-                        <h2 class="text-[24px] font-semibold leading-none text-[#a9a9a9]">Recent IP Activity</h2>
-                        <div class="flex rounded-[6px] border border-white/15 bg-black/30 p-[2px] text-[10px]">
-                            <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'basic' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'basic'">Basic View</button>
-                            <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'expert' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'expert'">Expert View</button>
-                        </div>
-                        <button type="button" @click="exportIpsCsv()" title="Download CSV" class="flex h-[26px] w-[26px] items-center justify-center rounded-[4px] border border-[#6400B2]/60 bg-[#1a1a1a] text-[#B893D8] transition hover:border-[#6400B2] hover:bg-[#6400B2]/20 hover:text-white">
-                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
-                        </button>
+                <div class="paid-engine-grid">
+                    <div>
+                        <h3 class="paid-engine-col__title">Detection Rules</h3>
+                        <template x-for="rule in engineDetectionRules" :key="rule.key || rule.label">
+                            <div class="paid-engine-rule">
+                                <span class="paid-engine-rule__icon" aria-hidden="true">
+                                    <svg viewBox="0 0 16 16" class="h-[10px] w-[10px]" fill="currentColor"><path d="M8 1.3l5.2 2.2v3.4c0 3.2-2.2 5.9-5.2 6.8-3-.9-5.2-3.6-5.2-6.8V3.5L8 1.3z"/></svg>
+                                </span>
+                                <span class="paid-engine-rule__label" x-text="rule.label"></span>
+                                <span class="paid-engine-on" :class="{ 'is-off': !rule.on }" x-text="rule.on ? 'ON' : 'OFF'"></span>
+                            </div>
+                        </template>
                     </div>
-                    <div class="flex h-[28px] max-w-[min(100%,280px)] items-center gap-[8px] rounded-[3px] bg-[#6400B2] px-[9px] text-[10px] text-white">
-                        <span class="shrink-0">Domain</span>
-                        <select
-                            x-model="filters.domain_id"
-                            @change="onDomainChange()"
-                            class="figma-panel-select min-h-[24px] min-w-0 flex-1 !rounded-[3px] !py-[4px] !text-[10px]"
-                        >
-                            <option value="">All domains</option>
-                            @foreach ($domains as $domain)
-                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                            @endforeach
-                        </select>
+
+                    <div class="flex min-h-0 flex-col">
+                        <h3 class="paid-engine-col__title">Protection Actions</h3>
+                        <template x-for="action in engineProtectionActions" :key="action.key || action.label">
+                            <div class="paid-engine-action">
+                                <span class="paid-engine-action__name" x-text="action.label"></span>
+                                <span class="paid-engine-action__desc" :class="'is-' + (action.tone || 'low')" x-text="action.desc"></span>
+                                <span class="paid-engine-action-badge" :class="{ 'is-off': !action.active }" x-text="action.active ? 'Active' : 'Off'"></span>
+                            </div>
+                        </template>
+                        <a href="{{ route('paid-marketing.detection-settings') }}" class="paid-engine-link mt-auto self-end">Manage Protection Settings <span aria-hidden="true">→</span></a>
                     </div>
-                </div>
-                <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
-                    <table class="w-full min-w-[980px] table-fixed text-left text-[11px] text-[#a9a9a9]" :class="ipViewMode === 'expert' ? 'min-w-[1360px]' : 'min-w-[1040px]'">
-                        <thead class="sticky top-0 z-[1] bg-[#6400B2]">
-                            <tr>
-                                <th class="w-[14%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('ip')" @click="setIpSort('ip')"><span>IP Address</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[12%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('campaign')" @click="setIpSort('campaign')"><span>Campaign</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('invalid')" @click="setIpSort('invalid')"><span>Invalid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[7%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('valid')" @click="setIpSort('valid')"><span>Valid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('risk_score')" @click="setIpSort('risk_score')"><span>Risk</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('country')" @click="setIpSort('country')"><span>Country</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[10%] px-[8px] py-[7px] font-normal">ISP</th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal">Action</th>
-                                <th class="w-[12%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')" title="When invalid/paid evidence was last recorded for this IP"><span>Evidence Time</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Device</th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Browser</th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('top_threat')" @click="setIpSort('top_threat')"><span>Threat</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/15">
-                            <template x-for="row in sortedIps" :key="row.ip">
-                                <tr class="cursor-pointer align-middle transition hover:bg-white/5" @click="openIpModal(row)">
-                                    <td class="max-w-0 px-[8px] py-[6px]">
-                                        <span class="flex items-center gap-[4px]">
-                                            <span class="block truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
-                                            <span x-show="row.is_allowlisted" class="shrink-0 rounded-[3px] bg-emerald-500/20 px-[4px] py-[1px] text-[8px] font-semibold uppercase text-emerald-300">WL</span>
-                                        </span>
-                                    </td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px] text-white/85" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap text-rose-300" x-text="fmt(row.invalid)"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap text-emerald-300" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap">
-                                        <span class="paid-risk-badge" :class="riskBadgeClass(row.risk_level)" x-text="(row.risk_level || '—') + (row.risk_score != null ? ' ' + row.risk_score : '')"></span>
-                                    </td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px]" :title="row.isp || ''" x-text="row.isp || '—'"></td>
-                                    <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.action || '—'"></td>
-                                    <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px] text-white/85" :title="evidenceTimeTitle(row)" x-text="evidenceTimeLabel(row)"></td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="row.device || '—'"></td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px]" x-show="ipViewMode === 'expert'" x-text="row.browser || '—'"></td>
-                                    <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="threatLabel(row.top_threat)"></td>
-                                </tr>
-                            </template>
-                            <tr x-show="sortedIps.length === 0"><td colspan="12" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
-                        </tbody>
-                    </table>
                 </div>
             </section>
 
-            <section class="rounded-[10px] border border-[#5a2a99] bg-[#111111] p-[14px]" style="height: fit-content; align-self: start;">
-                <div class="mb-[10px] flex items-center justify-between">
-                    <h2 class="text-[16px] font-semibold text-[#a9a9a9]">Top High Risk IPs</h2>
-                    <span class="text-[9px] text-white/45">Risk ≥ Medium</span>
+            <section class="paid-engine-card">
+                <div class="mb-[10px] flex items-center justify-between gap-[8px]">
+                    <h2 class="text-[15px] font-semibold text-white sm:text-[16px]">Top High Risk IPs</h2>
+                    <a href="{{ route('paid-marketing.detailed') }}" class="text-[11px] font-semibold text-[#a78bfa] hover:text-[#c4b5fd]">View All</a>
                 </div>
-                <div class="promotix-slim-scroll max-h-[380px] overflow-y-auto rounded-[4px] border border-white/10">
-                    <table class="w-full text-left text-[10px] text-[#a9a9a9]">
-                        <thead class="sticky top-0 bg-[#6400B2] text-white">
+                <div class="promotix-slim-scroll max-h-[320px] overflow-x-auto overflow-y-auto">
+                    <table class="paid-hrisk-table min-w-[560px]">
+                        <thead>
                             <tr>
-                                <th class="px-[8px] py-[7px] font-normal">IP</th>
-                                <th class="px-[8px] py-[7px] font-normal">Score</th>
-                                <th class="px-[8px] py-[7px] font-normal">Level</th>
-                                <th class="px-[8px] py-[7px] font-normal">Threat</th>
-                                <th class="px-[8px] py-[7px] font-normal">Action</th>
+                                <th>IP Address</th>
+                                <th>Risk Score</th>
+                                <th>Risk Level</th>
+                                <th>Threats</th>
+                                <th>Clicks</th>
+                                <th>Action</th>
+                                <th></th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-white/10">
+                        <tbody>
                             <template x-for="row in highRiskIps" :key="'hr-' + row.ip">
-                                <tr class="cursor-pointer hover:bg-white/5" @click="openIpModal(row)">
-                                    <td class="max-w-[90px] truncate px-[8px] py-[7px] font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></td>
-                                    <td class="px-[8px] py-[7px]" x-text="row.risk_score != null ? row.risk_score : '—'"></td>
-                                    <td class="px-[8px] py-[7px]"><span class="paid-risk-badge" :class="riskBadgeClass(row.risk_level)" x-text="row.risk_level || '—'"></span></td>
-                                    <td class="max-w-[70px] truncate px-[8px] py-[7px] capitalize" x-text="threatLabel(row.top_threat)"></td>
-                                    <td class="px-[8px] py-[7px]" x-text="row.action || '—'"></td>
+                                <tr @click="openIpModal(row)">
+                                    <td class="max-w-[110px] truncate font-mono text-[10px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></td>
+                                    <td>
+                                        <span :class="riskScoreClass(row)" x-text="riskScoreLabel(row)"></span>
+                                    </td>
+                                    <td>
+                                        <span class="paid-outline-badge" :class="riskBadgeClass(row.risk_level)" x-text="row.risk_level || '—'"></span>
+                                    </td>
+                                    <td class="max-w-[140px] truncate text-white/80" :title="threatsLabel(row)" x-text="threatsLabel(row)"></td>
+                                    <td class="whitespace-nowrap text-white" x-text="fmt(row.total)"></td>
+                                    <td>
+                                        <span class="paid-outline-badge" :class="actionToneClass(row)" x-text="actionLabel(row)"></span>
+                                    </td>
+                                    <td class="w-[16px] text-right">
+                                        <span class="paid-status-dot" :class="actionToneClass(row)" aria-hidden="true"></span>
+                                    </td>
                                 </tr>
                             </template>
                             <tr x-show="highRiskIps.length === 0">
-                                <td colspan="5" class="px-[10px] py-[16px] text-center text-white/55">No high-risk IPs in this period.</td>
+                                <td colspan="7" class="px-[10px] py-[18px] text-center text-white/55">No high-risk IPs in this period.</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </section>
         </div>
+
+        {{-- Recent IP Activity (full width) --}}
+        <section class="paid-engine-card mt-[15px]">
+            <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[10px]">
+                <div class="flex flex-wrap items-center gap-[10px]">
+                    <h2 class="text-[18px] font-semibold leading-none text-[#a9a9a9] sm:text-[22px]">Recent IP Activity</h2>
+                    <div class="flex rounded-[6px] border border-white/15 bg-black/30 p-[2px] text-[10px]">
+                        <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'basic' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'basic'">Basic View</button>
+                        <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'expert' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'expert'">Expert View</button>
+                    </div>
+                    <button type="button" @click="exportIpsCsv()" title="Download CSV" class="flex h-[26px] w-[26px] items-center justify-center rounded-[4px] border border-[#6400B2]/60 bg-[#1a1a1a] text-[#B893D8] transition hover:border-[#6400B2] hover:bg-[#6400B2]/20 hover:text-white">
+                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
+                    </button>
+                </div>
+                <div class="flex h-[28px] max-w-[min(100%,280px)] items-center gap-[8px] rounded-[3px] bg-[#6400B2] px-[9px] text-[10px] text-white">
+                    <span class="shrink-0">Domain</span>
+                    <select
+                        x-model="filters.domain_id"
+                        @change="onDomainChange()"
+                        class="figma-panel-select min-h-[24px] min-w-0 flex-1 !rounded-[3px] !py-[4px] !text-[10px]"
+                    >
+                        <option value="">All domains</option>
+                        @foreach ($domains as $domain)
+                            <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
+                <table class="w-full min-w-[980px] table-fixed text-left text-[11px] text-[#a9a9a9]" :class="ipViewMode === 'expert' ? 'min-w-[1360px]' : 'min-w-[1040px]'">
+                    <thead class="sticky top-0 z-[1] bg-[#6400B2]">
+                        <tr>
+                            <th class="w-[14%] px-[8px] py-[7px] font-normal">
+                                <button type="button" class="promotix-sortable" :class="ipSortClass('ip')" @click="setIpSort('ip')"><span>IP Address</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                            </th>
+                            <th class="w-[12%] px-[8px] py-[7px] font-normal">
+                                <button type="button" class="promotix-sortable" :class="ipSortClass('campaign')" @click="setIpSort('campaign')"><span>Campaign</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                            </th>
+                            <th class="w-[7%] px-[8px] py-[7px] font-normal">
+                                <button type="button" class="promotix-sortable" :class="ipSortClass('invalid')" @click="setIpSort('invalid')"><span>Invalid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                            </th>
+                            <th class="w-[7%] px-[8px] py-[7px] font-normal">
+                                <button type="button" class="promotix-sortable" :class="ipSortClass('valid')" @click="setIpSort('valid')"><span>Valid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                            </th>
+                            <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                                <button type="button" class="promotix-sortable" :class="ipSortClass('risk_score')" @click="setIpSort('risk_score')"><span>Risk</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                            </th>
+                            <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                                <button type="button" class="promotix-sortable" :class="ipSortClass('country')" @click="setIpSort('country')"><span>Country</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                            </th>
+                            <th class="w-[10%] px-[8px] py-[7px] font-normal">ISP</th>
+                            <th class="w-[8%] px-[8px] py-[7px] font-normal">Action</th>
+                            <th class="w-[12%] px-[8px] py-[7px] font-normal">
+                                <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')" title="When invalid/paid evidence was last recorded for this IP"><span>Evidence Time</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                            </th>
+                            <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Device</th>
+                            <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Browser</th>
+                            <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">
+                                <button type="button" class="promotix-sortable" :class="ipSortClass('top_threat')" @click="setIpSort('top_threat')"><span>Threat</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/15">
+                        <template x-for="row in sortedIps" :key="row.ip">
+                            <tr class="cursor-pointer align-middle transition hover:bg-white/5" @click="openIpModal(row)">
+                                <td class="max-w-0 px-[8px] py-[6px]">
+                                    <span class="flex items-center gap-[4px]">
+                                        <span class="block truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
+                                        <span x-show="row.is_allowlisted" class="shrink-0 rounded-[3px] bg-emerald-500/20 px-[4px] py-[1px] text-[8px] font-semibold uppercase text-emerald-300">WL</span>
+                                    </span>
+                                </td>
+                                <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px] text-white/85" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
+                                <td class="px-[8px] py-[6px] whitespace-nowrap text-rose-300" x-text="fmt(row.invalid)"></td>
+                                <td class="px-[8px] py-[6px] whitespace-nowrap text-emerald-300" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
+                                <td class="px-[8px] py-[6px] whitespace-nowrap">
+                                    <span class="paid-risk-badge" :class="riskBadgeClass(row.risk_level)" x-text="(row.risk_level || '—') + (row.risk_score != null ? ' ' + row.risk_score : '')"></span>
+                                </td>
+                                <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
+                                <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px]" :title="row.isp || ''" x-text="row.isp || '—'"></td>
+                                <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.action || '—'"></td>
+                                <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px] text-white/85" :title="evidenceTimeTitle(row)" x-text="evidenceTimeLabel(row)"></td>
+                                <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="row.device || '—'"></td>
+                                <td class="max-w-0 truncate px-[8px] py-[6px]" x-show="ipViewMode === 'expert'" x-text="row.browser || '—'"></td>
+                                <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="threatLabel(row.top_threat)"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="sortedIps.length === 0"><td colspan="12" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </section>
 
     <div class="figma-modal-overlay"
@@ -907,7 +1123,7 @@ function paidAdvertisingFigma(config = {}) {
         trackingTemplate: '{lpurl}?gclid={gclid}&gbraid={gbraid}&wbraid={wbraid}&utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={keyword}&keyword={keyword}',
         summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
         trends: { labels: [], datasets: [], invalid_daily: [] },
-        blocking: { labels: [], datasets: [], rules: [] },
+        blocking: { labels: [], datasets: [], rules: [], engine: null },
         campaigns: [],
         untaggedDomains: [],
         keywords: [],
@@ -989,6 +1205,33 @@ function paidAdvertisingFigma(config = {}) {
         get whitelistedIpCount() {
             return (this.ips || []).filter((row) => row.is_allowlisted).length;
         },
+        get engineIsActive() {
+            if (this.blocking?.engine && typeof this.blocking.engine.active === 'boolean') {
+                return this.blocking.engine.active;
+            }
+            return (this.engineDetectionRules || []).some((rule) => rule.on);
+        },
+        get engineDetectionRules() {
+            const fromApi = this.blocking?.engine?.detection_rules;
+            if (Array.isArray(fromApi) && fromApi.length) return fromApi;
+            return [
+                { key: 'vpn', label: 'VPN Detection', on: true },
+                { key: 'proxy', label: 'Proxy Detection', on: true },
+                { key: 'datacenter', label: 'Datacenter Detection', on: true },
+                { key: 'repeated', label: 'Repeated Click Detection', on: true },
+                { key: 'bot', label: 'Bot Detection', on: true },
+                { key: 'abnormal', label: 'Abnormal Behavior Detection', on: true },
+            ];
+        },
+        get engineProtectionActions() {
+            const fromApi = this.blocking?.engine?.protection_actions;
+            if (Array.isArray(fromApi) && fromApi.length) return fromApi;
+            return [
+                { key: 'monitor', label: 'Monitor', desc: 'Low Risk Traffic', active: true, tone: 'low' },
+                { key: 'challenge', label: 'Challenge', desc: 'Medium Risk Traffic', active: true, tone: 'medium' },
+                { key: 'block', label: 'Block', desc: 'High Risk Traffic', active: true, tone: 'high' },
+            ];
+        },
         get highRiskIps() {
             const rank = { High: 3, Medium: 2, Low: 1 };
             return (this.sortedIps || [])
@@ -1001,7 +1244,44 @@ function paidAdvertisingFigma(config = {}) {
                     if (lr !== 0) return lr;
                     return Number(b.risk_score || 0) - Number(a.risk_score || 0);
                 })
-                .slice(0, 12);
+                .slice(0, 6);
+        },
+        riskScoreLabel(row) {
+            if (row?.risk_score == null || row.risk_score === '') return '—';
+            return `${Number(row.risk_score)}/100`;
+        },
+        riskScoreClass(row) {
+            const level = String(row?.risk_level || '').toLowerCase();
+            if (level === 'high' || Number(row?.risk_score || 0) >= 80) return 'paid-score-high';
+            if (level === 'medium' || Number(row?.risk_score || 0) >= 20) return 'paid-score-medium';
+            return 'paid-score-low';
+        },
+        threatsLabel(row) {
+            if (row?.threats_label && row.threats_label !== '—') return row.threats_label;
+            if (Array.isArray(row?.threats) && row.threats.length) return row.threats.join(', ');
+            const parts = [];
+            if (Number(row?.vpn_hits || 0) > 0) parts.push('VPN');
+            if (Number(row?.data_center_hits || 0) > 0) parts.push('Datacenter');
+            if (Number(row?.malicious_hits || 0) > 0) parts.push('Malicious');
+            const top = this.threatLabel(row?.top_threat);
+            if (top && top !== '—') parts.push(top);
+            return [...new Set(parts)].join(', ') || '—';
+        },
+        actionLabel(row) {
+            const raw = String(row?.action || '').trim();
+            if (!raw) return '—';
+            const lower = raw.toLowerCase();
+            if (lower === 'block' || lower === 'blocked') return 'Blocked';
+            if (lower === 'flag' || lower === 'flagged' || lower === 'monitor' || lower === 'monitored' || lower === 'challenge') return 'Monitored';
+            if (lower === 'allow' || lower === 'whitelisted') return row?.is_allowlisted ? 'Whitelisted' : 'Allow';
+            return raw;
+        },
+        actionToneClass(row) {
+            if (row?.action_tone) return `is-${row.action_tone}`;
+            const label = this.actionLabel(row).toLowerCase();
+            if (label === 'blocked') return 'is-block';
+            if (label === 'monitored') return 'is-monitor';
+            return 'is-allow';
         },
         toggleCompare() {
             this.compareEnabled = !this.compareEnabled;
@@ -1589,7 +1869,6 @@ function paidAdvertisingFigma(config = {}) {
                 const datasets = this.visibleTrendDatasets();
                 this.drawPaidTrendLine('paid-trends', labels, datasets, this.trendsHoverIndex);
                 this.bindPaidTrendHover('paid-trends', labels, datasets);
-                this.drawProtectionLine('invalid-protection', this.blocking.labels || [], this.blocking.datasets || []);
                 this.renderHeatmap();
                 this.renderKeywords();
                 this.renderCountries();

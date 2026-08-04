@@ -398,13 +398,16 @@ class PaidAdvertisingDashboardController extends Controller
             $period->addDay();
         }
 
+        $engine = $this->protectionEngineState($request, $domainIds);
+
         return response()->json([
             'labels' => $labels,
             'datasets' => [
                 ['name' => 'Blocked', 'values' => $blockSeries],
                 ['name' => 'Flagged', 'values' => $flagSeries],
             ],
-            'rules' => $this->protectionEngineRules($request, $domainIds),
+            'rules' => $engine['rules'],
+            'engine' => $engine,
         ]);
     }
 
@@ -1536,14 +1539,63 @@ class PaidAdvertisingDashboardController extends Controller
                 $riskLevel = 'Low';
             }
 
-            $actionRaw = data_get($row, 'action');
+            $actionRaw = strtolower(trim((string) data_get($row, 'action', '')));
+            $isAllowlisted = IpFraudEvaluator::isIpAllowListed($ip, implode("\n", $allowListIps));
+            $invalid = (int) ($row->invalid ?? 0);
+            if ($isAllowlisted) {
+                $actionLabel = 'Whitelisted';
+                $actionTone = 'allow';
+            } elseif (in_array($actionRaw, ['block', 'blocked', 'deny'], true) || ($actionRaw === '' && $invalid > 0 && $riskLevel === 'High')) {
+                $actionLabel = 'Blocked';
+                $actionTone = 'block';
+            } elseif (in_array($actionRaw, ['flag', 'flagged', 'monitor', 'monitored', 'challenge'], true) || $invalid > 0) {
+                $actionLabel = 'Monitored';
+                $actionTone = 'monitor';
+            } elseif ($actionRaw !== '') {
+                $actionLabel = ucfirst($actionRaw);
+                $actionTone = 'monitor';
+            } else {
+                $actionLabel = 'Allow';
+                $actionTone = 'allow';
+            }
+
+            $threatLabels = [];
+            if ((int) ($row->vpn_hits ?? 0) > 0) {
+                $threatLabels[] = 'VPN';
+            }
+            if ((int) ($row->data_center_hits ?? 0) > 0) {
+                $threatLabels[] = 'Datacenter';
+            }
+            if ((int) ($row->malicious_hits ?? 0) > 0) {
+                $threatLabels[] = 'Malicious';
+            }
+            $topThreat = strtolower(trim((string) ($row->top_threat ?? '')));
+            $topThreatMap = [
+                'vpn' => 'VPN',
+                'proxy' => 'Proxy',
+                'data_center' => 'Datacenter',
+                'datacenter' => 'Datacenter',
+                'malicious' => 'Malicious',
+                'abnormal_rate_limit' => 'Abnormal Rate',
+                'bot' => 'Bot Behavior',
+                'repeated' => 'Repeated',
+            ];
+            if ($topThreat !== '' && isset($topThreatMap[$topThreat])) {
+                $threatLabels[] = $topThreatMap[$topThreat];
+            } elseif ($topThreat !== '') {
+                $threatLabels[] = ucwords(str_replace('_', ' ', $topThreat));
+            }
+            if ($invalid >= 3 && ! in_array('Repeated', $threatLabels, true)) {
+                $threatLabels[] = 'Repeated';
+            }
+            $threatLabels = array_values(array_unique($threatLabels));
 
             return [
                 'ip' => $ip,
                 'country' => $row->country ?? null,
                 'total' => (int) ($row->total ?? 0),
-                'invalid' => (int) ($row->invalid ?? 0),
-                'valid' => max(0, (int) ($row->total ?? 0) - (int) ($row->invalid ?? 0)),
+                'invalid' => $invalid,
+                'valid' => max(0, (int) ($row->total ?? 0) - $invalid),
                 'first_seen' => UserTimezone::isoForUser(
                     ! empty($row->first_seen) ? Carbon::parse((string) $row->first_seen, 'UTC') : null,
                     $user
@@ -1555,20 +1607,21 @@ class PaidAdvertisingDashboardController extends Controller
                 'campaign' => $row->campaign ?? null,
                 'device' => $row->device ?? null,
                 'browser' => $row->browser ?? null,
-                'action' => ($actionRaw !== null && $actionRaw !== '')
-                    ? ucfirst((string) $actionRaw)
-                    : (((int) ($row->invalid ?? 0) > 0) ? 'Block' : 'Allow'),
+                'action' => $actionLabel,
+                'action_tone' => $actionTone,
                 'vpn_hits' => (int) ($row->vpn_hits ?? 0),
                 'data_center_hits' => (int) ($row->data_center_hits ?? 0),
                 'malicious_hits' => (int) ($row->malicious_hits ?? 0),
                 'top_threat' => $row->top_threat ?? null,
+                'threats' => $threatLabels,
+                'threats_label' => $threatLabels !== [] ? implode(', ', $threatLabels) : '—',
                 'risk_level' => $riskLevel,
                 'risk_score' => is_numeric($riskScore)
                     ? (((float) $riskScore) <= 1 ? (int) round(((float) $riskScore) * 100) : (int) round((float) $riskScore))
                     : null,
                 'isp' => $intel?->intel_isp ?? ($raw['isp'] ?? $raw['company'] ?? null),
                 'asn' => $raw['asn'] ?? null,
-                'is_allowlisted' => IpFraudEvaluator::isIpAllowListed($ip, implode("\n", $allowListIps)),
+                'is_allowlisted' => $isAllowlisted,
             ];
         })->values();
     }
@@ -2237,13 +2290,45 @@ class PaidAdvertisingDashboardController extends Controller
      * @param  \Illuminate\Support\Collection<int, int>  $domainIds
      * @return list<array{label: string, action: string, tone: string}>
      */
-    private function protectionEngineRules(Request $request, $domainIds): array
+    /**
+     * Protection Engine panel payload (detection rules + action lanes).
+     *
+     * @return array{
+     *     active: bool,
+     *     detection_rules: list<array{key: string, label: string, on: bool}>,
+     *     protection_actions: list<array{key: string, label: string, desc: string, active: bool, tone: string}>,
+     *     rules: list<array{label: string, action: string, tone: string}>
+     * }
+     */
+    private function protectionEngineState(Request $request, $domainIds): array
     {
+        $defaultDetection = [
+            ['key' => 'vpn', 'label' => 'VPN Detection', 'on' => true],
+            ['key' => 'proxy', 'label' => 'Proxy Detection', 'on' => true],
+            ['key' => 'datacenter', 'label' => 'Datacenter Detection', 'on' => true],
+            ['key' => 'repeated', 'label' => 'Repeated Click Detection', 'on' => true],
+            ['key' => 'bot', 'label' => 'Bot Detection', 'on' => true],
+            ['key' => 'abnormal', 'label' => 'Abnormal Behavior Detection', 'on' => true],
+        ];
+
+        $protectionActions = [
+            ['key' => 'monitor', 'label' => 'Monitor', 'desc' => 'Low Risk Traffic', 'active' => true, 'tone' => 'low'],
+            ['key' => 'challenge', 'label' => 'Challenge', 'desc' => 'Medium Risk Traffic', 'active' => true, 'tone' => 'medium'],
+            ['key' => 'block', 'label' => 'Block', 'desc' => 'High Risk Traffic', 'active' => true, 'tone' => 'high'],
+        ];
+
+        $legacyRules = [
+            ['label' => 'Bot traffic', 'action' => 'Monitor', 'tone' => 'monitor'],
+            ['label' => 'Malicious', 'action' => 'Monitor', 'tone' => 'monitor'],
+            ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
+        ];
+
         if (collect($domainIds)->isEmpty() || ! Schema::hasTable('domain_detection_settings')) {
             return [
-                ['label' => 'Bot traffic', 'action' => 'Monitor', 'tone' => 'monitor'],
-                ['label' => 'Malicious', 'action' => 'Monitor', 'tone' => 'monitor'],
-                ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
+                'active' => true,
+                'detection_rules' => $defaultDetection,
+                'protection_actions' => $protectionActions,
+                'rules' => $legacyRules,
             ];
         }
 
@@ -2256,19 +2341,55 @@ class PaidAdvertisingDashboardController extends Controller
         $settings = $query->get();
         if ($settings->isEmpty()) {
             return [
-                ['label' => 'Bot traffic', 'action' => 'Not configured', 'tone' => 'off'],
-                ['label' => 'Malicious', 'action' => 'Not configured', 'tone' => 'off'],
-                ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
+                'active' => false,
+                'detection_rules' => array_map(fn ($rule) => [...$rule, 'on' => false], $defaultDetection),
+                'protection_actions' => array_map(fn ($action) => [...$action, 'active' => false], $protectionActions),
+                'rules' => [
+                    ['label' => 'Bot traffic', 'action' => 'Not configured', 'tone' => 'off'],
+                    ['label' => 'Malicious', 'action' => 'Not configured', 'tone' => 'off'],
+                    ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
+                ],
             ];
         }
 
         $first = $settings->first();
-        $botAction = $this->normalizeProtectionAction((string) ($first->invalid_bot_action ?? 'monitor'));
-        $maliciousAction = $this->normalizeProtectionAction((string) ($first->invalid_malicious_action ?? 'block'));
+        $matrix = is_array($first->suspicious_matrix ?? null) ? $first->suspicious_matrix : [];
         $suspiciousOn = $settings->contains(fn ($row) => (bool) ($row->suspicious_enabled ?? false));
-        $controlMode = strtolower((string) ($first->control_mode ?? 'mixed'));
+        $botRaw = strtolower((string) ($first->invalid_bot_action ?? 'monitor'));
+        $maliciousRaw = strtolower((string) ($first->invalid_malicious_action ?? 'block'));
+        $botAction = $this->normalizeProtectionAction($botRaw);
+        $maliciousAction = $this->normalizeProtectionAction($maliciousRaw);
+        $frequencyOn = (bool) ($first->frequency_capping ?? false);
+        $matrixOn = function (string $key, string $default = 'block') use ($matrix, $suspiciousOn): bool {
+            if (! $suspiciousOn) {
+                return false;
+            }
+            $value = strtolower((string) ($matrix[$key] ?? $default));
 
-        $rules = [
+            return ! in_array($value, ['allow', 'off', 'disabled', ''], true);
+        };
+
+        $detectionRules = [
+            ['key' => 'vpn', 'label' => 'VPN Detection', 'on' => $matrixOn('vpn', 'allow')],
+            ['key' => 'proxy', 'label' => 'Proxy Detection', 'on' => $matrixOn('proxy', 'block')],
+            ['key' => 'datacenter', 'label' => 'Datacenter Detection', 'on' => $matrixOn('data_center', 'block')],
+            ['key' => 'repeated', 'label' => 'Repeated Click Detection', 'on' => $frequencyOn || $matrixOn('abnormal_rate_limit', 'block')],
+            ['key' => 'bot', 'label' => 'Bot Detection', 'on' => ! in_array($botRaw, ['allow', 'off', ''], true)],
+            ['key' => 'abnormal', 'label' => 'Abnormal Behavior Detection', 'on' => $matrixOn('abnormal_rate_limit', 'block') || ! in_array($maliciousRaw, ['allow', 'off', ''], true)],
+        ];
+
+        $hasChallenge = $suspiciousOn;
+        $hasBlock = in_array($botRaw, ['block', 'blocked', 'deny'], true)
+            || in_array($maliciousRaw, ['block', 'blocked', 'deny'], true)
+            || collect($matrix)->contains(fn ($v) => in_array(strtolower((string) $v), ['block', 'blocked', 'deny'], true));
+
+        $protectionActions = [
+            ['key' => 'monitor', 'label' => 'Monitor', 'desc' => 'Low Risk Traffic', 'active' => true, 'tone' => 'low'],
+            ['key' => 'challenge', 'label' => 'Challenge', 'desc' => 'Medium Risk Traffic', 'active' => $hasChallenge, 'tone' => 'medium'],
+            ['key' => 'block', 'label' => 'Block', 'desc' => 'High Risk Traffic', 'active' => $hasBlock, 'tone' => 'high'],
+        ];
+
+        $legacyRules = [
             ['label' => 'Bot traffic', 'action' => $botAction['label'], 'tone' => $botAction['tone']],
             ['label' => 'Malicious', 'action' => $maliciousAction['label'], 'tone' => $maliciousAction['tone']],
             [
@@ -2278,15 +2399,14 @@ class PaidAdvertisingDashboardController extends Controller
             ],
         ];
 
-        if ($controlMode !== '') {
-            $rules[] = [
-                'label' => 'Control mode',
-                'action' => ucwords(str_replace('_', ' ', $controlMode)),
-                'tone' => $controlMode === 'monitor' ? 'monitor' : ($controlMode === 'block' ? 'block' : 'challenge'),
-            ];
-        }
+        $anyOn = collect($detectionRules)->contains(fn ($rule) => (bool) ($rule['on'] ?? false));
 
-        return $rules;
+        return [
+            'active' => $anyOn || $hasBlock || $hasChallenge,
+            'detection_rules' => $detectionRules,
+            'protection_actions' => $protectionActions,
+            'rules' => $legacyRules,
+        ];
     }
 
     /**
