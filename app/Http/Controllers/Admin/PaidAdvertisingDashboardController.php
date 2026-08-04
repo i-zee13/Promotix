@@ -685,6 +685,21 @@ class PaidAdvertisingDashboardController extends Controller
                 ->get();
 
             $merged = $merged->merge($visitRows);
+
+            // Also pull keywords stored in Google click meta when utm_term was not captured.
+            if (Schema::hasColumn('visits', 'ad_click_meta')) {
+                $metaKeyword = "JSON_UNQUOTE(JSON_EXTRACT(ad_click_meta, '$.keyword'))";
+                $metaRows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
+                    ->whereNotNull('ad_click_meta')
+                    ->whereRaw("{$metaKeyword} IS NOT NULL AND {$metaKeyword} != ''")
+                    ->selectRaw("{$metaKeyword} as keyword, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
+                    ->groupByRaw($metaKeyword)
+                    ->orderByDesc('total')
+                    ->limit(40)
+                    ->get();
+
+                $merged = $merged->merge($metaRows);
+            }
         }
 
         if (Schema::hasTable('paid_marketing_clicks')
@@ -1014,7 +1029,7 @@ class PaidAdvertisingDashboardController extends Controller
                 'Total',
                 'Bot Detect',
                 'First Seen',
-                'Last Click',
+                'Evidence Time',
             ]);
 
             if ($domainIds->isEmpty()

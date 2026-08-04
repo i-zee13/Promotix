@@ -131,6 +131,62 @@
         border-radius: 999px;
         background: linear-gradient(90deg, #2a1248 0%, #6625F8 45%, #f59e0b 78%, #ef4444 100%);
     }
+    .paid-window-select {
+        -webkit-appearance: none;
+        appearance: none;
+        display: inline-block;
+        height: 32px;
+        min-height: 32px;
+        max-height: 32px;
+        box-sizing: border-box;
+        margin: 0;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+        background-color: #101010;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 12px;
+        padding: 0 28px 0 12px;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 30px;
+        color: #fff;
+        vertical-align: middle;
+    }
+    .paid-window-select:focus {
+        outline: none;
+        border-color: #9a1aff;
+        box-shadow: 0 0 0 1px rgba(154, 26, 255, 0.4);
+    }
+    .paid-keyword-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.88);
+    }
+    .paid-keyword-table th {
+        padding: 4px 6px 8px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.55);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        white-space: nowrap;
+    }
+    .paid-keyword-table td {
+        padding: 7px 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        vertical-align: middle;
+    }
+    .paid-keyword-table th:nth-child(2),
+    .paid-keyword-table td:nth-child(2),
+    .paid-keyword-table th:nth-child(3),
+    .paid-keyword-table td:nth-child(3),
+    .paid-keyword-table th:nth-child(4),
+    .paid-keyword-table td:nth-child(4) {
+        text-align: right;
+        white-space: nowrap;
+    }
     .paid-mid-row { align-items: start; }
     .paid-trends-card { align-self: start; height: fit-content; min-height: 0; }
     .paid-trends-wrap { line-height: 0; }
@@ -260,7 +316,7 @@
                         <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
                     </button>
                 </div>
-                <div class="mt-[10px] grid grid-cols-2 gap-x-[12px] gap-y-[10px]">
+                <div class="mt-[10px] grid grid-cols-2 gap-x-[12px] gap-y-[18px]">
                     <div>
                         <p class="paid-traffic-metrics__label">Total Google Ads Clicks</p>
                         <p class="paid-kpi-card__big" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
@@ -283,6 +339,13 @@
                             <span class="text-[11px] font-medium opacity-90">(<span x-text="invalidClickPct"></span>%)</span>
                         </p>
                     </div>
+                </div>
+                <div class="mt-[14px] flex items-end justify-between gap-[10px]">
+                    <div>
+                        <p class="paid-traffic-metrics__label">Cost Saved</p>
+                        <p class="text-[16px] font-semibold leading-none text-white">$<span x-text="Number(summary.cost_saved || 0).toFixed(2)"></span></p>
+                    </div>
+                    <p class="text-[9px] text-white/45" x-show="summary.avg_cpc">Avg CPC $<span x-text="Number(summary.avg_cpc || 0).toFixed(2)"></span></p>
                 </div>
                 <div class="mt-auto pt-[12px]">
                     <div class="mb-[4px] flex items-center justify-between text-[9px]">
@@ -419,7 +482,7 @@
                             </template>
                         </div>
                     </div>
-                    <select x-model="filters.window" @change="setWindow()" class="h-[30px] rounded-full border border-white/20 bg-[#101010] px-[12px] text-[11px] text-white focus:border-[#9a1aff] focus:ring-1 focus:ring-[#9a1aff]/40">
+                    <select x-model="filters.window" @change="setWindow()" class="paid-window-select">
                         <option value="weekly">This Week</option>
                         <option value="monthly">This Month</option>
                     </select>
@@ -433,7 +496,7 @@
             <section class="paid-panel-card flex min-h-0 flex-col p-[16px] sm:p-[18px]">
                 <div class="mb-[10px] flex items-center justify-between gap-[8px]">
                     <h2 class="text-[15px] font-semibold text-[#a9a9a9] sm:text-[16px]">Click Activity Heatmap</h2>
-                    <select x-model="filters.window" @change="setWindow()" class="h-[30px] rounded-full border border-white/20 bg-[#101010] px-[12px] text-[11px] text-white focus:border-[#9a1aff] focus:ring-1 focus:ring-[#9a1aff]/40">
+                    <select x-model="filters.window" @change="setWindow()" class="paid-window-select">
                         <option value="weekly">This Week</option>
                         <option value="monthly">This Month</option>
                     </select>
@@ -516,7 +579,7 @@
                     </div>
                 </div>
                 <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
-                    <table class="w-full min-w-[980px] table-fixed text-left text-[11px] text-[#a9a9a9]" :class="ipViewMode === 'expert' ? 'min-w-[1280px]' : 'min-w-[860px]'">
+                    <table class="w-full min-w-[980px] table-fixed text-left text-[11px] text-[#a9a9a9]" :class="ipViewMode === 'expert' ? 'min-w-[1360px]' : 'min-w-[1040px]'">
                         <thead class="sticky top-0 z-[1] bg-[#6400B2]">
                             <tr>
                                 <th class="w-[14%] px-[8px] py-[7px] font-normal">
@@ -539,8 +602,8 @@
                                 </th>
                                 <th class="w-[10%] px-[8px] py-[7px] font-normal">ISP</th>
                                 <th class="w-[8%] px-[8px] py-[7px] font-normal">Action</th>
-                                <th class="w-[8%] px-[8px] py-[7px] font-normal">
-                                    <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')"><span>Timestamp</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                <th class="w-[12%] px-[8px] py-[7px] font-normal">
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')" title="When invalid/paid evidence was last recorded for this IP"><span>Evidence Time</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                                 </th>
                                 <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Device</th>
                                 <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Browser</th>
@@ -567,7 +630,7 @@
                                     <td class="max-w-0 truncate px-[8px] py-[6px]" x-text="row.country || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px]" :title="row.isp || ''" x-text="row.isp || '—'"></td>
                                     <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.action || '—'"></td>
-                                    <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px]" x-text="dateLabel(row.last_seen)"></td>
+                                    <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px] text-white/85" :title="evidenceTimeTitle(row)" x-text="evidenceTimeLabel(row)"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="row.device || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px]" x-show="ipViewMode === 'expert'" x-text="row.browser || '—'"></td>
                                     <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="threatLabel(row.top_threat)"></td>
@@ -803,7 +866,7 @@ function paidAdvertisingFigma(config = {}) {
         reportingMode: config.reportingMode || 'profile',
         profileTimezone: config.profileTimezone || 'UTC',
         filters: { domain_id: '', google_ads_account_id: '', campaign: '', campaign_id: '', path: '', traffic_source: 'google_ads', window: 'weekly', from: '', to: '' },
-        trackingTemplate: '{lpurl}?gclid={gclid}&gbraid={gbraid}&wbraid={wbraid}&utm_source=google&utm_medium=cpc&utm_campaign={campaignid}',
+        trackingTemplate: '{lpurl}?gclid={gclid}&gbraid={gbraid}&wbraid={wbraid}&utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={keyword}&keyword={keyword}',
         summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [], rules: [] },
@@ -1107,6 +1170,20 @@ function paidAdvertisingFigma(config = {}) {
                 year: '2-digit',
             });
         },
+        evidenceTimeValue(row) {
+            return row?.last_seen || row?.first_seen || null;
+        },
+        evidenceTimeLabel(row) {
+            return this.formatDateTime(this.evidenceTimeValue(row));
+        },
+        evidenceTimeTitle(row) {
+            const last = row?.last_seen ? this.formatDateTime(row.last_seen) : null;
+            const first = row?.first_seen ? this.formatDateTime(row.first_seen) : null;
+            if (last && first && last !== first) return `Evidence: ${last} (first seen ${first})`;
+            if (last) return `Evidence: ${last}`;
+            if (first) return `Evidence: ${first}`;
+            return 'No evidence time';
+        },
         setWindow() {
             const today = new Date();
             const days = this.filters.window === 'monthly' ? 29 : 6;
@@ -1358,10 +1435,10 @@ function paidAdvertisingFigma(config = {}) {
                 this.campaigns = Array.isArray(campaigns) ? campaigns : (campaigns.campaigns || []);
                 this.untaggedDomains = Array.isArray(campaigns) ? [] : (campaigns.untagged_domains || []);
                 this.syncCampaignFilter();
-                this.keywords = keywords;
-                this.countries = countries;
-                this.ips = ips;
-                this.heatmap = heatmap;
+                this.keywords = Array.isArray(keywords) ? keywords : [];
+                this.countries = Array.isArray(countries) ? countries : [];
+                this.ips = Array.isArray(ips) ? ips : (ips?.data || []);
+                this.heatmap = heatmap && typeof heatmap === 'object' ? heatmap : { days: [], hours: [], matrix: [] };
                 this.lastReloadAt = Date.now();
                 this.$nextTick(() => this.render(false));
             } finally {
@@ -1422,14 +1499,14 @@ function paidAdvertisingFigma(config = {}) {
             if (!value) return '—';
             const date = new Date(value);
             if (Number.isNaN(date.getTime())) return String(value);
-            return date.toLocaleString('en-GB', {
+            // Client format: Jul 31, 02:42 PM
+            return date.toLocaleString('en-US', {
                 timeZone: this.userTimezone,
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit',
+                hour12: true,
             });
         },
         async copyText(value) {
@@ -1675,7 +1752,20 @@ function paidAdvertisingFigma(config = {}) {
 
             ctx.fillStyle = '#D9D9D9';
             ctx.font = '10px Inter, sans-serif';
-            labels.forEach((l, i) => ctx.fillText(String(l).slice(0, 3), left + i * xStep - 8, h - 8));
+            const labelCount = labels.length;
+            const useSingleLetter = labelCount > 10;
+            // When many days are selected, only show first letter (M, T, W…).
+            // Also thin labels further if the range is very long.
+            const drawEvery = labelCount > 21 ? Math.ceil(labelCount / 14) : 1;
+            labels.forEach((l, i) => {
+                const isEdge = i === 0 || i === labelCount - 1;
+                if (!isEdge && i % drawEvery !== 0) return;
+                const raw = String(l || '');
+                const text = useSingleLetter ? raw.charAt(0).toUpperCase() : raw.slice(0, 3);
+                const x = left + i * xStep;
+                const tw = ctx.measureText(text).width;
+                ctx.fillText(text, x - tw / 2, h - 8);
+            });
         },
         drawProtectionLine(id, labels, datasets) {
             const c = this.canvas(id);
@@ -1766,9 +1856,15 @@ function paidAdvertisingFigma(config = {}) {
         renderKeywords() {
             const el = document.getElementById('keyword-list');
             if (!el) return;
-            const rows = (this.keywords || []).slice(0, 6);
+            const rows = (Array.isArray(this.keywords) ? this.keywords : []).slice(0, 6);
             if (!rows.length) {
-                el.innerHTML = '<p class="text-[10px] text-white/70">No keyword data.</p>';
+                el.innerHTML = `
+                    <p class="text-[10px] text-white/70">No keyword data yet.</p>
+                    <p class="mt-[6px] text-[9px] leading-relaxed text-white/45">
+                        Add <code class="text-white/70">keyword={keyword}</code> / <code class="text-white/70">utm_term={keyword}</code>
+                        to your Google Ads final URL tracking template, then new clicks will appear here.
+                    </p>
+                `;
                 return;
             }
             el.innerHTML = `
@@ -1786,8 +1882,9 @@ function paidAdvertisingFigma(config = {}) {
                             const pct = row.invalid_pct != null ? row.invalid_pct : (row.risk != null ? row.risk : 0);
                             const level = pct >= 40 ? 'High' : pct >= 20 ? 'Medium' : 'Low';
                             const cls = level === 'High' ? 'is-high' : level === 'Medium' ? 'is-medium' : 'is-low';
+                            const name = String(row.keyword || '—').replace(/</g, '&lt;').replace(/"/g, '&quot;');
                             return `<tr>
-                                <td class="truncate" title="${String(row.keyword || '').replace(/"/g, '&quot;')}">${row.keyword || '—'}</td>
+                                <td class="truncate" title="${name}">${name}</td>
                                 <td>${this.fmt(row.total)}</td>
                                 <td>${pct}%</td>
                                 <td><span class="paid-risk-badge ${cls}">${level}</span></td>
