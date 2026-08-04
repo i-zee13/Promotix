@@ -270,6 +270,12 @@
                 background: #f0ecf5;
                 color: #7a7388;
             }
+            html.light-mode .figma-pac-card-btn:hover { background: rgba(100, 0, 178, 0.06); }
+
+            .detection-editing-line { color: rgba(255, 255, 255, 0.45); }
+            .detection-editing-line span { color: rgba(255, 255, 255, 0.85); }
+            html.light-mode .detection-editing-line { color: #6b6578; }
+            html.light-mode .detection-editing-line span { color: #2d2d3a; }
 
             /* Detection Engine Modules */
             .figma-dem { margin-bottom: 22px; }
@@ -294,40 +300,43 @@
             .figma-dem-card {
                 min-width: 0;
                 border-radius: 12px;
-                border: 1px solid rgba(255,255,255,.12);
-                background: rgba(18,18,18,.92);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                background: #6400B2;
                 padding: 14px;
+                color: #fff;
             }
             .figma-dem-card-top { display: flex; gap: 10px; margin-bottom: 12px; }
             .figma-dem-card-icon {
                 width: 36px; height: 36px; flex-shrink: 0;
                 display: flex; align-items: center; justify-content: center;
-                border-radius: 9px; background: #6400B2; color: #fff;
+                border-radius: 9px; background: rgba(255,255,255,.18); color: #fff;
             }
             .figma-dem-card-icon svg { width: 18px; height: 18px; }
-            .figma-dem-card-heading { flex: 1; min-width: 0; }
-            .figma-dem-card-title { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #fff; line-height: 1.25; }
+            .figma-dem-card-heading { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+            .figma-dem-card-title { margin: 0; font-size: 13px; font-weight: 600; color: #fff; line-height: 1.25; }
             .figma-dem-enabled {
                 display: inline-flex; align-items: center; gap: 5px;
                 border-radius: 999px; padding: 3px 8px; font-size: 9px; font-weight: 600;
             }
-            .figma-dem-enabled.is-on { background: rgba(52,199,89,.18); color: #34c759; }
+            .figma-dem-enabled.is-on { background: rgba(255,255,255,.2); color: #fff; }
             .figma-dem-enabled.is-on::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #34c759; }
-            .figma-dem-enabled.is-off { background: rgba(255,255,255,.08); color: rgba(255,255,255,.45); }
+            .figma-dem-enabled.is-off { background: rgba(0,0,0,.2); color: rgba(255,255,255,.65); }
             .figma-dem-card-meta { display: flex; flex-direction: column; gap: 8px; }
             .figma-dem-meta-row {
                 display: flex; align-items: center; justify-content: space-between; gap: 8px;
-                font-size: 11px; color: rgba(255,255,255,.5);
+                font-size: 11px; color: rgba(255,255,255,.7);
             }
             .figma-dem-meta-row strong { color: #fff; font-weight: 600; font-size: 12px; }
             .figma-dem-action-select {
                 max-width: 110px; height: 26px; border-radius: 6px;
-                border: 1px solid rgba(255,255,255,.2); background: #101010;
+                border: 1px solid rgba(255,255,255,.35); background: #6400B2;
                 color: #fff; font-size: 11px; padding: 0 6px;
             }
-            .figma-dem-risk--high { color: #ff5050 !important; }
-            .figma-dem-risk--medium { color: #ffb020 !important; }
-            .figma-dem-risk--low { color: #34c759 !important; }
+            .figma-dem-action-select option { background: #6400B2; color: #fff; }
+            .figma-dem-card .figma-toggle-label { color: #fff; }
+            .figma-dem-risk--high { color: #ffd0d0 !important; }
+            .figma-dem-risk--medium { color: #ffe4a8 !important; }
+            .figma-dem-risk--low { color: #b8f5c8 !important; }
 
             /* Block IP + Google Exclusion row */
             .figma-bip-gaem {
@@ -370,9 +379,11 @@
             .figma-bip-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
             .figma-bip-field span { font-size: 10px; color: rgba(255,255,255,.5); }
             .figma-bip-field input, .figma-bip-field select {
-                height: 34px; border-radius: 8px; border: 1px solid rgba(255,255,255,.18);
-                background: #101010; color: #fff; padding: 0 10px; font-size: 11px;
+                height: 34px; border-radius: 8px; border: 1px solid rgba(154, 26, 255, 0.55);
+                background: #6400B2; color: #fff; padding: 0 10px; font-size: 11px;
             }
+            .figma-bip-field input::placeholder { color: rgba(255,255,255,.65); }
+            .figma-bip-field select option { background: #6400B2; color: #fff; }
             .figma-bip-add-btn, .figma-gaem-push-btn {
                 height: 34px; border-radius: 8px; border: 0; background: #6400B2;
                 color: #fff; font-size: 11px; font-weight: 600; padding: 0 14px; cursor: pointer;
@@ -402,9 +413,10 @@
             .figma-gaem-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
             .figma-gaem-ip-input {
                 flex: 1 1 160px; height: 34px; border-radius: 8px;
-                border: 1px solid rgba(255,255,255,.18); background: #101010;
+                border: 1px solid rgba(154, 26, 255, 0.55); background: #6400B2;
                 color: #fff; padding: 0 10px; font-size: 11px;
             }
+            .figma-gaem-ip-input::placeholder { color: rgba(255,255,255,.65); }
             .figma-gaem-bulk-box { margin-bottom: 12px; }
             .figma-gaem-bulk-hint { margin: 0 0 6px; font-size: 10px; color: rgba(255,255,255,.45); }
             .figma-gaem-status {
@@ -424,21 +436,27 @@
 
             html.light-mode .figma-dem-title,
             html.light-mode .figma-bip-title,
-            html.light-mode .figma-gaem-title,
+            html.light-mode .figma-gaem-title { color: #2d2d3a; }
             html.light-mode .figma-dem-card-title,
-            html.light-mode .figma-dem-meta-row strong { color: #2d2d3a; }
+            html.light-mode .figma-dem-meta-row strong { color: #fff; }
             html.light-mode .figma-dem-lead,
             html.light-mode .figma-bip-lead,
-            html.light-mode .figma-gaem-lead,
-            html.light-mode .figma-dem-meta-row { color: #6b6578; }
-            html.light-mode .figma-dem-card,
-            html.light-mode .figma-bip,
+            html.light-mode .figma-gaem-lead { color: #6b6578; }
+            html.light-mode .figma-dem-meta-row { color: rgba(255,255,255,.75); }
+            html.light-mode .figma-dem-card {
+                background: #6400B2;
+                border-color: rgba(100, 0, 178, 0.35);
+            }
+            html.light-mode .figma-bip {
+                background: #f7f5fa;
+                border-color: #d4c4e8;
+            }
             html.light-mode .figma-gaem { background: #fff; border-color: #e4dceb; }
             html.light-mode .figma-bip-field input,
             html.light-mode .figma-bip-field select,
             html.light-mode .figma-gaem-ip-input,
             html.light-mode .figma-dem-action-select {
-                background: #f7f5fa; color: #2d2d3a; border-color: #d4c4e8;
+                background: #6400B2; color: #fff; border-color: rgba(154, 26, 255, 0.55);
             }
             html.light-mode .figma-bip-table th,
             html.light-mode .figma-gaem-table th { background: #f7f5fa; color: #6b6578; }
@@ -447,7 +465,84 @@
             html.light-mode .figma-bip-upload,
             html.light-mode .figma-gaem-bulk,
             html.light-mode .figma-gaem-ghost-btn,
-            html.light-mode .figma-gaem-row-btn { color: #2d2d3a; border-color: #c9bdd9; }
+            html.light-mode .figma-gaem-row-btn { color: #2d2d3a; border-color: #c9bdd9; background: #fff; }
+            html.light-mode .figma-dem-enabled.is-off {
+                background: rgba(0,0,0,.18);
+                color: rgba(255,255,255,.7);
+            }
+            html.light-mode .figma-bip-empty { color: #8a8399 !important; }
+            html.light-mode .figma-bip-view-all { color: #6400B2; }
+            html.light-mode .figma-bip-table-wrap,
+            html.light-mode .figma-gaem-table-wrap { border-color: #e4dceb; }
+            html.light-mode .figma-detection-advanced-input,
+            html.light-mode .figma-textarea {
+                background: #f7f5fa !important;
+                color: #2d2d3a !important;
+                border-color: #d4c4e8 !important;
+            }
+            html.light-mode .figma-detection-geo-rule-row {
+                color: #2d2d3a;
+            }
+            html.light-mode .figma-detection-geo-empty {
+                color: #8a8399;
+            }
+            html.light-mode .figma-ads-more .text-\[\#a9a9a9\] {
+                color: #6b6578 !important;
+            }
+
+            /* Lite Block IP panel (always light surface) */
+            .figma-bip {
+                background: #f7f5fa !important;
+                border-color: #d4c4e8 !important;
+            }
+            .figma-bip .figma-bip-title { color: #2d2d3a !important; }
+            .figma-bip .figma-bip-lead { color: #6b6578 !important; }
+            .figma-bip .figma-bip-upload {
+                border-color: #c9bdd9 !important;
+                color: #2d2d3a !important;
+                background: #fff !important;
+            }
+            .figma-bip .figma-bip-field span { color: #6b6578 !important; }
+            .figma-bip .figma-bip-table-wrap {
+                border-color: #d4c4e8 !important;
+                background: #fff;
+            }
+            .figma-bip .figma-bip-table { color: #2d2d3a !important; }
+            .figma-bip .figma-bip-table th {
+                background: #efeaf6 !important;
+                color: #6b6578 !important;
+            }
+            .figma-bip .figma-bip-table td { border-top-color: #ece7f2 !important; }
+            .figma-bip .figma-bip-empty { color: #8a8399 !important; }
+            .figma-bip .figma-bip-view-all { color: #6400B2 !important; }
+
+            .figma-rule-editors-geo {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            @media (min-width: 900px) {
+                .figma-rule-editors-geo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            }
+
+            /* Purple country / select controls on this page */
+            .figma-rule-editors .figma-geo-combobox-trigger,
+            .figma-ads-limits select,
+            .figma-ads-pill:not(.is-active) {
+                background: #6400B2 !important;
+                color: #fff !important;
+                border-color: rgba(154, 26, 255, 0.65) !important;
+            }
+            .figma-rule-editors .figma-geo-combobox-trigger:hover:not(:disabled) {
+                border-color: #9a1aff !important;
+            }
+            .figma-rule-editors .figma-geo-combobox-label { color: rgba(255,255,255,.75); }
+            html.light-mode .figma-rule-editors .figma-geo-combobox-label { color: #6b6578; }
+            html.light-mode .figma-rule-editors .figma-geo-combobox-trigger {
+                background: #6400B2 !important;
+                color: #fff !important;
+            }
+            .figma-ads-limits select option { background: #6400B2; color: #fff; }
 
             /* Advanced Detection Settings */
             .figma-ads { margin-top: 18px; margin-bottom: 18px; }
@@ -634,7 +729,7 @@
             <div class="rounded-[10px] border border-[#6400B2] p-[28px] text-center text-[#a9a9a9]">No domain found. Add a domain first.</div>
         @else
             @if ($domain)
-                <p class="mb-[14px] text-[12px] text-white/45">Editing settings for <span class="font-semibold text-white/80">#{{ $domain->id }} · {{ $domain->hostname }}</span></p>
+                <p class="detection-editing-line mb-[14px] text-[12px]">Editing settings for <span class="font-semibold">#{{ $domain->id }} · {{ $domain->hostname }}</span></p>
             @endif
 
             @if ($domain && $settings)
@@ -953,7 +1048,19 @@
                                     }
                                     $modRisk = $riskLabel($modAction);
                                 @endphp
-                                <article class="figma-dem-card">
+                                <article
+                                    class="figma-dem-card"
+                                    @if (!empty($mod['field']))
+                                        x-data="{
+                                            action: @js($modAction),
+                                            get enabled() { return this.action !== 'allow'; },
+                                            setEnabled(on) {
+                                                if (!on) this.action = 'allow';
+                                                else if (this.action === 'allow') this.action = 'block';
+                                            }
+                                        }"
+                                    @endif
+                                >
                                     <div class="figma-dem-card-top">
                                         <div class="figma-dem-card-icon" aria-hidden="true">
                                             @if (($mod['icon'] ?? '') === 'vpn')
@@ -974,10 +1081,13 @@
                                             <h3 class="figma-dem-card-title">{{ $mod['title'] }}</h3>
                                             @if (!empty($mod['toggle']))
                                                 <x-figma-toggle :name="$mod['toggle']" value="1" :checked="$settings->{$mod['toggle']}" size="sm" label-on="On" label-off="Off" />
-                                            @elseif (($mod['key'] ?? '') === 'suspicious_behavior')
-                                                <span class="figma-dem-enabled {{ $modAction !== 'allow' ? 'is-on' : 'is-off' }}">{{ $modAction !== 'allow' ? 'Enabled' : 'Off' }}</span>
-                                            @else
-                                                <span class="figma-dem-enabled {{ ($settings->suspicious_enabled && $modAction !== 'allow') ? 'is-on' : 'is-off' }}">{{ ($settings->suspicious_enabled && $modAction !== 'allow') ? 'Enabled' : 'Off' }}</span>
+                                            @elseif (!empty($mod['field']))
+                                                <label class="figma-toggle figma-toggle--sm" title="Enable module">
+                                                    <input type="checkbox" class="figma-toggle-input" :checked="enabled" @change="setEnabled($event.target.checked)">
+                                                    <span class="figma-toggle-track pointer-events-none" aria-hidden="true"><span class="figma-toggle-thumb"></span></span>
+                                                    <span class="figma-toggle-label figma-toggle-label--on">On</span>
+                                                    <span class="figma-toggle-label figma-toggle-label--off">Off</span>
+                                                </label>
                                             @endif
                                         </div>
                                     </div>
@@ -989,10 +1099,10 @@
                                         <div class="figma-dem-meta-row">
                                             <span>Action:</span>
                                             @if (!empty($mod['field']))
-                                                <select name="{{ $mod['field'] }}" class="figma-dem-action-select" aria-label="{{ $mod['title'] }} action">
-                                                    <option value="allow" @selected($modAction === 'allow')>Allow</option>
-                                                    <option value="flag" @selected($modAction === 'flag')>Monitor</option>
-                                                    <option value="block" @selected($modAction === 'block')>Challenge</option>
+                                                <select name="{{ $mod['field'] }}" x-model="action" class="figma-dem-action-select" aria-label="{{ $mod['title'] }} action">
+                                                    <option value="allow">Allow</option>
+                                                    <option value="flag">Monitor</option>
+                                                    <option value="block">Challenge</option>
                                                 </select>
                                             @else
                                                 <strong>{{ $actionLabel($modAction) }}</strong>
@@ -1000,7 +1110,19 @@
                                         </div>
                                         <div class="figma-dem-meta-row">
                                             <span>Risk:</span>
-                                            <strong class="figma-dem-risk figma-dem-risk--{{ strtolower($modRisk) }}">{{ $modRisk }}</strong>
+                                            @if (!empty($mod['field']))
+                                                <strong
+                                                    class="figma-dem-risk"
+                                                    :class="{
+                                                        'figma-dem-risk--high': action === 'block',
+                                                        'figma-dem-risk--medium': action === 'flag',
+                                                        'figma-dem-risk--low': action === 'allow'
+                                                    }"
+                                                    x-text="action === 'block' ? 'High' : (action === 'flag' ? 'Medium' : 'Low')"
+                                                ></strong>
+                                            @else
+                                                <strong class="figma-dem-risk figma-dem-risk--{{ strtolower($modRisk) }}">{{ $modRisk }}</strong>
+                                            @endif
                                         </div>
                                     </div>
                                 </article>
@@ -1217,52 +1339,54 @@
                         @endforeach
                     </div>
 
-                    <div class="figma-rule-editors mb-[18px] space-y-[12px]">
-                        <div id="detection-panel-geo-allow" class="figma-rule-editor" x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
-                            <h3 class="figma-rule-editor-title">Geo Targeting — Allowed Countries</h3>
-                            <input type="hidden" name="out_of_geo_audience" :value="jsonValue">
-                            <div class="figma-detection-card-inset space-y-[8px]">
-                                <div class="flex flex-wrap items-end gap-[8px]">
-                                    @include('paid-marketing.partials.geo-audience-comboboxes')
-                                    <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
-                                </div>
-                                <template x-if="rules.length">
-                                    <div class="space-y-[4px]">
-                                        <template x-for="(rule, idx) in rules" :key="idx">
-                                            <div class="figma-detection-geo-rule-row">
-                                                <span x-text="ruleLabel(rule)"></span>
-                                                <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
-                                            </div>
-                                        </template>
+                    <div class="figma-rule-editors mb-[18px]">
+                        <div class="figma-rule-editors-geo">
+                            <div id="detection-panel-geo-allow" class="figma-rule-editor" x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
+                                <h3 class="figma-rule-editor-title">Geo Targeting — Allowed Countries</h3>
+                                <input type="hidden" name="out_of_geo_audience" :value="jsonValue">
+                                <div class="figma-detection-card-inset space-y-[8px]">
+                                    <div class="flex flex-wrap items-end gap-[8px]">
+                                        @include('paid-marketing.partials.geo-audience-comboboxes')
+                                        <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
                                     </div>
-                                </template>
-                                <p x-show="!rules.length" class="figma-detection-geo-empty">No audience locations added yet.</p>
+                                    <template x-if="rules.length">
+                                        <div class="space-y-[4px]">
+                                            <template x-for="(rule, idx) in rules" :key="idx">
+                                                <div class="figma-detection-geo-rule-row">
+                                                    <span x-text="ruleLabel(rule)"></span>
+                                                    <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <p x-show="!rules.length" class="figma-detection-geo-empty">No audience locations added yet.</p>
+                                </div>
+                            </div>
+
+                            <div id="detection-panel-geo-block" class="figma-rule-editor" x-data="geoAudiencePicker({{ json_encode(['rules' => $googleGeoBlockRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
+                                <h3 class="figma-rule-editor-title">Blocked Countries (Google Ads)</h3>
+                                <input type="hidden" name="google_geo_block_audience" :value="jsonValue">
+                                <div class="figma-detection-card-inset space-y-[8px]">
+                                    <div class="flex flex-wrap items-end gap-[8px]">
+                                        @include('paid-marketing.partials.geo-audience-comboboxes')
+                                        <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
+                                    </div>
+                                    <template x-if="rules.length">
+                                        <div class="space-y-[4px]">
+                                            <template x-for="(rule, idx) in rules" :key="idx">
+                                                <div class="figma-detection-geo-rule-row">
+                                                    <span x-text="ruleLabel(rule)"></span>
+                                                    <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <p x-show="!rules.length" class="figma-detection-geo-empty">No blocked locations added yet.</p>
+                                </div>
                             </div>
                         </div>
 
-                        <div id="detection-panel-geo-block" class="figma-rule-editor" x-data="geoAudiencePicker({{ json_encode(['rules' => $googleGeoBlockRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
-                            <h3 class="figma-rule-editor-title">Blocked Countries (Google Ads)</h3>
-                            <input type="hidden" name="google_geo_block_audience" :value="jsonValue">
-                            <div class="figma-detection-card-inset space-y-[8px]">
-                                <div class="flex flex-wrap items-end gap-[8px]">
-                                    @include('paid-marketing.partials.geo-audience-comboboxes')
-                                    <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
-                                </div>
-                                <template x-if="rules.length">
-                                    <div class="space-y-[4px]">
-                                        <template x-for="(rule, idx) in rules" :key="idx">
-                                            <div class="figma-detection-geo-rule-row">
-                                                <span x-text="ruleLabel(rule)"></span>
-                                                <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                                <p x-show="!rules.length" class="figma-detection-geo-empty">No blocked locations added yet.</p>
-                            </div>
-                        </div>
-
-                        <div id="detection-panel-ip-allow" class="figma-rule-editor" x-data="ipListFileUpload('allow_list_ips')">
+                        <div id="detection-panel-ip-allow" class="figma-rule-editor mt-[12px]" x-data="ipListFileUpload('allow_list_ips')">
                             <div class="flex flex-wrap items-center justify-between gap-[8px] mb-[8px]">
                                 <h3 class="figma-rule-editor-title !mb-0">Whitelist IP Addresses</h3>
                                 <label class="cursor-pointer rounded-[6px] border border-white/30 px-[10px] py-[6px] text-[10px] text-white hover:bg-white/10">
@@ -1273,43 +1397,6 @@
                             <textarea id="allow_list_ips" name="allow_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="figma-textarea text-[11px]">{{ $settings->allow_list_ips }}</textarea>
                         </div>
                     </div>
-
-                    @if (!empty($countryAudits) && $countryAudits->isNotEmpty())
-                        <div class="figma-detection-section mb-[18px]">
-                            <h2 class="figma-detection-section-title">Country rule audit log</h2>
-                            <div class="figma-detection-card overflow-x-auto">
-                                <table class="w-full text-left text-[11px] text-white/80">
-                                    <thead>
-                                        <tr class="border-b border-white/15 text-white/50">
-                                            <th class="py-[6px] pr-[8px] font-medium">When</th>
-                                            <th class="py-[6px] pr-[8px] font-medium">Admin</th>
-                                            <th class="py-[6px] pr-[8px] font-medium">Action</th>
-                                            <th class="py-[6px] pr-[8px] font-medium">Field</th>
-                                            <th class="py-[6px] pr-[8px] font-medium">Scope</th>
-                                            <th class="py-[6px] font-medium">Change</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($countryAudits as $audit)
-                                            <tr class="border-b border-white/10 align-top">
-                                                <td class="py-[6px] pr-[8px] whitespace-nowrap">{{ optional($audit->created_at)?->timezone(config('app.timezone'))->format('Y-m-d H:i') }}</td>
-                                                <td class="py-[6px] pr-[8px]">{{ $audit->user?->email ?? $audit->user?->name ?? ('#'.$audit->user_id) }}</td>
-                                                <td class="py-[6px] pr-[8px]">{{ $audit->action }}</td>
-                                                <td class="py-[6px] pr-[8px]">{{ $audit->field }}</td>
-                                                <td class="py-[6px] pr-[8px]">{{ $audit->scope }}</td>
-                                                <td class="py-[6px] max-w-[280px] break-all text-white/60">
-                                                    <span class="text-white/40">from</span>
-                                                    {{ \Illuminate\Support\Str::limit(json_encode($audit->previous_value['value'] ?? null), 80) }}
-                                                    <span class="text-white/40">→</span>
-                                                    {{ \Illuminate\Support\Str::limit(json_encode($audit->new_value['value'] ?? null), 80) }}
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    @endif
 
                     @php
                         $profileKey = $settings->detection_profile ?? 'standard';

@@ -4,35 +4,263 @@
 
 @section('content')
 <div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma()" x-init="init()">
-    <section class="mx-auto w-full px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
-        <div class="mb-[23px] flex flex-col gap-[10px] lg:flex-row lg:items-center lg:justify-between">
-            <div class="flex flex-wrap items-center gap-[8px]">
+    <section class="mx-auto w-full min-w-0 px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
+        <style>
+            .bp-adv-page-head {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                margin-bottom: 18px;
+                min-width: 0;
+            }
+            @media (min-width: 1100px) {
+                .bp-adv-page-head {
+                    flex-direction: row;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 14px;
+                }
+            }
+            .figma-filter-bar--bp-adv.ov-filter-bar,
+            .figma-filter-bar--bp-adv {
+                width: fit-content !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                margin-left: auto !important;
+                align-self: flex-end;
+                flex: 0 0 auto !important;
+                display: inline-flex !important;
+                flex-wrap: nowrap !important;
+                align-items: stretch;
+                gap: 0 !important;
+                overflow: visible;
+                box-sizing: border-box;
+            }
+            .figma-filter-bar--bp-adv > label {
+                flex: 0 0 auto !important;
+                margin: 0 !important;
+                padding-left: 6px !important;
+                padding-right: 6px !important;
+            }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-domain { width: 128px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-traffic { width: 108px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-account { width: 128px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-campaign { width: 118px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-path { width: 112px !important; }
+            .figma-filter-bar--bp-adv .figma-filter-calendar-host {
+                display: flex !important;
+                flex: 0 0 auto !important;
+                align-items: center;
+                justify-content: center;
+                align-self: stretch;
+                border-left: 1px solid rgba(0, 0, 0, 0.2);
+                padding: 6px 8px !important;
+                margin: 0 !important;
+            }
+            @media (max-width: 900px) {
+                .figma-filter-bar--bp-adv {
+                    width: 100% !important;
+                    align-self: stretch;
+                    margin-left: 0 !important;
+                    flex-wrap: wrap !important;
+                    display: flex !important;
+                }
+                .figma-filter-bar--bp-adv > label {
+                    flex: 1 1 130px !important;
+                    width: auto !important;
+                }
+                .figma-filter-bar--bp-adv .figma-filter-calendar-host {
+                    flex: 1 1 100% !important;
+                    justify-content: flex-start;
+                    border-left: 0;
+                    border-top: 1px solid rgba(0, 0, 0, 0.12);
+                }
+            }
+            .bp-adv-kpi-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                margin-top: 22px;
+                margin-bottom: 8px;
+            }
+            @media (min-width: 768px) {
+                .bp-adv-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            }
+            @media (min-width: 1200px) {
+                .bp-adv-kpi-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+            }
+            .bp-adv-kpi-card {
+                display: flex;
+                flex-direction: column;
+                min-height: 148px;
+                border-radius: 10px;
+                border: 1px solid rgba(103, 6, 179, 0.55);
+                background: #111111;
+                padding: 14px 14px 12px;
+            }
+            .bp-adv-kpi-card__icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                border-radius: 7px;
+                margin-bottom: 10px;
+            }
+            .bp-adv-kpi-card__icon.is-purple { background: rgba(100, 0, 178, 0.28); color: #c4b5fd; }
+            .bp-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+            .bp-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.18); color: #fda4af; }
+            .bp-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+            .bp-adv-kpi-card__label {
+                font-size: 11px;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.55);
+                line-height: 1.25;
+                margin-bottom: 8px;
+            }
+            .bp-adv-kpi-card__value {
+                font-size: 26px;
+                font-weight: 700;
+                color: #fff;
+                letter-spacing: -0.02em;
+                line-height: 1.1;
+            }
+            .bp-adv-kpi-card__sub {
+                margin-top: auto;
+                padding-top: 10px;
+                font-size: 10px;
+                color: rgba(255, 255, 255, 0.42);
+            }
+            .bp-adv-filters-menu {
+                position: absolute;
+                top: calc(100% + 6px);
+                left: 0;
+                z-index: 50;
+                width: min(calc(100vw - 32px), 420px);
+                max-height: 320px;
+                overflow: auto;
+                border: 1px solid rgba(255, 255, 255, 0.25);
+                border-radius: 8px;
+                background: #0f0e0e;
+                padding: 12px;
+                box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+            }
+            html.light-mode .bp-adv-kpi-card {
+                background: #fff;
+                border-color: #d4c4e8;
+                box-shadow: 0 1px 0 rgba(100, 0, 178, 0.06);
+            }
+            html.light-mode .bp-adv-kpi-card__label,
+            html.light-mode .bp-adv-kpi-card__sub { color: #6b6280; }
+            html.light-mode .bp-adv-kpi-card__value { color: #1a1a1a; }
+            html.light-mode .bp-adv-kpi-card__icon.is-purple { background: rgba(100, 0, 178, 0.12); color: #6400B2; }
+            html.light-mode .bp-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.14); color: #15803d; }
+            html.light-mode .bp-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.12); color: #be123c; }
+            html.light-mode .bp-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+            html.light-mode .bp-adv-filters-menu {
+                background: #fff;
+                border-color: #d4c4e8;
+            }
+            html.light-mode .bp-adv-filters-menu .text-white,
+            html.light-mode .bp-adv-filters-menu label { color: #2d2d3a !important; }
+            html.light-mode .bp-adv-filters-menu .text-white\/70,
+            html.light-mode .bp-adv-filters-menu span.text-white\/70 { color: #6b6578 !important; }
+            html.light-mode .bp-adv-filters-menu input,
+            html.light-mode .bp-adv-filters-menu select {
+                background: #f7f5fa !important;
+                color: #2d2d3a !important;
+                border-color: #d4c4e8 !important;
+            }
+        </style>
+
+        <div class="bp-adv-page-head">
+            <div class="flex flex-wrap items-center gap-[8px] shrink-0">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Bot Protection</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
             </div>
 
-            <div class="figma-filter-bar flex h-[54px] w-full max-w-[370px] overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black">
-                <label class="flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domains</span>
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-adv ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                <label class="bp-adv-f-domain flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="reload(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All domains</option>
+                            <option value="">All Domains</option>
                             @foreach ($domains as $d)
                                 <option value="{{ $d->id }}">{{ $d->hostname }}</option>
                             @endforeach
                         </select>
                     </div>
                 </label>
-                <label class="flex w-[178px] shrink-0 flex-col justify-center border-r border-black/20 px-[12px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Filter by path</span>
+                <label class="bp-adv-f-traffic flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.traffic_source" @change="reload(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="google_ads">Google Ads</option>
+                            <option value="meta_ads" disabled>Meta Ads</option>
+                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                        </select>
+                    </div>
+                </label>
+                <label class="bp-adv-f-account flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.google_ads_account_id" @change="reload(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All Accounts</option>
+                            @foreach (($googleAdsAccounts ?? []) as $account)
+                                <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </label>
+                <label class="bp-adv-f-campaign flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.campaign" @change="reload(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All Campaigns</option>
+                        </select>
+                    </div>
+                </label>
+                <label class="bp-adv-f-path flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input x-model="filters.path" @input="scheduleReload(true)" placeholder="Filter by path" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                        <input x-model="filters.path" @input="scheduleReload(true)" placeholder="All Pages" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                     </div>
                 </label>
                 @include('partials.figma-filter-date-fields')
             </div>
+        </div>
+
+        <div class="bp-adv-kpi-grid">
+            <template x-for="card in statCards" :key="card.key">
+                <article class="bp-adv-kpi-card">
+                    <span class="bp-adv-kpi-card__icon" :class="'is-' + (card.tone || 'purple')" aria-hidden="true">
+                        <template x-if="card.key === 'blocked'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 3v5c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V6l8-3z"/></svg>
+                        </template>
+                        <template x-if="card.key === 'invalid_traffic'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                        </template>
+                        <template x-if="card.key === 'paid_traffic'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                        </template>
+                        <template x-if="card.key === 'bot_detection'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        </template>
+                        <template x-if="card.key === 'country'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </template>
+                        <template x-if="card.key === 'overall'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </template>
+                    </span>
+                    <p class="bp-adv-kpi-card__label" x-text="card.label"></p>
+                    <p class="bp-adv-kpi-card__value" x-text="card.value + '%'"></p>
+                    <p class="bp-adv-kpi-card__sub" x-text="card.sub"></p>
+                </article>
+            </template>
         </div>
 
         <section class="overflow-visible rounded-[12px] border border-[#6706b3]">
@@ -173,46 +401,10 @@
             </div>
         </div>
 
-        <section class="mt-[28px]">
-            <h2 class="mb-[20px] text-center text-[24px] font-semibold leading-none text-[#a9a9a9]">Bot Stats</h2>
-            <div class="grid grid-cols-2 gap-x-[14px] gap-y-[28px] sm:grid-cols-3 xl:grid-cols-6">
-                <template x-for="stat in statCards" :key="stat.key">
-                    <div class="flex flex-col items-center">
-                        <p class="mb-[10px] w-full text-center text-[14px] leading-tight text-[#a9a9a9]" x-text="stat.label"></p>
-                        <article class="relative h-[228px] w-full max-w-[150px] overflow-hidden rounded-[10px] border border-white/40 bg-[#6400B2] shadow-[inset_0_1px_0_rgba(255,255,255,.08)]">
-                            <div
-                                x-show="stat.value > 0"
-                                class="absolute inset-x-0 bottom-0 rounded-[10px] border border-white/40 transition-all duration-500 ease-out"
-                                :class="stat.value >= 40 ? 'bg-[#9a1aff]' : 'bg-[#ffffff8f]'"
-                                :style="`height: ${Math.min(100, Math.max(stat.value, 2))}%`"
-                            ></div>
-                            <span class="absolute inset-0 z-10 flex items-center justify-center text-[36px] font-medium leading-[43px] text-white" x-text="stat.value + '%'"></span>
-                        </article>
-                    </div>
-                </template>
-            </div>
-        </section>
-
         <p class="mt-[12px] text-right">
             <a href="{{ route('bot-protection.dashboard') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">&larr; Back to Dashboard</a>
         </p>
     </section>
-<style>
-.bp-adv-filters-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    z-index: 50;
-    width: min(calc(100vw - 32px), 420px);
-    max-height: 320px;
-    overflow: auto;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 8px;
-    background: #0f0e0e;
-    padding: 12px;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
-}
-</style>
 
 @include('partials.session-recording-player')
 
@@ -327,8 +519,19 @@ function botProtectionAdvancedFigma() {
             return `minmax(${min}px, 1fr)`;
         },
         filters: {
-            domain_id: '', path: '', ip: '', country: '', action: '', threat_group: '',
-            only_invalid: false, only_paid: false, from: '', to: '',
+            domain_id: '',
+            traffic_source: 'google_ads',
+            google_ads_account_id: '',
+            campaign: '',
+            path: '',
+            ip: '',
+            country: '',
+            action: '',
+            threat_group: '',
+            only_invalid: false,
+            only_paid: false,
+            from: '',
+            to: '',
         },
         rows: [],
         meta: { total: 0, page: 1, per_page: 25 },
@@ -336,12 +539,12 @@ function botProtectionAdvancedFigma() {
         stats: { blocked: 0, invalid_traffic: 0, paid_traffic: 0, bot_detection: 0, country: 0, overall: 0 },
         get statCards() {
             return [
-                { key: 'blocked', label: 'Blocked', value: this.stats.blocked ?? 0 },
-                { key: 'invalid_traffic', label: 'Invalid Traffic', value: this.stats.invalid_traffic ?? 0 },
-                { key: 'paid_traffic', label: 'Paid Traffic', value: this.stats.paid_traffic ?? 0 },
-                { key: 'bot_detection', label: 'Bot Detection', value: this.stats.bot_detection ?? 0 },
-                { key: 'country', label: 'Country', value: this.stats.country ?? 0 },
-                { key: 'overall', label: 'Overall', value: this.stats.overall ?? 0 },
+                { key: 'blocked', label: 'Blocked', value: this.stats.blocked ?? 0, tone: 'rose', sub: 'Blocked actions in range' },
+                { key: 'invalid_traffic', label: 'Invalid Traffic', value: this.stats.invalid_traffic ?? 0, tone: 'amber', sub: 'Flagged as invalid' },
+                { key: 'paid_traffic', label: 'Paid Traffic', value: this.stats.paid_traffic ?? 0, tone: 'purple', sub: 'Attributed paid share' },
+                { key: 'bot_detection', label: 'Bot Detection', value: this.stats.bot_detection ?? 0, tone: 'purple', sub: 'VPN / DC / rate threats' },
+                { key: 'country', label: 'Country', value: this.stats.country ?? 0, tone: 'amber', sub: 'Visits with country data' },
+                { key: 'overall', label: 'Overall', value: this.stats.overall ?? 0, tone: 'green', sub: 'Valid traffic share' },
             ];
         },
         qs(extra = {}) {
@@ -485,5 +688,6 @@ function botProtectionAdvancedFigma() {
     };
 }
 </script>
+</div>
 @endsection
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
+use App\Models\GoogleAdsAccount;
 use App\Models\IpLog;
 use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
@@ -436,8 +437,15 @@ class BotProtectionController extends Controller
             ->orderBy('hostname')
             ->get(['id', 'hostname']);
 
+        $googleAdsAccounts = GoogleAdsAccount::query()
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->synced()
+            ->orderBy('account_name')
+            ->get();
+
         return view('bot-protection.advanced', [
             'domains' => $domains,
+            'googleAdsAccounts' => $googleAdsAccounts,
         ]);
     }
 
@@ -625,9 +633,16 @@ class BotProtectionController extends Controller
         if ($request->boolean('only_invalid')) {
             $query->where('visits.is_invalid_traffic', true);
         }
+        if ($request->boolean('only_paid')) {
+            $query->where('visits.is_paid_traffic', true);
+        }
 
         if ($path = trim((string) $request->query('path', ''))) {
             $query->where('visits.url', 'like', '%' . $path . '%');
+        }
+
+        if ($campaign = trim((string) $request->query('campaign', ''))) {
+            $query->where('visits.utm_campaign', $campaign);
         }
 
         return $query;
