@@ -293,7 +293,7 @@
         </div>
 
         <div class="mt-[15px] grid grid-cols-1 gap-[17px] xl:grid-cols-[minmax(0,589px)_minmax(260px,1fr)]">
-            <section class="min-h-[341px] rounded-[12px] border border-[#6400B2] bg-[#6400B2] p-[20px] shadow-[0_0_24px_rgba(100,0,179,.45)]">
+            <section class="paid-trends-card self-start rounded-[12px] border border-[#6400B2] bg-[#6400B2] p-[16px] shadow-[0_0_24px_rgba(100,0,179,.45)] sm:p-[20px]">
                 <div class="mb-[8px] flex flex-wrap items-center justify-between gap-[8px]">
                     <div class="flex flex-wrap items-center gap-[10px]">
                         <h2 class="text-[20px] font-normal text-[#a9a9a9]">Paid Traffic Trend</h2>
@@ -309,14 +309,14 @@
                             </button>
                         </template>
                     </div>
-                    <select x-model="filters.window" @change="setWindow()" class="h-[41px] rounded-full border border-white/30 bg-[#101010] px-[20px] text-[14px] text-white focus:border-[#9a1aff] focus:ring-1 focus:ring-[#9a1aff]/40">
+                    <select x-model="filters.window" @change="setWindow()" class="h-[36px] rounded-full border border-white/30 bg-[#101010] px-[16px] text-[13px] text-white focus:border-[#9a1aff] focus:ring-1 focus:ring-[#9a1aff]/40 sm:h-[41px] sm:px-[20px] sm:text-[14px]">
                         <option value="weekly">Weekly</option>
                         <option value="monthly">Monthly</option>
                     </select>
                 </div>
                 <div class="paid-trends-wrap">
                     <div id="paid-trends-tooltip" class="paid-trends-tooltip" hidden></div>
-                    <canvas id="paid-trends" class="h-[270px] w-full"></canvas>
+                    <canvas id="paid-trends" class="paid-trends-canvas h-[200px] w-full sm:h-[240px]"></canvas>
                 </div>
             </section>
 

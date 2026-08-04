@@ -6328,8 +6328,20 @@ select:autofill {
     background: rgba(255, 255, 255, 0.92);
 }
 
+.paid-trends-card {
+    height: fit-content;
+    min-height: 0;
+}
+
 .paid-trends-wrap {
     position: relative;
+    height: auto;
+    line-height: 0;
+}
+
+.paid-trends-canvas {
+    display: block;
+    max-width: 100%;
 }
 
 .paid-trends-tooltip {
