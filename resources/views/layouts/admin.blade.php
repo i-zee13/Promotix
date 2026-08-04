@@ -209,10 +209,10 @@
 
     <header class="figma-header flex items-center justify-between px-[10px] sm:px-[14px]">
         <div class="flex min-w-0 items-center gap-[13px] text-white/85">
-            <button id="figma-sidebar-toggle" type="button" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10" aria-label="Toggle sidebar">
+            {{-- Mobile only: open nav drawer. Desktop left sidebar stays fixed (no toggle). --}}
+            <button id="figma-sidebar-toggle" type="button" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 lg:hidden" aria-label="Open menu">
                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg>
             </button>
-            <span class="hidden h-[18px] w-px bg-[#5a2a99] sm:block"></span>
             <a href="{{ route('integrations') }}" class="hidden h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L11 4.93"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 11a5 5 0 00-7.07 0L4.8 13.12a5 5 0 007.07 7.07L13 19.07"/></svg>
             </a>
@@ -344,21 +344,22 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(() => {});
     const shell = document.getElementById('figma-shell');
-    const sidebarToggle = document.getElementById('figma-sidebar-toggle');
     const overlay = document.getElementById('figma-sidebar-overlay');
     const themeToggle = document.getElementById('theme-toggle');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    const sidebarKey = 'promotix-figma-sidebar-collapsed';
     const rightbarKey = 'promotix-figma-rightbar-collapsed';
     const themeKey = 'promotix-theme';
-    const isDesktopSidebar = () => window.matchMedia('(min-width: 1024px)').matches;
     const isDesktopRightbar = () => window.matchMedia('(min-width: 1280px)').matches;
 
-    function syncSidebar() {
-        const collapsed = localStorage.getItem(sidebarKey) === '1';
-        shell?.classList.toggle('figma-sidebar-collapsed', isDesktopSidebar() && collapsed);
-        if (!isDesktopSidebar()) shell?.classList.remove('figma-sidebar-open');
-    }
+    // Left sidebar stays open — no desktop collapse / toggle.
+    try { localStorage.removeItem('promotix-figma-sidebar-collapsed'); } catch (_) {}
+    shell?.classList.remove('figma-sidebar-collapsed');
+
+    document.getElementById('figma-sidebar-toggle')?.addEventListener('click', () => {
+        // Mobile drawer only (button is lg:hidden).
+        if (window.matchMedia('(min-width: 1024px)').matches) return;
+        shell?.classList.toggle('figma-sidebar-open');
+    });
 
     function syncRightbar() {
         const collapsed = localStorage.getItem(rightbarKey) === '1';
@@ -393,20 +394,8 @@ document.addEventListener('DOMContentLoaded', () => {
         syncRightbar();
     });
 
-    sidebarToggle?.addEventListener('click', () => {
-        if (isDesktopSidebar()) {
-            const next = !(localStorage.getItem(sidebarKey) === '1');
-            localStorage.setItem(sidebarKey, next ? '1' : '0');
-            syncSidebar();
-        } else {
-            shell?.classList.toggle('figma-sidebar-open');
-        }
-    });
-
     overlay?.addEventListener('click', () => shell?.classList.remove('figma-sidebar-open'));
-    window.matchMedia('(min-width: 1024px)').addEventListener('change', syncSidebar);
     window.matchMedia('(min-width: 1280px)').addEventListener('change', syncRightbar);
-    syncSidebar();
     syncRightbar();
 
     function setTheme(theme) {

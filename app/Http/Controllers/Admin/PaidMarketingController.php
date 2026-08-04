@@ -1908,6 +1908,12 @@ class PaidMarketingController extends Controller
                 ->get();
         }
 
+        $googleAdsAccounts = GoogleAdsAccount::query()
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->synced()
+            ->orderBy('account_name')
+            ->get();
+
         return view('paid-marketing.detection-settings', [
             'domains' => $domains,
             'domain' => $domain,
@@ -1921,6 +1927,7 @@ class PaidMarketingController extends Controller
             ],
             'countryAudits' => $countryAudits,
             'detectionProfiles' => \App\Support\DetectionProfiles::catalog(),
+            'googleAdsAccounts' => $googleAdsAccounts,
         ]);
     }
 

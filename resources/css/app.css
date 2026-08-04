@@ -4394,6 +4394,17 @@ select.figma-sa-subs-status-pill {
     transform: translateX(-100%);
 }
 
+/* Desktop: left sidebar always visible (no collapse). */
+@media (min-width: 1024px) {
+    .figma-shell.figma-sidebar-collapsed {
+        --figma-left: 261px;
+        padding-left: var(--figma-left);
+    }
+    .figma-sidebar-collapsed .figma-sidebar {
+        transform: none;
+    }
+}
+
 .figma-sidebar-overlay {
     display: none;
 }
