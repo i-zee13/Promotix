@@ -2,6 +2,54 @@
 
 @section('title', 'Paid Marketing | Detection')
 
+@section('rightbar')
+<div class="figma-rightbar-default">
+    @include('partials.figma-rightbar-header-actions')
+    <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]"></div>
+    @include('partials.figma-notifications-script')
+
+    @if (!empty($domain) && !empty($settings))
+        <div class="mt-[12px] border-b-2 border-[#5a2a99] pb-[12px]">
+            @include('partials.figma-rightbar-detection')
+        </div>
+    @else
+        <div class="mt-[16px] rounded-[8px] border border-dashed border-white/20 px-[10px] py-[14px] text-center text-[10px] text-white/45">
+            Select a domain to configure detection sidebar controls.
+        </div>
+    @endif
+
+    <div class="mt-[14px] pt-[4px]">
+        <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
+        <div class="grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
+            <a href="{{ route('paid-marketing.detection-settings') }}" title="Detection" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+                @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[18px] w-[18px]'])
+            </a>
+            <a href="{{ route('paid-marketing.detailed') }}" title="Advanced View" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+                @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[18px] w-[18px]'])
+            </a>
+            <a href="{{ route('paid-marketing.dashboard') }}" title="Dashboard" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+                @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[18px] w-[18px]'])
+            </a>
+        </div>
+        <a href="{{ route('billing.index') }}" class="figma-rightbar-extra figma-rightbar-billing mt-[16px] block rounded-[5px] bg-[#6603B3] p-[8px] text-white">
+            <div class="figma-rightbar-billing__cols">
+                <div class="figma-rightbar-billing__col">
+                    <span class="figma-rightbar-billing__label">Invalid / Blocked</span>
+                    <span class="figma-rightbar-billing__value" id="rightbar-blocked-count">—</span>
+                </div>
+                <div class="figma-rightbar-billing__col">
+                    <span class="figma-rightbar-billing__label">Invalid visits</span>
+                    <span class="figma-rightbar-billing__value" id="rightbar-invalid-count">—</span>
+                </div>
+            </div>
+            <div class="figma-rightbar-billing__cta mt-[8px] rounded-[5px] bg-[#171515] px-[8px] py-[6px] text-center text-[7px] leading-tight">
+                Reallocated Budget Simulator
+            </div>
+        </a>
+    </div>
+</div>
+@endsection
+
 @section('content')
 @php
     $matrix = $settings?->suspicious_matrix ?? [];
@@ -1281,7 +1329,7 @@
                     ],
                 ];
             @endphp
-                <form method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
+                <form id="detection-settings-form" method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
                     @csrf
                     <input type="hidden" name="control_mode" value="{{ old('control_mode', $settings->control_mode ?? 'mixed') }}">
 
@@ -1787,9 +1835,7 @@
                     </div>
 
                     @php
-                        $profileKey = $settings->detection_profile ?? 'standard';
                         $thr = $settings->detection_thresholds ?? [];
-                        $profiles = $detectionProfiles ?? \App\Support\DetectionProfiles::catalog();
                         $rapidWindow = (int) ($thr['rapid_window_seconds'] ?? 60);
                         $rapidPreset = match ($rapidWindow) {
                             10 => '10',
@@ -1804,62 +1850,8 @@
                             'challenge' => 'challenge',
                             'redirect' => 'redirect',
                             'forbid' => 'block',
-                            default => 'allow', // hide → Allow (softest)
+                            default => 'allow',
                         };
-                        $retentionDays = (int) ($settings->recording_retention_days ?? 30);
-                        $geoScope = (string) ($settings->geo_rule_scope ?? 'domain');
-                        $consentOn = (bool) ($settings->consent_required ?? false);
-                        $maskOn = (bool) ($settings->recording_mask_passwords ?? true);
-                        $sessionRecOn = (bool) ($settings->session_recordings ?? false);
-                        $botRulesActive = (bool) ($settings->suspicious_enabled ?? true);
-                        $profileCards = [
-                            'standard' => [
-                                'title' => 'Balanced (Default)',
-                                'desc' => 'Low false positives. Recommended for most advertisers.',
-                                'tone' => 'green',
-                            ],
-                            'advanced' => [
-                                'title' => 'Advanced',
-                                'desc' => 'Better protection for high-risk campaigns.',
-                                'tone' => 'blue',
-                            ],
-                            'extreme' => [
-                                'title' => 'Maximum Protection',
-                                'desc' => 'Strict filtering for expensive campaigns.',
-                                'tone' => 'orange',
-                            ],
-                            'marketing' => [
-                                'title' => 'Custom Profile',
-                                'desc' => 'Create your own custom rules and settings.',
-                                'tone' => 'purple',
-                            ],
-                        ];
-                        $detectionAudits = $detectionAudits ?? $countryAudits ?? collect();
-                        $auditFieldLabels = [
-                            'suspicious_matrix' => 'Updated threat rules',
-                            'suspicious_enabled' => 'Updated suspicious detection',
-                            'invalid_bot_action' => 'Updated bot action',
-                            'invalid_malicious_action' => 'Updated malicious action',
-                            'block_response' => 'Updated block response',
-                            'detection_profile' => 'Updated detection profile',
-                            'detection_thresholds' => 'Updated detection thresholds',
-                            'session_recordings' => 'Updated session recording',
-                            'recording_retention_days' => 'Updated recording retention',
-                            'recording_mask_passwords' => 'Updated recording mask',
-                            'consent_required' => 'Updated consent requirement',
-                            'consent_regions' => 'Updated consent regions',
-                            'geo_rule_scope' => 'Updated geo rule scope',
-                            'allow_list_ips' => 'Updated whitelist IPs',
-                            'block_list_ips' => 'Updated blacklist IPs',
-                            'control_mode' => 'Updated control mode',
-                            'out_of_geo_enabled' => 'Updated geo targeting',
-                            'out_of_geo_countries' => 'Updated allowed countries',
-                            'out_of_geo_audience' => 'Updated geo audience',
-                            'google_geo_block_enabled' => 'Updated blocked countries',
-                            'google_geo_block_audience' => 'Updated Google geo block',
-                            'frequency_capping' => 'Updated frequency capping',
-                            'fail_mode' => 'Updated fail-safe mode',
-                        ];
                     @endphp
                     <section
                         id="detection-advanced"
@@ -1868,17 +1860,6 @@
                             rapidPreset: @js($rapidPreset),
                             rapidCustom: @js($rapidWindow),
                             blockAction: @js($blockResponseUi),
-                            challengeMode: @js($blockResponseUi === 'challenge'),
-                            sessionRecording: @js($sessionRecOn),
-                            maskPasswords: @js($maskOn),
-                            maskPayment: @js($maskOn),
-                            maskSensitive: @js($maskOn),
-                            consentGdpr: @js($consentOn),
-                            consentCcpa: @js($consentOn),
-                            consentCookie: @js($consentOn),
-                            consentManageOpen: false,
-                            geoScope: @js($geoScope),
-                            profileKey: @js($profileKey),
                             responseMap: { allow: 'hide', monitor: 'blank', challenge: 'challenge', redirect: 'redirect', block: 'forbid' },
                             setRapid(preset) {
                                 this.rapidPreset = preset;
@@ -1892,20 +1873,18 @@
                             },
                             setBlockAction(action) {
                                 this.blockAction = action;
-                                this.challengeMode = action === 'challenge';
                             },
                             setChallengeMode(on) {
-                                this.challengeMode = !!on;
                                 if (on) this.blockAction = 'challenge';
                                 else if (this.blockAction === 'challenge') this.blockAction = 'allow';
                             },
-                            get maskValue() {
-                                return this.maskPasswords || this.maskPayment || this.maskSensitive;
-                            },
-                            get consentValue() {
-                                return this.consentGdpr || this.consentCcpa || this.consentCookie;
+                            init() {
+                                window.addEventListener('detection:challenge-mode', (e) => {
+                                    this.setChallengeMode(!!(e.detail && e.detail.on));
+                                });
                             }
                         }"
+                        x-init="init()"
                     >
                         <div class="figma-ads-head">
                             <h2 class="figma-ads-title">Advanced Detection Settings</h2>
@@ -1986,7 +1965,7 @@
 
                         <div class="figma-ads-more space-y-[12px]">
                             <p class="text-[11px] leading-relaxed text-[#a9a9a9]">
-                                These controls tune how aggressively PromoTix flags or blocks paid clicks. Optional fine-tuning on top of the main threat rules above.
+                                Fine-tune rapid-click and frequency limits here. Bot rules, session privacy, profiles, and geo scope live in the right sidebar.
                             </p>
                             <div class="figma-detection-advanced-panel grid gap-[10px] sm:grid-cols-2">
                                 <label class="figma-detection-advanced-field">
@@ -2004,210 +1983,6 @@
                                     <option value="open" @selected(($settings->fail_mode ?? 'open') === 'open')>Fail open (allow)</option>
                                     <option value="closed" @selected(($settings->fail_mode ?? 'open') === 'closed')>Fail closed (block)</option>
                                 </select>
-                            </label>
-                        </div>
-
-                        {{-- Bot Detection Rules + Challenge Mode --}}
-                        <div class="ds-panel">
-                            <div class="ds-panel__head">
-                                <h3 class="ds-panel__title">Bot Detection Rules</h3>
-                                @if ($botRulesActive)
-                                    <span class="ds-badge-active">Active</span>
-                                @endif
-                            </div>
-                            <div class="ds-split">
-                                <div class="ds-box">
-                                    <h4 class="ds-box__title">Bot Detection Signals</h4>
-                                    <ul class="ds-signal-list">
-                                        @foreach ([
-                                            'Headless Browser',
-                                            'Automation Framework',
-                                            'Missing Browser Signals',
-                                            'Abnormal User Agent',
-                                            'No Human Interaction',
-                                            'Repeated Automated Requests',
-                                        ] as $signal)
-                                            <li>
-                                                <span class="ds-check" aria-hidden="true">
-                                                    <svg class="h-[10px] w-[10px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                                </span>
-                                                {{ $signal }}
-                                            </li>
-                                        @endforeach
-                                    </ul>
-                                </div>
-                                <div class="ds-box">
-                                    <h4 class="ds-box__title">Action (Based on Risk Score)</h4>
-                                    <ul class="ds-risk-list">
-                                        <li><span class="ds-dot ds-dot--allow"></span> Allow (0 - 30)</li>
-                                        <li><span class="ds-dot ds-dot--monitor"></span> Monitor (31 - 60)</li>
-                                        <li><span class="ds-dot ds-dot--challenge"></span> Challenge (61 - 80)</li>
-                                        <li><span class="ds-dot ds-dot--block"></span> Block (81 - 100)</li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <div class="ds-challenge">
-                                <div>
-                                    <h4 class="ds-challenge__title">Challenge Mode (CAPTCHA)</h4>
-                                    <p class="ds-challenge__meta"><strong class="text-white/70">Trigger:</strong> Medium Risk Traffic (61 - 80 Score)</p>
-                                    <p class="ds-challenge__meta"><strong class="text-white/70">Action:</strong> Show verification challenge to validate user.</p>
-                                </div>
-                                <label class="figma-toggle figma-toggle--sm figma-toggle--no-labels">
-                                    <input type="checkbox" class="figma-toggle-input" :checked="challengeMode" @change="setChallengeMode($event.target.checked)">
-                                    <span class="figma-toggle-track pointer-events-none" aria-hidden="true"><span class="figma-toggle-thumb"></span></span>
-                                </label>
-                            </div>
-                        </div>
-
-                        {{-- Session Recording & Privacy --}}
-                        <div class="ds-panel">
-                            <div class="ds-panel__head">
-                                <h3 class="ds-panel__title">Session Recording &amp; Privacy Controls</h3>
-                                <span class="ds-badge-active" x-show="sessionRecording" x-cloak>Active</span>
-                            </div>
-                            <div class="ds-split">
-                                <div class="ds-box">
-                                    <div class="ds-row-toggle">
-                                        <span class="ds-field-label !mb-0">Session Recording</span>
-                                        <input type="hidden" name="session_recordings" value="0">
-                                        <label class="figma-toggle figma-toggle--sm figma-toggle--no-labels">
-                                            <input type="checkbox" name="session_recordings" value="1" class="figma-toggle-input" x-model="sessionRecording">
-                                            <span class="figma-toggle-track pointer-events-none" aria-hidden="true"><span class="figma-toggle-thumb"></span></span>
-                                        </label>
-                                    </div>
-                                    <span class="ds-field-label">Retention Period</span>
-                                    <select name="recording_retention_days" class="ds-select">
-                                        @foreach ([7, 14, 30, 60, 90, 180, 365] as $days)
-                                            <option value="{{ $days }}" @selected($retentionDays === $days)>{{ $days }} Days</option>
-                                        @endforeach
-                                        @if (! in_array($retentionDays, [7, 14, 30, 60, 90, 180, 365], true))
-                                            <option value="{{ $retentionDays }}" selected>{{ $retentionDays }} Days</option>
-                                        @endif
-                                    </select>
-                                    <span class="ds-field-label">Mask Sensitive Data</span>
-                                    <input type="hidden" name="recording_mask_passwords" value="0">
-                                    <input type="hidden" name="recording_mask_passwords" :value="maskValue ? 1 : 0">
-                                    <div class="ds-checkboxes">
-                                        <label><input type="checkbox" x-model="maskPasswords"> Passwords</label>
-                                        <label><input type="checkbox" x-model="maskPayment"> Payment Fields</label>
-                                        <label><input type="checkbox" x-model="maskSensitive"> Sensitive Inputs</label>
-                                    </div>
-                                </div>
-                                <div class="ds-box">
-                                    <h4 class="ds-box__title">Consent Management</h4>
-                                    <input type="hidden" name="consent_required" value="0">
-                                    <input type="hidden" name="consent_required" :value="consentValue ? 1 : 0">
-                                    <div class="ds-checkboxes">
-                                        <label><input type="checkbox" x-model="consentGdpr"> GDPR Consent</label>
-                                        <label><input type="checkbox" x-model="consentCcpa"> CCPA Consent</label>
-                                        <label><input type="checkbox" x-model="consentCookie"> Cookie Notice</label>
-                                    </div>
-                                    <button type="button" class="ds-consent-btn" @click="consentManageOpen = !consentManageOpen">Manage Consent Settings</button>
-                                    <div x-show="consentManageOpen" x-cloak class="mt-[12px]">
-                                        <span class="ds-field-label">Consent regions (ISO codes, comma-separated; empty = all)</span>
-                                        <input type="text" name="consent_regions" value="{{ implode(',', (array) ($settings->consent_regions ?? [])) }}" placeholder="DE,FR,GB" class="ds-select !max-w-none">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Detection Audit Log --}}
-                        <div class="ds-panel">
-                            <div class="ds-panel__head">
-                                <h3 class="ds-panel__title">Detection Audit Log</h3>
-                            </div>
-                            @if ($detectionAudits instanceof \Illuminate\Support\Collection && $detectionAudits->isNotEmpty())
-                                <div class="ds-audit-table-wrap">
-                                    <table class="ds-audit-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Date &amp; Time</th>
-                                                <th>Admin</th>
-                                                <th>Action</th>
-                                                <th>Previous</th>
-                                                <th>New</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($detectionAudits as $audit)
-                                                @php
-                                                    $prevRaw = $audit->previous_value['value'] ?? $audit->previous_value;
-                                                    $nextRaw = $audit->new_value['value'] ?? $audit->new_value;
-                                                    $fmt = function ($v) {
-                                                        if (is_bool($v)) return $v ? 'On' : 'Off';
-                                                        if (is_array($v)) return \Illuminate\Support\Str::limit(json_encode($v), 48);
-                                                        if ($v === null || $v === '') return '—';
-                                                        return \Illuminate\Support\Str::limit((string) $v, 48);
-                                                    };
-                                                    $actionLabel = $auditFieldLabels[$audit->field] ?? ('Updated ' . str_replace('_', ' ', (string) $audit->field));
-                                                @endphp
-                                                <tr>
-                                                    <td>{{ optional($audit->created_at)->timezone(config('app.timezone'))->format('M j, Y g:i A') }}</td>
-                                                    <td>{{ $audit->user?->name ?: 'System' }}</td>
-                                                    <td>{{ $actionLabel }}</td>
-                                                    <td>{{ $fmt($prevRaw) }}</td>
-                                                    <td>{{ $fmt($nextRaw) }}</td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @else
-                                <p class="ds-audit-empty">No detection setting changes logged yet.</p>
-                            @endif
-                        </div>
-
-                        {{-- Detection Profiles --}}
-                        <div class="ds-panel">
-                            <div class="ds-panel__head" style="flex-direction:column;align-items:flex-start;">
-                                <h3 class="ds-panel__title">Detection Profiles</h3>
-                                <p class="ds-panel__sub">Choose a protection level for your campaigns.</p>
-                            </div>
-                            <div class="ds-profile-grid">
-                                @foreach ($profileCards as $pkey => $card)
-                                    <label class="ds-profile-card is-{{ $card['tone'] }}" :class="{ 'is-selected': profileKey === '{{ $pkey }}' }">
-                                        <input type="radio" name="detection_profile" value="{{ $pkey }}" x-model="profileKey" @checked($profileKey === $pkey)>
-                                        <span class="ds-profile-card__icon" aria-hidden="true">
-                                            @if ($pkey === 'standard')
-                                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                            @elseif ($pkey === 'advanced')
-                                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                                            @elseif ($pkey === 'extreme')
-                                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 3v5c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V6l8-3z"/></svg>
-                                            @else
-                                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317a1.724 1.724 0 013.35 0 1.724 1.724 0 002.573 1.066 1.724 1.724 0 012.354 2.354 1.724 1.724 0 001.065 2.572 1.724 1.724 0 010 3.35 1.724 1.724 0 00-1.066 2.573 1.724 1.724 0 01-2.354 2.354 1.724 1.724 0 00-2.572 1.065 1.724 1.724 0 01-3.35 0 1.724 1.724 0 00-2.573-1.066 1.724 1.724 0 01-2.354-2.354 1.724 1.724 0 00-1.065-2.572 1.724 1.724 0 010-3.35 1.724 1.724 0 001.066-2.573 1.724 1.724 0 012.354-2.354 1.724 1.724 0 002.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                            @endif
-                                        </span>
-                                        <p class="ds-profile-card__title">{{ $card['title'] }}</p>
-                                        <p class="ds-profile-card__desc">{{ $card['desc'] }}</p>
-                                    </label>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        {{-- Geo Rule Scope --}}
-                        <div class="ds-panel">
-                            <div class="ds-panel__head">
-                                <h3 class="ds-panel__title">Geo Rule Scope</h3>
-                            </div>
-                            <input type="hidden" name="geo_rule_scope" :value="geoScope">
-                            <div class="ds-geo-scope">
-                                <button type="button" class="ds-geo-btn" :class="{ 'is-active': geoScope === 'domain' }" @click="geoScope = 'domain'">
-                                    <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                    Current Domain
-                                </button>
-                                <button type="button" class="ds-geo-btn" :class="{ 'is-active': geoScope === 'workspace' }" @click="geoScope = 'workspace'">
-                                    <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                    All Domains
-                                </button>
-                                <button type="button" class="ds-geo-btn" disabled title="Campaign-scoped geo rules coming soon">
-                                    <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-                                    Selected Campaigns
-                                </button>
-                            </div>
-                            <label class="mt-[12px] inline-flex items-center gap-[8px] text-[11px] text-white/70">
-                                <input type="checkbox" name="save_workspace_geo" value="1" class="rounded border-white/30 accent-[#6400B2]">
-                                Save current geo rules as workspace defaults
                             </label>
                         </div>
 
