@@ -11,15 +11,15 @@
 <div class="figma-rightbar-default paid-rightbar">
     @include('partials.figma-rightbar-header-actions')
 
-    <div class="mb-[6px] flex w-full flex-col items-center">
-        <h2 class="mb-[8px] w-full text-center text-[14px] font-bold text-[#a9a9a9]">Activity Feed</h2>
-        <div id="paid-activity-feed" class="w-full space-y-[8px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]">
+    <div class="figma-rightbar-center mb-[6px]">
+        <h2 class="mb-[8px] w-full max-w-[168px] text-[14px] font-bold text-[#a9a9a9]">Activity Feed</h2>
+        <div id="paid-activity-feed" class="w-full max-w-[168px] space-y-[8px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]">
             <p class="text-white/45">Loading…</p>
         </div>
     </div>
 
-    <div class="mt-[16px] flex w-full flex-col items-center border-t-2 border-[#5a2a99] pt-[14px]">
-        <h2 class="mb-[10px] w-full text-center text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
+    <div class="figma-rightbar-center mt-[16px] border-t-2 border-[#5a2a99] pt-[14px]">
+        <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
         <div class="mx-auto grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
             <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Test Tracking">
                 @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
@@ -40,9 +40,9 @@
         </div>
     </div>
 
-    <div class="mt-[18px] flex w-full flex-col items-center border-t-2 border-[#5a2a99] pt-[14px]">
-        <h2 class="mb-[10px] w-full text-center text-[16px] font-bold text-[#a9a9a9]">System Overview</h2>
-        <div id="paid-system-overview" class="w-full space-y-[8px] text-[10px] text-white/75">
+    <div class="figma-rightbar-center mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
+        <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">System Overview</h2>
+        <div id="paid-system-overview" class="w-full max-w-[168px] space-y-[8px] text-[10px] text-white/75">
             <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
                 <span>Total Clicks</span><span data-sys="clicks" class="text-white/90">—</span>
             </div>

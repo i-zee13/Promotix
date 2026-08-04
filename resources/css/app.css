@@ -4449,27 +4449,26 @@ select.figma-sa-subs-status-pill {
     }
 }
 
-.figma-rightbar-default {
+.figma-rightbar-center {
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
 }
 
-.figma-rightbar-default > * {
-    width: 100%;
-    max-width: 180px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.figma-rightbar-default h2 {
+.figma-rightbar-center h2 {
     text-align: center;
 }
 
-.figma-rightbar-default .grid {
+.figma-rightbar-center .grid {
     margin-left: auto;
     margin-right: auto;
+}
+
+.figma-rightbar-stretch {
+    width: 100% !important;
+    max-width: none !important;
+    align-self: stretch;
 }
 
 .figma-rightbar-default .figma-rightbar-notify > div {

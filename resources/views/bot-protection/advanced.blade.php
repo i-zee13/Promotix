@@ -3,7 +3,7 @@
 @section('title', 'Bot Protection | Advanced View')
 
 @section('rightbar')
-<div class="figma-rightbar-default paid-rightbar flex flex-col items-center">
+<div class="figma-rightbar-default paid-rightbar">
     @include('partials.figma-rightbar-header-actions')
     @include('partials.figma-rightbar-bot-protection')
 </div>

@@ -22,21 +22,25 @@
         .figma-shell { --figma-right: 220px; }
         .figma-shell.figma-rightbar-collapsed { --figma-right: 0px; padding-right: 0; }
 
-        /* Center all right-panel content across pages */
-        .figma-rightbar-default {
+        /* Compact blocks (icons / tools / quick actions) stay centered */
+        .figma-rightbar-center {
             display: flex;
             flex-direction: column;
             align-items: center;
             width: 100%;
         }
-        .figma-rightbar-default > * {
-            width: 100%;
-            max-width: 180px;
+        .figma-rightbar-center h2 { text-align: center; }
+        .figma-rightbar-center .grid {
             margin-left: auto;
             margin-right: auto;
         }
-        .figma-rightbar-default h2 { text-align: center; }
-        .figma-rightbar-default .grid { margin-left: auto; margin-right: auto; }
+
+        /* Full-width panels (detection, IP investigate, etc.) */
+        .figma-rightbar-stretch {
+            width: 100% !important;
+            max-width: none !important;
+            align-self: stretch;
+        }
     </style>
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
@@ -233,12 +237,12 @@
         <div class="figma-rightbar-default">
         @include('partials.figma-rightbar-header-actions')
 
-        <div class="mt-[16px] border-b-2 border-[#5a2a99] pb-[14px]">
+        <div class="figma-rightbar-stretch mt-[16px] border-b-2 border-[#5a2a99] pb-[14px]">
             @include('partials.figma-rightbar-ip-investigation')
         </div>
 
-        <div class="mt-[14px] flex w-full flex-col items-center pt-[4px]">
-            <h2 class="mb-[10px] w-full text-center text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
+        <div class="figma-rightbar-center mt-[14px] pt-[4px]">
+            <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
             <div class="mx-auto grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
                 @foreach ($toolLinks as $tool)
                     <a href="{{ route($tool['route']) }}" title="{{ $tool['label'] }}" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
@@ -251,7 +255,7 @@
                     </button>
                 @endif
             </div>
-            <a href="{{ route('billing.index') }}" class="figma-rightbar-extra figma-rightbar-billing mt-[16px] block w-full rounded-[5px] bg-[#6603B3] p-[8px] text-white">
+            <a href="{{ route('billing.index') }}" class="figma-rightbar-extra figma-rightbar-billing mt-[16px] block w-full max-w-[168px] rounded-[5px] bg-[#6603B3] p-[8px] text-white">
                 <div class="figma-rightbar-billing__cols">
                     <div class="figma-rightbar-billing__col">
                         <span class="figma-rightbar-billing__label">Invalid / Blocked</span>

@@ -1,5 +1,5 @@
 {{-- Replaces “Digital Promotix” text in the account rightbar --}}
-<div class="mb-[16px] flex w-full flex-col items-center" id="rightbar-notify-root">
+<div class="figma-rightbar-center mb-[16px]" id="rightbar-notify-root">
     <div class="mx-auto grid w-full max-w-[168px] grid-cols-4 gap-[9px]" role="toolbar" aria-label="Quick panel actions">
         <button
             type="button"

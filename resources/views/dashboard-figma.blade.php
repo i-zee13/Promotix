@@ -6,9 +6,9 @@
 <div class="figma-rightbar-default ov-rightbar">
     @include('partials.figma-rightbar-header-actions')
 
-    <div class="mt-[16px] flex w-full flex-col items-center">
-        <h2 class="mb-[10px] w-full text-center text-[16px] font-bold text-[#a9a9a9]">Add Account</h2>
-        <a href="{{ route('integrations') }}" class="figma-rightbar-add-card block w-full rounded-[3px] bg-[#6400B2] p-[6px]">
+    <div class="figma-rightbar-center mt-[16px]">
+        <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Add Account</h2>
+        <a href="{{ route('integrations') }}" class="figma-rightbar-add-card block w-full max-w-[168px] rounded-[3px] bg-[#6400B2] p-[6px]">
             <div class="flex h-[96px] items-center justify-center bg-[#6400B2]">
                 <svg class="h-[44px] w-[44px]" viewBox="0 0 48 48" aria-hidden="true">
                     <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/>
@@ -24,8 +24,8 @@
         </a>
     </div>
 
-    <div class="mt-[18px] flex w-full flex-col items-center border-t-2 border-[#5a2a99] pt-[14px]">
-        <h2 class="mb-[10px] w-full text-center text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
+    <div class="figma-rightbar-center mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
+        <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
         <div class="mx-auto grid w-full max-w-[168px] grid-cols-3 gap-x-[14px] gap-y-[14px]">
             <a href="{{ route('paid-marketing.detailed') }}" title="IP Lookup" class="ov-tool-btn">
                 @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[18px] w-[18px]'])
