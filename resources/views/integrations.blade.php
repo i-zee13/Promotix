@@ -14,12 +14,6 @@
 <div class="figma-rightbar-default pi-rightbar">
     @include('partials.figma-rightbar-header-actions')
 
-    <div class="mb-[6px]">
-        <h2 class="mb-[8px] text-[14px] font-bold text-[#a9a9a9]">Recent Activity</h2>
-        <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]"></div>
-    </div>
-    @include('partials.figma-notifications-script')
-
     <div class="mt-[16px] border-t-2 border-[#5a2a99] pt-[14px]">
         <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
         <div class="grid w-full max-w-[168px] grid-cols-2 gap-[10px]">

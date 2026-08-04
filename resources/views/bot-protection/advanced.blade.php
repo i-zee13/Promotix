@@ -2,6 +2,42 @@
 
 @section('title', 'Bot Protection | Advanced View')
 
+@section('rightbar')
+<div class="figma-rightbar-default paid-rightbar">
+    @include('partials.figma-rightbar-header-actions')
+
+    <div class="mt-[8px] border-t-2 border-[#5a2a99] pt-[14px]">
+        <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Quick View</h2>
+        <div class="grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
+            <a href="{{ route('bot-protection.dashboard') }}" class="paid-quick-action" title="Dashboard">
+                @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[16px] w-[16px]'])
+                <span>Dashboard</span>
+            </a>
+            <a href="{{ route('paid-marketing.detection-settings') }}" class="paid-quick-action" title="Detection">
+                @include('partials.sidebar-icon', ['name' => 'shield', 'class' => 'h-[16px] w-[16px]'])
+                <span>Detection</span>
+            </a>
+            <a href="{{ route('ip-logs') }}" class="paid-quick-action" title="IP Logs">
+                @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
+                <span>IP Logs</span>
+            </a>
+            <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Domains">
+                @include('partials.sidebar-icon', ['name' => 'globe', 'class' => 'h-[16px] w-[16px]'])
+                <span>Domains</span>
+            </a>
+            <a href="{{ route('paid-marketing.dashboard') }}" class="paid-quick-action" title="Paid Marketing">
+                @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[16px] w-[16px]'])
+                <span>Paid Ads</span>
+            </a>
+            <a href="{{ route('reports.index') }}" class="paid-quick-action" title="Reports">
+                @include('partials.sidebar-icon', ['name' => 'box', 'class' => 'h-[16px] w-[16px]'])
+                <span>Reports</span>
+            </a>
+        </div>
+    </div>
+</div>
+@endsection
+
 @section('content')
 <div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma()" x-init="init()">
     <section class="mx-auto w-full min-w-0 px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
@@ -376,10 +412,13 @@
             }
             .bp-adv-hip-card__ip {
                 margin: 0;
-                font-size: 18px;
-                font-weight: 700;
+                font-size: 12px;
+                font-weight: 600;
+                line-height: 1.3;
                 color: #fff;
                 font-variant-numeric: tabular-nums;
+                word-break: break-all;
+                overflow-wrap: anywhere;
             }
             .bp-adv-hip-card__risk { margin: 0; font-size: 13px; font-weight: 600; }
             .bp-adv-hip-card__risk--high { color: #F43F5E; }

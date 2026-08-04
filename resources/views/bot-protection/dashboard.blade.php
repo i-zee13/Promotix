@@ -225,7 +225,6 @@
                     line-height: 1.25;
                 }
                 .bpv2-ads__pill {
-                    position: relative;
                     display: flex;
                     flex: 1;
                     flex-direction: column;
@@ -234,39 +233,45 @@
                     border-radius: 12px;
                     border: 1px solid rgba(255,255,255,0.35);
                     background: #6400B2;
+                    padding: 6px;
                     min-height: 180px;
                 }
                 .bpv2-ads__fill {
-                    position: absolute;
-                    left: 4px;
-                    right: 4px;
-                    bottom: 4px;
-                    min-height: 8px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: flex-start;
+                    width: 100%;
+                    min-height: 36px;
+                    padding: 12px 4px 10px;
                     border-radius: 10px;
                     border: 1px solid rgba(255,255,255,0.35);
                     background: rgba(255, 255, 255, 0.56);
                     transition: height 0.35s ease;
+                    box-sizing: border-box;
                 }
                 .bpv2-ads__fill.is-strong { background: #9a1aff; }
                 .bpv2-ads__fill.is-light { background: #C9B0E8; }
+                .bpv2-ads__fill.is-empty {
+                    background: transparent !important;
+                    border-color: transparent !important;
+                    justify-content: center;
+                }
                 .bpv2-ads__value {
-                    position: relative;
-                    z-index: 1;
                     margin: 0;
-                    padding: 14px 6px 18px;
                     text-align: center;
                     font-size: 22px;
                     font-weight: 700;
                     color: #fff;
                     line-height: 1.1;
-                    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+                    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
                 }
                 .bpv2-ads__count {
                     display: block;
                     margin-top: 4px;
                     font-size: 10px;
                     font-weight: 500;
-                    color: rgba(255,255,255,0.85);
+                    color: rgba(255,255,255,0.9);
                 }
                 html.light-mode .bpv2-ads__label { color: #4a4458; }
                 .bpv2-mal {
@@ -299,10 +304,8 @@
                     border-color: #d4c4e8;
                     box-shadow: 0 6px 18px rgba(100, 0, 178, 0.08);
                 }
-                html.light-mode .bpv2-card,
-                html.light-mode .bpv2-ads__item { background: #fff; border-color: #e7e1ef; }
+                html.light-mode .bpv2-card { background: #fff; border-color: #e7e1ef; }
                 html.light-mode .bpv2-kpi__value,
-                html.light-mode .bpv2-ads__value,
                 html.light-mode .bpv2-mal__count,
                 html.light-mode .bpv2-card__title { color: #1a1524; }
                 html.light-mode .bpv2-kpi__title,
@@ -310,6 +313,7 @@
                 html.light-mode .bpv2-ads__label,
                 html.light-mode .bpv2-bar-row__label,
                 html.light-mode .bpv2-table td { color: #5b5568; }
+                html.light-mode .bpv2-ads__value { color: #fff; }
                 html.light-mode .bpv2-donut__hole { background: #fff; }
                 html.light-mode .bpv2-donut__hole strong { color: #1a1524; }
                 html.light-mode .bpv2-bar-track { background: #efeaf6; }
@@ -550,41 +554,61 @@
                         <div class="bpv2-ads__col">
                             <p class="bpv2-ads__label">Total Ad Sessions</p>
                             <div class="bpv2-ads__pill">
-                                <div class="bpv2-ads__fill is-strong" :style="'height:' + Math.max(0, Math.min(100, paidOfAllPct())) + '%'"></div>
-                                <p class="bpv2-ads__value">
-                                    <span x-text="paidOfAllPct() + '%'"></span>
-                                    <span class="bpv2-ads__count" x-text="fmt(summary.paid?.total || 0) + ' sessions'"></span>
-                                </p>
+                                <div
+                                    class="bpv2-ads__fill is-strong"
+                                    :class="{ 'is-empty': paidOfAllPct() <= 0 }"
+                                    :style="'height:' + (paidOfAllPct() <= 0 ? '100%' : Math.min(100, paidOfAllPct()) + '%')"
+                                >
+                                    <p class="bpv2-ads__value">
+                                        <span x-text="paidOfAllPct() + '%'"></span>
+                                        <span class="bpv2-ads__count" x-text="fmt(summary.paid?.total || 0) + ' sessions'"></span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         <div class="bpv2-ads__col">
                             <p class="bpv2-ads__label">Valid Sessions</p>
                             <div class="bpv2-ads__pill">
-                                <div class="bpv2-ads__fill is-light" :style="'height:' + Math.max(0, Math.min(100, paidValidPct())) + '%'"></div>
-                                <p class="bpv2-ads__value">
-                                    <span x-text="paidValidPct() + '%'"></span>
-                                    <span class="bpv2-ads__count" x-text="fmt(summary.paid?.valid || 0) + ' valid'"></span>
-                                </p>
+                                <div
+                                    class="bpv2-ads__fill is-light"
+                                    :class="{ 'is-empty': paidValidPct() <= 0 }"
+                                    :style="'height:' + (paidValidPct() <= 0 ? '100%' : Math.min(100, paidValidPct()) + '%')"
+                                >
+                                    <p class="bpv2-ads__value">
+                                        <span x-text="paidValidPct() + '%'"></span>
+                                        <span class="bpv2-ads__count" x-text="fmt(summary.paid?.valid || 0) + ' valid'"></span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         <div class="bpv2-ads__col">
                             <p class="bpv2-ads__label">Invalid Sessions</p>
                             <div class="bpv2-ads__pill">
-                                <div class="bpv2-ads__fill is-light" :style="'height:' + Math.max(0, Math.min(100, paidInvalidPct())) + '%'"></div>
-                                <p class="bpv2-ads__value">
-                                    <span x-text="paidInvalidPct() + '%'"></span>
-                                    <span class="bpv2-ads__count" x-text="fmt(summary.paid?.invalid || 0) + ' invalid'"></span>
-                                </p>
+                                <div
+                                    class="bpv2-ads__fill is-light"
+                                    :class="{ 'is-empty': paidInvalidPct() <= 0 }"
+                                    :style="'height:' + (paidInvalidPct() <= 0 ? '100%' : Math.min(100, paidInvalidPct()) + '%')"
+                                >
+                                    <p class="bpv2-ads__value">
+                                        <span x-text="paidInvalidPct() + '%'"></span>
+                                        <span class="bpv2-ads__count" x-text="fmt(summary.paid?.invalid || 0) + ' invalid'"></span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         <div class="bpv2-ads__col">
                             <p class="bpv2-ads__label">Bot Impact</p>
                             <div class="bpv2-ads__pill">
-                                <div class="bpv2-ads__fill is-light" :style="'height:' + Math.max(0, Math.min(100, Number(summary.paid?.bot_impact || 0))) + '%'"></div>
-                                <p class="bpv2-ads__value">
-                                    <span x-text="(summary.paid?.bot_impact ?? 0) + '%'"></span>
-                                    <span class="bpv2-ads__count" x-text="formatDelta(summary.deltas?.bot_impact || 0, true)"></span>
-                                </p>
+                                <div
+                                    class="bpv2-ads__fill is-light"
+                                    :class="{ 'is-empty': Number(summary.paid?.bot_impact || 0) <= 0 }"
+                                    :style="'height:' + (Number(summary.paid?.bot_impact || 0) <= 0 ? '100%' : Math.min(100, Number(summary.paid?.bot_impact || 0)) + '%')"
+                                >
+                                    <p class="bpv2-ads__value">
+                                        <span x-text="(summary.paid?.bot_impact ?? 0) + '%'"></span>
+                                        <span class="bpv2-ads__count" x-text="formatDelta(summary.deltas?.bot_impact || 0, true)"></span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>

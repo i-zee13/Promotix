@@ -277,8 +277,6 @@
         <div class="figma-rightbar-default">
         @include('partials.figma-rightbar-header-actions')
 
-        <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]"></div>
-
         <div class="mt-[16px] border-b-2 border-[#5a2a99] pb-[14px]">
             @include('partials.figma-rightbar-ip-investigation')
         </div>

@@ -6,11 +6,6 @@
 <div class="figma-rightbar-default ov-rightbar">
     @include('partials.figma-rightbar-header-actions')
 
-    <div class="mb-[6px]">
-        <h2 class="mb-[8px] text-[14px] font-bold text-[#a9a9a9]">Recent Activity</h2>
-        <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]"></div>
-    </div>
-
     <div class="mt-[16px]">
         <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">Add Account</h2>
         <a href="{{ route('integrations') }}" class="figma-rightbar-add-card block rounded-[3px] bg-[#6400B2] p-[6px]">

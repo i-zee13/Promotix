@@ -5,8 +5,6 @@
 @section('rightbar')
 <div class="figma-rightbar-default">
     @include('partials.figma-rightbar-header-actions')
-    <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]"></div>
-    @include('partials.figma-notifications-script')
 
     @if (!empty($domain) && !empty($settings))
         <div class="mt-[12px] border-b-2 border-[#5a2a99] pb-[12px]">
@@ -63,7 +61,7 @@
 
 <div class="brand-page-bg min-h-[calc(100vh-49px)]"
      x-data="detectionPageFilters(@js([
-         'domainId' => (string) ($domain?->id ?? ''),
+         'domainId' => request()->filled('domain_id') ? (string) ($domain?->id ?? '') : '',
          'path' => (string) request('path', ''),
          'googleAdsAccountId' => (string) request('google_ads_account_id', ''),
          'campaign' => (string) request('campaign', ''),
@@ -1114,6 +1112,7 @@
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                         <div class="figma-filter-select-wrap">
                             <select x-model="filters.domainId" @change="applyFilters()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                                <option value="">All Domains</option>
                                 @foreach ($domains as $d)
                                     <option value="{{ $d->id }}">{{ $d->hostname }}</option>
                                 @endforeach
@@ -1169,7 +1168,9 @@
             <div class="rounded-[10px] border border-[#6400B2] p-[28px] text-center text-[#a9a9a9]">No domain found. Add a domain first.</div>
         @else
             @if ($domain)
-                <p class="detection-editing-line mb-[14px] text-[12px]">Editing settings for <span class="font-semibold">#{{ $domain->id }} · {{ $domain->hostname }}</span></p>
+                <p class="detection-editing-line mb-[14px] text-[12px] font-semibold">
+                    {{ request()->filled('domain_id') ? $domain->hostname : 'All Domains' }}
+                </p>
             @endif
 
             @if ($domain && $settings)
