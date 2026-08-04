@@ -1388,10 +1388,10 @@ class PaidMarketingController extends Controller
         $threatBuckets = [
             'vpn' => ['label' => 'VPN / Proxy', 'color' => '#A855F7', 'count' => 0],
             'datacenter' => ['label' => 'Data Center', 'color' => '#3B82F6', 'count' => 0],
-            'bot' => ['label' => 'Bot Behavior', 'color' => '#22D3EE', 'count' => 0],
-            'repeat' => ['label' => 'Repeated Clicks', 'color' => '#14B8A6', 'count' => 0],
             'geo' => ['label' => 'Geo Mismatch', 'color' => '#D6B27C', 'count' => 0],
             'device' => ['label' => 'Invalid Device', 'color' => '#C084FC', 'count' => 0],
+            'bot' => ['label' => 'Bot Behavior', 'color' => '#22D3EE', 'count' => 0],
+            'repeat' => ['label' => 'Repeated Clicks', 'color' => '#14B8A6', 'count' => 0],
         ];
 
         $riskBuckets = [
@@ -1408,7 +1408,10 @@ class PaidMarketingController extends Controller
             $isInvalid = $invalid > 0
                 || filled($visit['threat_group'] ?? null)
                 || filled($visit['threat_type'] ?? null)
-                || (bool) ($visit['ip_is_blocked'] ?? false);
+                || (bool) ($visit['ip_is_blocked'] ?? false)
+                || ($visit['intel_vpn'] ?? '') === 'Yes'
+                || ($visit['intel_datacenter'] ?? '') === 'Yes'
+                || ($visit['intel_proxy'] ?? '') === 'Yes';
 
             $weight = $invalid > 0 ? $invalid : ($isInvalid ? $visits : 0);
             if ($weight <= 0) {
@@ -1418,32 +1421,53 @@ class PaidMarketingController extends Controller
             $group = strtolower(trim((string) ($visit['threat_group'] ?? '')));
             $type = strtolower(trim((string) ($visit['threat_type'] ?? '')));
             $blob = $group.' '.$type;
+            $reasonsBlob = strtolower(implode(' ', array_map('strval', data_get($visit, 'risk_summary.reasons', []) ?: [])));
+            $blob .= ' '.$reasonsBlob;
 
-            if ((int) ($visit['vpn_hits'] ?? 0) > 0 || str_contains($blob, 'vpn') || str_contains($blob, 'proxy')) {
+            $isVpn = (int) ($visit['vpn_hits'] ?? 0) > 0
+                || ($visit['intel_vpn'] ?? '') === 'Yes'
+                || ($visit['intel_proxy'] ?? '') === 'Yes'
+                || str_contains($blob, 'vpn')
+                || str_contains($blob, 'proxy');
+            $isDc = (int) ($visit['data_center_hits'] ?? 0) > 0
+                || ($visit['intel_datacenter'] ?? '') === 'Yes'
+                || str_contains($blob, 'data_center')
+                || str_contains($blob, 'datacenter')
+                || str_contains($blob, 'hosting');
+            $isGeo = str_contains($blob, 'geo')
+                || str_contains($blob, 'mismatch')
+                || str_contains($blob, 'location')
+                || str_contains($blob, 'timezone');
+            $isDevice = str_contains($blob, 'device')
+                || str_contains($blob, 'fingerprint')
+                || str_contains($blob, 'invalid_device')
+                || str_contains($type, 'device');
+            $isBot = str_contains($blob, 'bot') || str_contains($blob, 'automation');
+            $isRepeat = $visits > 1
+                || $invalid > 1
+                || str_contains($blob, 'repeat')
+                || str_contains($blob, 'duplicate')
+                || str_contains($blob, 'multiple');
+
+            // Priority: VPN → Data Center → Geo → Invalid Device → Bot → Repeated
+            if ($isVpn) {
                 $threatBuckets['vpn']['count'] += $weight;
-            } elseif ((int) ($visit['data_center_hits'] ?? 0) > 0 || str_contains($blob, 'data_center') || str_contains($blob, 'datacenter')) {
+            } elseif ($isDc) {
                 $threatBuckets['datacenter']['count'] += $weight;
-            } elseif (str_contains($blob, 'bot')) {
-                $threatBuckets['bot']['count'] += $weight;
-            } elseif (str_contains($blob, 'geo') || str_contains($blob, 'mismatch') || str_contains($blob, 'location')) {
+            } elseif ($isGeo) {
                 $threatBuckets['geo']['count'] += $weight;
-            } elseif (str_contains($blob, 'device') || str_contains($blob, 'fingerprint')) {
+            } elseif ($isDevice) {
                 $threatBuckets['device']['count'] += $weight;
-            } elseif ($visits > 1 || str_contains($blob, 'repeat') || str_contains($blob, 'duplicate')) {
+            } elseif ($isBot) {
+                $threatBuckets['bot']['count'] += $weight;
+            } elseif ($isRepeat) {
                 $threatBuckets['repeat']['count'] += $weight;
             } else {
-                // Unclassified invalid → distribute to largest related signal
-                if ((int) ($visit['vpn_hits'] ?? 0) > 0) {
-                    $threatBuckets['vpn']['count'] += $weight;
-                } elseif ((int) ($visit['data_center_hits'] ?? 0) > 0) {
-                    $threatBuckets['datacenter']['count'] += $weight;
-                } else {
-                    $threatBuckets['bot']['count'] += $weight;
-                }
+                $threatBuckets['bot']['count'] += $weight;
             }
 
-            $level = strtolower((string) ($visit['intel_risk_level'] ?? $visit['risk_summary']['level'] ?? ''));
-            $score = $visit['intel_risk_score'] ?? $visit['risk_summary']['score'] ?? null;
+            $level = strtolower((string) ($visit['intel_risk_level'] ?? data_get($visit, 'risk_summary.level') ?? ''));
+            $score = $visit['intel_risk_score'] ?? data_get($visit, 'risk_summary.score');
             if ($level === '' && is_numeric($score)) {
                 $score = (float) $score;
                 $level = $score >= 70 ? 'high' : ($score >= 40 ? 'medium' : 'low');
@@ -1459,15 +1483,13 @@ class PaidMarketingController extends Controller
             }
         }
 
-        $threatTotal = max(1, array_sum(array_column($threatBuckets, 'count')));
+        $threatSum = (int) array_sum(array_column($threatBuckets, 'count'));
+        $threatTotal = max(1, $threatSum);
         $threatItems = [];
         $threatGradientStops = [];
         $cursor = 0.0;
         foreach ($threatBuckets as $bucket) {
-            if ($bucket['count'] <= 0) {
-                continue;
-            }
-            $pct = round(($bucket['count'] / $threatTotal) * 100, 1);
+            $pct = $threatSum > 0 ? round(($bucket['count'] / $threatTotal) * 100, 1) : 0.0;
             $threatItems[] = [
                 'label' => $bucket['label'],
                 'color' => $bucket['color'],
@@ -1475,6 +1497,9 @@ class PaidMarketingController extends Controller
                 'count' => $bucket['count'],
                 'count_label' => number_format($bucket['count']),
             ];
+            if ($bucket['count'] <= 0) {
+                continue;
+            }
             $next = $cursor + $pct;
             $threatGradientStops[] = $bucket['color'].' '.$cursor.'% '.$next.'%';
             $cursor = $next;

@@ -163,6 +163,8 @@
                 display: flex;
                 flex-direction: column;
                 gap: 7px;
+                max-height: 190px;
+                overflow-y: auto;
             }
             .pm-adv-legend li {
                 display: grid;
@@ -377,6 +379,93 @@
                     gap: 12px 22px;
                 }
             }
+
+            /* —— Lite / light-mode —— */
+            html.light-mode .pm-adv-kpi-card,
+            html.light-mode .pm-adv-chart-card,
+            html.light-mode .pm-adv-hip-card {
+                background: #ffffff;
+                border-color: #d4c4e8;
+                box-shadow: 0 1px 0 rgba(100, 0, 178, 0.06);
+            }
+            html.light-mode .pm-adv-kpi-card__label,
+            html.light-mode .pm-adv-kpi-card__sub,
+            html.light-mode .pm-adv-donut__label,
+            html.light-mode .pm-adv-chart-card__updated,
+            html.light-mode .pm-adv-hip-card__meta,
+            html.light-mode .pm-adv-hip-card__ago,
+            html.light-mode .pm-adv-legend__meta {
+                color: #6b6280;
+            }
+            html.light-mode .pm-adv-kpi-card__value,
+            html.light-mode .pm-adv-chart-card__title,
+            html.light-mode .pm-adv-donut__value,
+            html.light-mode .pm-adv-hip__title,
+            html.light-mode .pm-adv-hip-card__ip,
+            html.light-mode .pm-adv-legend li,
+            html.light-mode .pm-adv-country-row__name,
+            html.light-mode .pm-adv-country-row__meta {
+                color: #1a1a1a;
+            }
+            html.light-mode .pm-adv-kpi-card__icon.is-purple { background: rgba(100, 0, 178, 0.12); color: #6400B2; }
+            html.light-mode .pm-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.14); color: #15803d; }
+            html.light-mode .pm-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.12); color: #be123c; }
+            html.light-mode .pm-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+            html.light-mode .pm-adv-donut__inner {
+                background: #ffffff;
+            }
+            html.light-mode .pm-adv-country-row__track {
+                background: rgba(100, 0, 178, 0.1);
+            }
+            html.light-mode .pm-adv-hip__btn {
+                background: #ffffff;
+                border-color: #d4c4e8;
+                color: #5c5470;
+            }
+            html.light-mode .pm-adv-hip__btn:hover {
+                background: #f0ecf5;
+                color: #6400B2;
+                border-color: #c9b8dc;
+            }
+            html.light-mode .pm-adv-hip-card:hover {
+                border-color: #6400B2;
+                background: #faf8fc;
+            }
+            html.light-mode .pm-adv-hip-card__badge {
+                background: #f0ecf5;
+                border-color: #e5ddf0;
+            }
+            html.light-mode .pm-adv-hip__empty {
+                background: #ffffff;
+                border-color: #d4c4e8;
+                color: #6b6280;
+            }
+            html.light-mode .pm-adv-main-card {
+                background: #ffffff;
+                border-color: #c9b8dc;
+                box-shadow: 0 1px 0 rgba(100, 0, 178, 0.05);
+            }
+            html.light-mode .pm-adv-main-card .pm-adv-table-grid--head {
+                background: #f0ecf5;
+                color: #5c5470;
+            }
+            html.light-mode .pm-adv-main-card .pm-adv-table-body-scroll {
+                background: #ffffff;
+            }
+            html.light-mode .pm-adv-main-card .pm-adv-table-grid--row {
+                background: #f4f2f7;
+                color: #1a1a1a;
+            }
+            html.light-mode .pm-adv-main-card .pm-adv-table-grid--row:hover {
+                background: #ebe6f2;
+            }
+            html.light-mode .pm-adv-main-card .text-\[\#a9a9a9\] {
+                color: #6b6280 !important;
+            }
+            html.light-mode .pm-adv-kpi-card--empty {
+                color: #6b6280;
+            }
+
             @media (max-width: 520px) {
                 .pm-adv-chart-card__body { flex-direction: column; align-items: flex-start; }
                 .pm-adv-country-row {
@@ -485,13 +574,13 @@
                 </article>
             </template>
             <template x-if="kpiCards.length === 0">
-                <article class="pm-adv-kpi-card col-span-full min-h-[80px] items-center justify-center text-center text-[12px] text-white/45" style="grid-column: 1 / -1;">
+                <article class="pm-adv-kpi-card pm-adv-kpi-card--empty col-span-full min-h-[80px] items-center justify-center text-center text-[12px] text-white/45" style="grid-column: 1 / -1;">
                     Loading metrics…
                 </article>
             </template>
         </div>
 
-        <section class="overflow-visible rounded-[12px] border border-[#6706b3]">
+        <section class="pm-adv-main-card overflow-visible rounded-[12px] border border-[#6706b3]">
             <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#6400B2] px-[16px] py-[12px]">
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
@@ -1501,6 +1590,12 @@
                     this.syncHeaderDates();
                     this.scheduleFetch();
                 });
+                window.addEventListener('promotix-open-ip-report', (e) => {
+                    const visit = e.detail;
+                    if (!visit) return;
+                    const row = this.rows.find((r) => String(r.id) === String(visit.id)) || visit;
+                    this.openClicks(row);
+                });
             },
             syncHeaderDates() {
                 try {
@@ -1627,12 +1722,29 @@
                         this.reportingTimezone = this.timezoneContext.reporting_timezone;
                     }
                     this.syncPaidTimezoneHeader();
+                    // Prefer the top high-risk IP for the rightbar investigation panel.
+                    const topHip = this.highRiskIps[0];
+                    if (topHip?.id) {
+                        const visit = this.rows.find((r) => String(r.id) === String(topHip.id));
+                        if (visit) this.publishInvestigation(visit);
+                    } else if (this.rows.length) {
+                        const risky = this.rows.find((r) => {
+                            const score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
+                            const level = String(r.intel_risk_level || r.risk_summary?.level || '').toLowerCase();
+                            return score >= 55 || level === 'high';
+                        });
+                        if (risky) this.publishInvestigation(risky);
+                    }
                 } catch (e) {
                     console.error(e);
                 } finally {
                     this.loading = false;
                     window.promotixPageLoader?.hide();
                 }
+            },
+            publishInvestigation(visit) {
+                if (!visit) return;
+                window.dispatchEvent(new CustomEvent('promotix-ip-investigation', { detail: visit }));
             },
             scrollHighRisk(dir) {
                 const el = this.$refs.highRiskTrack;
@@ -1643,9 +1755,10 @@
             openHighRiskIp(card) {
                 if (!card?.id) return;
                 const visit = this.rows.find((r) => String(r.id) === String(card.id));
-                if (visit) this.openClicks(visit);
+                if (visit) this.publishInvestigation(visit);
             },
             async openClicks(visit) {
+                this.publishInvestigation(visit);
                 this.modal.visit = visit;
                 this.modal.clicks = (visit.clicks || []).slice();
                 this.modal.activeIndex = 0;
