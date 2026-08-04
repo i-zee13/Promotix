@@ -674,6 +674,7 @@ class PaidAdvertisingDashboardController extends Controller
             $visitRows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
                 ->whereNotNull('utm_term')
                 ->where('utm_term', '!=', '')
+                ->whereRaw("LOWER(utm_term) NOT IN ('null', 'undefined', '{keyword}')")
                 ->select(
                     'utm_term as keyword',
                     DB::raw('COUNT(*) as total'),
@@ -687,11 +688,14 @@ class PaidAdvertisingDashboardController extends Controller
             $merged = $merged->merge($visitRows);
 
             // Also pull keywords stored in Google click meta when utm_term was not captured.
+            // JSON null becomes the literal string "null" after JSON_UNQUOTE — exclude those.
             if (Schema::hasColumn('visits', 'ad_click_meta')) {
                 $metaKeyword = "JSON_UNQUOTE(JSON_EXTRACT(ad_click_meta, '$.keyword'))";
                 $metaRows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
                     ->whereNotNull('ad_click_meta')
-                    ->whereRaw("{$metaKeyword} IS NOT NULL AND {$metaKeyword} != ''")
+                    ->whereRaw("{$metaKeyword} IS NOT NULL")
+                    ->whereRaw("{$metaKeyword} != ''")
+                    ->whereRaw("LOWER({$metaKeyword}) NOT IN ('null', 'undefined', '{keyword}')")
                     ->selectRaw("{$metaKeyword} as keyword, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
                     ->groupByRaw($metaKeyword)
                     ->orderByDesc('total')
@@ -710,7 +714,8 @@ class PaidAdvertisingDashboardController extends Controller
                 ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
                 ->whereIn('pv.domain_id', $domainIds)
                 ->whereNotNull('pc.keyword')
-                ->where('pc.keyword', '!=', '');
+                ->where('pc.keyword', '!=', '')
+                ->whereRaw("LOWER(pc.keyword) NOT IN ('null', 'undefined', '{keyword}')");
 
             UserTimezone::applyCalendarDateRangeFilter(
                 $clickQuery,
@@ -746,10 +751,15 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         $rows = $merged
-            ->filter(fn ($row) => filled($row->keyword ?? null))
+            ->filter(function ($row) {
+                $keyword = mb_strtolower(trim((string) ($row->keyword ?? '')));
+
+                return $keyword !== ''
+                    && ! in_array($keyword, ['null', 'undefined', '{keyword}'], true);
+            })
             ->groupBy(fn ($row) => mb_strtolower(trim((string) $row->keyword)))
             ->map(function ($group) {
-                $keyword = (string) ($group->first()->keyword ?? '');
+                $keyword = trim((string) ($group->first()->keyword ?? ''));
                 $total = (int) $group->sum(fn ($r) => (int) ($r->total ?? 0));
                 $invalid = (int) $group->sum(fn ($r) => (int) ($r->invalid ?? 0));
 

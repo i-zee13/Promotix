@@ -202,19 +202,55 @@
         align-items: stretch;
         width: 100%;
     }
-    /* Keep Trend + Heatmap + Keywords on ONE row when content area is wide enough */
-    @container paid-page (min-width: 820px) {
+    /* Standard laptop / sidebar-narrow: Trend full width, Heatmap | Keywords below */
+    @container paid-page (min-width: 640px) {
+        .paid-row2 {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+        .paid-row2 > .paid-panel-card:first-child {
+            grid-column: 1 / -1;
+        }
+    }
+    /* Wide canvas only: Trend | Heatmap | Keywords in one row */
+    @container paid-page (min-width: 1100px) {
         .paid-row2 {
             grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
         }
+        .paid-row2 > .paid-panel-card:first-child {
+            grid-column: auto;
+        }
     }
-    @media (max-width: 819px) {
-        .paid-row2 {
-            grid-template-columns: 1fr;
+    /* Short / standard laptop height — less empty top chrome */
+    @media (max-height: 900px) {
+        .paid-dashboard-page {
+            padding-top: 18px !important;
+            padding-bottom: 16px !important;
+        }
+    }
+    /* Filter bar: intentional 2-row wrap on standard widths */
+    .figma-filter-bar--paid .paid-filter-secondary {
+        display: flex;
+        flex: 1 1 100%;
+        flex-wrap: wrap;
+        align-items: stretch;
+        border-top: 1px solid rgba(0, 0, 0, 0.12);
+        min-width: 0;
+    }
+    .figma-filter-bar--paid .paid-filter-secondary > label,
+    .figma-filter-bar--paid .paid-filter-secondary > .figma-filter-calendar-host {
+        border-top: 0 !important;
+    }
+    @container paid-page (min-width: 1180px) {
+        .figma-filter-bar--paid .paid-filter-secondary {
+            flex: 1 1 auto;
+            border-top: 0;
+            min-width: 280px;
         }
     }
     @media (max-width: 1023px) {
         .paid-kpi-card__big { font-size: 18px; }
+        .paid-kpi-card { min-height: 0; padding: 10px 12px; }
+        .paid-dashboard-card__title { font-size: 12px; }
     }
 </style>
 <div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js([
@@ -279,7 +315,8 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-[120px] flex-1 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <div class="paid-filter-secondary">
+                <label class="flex min-w-[140px] flex-[1.4] flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -300,6 +337,7 @@
                         <span class="paid-compare-toggle__knob"></span>
                     </button>
                 </label>
+                </div>
             </div>
         </div>
 
@@ -1882,7 +1920,9 @@ function paidAdvertisingFigma(config = {}) {
                             const pct = row.invalid_pct != null ? row.invalid_pct : (row.risk != null ? row.risk : 0);
                             const level = pct >= 40 ? 'High' : pct >= 20 ? 'Medium' : 'Low';
                             const cls = level === 'High' ? 'is-high' : level === 'Medium' ? 'is-medium' : 'is-low';
-                            const name = String(row.keyword || '—').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                            const raw = String(row.keyword ?? '').trim();
+                            const name = (!raw || ['null', 'undefined', '{keyword}'].includes(raw.toLowerCase()) ? '—' : raw)
+                                .replace(/</g, '&lt;').replace(/"/g, '&quot;');
                             return `<tr>
                                 <td class="truncate" title="${name}">${name}</td>
                                 <td>${this.fmt(row.total)}</td>
