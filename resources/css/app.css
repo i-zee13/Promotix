@@ -9502,9 +9502,9 @@ button.figma-bp-advanced-select-wrap:focus {
     overflow: visible;
 }
 
-/* Paid filter: hug controls; calendar stays in-bar */
+/* Paid filter: full-width under title; calendar stays in-bar */
 .figma-filter-bar--paid {
-    width: fit-content !important;
+    width: 100% !important;
     max-width: 100% !important;
     align-items: stretch;
 }

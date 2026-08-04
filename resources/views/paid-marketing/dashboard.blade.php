@@ -227,33 +227,68 @@
             padding-bottom: 16px !important;
         }
     }
-    /* Filter bar: hug content — no trailing empty strip after Compare */
+    /* Filter bar under title: full width, clean wrap, selects never blow out */
     .figma-filter-bar--paid {
-        width: fit-content !important;
+        width: 100% !important;
         max-width: 100% !important;
+        flex-wrap: wrap !important;
+        overflow: visible;
+    }
+    .figma-filter-bar--paid > label {
+        flex: 1 1 140px;
+        min-width: 120px;
+        max-width: 220px;
+    }
+    .figma-filter-bar--paid .figma-filter-select-wrap,
+    .figma-filter-bar--paid .figma-filter-path-wrap {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow: hidden;
+    }
+    .figma-filter-bar--paid .figma-filter-select-wrap .figma-filter-control,
+    .figma-filter-bar--paid .figma-filter-path-wrap .figma-filter-control {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
     }
     .figma-filter-bar--paid .paid-filter-secondary {
         display: flex;
-        flex: 0 0 auto;
-        flex-wrap: nowrap;
+        flex: 1 1 100%;
+        flex-wrap: wrap;
         align-items: stretch;
         min-width: 0;
-        border-top: 0;
+        border-top: 1px solid rgba(0, 0, 0, 0.12);
+    }
+    .figma-filter-bar--paid .paid-filter-secondary > label {
+        flex: 1 1 160px;
+        min-width: 140px;
+        max-width: none;
+    }
+    .figma-filter-bar--paid .paid-filter-secondary > label:last-child {
+        flex: 0 0 auto;
+        min-width: 88px;
+        max-width: none;
     }
     .figma-filter-bar--paid .paid-filter-secondary > label,
     .figma-filter-bar--paid .paid-filter-secondary > .figma-filter-calendar-host {
         border-top: 0 !important;
-        flex-grow: 0 !important;
     }
-    @container paid-page (max-width: 900px) {
-        .figma-filter-bar--paid {
-            width: 100% !important;
-            flex-wrap: wrap !important;
-        }
+    .figma-filter-bar--paid .figma-filter-calendar-host {
+        flex: 0 0 auto !important;
+    }
+    /* Wide enough: keep Landing + calendar + Compare on the primary row */
+    @container paid-page (min-width: 1100px) {
         .figma-filter-bar--paid .paid-filter-secondary {
-            flex: 1 1 100%;
-            flex-wrap: wrap;
-            border-top: 1px solid rgba(0, 0, 0, 0.12);
+            flex: 1 1 auto;
+            border-top: 0;
+            min-width: 280px;
+        }
+        .figma-filter-bar--paid > label {
+            flex: 1 1 0;
+            min-width: 0;
+            max-width: none;
         }
     }
     @media (max-width: 1023px) {
@@ -471,15 +506,15 @@
     'profileTimezone' => \App\Support\UserTimezone::forUser(auth()->user()),
 ]))" x-init="init()">
     <section class="paid-dashboard-page mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
-        <div class="mb-[23px] flex flex-col gap-[14px] 2xl:flex-row 2xl:items-start 2xl:justify-between">
+        <div class="mb-[23px] flex flex-col gap-[14px]">
             <div class="flex flex-wrap items-center gap-[12px] shrink-0">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Advertising</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
             </div>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
-                <label class="flex min-w-[120px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid flex min-h-[54px] w-full max-w-full flex-wrap rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
+                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -490,7 +525,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-[120px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.traffic_source" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -500,7 +535,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-[130px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.google_ads_account_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -511,7 +546,7 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex min-w-[130px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.campaign" @change="onCampaignChange(); reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -523,7 +558,7 @@
                     </div>
                 </label>
                 <div class="paid-filter-secondary">
-                <label class="flex min-w-[160px] w-[180px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -531,7 +566,7 @@
                     </div>
                 </label>
                 @include('partials.figma-filter-date-fields')
-                <label class="flex min-w-[88px] shrink-0 flex-col items-center justify-center gap-[4px] px-[10px] py-[6px]">
+                <label class="flex shrink-0 flex-col items-center justify-center gap-[4px] px-[10px] py-[6px]">
                     <span class="text-[8px] font-semibold uppercase text-black/55">Compare</span>
                     <button
                         type="button"
