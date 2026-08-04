@@ -9,10 +9,7 @@
 
 @section('rightbar')
 <div class="figma-rightbar-default paid-rightbar">
-    <div class="mb-[16px]">
-        <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
-        <p class="mt-[4px] text-[9px] text-white/45">Paid Advertising</p>
-    </div>
+    @include('partials.figma-rightbar-header-actions')
 
     <div class="mb-[6px]">
         <h2 class="mb-[8px] text-[14px] font-bold text-[#a9a9a9]">Activity Feed</h2>
@@ -914,7 +911,7 @@
                 </div>
             </div>
             <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
-                <table class="w-full min-w-[980px] table-fixed text-left text-[11px] text-[#a9a9a9]" :class="ipViewMode === 'expert' ? 'min-w-[1360px]' : 'min-w-[1040px]'">
+                <table class="w-full min-w-[980px] table-fixed text-left text-[11px] text-[#a9a9a9]" :class="ipViewMode === 'expert' ? 'min-w-[1480px]' : 'min-w-[1040px]'">
                     <thead class="sticky top-0 z-[1] bg-[#6400B2]">
                         <tr>
                             <th class="w-[14%] px-[8px] py-[7px] font-normal">
@@ -940,8 +937,9 @@
                             <th class="w-[12%] px-[8px] py-[7px] font-normal">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')" title="When invalid/paid evidence was last recorded for this IP"><span>Evidence Time</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
-                            <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Device</th>
-                            <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Browser</th>
+                            <th class="w-[7%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Device</th>
+                            <th class="w-[10%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'" title="Same fingerprint as Advanced / Detailed View">Fingerprint</th>
+                            <th class="w-[7%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">Browser</th>
                             <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('top_threat')" @click="setIpSort('top_threat')"><span>Threat</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
@@ -967,11 +965,12 @@
                                 <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.action || '—'"></td>
                                 <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px] text-white/85" :title="evidenceTimeTitle(row)" x-text="evidenceTimeLabel(row)"></td>
                                 <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="row.device || '—'"></td>
+                                <td class="max-w-0 truncate px-[8px] py-[6px] font-mono text-[9px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.device_fingerprint || ''" x-text="fingerprintLabel(row.device_fingerprint)"></td>
                                 <td class="max-w-0 truncate px-[8px] py-[6px]" x-show="ipViewMode === 'expert'" x-text="row.browser || '—'"></td>
                                 <td class="max-w-0 truncate px-[8px] py-[6px] capitalize" x-show="ipViewMode === 'expert'" x-text="threatLabel(row.top_threat)"></td>
                             </tr>
                         </template>
-                        <tr x-show="sortedIps.length === 0"><td colspan="12" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
+                        <tr x-show="sortedIps.length === 0"><td colspan="13" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid IPs for this campaign in the selected date range.' : 'No paid IP data yet for the selected domain(s) and date range.'"></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1525,6 +1524,11 @@ function paidAdvertisingFigma(config = {}) {
             if (!raw) return '—';
             if (raw.length > 22) return raw.slice(0, 20) + '…';
             return raw;
+        },
+        fingerprintLabel(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '—';
+            return raw.length > 16 ? raw.slice(0, 16) : raw;
         },
         threatLabel(key) {
             const map = { vpn: 'VPN', data_center: 'Data center', malicious: 'Malicious', abnormal_rate_limit: 'Rate limit' };

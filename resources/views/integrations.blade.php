@@ -11,29 +11,7 @@
 @endphp
 
 @section('rightbar')
-    <div class="mb-[22px]">
-        <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
-    </div>
-
-    <div class="mb-[24px] grid grid-cols-4 gap-[9px]">
-        @foreach (['bell-notification', 'chat', 'share', 'more'] as $icon)
-            @if ($icon === 'chat')
-                <button type="button" @click="$dispatch('open-live-agent')" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]" aria-label="Live agent chat">
-                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M4 5h16v11H8l-4 4V5z"/></svg>
-                </button>
-            @else
-                <a href="{{ route('integrations') }}" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white" aria-label="{{ $icon }}">
-                    @if ($icon === 'bell-notification')
-                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 01-6 0"/></svg>
-                    @elseif ($icon === 'share')
-                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.7" d="M8 12h8M16 12l-4-4m4 4l-4 4"/></svg>
-                    @else
-                        <svg class="h-[13px] w-[13px]" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/></svg>
-                    @endif
-                </a>
-            @endif
-        @endforeach
-    </div>
+    @include('partials.figma-rightbar-header-actions')
 
     <div id="right-notifications" class="space-y-[13px] border-b-2 border-[#5a2a99] pb-[18px] text-[10px] text-[#a9a9a9]"></div>
     @include('partials.figma-notifications-script')

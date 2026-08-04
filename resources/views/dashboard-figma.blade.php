@@ -4,10 +4,7 @@
 
 @section('rightbar')
 <div class="figma-rightbar-default ov-rightbar">
-    <div class="mb-[16px]">
-        <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
-        <p class="mt-[4px] text-[9px] text-white/45">Account panel</p>
-    </div>
+    @include('partials.figma-rightbar-header-actions')
 
     <div class="mb-[6px]">
         <h2 class="mb-[8px] text-[14px] font-bold text-[#a9a9a9]">Recent Activity</h2>

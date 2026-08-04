@@ -1062,6 +1062,7 @@ class PaidAdvertisingDashboardController extends Controller
                 'Country',
                 'Campaign',
                 'Device',
+                'Fingerprint',
                 'Browser',
                 'Risk',
                 'Risk %',
@@ -1089,6 +1090,7 @@ class PaidAdvertisingDashboardController extends Controller
                     $r['country'],
                     $r['campaign'],
                     $r['device'] ?? '',
+                    $r['device_fingerprint'] ?? '',
                     $r['browser'] ?? '',
                     $r['risk_level'] ?? '',
                     $r['risk_score'] ?? '',
@@ -1356,7 +1358,78 @@ class PaidAdvertisingDashboardController extends Controller
             $this->ipRowsFromPaidMarketing($request, $domainIds, $fromDate, $toDate),
         );
 
-        return $this->formatIpRows($rows, $request->user(), $this->resolveActiveAllowListIps($request));
+        $formatted = $this->formatIpRows($rows, $request->user(), $this->resolveActiveAllowListIps($request));
+
+        return $this->attachDeviceFingerprints($formatted, $domainIds);
+    }
+
+    /**
+     * Attach Advanced View fingerprint (behavior_fingerprint, else UA hash) per IP.
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $rows
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function attachDeviceFingerprints($rows, $domainIds)
+    {
+        $domainIdList = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values();
+        $ips = $rows->pluck('ip')->map(fn ($ip) => (string) $ip)->filter()->unique()->values();
+        if ($ips->isEmpty() || $domainIdList->isEmpty()) {
+            return $rows->map(function (array $row) {
+                $row['device_fingerprint'] = $row['device_fingerprint'] ?? null;
+
+                return $row;
+            });
+        }
+
+        $fpByIp = [];
+
+        if (Schema::hasTable('visit_session_recordings')
+            && Schema::hasColumn('visit_session_recordings', 'behavior_fingerprint')) {
+            $recordingRows = DB::table('visit_session_recordings')
+                ->whereIn('domain_id', $domainIdList->all())
+                ->whereIn('ip', $ips->all())
+                ->whereNotNull('behavior_fingerprint')
+                ->where('behavior_fingerprint', '!=', '')
+                ->orderByDesc('id')
+                ->get(['ip', 'behavior_fingerprint']);
+
+            foreach ($recordingRows as $recording) {
+                $ip = (string) ($recording->ip ?? '');
+                if ($ip === '' || isset($fpByIp[$ip])) {
+                    continue;
+                }
+                $fpByIp[$ip] = (string) $recording->behavior_fingerprint;
+            }
+        }
+
+        $missing = $ips->filter(fn ($ip) => ! isset($fpByIp[$ip]))->values();
+        if ($missing->isNotEmpty()
+            && Schema::hasTable('visits')
+            && Schema::hasColumn('visits', 'user_agent')) {
+            $uaRows = DB::table('visits')
+                ->whereIn('domain_id', $domainIdList->all())
+                ->whereIn('ip', $missing->all())
+                ->whereNotNull('user_agent')
+                ->where('user_agent', '!=', '')
+                ->orderByDesc('visited_at')
+                ->get(['ip', 'user_agent']);
+
+            foreach ($uaRows as $uaRow) {
+                $ip = (string) ($uaRow->ip ?? '');
+                if ($ip === '' || isset($fpByIp[$ip])) {
+                    continue;
+                }
+                $fpByIp[$ip] = substr(hash('sha256', (string) $uaRow->user_agent), 0, 16);
+            }
+        }
+
+        return $rows->map(function (array $row) use ($fpByIp) {
+            $ip = (string) ($row['ip'] ?? '');
+            $row['device_fingerprint'] = $fpByIp[$ip] ?? ($row['device_fingerprint'] ?? null);
+
+            return $row;
+        });
     }
 
     /**

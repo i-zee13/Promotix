@@ -29,19 +29,21 @@
         'HOME' => [
             ['label' => 'Overview', 'route' => 'dashboard', 'icon' => 'home', 'permission' => 'dashboard'],
         ],
-        'TRAFFIC ANALYTICS' => [
-            ['label' => 'Paid Dashboard', 'route' => 'paid-marketing.dashboard', 'icon' => 'chart', 'permission' => 'paid-marketing-dashboard'],
-            ['label' => 'Bot Dashboard', 'route' => 'bot-protection.dashboard', 'icon' => 'home', 'permission' => 'bot-protection'],
-            ['label' => 'Reports', 'route' => 'reports.index', 'icon' => 'chart', 'permission' => 'dashboard'],
-        ],
-        'INVALID TRAFFIC' => [
+        'PAID ADVERTISING' => [
+            ['label' => 'Dashboard', 'route' => 'paid-marketing.dashboard', 'icon' => 'chart', 'permission' => 'paid-marketing-dashboard'],
             ['label' => 'Advanced View', 'route' => 'paid-marketing.detailed', 'icon' => 'eye', 'permission' => 'paid-marketing-detailed'],
-            ['label' => 'Bot Advanced', 'route' => 'bot-protection.advanced', 'icon' => 'eye', 'permission' => 'bot-protection'],
+            ['label' => 'Platform Integrate', 'route' => 'integrations', 'icon' => 'plug', 'permission' => 'paid-marketing-platform-connections'],
             ['label' => 'Detection Panel', 'route' => 'paid-marketing.detection-settings', 'icon' => 'shield-check', 'permission' => 'paid-marketing-detection-settings'],
         ],
-        'TRACKING' => [
-            ['label' => 'Platform Integrate', 'route' => 'integrations', 'icon' => 'plug', 'permission' => 'paid-marketing-platform-connections'],
+        'BOT PROTECTION' => [
+            ['label' => 'Dashboard', 'route' => 'bot-protection.dashboard', 'icon' => 'home', 'permission' => 'bot-protection'],
+            ['label' => 'Advanced View', 'route' => 'bot-protection.advanced', 'icon' => 'eye', 'permission' => 'bot-protection'],
+        ],
+        'SITE MANAGEMENT' => [
             ['label' => 'Domains', 'route' => 'domains.index', 'icon' => 'globe', 'permission' => 'domain-management'],
+        ],
+        'SETTINGS' => [
+            ['label' => 'Reports', 'route' => 'reports.index', 'icon' => 'chart', 'permission' => 'dashboard'],
             ['label' => 'Billing', 'route' => 'billing.index', 'icon' => 'card', 'permission' => 'upgrade-plan'],
         ],
     ];
@@ -102,16 +104,14 @@
                                 </a>
                             @endforeach
                         </div>
+                        @if ($group === 'SITE MANAGEMENT' && (! $user || $user->canAccess('domain-management')))
+                            <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-add-domain-btn mt-[8px] flex h-[32px] w-full max-w-[188px] items-center justify-center gap-[6px] rounded-[8px] border text-[13px] font-bold uppercase transition hover:bg-[#6400B2] hover:text-white">
+                                <span class="flex h-[16px] w-[16px] items-center justify-center rounded-full border text-[11px] leading-none">+</span>
+                                ADD DOMAIN
+                            </a>
+                        @endif
                     </div>
                 @endforeach
-
-                <div class="mb-[14px]">
-                    <p class="figma-nav-label mb-[8px] text-[11px] font-bold uppercase leading-none">SITE MANAGEMENT</p>
-                    <a href="{{ route('domains.index', ['add' => 1]) }}" class="figma-add-domain-btn flex h-[32px] w-full max-w-[188px] items-center justify-center gap-[6px] rounded-[8px] border text-[13px] font-bold uppercase transition hover:bg-[#6400B2] hover:text-white">
-                        <span class="flex h-[16px] w-[16px] items-center justify-center rounded-full border text-[11px] leading-none">+</span>
-                        ADD DOMAIN
-                    </a>
-                </div>
             </nav>
 
             <footer class="figma-sidebar-footer mt-auto shrink-0 border-t border-white/10 pt-[10px] pb-[2px]">
@@ -205,10 +205,7 @@
             @yield('rightbar')
         @else
         <div class="figma-rightbar-default">
-        <div class="mb-[16px]">
-            <p class="text-[18px] font-bold leading-none text-[#a9a9a9]">Digital Promotix</p>
-            <p class="mt-[4px] text-[9px] text-white/45">Account panel</p>
-        </div>
+        @include('partials.figma-rightbar-header-actions')
 
         <div id="right-notifications" class="figma-rightbar-notify space-y-[10px] border-b-2 border-[#5a2a99] pb-[12px] text-[9px] text-[#a9a9a9]"></div>
 
