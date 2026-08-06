@@ -112,9 +112,19 @@ class GoogleAdsMetricsService
 
         if ($hostnameFilter !== null && $hostnameFilter !== '') {
             $hostRows = $this->campaignIdsForHostnameQuery($customerId, $apiVersion, $headers, $hostnameFilter, $fromDate, $toDate);
-            // Always apply hostname scope when requested. Previously an empty match list
-            // left account-wide rows intact, so every linked domain showed the same clicks.
-            if ($hostRows === []) {
+            // null = landing-page lookup failed — keep account-wide rows instead of wiping clicks.
+            // [] = lookup succeeded but no campaigns serve this hostname — return empty so the
+            // caller can decide (e.g. sole linked domain retries without hostname).
+            if ($hostRows === null) {
+                Log::warning('Google Ads hostname filter lookup failed; using account-wide campaign metrics', [
+                    'customer_id' => $customerId,
+                    'hostname_filter' => $hostnameFilter,
+                    'date_from' => $fromDate,
+                    'date_to' => $toDate,
+                    'rows_kept' => count($rows),
+                    'api_error' => $this->lastApiError,
+                ]);
+            } elseif ($hostRows === []) {
                 Log::info('Google Ads daily campaign metrics hostname filter matched no campaigns', [
                     'customer_id' => $customerId,
                     'hostname_filter' => $hostnameFilter,
@@ -124,9 +134,9 @@ class GoogleAdsMetricsService
                 ]);
 
                 return [];
+            } else {
+                $rows = array_values(array_filter($rows, fn ($r) => in_array($r['campaign_id'], $hostRows, true)));
             }
-
-            $rows = array_values(array_filter($rows, fn ($r) => in_array($r['campaign_id'], $hostRows, true)));
         }
 
         Log::info('Google Ads daily campaign metrics parsed', [
@@ -160,12 +170,12 @@ class GoogleAdsMetricsService
             return [];
         }
 
-        return $this->campaignIdsForHostnameQuery($customerId, $apiVersion, $headers, $hostname, $fromDate, $toDate);
+        return $this->campaignIdsForHostnameQuery($customerId, $apiVersion, $headers, $hostname, $fromDate, $toDate) ?? [];
     }
 
     /**
      * @param  array<string, string>  $headers
-     * @return list<string>
+     * @return list<string>|null  Campaign IDs, empty list when none match, or null when the API call failed
      */
     private function campaignIdsForHostnameQuery(
         string $customerId,
@@ -174,13 +184,12 @@ class GoogleAdsMetricsService
         string $hostname,
         string $fromDate,
         string $toDate
-    ): array {
-        $host = strtolower(trim($hostname));
-        $query = "SELECT campaign.id, landing_page_view.unexpanded_final_url FROM landing_page_view WHERE segments.date BETWEEN '{$fromDate}' AND '{$toDate}' LIMIT 500";
+    ): ?array {
+        $query = "SELECT campaign.id, landing_page_view.unexpanded_final_url FROM landing_page_view WHERE segments.date BETWEEN '{$fromDate}' AND '{$toDate}' LIMIT 5000";
 
         $res = $this->searchStream($apiVersion, $customerId, $query, $headers, 'landing_page_hostname');
         if (! $res->successful()) {
-            return [];
+            return null;
         }
 
         $ids = [];
@@ -189,7 +198,7 @@ class GoogleAdsMetricsService
             if ($url === '') {
                 continue;
             }
-            if (str_contains(strtolower($url), $host)) {
+            if ($this->urlMatchesHostname($url, $hostname)) {
                 $id = (string) ($row['campaign']['id'] ?? '');
                 if ($id !== '') {
                     $ids[$id] = true;
@@ -198,6 +207,26 @@ class GoogleAdsMetricsService
         }
 
         return array_keys($ids);
+    }
+
+    private function urlMatchesHostname(string $url, string $hostname): bool
+    {
+        $needle = strtolower(trim($hostname));
+        $needle = preg_replace('/^www\./', '', $needle) ?? $needle;
+        if ($needle === '') {
+            return false;
+        }
+
+        $urlHost = parse_url($url, PHP_URL_HOST);
+        if (is_string($urlHost) && $urlHost !== '') {
+            $urlHost = strtolower($urlHost);
+            $urlHost = preg_replace('/^www\./', '', $urlHost) ?? $urlHost;
+            if ($urlHost === $needle || str_ends_with($urlHost, '.'.$needle)) {
+                return true;
+            }
+        }
+
+        return str_contains(strtolower($url), $needle);
     }
 
     /**

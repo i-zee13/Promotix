@@ -63,6 +63,25 @@ class GoogleAdsDomainMetricsSync
         // don't copy the same account-wide click totals onto every linked domain.
         $dailyRows = $this->fetchDailyFromGoogle($account, $fromDate, $toDate, $domain->hostname);
 
+        // Hostname scope can return empty when landing_page_view has no URL match
+        // (redirect domains, URL templates, etc.). If this is the only domain linked
+        // to the Ads account, fall back to account-wide metrics so Total Google Ads
+        // Clicks is not stuck at 0 while tracked clicks exist.
+        if ($dailyRows === [] && filled($domain->hostname)) {
+            $linkedDomains = Domain::query()
+                ->where('google_ads_account_id', $account->id)
+                ->count();
+            if ($linkedDomains <= 1) {
+                Log::info('Google Ads domain metrics sync: hostname scope empty; retrying account-wide', [
+                    'domain_id' => $domain->id,
+                    'hostname' => $domain->hostname,
+                    'google_ads_account_id' => $account->id,
+                    'linked_domains' => $linkedDomains,
+                ]);
+                $dailyRows = $this->fetchDailyFromGoogle($account, $fromDate, $toDate, null);
+            }
+        }
+
         if ($dailyRows === []) {
             $apiErr = $this->metrics->lastApiError;
             $this->lastApiError = $apiErr;
@@ -475,7 +494,12 @@ class GoogleAdsDomainMetricsSync
             return false;
         }
 
-        if (! GoogleAdsCampaignDailyMetric::query()->where('domain_id', $domain->id)->exists()) {
+        $hasRangeMetrics = GoogleAdsCampaignDailyMetric::query()
+            ->where('domain_id', $domain->id)
+            ->whereBetween('metric_date', [$fromDate, $toDate])
+            ->exists();
+
+        if (! $hasRangeMetrics) {
             return true;
         }
 
