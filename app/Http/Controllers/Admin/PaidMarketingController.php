@@ -81,6 +81,18 @@ class PaidMarketingController extends Controller
             ->limit(100)
             ->get();
 
+        // Align with Paid Dashboard Recent IPs: include live `visits` rows for the
+        // same calendar range even when paid_marketing_clicks.clicked_at is outside it
+        // (e.g. duplicate gclid skips a new click row but still logs visits).
+        $visits = $this->mergeDetailedVisitsFromLiveTraffic(
+            $request,
+            $visits,
+            $metricFrom,
+            $metricTo,
+            $reportingTz,
+        );
+        $this->attachLiveVisitRangeStats($visits, $request, $metricFrom, $metricTo, $reportingTz);
+
         $ipLogs = IpLog::query()
             ->whereIn('ip', $visits->pluck('ip')->unique()->filter()->values())
             ->get()
@@ -622,6 +634,204 @@ class PaidMarketingController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Pull in paid_marketing_visits that have live `visits` traffic in-range but were
+     * missed by click-date filtering (duplicate gclid / empty paid_id click rows).
+     *
+     * @param  Collection<int, PaidMarketingVisit>  $visits
+     * @return Collection<int, PaidMarketingVisit>
+     */
+    private function mergeDetailedVisitsFromLiveTraffic(
+        Request $request,
+        Collection $visits,
+        string $metricFrom,
+        string $metricTo,
+        string $reportingTz,
+    ): Collection {
+        if (! Schema::hasTable('visits')) {
+            return $visits;
+        }
+
+        $liveKeys = $this->livePaidVisitKeys($request, $metricFrom, $metricTo, $reportingTz);
+        if ($liveKeys->isEmpty()) {
+            return $visits;
+        }
+
+        $existing = $visits->map(
+            fn (PaidMarketingVisit $visit) => (int) $visit->domain_id . '|' . (string) $visit->ip
+        )->all();
+        $existingLookup = array_fill_keys($existing, true);
+
+        $missing = $liveKeys->filter(
+            fn (object $row) => ! isset($existingLookup[(int) $row->domain_id . '|' . (string) $row->ip])
+        )->values();
+
+        if ($missing->isEmpty()) {
+            return $visits;
+        }
+
+        [$metricFromEager, $metricToEager, , $tzEager] = [$metricFrom, $metricTo, null, $reportingTz];
+        $user = $request->user();
+        $path = trim((string) $request->query('path', ''));
+
+        $extraQuery = PaidMarketingVisit::query()
+            ->with([
+                'domain',
+                'clicks' => function ($clickQuery) use ($metricFromEager, $metricToEager, $tzEager, $user, $path): void {
+                    $clickQuery->orderBy('clicked_at');
+                    UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFromEager, $metricToEager, $user, $tzEager);
+                    GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
+                    if ($path !== '') {
+                        $clickQuery->where('path', 'like', '%' . $path . '%');
+                    }
+                },
+            ])
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id)->forPaidMarketing())
+            ->where(function (Builder $match) use ($missing): void {
+                foreach ($missing as $row) {
+                    $match->orWhere(function (Builder $inner) use ($row): void {
+                        $inner->where('domain_id', (int) $row->domain_id)
+                            ->where('ip', (string) $row->ip);
+                    });
+                }
+            })
+            ->select('paid_marketing_visits.*')
+            ->selectSub(
+                IpLog::query()
+                    ->select('is_blocked')
+                    ->whereColumn('ip_logs.ip', 'paid_marketing_visits.ip')
+                    ->limit(1),
+                'ip_is_blocked'
+            );
+
+        $extra = $extraQuery->get();
+
+        return $visits
+            ->concat($extra)
+            ->unique(fn (PaidMarketingVisit $visit) => (int) $visit->domain_id . '|' . (string) $visit->ip)
+            ->sortByDesc(fn (PaidMarketingVisit $visit) => (string) ($visit->last_click_at ?? ''))
+            ->take(100)
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, object{domain_id: int|string, ip: string}>
+     */
+    private function livePaidVisitKeys(
+        Request $request,
+        string $metricFrom,
+        string $metricTo,
+        string $reportingTz,
+    ): Collection {
+        if (! Schema::hasTable('visits')) {
+            return collect();
+        }
+
+        $user = $request->user();
+        $domainIds = Domain::query()
+            ->where('user_id', $user->id)
+            ->forPaidMarketing()
+            ->when((int) $request->query('domain_id', 0) > 0, fn ($q) => $q->where('id', (int) $request->query('domain_id')))
+            ->when((int) $request->query('google_ads_account_id', 0) > 0, fn ($q) => $q->where('google_ads_account_id', (int) $request->query('google_ads_account_id')))
+            ->pluck('id');
+
+        if ($domainIds->isEmpty()) {
+            return collect();
+        }
+
+        $query = DB::table('visits')
+            ->whereIn('domain_id', $domainIds->all());
+
+        UserTimezone::applyCalendarDateRangeFilter($query, 'visited_at', $metricFrom, $metricTo, $user, $reportingTz);
+        GoogleClickAttribution::applyHasClickIdFilter($query);
+
+        if ($ip = trim((string) $request->query('ip', ''))) {
+            $this->applyIpFilter($query, 'ip', $ip);
+        }
+
+        if ($path = trim((string) $request->query('path', ''))) {
+            $query->where('url', 'like', '%' . $path . '%');
+        }
+
+        if ($campaign = trim((string) $request->query('campaign', ''))) {
+            if (Schema::hasColumn('visits', 'campaign_name')) {
+                $query->where(function ($match) use ($campaign): void {
+                    $match->where('campaign_name', $campaign)
+                        ->orWhere('campaign_name', 'like', '%' . $campaign . '%')
+                        ->orWhere('utm_campaign', $campaign)
+                        ->orWhere('utm_campaign', 'like', '%' . $campaign . '%');
+                });
+            } else {
+                $query->where(function ($match) use ($campaign): void {
+                    $match->where('utm_campaign', $campaign)
+                        ->orWhere('utm_campaign', 'like', '%' . $campaign . '%');
+                });
+            }
+        }
+
+        return $query
+            ->select('domain_id', 'ip')
+            ->distinct()
+            ->limit(500)
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, PaidMarketingVisit>  $visits
+     */
+    private function attachLiveVisitRangeStats(
+        Collection $visits,
+        Request $request,
+        string $metricFrom,
+        string $metricTo,
+        string $reportingTz,
+    ): void {
+        if ($visits->isEmpty() || ! Schema::hasTable('visits')) {
+            return;
+        }
+
+        $user = $request->user();
+        $domainIds = $visits->pluck('domain_id')->map(fn ($id) => (int) $id)->unique()->values();
+        $ips = $visits->pluck('ip')->map(fn ($ip) => (string) $ip)->unique()->filter()->values();
+
+        $query = DB::table('visits')
+            ->whereIn('domain_id', $domainIds->all())
+            ->whereIn('ip', $ips->all());
+
+        UserTimezone::applyCalendarDateRangeFilter($query, 'visited_at', $metricFrom, $metricTo, $user, $reportingTz);
+        GoogleClickAttribution::applyHasClickIdFilter($query);
+
+        $campaignExpr = Schema::hasColumn('visits', 'campaign_name')
+            ? 'MAX(COALESCE(NULLIF(TRIM(campaign_name), ""), NULLIF(TRIM(utm_campaign), "")))'
+            : 'MAX(NULLIF(TRIM(utm_campaign), ""))';
+        $threatExpr = Schema::hasColumn('visits', 'threat_group')
+            ? 'MAX(threat_group)'
+            : 'NULL';
+        $invalidExpr = Schema::hasColumn('visits', 'is_invalid_traffic')
+            ? 'SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END)'
+            : '0';
+
+        $stats = $query
+            ->selectRaw("domain_id, ip, COUNT(*) as total, {$invalidExpr} as invalid, MAX(visited_at) as last_seen, {$campaignExpr} as campaign, {$threatExpr} as threat_group")
+            ->groupBy('domain_id', 'ip')
+            ->get()
+            ->keyBy(fn ($row) => (int) $row->domain_id . '|' . (string) $row->ip);
+
+        foreach ($visits as $visit) {
+            $key = (int) $visit->domain_id . '|' . (string) $visit->ip;
+            $row = $stats->get($key);
+            if (! $row) {
+                continue;
+            }
+
+            $visit->setAttribute('range_visit_count', (int) ($row->total ?? 0));
+            $visit->setAttribute('range_invalid_count', (int) ($row->invalid ?? 0));
+            $visit->setAttribute('range_last_seen', $row->last_seen ?? null);
+            $visit->setAttribute('range_campaign', $row->campaign ?? null);
+            $visit->setAttribute('range_threat_group', $row->threat_group ?? null);
+        }
+    }
+
     private function detailedVisitQuery(Request $request): Builder
     {
         [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
@@ -641,13 +851,42 @@ class PaidMarketingController extends Controller
                 },
             ])
             ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id)->forPaidMarketing())
-            ->whereHas('clicks', function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user, $request): void {
-                UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
-                GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
+            ->where(function (Builder $activity) use ($metricFrom, $metricTo, $reportingTz, $user, $request): void {
+                $path = trim((string) $request->query('path', ''));
 
-                if ($path = trim((string) $request->query('path', ''))) {
-                    $clickQuery->where('path', 'like', '%' . $path . '%');
+                // Legacy: paid_marketing_clicks inside the selected calendar range.
+                $activity->whereHas('clicks', function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user, $path): void {
+                    UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
+                    GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
+
+                    if ($path !== '') {
+                        $clickQuery->where('path', 'like', '%' . $path . '%');
+                    }
+                });
+
+                // Same source as Dashboard Recent IP Activity (`visits.visited_at`).
+                if (Schema::hasTable('visits')) {
+                    $activity->orWhereExists(function ($sq) use ($metricFrom, $metricTo, $reportingTz, $user, $path): void {
+                        $sq->selectRaw('1')
+                            ->from('visits')
+                            ->whereColumn('visits.domain_id', 'paid_marketing_visits.domain_id')
+                            ->whereColumn('visits.ip', 'paid_marketing_visits.ip');
+                        UserTimezone::applyCalendarDateRangeFilter($sq, 'visits.visited_at', $metricFrom, $metricTo, $user, $reportingTz);
+                        GoogleClickAttribution::applyHasClickIdFilter($sq);
+
+                        if ($path !== '') {
+                            $sq->where('visits.url', 'like', '%' . $path . '%');
+                        }
+                    });
                 }
+
+                // Duplicate paid click: visit metadata updates, but no new click row.
+                $activity->orWhere(function (Builder $recent) use ($metricFrom, $metricTo, $reportingTz, $user): void {
+                    UserTimezone::applyCalendarDateRangeFilter($recent, 'last_click_at', $metricFrom, $metricTo, $user, $reportingTz);
+                    $recent->whereHas('clicks', function ($clickQuery): void {
+                        GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
+                    });
+                });
             })
             ->select('paid_marketing_visits.*')
             ->selectSub(
@@ -828,7 +1067,9 @@ class PaidMarketingController extends Controller
         ?string $reportingTz = null,
     ): array {
         $clicks = $visit->clicks;
-        $clickCount = max($clicks->count(), (int) ($visit->visits ?? 1));
+        $rangeVisitCount = (int) ($visit->getAttribute('range_visit_count') ?? 0);
+        $rangeInvalidCount = (int) ($visit->getAttribute('range_invalid_count') ?? 0);
+        $clickCount = max($clicks->count(), $rangeVisitCount, (int) ($visit->visits ?? 1));
 
         $vpnHits = $clicks->filter(
             fn ($c) => strtolower((string) $c->threat_group) === 'vpn'
@@ -845,15 +1086,21 @@ class PaidMarketingController extends Controller
         }
 
         $invalidClicks = $clicks->filter(fn ($c) => filled($c->threat_group))->count();
-        if ($invalidClicks === 0 && filled($visit->threat_group)) {
+        if ($invalidClicks === 0 && $rangeInvalidCount > 0) {
+            $invalidClicks = $rangeInvalidCount;
+        }
+        if ($invalidClicks === 0 && (filled($visit->threat_group) || filled($visit->getAttribute('range_threat_group')))) {
             $invalidClicks = $clickCount;
         }
 
         $validClicks = max($clickCount - $invalidClicks, 0);
+        $rangeLastSeen = $visit->getAttribute('range_last_seen');
         $lastClickAt = $clicks
             ->map(fn ($c) => UserTimezone::parseUtcInstant($c->getRawOriginal('clicked_at') ?? $c->clicked_at))
             ->filter()
-            ->max() ?? UserTimezone::parseUtcInstant($visit->getRawOriginal('last_click_at') ?? $visit->last_click_at);
+            ->max()
+            ?? UserTimezone::parseUtcInstant($rangeLastSeen)
+            ?? UserTimezone::parseUtcInstant($visit->getRawOriginal('last_click_at') ?? $visit->last_click_at);
         $ipParts = collect(preg_split('/\s*,\s*/', (string) $visit->ip))
             ->map(fn ($part) => trim($part))
             ->filter()
@@ -910,12 +1157,14 @@ class PaidMarketingController extends Controller
             'ip' => $visit->ip,
             'ip_parts' => $ipParts,
             'ip_count' => max(count($ipParts), 1),
-            'visits' => (int) ($visit->visits ?? $clicks->count() ?: 1),
+            'visits' => max($rangeVisitCount, (int) ($visit->visits ?? $clicks->count() ?: 1)),
             'domain' => $visit->domain?->hostname,
-            'campaign' => $visit->campaign_name ?: $visit->campaign,
+            'campaign' => $visit->campaign_name
+                ?: $visit->campaign
+                ?: ($visit->getAttribute('range_campaign') ?: null),
             'last_click_at' => UserTimezone::isoForUser($lastClickAt, $user),
             'last_click_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y') ?? '-',
-            'threat_group' => $visit->threat_group,
+            'threat_group' => $visit->threat_group ?: $visit->getAttribute('range_threat_group'),
             'threat_type' => $visit->threat_type,
             'manual_decision' => $visit->manual_decision,
             'manual_decision_reason' => $visit->manual_decision_reason,
