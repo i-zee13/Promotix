@@ -143,9 +143,14 @@ class PaidMarketingController extends Controller
             ? $domains->first()
             : null;
 
+        $stats = $this->computeDetailedStatsFromArrays(collect($rows));
+        // KPI strip must match Paid Dashboard Click Summary (same filters/date),
+        // not the limited Advanced table sample (max 100 IP rows).
+        $stats['kpis'] = $this->advancedKpisFromDashboardSummary($request, collect($rows));
+
         return response()->json([
             'rows' => collect($rows)->values(),
-            'stats' => $this->computeDetailedStatsFromArrays(collect($rows)),
+            'stats' => $stats,
             'total' => collect($rows)->count(),
             'sort' => ['key' => $sortKey !== '' ? $sortKey : 'last_click_at', 'dir' => $sortKey !== '' ? $sortDir : 'desc'],
             'timezone_context' => UserTimezone::dashboardContext(
@@ -1603,6 +1608,104 @@ class PaidMarketingController extends Controller
         }
 
         return $query->get()->groupBy('ip')->map->first();
+    }
+
+    /**
+     * Build Advanced View KPI cards from the same Paid Dashboard summary endpoint
+     * so totals stay identical for the shared domain/date/campaign filters.
+     *
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function advancedKpisFromDashboardSummary(Request $request, Collection $rows): array
+    {
+        // IP / expert filters are table-only; strip them so KPIs match the dashboard strip.
+        $summaryRequest = Request::create(
+            $request->url(),
+            'GET',
+            collect($request->query())->except([
+                'ip', 'sort', 'dir', 'detection', 'threat_group', 'risk_level',
+                'block_status', 'keyword', 'ad_group', 'browser', 'device', 'source', 'country',
+            ])->all()
+        );
+        $summaryRequest->setUserResolver(fn () => $request->user());
+
+        try {
+            $summary = app(PaidAdvertisingDashboardController::class)
+                ->summary($summaryRequest)
+                ->getData(true);
+        } catch (\Throwable $e) {
+            report($e);
+            $summary = [];
+        }
+
+        $googleClicks = (int) ($summary['total_click_count'] ?? $summary['google_clicks'] ?? 0);
+        $tracked = (int) ($summary['tracked_clicks'] ?? $summary['unique_paid_clicks'] ?? 0);
+        $valid = (int) ($summary['unique_valid_paid_clicks'] ?? $summary['valid_paid_visits'] ?? 0);
+        $invalid = (int) ($summary['unique_invalid_paid_clicks'] ?? $summary['invalid_paid_visits'] ?? 0);
+        $blocked = (int) ($summary['block_enforced'] ?? $summary['block_attempts'] ?? $summary['blocked_paid_visits'] ?? 0);
+        $costSaved = (float) ($summary['cost_saved'] ?? 0);
+        $trackingAccuracy = (int) ($summary['tracking_accuracy_pct'] ?? $summary['tag_capture_pct'] ?? 0);
+
+        $pctBase = $tracked > 0 ? $tracked : max($valid + $invalid, 0);
+        $validPct = $pctBase > 0 ? round(($valid / $pctBase) * 100, 1) : 0.0;
+        $invalidPct = $pctBase > 0 ? round(($invalid / $pctBase) * 100, 1) : 0.0;
+
+        $riskScores = $rows
+            ->map(fn ($visit) => $visit['intel_risk_score'] ?? $visit['risk_summary']['score'] ?? null)
+            ->filter(fn ($score) => is_numeric($score))
+            ->map(fn ($score) => (float) $score)
+            ->values();
+        $avgRisk = $riskScores->isNotEmpty() ? (int) round($riskScores->avg()) : 0;
+
+        return [
+            [
+                'key' => 'total',
+                'label' => 'Total Clicks (Google Ads)',
+                'value' => number_format($googleClicks),
+                'sub' => $tracked > 0
+                    ? ('Tracked '.$tracked)
+                    : 'Imported from Google Ads',
+                'tone' => 'purple',
+            ],
+            [
+                'key' => 'valid',
+                'label' => 'Valid Clicks',
+                'value' => number_format($valid),
+                'sub' => number_format($validPct, 1).'% of tracked clicks',
+                'tone' => 'green',
+            ],
+            [
+                'key' => 'invalid',
+                'label' => 'Invalid Clicks',
+                'value' => number_format($invalid),
+                'sub' => number_format($invalidPct, 1).'% of tracked clicks',
+                'tone' => 'rose',
+            ],
+            [
+                'key' => 'blocked',
+                'label' => 'Blocked Clicks',
+                'value' => number_format($blocked),
+                'sub' => 'Blocked by protection',
+                'tone' => 'rose',
+            ],
+            [
+                'key' => 'waste',
+                'label' => 'Estimated Waste Prevented',
+                'value' => '$'.number_format($costSaved, 2),
+                'sub' => 'Saved from invalid traffic',
+                'tone' => 'green',
+            ],
+            [
+                'key' => 'risk',
+                'label' => 'Tracking Accuracy',
+                'value' => (string) $trackingAccuracy.'%',
+                'sub' => $avgRisk > 0
+                    ? ('Avg risk '.$avgRisk.'/100')
+                    : ('Tracked clicks '.$tracked),
+                'tone' => 'amber',
+            ],
+        ];
     }
 
     /** @param Collection<int, array<string, mixed>> $rows */
