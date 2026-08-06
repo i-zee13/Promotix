@@ -1069,28 +1069,33 @@ class PaidMarketingController extends Controller
         $clicks = $visit->clicks;
         $rangeVisitCount = (int) ($visit->getAttribute('range_visit_count') ?? 0);
         $rangeInvalidCount = (int) ($visit->getAttribute('range_invalid_count') ?? 0);
-        $clickCount = max($clicks->count(), $rangeVisitCount, (int) ($visit->visits ?? 1));
+
+        // Prefer live `visits` range stats (same source as Paid Dashboard Recent IPs).
+        // Click-row threat_group undercounts when most invalid events only set
+        // visits.is_invalid_traffic and never create/update paid_marketing_clicks.
+        if ($rangeVisitCount > 0) {
+            $clickCount = $rangeVisitCount;
+            $invalidClicks = min($rangeInvalidCount, $clickCount);
+        } else {
+            $clickCount = max($clicks->count(), (int) ($visit->visits ?? 1));
+            $invalidClicks = $clicks->filter(fn ($c) => filled($c->threat_group))->count();
+            if ($invalidClicks === 0 && filled($visit->threat_group)) {
+                $invalidClicks = $clickCount;
+            }
+        }
 
         $vpnHits = $clicks->filter(
             fn ($c) => strtolower((string) $c->threat_group) === 'vpn'
         )->count();
-        if ($vpnHits === 0 && strtolower((string) $visit->threat_group) === 'vpn') {
-            $vpnHits = $clickCount;
+        if ($vpnHits === 0 && strtolower((string) ($visit->threat_group ?: $visit->getAttribute('range_threat_group'))) === 'vpn') {
+            $vpnHits = max($vpnHits, $invalidClicks > 0 ? $invalidClicks : 0);
         }
 
         $dataCenterHits = $clicks->filter(
             fn ($c) => in_array(strtolower((string) $c->threat_group), ['data_center', 'datacenter'], true)
         )->count();
-        if ($dataCenterHits === 0 && in_array(strtolower((string) $visit->threat_group), ['data_center', 'datacenter'], true)) {
-            $dataCenterHits = $clickCount;
-        }
-
-        $invalidClicks = $clicks->filter(fn ($c) => filled($c->threat_group))->count();
-        if ($invalidClicks === 0 && $rangeInvalidCount > 0) {
-            $invalidClicks = $rangeInvalidCount;
-        }
-        if ($invalidClicks === 0 && (filled($visit->threat_group) || filled($visit->getAttribute('range_threat_group')))) {
-            $invalidClicks = $clickCount;
+        if ($dataCenterHits === 0 && in_array(strtolower((string) ($visit->threat_group ?: $visit->getAttribute('range_threat_group'))), ['data_center', 'datacenter'], true)) {
+            $dataCenterHits = max($dataCenterHits, $invalidClicks > 0 ? $invalidClicks : 0);
         }
 
         $validClicks = max($clickCount - $invalidClicks, 0);
@@ -1157,7 +1162,9 @@ class PaidMarketingController extends Controller
             'ip' => $visit->ip,
             'ip_parts' => $ipParts,
             'ip_count' => max(count($ipParts), 1),
-            'visits' => max($rangeVisitCount, (int) ($visit->visits ?? $clicks->count() ?: 1)),
+            'visits' => $rangeVisitCount > 0
+                ? $rangeVisitCount
+                : max((int) ($visit->visits ?? $clicks->count() ?: 1), $clickCount),
             'domain' => $visit->domain?->hostname,
             'campaign' => $visit->campaign_name
                 ?: $visit->campaign
