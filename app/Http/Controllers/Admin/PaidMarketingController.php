@@ -84,6 +84,7 @@ class PaidMarketingController extends Controller
             ->keyBy('ip');
 
         $recordings = $this->latestRecordingsForIps($request, $visits->pluck('ip')->unique()->filter()->values());
+        $behaviorCounts = $this->behaviorClickCountsForIps($request, $visits->pluck('ip')->unique()->filter()->values());
 
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
@@ -108,6 +109,7 @@ class PaidMarketingController extends Controller
             $recordings->get($visit->ip),
             $verificationLookup,
             $reportingTz,
+            $behaviorCounts->get($visit->ip),
         ));
 
         $sortKey = trim((string) $request->query('sort', ''));
@@ -119,6 +121,7 @@ class PaidMarketingController extends Controller
                 $sortDir,
                 [
                     'visits', 'invalid_clicks', 'valid_clicks', 'vpn_hits', 'data_center_hits',
+                    'cta_clicks', 'tel_clicks', 'page_changes',
                     'intel_risk_score', 'intel_confidence', 'intel_latitude', 'intel_longitude', 'ip_count',
                 ],
             ));
@@ -406,6 +409,9 @@ class PaidMarketingController extends Controller
                 'WBRAID',
                 'Invalid Clicks',
                 'Valid Clicks',
+                'CTA Clicks',
+                'Tel Clicks',
+                'Page Changes',
                 'Google Verified',
                 'Status',
                 'Risk Score',
@@ -441,8 +447,12 @@ class PaidMarketingController extends Controller
                 ->whereIn('ip', $visits->pluck('ip')->unique()->filter()->values())
                 ->get()
                 ->keyBy('ip');
+            $behaviorCounts = $this->behaviorClickCountsForIps(
+                $request,
+                $visits->pluck('ip')->unique()->filter()->values()
+            );
 
-            $visits->each(function (PaidMarketingVisit $visit) use ($handle, $request, $verificationLookup, $reportingTz, $ipLogs): void {
+            $visits->each(function (PaidMarketingVisit $visit) use ($handle, $request, $verificationLookup, $reportingTz, $ipLogs, $behaviorCounts): void {
                 $row = $this->formatDetailedVisit(
                     $visit,
                     $request->user(),
@@ -450,6 +460,7 @@ class PaidMarketingController extends Controller
                     null,
                     $verificationLookup,
                     $reportingTz,
+                    $behaviorCounts->get($visit->ip),
                 );
                 fputcsv($handle, [
                     $row['ip'],
@@ -470,6 +481,9 @@ class PaidMarketingController extends Controller
                     $row['wbraid'] ?? '',
                     $row['invalid_clicks'],
                     $row['valid_clicks'],
+                    $row['cta_clicks'] ?? 0,
+                    $row['tel_clicks'] ?? 0,
+                    $row['page_changes'] ?? 0,
                     $row['google_verified_label'] ?? '',
                     $row['status'] ?? '',
                     $row['intel_risk_score'] ?? '',
@@ -517,9 +531,13 @@ class PaidMarketingController extends Controller
                 ->whereIn('ip', $visits->pluck('ip')->unique()->filter()->values())
                 ->get()
                 ->keyBy('ip');
+            $behaviorCounts = $this->behaviorClickCountsForIps(
+                $request,
+                $visits->pluck('ip')->unique()->filter()->values()
+            );
 
             $rows = $visits
-                ->map(function (PaidMarketingVisit $visit) use ($request, $verificationLookup, $reportingTz, $ipLogs) {
+                ->map(function (PaidMarketingVisit $visit) use ($request, $verificationLookup, $reportingTz, $ipLogs, $behaviorCounts) {
                     return $this->formatDetailedVisit(
                         $visit,
                         $request->user(),
@@ -527,6 +545,7 @@ class PaidMarketingController extends Controller
                         null,
                         $verificationLookup,
                         $reportingTz,
+                        $behaviorCounts->get($visit->ip),
                     );
                 })
                 ->values();
@@ -535,7 +554,7 @@ class PaidMarketingController extends Controller
             $sortDir = strtolower((string) $request->query('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
             if ($sortKey !== '') {
                 $rows = collect(\App\Support\SortableRows::sort($rows, $sortKey, $sortDir, [
-                    'visits', 'invalid_clicks', 'valid_clicks',
+                    'visits', 'invalid_clicks', 'valid_clicks', 'cta_clicks', 'tel_clicks', 'page_changes',
                 ]));
             }
 
@@ -545,7 +564,8 @@ class PaidMarketingController extends Controller
             $headers = [
                 'IP Address', 'Visits', 'Domain', 'Campaign', 'Last Click', 'Threat Group', 'Threat Type',
                 'Country', 'Device', 'Session ID', 'Fingerprint', 'Browser', 'OS', 'GCLID', 'GBRAID', 'WBRAID',
-                'Invalid Clicks', 'Valid Clicks', 'Google Verified', 'Status', 'Risk Score', 'Risk Level',
+                'Invalid Clicks', 'Valid Clicks', 'CTA Clicks', 'Tel Clicks', 'Page Changes',
+                'Google Verified', 'Status', 'Risk Score', 'Risk Level',
                 'Confidence', 'Evidence', 'Needs Block', 'Connection', 'Action', 'Last Path', 'Timestamp',
             ];
             foreach ($headers as $i => $header) {
@@ -573,6 +593,9 @@ class PaidMarketingController extends Controller
                     $row['wbraid'] ?? '',
                     $row['invalid_clicks'] ?? 0,
                     $row['valid_clicks'] ?? 0,
+                    $row['cta_clicks'] ?? 0,
+                    $row['tel_clicks'] ?? 0,
+                    $row['page_changes'] ?? 0,
                     $row['google_verified_label'] ?? '',
                     $row['status'] ?? '',
                     $row['intel_risk_score'] ?? '',
@@ -1316,6 +1339,7 @@ class PaidMarketingController extends Controller
         ?object $recording = null,
         ?GoogleVerifiedCampaignLookup $verificationLookup = null,
         ?string $reportingTz = null,
+        ?object $behaviorCounts = null,
     ): array {
         // Prefer live `visits` range stats (same source as Paid Dashboard Recent IPs).
         // Never fall back to lifetime paid_marketing_visits.visits — that inflates
@@ -1483,6 +1507,9 @@ class PaidMarketingController extends Controller
             'data_center_hits' => $dataCenterHits,
             'invalid_clicks' => $invalidClicks,
             'valid_clicks' => $validClicks,
+            'cta_clicks' => (int) ($behaviorCounts->cta_clicks ?? 0),
+            'tel_clicks' => (int) ($behaviorCounts->tel_clicks ?? 0),
+            'page_changes' => (int) ($behaviorCounts->page_changes ?? 0),
             'google_verified' => $googleVerified,
             'google_verified_label' => $googleVerifiedLabel,
             'has_session_recording' => $recording !== null,
@@ -1856,6 +1883,44 @@ class PaidMarketingController extends Controller
         }
 
         return $query->get()->groupBy('ip')->map->first();
+    }
+
+    /**
+     * Aggregate CTA / tel / page-change counts from session recordings for Advanced View.
+     *
+     * @param  Collection<int, string>  $ips
+     * @return Collection<string, object>
+     */
+    private function behaviorClickCountsForIps(Request $request, Collection $ips): Collection
+    {
+        if (
+            ! Schema::hasTable('visit_session_recordings')
+            || ! Schema::hasColumn('visit_session_recordings', 'cta_clicks')
+            || $ips->isEmpty()
+        ) {
+            return collect();
+        }
+
+        $query = DB::table('visit_session_recordings')
+            ->select([
+                'ip',
+                DB::raw('COALESCE(SUM(cta_clicks), 0) as cta_clicks'),
+                DB::raw('COALESCE(SUM(tel_clicks), 0) as tel_clicks'),
+                DB::raw('COALESCE(SUM(page_changes), 0) as page_changes'),
+            ])
+            ->whereIn('ip', $ips)
+            ->groupBy('ip');
+
+        $domainId = (int) $request->query('domain_id', 0);
+        if ($domainId > 0) {
+            $query->where('domain_id', $domainId);
+        } else {
+            $query->whereIn('domain_id', Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->pluck('id'));
+        }
+
+        return $query->get()->keyBy('ip');
     }
 
     /**
@@ -2572,6 +2637,7 @@ class PaidMarketingController extends Controller
             'daily_valid_click_limit' => ['nullable', 'integer', 'min:1', 'max:500'],
             'weekly_valid_click_limit' => ['nullable', 'integer', 'min:1', 'max:2000'],
             'monthly_valid_click_limit' => ['nullable', 'integer', 'min:1', 'max:5000'],
+            'behavior_control_enabled' => ['nullable', 'boolean'],
             'fail_mode' => ['nullable', 'in:open,closed'],
             'block_response' => ['nullable', 'in:hide,blank,redirect,challenge,forbid'],
             'block_redirect_url' => ['nullable', 'string', 'max:2048'],
@@ -2670,6 +2736,7 @@ class PaidMarketingController extends Controller
                     'daily_valid_click_limit' => (int) ($data['daily_valid_click_limit'] ?? 2),
                     'weekly_valid_click_limit' => (int) ($data['weekly_valid_click_limit'] ?? 100),
                     'monthly_valid_click_limit' => (int) ($data['monthly_valid_click_limit'] ?? 300),
+                    'behavior_control_enabled' => $request->boolean('behavior_control_enabled'),
                 ],
                 'fail_mode' => (string) ($data['fail_mode'] ?? 'open'),
                 'block_response' => (string) ($data['block_response'] ?? 'hide'),

@@ -268,17 +268,78 @@ class TagController extends Controller
       push('mousemove', { x: e.clientX, y: e.clientY });
     }
 
+    var lastScrollAt = 0;
     function onScroll(){
+      var now = Date.now();
+      if (now - lastScrollAt < 120) return;
+      lastScrollAt = now;
       push('scroll', { x: window.scrollX || 0, y: window.scrollY || 0 });
     }
 
+    function closestActionEl(el){
+      var node = el;
+      while (node && node !== document && node !== document.documentElement) {
+        if (!node.tagName) { node = node.parentElement; continue; }
+        var tag = String(node.tagName).toUpperCase();
+        if (tag === 'A' || tag === 'BUTTON' || (node.getAttribute && node.getAttribute('role') === 'button')) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+      return el;
+    }
+
+    function isTelHref(href){
+      return String(href || '').trim().toLowerCase().indexOf('tel:') === 0;
+    }
+
+    function isCtaEl(el){
+      if (!el || !el.tagName) return false;
+      var tag = String(el.tagName).toUpperCase();
+      if (el.getAttribute && (el.getAttribute('data-cta') != null || el.getAttribute('data-action') === 'cta')) return true;
+      var cls = String(el.className || '').toLowerCase();
+      var id = String(el.id || '').toLowerCase();
+      if (/\\b(cta|call-to-action|btn-primary|button-primary|btn-cta|convert|signup|sign-up|buy-now|get-started)\\b/.test(cls + ' ' + id)) {
+        return true;
+      }
+      if (tag === 'BUTTON') return true;
+      return false;
+    }
+
     function onClick(e){
+      var target = closestActionEl(e.target);
+      var href = '';
+      try {
+        href = String((target && (target.href || (target.getAttribute && target.getAttribute('href')))) || '');
+      } catch (err) { href = ''; }
+      var tel = isTelHref(href);
+      var cta = !tel && isCtaEl(target);
       push('click', {
         x: e.clientX,
         y: e.clientY,
-        tag: (e.target && e.target.tagName) ? String(e.target.tagName) : ''
+        tag: (target && target.tagName) ? String(target.tagName) : '',
+        href: href.slice(0, 500),
+        cta: cta ? 1 : 0,
+        tel: tel ? 1 : 0
       });
+      if (target && String(target.tagName).toUpperCase() === 'A' && href && !tel) {
+        markPageSoon();
+      }
     }
+
+    var seenPages = {};
+    function markPage(){
+      var u = String(location.href || '').slice(0, 500);
+      if (!u || seenPages[u]) return;
+      seenPages[u] = true;
+      push('page', { url: u });
+    }
+    var pageTimer = null;
+    function markPageSoon(){
+      if (pageTimer) clearTimeout(pageTimer);
+      pageTimer = setTimeout(markPage, 400);
+    }
+    markPage();
 
     function isSensitiveInput(el){
       if (!el || !el.tagName) return false;
@@ -304,12 +365,16 @@ class TagController extends Controller
     window.addEventListener('scroll', onScroll, { passive: true });
     document.addEventListener('click', onClick, true);
     document.addEventListener('input', onInput, true);
+    window.addEventListener('popstate', markPageSoon);
+    window.addEventListener('hashchange', markPageSoon);
 
     setTimeout(function(){
       document.removeEventListener('mousemove', onMove);
       window.removeEventListener('scroll', onScroll);
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('input', onInput, true);
+      window.removeEventListener('popstate', markPageSoon);
+      window.removeEventListener('hashchange', markPageSoon);
       window.__pmRecording = false;
       try {
         fetch(sessionRecordingUrl, {

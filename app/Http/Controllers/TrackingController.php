@@ -9,10 +9,14 @@ use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Services\GoogleAudienceExclusionService;
 use App\Services\IpIntel\VisitProtectionService;
+use App\Models\IpLog;
 use App\Support\CampaignAttributionResolver;
 use App\Support\CountryValue;
+use App\Support\DetectionProfiles;
 use App\Support\GoogleAdsClickRedirect;
 use App\Support\GoogleClickAttribution;
+use App\Support\SessionBehaviorAnalyzer;
+use App\Support\SessionBehaviorFingerprint;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -601,7 +605,7 @@ class TrackingController extends Controller
             $detection,
             $enforceBlock,
             $captchaRequired,
-            $this->shouldRecordSession($domain, $detection),
+            $this->shouldRecordSession($domain, $detection, $isPaidTraffic),
             $visitId,
             $domain,
         );
@@ -640,11 +644,19 @@ class TrackingController extends Controller
         }
 
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
+        $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        $thresholds = DetectionProfiles::thresholdsFor(
+            $settings?->detection_profile,
+            is_array($settings?->detection_thresholds) ? $settings->detection_thresholds : null,
+        );
+        $behaviorOn = (bool) ($thresholds['behavior_control_enabled'] ?? false);
+
         $ip = $this->clientIp($request);
         $events = array_slice((array) $data['events'], 0, 500);
         $durationMs = min((int) ($data['duration_ms'] ?? 0), 15000);
-        $signals = \App\Support\SessionBehaviorAnalyzer::signals($events, $durationMs);
-        $fingerprint = \App\Support\SessionBehaviorFingerprint::fromEvents($events, $durationMs);
+        $analysis = SessionBehaviorAnalyzer::analyze($events, $durationMs);
+        $signals = $analysis['signals'];
+        $fingerprint = SessionBehaviorFingerprint::fromEvents($events, $durationMs);
 
         // Soft signal when the same IP/domain recently repeated this low-human pattern.
         $repeatScore = 0;
@@ -655,11 +667,42 @@ class TrackingController extends Controller
                 ->where('behavior_fingerprint', $fingerprint)
                 ->where('created_at', '>=', UserTimezone::nowUtc()->subDays(7))
                 ->count();
-            if ($repeatScore >= 1) {
-                $signals[] = 'REPEATED_BEHAVIOR';
-                $signals = array_values(array_unique($signals));
-            }
         }
+
+        $priorIdle = 0;
+        if (
+            $behaviorOn
+            && in_array(SessionBehaviorAnalyzer::NO_INTERACTION, $signals, true)
+            && Schema::hasColumn('visit_session_recordings', 'behavior_signals')
+        ) {
+            $priorIdle = (int) DB::table('visit_session_recordings')
+                ->where('domain_id', $domain->id)
+                ->where('ip', $ip)
+                ->where('created_at', '>=', UserTimezone::nowUtc()->subDays(7))
+                ->where('behavior_signals', 'like', '%'.SessionBehaviorAnalyzer::NO_INTERACTION.'%')
+                ->count();
+        }
+
+        $behaviorAction = 'allow';
+        if ($behaviorOn) {
+            if (in_array(SessionBehaviorAnalyzer::NO_INTERACTION, $signals, true) && $priorIdle >= 1) {
+                $signals[] = 'IDLE_RETURN_BLOCK';
+                $behaviorAction = 'block';
+            } elseif ($analysis['scroll_count'] > 0 && $repeatScore >= 2) {
+                $signals[] = 'SCROLL_PATTERN_BLOCK';
+                $signals[] = 'REPEATED_BEHAVIOR';
+                $behaviorAction = 'block';
+            } elseif ($analysis['scroll_count'] > 0 && $repeatScore >= 1) {
+                $signals[] = 'SCROLL_PATTERN_REPEAT';
+                $signals[] = 'REPEATED_BEHAVIOR';
+                $behaviorAction = 'flag';
+            }
+        } elseif ($repeatScore >= 1) {
+            $signals[] = 'REPEATED_BEHAVIOR';
+            $behaviorAction = 'flag';
+        }
+
+        $signals = array_values(array_unique($signals));
 
         $payload = [
             'domain_id' => $domain->id,
@@ -680,12 +723,24 @@ class TrackingController extends Controller
         if (Schema::hasColumn('visit_session_recordings', 'behavior_fingerprint')) {
             $payload['behavior_fingerprint'] = $fingerprint;
         }
+        if (Schema::hasColumn('visit_session_recordings', 'cta_clicks')) {
+            $payload['cta_clicks'] = min(65535, (int) $analysis['cta_clicks']);
+        }
+        if (Schema::hasColumn('visit_session_recordings', 'tel_clicks')) {
+            $payload['tel_clicks'] = min(65535, (int) $analysis['tel_clicks']);
+        }
+        if (Schema::hasColumn('visit_session_recordings', 'page_changes')) {
+            $payload['page_changes'] = min(65535, (int) $analysis['page_changes']);
+        }
+        if (Schema::hasColumn('visit_session_recordings', 'scroll_count')) {
+            $payload['scroll_count'] = min(65535, (int) $analysis['scroll_count']);
+        }
 
         DB::table('visit_session_recordings')->insert($payload);
 
-        // Attach behavior signals to the visit record when present.
+        // Attach behavior signals / actions to the visit record when present.
         if (
-            $signals !== []
+            ($signals !== [] || $behaviorAction !== 'allow')
             && ! empty($data['visit_id'])
             && Schema::hasTable('visits')
             && Schema::hasColumn('visits', 'detection_reasons')
@@ -701,9 +756,22 @@ class TrackingController extends Controller
                     'detection_reasons' => json_encode($merged),
                     'updated_at' => UserTimezone::nowUtc(),
                 ];
-                if (
-                    Schema::hasColumn('visits', 'threat_score')
-                    && in_array('REPEATED_BEHAVIOR', $signals, true)
+
+                if ($behaviorAction === 'block') {
+                    if (Schema::hasColumn('visits', 'threat_score')) {
+                        $update['threat_score'] = max((int) ($visit->threat_score ?? 0), 70);
+                    }
+                    $update['action_taken'] = 'block';
+                    $update['is_invalid_traffic'] = true;
+                    if (
+                        Schema::hasColumn('visits', 'threat_group')
+                        && empty($visit->threat_group)
+                    ) {
+                        $update['threat_group'] = 'abnormal_rate_limit';
+                    }
+                } elseif (
+                    $behaviorAction === 'flag'
+                    && Schema::hasColumn('visits', 'threat_score')
                 ) {
                     $update['threat_score'] = max((int) ($visit->threat_score ?? 0), 30);
                     if (($visit->action_taken ?? 'allow') === 'allow') {
@@ -711,7 +779,28 @@ class TrackingController extends Controller
                         $update['is_invalid_traffic'] = true;
                     }
                 }
+
                 DB::table('visits')->where('id', $visit->id)->update($update);
+
+                if ($behaviorAction === 'block' && Schema::hasTable('ip_logs')) {
+                    $ipLog = IpLog::query()->firstOrCreate(
+                        ['ip' => $ip],
+                        ['is_blocked' => false]
+                    );
+                    if (! $ipLog->is_blocked) {
+                        $ipLog->is_blocked = true;
+                        $ipLog->save();
+                    }
+
+                    if ((bool) ($visit->is_paid_traffic ?? false)) {
+                        app(GoogleAudienceExclusionService::class)->queueBlockedIpIfEligible(
+                            $domain,
+                            $ip,
+                            $update['threat_group'] ?? ($visit->threat_group ?? 'abnormal_rate_limit'),
+                            isPaidTraffic: true,
+                        );
+                    }
+                }
             }
         }
 
@@ -720,14 +809,33 @@ class TrackingController extends Controller
             'signals' => $signals,
             'fingerprint' => $fingerprint,
             'prior_matches' => $repeatScore,
+            'prior_idle' => $priorIdle,
+            'behavior_action' => $behaviorAction,
+            'cta_clicks' => $analysis['cta_clicks'],
+            'tel_clicks' => $analysis['tel_clicks'],
+            'page_changes' => $analysis['page_changes'],
         ]));
     }
 
     /** @param  array{threat_group: ?string, action_taken?: string}  $detection */
-    private function shouldRecordSession(Domain $domain, array $detection): bool
+    private function shouldRecordSession(Domain $domain, array $detection, bool $isPaidTraffic = false): bool
     {
         $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
-        if ($settings === null || ! $settings->session_recordings) {
+        if ($settings === null) {
+            return false;
+        }
+
+        $thresholds = DetectionProfiles::thresholdsFor(
+            $settings->detection_profile,
+            is_array($settings->detection_thresholds) ? $settings->detection_thresholds : null,
+        );
+
+        // Behavior Control: record paid clicks so idle/scroll rules can fire on return visits.
+        if ($isPaidTraffic && (bool) ($thresholds['behavior_control_enabled'] ?? false)) {
+            return true;
+        }
+
+        if (! $settings->session_recordings) {
             return false;
         }
 

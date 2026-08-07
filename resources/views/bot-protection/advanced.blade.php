@@ -865,6 +865,9 @@ function botProtectionAdvancedFigma() {
         { key: 'country', label: 'Country', primary: true, min: 72 },
         { key: 'invalid_visits', label: 'Invalid', primary: true, min: 52 },
         { key: 'valid_visits', label: 'Valid', primary: true, min: 52 },
+        { key: 'cta_clicks', label: 'CTA Clicks', primary: false, min: 64 },
+        { key: 'tel_clicks', label: 'Tel Clicks', primary: false, min: 64 },
+        { key: 'page_changes', label: 'Page Changes', primary: false, min: 72 },
         { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
         { key: 'status', label: 'Status', primary: false, min: 72 },
         { key: 'browser', label: 'Browser', primary: false, min: 80 },
@@ -912,6 +915,11 @@ function botProtectionAdvancedFigma() {
     if (!savedOptional.includes('session_recording')) {
         savedOptional = [...savedOptional, 'session_recording'];
     }
+    ['cta_clicks', 'tel_clicks', 'page_changes'].forEach((key) => {
+        if (!savedOptional.includes(key)) {
+            savedOptional = [...savedOptional, key];
+        }
+    });
 
     return {
         columnCatalog,
@@ -939,7 +947,7 @@ function botProtectionAdvancedFigma() {
         columnMinPx(col) {
             const key = col.key;
             if (key === 'session_recording') return 40;
-            if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits'].includes(key)) {
+            if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
                 return 52;
             }
             return col.min || 72;
@@ -948,7 +956,7 @@ function botProtectionAdvancedFigma() {
             const min = this.columnMinPx(col);
             const key = col.key;
             if (key === 'session_recording') return `${min}px`;
-            if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits'].includes(key)) {
+            if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
                 return `${min}px`;
             }
             if (key === 'ip') return `minmax(${min}px, 1.6fr)`;

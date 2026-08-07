@@ -73,6 +73,9 @@ class SessionRecordingNormalizer
                 'x' => (float) $x,
                 'y' => (float) $y,
                 'tag' => (string) ($event['tag'] ?? $event['data']['tag'] ?? ''),
+                'href' => (string) ($event['href'] ?? $event['data']['href'] ?? ''),
+                'cta' => (bool) ($event['cta'] ?? $event['is_cta'] ?? $event['data']['cta'] ?? false),
+                'tel' => (bool) ($event['tel'] ?? $event['is_tel'] ?? $event['data']['tel'] ?? false),
             ];
         }
 
@@ -82,6 +85,14 @@ class SessionRecordingNormalizer
                 'type' => 'scroll',
                 'x' => (float) ($event['x'] ?? $event['data']['x'] ?? 0),
                 'y' => (float) ($event['y'] ?? $event['data']['y'] ?? 0),
+            ];
+        }
+
+        if ($type === 'page') {
+            return [
+                't' => $t,
+                'type' => 'page',
+                'url' => (string) ($event['url'] ?? $event['data']['url'] ?? ''),
             ];
         }
 

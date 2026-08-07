@@ -1344,6 +1344,9 @@
             { key: 'country', label: 'Country', primary: true, min: 72 },
             { key: 'invalid_clicks', label: 'Invalid', primary: true, min: 52 },
             { key: 'valid_clicks', label: 'Valid', primary: true, min: 52 },
+            { key: 'cta_clicks', label: 'CTA Clicks', primary: false, min: 64 },
+            { key: 'tel_clicks', label: 'Tel Clicks', primary: false, min: 64 },
+            { key: 'page_changes', label: 'Page Changes', primary: false, min: 72 },
             { key: 'google_verified_label', label: 'Google Verified', primary: false, min: 88 },
             { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
             { key: 'status', label: 'Status', primary: false, min: 72 },
@@ -1384,6 +1387,9 @@
         } catch (e) {}
         const defaultOptionalColumns = [
             'session_recording',
+            'cta_clicks',
+            'tel_clicks',
+            'page_changes',
             'google_verified_label',
             'status',
             'intel_vpn',
@@ -1435,6 +1441,7 @@
             sortDir: 'desc',
             sortNumericKeys: [
                 'visits', 'invalid_clicks', 'valid_clicks', 'vpn_hits', 'data_center_hits',
+                'cta_clicks', 'tel_clicks', 'page_changes',
                 'intel_risk_score', 'intel_confidence', 'intel_latitude', 'intel_longitude', 'ip_count',
             ],
             statCards: [],
@@ -1747,7 +1754,7 @@
             columnMinPx(col) {
                 const key = col.key;
                 if (key === 'session_recording') return 40;
-                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits'].includes(key)) {
+                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
                     return 52;
                 }
                 return col.min || 72;
@@ -1756,7 +1763,7 @@
                 const min = this.columnMinPx(col);
                 const key = col.key;
                 if (key === 'session_recording') return `${min}px`;
-                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits'].includes(key)) {
+                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
                     return `${min}px`;
                 }
                 if (key === 'ip') return `minmax(${min}px, 1.6fr)`;

@@ -1964,6 +1964,26 @@
                             </div>
                         </div>
 
+                        <div class="figma-ads-card" style="margin-top:0;grid-template-columns:1fr;">
+                            <div class="figma-ads-col" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;">
+                                <div style="min-width:0;flex:1;">
+                                    <h3 class="figma-ads-col-title" style="margin-bottom:6px;">Behavior Control</h3>
+                                    <p class="text-[11px] leading-relaxed text-[#a9a9a9]" style="margin:0;max-width:640px;">
+                                        Tracks scrolls, page changes, CTA clicks, and tel clicks on paid visits.
+                                        Idle return (visit 2 idle) blocks. Matching scroll pattern: 2nd = suspicious, 3rd = block.
+                                    </p>
+                                </div>
+                                <x-figma-toggle
+                                    name="behavior_control_enabled"
+                                    value="1"
+                                    :checked="(bool) ($thr['behavior_control_enabled'] ?? false)"
+                                    size="sm"
+                                    label-on="On"
+                                    label-off="Off"
+                                />
+                            </div>
+                        </div>
+
                         <div class="figma-ads-more space-y-[12px]">
                             <p class="text-[11px] leading-relaxed text-[#a9a9a9]">
                                 Fine-tune rapid-click and frequency limits here. Bot rules, session privacy, profiles, and geo scope live in the right sidebar.

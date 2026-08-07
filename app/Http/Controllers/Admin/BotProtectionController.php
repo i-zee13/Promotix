@@ -571,14 +571,31 @@ class BotProtectionController extends Controller
             ->keyBy('ip');
 
         $recordings = collect();
+        $behaviorCounts = collect();
         if (Schema::hasTable('visit_session_recordings') && $rows->isNotEmpty()) {
+            $ips = $rows->pluck('ip')->unique()->filter()->values();
             $recordings = DB::table('visit_session_recordings')
-                ->whereIn('ip', $rows->pluck('ip')->unique())
+                ->whereIn('ip', $ips)
                 ->whereIn('domain_id', $domainIds)
                 ->orderByDesc('id')
                 ->get()
                 ->groupBy('ip')
                 ->map->first();
+
+            if (Schema::hasColumn('visit_session_recordings', 'cta_clicks')) {
+                $behaviorCounts = DB::table('visit_session_recordings')
+                    ->select([
+                        'ip',
+                        DB::raw('COALESCE(SUM(cta_clicks), 0) as cta_clicks'),
+                        DB::raw('COALESCE(SUM(tel_clicks), 0) as tel_clicks'),
+                        DB::raw('COALESCE(SUM(page_changes), 0) as page_changes'),
+                    ])
+                    ->whereIn('ip', $ips)
+                    ->whereIn('domain_id', $domainIds)
+                    ->groupBy('ip')
+                    ->get()
+                    ->keyBy('ip');
+            }
         }
 
         $domainsById = Domain::query()
@@ -593,6 +610,7 @@ class BotProtectionController extends Controller
                 $request->user(),
                 $recordings->get($v->ip),
                 $domainsById->get($v->domain_id),
+                $behaviorCounts->get($v->ip),
             ))->values(),
             'meta' => [
                 'total' => $total,
@@ -797,7 +815,7 @@ class BotProtectionController extends Controller
         );
     }
 
-    private function formatVisit(object $v, ?IpLog $ipLog = null, ?\App\Models\User $user = null, ?object $recording = null, ?Domain $domain = null): array
+    private function formatVisit(object $v, ?IpLog $ipLog = null, ?\App\Models\User $user = null, ?object $recording = null, ?Domain $domain = null, ?object $behaviorCounts = null): array
     {
         $visitedAt = ! empty($v->visited_at) ? Carbon::parse((string) $v->visited_at, 'UTC') : null;
         $hasAggregate = property_exists($v, 'total') || isset($v->total);
@@ -843,6 +861,9 @@ class BotProtectionController extends Controller
             'is_paid_traffic' => (bool) $v->is_paid_traffic,
             'invalid_visits' => $invalid,
             'valid_visits' => max(0, $total - $invalid),
+            'cta_clicks' => (int) ($behaviorCounts->cta_clicks ?? 0),
+            'tel_clicks' => (int) ($behaviorCounts->tel_clicks ?? 0),
+            'page_changes' => (int) ($behaviorCounts->page_changes ?? 0),
             'ip_is_blocked' => $isAllowListed ? false : (bool) ($ipLog?->is_blocked ?? false),
             'is_allowlisted' => $isAllowListed,
             'has_session_recording' => $recording !== null,
