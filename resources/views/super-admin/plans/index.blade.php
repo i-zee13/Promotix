@@ -235,7 +235,28 @@
                         </div>
                         <div>
                             <label class="figma-sa-label">Feature flags</label>
-                            <textarea name="feature_flags" rows="4" class="figma-input mt-1" placeholder="ad_protection: 1" x-model="form.feature_flags"></textarea>
+                            <textarea name="feature_flags" rows="4" class="figma-input mt-1" placeholder="ad_protection: 1&#10;detection_vpn: 1" x-model="form.feature_flags"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="figma-sa-label">Detection panel modules (plan gate)</label>
+                        <p class="mt-1 text-[11px] text-[#a9a9a9]">Off = customer ko yeh detection panel mein nahi milegi / enforce nahi hogi.</p>
+                        <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach (\App\Support\DetectionPlanFeatures::catalog() as $det)
+                                <label class="inline-flex items-start gap-2 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-[11px] text-[#d9d9d9] cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        class="mt-[2px] accent-[#6400B2]"
+                                        :checked="detectionFlagOn(@js($det['key']))"
+                                        @change="setDetectionFlag(@js($det['key']), $event.target.checked)"
+                                    >
+                                    <span>
+                                        <span class="block font-semibold text-white">{{ $det['label'] }}</span>
+                                        <span class="block text-[#a9a9a9]">{{ $det['description'] }}</span>
+                                    </span>
+                                </label>
+                            @endforeach
                         </div>
                     </div>
 
@@ -366,6 +387,31 @@ function plansPricingPage(plans, products, storeUrl, defaultProductTitle) {
                 return plan?.update_url || this.storeUrl;
             }
             return this.storeUrl;
+        },
+        parseFlagMap(raw) {
+            const map = {};
+            String(raw || '').split('\n').forEach((line) => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                const parts = trimmed.split(':');
+                const key = (parts[0] || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+                if (!key) return;
+                const value = (parts.slice(1).join(':') || '1').trim().toLowerCase();
+                map[key] = ['1', 'true', 'yes', 'on'].includes(value);
+            });
+            return map;
+        },
+        serializeFlagMap(map) {
+            return Object.keys(map).sort().map((k) => `${k}: ${map[k] ? '1' : '0'}`).join('\n');
+        },
+        detectionFlagOn(key) {
+            const map = this.parseFlagMap(this.form.feature_flags);
+            return map[key] !== false;
+        },
+        setDetectionFlag(key, on) {
+            const map = this.parseFlagMap(this.form.feature_flags);
+            map[key] = !!on;
+            this.form.feature_flags = this.serializeFlagMap(map);
         },
         toggleMenu(id) {
             this.openMenuId = this.openMenuId === id ? null : id;

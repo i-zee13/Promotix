@@ -2618,6 +2618,7 @@ class PaidMarketingController extends Controller
             'detectionAudits' => $detectionAudits,
             'detectionProfiles' => \App\Support\DetectionProfiles::catalog(),
             'googleAdsAccounts' => $googleAdsAccounts,
+            'planDetectionFeatures' => \App\Support\DetectionPlanFeatures::forUser($request->user()),
         ]);
     }
 
@@ -2674,6 +2675,18 @@ class PaidMarketingController extends Controller
             'save_workspace_geo' => ['nullable', 'boolean'],
         ]);
 
+        $planFeatures = \App\Support\DetectionPlanFeatures::forUser($request->user());
+        $data['behavior_control_enabled'] = $request->boolean('behavior_control_enabled');
+        $data['session_recordings'] = $request->boolean('session_recordings');
+        $data['frequency_capping'] = $request->boolean('frequency_capping');
+        $data['out_of_geo_enabled'] = $request->boolean('out_of_geo_enabled');
+        $data['google_geo_block_enabled'] = $request->boolean('google_geo_block_enabled');
+        $data['allow_list_enabled'] = $request->boolean('allow_list_enabled');
+        $data['block_list_enabled'] = $request->boolean('block_list_enabled');
+        $data['google_exclusion_enabled'] = $request->boolean('google_exclusion_enabled');
+        $data['suspicious_enabled'] = $request->boolean('suspicious_enabled');
+        $data = \App\Support\DetectionPlanFeatures::clampSettingsData($data, $planFeatures);
+
         $countries = collect(explode(',', (string) ($data['out_of_geo_countries'] ?? '')))
             ->map(fn ($v) => trim($v))
             ->filter()
@@ -2719,6 +2732,31 @@ class PaidMarketingController extends Controller
             $blockListEnabled = true;
         }
 
+        // Re-clamp after control_mode may force-enable modules the plan forbids.
+        $clampedFlags = \App\Support\DetectionPlanFeatures::clampSettingsData([
+            'out_of_geo_enabled' => $outOfGeoEnabled,
+            'google_geo_block_enabled' => $geoBlockEnabled,
+            'allow_list_enabled' => $allowListEnabled,
+            'block_list_enabled' => $blockListEnabled,
+            'behavior_control_enabled' => (bool) ($data['behavior_control_enabled'] ?? false),
+            'session_recordings' => (bool) ($data['session_recordings'] ?? false),
+            'frequency_capping' => (bool) ($data['frequency_capping'] ?? false),
+            'google_exclusion_enabled' => (bool) ($data['google_exclusion_enabled'] ?? false),
+            'suspicious_enabled' => (bool) ($data['suspicious_enabled'] ?? false),
+            'suspicious_vpn' => $data['suspicious_vpn'],
+            'suspicious_proxy' => $data['suspicious_proxy'],
+            'suspicious_data_center' => $data['suspicious_data_center'],
+            'suspicious_abnormal_rate_limit' => $data['suspicious_abnormal_rate_limit'],
+            'invalid_bot_action' => $data['invalid_bot_action'],
+            'invalid_malicious_action' => $data['invalid_malicious_action'],
+            'detection_profile' => $data['detection_profile'] ?? 'standard',
+        ], $planFeatures);
+        $outOfGeoEnabled = (bool) ($clampedFlags['out_of_geo_enabled'] ?? false);
+        $geoBlockEnabled = (bool) ($clampedFlags['google_geo_block_enabled'] ?? false);
+        $allowListEnabled = (bool) ($clampedFlags['allow_list_enabled'] ?? false);
+        $blockListEnabled = (bool) ($clampedFlags['block_list_enabled'] ?? false);
+        $data = array_merge($data, $clampedFlags);
+
         $before = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
 
         $settings = DomainDetectionSetting::updateOrCreate(
@@ -2736,7 +2774,7 @@ class PaidMarketingController extends Controller
                     'daily_valid_click_limit' => (int) ($data['daily_valid_click_limit'] ?? 2),
                     'weekly_valid_click_limit' => (int) ($data['weekly_valid_click_limit'] ?? 100),
                     'monthly_valid_click_limit' => (int) ($data['monthly_valid_click_limit'] ?? 300),
-                    'behavior_control_enabled' => $request->boolean('behavior_control_enabled'),
+                    'behavior_control_enabled' => (bool) ($data['behavior_control_enabled'] ?? false),
                 ],
                 'fail_mode' => (string) ($data['fail_mode'] ?? 'open'),
                 'block_response' => (string) ($data['block_response'] ?? 'hide'),

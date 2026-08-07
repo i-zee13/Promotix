@@ -1262,6 +1262,9 @@
                 };
                 $blockIpRows = $parseBlockIpRows($settings->block_list_ips ?? '');
 
+                $planDetectionFeatures = $planDetectionFeatures ?? \App\Support\DetectionPlanFeatures::allEnabled();
+                $pdf = static fn (string $key): bool => (bool) ($planDetectionFeatures[$key] ?? true);
+
                 $actionLabel = static fn (string $action): string => match ($action) {
                     'block' => 'Challenge',
                     'flag' => 'Monitor',
@@ -1272,7 +1275,7 @@
                     'flag' => 'Medium',
                     default => 'Low',
                 };
-                $detectionModules = [
+                $detectionModules = collect([
                     [
                         'key' => 'vpn',
                         'title' => 'VPN Detection',
@@ -1281,6 +1284,7 @@
                         'found' => 0,
                         'enabled' => (bool) $settings->suspicious_enabled && (($matrix['vpn'] ?? 'allow') !== 'allow'),
                         'icon' => 'vpn',
+                        'plan_flag' => \App\Support\DetectionPlanFeatures::VPN,
                     ],
                     [
                         'key' => 'proxy',
@@ -1290,6 +1294,7 @@
                         'found' => 0,
                         'enabled' => (bool) $settings->suspicious_enabled && (($matrix['proxy'] ?? 'block') !== 'allow'),
                         'icon' => 'proxy',
+                        'plan_flag' => \App\Support\DetectionPlanFeatures::PROXY,
                     ],
                     [
                         'key' => 'data_center',
@@ -1299,6 +1304,7 @@
                         'found' => 0,
                         'enabled' => (bool) $settings->suspicious_enabled && (($matrix['data_center'] ?? 'block') !== 'allow'),
                         'icon' => 'dc',
+                        'plan_flag' => \App\Support\DetectionPlanFeatures::DATA_CENTER,
                     ],
                     [
                         'key' => 'abnormal_rate_limit',
@@ -1308,6 +1314,7 @@
                         'found' => 0,
                         'enabled' => (bool) $settings->suspicious_enabled && (($matrix['abnormal_rate_limit'] ?? 'block') !== 'allow'),
                         'icon' => 'rate',
+                        'plan_flag' => \App\Support\DetectionPlanFeatures::ABNORMAL_RATE,
                     ],
                     [
                         'key' => 'repeated_click',
@@ -1318,6 +1325,7 @@
                         'enabled' => (bool) $settings->frequency_capping,
                         'icon' => 'repeat',
                         'toggle' => 'frequency_capping',
+                        'plan_flag' => \App\Support\DetectionPlanFeatures::REPEATED_CLICK,
                     ],
                     [
                         'key' => 'suspicious_behavior',
@@ -1327,12 +1335,31 @@
                         'found' => 0,
                         'enabled' => ($settings->invalid_malicious_action ?? 'allow') !== 'allow',
                         'icon' => 'behavior',
+                        'plan_flag' => \App\Support\DetectionPlanFeatures::SUSPICIOUS_BEHAVIOR,
                     ],
-                ];
+                ])->filter(fn ($mod) => $pdf($mod['plan_flag']))->values()->all();
             @endphp
                 <form id="detection-settings-form" method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
                     @csrf
                     <input type="hidden" name="control_mode" value="{{ old('control_mode', $settings->control_mode ?? 'mixed') }}">
+                    @php
+                        $visibleEngineFields = collect($detectionModules)->pluck('field')->filter()->all();
+                        $engineFallbacks = [
+                            'suspicious_vpn' => 'allow',
+                            'suspicious_proxy' => 'allow',
+                            'suspicious_data_center' => 'allow',
+                            'suspicious_abnormal_rate_limit' => 'allow',
+                            'invalid_malicious_action' => 'allow',
+                        ];
+                    @endphp
+                    @foreach ($engineFallbacks as $field => $fallback)
+                        @if (! in_array($field, $visibleEngineFields, true))
+                            <input type="hidden" name="{{ $field }}" value="{{ $fallback }}">
+                        @endif
+                    @endforeach
+                    @if (! collect($detectionModules)->contains(fn ($m) => ($m['key'] ?? '') === 'repeated_click'))
+                        <input type="hidden" name="frequency_capping" value="0">
+                    @endif
 
                     <section class="figma-pac" aria-labelledby="figma-pac-heading">
                         <div class="figma-pac-head">
@@ -1346,6 +1373,7 @@
                         </div>
 
                         <div class="figma-pac-grid">
+                            @if ($pdf(\App\Support\DetectionPlanFeatures::GEO_ALLOW))
                             <article class="figma-pac-card figma-pac-card--geo">
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
@@ -1374,7 +1402,9 @@
                                 </div>
                                 <button type="button" class="figma-pac-card-btn" onclick="document.getElementById('detection-panel-geo-allow')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Manage Countries</button>
                             </article>
+                            @endif
 
+                            @if ($pdf(\App\Support\DetectionPlanFeatures::GEO_BLOCK))
                             <article class="figma-pac-card figma-pac-card--block-geo">
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
@@ -1403,7 +1433,9 @@
                                 </div>
                                 <button type="button" class="figma-pac-card-btn" onclick="document.getElementById('detection-panel-geo-block')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Manage Blocked Countries</button>
                             </article>
+                            @endif
 
+                            @if ($pdf(\App\Support\DetectionPlanFeatures::ALLOW_LIST))
                             <article class="figma-pac-card figma-pac-card--allow-ip">
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
@@ -1432,7 +1464,9 @@
                                 </div>
                                 <button type="button" class="figma-pac-card-btn" onclick="document.getElementById('detection-panel-ip-allow')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Manage Whitelist IPs</button>
                             </article>
+                            @endif
 
+                            @if ($pdf(\App\Support\DetectionPlanFeatures::BLOCK_LIST))
                             <article class="figma-pac-card figma-pac-card--block-ip">
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
@@ -1461,6 +1495,7 @@
                                 </div>
                                 <button type="button" class="figma-pac-card-btn" onclick="document.getElementById('detection-panel-ip-block')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Manage Blacklist IPs</button>
                             </article>
+                            @endif
                         </div>
                     </section>
 
@@ -1576,6 +1611,9 @@
                         <section
                             id="detection-panel-ip-block"
                             class="figma-bip"
+                            @if (! $pdf(\App\Support\DetectionPlanFeatures::BLOCK_LIST))
+                                style="display:none"
+                            @endif
                             x-data="blockIpPanel(@js([
                                 'initial' => $settings->block_list_ips ?? '',
                                 'rows' => $blockIpRows,
@@ -1662,6 +1700,9 @@
 
                         <section
                             class="figma-gaem"
+                            @if (! $pdf(\App\Support\DetectionPlanFeatures::GOOGLE_EXCLUSION))
+                                style="display:none"
+                            @endif
                             x-data="googleExclusionPanel(@js([
                                 'pushUrl' => route('paid-marketing.detection-settings.google-exclusion.push', $domain),
                                 'pushRowUrl' => route('paid-marketing.detection-settings.google-exclusion.push-row', $domain),
@@ -1679,7 +1720,7 @@
                                 </div>
                                 <div class="figma-gaem-head-actions">
                                     <button type="button" class="figma-gaem-bulk" @click="showBulk = !showBulk" x-text="showBulk ? 'Hide Bulk' : 'Bulk Exclusion'"></button>
-                                    <x-figma-toggle name="google_exclusion_enabled" value="1" :checked="$exclusionRules['enabled'] ?? true" size="sm" label-on="On" label-off="Off" variant="on-light" />
+                                    <x-figma-toggle name="google_exclusion_enabled" value="1" :checked="($exclusionRules['enabled'] ?? true) && $pdf(\App\Support\DetectionPlanFeatures::GOOGLE_EXCLUSION)" size="sm" label-on="On" label-off="Off" variant="on-light" />
                                 </div>
                             </div>
 
@@ -1893,6 +1934,7 @@
                         </div>
 
                         <div class="figma-ads-card">
+                            @if ($pdf(\App\Support\DetectionPlanFeatures::RAPID_CLICK))
                             <div class="figma-ads-col">
                                 <h3 class="figma-ads-col-title">Rapid Click Rules (Same IP)</h3>
                                 <input type="hidden" name="rapid_window_seconds" :value="rapidValue">
@@ -1908,7 +1950,11 @@
                                     <input type="number" min="10" max="600" x-model.number="rapidCustom">
                                 </label>
                             </div>
+                            @else
+                                <input type="hidden" name="rapid_window_seconds" value="{{ (int) ($thr['rapid_window_seconds'] ?? 120) }}">
+                            @endif
 
+                            @if ($pdf(\App\Support\DetectionPlanFeatures::FREQUENCY_LIMITS))
                             <div class="figma-ads-col">
                                 <h3 class="figma-ads-col-title">Click Frequency Limits (Same IP)</h3>
                                 <div class="figma-ads-limits">
@@ -1946,6 +1992,12 @@
                                     </label>
                                 </div>
                             </div>
+                            @else
+                                <input type="hidden" name="hourly_valid_click_limit" value="{{ (int) ($thr['hourly_valid_click_limit'] ?? 3) }}">
+                                <input type="hidden" name="daily_valid_click_limit" value="{{ (int) ($thr['daily_valid_click_limit'] ?? 2) }}">
+                                <input type="hidden" name="weekly_valid_click_limit" value="{{ (int) ($thr['weekly_valid_click_limit'] ?? 100) }}">
+                                <input type="hidden" name="monthly_valid_click_limit" value="{{ (int) ($thr['monthly_valid_click_limit'] ?? 300) }}">
+                            @endif
 
                             <div class="figma-ads-col">
                                 <h3 class="figma-ads-col-title">Block Response Action</h3>
@@ -1964,6 +2016,7 @@
                             </div>
                         </div>
 
+                        @if ($pdf(\App\Support\DetectionPlanFeatures::BEHAVIOR_CONTROL))
                         <div class="figma-ads-card" style="margin-top:0;grid-template-columns:1fr;">
                             <div class="figma-ads-col" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;">
                                 <div style="min-width:0;flex:1;">
@@ -1983,11 +2036,13 @@
                                 />
                             </div>
                         </div>
+                        @endif
 
                         <div class="figma-ads-more space-y-[12px]">
                             <p class="text-[11px] leading-relaxed text-[#a9a9a9]">
                                 Fine-tune rapid-click and frequency limits here. Bot rules, session privacy, profiles, and geo scope live in the right sidebar.
                             </p>
+                            @if ($pdf(\App\Support\DetectionPlanFeatures::RAPID_CLICK))
                             <div class="figma-detection-advanced-panel grid gap-[10px] sm:grid-cols-2">
                                 <label class="figma-detection-advanced-field">
                                     Flag at prior clicks
@@ -1998,6 +2053,10 @@
                                     <input type="number" name="rapid_block_at" min="1" max="20" value="{{ $thr['rapid_block_at'] ?? 2 }}" class="figma-detection-advanced-input mt-[4px] w-full">
                                 </label>
                             </div>
+                            @else
+                                <input type="hidden" name="rapid_flag_at" value="{{ (int) ($thr['rapid_flag_at'] ?? 1) }}">
+                                <input type="hidden" name="rapid_block_at" value="{{ (int) ($thr['rapid_block_at'] ?? 2) }}">
+                            @endif
                             <label class="figma-detection-advanced-inline">
                                 Fail-safe when detection is unavailable
                                 <select name="fail_mode" class="figma-detection-advanced-input">

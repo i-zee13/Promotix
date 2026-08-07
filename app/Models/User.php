@@ -132,6 +132,19 @@ class User extends Authenticatable
         return $default;
     }
 
+    /**
+     * Whether the user's current plan grants a boolean feature flag.
+     * Missing keys default to true (legacy plans keep access until Super Admin opts out).
+     */
+    public function planFeatureEnabled(string $key, bool $defaultWhenMissing = true): bool
+    {
+        if ($this->bypassesPlanLimits()) {
+            return true;
+        }
+
+        return \App\Support\DetectionPlanFeatures::enabled($this, $key, $defaultWhenMissing);
+    }
+
     public function domainLimit(): int|float
     {
         if ($this->bypassesPlanLimits()) {

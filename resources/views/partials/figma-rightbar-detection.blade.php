@@ -1,11 +1,13 @@
 {{-- Detection Panel right sidebar — Bot Rules / Session / Audit / Profiles / Geo (not IP Investigation). --}}
 @php
+    $planDetectionFeatures = $planDetectionFeatures ?? \App\Support\DetectionPlanFeatures::allEnabled();
+    $pdf = $pdf ?? static fn (string $key): bool => (bool) ($planDetectionFeatures[$key] ?? true);
     $profileKey = $settings->detection_profile ?? 'standard';
     $retentionDays = (int) ($settings->recording_retention_days ?? 30);
     $geoScope = (string) ($settings->geo_rule_scope ?? 'domain');
     $consentOn = (bool) ($settings->consent_required ?? false);
     $maskOn = (bool) ($settings->recording_mask_passwords ?? true);
-    $sessionRecOn = (bool) ($settings->session_recordings ?? false);
+    $sessionRecOn = (bool) ($settings->session_recordings ?? false) && $pdf(\App\Support\DetectionPlanFeatures::SESSION_RECORDINGS);
     $botRulesActive = (bool) ($settings->suspicious_enabled ?? true);
     $blockResponse = (string) ($settings->block_response ?? 'hide');
     $challengeOn = $blockResponse === 'challenge';
@@ -151,6 +153,7 @@
             </div>
         </div>
 
+        @if ($pdf(\App\Support\DetectionPlanFeatures::SESSION_RECORDINGS))
         <div class="ds-panel">
             <div class="ds-panel__head">
                 <h3 class="ds-panel__title">Session Recording &amp; Privacy</h3>
@@ -199,6 +202,9 @@
                 </div>
             </div>
         </div>
+        @else
+            <input type="hidden" form="detection-settings-form" name="session_recordings" value="0">
+        @endif
 
         <div class="ds-panel">
             <div class="ds-panel__head">

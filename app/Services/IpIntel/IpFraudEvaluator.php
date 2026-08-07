@@ -5,6 +5,7 @@ namespace App\Services\IpIntel;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
+use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
 use App\Support\GeoAudienceMatcher;
 
@@ -64,11 +65,15 @@ class IpFraudEvaluator
             ]
         );
 
-        if ($settings->allow_list_enabled && IpFraudEvaluator::isIpInList($ipLog->ip, (string) $settings->allow_list_ips)) {
+        $domain->loadMissing('user');
+        $planFeatures = DetectionPlanFeatures::forUser($domain->user);
+        $can = static fn (string $key): bool => (bool) ($planFeatures[$key] ?? true);
+
+        if ($can(DetectionPlanFeatures::ALLOW_LIST) && $settings->allow_list_enabled && IpFraudEvaluator::isIpInList($ipLog->ip, (string) $settings->allow_list_ips)) {
             return $this->allowResult(['allow_list']);
         }
 
-        if ($settings->block_list_enabled && IpFraudEvaluator::isIpInList($ipLog->ip, (string) $settings->block_list_ips)) {
+        if ($can(DetectionPlanFeatures::BLOCK_LIST) && $settings->block_list_enabled && IpFraudEvaluator::isIpInList($ipLog->ip, (string) $settings->block_list_ips)) {
             return [
                 'threat_score' => 100,
                 'threat_group' => 'blocked',
@@ -79,14 +84,17 @@ class IpFraudEvaluator
 
         $resolvedCountryEarly = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: '')));
         $rawEarly = (array) ($ipLog->ipdetails_raw ?? []);
-        if (GeoAudienceMatcher::isBlocked(
-            $settings,
-            $resolvedCountryEarly,
-            $rawEarly['region'] ?? $rawEarly['state'] ?? null,
-            $rawEarly['city'] ?? null,
-            $ipLog,
-            $domain,
-        )) {
+        if (
+            $can(DetectionPlanFeatures::GEO_BLOCK)
+            && GeoAudienceMatcher::isBlocked(
+                $settings,
+                $resolvedCountryEarly,
+                $rawEarly['region'] ?? $rawEarly['state'] ?? null,
+                $rawEarly['city'] ?? null,
+                $ipLog,
+                $domain,
+            )
+        ) {
             return [
                 'threat_score' => 95,
                 'threat_group' => 'blocked_country',
@@ -96,7 +104,7 @@ class IpFraudEvaluator
         }
 
         // Allow-country mode also applies when Suspicious toggle is off.
-        if ($settings->out_of_geo_enabled) {
+        if ($can(DetectionPlanFeatures::GEO_ALLOW) && $settings->out_of_geo_enabled) {
             $allowed = GeoAudienceMatcher::isAllowed(
                 $settings,
                 $resolvedCountryEarly,
@@ -120,15 +128,39 @@ class IpFraudEvaluator
         }
 
         $matrix = (array) ($settings->suspicious_matrix ?? []);
-        $botAction = $settings->invalid_bot_action ?? 'block';
+        if (! $can(DetectionPlanFeatures::VPN)) {
+            $matrix['vpn'] = 'allow';
+        }
+        if (! $can(DetectionPlanFeatures::PROXY)) {
+            $matrix['proxy'] = 'allow';
+        }
+        if (! $can(DetectionPlanFeatures::DATA_CENTER)) {
+            $matrix['data_center'] = 'allow';
+        }
+        if (! $can(DetectionPlanFeatures::ABNORMAL_RATE)) {
+            $matrix['abnormal_rate_limit'] = 'allow';
+        }
+
+        $botAction = $can(DetectionPlanFeatures::BOT)
+            ? ($settings->invalid_bot_action ?? 'block')
+            : 'allow';
+        $maliciousAction = $can(DetectionPlanFeatures::SUSPICIOUS_BEHAVIOR)
+            ? ($settings->invalid_malicious_action ?? 'block')
+            : 'allow';
+        $frequencyOn = $can(DetectionPlanFeatures::REPEATED_CLICK) && $settings->frequency_capping;
+        $rapidOn = $can(DetectionPlanFeatures::RAPID_CLICK);
+        $limitsOn = $can(DetectionPlanFeatures::FREQUENCY_LIMITS);
+
         $thresholds = DetectionProfiles::thresholdsFor(
-            (string) ($settings->detection_profile ?? DetectionProfiles::STANDARD),
+            $can(DetectionPlanFeatures::PROFILES)
+                ? (string) ($settings->detection_profile ?? DetectionProfiles::STANDARD)
+                : DetectionProfiles::STANDARD,
             is_array($settings->detection_thresholds) ? $settings->detection_thresholds : null,
         );
         $requireCombined = (bool) ($thresholds['require_combined_evidence'] ?? false);
         $signals = [];
 
-        if ($isCrawler) {
+        if ($isCrawler && $botAction !== 'allow') {
             $signals[] = [
                 'group' => 'data_center',
                 'score' => 75,
@@ -137,7 +169,7 @@ class IpFraudEvaluator
             ];
         }
 
-        if ($this->intel->isHostingType($ipLog)) {
+        if ($can(DetectionPlanFeatures::DATA_CENTER) && $this->intel->isHostingType($ipLog)) {
             $signals[] = [
                 'group' => 'data_center',
                 'score' => 65,
@@ -146,7 +178,7 @@ class IpFraudEvaluator
             ];
         }
 
-        if ($this->intel->isVpnSuspect($ipLog)) {
+        if ($can(DetectionPlanFeatures::VPN) && $this->intel->isVpnSuspect($ipLog)) {
             $signals[] = [
                 'group' => 'vpn',
                 'score' => 72,
@@ -155,7 +187,7 @@ class IpFraudEvaluator
             ];
         }
 
-        if ($this->intel->isProxySuspect($ipLog)) {
+        if ($can(DetectionPlanFeatures::PROXY) && $this->intel->isProxySuspect($ipLog)) {
             $signals[] = [
                 'group' => 'proxy',
                 'score' => 58,
@@ -165,36 +197,36 @@ class IpFraudEvaluator
         }
 
         $abuseScore = (int) ($ipLog->abuse_confidence_score ?? 0);
-        if ($abuseScore >= 50) {
+        if ($maliciousAction !== 'allow' && $abuseScore >= 50) {
             $signals[] = [
                 'group' => 'malicious',
                 'score' => min(100, $abuseScore),
-                'action' => $settings->invalid_malicious_action ?? 'block',
+                'action' => $maliciousAction,
                 'reason' => 'abuse_confidence',
             ];
         }
 
         $abuserScore = $ipLog->ipdetails_abuser_score;
-        if (is_numeric($abuserScore)) {
+        if ($maliciousAction !== 'allow' && is_numeric($abuserScore)) {
             $score = (float) $abuserScore;
             if ($score >= 0.7) {
                 $signals[] = [
                     'group' => 'malicious',
                     'score' => (int) round($score * 100),
-                    'action' => $settings->invalid_malicious_action ?? 'block',
+                    'action' => $maliciousAction,
                     'reason' => 'ipdetails_abuser_high',
                 ];
             } elseif ($score >= 0.2) {
                 $signals[] = [
                     'group' => 'malicious',
                     'score' => (int) round($score * 100),
-                    'action' => $settings->invalid_malicious_action ?? 'block',
+                    'action' => $maliciousAction,
                     'reason' => 'ipdetails_abuser_medium',
                 ];
             }
         }
 
-        if ($settings->frequency_capping && $ipMinuteHits >= self::IP_MINUTE_VISIT_THRESHOLD) {
+        if ($frequencyOn && $ipMinuteHits >= self::IP_MINUTE_VISIT_THRESHOLD) {
             $signals[] = [
                 'group' => 'abnormal_rate_limit',
                 'score' => 92,
@@ -203,7 +235,7 @@ class IpFraudEvaluator
             ];
         }
 
-        if ($settings->frequency_capping && $sessionHits > 5) {
+        if ($frequencyOn && $sessionHits > 5) {
             $signals[] = [
                 'group' => 'abnormal_rate_limit',
                 'score' => min(100, 40 + ($sessionHits * 5)),
@@ -212,7 +244,7 @@ class IpFraudEvaluator
             ];
         }
 
-        if ($settings->frequency_capping && $ipRecentHits >= self::IP_RATE_THRESHOLD) {
+        if ($frequencyOn && $ipRecentHits >= self::IP_RATE_THRESHOLD) {
             $signals[] = [
                 'group' => 'abnormal_rate_limit',
                 'score' => min(100, 50 + ($ipRecentHits * 3)),
@@ -222,7 +254,8 @@ class IpFraudEvaluator
         }
 
         if (
-            $isPaidTraffic
+            $rapidOn
+            && $isPaidTraffic
             && $paidClicksInRapidWindow >= (int) $thresholds['rapid_block_at']
         ) {
             $signals[] = [
@@ -232,7 +265,8 @@ class IpFraudEvaluator
                 'reason' => 'RAPID_REPEAT_BLOCK',
             ];
         } elseif (
-            $isPaidTraffic
+            $rapidOn
+            && $isPaidTraffic
             && $paidClicksInRapidWindow >= (int) $thresholds['rapid_flag_at']
         ) {
             $signals[] = [
@@ -244,7 +278,8 @@ class IpFraudEvaluator
         }
 
         if (
-            $isPaidTraffic
+            $limitsOn
+            && $isPaidTraffic
             && $paidClicksToday >= (int) $thresholds['daily_valid_click_limit']
         ) {
             $signals[] = [
@@ -256,7 +291,7 @@ class IpFraudEvaluator
         }
 
         $resolvedCountry = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: '')));
-        if ($settings->out_of_geo_enabled) {
+        if ($can(DetectionPlanFeatures::GEO_ALLOW) && $settings->out_of_geo_enabled) {
             $raw = (array) ($ipLog->ipdetails_raw ?? []);
             $allowed = GeoAudienceMatcher::isAllowed(
                 $settings,

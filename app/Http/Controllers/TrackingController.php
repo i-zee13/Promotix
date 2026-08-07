@@ -12,6 +12,7 @@ use App\Services\IpIntel\VisitProtectionService;
 use App\Models\IpLog;
 use App\Support\CampaignAttributionResolver;
 use App\Support\CountryValue;
+use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
 use App\Support\GoogleAdsClickRedirect;
 use App\Support\GoogleClickAttribution;
@@ -650,6 +651,10 @@ class TrackingController extends Controller
             is_array($settings?->detection_thresholds) ? $settings->detection_thresholds : null,
         );
         $behaviorOn = (bool) ($thresholds['behavior_control_enabled'] ?? false);
+        $domain->loadMissing('user');
+        if (! DetectionPlanFeatures::enabled($domain->user, DetectionPlanFeatures::BEHAVIOR_CONTROL)) {
+            $behaviorOn = false;
+        }
 
         $ip = $this->clientIp($request);
         $events = array_slice((array) $data['events'], 0, 500);
@@ -831,11 +836,24 @@ class TrackingController extends Controller
         );
 
         // Behavior Control: record paid clicks so idle/scroll rules can fire on return visits.
-        if ($isPaidTraffic && (bool) ($thresholds['behavior_control_enabled'] ?? false)) {
+        if (
+            $isPaidTraffic
+            && (bool) ($thresholds['behavior_control_enabled'] ?? false)
+            && DetectionPlanFeatures::enabled(
+                $domain->relationLoaded('user') ? $domain->user : $domain->user()->first(),
+                DetectionPlanFeatures::BEHAVIOR_CONTROL
+            )
+        ) {
             return true;
         }
 
-        if (! $settings->session_recordings) {
+        if (
+            ! $settings->session_recordings
+            || ! DetectionPlanFeatures::enabled(
+                $domain->relationLoaded('user') ? $domain->user : $domain->user()->first(),
+                DetectionPlanFeatures::SESSION_RECORDINGS
+            )
+        ) {
             return false;
         }
 

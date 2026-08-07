@@ -50,6 +50,14 @@ class GoogleAudienceExclusionService
             return false;
         }
 
+        $domain->loadMissing('user');
+        if (! \App\Support\DetectionPlanFeatures::enabled(
+            $domain->user,
+            \App\Support\DetectionPlanFeatures::GOOGLE_EXCLUSION
+        )) {
+            return false;
+        }
+
         $settings ??= DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
         if (! $settings || ! $this->shouldQueue((string) ($threatGroup ?? ''), 'block', $settings)) {
             return false;
