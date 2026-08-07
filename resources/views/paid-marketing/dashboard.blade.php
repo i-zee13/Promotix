@@ -146,6 +146,66 @@
     }
     .paid-kpi-card__link:hover { color: #fff; }
     .paid-metric-bar--lg { height: 8px; }
+    /* Skeleton shimmer (Android-style placeholder) */
+    .paid-skel-host { position: relative; }
+    .paid-skel-host.is-skel-loading > :not(.paid-skel-overlay) {
+        opacity: 0.35;
+        pointer-events: none;
+    }
+    .paid-skel-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        display: grid;
+        gap: 12px;
+        padding: 2px;
+        border-radius: 10px;
+        background: rgba(10, 10, 10, 0.55);
+        backdrop-filter: blur(1px);
+    }
+    .paid-skel-overlay--row4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .paid-skel-overlay--row3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .paid-skel-overlay--row2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (max-width: 1100px) {
+        .paid-skel-overlay--row4,
+        .paid-skel-overlay--row3,
+        .paid-skel-overlay--row2 { grid-template-columns: 1fr; }
+    }
+    .paid-skel-card {
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(20, 20, 20, 0.9);
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 140px;
+    }
+    .paid-skel-line {
+        height: 10px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.16) 45%, rgba(255,255,255,0.06) 100%);
+        background-size: 200% 100%;
+        animation: paid-skel-shimmer 1.15s ease-in-out infinite;
+    }
+    .paid-skel-line--title { width: 42%; height: 12px; }
+    .paid-skel-line--lg { width: 58%; height: 22px; margin-top: 4px; }
+    .paid-skel-line--md { width: 70%; }
+    .paid-skel-line--sm { width: 38%; }
+    .paid-skel-line--full { width: 100%; }
+    @keyframes paid-skel-shimmer {
+        0% { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
+    }
+    html.light-mode .paid-skel-overlay { background: rgba(255,255,255,0.55); }
+    html.light-mode .paid-skel-card {
+        background: rgba(244, 244, 245, 0.95);
+        border-color: rgba(0,0,0,0.08);
+    }
+    html.light-mode .paid-skel-line {
+        background: linear-gradient(90deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.12) 45%, rgba(0,0,0,0.06) 100%);
+        background-size: 200% 100%;
+    }
     .paid-panel-card {
         border-radius: 12px;
         border: 1px solid #5a2a99;
@@ -619,7 +679,18 @@
             </div>
         </div>
 
-        <div class="paid-dashboard-cards-wrap">
+        <div class="paid-dashboard-cards-wrap paid-skel-host" :class="{ 'is-skel-loading': sectionLoading.top }">
+        <div class="paid-skel-overlay paid-skel-overlay--row4" x-show="sectionLoading.top" x-cloak aria-hidden="true">
+            <template x-for="i in 4" :key="'skel-top-'+i">
+                <div class="paid-skel-card">
+                    <div class="paid-skel-line paid-skel-line--title"></div>
+                    <div class="paid-skel-line paid-skel-line--lg"></div>
+                    <div class="paid-skel-line paid-skel-line--md"></div>
+                    <div class="paid-skel-line paid-skel-line--sm"></div>
+                    <div class="paid-skel-line paid-skel-line--full"></div>
+                </div>
+            </template>
+        </div>
         <div class="paid-dashboard-cards">
             {{-- Row 1 / Card 1 — Google Ads Click Summary --}}
             <article class="paid-dashboard-card paid-kpi-card">
@@ -796,7 +867,17 @@
         </div>
 
         {{-- Row 2 — Trend | Heatmap | Keywords --}}
-        <div class="paid-row2 mt-[15px]">
+        <div class="mt-[15px] paid-skel-host" :class="{ 'is-skel-loading': sectionLoading.charts }">
+            <div class="paid-skel-overlay paid-skel-overlay--row3" x-show="sectionLoading.charts" x-cloak aria-hidden="true">
+                <template x-for="i in 3" :key="'skel-mid-'+i">
+                    <div class="paid-skel-card" style="min-height: 220px;">
+                        <div class="paid-skel-line paid-skel-line--title"></div>
+                        <div class="paid-skel-line paid-skel-line--full" style="flex:1; min-height:140px; border-radius:8px;"></div>
+                        <div class="paid-skel-line paid-skel-line--md"></div>
+                    </div>
+                </template>
+            </div>
+            <div class="paid-row2">
             <section class="paid-panel-card flex min-h-0 flex-col p-[16px] sm:p-[18px]">
                 <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[8px]">
                     <div class="flex min-w-0 flex-wrap items-center gap-[8px]">
@@ -849,10 +930,23 @@
                 </div>
                 <div id="keyword-list" class="min-h-0 flex-1 overflow-x-auto overflow-y-auto"></div>
             </section>
+            </div>
         </div>
 
         {{-- Protection Engine | Top High Risk IPs --}}
-        <div class="paid-engine-row mt-[15px]">
+        <div class="mt-[15px] paid-skel-host" :class="{ 'is-skel-loading': sectionLoading.bottom }">
+            <div class="paid-skel-overlay paid-skel-overlay--row2" x-show="sectionLoading.bottom" x-cloak aria-hidden="true">
+                <template x-for="i in 2" :key="'skel-bot-'+i">
+                    <div class="paid-skel-card" style="min-height: 260px;">
+                        <div class="paid-skel-line paid-skel-line--title"></div>
+                        <div class="paid-skel-line paid-skel-line--full"></div>
+                        <div class="paid-skel-line paid-skel-line--md"></div>
+                        <div class="paid-skel-line paid-skel-line--full" style="flex:1; min-height:120px; border-radius:8px;"></div>
+                        <div class="paid-skel-line paid-skel-line--sm"></div>
+                    </div>
+                </template>
+            </div>
+            <div class="paid-engine-row">
             <section class="paid-engine-card">
                 <div class="flex flex-wrap items-center gap-[10px]">
                     <h2 class="text-[15px] font-semibold text-white sm:text-[16px]">Invalid Traffic Protection Engine</h2>
@@ -935,10 +1029,16 @@
                     </table>
                 </div>
             </section>
+            </div>
         </div>
 
         {{-- Recent IP Activity (full width) --}}
-        <section class="paid-engine-card mt-[15px]">
+        <section class="paid-engine-card mt-[15px] paid-skel-host" :class="{ 'is-skel-loading': sectionLoading.bottom }">
+            <div class="paid-skel-overlay" x-show="sectionLoading.bottom" x-cloak aria-hidden="true" style="display:flex;flex-direction:column;gap:10px;padding:14px;">
+                <div class="paid-skel-line paid-skel-line--title"></div>
+                <div class="paid-skel-line paid-skel-line--full" style="height:28px;"></div>
+                <div class="paid-skel-line paid-skel-line--full" style="flex:1; min-height:180px; border-radius:8px;"></div>
+            </div>
             <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[10px]">
                 <div class="flex flex-wrap items-center gap-[10px]">
                     <h2 class="text-[18px] font-semibold leading-none text-[#a9a9a9] sm:text-[22px]">Recent IP Activity</h2>
@@ -1654,6 +1754,7 @@ function paidAdvertisingFigma(config = {}) {
         reloadQueued: false,
         reloadQueuedForceGoogle: false,
         summaryRefreshInFlight: false,
+        sectionLoading: { top: true, charts: true, bottom: true },
         lastSummaryFingerprint: '',
         lastRenderFingerprint: '',
         lastReloadAt: 0,
@@ -1837,12 +1938,17 @@ function paidAdvertisingFigma(config = {}) {
                 return;
             }
             this.reloadInFlight = true;
+            this.sectionLoading = { top: true, charts: true, bottom: true };
+            // Prefer row skeletons over full-page blur once content shell is visible.
             if (withLoader) window.promotixPageLoader?.show('Refreshing dashboard…');
             try {
                 const qs = this.qs(forceGoogle);
 
-                // 1) Top KPI cards first — release the blur as soon as numbers can paint.
-                const summary = await fetch(`/paid-marketing/summary?${qs}`).then(r => r.json());
+                // Phase 1 — top KPI row (summary + campaigns) in parallel
+                const [summary, campaignsRaw] = await Promise.all([
+                    fetch(`/paid-marketing/summary?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json()),
+                ]);
                 this.summary = summary;
                 this.lastSummaryFingerprint = JSON.stringify({
                     paid_visits: summary?.paid_visits,
@@ -1858,33 +1964,43 @@ function paidAdvertisingFigma(config = {}) {
                 if (summary?.timezone_context?.reporting_timezone) {
                     this.userTimezone = summary.timezone_context.reporting_timezone;
                 }
+                this.campaigns = Array.isArray(campaignsRaw) ? campaignsRaw : (campaignsRaw.campaigns || []);
+                this.untaggedDomains = Array.isArray(campaignsRaw) ? [] : (campaignsRaw.untagged_domains || []);
+                this.syncCampaignFilter();
                 this.syncPaidTimezoneHeader();
+                this.sectionLoading.top = false;
                 await this.$nextTick();
                 if (withLoader) window.promotixPageLoader?.hide();
 
-                // 2) Charts / tables continue in the background.
-                const [trends, blocking, campaigns, keywords, countries, ips, heatmap] = await Promise.all([
+                // Phase 2 — charts row (trends / heatmap / keywords) + countries chart data
+                const [trends, keywords, countries, heatmap] = await Promise.all([
                     fetch(`/paid-marketing/trends?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json()),
                     fetch(`/paid-marketing/keywords?${qs}`).then(r => r.json()),
                     fetch(`/paid-marketing/countries?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/ips?${this.ipsQueryString()}`).then(r => r.json()),
                     fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
                 ]);
                 this.trends = trends;
-                this.blocking = blocking;
-                this.campaigns = Array.isArray(campaigns) ? campaigns : (campaigns.campaigns || []);
-                this.untaggedDomains = Array.isArray(campaigns) ? [] : (campaigns.untagged_domains || []);
-                this.syncCampaignFilter();
                 this.keywords = Array.isArray(keywords) ? keywords : [];
                 this.countries = Array.isArray(countries) ? countries : [];
-                this.ips = Array.isArray(ips) ? ips : (ips?.data || []);
                 this.heatmap = heatmap && typeof heatmap === 'object' ? heatmap : { days: [], hours: [], matrix: [] };
+                this.sectionLoading.charts = false;
+                await this.$nextTick();
+                this.render(false);
+
+                // Phase 3 — bottom protection / IP tables
+                const [blocking, ips] = await Promise.all([
+                    fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json()),
+                    fetch(`/paid-marketing/ips?${this.ipsQueryString()}`).then(r => r.json()),
+                ]);
+                this.blocking = blocking;
+                this.ips = Array.isArray(ips) ? ips : (ips?.data || []);
+                this.sectionLoading.bottom = false;
                 this.lastReloadAt = Date.now();
                 await this.$nextTick();
                 this.render(false);
                 await this.$nextTick();
+            } catch (e) {
+                this.sectionLoading = { top: false, charts: false, bottom: false };
             } finally {
                 this.reloadInFlight = false;
                 if (withLoader) window.promotixPageLoader?.hide();
