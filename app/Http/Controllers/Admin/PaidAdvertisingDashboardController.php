@@ -1330,7 +1330,7 @@ class PaidAdvertisingDashboardController extends Controller
     /**
      * @return \Illuminate\Support\Collection<int, object>
      */
-    private function ipRowsFromVisits(Request $request, $domainIds, string $fromDate, string $toDate)
+    private function ipRowsFromVisits(Request $request, $domainIds, string $fromDate, string $toDate, int $limit = 5000)
     {
         if (! Schema::hasTable('visits')) {
             return collect();
@@ -1357,14 +1357,14 @@ class PaidAdvertisingDashboardController extends Controller
             )
             ->groupBy('ip')
             ->orderByDesc('total')
-            ->limit(500)
+            ->limit(max(1, min($limit, 5000)))
             ->get();
     }
 
     /**
      * @return \Illuminate\Support\Collection<int, object>
      */
-    private function ipRowsFromPaidMarketing(Request $request, $domainIds, string $fromDate, string $toDate)
+    private function ipRowsFromPaidMarketing(Request $request, $domainIds, string $fromDate, string $toDate, int $limit = 5000)
     {
         if (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits')) {
             return collect();
@@ -1414,7 +1414,7 @@ class PaidAdvertisingDashboardController extends Controller
             )
             ->groupBy('pc.ip')
             ->orderByDesc('total')
-            ->limit(500)
+            ->limit(max(1, min($limit, 5000)))
             ->get();
     }
 
@@ -1423,16 +1423,33 @@ class PaidAdvertisingDashboardController extends Controller
      *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
-    private function resolveIpRows(Request $request, $domainIds, string $fromDate, string $toDate)
+    public function ipInventory(Request $request, int $limit = 5000)
     {
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
+        $domainIds = $this->scopedDomainIds($request);
+        if ($domainIds->isEmpty()) {
+            return collect();
+        }
+
+        return $this->resolveIpRows($request, $domainIds, $metricFrom, $metricTo, $limit);
+    }
+
+    /**
+     * Paid IPs only (is_paid_traffic = 1): visits table first, legacy clicks fallback.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function resolveIpRows(Request $request, $domainIds, string $fromDate, string $toDate, int $limit = 5000)
+    {
+        $cap = max(1, min($limit, 5000));
         $rows = $this->mergeIpRowSources(
-            $this->ipRowsFromVisits($request, $domainIds, $fromDate, $toDate),
-            $this->ipRowsFromPaidMarketing($request, $domainIds, $fromDate, $toDate),
+            $this->ipRowsFromVisits($request, $domainIds, $fromDate, $toDate, $cap),
+            $this->ipRowsFromPaidMarketing($request, $domainIds, $fromDate, $toDate, $cap),
         );
 
         $formatted = $this->formatIpRows($rows, $request->user(), $this->resolveActiveAllowListIps($request));
 
-        return $this->attachDeviceFingerprints($formatted, $domainIds);
+        return $this->attachDeviceFingerprints($formatted, $domainIds)->take($cap)->values();
     }
 
     /**

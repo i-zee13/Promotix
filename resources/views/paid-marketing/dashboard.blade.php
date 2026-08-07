@@ -2209,49 +2209,71 @@ function paidAdvertisingFigma(config = {}) {
             const canvas = document.getElementById(id);
             const tip = document.getElementById('paid-trends-tooltip');
             if (!canvas || !tip) return;
+
+            // Always use live labels/datasets in handlers — never close over a stale render.
+            // Rebinding when already attached would stack listeners, so install once.
             if (canvas._paidHoverBound) return;
             canvas._paidHoverBound = true;
 
             canvas.addEventListener('mousemove', (e) => {
+                const liveLabels = this.trends.labels || [];
+                const visible = this.visibleTrendDatasets();
                 const rect = canvas.getBoundingClientRect();
                 const left = 36, right = 14;
                 const x = e.clientX - rect.left;
                 const innerW = rect.width - left - right;
-                if (innerW <= 0 || labels.length === 0) return;
-                const idx = Math.max(0, Math.min(labels.length - 1, Math.round(((x - left) / innerW) * (labels.length - 1))));
+                if (innerW <= 0 || liveLabels.length === 0 || !visible.length) {
+                    tip.hidden = true;
+                    return;
+                }
+                const idx = Math.max(0, Math.min(liveLabels.length - 1, Math.round(((x - left) / innerW) * (liveLabels.length - 1))));
                 this.trendsHoverIndex = idx;
-                const visible = this.visibleTrendDatasets();
-                const thisDs = visible.find(d => !d.dashed) || visible[0];
-                const lastDs = visible.find(d => d.dashed) || visible[1];
-                const thisVal = Number(thisDs?.values?.[idx] || 0);
-                const lastVal = Number(lastDs?.values?.[idx] || 0);
                 tip.hidden = false;
-                const rows = [];
-                if (thisDs && !this.isTrendSeriesHidden('thisWeek')) {
-                    rows.push(`<span><i style="background:#6625F8"></i>This Week ${this.fmtCompact(thisVal)}</span>`);
-                }
-                if (lastDs && !this.isTrendSeriesHidden('lastWeek')) {
-                    rows.push(`<span><i style="background:#FF4BC1"></i>Last Week ${this.fmtCompact(lastVal)}</span>`);
-                }
-                tip.innerHTML = `<strong>${labels[idx] || ''}</strong>${rows.join('')}`;
+                tip.innerHTML = this.paidTrendTooltipHtml(liveLabels, visible, idx);
                 tip.style.left = `${Math.min(Math.max(x, 60), rect.width - 60)}px`;
                 tip.style.top = '12px';
-                this.drawPaidTrendLine(id, labels, visible, idx);
+                this.drawPaidTrendLine(id, liveLabels, visible, idx);
             });
             canvas.addEventListener('mouseleave', () => {
                 this.trendsHoverIndex = null;
                 tip.hidden = true;
-                this.drawPaidTrendLine(id, labels, this.visibleTrendDatasets(), null);
+                this.drawPaidTrendLine(id, this.trends.labels || [], this.visibleTrendDatasets(), null);
             });
+        },
+        paidTrendTooltipHtml(labels, datasets, idx) {
+            const label = labels[idx] || '';
+            const rows = [];
+            if (this.compareEnabled) {
+                const thisDs = datasets.find(d => !d.dashed) || datasets[0];
+                const lastDs = datasets.find(d => d.dashed);
+                if (thisDs && !this.isTrendSeriesHidden('thisWeek')) {
+                    rows.push(`<span><i style="background:${thisDs.color || '#6625F8'}"></i>${thisDs.name || 'This Week'} ${this.fmtCompact(Number(thisDs.values?.[idx] || 0))}</span>`);
+                }
+                if (lastDs && !this.isTrendSeriesHidden('lastWeek')) {
+                    rows.push(`<span><i style="background:${lastDs.color || '#FF4BC1'}"></i>${lastDs.name || 'Last Week'} ${this.fmtCompact(Number(lastDs.values?.[idx] || 0))}</span>`);
+                }
+            } else {
+                datasets.forEach((ds) => {
+                    if (!ds || this.isTrendSeriesHidden(ds.key)) return;
+                    rows.push(`<span><i style="background:${ds.color || '#fff'}"></i>${ds.name || ds.key} ${this.fmtCompact(Number(ds.values?.[idx] || 0))}</span>`);
+                });
+            }
+            return `<strong>${label}</strong>${rows.join('')}`;
         },
         drawPaidTrendLine(id, labels, datasets, hoverIndex = null) {
             const c = this.canvas(id);
             if (!c) return;
             const { ctx, w, h } = c;
-            const series = (datasets || []).map(d => ({ ...d, values: d.values || [] }));
+            const series = (datasets || []).map(d => ({ ...d, values: d.values || [] })).filter(d => d.values.length);
+            if (!series.length && !(labels || []).length) return;
+            const pointCount = Math.max(
+                (labels || []).length,
+                ...series.map(d => d.values.length),
+                1,
+            );
             const max = Math.max(...series.flatMap(d => d.values), 1);
             const left = 36, right = 14, top = 16, bottom = 28;
-            const xStep = (w - left - right) / Math.max(labels.length - 1, 1);
+            const xStep = (w - left - right) / Math.max(pointCount - 1, 1);
             const yAt = v => h - bottom - (Number(v) / max) * (h - top - bottom);
 
             ctx.strokeStyle = 'rgba(255,255,255,.14)';
@@ -2307,7 +2329,7 @@ function paidAdvertisingFigma(config = {}) {
                 series.forEach(ds => {
                     const v = Number(ds.values[hoverIndex] || 0);
                     ctx.beginPath();
-                    ctx.fillStyle = ds.dashed ? '#FF4BC1' : '#6625F8';
+                    ctx.fillStyle = ds.color || (ds.dashed ? '#FF4BC1' : '#6625F8');
                     ctx.arc(x, yAt(v), 4, 0, Math.PI * 2);
                     ctx.fill();
                 });

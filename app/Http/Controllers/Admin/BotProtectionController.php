@@ -482,6 +482,7 @@ class BotProtectionController extends Controller
     {
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
+            ->forBotProtection()
             ->orderBy('hostname')
             ->get(['id', 'hostname']);
 
@@ -523,9 +524,10 @@ class BotProtectionController extends Controller
         $withCountry = (clone $base)->whereNotNull('country')->where('country', '!=', '')->count();
         $valid = max(0, (clone $base)->count() - $invalid);
 
-        $chartRows = $this->buildAdvancedQuery($request, $domainIds, $from, $to)
-            ->orderByDesc('visits.visited_at')
-            ->limit(4000)
+        // Same IP-aggregate grain as Advanced table / Dashboard country IPs.
+        $chartRows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
+            ->orderByDesc('total')
+            ->limit(500)
             ->get();
 
         $ipLogs = IpLog::query()
@@ -556,10 +558,9 @@ class BotProtectionController extends Controller
         $perPage = min(100, max(10, (int) $request->query('per_page', 25)));
         $page = max(1, (int) $request->query('page', 1));
 
-        $query = $this->buildAdvancedQuery($request, $domainIds, $from, $to);
-
-        $total = $query->count();
-        $rows = $query
+        $total = $this->countAdvancedUniqueIps($request, $domainIds, $from, $to);
+        $rows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
+            ->orderByDesc('total')
             ->orderByDesc('visited_at')
             ->forPage($page, $perPage)
             ->get();
@@ -610,37 +611,74 @@ class BotProtectionController extends Controller
 
         return response()->streamDownload(function () use ($request, $domainIds, $from, $to): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Visited At', 'Domain', 'IP', 'Country', 'Browser', 'OS', 'URL', 'Referrer', 'UTM Source', 'UTM Medium', 'UTM Campaign', 'Action', 'Threat Group', 'Threat Score', 'Invalid']);
+            fputcsv($handle, [
+                'IP Address',
+                'Visits',
+                'Invalid',
+                'Valid',
+                'Domain',
+                'Path',
+                'Last Seen',
+                'Threat Group',
+                'Threat Type',
+                'Action',
+                'Country',
+                'Browser',
+                'OS',
+                'Status',
+                'UTM Campaign',
+                'Risk Score',
+            ]);
 
-            if (! Schema::hasTable('visits')) {
+            if (! Schema::hasTable('visits') || $domainIds->isEmpty()) {
                 fclose($handle);
 
                 return;
             }
 
-            $this->buildAdvancedQuery($request, $domainIds, $from, $to)
-                ->orderByDesc('visits.visited_at')
-                ->limit(50000)
-                ->cursor()
-                ->each(function ($v) use ($handle): void {
-                    fputcsv($handle, [
-                        (string) ($v->visited_at ?? ''),
-                        $v->hostname ?? '',
-                        $v->ip,
-                        $v->country,
-                        $v->browser,
-                        $v->os,
-                        $v->url,
-                        $v->referrer,
-                        $v->utm_source,
-                        $v->utm_medium,
-                        $v->utm_campaign,
-                        $v->action_taken ?? 'allow',
-                        $v->threat_group,
-                        $v->threat_score,
-                        ((int) $v->is_invalid_traffic) === 1 ? 'yes' : 'no',
-                    ]);
-                });
+            $rows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
+                ->orderByDesc('total')
+                ->orderByDesc('visited_at')
+                ->limit(5000)
+                ->get();
+
+            $ipLogs = IpLog::query()
+                ->whereIn('ip', $rows->pluck('ip')->unique()->filter()->values())
+                ->get()
+                ->keyBy('ip');
+
+            $domainsById = Domain::query()
+                ->whereIn('id', $rows->pluck('domain_id')->unique()->filter()->values())
+                ->get(['id', 'user_id', 'hostname', 'monitoring_only_mode'])
+                ->keyBy('id');
+
+            foreach ($rows as $v) {
+                $row = $this->formatVisit(
+                    $v,
+                    $ipLogs->get($v->ip),
+                    $request->user(),
+                    null,
+                    $domainsById->get($v->domain_id),
+                );
+                fputcsv($handle, [
+                    $row['ip'] ?? '',
+                    $row['visits'] ?? 0,
+                    $row['invalid_visits'] ?? 0,
+                    $row['valid_visits'] ?? 0,
+                    $row['domain'] ?? '',
+                    $row['path'] ?? '',
+                    $row['last_seen_label'] ?? '',
+                    $row['threat_group'] ?? '',
+                    $row['threat_type'] ?? '',
+                    $row['action_taken'] ?? '',
+                    $row['country'] ?? '',
+                    $row['browser'] ?? '',
+                    $row['os'] ?? '',
+                    $row['status'] ?? '',
+                    $row['utm_campaign'] ?? '',
+                    $row['intel_risk_score'] ?? '',
+                ]);
+            }
 
             fclose($handle);
         }, $filename, [
@@ -649,37 +687,61 @@ class BotProtectionController extends Controller
         ]);
     }
 
-    private function buildAdvancedQuery(Request $request, $domainIds, Carbon $from, Carbon $to)
+    /**
+     * IP-level aggregates for Advanced table/CSV (same grain as Dashboard countryIps).
+     */
+    private function buildAdvancedIpAggregateQuery(Request $request, $domainIds, Carbon $from, Carbon $to)
     {
         $query = DB::table('visits')
             ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
             ->whereIn('visits.domain_id', $domainIds)
             ->whereBetween('visits.visited_at', [$from, $to]);
         GoogleClickAttribution::excludeClickIds($query, 'visits');
-        $query = $this->applyPathFilter($query, $request, 'visits.url')
-            ->select(
-                'visits.id',
-                'visits.domain_id',
-                'domains.hostname',
-                'visits.ip',
-                'visits.country',
-                'visits.browser',
-                'visits.os',
-                'visits.url',
-                'visits.referrer',
-                'visits.utm_source',
-                'visits.utm_medium',
-                'visits.utm_campaign',
-                'visits.action_taken',
-                'visits.threat_group',
-                'visits.threat_score',
-                'visits.is_invalid_traffic',
-                'visits.is_paid_traffic',
-                'visits.visited_at'
-            );
+        $this->applyAdvancedVisitFilters($query, $request);
 
+        return $query
+            ->select(
+                'visits.domain_id',
+                'visits.ip',
+                'domains.hostname',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid'),
+                DB::raw('MAX(visits.visited_at) as visited_at'),
+                DB::raw('MAX(visits.country) as country'),
+                DB::raw('MAX(visits.browser) as browser'),
+                DB::raw('MAX(visits.os) as os'),
+                DB::raw('MAX(visits.url) as url'),
+                DB::raw('MAX(visits.referrer) as referrer'),
+                DB::raw('MAX(visits.utm_source) as utm_source'),
+                DB::raw('MAX(visits.utm_medium) as utm_medium'),
+                DB::raw('MAX(visits.utm_campaign) as utm_campaign'),
+                DB::raw('MAX(visits.action_taken) as action_taken'),
+                DB::raw('MAX(visits.threat_group) as threat_group'),
+                DB::raw('MAX(visits.threat_score) as threat_score'),
+                DB::raw('MAX(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as is_invalid_traffic'),
+                DB::raw('MAX(CASE WHEN visits.is_paid_traffic = 1 THEN 1 ELSE 0 END) as is_paid_traffic'),
+                DB::raw('MAX(visits.id) as id'),
+            )
+            ->groupBy('visits.domain_id', 'visits.ip', 'domains.hostname');
+    }
+
+    private function countAdvancedUniqueIps(Request $request, $domainIds, Carbon $from, Carbon $to): int
+    {
+        $query = DB::table('visits')
+            ->whereIn('visits.domain_id', $domainIds)
+            ->whereBetween('visits.visited_at', [$from, $to]);
+        GoogleClickAttribution::excludeClickIds($query, 'visits');
+        $this->applyAdvancedVisitFilters($query, $request);
+
+        return (int) $query
+            ->selectRaw('COUNT(DISTINCT CONCAT(visits.domain_id, "|", visits.ip)) as aggregate_count')
+            ->value('aggregate_count');
+    }
+
+    private function applyAdvancedVisitFilters($query, Request $request): void
+    {
         if ($ip = trim((string) $request->query('ip', ''))) {
-            $query->where('visits.ip', 'like', '%' . $ip . '%');
+            $query->where('visits.ip', 'like', '%'.$ip.'%');
         }
         if ($country = trim((string) $request->query('country', ''))) {
             $query->where('visits.country', strtoupper($country));
@@ -696,32 +758,70 @@ class BotProtectionController extends Controller
         if ($request->boolean('only_paid')) {
             $query->where('visits.is_paid_traffic', true);
         }
-
         if ($path = trim((string) $request->query('path', ''))) {
-            $query->where('visits.url', 'like', '%' . $path . '%');
+            $query->where('visits.url', 'like', '%'.$path.'%');
         }
-
         if ($campaign = trim((string) $request->query('campaign', ''))) {
             $query->where('visits.utm_campaign', $campaign);
         }
+    }
 
-        return $query;
+    private function buildAdvancedQuery(Request $request, $domainIds, Carbon $from, Carbon $to)
+    {
+        $query = DB::table('visits')
+            ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
+            ->whereIn('visits.domain_id', $domainIds)
+            ->whereBetween('visits.visited_at', [$from, $to]);
+        GoogleClickAttribution::excludeClickIds($query, 'visits');
+        $this->applyAdvancedVisitFilters($query, $request);
+
+        return $query->select(
+            'visits.id',
+            'visits.domain_id',
+            'domains.hostname',
+            'visits.ip',
+            'visits.country',
+            'visits.browser',
+            'visits.os',
+            'visits.url',
+            'visits.referrer',
+            'visits.utm_source',
+            'visits.utm_medium',
+            'visits.utm_campaign',
+            'visits.action_taken',
+            'visits.threat_group',
+            'visits.threat_score',
+            'visits.is_invalid_traffic',
+            'visits.is_paid_traffic',
+            'visits.visited_at'
+        );
     }
 
     private function formatVisit(object $v, ?IpLog $ipLog = null, ?\App\Models\User $user = null, ?object $recording = null, ?Domain $domain = null): array
     {
         $visitedAt = ! empty($v->visited_at) ? Carbon::parse((string) $v->visited_at, 'UTC') : null;
-        $isInvalid = (bool) $v->is_invalid_traffic;
+        $hasAggregate = property_exists($v, 'total') || isset($v->total);
+        $total = $hasAggregate ? (int) ($v->total ?? 0) : 1;
+        $invalid = $hasAggregate
+            ? (int) ($v->invalid ?? 0)
+            : (((bool) $v->is_invalid_traffic) ? 1 : 0);
+        $isInvalid = $invalid > 0 || (bool) ($v->is_invalid_traffic ?? false);
         $isAllowListed = $domain !== null
             && $ipLog !== null
             && AllowListMatcher::isAllowListed($domain, $ipLog->ip);
 
+        $rowId = (int) ($v->id ?? 0);
+        if ($rowId <= 0) {
+            $rowId = (int) sprintf('%u', crc32((int) ($v->domain_id ?? 0).'|'.(string) ($v->ip ?? '')));
+        }
+
         return [
-            'id' => (int) $v->id,
+            'id' => $rowId,
+            'domain_id' => (int) ($v->domain_id ?? 0),
             'hostname' => $v->hostname,
             'domain' => $v->hostname,
             'ip' => $v->ip,
-            'visits' => 1,
+            'visits' => $total,
             'path' => $v->url,
             'country' => $v->country,
             'country_label' => $this->countryLabel($v->country),
@@ -741,8 +841,8 @@ class BotProtectionController extends Controller
             'threat_score' => (int) ($v->threat_score ?? 0),
             'is_invalid_traffic' => $isInvalid,
             'is_paid_traffic' => (bool) $v->is_paid_traffic,
-            'invalid_visits' => $isInvalid ? 1 : 0,
-            'valid_visits' => $isInvalid ? 0 : 1,
+            'invalid_visits' => $invalid,
+            'valid_visits' => max(0, $total - $invalid),
             'ip_is_blocked' => $isAllowListed ? false : (bool) ($ipLog?->is_blocked ?? false),
             'is_allowlisted' => $isAllowListed,
             'has_session_recording' => $recording !== null,
@@ -1354,15 +1454,15 @@ class BotProtectionController extends Controller
         $highRiskCards = [];
 
         foreach ($rows as $visit) {
-            $isInvalid = (bool) ($visit->is_invalid_traffic ?? false)
+            $aggInvalid = isset($visit->invalid) ? (int) $visit->invalid : null;
+            $aggTotal = isset($visit->total) ? (int) $visit->total : null;
+            $isInvalid = ($aggInvalid !== null ? $aggInvalid > 0 : false)
+                || (bool) ($visit->is_invalid_traffic ?? false)
                 || filled($visit->threat_group)
                 || ($visit->action_taken ?? '') === 'block';
-            if (! $isInvalid) {
-                // Still count unique IPs into low risk if we have score data later
-            }
 
             $group = strtolower(trim((string) ($visit->threat_group ?? '')));
-            $weight = $isInvalid ? 1 : 0;
+            $weight = $aggInvalid !== null ? $aggInvalid : ($isInvalid ? 1 : 0);
 
             if ($weight > 0) {
                 if (in_array($group, ['vpn', 'proxy'], true)) {
@@ -1373,7 +1473,7 @@ class BotProtectionController extends Controller
                     $threatBuckets['geo']['count'] += $weight;
                 } elseif (str_contains($group, 'device') || $group === 'malicious') {
                     $threatBuckets['device']['count'] += $weight;
-                } elseif ($group === 'abnormal_rate_limit' || str_contains($group, 'repeat')) {
+                } elseif ($group === 'abnormal_rate_limit' || str_contains($group, 'repeat') || ($aggTotal !== null && $aggTotal > 1)) {
                     $threatBuckets['repeat']['count'] += $weight;
                 } else {
                     $threatBuckets['bot']['count'] += $weight;
@@ -1449,6 +1549,7 @@ class BotProtectionController extends Controller
                         }
                     }
 
+                    $invalidCount = max(1, $aggInvalid ?? ($isInvalid ? 1 : 0));
                     $highRiskCards[] = [
                         'id' => (int) ($visit->id ?? 0),
                         'ip' => $ip,
@@ -1456,8 +1557,8 @@ class BotProtectionController extends Controller
                         'risk_tone' => $score >= 75 ? 'high' : 'medium',
                         'category' => $category,
                         'dot' => $dot,
-                        'invalid_clicks' => 1,
-                        'invalid_label' => '1 invalid visit',
+                        'invalid_clicks' => $invalidCount,
+                        'invalid_label' => $invalidCount.' invalid visit'.($invalidCount === 1 ? '' : 's'),
                         'ago' => $ago,
                         '_sort_at' => $sortAt,
                     ];

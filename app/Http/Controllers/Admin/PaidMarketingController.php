@@ -76,7 +76,7 @@ class PaidMarketingController extends Controller
     {
         [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
 
-        $visits = $this->collectDetailedVisitModels($request, 100);
+        $visits = $this->collectDetailedVisitModels($request, 5000);
 
         $ipLogs = IpLog::query()
             ->whereIn('ip', $visits->pluck('ip')->unique()->filter()->values())
@@ -653,47 +653,119 @@ class PaidMarketingController extends Controller
      */
     /**
      * Shared Advanced membership + counts source (API table + CSV/XLSX export).
-     * Seeds from live `visits` (Dashboard Recent IP parity), merges PM-only activity,
-     * attaches in-range visit totals, then ranks by click volume.
+     * Uses the same IP inventory as Paid Dashboard Recent IPs / CSV (GROUP BY ip).
      *
      * @return Collection<int, PaidMarketingVisit>
      */
-    private function collectDetailedVisitModels(Request $request, int $limit = 100): Collection
+    private function collectDetailedVisitModels(Request $request, int $limit = 5000): Collection
     {
         [$metricFrom, $metricTo, , $reportingTz] = $this->reportingWindow($request);
-        $seedLimit = max($limit, 200);
+        $cap = max(1, min(max($limit, 1), 5000));
 
-        $visits = $this->seedDetailedVisitsFromLiveTraffic(
+        // Same membership + totals as Dashboard export (`/paid-marketing/ips/export.csv`).
+        $inventory = app(PaidAdvertisingDashboardController::class)
+            ->ipInventory($request, $cap);
+
+        if ($inventory->isEmpty()) {
+            return collect();
+        }
+
+        return $this->hydrateDetailedVisitsFromIpInventory(
             $request,
+            $inventory->take($cap)->values(),
             $metricFrom,
             $metricTo,
             $reportingTz,
-            $seedLimit,
         );
+    }
 
-        $pmVisits = $this->detailedVisitQuery($request)
-            ->orderByDesc('last_click_at')
-            ->limit(min(max($limit, 100), 50000))
-            ->get();
+    /**
+     * Turn Dashboard IP aggregate rows into Advanced visit models with matching range counts.
+     *
+     * @param  Collection<int, array<string, mixed>>  $inventory
+     * @return Collection<int, PaidMarketingVisit>
+     */
+    private function hydrateDetailedVisitsFromIpInventory(
+        Request $request,
+        Collection $inventory,
+        string $metricFrom,
+        string $metricTo,
+        string $reportingTz,
+    ): Collection {
+        $user = $request->user();
+        $path = trim((string) $request->query('path', ''));
+        $domainIds = $this->scopedPaidDomainIds($request);
+        $ips = $inventory->pluck('ip')->map(fn ($ip) => (string) $ip)->filter()->unique()->values();
 
-        $visits = $visits
-            ->concat($pmVisits)
-            ->unique(fn (PaidMarketingVisit $visit) => (int) $visit->domain_id.'|'.(string) $visit->ip)
-            ->values();
+        $pmByIp = collect();
+        if ($ips->isNotEmpty() && $domainIds->isNotEmpty()) {
+            $pmByIp = PaidMarketingVisit::query()
+                ->with([
+                    'domain',
+                    'clicks' => function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user, $path): void {
+                        $clickQuery->orderBy('clicked_at');
+                        UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
+                        GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
+                        if ($path !== '') {
+                            $clickQuery->where('path', 'like', '%'.$path.'%');
+                        }
+                    },
+                ])
+                ->whereIn('domain_id', $domainIds->all())
+                ->whereIn('ip', $ips->all())
+                ->orderByDesc('last_click_at')
+                ->get()
+                ->groupBy(fn (PaidMarketingVisit $visit) => (string) $visit->ip);
+        }
 
-        $this->attachLiveVisitRangeStats($visits, $request, $metricFrom, $metricTo, $reportingTz);
+        $domains = Domain::query()
+            ->whereIn('id', $domainIds->all())
+            ->get()
+            ->keyBy('id');
 
-        return $visits
-            ->sortByDesc(function (PaidMarketingVisit $visit) {
-                $range = (int) ($visit->getAttribute('range_visit_count') ?? 0);
-                if ($range > 0) {
-                    return $range;
-                }
+        // Prefer domain_id from latest in-range visit for IPs without a PM row.
+        $domainByIp = collect();
+        if (Schema::hasTable('visits') && $ips->isNotEmpty() && $domainIds->isNotEmpty()) {
+            $domainByIp = DB::table('visits')
+                ->whereIn('domain_id', $domainIds->all())
+                ->whereIn('ip', $ips->all())
+                ->select('ip', DB::raw('MAX(domain_id) as domain_id'))
+                ->groupBy('ip')
+                ->get()
+                ->keyBy(fn ($row) => (string) $row->ip);
+        }
 
-                return $visit->relationLoaded('clicks') ? $visit->clicks->count() : 0;
-            })
-            ->take($limit)
-            ->values();
+        return $inventory->map(function (array $row) use ($pmByIp, $domains, $domainByIp) {
+            $ip = (string) ($row['ip'] ?? '');
+            $pmGroup = $pmByIp->get($ip) ?? collect();
+            /** @var PaidMarketingVisit|null $visit */
+            $visit = $pmGroup->first();
+
+            if (! $visit) {
+                $domainId = (int) ($domainByIp->get($ip)?->domain_id ?? $domains->keys()->first() ?? 0);
+                $agg = (object) [
+                    'domain_id' => $domainId,
+                    'ip' => $ip,
+                    'country' => $row['country'] ?? null,
+                    'campaign' => $row['campaign'] ?? null,
+                    'threat_group' => $row['top_threat'] ?? null,
+                    'last_seen' => $row['last_seen'] ?? null,
+                ];
+                $visit = $this->makeSyntheticDetailedVisit($agg, $domains->get($domainId));
+            }
+
+            $total = (int) ($row['total'] ?? 0);
+            $invalid = (int) ($row['invalid'] ?? 0);
+            $visit->setAttribute('range_visit_count', $total);
+            $visit->setAttribute('range_invalid_count', $invalid);
+            $visit->setAttribute('range_last_seen', $row['last_seen'] ?? null);
+            $visit->setAttribute('range_campaign', $row['campaign'] ?? $visit->campaign_name ?? $visit->campaign);
+            $visit->setAttribute('range_threat_group', $row['top_threat'] ?? $visit->threat_group);
+            $visit->setAttribute('range_vpn_hits', (int) ($row['vpn_hits'] ?? 0));
+            $visit->setAttribute('range_data_center_hits', (int) ($row['data_center_hits'] ?? 0));
+
+            return $visit;
+        })->values();
     }
 
     /**

@@ -257,13 +257,35 @@
                 max-height: 190px;
                 overflow-y: auto;
             }
-            .bp-adv-legend li {
+            .bp-adv-legend li,
+            .bp-adv-legend__btn {
                 display: grid;
                 grid-template-columns: 10px minmax(0, 1fr) auto;
                 align-items: center;
                 gap: 8px;
                 font-size: 11px;
                 color: rgba(255, 255, 255, 0.82);
+            }
+            .bp-adv-legend__btn {
+                width: 100%;
+                margin: 0;
+                padding: 2px 0;
+                border: 0;
+                background: transparent;
+                text-align: left;
+                cursor: pointer;
+                border-radius: 4px;
+                transition: opacity 0.15s ease;
+            }
+            .bp-adv-legend__btn:hover { background: rgba(255, 255, 255, 0.04); }
+            .bp-adv-legend__btn.is-hidden {
+                opacity: 0.38;
+            }
+            .bp-adv-legend__btn.is-hidden .bp-adv-legend__swatch {
+                background: rgba(255, 255, 255, 0.22) !important;
+            }
+            .bp-adv-legend__btn.is-hidden .bp-adv-legend__name {
+                text-decoration: line-through;
             }
             .bp-adv-legend__swatch {
                 width: 10px;
@@ -652,9 +674,9 @@
                         </div>
 
                         <div class="pm-adv-table-body-scroll">
-                            <template x-for="row in rows" :key="row.id">
+                            <template x-for="row in rows" :key="(row.domain_id || '') + '|' + row.ip + '|' + row.id">
                                 <div class="pm-adv-table-grid pm-adv-table-grid--row text-[10px] sm:text-[11px]" :style="gridStyle">
-                                    <template x-for="col in visibleColumns" :key="row.id + '-' + col.key">
+                                    <template x-for="col in visibleColumns" :key="(row.domain_id || '') + '|' + row.ip + '-' + col.key">
                                         <template x-if="col.key !== 'session_recording'">
                                             <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(row, col.key)" x-text="cellValue(row, col.key)"></span>
                                         </template>
@@ -669,7 +691,7 @@
                                     </template>
                                 </div>
                             </template>
-                            <p x-show="rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No matching visits in this window.</p>
+                            <p x-show="rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No matching IPs in this window.</p>
                         </div>
                     </div>
                 </div>
@@ -705,21 +727,29 @@
             <article class="bp-adv-chart-card">
                 <h3 class="bp-adv-chart-card__title">Threat Distribution</h3>
                 <div class="bp-adv-chart-card__body">
-                    <div class="bp-adv-donut" :style="`--bp-donut: ${chartThreat.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                    <div class="bp-adv-donut" :style="`--bp-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">
-                            <p class="bp-adv-donut__value" x-text="chartThreat.total_label || '0'"></p>
+                            <p class="bp-adv-donut__value" x-text="threatDonut.total_label || '0'"></p>
                             <p class="bp-adv-donut__label" x-text="chartThreat.center_label || 'Invalid Clicks'"></p>
                         </div>
                     </div>
                     <ul class="bp-adv-legend">
-                        <template x-for="item in (chartThreat.items || [])" :key="'threat-' + item.label">
+                        <template x-for="item in (chartThreat.items || [])" :key="'threat-' + legendKey(item)">
                             <li>
-                                <span class="bp-adv-legend__swatch" :style="`background:${item.color}`"></span>
-                                <span class="bp-adv-legend__name" x-text="item.label"></span>
-                                <span class="bp-adv-legend__meta">
-                                    <span x-text="item.pct + '%'"></span>
-                                    <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
-                                </span>
+                                <button
+                                    type="button"
+                                    class="bp-adv-legend__btn"
+                                    :class="{ 'is-hidden': isThreatHidden(legendKey(item)) }"
+                                    :title="isThreatHidden(legendKey(item)) ? 'Click to show' : 'Click to hide'"
+                                    @click="toggleThreatLegend(legendKey(item))"
+                                >
+                                    <span class="bp-adv-legend__swatch" :style="`background:${item.color}`"></span>
+                                    <span class="bp-adv-legend__name" x-text="item.label"></span>
+                                    <span class="bp-adv-legend__meta">
+                                        <span x-text="legendItemPct(item, threatDonut.visible_total, hiddenThreatKeys) + '%'"></span>
+                                        <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
+                                    </span>
+                                </button>
                             </li>
                         </template>
                         <li x-show="!(chartThreat.items || []).length" class="!text-white/40">No invalid threat data in range.</li>
@@ -731,21 +761,29 @@
             <article class="bp-adv-chart-card">
                 <h3 class="bp-adv-chart-card__title">Risk Level Distribution</h3>
                 <div class="bp-adv-chart-card__body">
-                    <div class="bp-adv-donut" :style="`--bp-donut: ${chartRisk.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                    <div class="bp-adv-donut" :style="`--bp-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">
-                            <p class="bp-adv-donut__value" x-text="chartRisk.total_label || '0'"></p>
+                            <p class="bp-adv-donut__value" x-text="riskDonut.total_label || '0'"></p>
                             <p class="bp-adv-donut__label" x-text="chartRisk.center_label || 'Unique IPs'"></p>
                         </div>
                     </div>
                     <ul class="bp-adv-legend">
-                        <template x-for="item in (chartRisk.items || [])" :key="'risk-' + item.label">
+                        <template x-for="item in (chartRisk.items || [])" :key="'risk-' + legendKey(item)">
                             <li>
-                                <span class="bp-adv-legend__swatch" :style="`background:${item.color}`"></span>
-                                <span class="bp-adv-legend__name" x-text="item.label"></span>
-                                <span class="bp-adv-legend__meta">
-                                    <span x-text="item.pct + '%'"></span>
-                                    <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
-                                </span>
+                                <button
+                                    type="button"
+                                    class="bp-adv-legend__btn"
+                                    :class="{ 'is-hidden': isRiskHidden(legendKey(item)) }"
+                                    :title="isRiskHidden(legendKey(item)) ? 'Click to show' : 'Click to hide'"
+                                    @click="toggleRiskLegend(legendKey(item))"
+                                >
+                                    <span class="bp-adv-legend__swatch" :style="`background:${item.color}`"></span>
+                                    <span class="bp-adv-legend__name" x-text="item.label"></span>
+                                    <span class="bp-adv-legend__meta">
+                                        <span x-text="legendItemPct(item, riskDonut.visible_total, hiddenRiskKeys) + '%'"></span>
+                                        <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
+                                    </span>
+                                </button>
                             </li>
                         </template>
                     </ul>
@@ -947,6 +985,63 @@ function botProtectionAdvancedFigma() {
         chartCountries: [],
         highRiskIps: [],
         chartsUpdatedAt: null,
+        hiddenThreatKeys: {},
+        hiddenRiskKeys: {},
+        legendKey(item) {
+            return String(item?.key || item?.label || '').trim();
+        },
+        isThreatHidden(key) {
+            return Boolean(this.hiddenThreatKeys[key]);
+        },
+        isRiskHidden(key) {
+            return Boolean(this.hiddenRiskKeys[key]);
+        },
+        toggleThreatLegend(key) {
+            if (!key) return;
+            this.hiddenThreatKeys = { ...this.hiddenThreatKeys, [key]: !this.hiddenThreatKeys[key] };
+        },
+        toggleRiskLegend(key) {
+            if (!key) return;
+            this.hiddenRiskKeys = { ...this.hiddenRiskKeys, [key]: !this.hiddenRiskKeys[key] };
+        },
+        buildDonutFromItems(items, hiddenMap) {
+            const all = Array.isArray(items) ? items : [];
+            const visible = all.filter((item) => !hiddenMap[this.legendKey(item)]);
+            const total = visible.reduce((sum, item) => sum + Number(item.count || 0), 0);
+            const base = Math.max(total, 1);
+            const stops = [];
+            let cursor = 0;
+            visible.forEach((item) => {
+                const count = Number(item.count || 0);
+                if (count <= 0) return;
+                const pct = (count / base) * 100;
+                const next = cursor + pct;
+                stops.push(`${item.color} ${cursor}% ${next}%`);
+                cursor = next;
+            });
+            if (!stops.length) {
+                stops.push('rgba(100,0,178,0.25) 0% 100%');
+            }
+            return {
+                visible_total: total,
+                total_label: Number(total).toLocaleString(),
+                gradient: `conic-gradient(${stops.join(', ')})`,
+            };
+        },
+        legendItemPct(item, visibleTotal, hiddenMap = {}) {
+            const key = this.legendKey(item);
+            if (hiddenMap[key]) return 0;
+            const count = Number(item?.count || 0);
+            const base = Math.max(Number(visibleTotal || 0), 1);
+            if (!count) return 0;
+            return Math.round((count / base) * 1000) / 10;
+        },
+        get threatDonut() {
+            return this.buildDonutFromItems(this.chartThreat.items, this.hiddenThreatKeys);
+        },
+        get riskDonut() {
+            return this.buildDonutFromItems(this.chartRisk.items, this.hiddenRiskKeys);
+        },
         get chartsUpdatedLabel() {
             if (!this.chartsUpdatedAt) return 'Updated: —';
             try {
