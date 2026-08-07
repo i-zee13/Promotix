@@ -203,9 +203,13 @@ class PaidAdvertisingDashboardController extends Controller
         $hasLinkedAds = $domains->contains(
             fn ($domain) => $domain->googleAdsAccount && ! (bool) $domain->googleAdsAccount->is_manager
         );
-        $googleNeedsReconnect = $this->googleSyncLooksAuthRelated($googleSyncError)
-            || ($hasLinkedAds && $googleClicks === 0 && $uniquePaidClicks > 0);
-        $googleReconnectUrl = $this->googleReconnectUrl($selectedDomain?->id ?: (int) $request->query('domain_id', 0));
+        $selectedDomainId = $selectedDomain?->id ?: (int) $request->query('domain_id', 0);
+        // Reconnect is domain-scoped OAuth — never prompt on "All Domains".
+        $googleNeedsReconnect = $selectedDomainId > 0 && (
+            $this->googleSyncLooksAuthRelated($googleSyncError)
+            || ($hasLinkedAds && $googleClicks === 0 && $uniquePaidClicks > 0)
+        );
+        $googleReconnectUrl = $this->googleReconnectUrl($selectedDomainId);
 
         return response()->json([
             'paid_visits' => $paid,

@@ -1275,10 +1275,9 @@ function paidAdvertisingFigma(config = {}) {
             return tracked ? Math.round((invalid / tracked) * 100) : 0;
         },
         get showGoogleReconnect() {
-            if (this.summary.google_needs_reconnect) return true;
-            const google = Number(this.summary.total_click_count || this.summary.google_clicks || 0);
-            const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || 0);
-            return google === 0 && tracked > 0;
+            // Only when a specific domain is selected (All Domains has no single OAuth target).
+            if (!String(this.filters.domain_id || '').trim()) return false;
+            return Boolean(this.summary.google_needs_reconnect);
         },
         get validClickPct() {
             const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || 0);

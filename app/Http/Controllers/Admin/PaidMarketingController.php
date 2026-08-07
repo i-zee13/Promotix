@@ -1658,8 +1658,7 @@ class PaidMarketingController extends Controller
             ->values();
         $avgRisk = $riskScores->isNotEmpty() ? (int) round($riskScores->avg()) : 0;
 
-        $googleNeedsReconnect = (bool) ($summary['google_needs_reconnect'] ?? false)
-            || ($googleClicks === 0 && $tracked > 0);
+        $googleNeedsReconnect = (bool) ($summary['google_needs_reconnect'] ?? false);
         $googleReconnectUrl = (string) ($summary['google_reconnect_url'] ?? route('integrations.google.redirect'));
 
         return [
