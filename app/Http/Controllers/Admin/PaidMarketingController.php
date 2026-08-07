@@ -1658,15 +1658,21 @@ class PaidMarketingController extends Controller
             ->values();
         $avgRisk = $riskScores->isNotEmpty() ? (int) round($riskScores->avg()) : 0;
 
+        $googleNeedsReconnect = (bool) ($summary['google_needs_reconnect'] ?? false)
+            || ($googleClicks === 0 && $tracked > 0);
+        $googleReconnectUrl = (string) ($summary['google_reconnect_url'] ?? route('integrations.google.redirect'));
+
         return [
             [
                 'key' => 'total',
                 'label' => 'Total Clicks (Google Ads)',
                 'value' => number_format($googleClicks),
-                'sub' => $tracked > 0
-                    ? ('Tracked '.$tracked)
-                    : 'Imported from Google Ads',
+                'sub' => $googleNeedsReconnect
+                    ? 'Google sync blocked — reconnect Ads'
+                    : ($tracked > 0 ? ('Tracked '.$tracked) : 'Imported from Google Ads'),
                 'tone' => 'purple',
+                'show_reconnect' => $googleNeedsReconnect,
+                'reconnect_url' => $googleReconnectUrl,
             ],
             [
                 'key' => 'valid',

@@ -70,6 +70,36 @@
 </script>
 <style>
     /* Layout guards — work even if Vite assets are stale */
+    .google-reconnect-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 20px;
+        padding: 0 7px;
+        border-radius: 4px;
+        border: 1px solid rgba(251, 191, 36, 0.45);
+        background: rgba(251, 191, 36, 0.14);
+        color: #fcd34d;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .google-reconnect-chip:hover {
+        background: rgba(251, 191, 36, 0.24);
+        color: #fde68a;
+    }
+    .google-reconnect-chip__icon {
+        width: 10px;
+        height: 10px;
+        flex-shrink: 0;
+    }
+    html.light-mode .google-reconnect-chip {
+        border-color: rgba(180, 83, 9, 0.35);
+        background: rgba(251, 191, 36, 0.2);
+        color: #b45309;
+    }
     .paid-kpi-card {
         display: flex;
         flex-direction: column;
@@ -605,7 +635,24 @@
                 <div class="mt-[10px] grid grid-cols-2 gap-x-[12px] gap-y-[18px]">
                     <div>
                         <p class="paid-traffic-metrics__label">Total Google Ads Clicks</p>
-                        <p class="paid-kpi-card__big" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
+                        <div class="flex flex-wrap items-center gap-[8px]">
+                            <p class="paid-kpi-card__big" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
+                            <template x-if="showGoogleReconnect">
+                                <a
+                                    :href="summary.google_reconnect_url || '{{ route('integrations.google.redirect') }}'"
+                                    class="google-reconnect-chip"
+                                    title="Google Ads totals not syncing — reconnect your Google account"
+                                >
+                                    <svg class="google-reconnect-chip__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/>
+                                    </svg>
+                                    <span>Reconnect</span>
+                                </a>
+                            </template>
+                        </div>
+                        <p class="mt-[4px] text-[9px] leading-snug text-amber-200/90" x-show="showGoogleReconnect" x-cloak>
+                            Google Ads total not syncing — reconnect Google, then refresh.
+                        </p>
                     </div>
                     <div>
                         <p class="paid-traffic-metrics__label">Tracked Clicks</p>
@@ -1173,7 +1220,7 @@ function paidAdvertisingFigma(config = {}) {
         profileTimezone: config.profileTimezone || 'UTC',
         filters: { domain_id: '', google_ads_account_id: '', campaign: '', campaign_id: '', path: '', traffic_source: 'google_ads', window: 'weekly', from: '', to: '' },
         trackingTemplate: '{lpurl}?gclid={gclid}&gbraid={gbraid}&wbraid={wbraid}&utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={keyword}&keyword={keyword}',
-        summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
+        summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, google_sync_error: null, google_needs_reconnect: false, google_reconnect_url: '', invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [], rules: [], engine: null },
         campaigns: [],
@@ -1226,6 +1273,12 @@ function paidAdvertisingFigma(config = {}) {
             const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || this.summary.tag_paid_visits || 0);
             const invalid = Number(this.summary.unique_invalid_paid_clicks || this.summary.invalid_paid_visits || 0);
             return tracked ? Math.round((invalid / tracked) * 100) : 0;
+        },
+        get showGoogleReconnect() {
+            if (this.summary.google_needs_reconnect) return true;
+            const google = Number(this.summary.total_click_count || this.summary.google_clicks || 0);
+            const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || 0);
+            return google === 0 && tracked > 0;
         },
         get validClickPct() {
             const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || 0);

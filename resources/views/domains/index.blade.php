@@ -104,7 +104,14 @@
                                 <td class="align-middle px-[12px] py-[14px]">
                                     @if ($d->hasPaidAdvertisingFromAds())
                                         <div class="flex flex-col items-start gap-[4px]">
-                                            <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
+                                            <div class="flex flex-wrap items-center gap-[6px]">
+                                                <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
+                                                @include('partials.google-ads-reconnect-chip', [
+                                                    'href' => route('integrations.google.redirect', ['domain_id' => $d->id, 'context' => 'paid_domain']),
+                                                    'label' => 'Reconnect',
+                                                    'title' => 'Reconnect Google if Ads totals stop syncing (token / permission)',
+                                                ])
+                                            </div>
                                             <a href="{{ route('paid-marketing.dashboard', ['domain_id' => $d->id]) }}" class="text-[10px] text-[#9a1aff] hover:underline">View campaigns →</a>
                                         </div>
                                     @else
@@ -151,6 +158,12 @@
                                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
                                             Set tracking parameters
                                         </a>
+                                        @if ($d->hasPaidAdvertisingFromAds())
+                                            <a href="{{ route('integrations.google.redirect', ['domain_id' => $d->id, 'context' => 'paid_domain']) }}" class="flex w-full items-center gap-[8px] px-[12px] py-[8px] hover:bg-white/60">
+                                                <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
+                                                Reconnect Google Ads
+                                            </a>
+                                        @endif
                                         <button type="button" @click="openEdit(@js(['id' => $d->id, 'hostname' => $d->hostname, 'paid_marketing_connected' => $d->paid_marketing_connected, 'bot_mitigation_connected' => $d->bot_mitigation_connected]))" class="flex w-full items-center gap-[8px] px-[12px] py-[8px] hover:bg-white/60">
                                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 16"/></svg>
                                             Edit domain

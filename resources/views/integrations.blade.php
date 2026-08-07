@@ -257,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 Sync Ads
                                             </button>
                                         </form>
+                                        <a href="{{ route('integrations.google.redirect') }}" class="pi-text-link" title="Reconnect if Google Ads token expired">Reconnect Google</a>
                                         <a href="{{ route('integrations.google.redirect') }}" class="pi-text-link">+ Add Google Login</a>
                                     @else
                                         <a href="{{ route('integrations.google.redirect') }}" class="pi-primary-btn">

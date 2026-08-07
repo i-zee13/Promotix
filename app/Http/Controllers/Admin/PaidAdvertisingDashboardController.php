@@ -60,7 +60,7 @@ class PaidAdvertisingDashboardController extends Controller
         $googleTz = $this->resolveGoogleTimezone($request, $domainIds);
         $domains = $this->scopedDomains($request, $domainIds);
 
-        $this->syncGoogleMetricsForDomains(
+        $googleSyncErrors = $this->syncGoogleMetricsForDomains(
             $request,
             $domains,
             $metricFrom,
@@ -197,6 +197,16 @@ class PaidAdvertisingDashboardController extends Controller
             ? $domains->first()
             : null;
 
+        $googleSyncError = collect($googleSyncErrors)
+            ->map(fn ($row) => trim((string) ($row['message'] ?? '')))
+            ->first(fn ($message) => $message !== '');
+        $hasLinkedAds = $domains->contains(
+            fn ($domain) => $domain->googleAdsAccount && ! (bool) $domain->googleAdsAccount->is_manager
+        );
+        $googleNeedsReconnect = $this->googleSyncLooksAuthRelated($googleSyncError)
+            || ($hasLinkedAds && $googleClicks === 0 && $uniquePaidClicks > 0);
+        $googleReconnectUrl = $this->googleReconnectUrl($selectedDomain?->id ?: (int) $request->query('domain_id', 0));
+
         return response()->json([
             'paid_visits' => $paid,
             'verified_paid_visits' => $verifiedPaid,
@@ -209,6 +219,9 @@ class PaidAdvertisingDashboardController extends Controller
             'tag_capture_pct' => $tagCapturePct,
             'tracking_accuracy_pct' => $trackingAccuracyPct,
             'tag_gap_warning' => $googleClicks > 0 && $uniquePaidClicks < (int) floor($googleClicks * 0.5),
+            'google_sync_error' => $googleSyncError,
+            'google_needs_reconnect' => $googleNeedsReconnect,
+            'google_reconnect_url' => $googleReconnectUrl,
             'invalid_paid_visits' => $uniqueInvalidPaidClicks > 0 ? $uniqueInvalidPaidClicks : $invalid,
             'invalid_paid_events' => $invalid,
             'unique_invalid_paid_clicks' => $uniqueInvalidPaidClicks,
@@ -1175,14 +1188,18 @@ class PaidAdvertisingDashboardController extends Controller
         ]);
     }
 
-    private function syncGoogleMetricsForDomains(Request $request, $domains, string $fromDate, string $toDate, bool $force = false): void
+    /**
+     * @return list<array{domain_id: int, message: string}>
+     */
+    private function syncGoogleMetricsForDomains(Request $request, $domains, string $fromDate, string $toDate, bool $force = false): array
     {
         if (! Schema::hasTable('google_ads_campaign_daily_metrics') || $domains->isEmpty()) {
-            return;
+            return [];
         }
 
         $sync = app(GoogleAdsDomainMetricsSync::class);
         $reportingTz = $this->reportingTimezone($request, $domains->pluck('id'));
+        $errors = [];
 
         foreach ($domains as $domain) {
             if (! $domain->googleAdsAccount || $domain->googleAdsAccount->is_manager) {
@@ -1194,10 +1211,61 @@ class PaidAdvertisingDashboardController extends Controller
                 : $reportingTz;
             [$syncFrom, $syncTo] = UserTimezone::googleMetricDateBounds($fromDate, $toDate, $reportingTz, $googleTz);
 
-            if ($force || $sync->shouldRefresh($domain, $syncFrom, $syncTo)) {
-                $sync->syncDomain($domain, $syncFrom, $syncTo);
+            if (! ($force || $sync->shouldRefresh($domain, $syncFrom, $syncTo))) {
+                continue;
+            }
+
+            $result = $sync->syncDomain($domain, $syncFrom, $syncTo);
+            $message = trim((string) ($result['api_error'] ?? $result['message'] ?? ''));
+            if (($result['saved'] ?? 0) === 0 && $message !== '') {
+                $errors[] = [
+                    'domain_id' => (int) $domain->id,
+                    'message' => $message,
+                ];
             }
         }
+
+        return $errors;
+    }
+
+    private function googleSyncLooksAuthRelated(?string $message): bool
+    {
+        $message = strtolower(trim((string) $message));
+        if ($message === '') {
+            return false;
+        }
+
+        foreach ([
+            '403',
+            '401',
+            'permission',
+            'unauthenticated',
+            'token',
+            'expired',
+            'reconnect',
+            'login-customer-id',
+            'could not build google api headers',
+            'access denied',
+            'invalid_grant',
+        ] as $needle) {
+            if (str_contains($message, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function googleReconnectUrl(int $domainId = 0): string
+    {
+        if ($domainId > 0) {
+            return route('integrations.google.redirect', [
+                'domain_id' => $domainId,
+                'context' => 'paid_domain',
+            ]);
+        }
+
+        return route('integrations.google.redirect');
     }
 
     private function scopedDomainIds(Request $request)
