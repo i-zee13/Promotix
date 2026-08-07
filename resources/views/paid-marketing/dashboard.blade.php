@@ -1970,6 +1970,10 @@ function paidAdvertisingFigma(config = {}) {
                 document.body.removeChild(ta);
             }
         },
+        async copyTrackingTemplate() {
+            await this.copyText(this.trackingTemplate);
+            window.alert?.('Tracking template copied. Paste it in Google Ads → Campaign → Settings → Tracking template (or Final URL suffix).');
+        },
         exportIpsCsv() {
             const qs = this.ipsQueryString();
             window.location.href = `{{ route('paid-marketing.ips.export') }}${qs ? '?' + qs : ''}`;
@@ -2305,10 +2309,17 @@ function paidAdvertisingFigma(config = {}) {
                 el.innerHTML = `
                     <p class="text-[10px] text-white/70">No keyword data yet.</p>
                     <p class="mt-[6px] text-[9px] leading-relaxed text-white/45">
-                        Add <code class="text-white/70">keyword={keyword}</code> / <code class="text-white/70">utm_term={keyword}</code>
-                        to your Google Ads final URL tracking template, then new clicks will appear here.
+                        Keywords only appear when Google Ads appends
+                        <code class="text-white/70">keyword={keyword}</code> /
+                        <code class="text-white/70">utm_term={keyword}</code>
+                        on the Final URL (tracking template). New clicks after that will show here.
                     </p>
+                    <button type="button" data-copy-tracking-template
+                        class="mt-[10px] rounded-[4px] border border-[#6400B2]/60 bg-[#6400B2]/20 px-[8px] py-[5px] text-[10px] font-semibold text-[#c4b5fd] hover:bg-[#6400B2]/35">
+                        Copy tracking template
+                    </button>
                 `;
+                el.querySelector('[data-copy-tracking-template]')?.addEventListener('click', () => this.copyTrackingTemplate());
                 return;
             }
             el.innerHTML = `

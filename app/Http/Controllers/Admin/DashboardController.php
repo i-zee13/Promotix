@@ -860,16 +860,40 @@ class DashboardController extends Controller
             ? (int) (clone $paidBase)->count()
             : (int) PaidMarketingVisit::query()->whereIn('domain_id', $domainIds)->whereBetween('last_click_at', [$from, $to])->sum('visits');
 
-        // Paid card: invalid clicks within paid traffic only (user-scoped domains).
-        $paidInvalidVisits = $paidBase
+        // Same paid attribution as Paid Dashboard: distinct click IDs for valid/invalid.
+        $trackedClicks = $paidBase
+            ? GoogleClickAttribution::countDistinctClickIds(clone $paidBase)
+            : $paidVisits;
+        $invalidEventVisits = $paidBase
             ? (int) (clone $paidBase)->where('is_invalid_traffic', true)->count()
             : (int) PaidMarketingVisit::query()
                 ->whereIn('domain_id', $domainIds)
                 ->whereNotNull('threat_group')
                 ->whereBetween('last_click_at', [$from, $to])
                 ->count();
+        $uniqueInvalidPaidClicks = $paidBase
+            ? GoogleClickAttribution::countDistinctClickIds(
+                (clone $paidBase)->where('is_invalid_traffic', true)
+            )
+            : $invalidEventVisits;
+        $uniqueValidPaidClicks = max(0, $trackedClicks - $uniqueInvalidPaidClicks);
 
-        $paidValidClicks = max(0, $paidVisits - $paidInvalidVisits);
+        // Total Clicks on Overview must match Paid Dashboard "Total Google Ads Clicks".
+        $reportingTz = UserTimezone::reportingTimezoneForUser($user);
+        [$metricFrom, $metricTo] = UserTimezone::calendarDateRangeFromRequest($request, $user, 6, $reportingTz);
+        $googleAdsClicks = 0;
+        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
+            $domains = Domain::query()
+                ->whereIn('id', $domainIds)
+                ->with('googleAdsAccount')
+                ->get();
+            $googleAds = app(\App\Services\GoogleAdsDomainMetricsSync::class)
+                ->clickTotalsForDomainsReporting($domainIds, $metricFrom, $metricTo, $reportingTz, $domains);
+            $googleAdsClicks = (int) ($googleAds['clicks'] ?? 0);
+        }
+
+        $paidInvalidVisits = $uniqueInvalidPaidClicks;
+        $paidValidClicks = $uniqueValidPaidClicks;
 
         // Bot card: organic only (exclude paid click IDs / paid flag). Never use global ip_logs.
         $botBlockedHits = 0;
@@ -906,7 +930,7 @@ class DashboardController extends Controller
                 ->count('campaign');
 
         $tagHealthy = $connectedDomains > 0;
-        $protectionRate = $paidVisits > 0 ? round(($paidInvalidVisits / $paidVisits) * 100, 2) : 0;
+        $protectionRate = $trackedClicks > 0 ? round(($paidInvalidVisits / $trackedClicks) * 100, 2) : 0;
         $detectionRate = $botTotalVisits > 0 ? round(($botInvalidVisits / $botTotalVisits) * 100, 2) : 0;
 
         $lastEventAt = null;
@@ -959,10 +983,11 @@ class DashboardController extends Controller
         $payload = [
             'paidAdvertising' => [
                 'visits' => $paidVisits,
-                'googleAdsClicks' => $paidVisits,
+                'trackedClicks' => $trackedClicks,
+                'googleAdsClicks' => $googleAdsClicks,
                 'validClicks' => $paidValidClicks,
                 'campaigns' => (int) $campaignCount,
-                'invalidVisits' => $paidInvalidVisits,
+                'invalidVisits' => $invalidEventVisits,
                 'invalidClicks' => $paidInvalidVisits,
                 'invalidRate' => $protectionRate,
                 'protectionRate' => $protectionRate,
@@ -987,7 +1012,7 @@ class DashboardController extends Controller
                 'eventsToday' => $eventsToday,
             ],
             'quickStats' => [
-                'totalClicks' => $paidVisits,
+                'totalClicks' => $googleAdsClicks > 0 ? $googleAdsClicks : $trackedClicks,
                 'invalidClicks' => $paidInvalidVisits,
                 'costSaved' => $costSaved,
                 'blockedToday' => $blockedToday > 0 ? $blockedToday : $botBlockedHits,
