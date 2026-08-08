@@ -18,6 +18,7 @@ use App\Services\GoogleAdsLocationExclusionSyncService;
 use App\Services\GoogleAudienceExclusionService;
 use App\Support\DetectionProfiles;
 use App\Support\DetectionReasonLabels;
+use App\Support\ClickronixTrafficReport;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleIpBlockFormatter;
 use App\Support\GoogleVerifiedCampaignLookup;
@@ -386,42 +387,11 @@ class PaidMarketingController extends Controller
 
     public function exportDetailedCsv(Request $request): StreamedResponse
     {
-        $filename = 'paid-marketing-advanced-' . now()->format('YmdHis') . '.csv';
+        $filename = 'clickronix-traffic-report-' . now()->format('YmdHis') . '.csv';
 
         return response()->streamDownload(function () use ($request): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, [
-                'IP Address',
-                'Visits',
-                'Domain',
-                'Campaign',
-                'Last Click',
-                'Threat Group',
-                'Threat Type',
-                'Country',
-                'Device',
-                'Session ID',
-                'Fingerprint',
-                'Browser',
-                'OS',
-                'GCLID',
-                'GBRAID',
-                'WBRAID',
-                'Invalid Clicks',
-                'Valid Clicks',
-                'CTA Clicks',
-                'Tel Clicks',
-                'Page Changes',
-                'Google Verified',
-                'Status',
-                'Risk Score',
-                'Risk Level',
-                'Confidence',
-                'Evidence',
-                'Needs Block',
-                'Connection',
-                'Last Path',
-            ]);
+            fputcsv($handle, ClickronixTrafficReport::headers());
 
             [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
 
@@ -462,38 +432,7 @@ class PaidMarketingController extends Controller
                     $reportingTz,
                     $behaviorCounts->get($visit->ip),
                 );
-                fputcsv($handle, [
-                    $row['ip'],
-                    $row['visits'],
-                    $row['domain'],
-                    $row['campaign'],
-                    $row['last_click_label'],
-                    $row['threat_group'],
-                    $row['threat_type'],
-                    $row['country'],
-                    $row['device'] ?? '',
-                    $row['session_id'] ?? '',
-                    $row['device_fingerprint'] ?? '',
-                    $row['browser'] ?? '',
-                    $row['os'] ?? '',
-                    $row['gclid'] ?? '',
-                    $row['gbraid'] ?? '',
-                    $row['wbraid'] ?? '',
-                    $row['invalid_clicks'],
-                    $row['valid_clicks'],
-                    $row['cta_clicks'] ?? 0,
-                    $row['tel_clicks'] ?? 0,
-                    $row['page_changes'] ?? 0,
-                    $row['google_verified_label'] ?? '',
-                    $row['status'] ?? '',
-                    $row['intel_risk_score'] ?? '',
-                    $row['intel_risk_level'] ?? '',
-                    $row['intel_confidence'] ?? '',
-                    $row['intel_evidence'] ?? '',
-                    $row['intel_ip_need_blockation'] ?? '',
-                    $row['intel_connection_type'] ?? '',
-                    $row['last_path'],
-                ]);
+                fputcsv($handle, ClickronixTrafficReport::valuesFromDetailedVisit($row));
             });
 
             fclose($handle);
@@ -505,7 +444,7 @@ class PaidMarketingController extends Controller
 
     public function exportDetailedXlsx(Request $request): StreamedResponse
     {
-        $filename = 'paid-marketing-advanced-' . now()->format('YmdHis') . '.xlsx';
+        $filename = 'clickronix-traffic-report-' . now()->format('YmdHis') . '.xlsx';
 
         return response()->streamDownload(function () use ($request): void {
             [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
@@ -560,54 +499,21 @@ class PaidMarketingController extends Controller
 
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
-            $sheet->setTitle('Advanced View');
-            $headers = [
-                'IP Address', 'Visits', 'Domain', 'Campaign', 'Last Click', 'Threat Group', 'Threat Type',
-                'Country', 'Device', 'Session ID', 'Fingerprint', 'Browser', 'OS', 'GCLID', 'GBRAID', 'WBRAID',
-                'Invalid Clicks', 'Valid Clicks', 'CTA Clicks', 'Tel Clicks', 'Page Changes',
-                'Google Verified', 'Status', 'Risk Score', 'Risk Level',
-                'Confidence', 'Evidence', 'Needs Block', 'Connection', 'Action', 'Last Path', 'Timestamp',
-            ];
+            $sheet->setTitle('Traffic Report');
+            $headers = ClickronixTrafficReport::headers();
             foreach ($headers as $i => $header) {
                 $sheet->setCellValue([$i + 1, 1], $header);
             }
+            $headerStyle = $sheet->getStyle('A1:AP1');
+            $headerStyle->getFont()->setBold(true);
+            $headerStyle->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setRGB('6400B2');
+            $headerStyle->getFont()->getColor()->setRGB('FFFFFF');
 
             $r = 2;
             foreach ($rows as $row) {
-                $sheet->fromArray([[
-                    $row['ip'] ?? '',
-                    $row['visits'] ?? 0,
-                    $row['domain'] ?? '',
-                    $row['campaign'] ?? '',
-                    $row['last_click_label'] ?? '',
-                    $row['threat_group'] ?? '',
-                    $row['threat_type'] ?? '',
-                    $row['country'] ?? '',
-                    $row['device'] ?? '',
-                    $row['session_id'] ?? '',
-                    $row['device_fingerprint'] ?? '',
-                    $row['browser'] ?? '',
-                    $row['os'] ?? '',
-                    $row['gclid'] ?? '',
-                    $row['gbraid'] ?? '',
-                    $row['wbraid'] ?? '',
-                    $row['invalid_clicks'] ?? 0,
-                    $row['valid_clicks'] ?? 0,
-                    $row['cta_clicks'] ?? 0,
-                    $row['tel_clicks'] ?? 0,
-                    $row['page_changes'] ?? 0,
-                    $row['google_verified_label'] ?? '',
-                    $row['status'] ?? '',
-                    $row['intel_risk_score'] ?? '',
-                    $row['intel_risk_level'] ?? '',
-                    $row['intel_confidence'] ?? '',
-                    $row['intel_evidence'] ?? '',
-                    $row['intel_ip_need_blockation'] ?? '',
-                    $row['intel_connection_type'] ?? '',
-                    $row['status'] === 'Blocked' ? 'Block' : (($row['status'] === 'Invalid') ? 'Flag' : 'Allow'),
-                    $row['last_path'] ?? '',
-                    $row['last_click_at'] ?? '',
-                ]], null, 'A' . $r);
+                $sheet->fromArray([ClickronixTrafficReport::valuesFromDetailedVisit($row)], null, 'A' . $r);
                 $r++;
             }
 
@@ -1379,19 +1285,22 @@ class PaidMarketingController extends Controller
 
         $validClicks = max($clickCount - $invalidClicks, 0);
         $rangeLastSeen = $visit->getAttribute('range_last_seen');
-        $lastClickAt = $clicks
+        $clickInstants = $clicks
             ->map(fn ($c) => UserTimezone::parseUtcInstant($c->getRawOriginal('clicked_at') ?? $c->clicked_at))
-            ->filter()
-            ->max()
+            ->filter();
+        $lastClickAt = $clickInstants->max()
             ?? UserTimezone::parseUtcInstant($rangeLastSeen)
             ?? UserTimezone::parseUtcInstant($visit->getRawOriginal('last_click_at') ?? $visit->last_click_at);
+        $firstClickAt = $clickInstants->min()
+            ?? $lastClickAt;
         $ipParts = collect(preg_split('/\s*,\s*/', (string) $visit->ip))
             ->map(fn ($part) => trim($part))
             ->filter()
             ->values()
             ->all();
 
-        $firstClick = $clicks->first();
+        $firstClick = $clicks->sortBy(fn ($c) => (string) ($c->getRawOriginal('clicked_at') ?? $c->clicked_at))->first()
+            ?? $clicks->first();
         $campaignId = GoogleVerifiedPaidTraffic::resolveCampaignId((object) [
             'url' => $firstClick?->path,
             'google_campaign_id' => $visit->google_campaign_id ?? $firstClick?->google_campaign_id,
@@ -1448,6 +1357,9 @@ class PaidMarketingController extends Controller
                 ?: ($visit->getAttribute('range_campaign') ?: null),
             'last_click_at' => UserTimezone::isoForUser($lastClickAt, $user),
             'last_click_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y') ?? '-',
+            'first_click_at' => UserTimezone::isoForUser($firstClickAt, $user),
+            'first_click_label' => UserTimezone::formatForUser($firstClickAt, $user, 'm/d/y H:i') ?? '',
+            'last_click_datetime_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y H:i') ?? '',
             'threat_group' => $visit->threat_group ?: $visit->getAttribute('range_threat_group'),
             'threat_type' => $visit->threat_type,
             'manual_decision' => $visit->manual_decision,
@@ -1507,9 +1419,13 @@ class PaidMarketingController extends Controller
             'data_center_hits' => $dataCenterHits,
             'invalid_clicks' => $invalidClicks,
             'valid_clicks' => $validClicks,
-            'cta_clicks' => (int) ($behaviorCounts->cta_clicks ?? 0),
-            'tel_clicks' => (int) ($behaviorCounts->tel_clicks ?? 0),
-            'page_changes' => (int) ($behaviorCounts->page_changes ?? 0),
+            'cta_clicks' => (int) ($behaviorCounts?->cta_clicks ?? 0),
+            'tel_clicks' => (int) ($behaviorCounts?->tel_clicks ?? 0),
+            'page_changes' => (int) ($behaviorCounts?->page_changes ?? 0),
+            'session_count' => ((int) ($behaviorCounts?->session_count ?? 0)) > 0
+                ? (int) $behaviorCounts->session_count
+                : ($sessionMeta['session_id'] ? 1 : 0),
+            'last_cta' => (string) ($behaviorCounts?->last_cta_href ?? ''),
             'google_verified' => $googleVerified,
             'google_verified_label' => $googleVerifiedLabel,
             'has_session_recording' => $recording !== null,
@@ -1886,7 +1802,7 @@ class PaidMarketingController extends Controller
     }
 
     /**
-     * Aggregate CTA / tel / page-change counts from session recordings for Advanced View.
+     * Aggregate CTA / tel / page-change / session counts from session recordings for Advanced View + Clickronix export.
      *
      * @param  Collection<int, string>  $ips
      * @return Collection<string, object>
@@ -1901,26 +1817,51 @@ class PaidMarketingController extends Controller
             return collect();
         }
 
-        $query = DB::table('visit_session_recordings')
-            ->select([
-                'ip',
-                DB::raw('COALESCE(SUM(cta_clicks), 0) as cta_clicks'),
-                DB::raw('COALESCE(SUM(tel_clicks), 0) as tel_clicks'),
-                DB::raw('COALESCE(SUM(page_changes), 0) as page_changes'),
-            ])
-            ->whereIn('ip', $ips)
-            ->groupBy('ip');
-
+        $domainIds = null;
         $domainId = (int) $request->query('domain_id', 0);
         if ($domainId > 0) {
-            $query->where('domain_id', $domainId);
+            $domainIds = collect([$domainId]);
         } else {
-            $query->whereIn('domain_id', Domain::query()
+            $domainIds = Domain::query()
                 ->where('user_id', $request->user()->id)
-                ->pluck('id'));
+                ->pluck('id');
         }
 
-        return $query->get()->keyBy('ip');
+        $select = [
+            'ip',
+            DB::raw('COALESCE(SUM(cta_clicks), 0) as cta_clicks'),
+            DB::raw('COALESCE(SUM(tel_clicks), 0) as tel_clicks'),
+            DB::raw('COALESCE(SUM(page_changes), 0) as page_changes'),
+            DB::raw('COUNT(DISTINCT NULLIF(session_id, "")) as session_count'),
+        ];
+
+        $query = DB::table('visit_session_recordings')
+            ->select($select)
+            ->whereIn('ip', $ips)
+            ->whereIn('domain_id', $domainIds)
+            ->groupBy('ip');
+
+        $totals = $query->get()->keyBy('ip');
+
+        $lastCtaByIp = collect();
+        if (Schema::hasColumn('visit_session_recordings', 'last_cta_href')) {
+            $lastCtaByIp = DB::table('visit_session_recordings')
+                ->select(['ip', 'last_cta_href'])
+                ->whereIn('ip', $ips)
+                ->whereIn('domain_id', $domainIds)
+                ->whereNotNull('last_cta_href')
+                ->where('last_cta_href', '!=', '')
+                ->orderByDesc('id')
+                ->get()
+                ->groupBy('ip')
+                ->map(fn ($rows) => (string) ($rows->first()->last_cta_href ?? ''));
+        }
+
+        return $totals->map(function ($row) use ($lastCtaByIp) {
+            $row->last_cta_href = $lastCtaByIp->get($row->ip, '');
+
+            return $row;
+        });
     }
 
     /**

@@ -740,6 +740,9 @@ class TrackingController extends Controller
         if (Schema::hasColumn('visit_session_recordings', 'scroll_count')) {
             $payload['scroll_count'] = min(65535, (int) $analysis['scroll_count']);
         }
+        if (Schema::hasColumn('visit_session_recordings', 'last_cta_href') && ! empty($analysis['last_cta_href'])) {
+            $payload['last_cta_href'] = (string) $analysis['last_cta_href'];
+        }
 
         DB::table('visit_session_recordings')->insert($payload);
 

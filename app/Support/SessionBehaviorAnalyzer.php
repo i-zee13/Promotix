@@ -26,7 +26,8 @@ class SessionBehaviorAnalyzer
      *   page_changes: int,
      *   scroll_count: int,
      *   click_count: int,
-     *   first_scroll_ms: ?int
+     *   first_scroll_ms: ?int,
+     *   last_cta_href: ?string
      * }
      */
     public static function analyze(array $events, int $durationMs, int $minDurationMs = self::DEFAULT_MIN_DURATION_MS): array
@@ -61,6 +62,7 @@ class SessionBehaviorAnalyzer
         $ctaClicks = 0;
         $telClicks = 0;
         $pageUrls = [];
+        $lastCtaHref = null;
 
         // Scan raw events for CTA / tel / page markers the normalizer may trim.
         foreach ($events as $raw) {
@@ -72,14 +74,21 @@ class SessionBehaviorAnalyzer
                 $hasKey = true;
             }
             if ($type === 'click') {
-                $href = strtolower((string) ($raw['href'] ?? ''));
-                $isTel = ! empty($raw['tel']) || ! empty($raw['is_tel']) || str_starts_with($href, 'tel:');
+                $href = trim((string) ($raw['href'] ?? ''));
+                $hrefLower = strtolower($href);
+                $isTel = ! empty($raw['tel']) || ! empty($raw['is_tel']) || str_starts_with($hrefLower, 'tel:');
                 $isCta = ! empty($raw['cta']) || ! empty($raw['is_cta']);
                 if ($isTel) {
                     $telClicks++;
+                    if ($href !== '') {
+                        $lastCtaHref = mb_substr($href, 0, 500);
+                    }
                 }
                 if ($isCta) {
                     $ctaClicks++;
+                    if ($href !== '') {
+                        $lastCtaHref = mb_substr($href, 0, 500);
+                    }
                 }
             }
             if ($type === 'page') {
@@ -105,6 +114,7 @@ class SessionBehaviorAnalyzer
             'scroll_count' => $scrollCount,
             'click_count' => $clickCount,
             'first_scroll_ms' => $firstScrollMs,
+            'last_cta_href' => $lastCtaHref,
         ];
     }
 }
