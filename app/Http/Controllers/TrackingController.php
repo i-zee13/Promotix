@@ -575,7 +575,7 @@ class TrackingController extends Controller
         }
 
         if (Schema::hasTable('detection_logs') && $detection['action_taken'] !== 'allow' && ! $skipVisitLog) {
-            DB::table('detection_logs')->insert([
+            $logRow = [
                 'domain_id' => $domain->id,
                 'visit_id' => $visitId,
                 'ip' => $ip,
@@ -586,7 +586,21 @@ class TrackingController extends Controller
                 'detected_at' => $visitedAt,
                 'created_at' => UserTimezone::nowUtc(),
                 'updated_at' => UserTimezone::nowUtc(),
-            ]);
+            ];
+
+            if (Schema::hasColumn('detection_logs', 'risk_level')) {
+                $logRow['risk_level'] = $detection['risk_level'] ?? null;
+            }
+            if (Schema::hasColumn('detection_logs', 'clickronix_breakdown')) {
+                $logRow['clickronix_breakdown'] = isset($detection['clickronix'])
+                    ? json_encode($detection['clickronix'])
+                    : null;
+            }
+            if (Schema::hasColumn('detection_logs', 'ruleset_version')) {
+                $logRow['ruleset_version'] = $detection['clickronix']['ruleset_version'] ?? null;
+            }
+
+            DB::table('detection_logs')->insert($logRow);
         }
 
         if (

@@ -5,10 +5,22 @@ namespace App\Services\IpIntel;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
+use App\Support\Clickronix\DecisionMode;
+use App\Support\Clickronix\RuleCatalog;
+use App\Support\Clickronix\ScoringEngine;
+use App\Support\Clickronix\SignalState;
+use App\Support\Clickronix\TriggeredSignal;
 use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
 use App\Support\GeoAudienceMatcher;
 
+/**
+ * Collects Promotix signals and scores them via Clickronix ScoringEngine (manual v2).
+ *
+ * Policy rules (allow/block list, geo) remain immediate. Network context like VPN is
+ * supporting-only and never hard-blocks alone. Paid rapid-block / daily caps are
+ * standalone customer-policy rules from Detection Settings.
+ */
 class IpFraudEvaluator
 {
     private const IP_RATE_WINDOW_MINUTES = 5;
@@ -17,6 +29,9 @@ class IpFraudEvaluator
 
     /** Hide site when the same IP opens pages this many times within one minute. */
     public const IP_MINUTE_VISIT_THRESHOLD = 4;
+
+    /** Standalone extreme velocity (manual: 100/min — scaled to visit telemetry). */
+    public const IP_MINUTE_EXTREME_THRESHOLD = 15;
 
     /** Paid marketing: max valid paid clicks per IP per calendar day (3rd+ daily is blocked). */
     public const PAID_DAILY_VALID_CLICK_LIMIT = 2;
@@ -33,7 +48,11 @@ class IpFraudEvaluator
      *   threat_score: int,
      *   threat_group: ?string,
      *   action_taken: string,
-     *   reasons: list<string>
+     *   reasons: list<string>,
+     *   risk_level?: string,
+     *   block_scope?: string,
+     *   category_scores?: array<string, int>,
+     *   clickronix?: array<string, mixed>
      * }
      */
     public function evaluate(
@@ -69,17 +88,13 @@ class IpFraudEvaluator
         $planFeatures = DetectionPlanFeatures::forUser($domain->user);
         $can = static fn (string $key): bool => (bool) ($planFeatures[$key] ?? true);
 
-        if ($can(DetectionPlanFeatures::ALLOW_LIST) && $settings->allow_list_enabled && IpFraudEvaluator::isIpInList($ipLog->ip, (string) $settings->allow_list_ips)) {
-            return $this->allowResult(['allow_list']);
+        // —— Policy short-circuits (manual: standalone / trust) ——
+        if ($can(DetectionPlanFeatures::ALLOW_LIST) && $settings->allow_list_enabled && self::isIpInList($ipLog->ip, (string) $settings->allow_list_ips)) {
+            return $this->finalizePolicyAllow(['allow_list']);
         }
 
-        if ($can(DetectionPlanFeatures::BLOCK_LIST) && $settings->block_list_enabled && IpFraudEvaluator::isIpInList($ipLog->ip, (string) $settings->block_list_ips)) {
-            return [
-                'threat_score' => 100,
-                'threat_group' => 'blocked',
-                'action_taken' => 'block',
-                'reasons' => ['block_list'],
-            ];
+        if ($can(DetectionPlanFeatures::BLOCK_LIST) && $settings->block_list_enabled && self::isIpInList($ipLog->ip, (string) $settings->block_list_ips)) {
+            return $this->finalizeStandaloneBlock('blocked', ['block_list'], 100);
         }
 
         $resolvedCountryEarly = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: '')));
@@ -95,15 +110,9 @@ class IpFraudEvaluator
                 $domain,
             )
         ) {
-            return [
-                'threat_score' => 95,
-                'threat_group' => 'blocked_country',
-                'action_taken' => 'block',
-                'reasons' => ['blocked_country'],
-            ];
+            return $this->finalizeStandaloneBlock('blocked_country', ['blocked_country'], 100);
         }
 
-        // Allow-country mode also applies when Suspicious toggle is off.
         if ($can(DetectionPlanFeatures::GEO_ALLOW) && $settings->out_of_geo_enabled) {
             $allowed = GeoAudienceMatcher::isAllowed(
                 $settings,
@@ -114,17 +123,12 @@ class IpFraudEvaluator
                 $domain,
             );
             if (! $allowed) {
-                return [
-                    'threat_score' => 55,
-                    'threat_group' => 'out_of_geo',
-                    'action_taken' => 'block',
-                    'reasons' => ['out_of_geo'],
-                ];
+                return $this->finalizeStandaloneBlock('out_of_geo', ['out_of_geo'], 55);
             }
         }
 
         if (! $settings->suspicious_enabled) {
-            return $this->allowResult([]);
+            return $this->finalizePolicyAllow([]);
         }
 
         $matrix = (array) ($settings->suspicious_matrix ?? []);
@@ -157,124 +161,205 @@ class IpFraudEvaluator
                 : DetectionProfiles::STANDARD,
             is_array($settings->detection_thresholds) ? $settings->detection_thresholds : null,
         );
-        $requireCombined = (bool) ($thresholds['require_combined_evidence'] ?? false);
+
+        /** @var list<TriggeredSignal> $signals */
         $signals = [];
 
+        $intelConfidence = $this->intelConfidence($ipLog);
+
         if ($isCrawler && $botAction !== 'allow') {
-            $signals[] = [
-                'group' => 'data_center',
-                'score' => 75,
-                'action' => $botAction,
-                'reason' => 'crawler_ua',
-            ];
+            $signals[] = TriggeredSignal::triggered(
+                'CRAWLER_UA',
+                confidence: 0.85,
+                evidence: ['user_agent' => $ipLog->user_agent],
+                legacyReason: 'crawler_ua',
+                customerPreferredAction: $botAction,
+                rawFieldsPresent: ['user_agent'],
+            );
         }
 
-        if ($can(DetectionPlanFeatures::DATA_CENTER) && $this->intel->isHostingType($ipLog)) {
-            $signals[] = [
-                'group' => 'data_center',
-                'score' => 65,
-                'action' => $matrix['data_center'] ?? $botAction,
-                'reason' => 'ipdetails_hosting',
-            ];
-        }
-
-        if ($can(DetectionPlanFeatures::VPN) && $this->intel->isVpnSuspect($ipLog)) {
-            $signals[] = [
-                'group' => 'vpn',
-                'score' => 72,
-                'action' => $matrix['vpn'] ?? $botAction,
-                'reason' => (bool) ($ipLog->abuse_is_tor ?? false) ? 'abuse_tor' : 'vpn_isp_match',
-            ];
-        }
-
-        if ($can(DetectionPlanFeatures::PROXY) && $this->intel->isProxySuspect($ipLog)) {
-            $signals[] = [
-                'group' => 'proxy',
-                'score' => 58,
-                'action' => $matrix['proxy'] ?? $botAction,
-                'reason' => 'proxy_isp_match',
-            ];
-        }
-
-        $abuseScore = (int) ($ipLog->abuse_confidence_score ?? 0);
-        if ($maliciousAction !== 'allow' && $abuseScore >= 50) {
-            $signals[] = [
-                'group' => 'malicious',
-                'score' => min(100, $abuseScore),
-                'action' => $maliciousAction,
-                'reason' => 'abuse_confidence',
-            ];
-        }
-
-        $abuserScore = $ipLog->ipdetails_abuser_score;
-        if ($maliciousAction !== 'allow' && is_numeric($abuserScore)) {
-            $score = (float) $abuserScore;
-            if ($score >= 0.7) {
-                $signals[] = [
-                    'group' => 'malicious',
-                    'score' => (int) round($score * 100),
-                    'action' => $maliciousAction,
-                    'reason' => 'ipdetails_abuser_high',
-                ];
-            } elseif ($score >= 0.2) {
-                $signals[] = [
-                    'group' => 'malicious',
-                    'score' => (int) round($score * 100),
-                    'action' => $maliciousAction,
-                    'reason' => 'ipdetails_abuser_medium',
-                ];
+        if ($can(DetectionPlanFeatures::DATA_CENTER) && ($matrix['data_center'] ?? 'block') !== 'allow') {
+            if ($this->intel->isHostingType($ipLog)) {
+                if ($intelConfidence < 0.50) {
+                    $signals[] = TriggeredSignal::unknown('DATACENTER_IP', ['intel_confidence']);
+                } else {
+                    $signals[] = TriggeredSignal::triggered(
+                        'DATACENTER_IP',
+                        confidence: $intelConfidence,
+                        evidence: ['hosting' => true],
+                        legacyReason: 'ipdetails_hosting',
+                        customerPreferredAction: $matrix['data_center'] ?? $botAction,
+                        rawFieldsPresent: ['ip_address', 'intel_confidence'],
+                    );
+                }
             }
         }
 
-        if ($frequencyOn && $ipMinuteHits >= self::IP_MINUTE_VISIT_THRESHOLD) {
-            $signals[] = [
-                'group' => 'abnormal_rate_limit',
-                'score' => 92,
-                'action' => $matrix['abnormal_rate_limit'] ?? $botAction,
-                'reason' => 'rapid_page_opens',
-            ];
+        if ($can(DetectionPlanFeatures::VPN) && ($matrix['vpn'] ?? 'block') !== 'allow') {
+            if ($this->intel->isVpnSuspect($ipLog)) {
+                $isTor = (bool) ($ipLog->abuse_is_tor ?? false);
+                if ($intelConfidence < 0.50) {
+                    $signals[] = TriggeredSignal::unknown($isTor ? 'TOR_EXIT' : 'VPN', ['intel_confidence']);
+                } elseif ($isTor) {
+                    $signals[] = TriggeredSignal::triggered(
+                        'TOR_EXIT',
+                        confidence: $intelConfidence,
+                        legacyReason: 'abuse_tor',
+                        customerPreferredAction: $matrix['vpn'] ?? $botAction,
+                        rawFieldsPresent: ['ip_address', 'intel_confidence'],
+                    );
+                } else {
+                    // Manual: VPN is supporting — never alone hard-blocks.
+                    $signals[] = TriggeredSignal::triggered(
+                        'VPN',
+                        confidence: $intelConfidence,
+                        legacyReason: 'vpn_isp_match',
+                        customerPreferredAction: 'flag',
+                        rawFieldsPresent: ['ip_address', 'intel_confidence'],
+                    );
+                }
+            }
         }
 
-        if ($frequencyOn && $sessionHits > 5) {
-            $signals[] = [
-                'group' => 'abnormal_rate_limit',
-                'score' => min(100, 40 + ($sessionHits * 5)),
-                'action' => $matrix['abnormal_rate_limit'] ?? $botAction,
-                'reason' => 'session_rate_limit',
-            ];
+        if ($can(DetectionPlanFeatures::PROXY) && ($matrix['proxy'] ?? 'block') !== 'allow') {
+            if ($this->intel->isProxySuspect($ipLog)) {
+                if ($intelConfidence < 0.50) {
+                    $signals[] = TriggeredSignal::unknown('PUBLIC_PROXY', ['intel_confidence']);
+                } else {
+                    $signals[] = TriggeredSignal::triggered(
+                        'PUBLIC_PROXY',
+                        confidence: $intelConfidence,
+                        legacyReason: 'proxy_isp_match',
+                        customerPreferredAction: $matrix['proxy'] ?? $botAction,
+                        rawFieldsPresent: ['ip_address', 'intel_confidence'],
+                    );
+                }
+            }
         }
 
-        if ($frequencyOn && $ipRecentHits >= self::IP_RATE_THRESHOLD) {
-            $signals[] = [
-                'group' => 'abnormal_rate_limit',
-                'score' => min(100, 50 + ($ipRecentHits * 3)),
-                'action' => $matrix['abnormal_rate_limit'] ?? $botAction,
-                'reason' => 'ip_rate_limit',
-            ];
+        if ($maliciousAction !== 'allow') {
+            $abuseScore = (int) ($ipLog->abuse_confidence_score ?? 0);
+            $abuserScore = $ipLog->ipdetails_abuser_score;
+            $reputationConfidence = 0.0;
+            $reputationReason = 'abuse_confidence';
+
+            if ($abuseScore >= 50) {
+                $reputationConfidence = max(0.50, min(1.0, $abuseScore / 100));
+                $reputationReason = 'abuse_confidence';
+            }
+
+            if (is_numeric($abuserScore)) {
+                $score = (float) $abuserScore;
+                if ($score >= 0.2 && $score > $reputationConfidence) {
+                    $reputationConfidence = max(0.50, min(1.0, $score));
+                    $reputationReason = $score >= 0.7 ? 'ipdetails_abuser_high' : 'ipdetails_abuser_medium';
+                }
+            }
+
+            if ($reputationConfidence >= 0.50) {
+                $signals[] = TriggeredSignal::triggered(
+                    'MALICIOUS_IP_REPUTATION',
+                    confidence: $reputationConfidence,
+                    evidence: [
+                        'abuse_confidence_score' => $abuseScore,
+                        'ipdetails_abuser_score' => $abuserScore,
+                    ],
+                    legacyReason: $reputationReason,
+                    customerPreferredAction: $maliciousAction,
+                    rawFieldsPresent: ['ip_address', 'intel_confidence'],
+                    recurrenceCount: $reputationConfidence >= 0.7 ? 2 : 1,
+                );
+            }
         }
 
-        if (
-            $rapidOn
-            && $isPaidTraffic
-            && $paidClicksInRapidWindow >= (int) $thresholds['rapid_block_at']
-        ) {
-            $signals[] = [
-                'group' => 'abnormal_rate_limit',
-                'score' => 70,
-                'action' => 'block',
-                'reason' => 'RAPID_REPEAT_BLOCK',
-            ];
-        } elseif (
-            $rapidOn
-            && $isPaidTraffic
-            && $paidClicksInRapidWindow >= (int) $thresholds['rapid_flag_at']
-        ) {
-            $signals[] = [
-                'group' => 'abnormal_rate_limit',
-                'score' => 35,
-                'action' => 'flag',
-                'reason' => 'RAPID_REPEAT',
-            ];
+        if ($frequencyOn && ($matrix['abnormal_rate_limit'] ?? 'block') !== 'allow') {
+            $rateAction = $matrix['abnormal_rate_limit'] ?? $botAction;
+
+            if ($ipMinuteHits >= self::IP_MINUTE_EXTREME_THRESHOLD) {
+                $signals[] = TriggeredSignal::triggered(
+                    'EXTREME_REQUEST_VELOCITY',
+                    confidence: 0.95,
+                    evidence: [
+                        'request_count_window' => $ipMinuteHits,
+                        'window_seconds' => 60,
+                    ],
+                    legacyReason: 'rapid_page_opens',
+                    customerPreferredAction: 'block',
+                    rawFieldsPresent: ['ip_address', 'request_count_window', 'window_seconds'],
+                    recurrenceCount: max(1, intdiv($ipMinuteHits, self::IP_MINUTE_EXTREME_THRESHOLD)),
+                );
+            } elseif ($ipMinuteHits >= self::IP_MINUTE_VISIT_THRESHOLD) {
+                $signals[] = TriggeredSignal::triggered(
+                    'HIGH_REQUEST_VELOCITY',
+                    confidence: 0.90,
+                    evidence: [
+                        'request_count_window' => $ipMinuteHits,
+                        'window_seconds' => 60,
+                    ],
+                    legacyReason: 'rapid_page_opens',
+                    customerPreferredAction: $rateAction,
+                    rawFieldsPresent: ['ip_address', 'request_count_window', 'window_seconds'],
+                );
+            }
+
+            if ($sessionHits > 5) {
+                $signals[] = TriggeredSignal::triggered(
+                    'SESSION_RATE_LIMIT',
+                    confidence: 0.85,
+                    evidence: ['session_hits' => $sessionHits],
+                    legacyReason: 'session_rate_limit',
+                    customerPreferredAction: $rateAction,
+                    rawFieldsPresent: ['session_id', 'request_count_window'],
+                    recurrenceCount: max(1, $sessionHits - 4),
+                );
+            }
+
+            if ($ipRecentHits >= self::IP_RATE_THRESHOLD) {
+                $signals[] = TriggeredSignal::triggered(
+                    'HIGH_REQUEST_VELOCITY',
+                    confidence: 0.88,
+                    evidence: [
+                        'request_count_window' => $ipRecentHits,
+                        'window_seconds' => self::IP_RATE_WINDOW_MINUTES * 60,
+                    ],
+                    legacyReason: 'ip_rate_limit',
+                    customerPreferredAction: $rateAction,
+                    rawFieldsPresent: ['ip_address', 'request_count_window', 'window_seconds'],
+                    recurrenceCount: max(1, intdiv($ipRecentHits, self::IP_RATE_THRESHOLD)),
+                );
+            }
+        }
+
+        if ($rapidOn && $isPaidTraffic) {
+            $blockAt = (int) $thresholds['rapid_block_at'];
+            $flagAt = (int) $thresholds['rapid_flag_at'];
+            if ($paidClicksInRapidWindow >= $blockAt && $blockAt > 0) {
+                $signals[] = TriggeredSignal::triggered(
+                    'RAPID_REPEAT_BLOCK',
+                    confidence: 1.0,
+                    evidence: [
+                        'paid_clicks_in_window' => $paidClicksInRapidWindow,
+                        'rapid_window_seconds' => (int) ($thresholds['rapid_window_seconds'] ?? self::PAID_RAPID_WINDOW_SECONDS),
+                        'rapid_block_at' => $blockAt,
+                    ],
+                    legacyReason: 'RAPID_REPEAT_BLOCK',
+                    customerPreferredAction: 'block',
+                    rawFieldsPresent: ['ip_address', 'paid_clicks_in_window', 'rapid_window_seconds'],
+                    recurrenceCount: max(1, $paidClicksInRapidWindow),
+                );
+            } elseif ($paidClicksInRapidWindow >= $flagAt && $flagAt > 0) {
+                $signals[] = TriggeredSignal::triggered(
+                    'RAPID_REPEAT',
+                    confidence: 0.95,
+                    evidence: [
+                        'paid_clicks_in_window' => $paidClicksInRapidWindow,
+                        'rapid_flag_at' => $flagAt,
+                    ],
+                    legacyReason: 'RAPID_REPEAT',
+                    customerPreferredAction: 'flag',
+                    rawFieldsPresent: ['ip_address', 'paid_clicks_in_window', 'rapid_window_seconds'],
+                );
+            }
         }
 
         if (
@@ -282,12 +367,17 @@ class IpFraudEvaluator
             && $isPaidTraffic
             && $paidClicksToday >= (int) $thresholds['daily_valid_click_limit']
         ) {
-            $signals[] = [
-                'group' => 'abnormal_rate_limit',
-                'score' => 85,
-                'action' => $matrix['abnormal_rate_limit'] ?? $botAction,
-                'reason' => 'paid_daily_click_limit',
-            ];
+            $signals[] = TriggeredSignal::triggered(
+                'PAID_DAILY_CLICK_LIMIT',
+                confidence: 1.0,
+                evidence: [
+                    'paid_clicks_today' => $paidClicksToday,
+                    'daily_limit' => (int) $thresholds['daily_valid_click_limit'],
+                ],
+                legacyReason: 'paid_daily_click_limit',
+                customerPreferredAction: $matrix['abnormal_rate_limit'] ?? $botAction,
+                rawFieldsPresent: ['ip_address', 'paid_clicks_today'],
+            );
         }
 
         $resolvedCountry = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: '')));
@@ -303,62 +393,172 @@ class IpFraudEvaluator
             );
 
             if (! $allowed) {
-                $signals[] = [
-                    'group' => 'out_of_geo',
-                    'score' => 55,
-                    'action' => 'block',
-                    'reason' => 'out_of_geo',
-                ];
+                $signals[] = TriggeredSignal::triggered(
+                    'OUT_OF_GEO',
+                    confidence: 1.0,
+                    legacyReason: 'out_of_geo',
+                    customerPreferredAction: 'block',
+                    rawFieldsPresent: ['ip_address', 'ip_country'],
+                );
             }
         }
 
+        // Extreme / marketing profile still prefers combined evidence for soft signals.
+        $requireCombined = (bool) ($thresholds['require_combined_evidence'] ?? false);
+
         if ($signals === []) {
-            return $this->allowResult([]);
+            return $this->finalizePolicyAllow([]);
         }
 
-        // Extreme / marketing: do not block from a single weak signal alone.
-        if ($requireCombined && count($signals) === 1 && ($signals[0]['score'] ?? 0) < 50) {
-            $signals[0]['action'] = 'flag';
-        }
+        $result = (new ScoringEngine)->score($signals);
+        $result = $this->applyActionFloors($result, $signals);
 
-        usort($signals, fn ($a, $b) => $b['score'] <=> $a['score']);
-        $action = $this->strongestAction(array_column($signals, 'action'));
+        if ($requireCombined && ! $result['standalone_fired'] && ! $result['correlation_satisfied']) {
+            // Soften any remaining block when profile demands combined evidence.
+            if ($result['action_taken'] === 'block' && $result['threat_score'] < 85) {
+                $result['action_taken'] = 'flag';
+            }
+        }
 
         return [
-            'threat_score' => max(array_column($signals, 'score')),
-            'threat_group' => $signals[0]['group'],
-            'action_taken' => $action,
-            'reasons' => array_values(array_unique(array_column($signals, 'reason'))),
+            'threat_score' => $result['threat_score'],
+            'threat_group' => $result['threat_group'],
+            'action_taken' => $result['action_taken'],
+            'reasons' => $result['reasons'],
+            'risk_level' => $result['risk_level'],
+            'block_scope' => $result['block_scope'],
+            'category_scores' => $result['category_scores'],
+            'clickronix' => [
+                'model_version' => $result['model_version'],
+                'ruleset_version' => $result['ruleset_version'],
+                'risk_level' => $result['risk_level'],
+                'block_scope' => $result['block_scope'],
+                'duration_hint' => $result['duration_hint'],
+                'category_scores' => $result['category_scores'],
+                'trust_deduction' => $result['trust_deduction'],
+                'correlation_satisfied' => $result['correlation_satisfied'],
+                'standalone_fired' => $result['standalone_fired'],
+                'detections' => $result['detections'],
+            ],
         ];
+    }
+
+    /**
+     * Ensure explicit customer floors (e.g. RAPID_REPEAT → flag) are not lost to low score bands.
+     *
+     * @param  array<string, mixed>  $result
+     * @param  list<TriggeredSignal>  $signals
+     * @return array<string, mixed>
+     */
+    private function applyActionFloors(array $result, array $signals): array
+    {
+        $rank = static fn (string $a): int => match ($a) {
+            'block' => 3,
+            'flag' => 2,
+            default => 1,
+        };
+
+        $floor = 'allow';
+        foreach ($signals as $signal) {
+            if ($signal->state !== SignalState::TRIGGERED || $signal->confidence < 0.50) {
+                continue;
+            }
+            $rule = RuleCatalog::get($signal->ruleCode);
+            if ($rule === null) {
+                continue;
+            }
+
+            // Supporting alone never raises floor to block (manual §15.3).
+            if ($rule->mode === DecisionMode::SUPPORTING) {
+                continue;
+            }
+
+            // Correlated alone: floor of flag max until correlation satisfied.
+            $preferred = $signal->customerPreferredAction;
+            if ($preferred === null) {
+                continue;
+            }
+
+            if ($rule->mode === DecisionMode::CORRELATED && ! ($result['correlation_satisfied'] ?? false)) {
+                if ($preferred === 'block') {
+                    $preferred = 'flag';
+                }
+            }
+
+            if ($rule->mode === DecisionMode::STANDALONE) {
+                // Standalone already enforced via scoring; keep preferred if stronger.
+            }
+
+            if ($rank($preferred) > $rank($floor)) {
+                $floor = $preferred;
+            }
+        }
+
+        if ($rank($floor) > $rank((string) $result['action_taken'])) {
+            $result['action_taken'] = $floor;
+        }
+
+        // If floor is flag but score was 0 edge case — keep reasons.
+        return $result;
+    }
+
+    private function intelConfidence(IpLog $ipLog): float
+    {
+        // Provider outage / empty enrichment → below floor → UNKNOWN (0 points).
+        $raw = $ipLog->ipdetails_raw;
+        $hasIntel = is_array($raw) && $raw !== [];
+        $hasAbuse = $ipLog->abuse_confidence_score !== null
+            || $ipLog->abuse_is_tor !== null
+            || $ipLog->ipdetails_abuser_score !== null;
+
+        if (! $hasIntel && ! $hasAbuse) {
+            return 0.0;
+        }
+
+        if (is_numeric($ipLog->abuse_confidence_score)) {
+            return max(0.50, min(1.0, ((int) $ipLog->abuse_confidence_score) / 100));
+        }
+
+        return $hasIntel ? 0.85 : 0.55;
     }
 
     /**
      * @param  list<string>  $reasons
      * @return array{threat_score: int, threat_group: ?string, action_taken: string, reasons: list<string>}
      */
-    private function allowResult(array $reasons): array
+    private function finalizePolicyAllow(array $reasons): array
     {
         return [
             'threat_score' => 0,
             'threat_group' => null,
             'action_taken' => 'allow',
             'reasons' => $reasons,
+            'risk_level' => 'trusted',
+            'block_scope' => 'none',
+            'category_scores' => [],
         ];
     }
 
     /**
-     * @param  list<string>  $actions
+     * @param  list<string>  $reasons
+     * @return array{threat_score: int, threat_group: string, action_taken: string, reasons: list<string>}
      */
-    private function strongestAction(array $actions): string
+    private function finalizeStandaloneBlock(string $group, array $reasons, int $score): array
     {
-        if (in_array('block', $actions, true)) {
-            return 'block';
-        }
-        if (in_array('flag', $actions, true)) {
-            return 'flag';
-        }
-
-        return 'allow';
+        return [
+            'threat_score' => $score,
+            'threat_group' => $group,
+            'action_taken' => 'block',
+            'reasons' => $reasons,
+            'risk_level' => 'critical',
+            'block_scope' => 'ip',
+            'category_scores' => [],
+            'clickronix' => [
+                'standalone_fired' => true,
+                'ruleset_version' => RuleCatalog::RULESET_VERSION,
+                'model_version' => ScoringEngine::MODEL_VERSION,
+            ],
+        ];
     }
 
     public static function isIpAllowListed(string $ip, string $allowList): bool
