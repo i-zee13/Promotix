@@ -843,7 +843,7 @@ class PaidAdvertisingDashboardController extends Controller
             $merged = $merged->merge($clickRows);
         }
 
-        $rows = $merged
+        return $merged
             ->filter(function ($row) {
                 $keyword = mb_strtolower(trim((string) ($row->keyword ?? '')));
 
