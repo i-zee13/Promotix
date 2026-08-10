@@ -36,3 +36,6 @@ auth.json
 
 # Private local scrapers (credentials / browser profiles — never commit)
 /scraper/
+
+.env.backup-before-live
+.env.backup-*

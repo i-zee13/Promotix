@@ -5,10 +5,9 @@ namespace App\Services\IpIntel;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
-use App\Support\Clickronix\DecisionMode;
+use App\Support\Clickronix\ActionFloorResolver;
 use App\Support\Clickronix\RuleCatalog;
 use App\Support\Clickronix\ScoringEngine;
-use App\Support\Clickronix\SignalState;
 use App\Support\Clickronix\TriggeredSignal;
 use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
@@ -444,7 +443,7 @@ class IpFraudEvaluator
     }
 
     /**
-     * Ensure explicit customer floors (e.g. RAPID_REPEAT → flag) are not lost to low score bands.
+     * Align customer matrix preferences with Clickronix score bands.
      *
      * @param  array<string, mixed>  $result
      * @param  list<TriggeredSignal>  $signals
@@ -452,54 +451,7 @@ class IpFraudEvaluator
      */
     private function applyActionFloors(array $result, array $signals): array
     {
-        $rank = static fn (string $a): int => match ($a) {
-            'block' => 3,
-            'flag' => 2,
-            default => 1,
-        };
-
-        $floor = 'allow';
-        foreach ($signals as $signal) {
-            if ($signal->state !== SignalState::TRIGGERED || $signal->confidence < 0.50) {
-                continue;
-            }
-            $rule = RuleCatalog::get($signal->ruleCode);
-            if ($rule === null) {
-                continue;
-            }
-
-            // Supporting alone never raises floor to block (manual §15.3).
-            if ($rule->mode === DecisionMode::SUPPORTING) {
-                continue;
-            }
-
-            // Correlated alone: floor of flag max until correlation satisfied.
-            $preferred = $signal->customerPreferredAction;
-            if ($preferred === null) {
-                continue;
-            }
-
-            if ($rule->mode === DecisionMode::CORRELATED && ! ($result['correlation_satisfied'] ?? false)) {
-                if ($preferred === 'block') {
-                    $preferred = 'flag';
-                }
-            }
-
-            if ($rule->mode === DecisionMode::STANDALONE) {
-                // Standalone already enforced via scoring; keep preferred if stronger.
-            }
-
-            if ($rank($preferred) > $rank($floor)) {
-                $floor = $preferred;
-            }
-        }
-
-        if ($rank($floor) > $rank((string) $result['action_taken'])) {
-            $result['action_taken'] = $floor;
-        }
-
-        // If floor is flag but score was 0 edge case — keep reasons.
-        return $result;
+        return ActionFloorResolver::apply($result, $signals);
     }
 
     private function intelConfidence(IpLog $ipLog): float

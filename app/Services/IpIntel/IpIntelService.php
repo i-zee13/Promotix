@@ -187,9 +187,17 @@ class IpIntelService
      */
     private function ispMatchesKeywords(IpLog $log, array $keywords): bool
     {
+        $company = $log->ipdetails_raw['company'] ?? '';
+        if (is_array($company)) {
+            $company = implode(' ', array_filter([
+                (string) ($company['name'] ?? ''),
+                (string) ($company['type'] ?? ''),
+            ]));
+        }
+
         $haystack = strtolower(implode(' ', array_filter([
             $log->intel_isp,
-            (string) (($log->ipdetails_raw ?? [])['company'] ?? ''),
+            (string) $company,
             (string) (($log->ipdetails_raw ?? [])['abuse_name'] ?? ''),
         ])));
 

@@ -685,8 +685,42 @@
             @media (min-width: 700px) {
                 .figma-ads-limits { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             }
-            .figma-ads-limits label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+            .figma-ads-limits label,
+            .figma-ads-limit-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
             .figma-ads-limits span { font-size: 10px; color: rgba(255,255,255,.5); }
+            .figma-ads-limit-input {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                height: 32px;
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,.18);
+                background: #101010;
+                padding: 0 8px;
+            }
+            .figma-ads-limit-input input {
+                flex: 1;
+                min-width: 0;
+                height: 100%;
+                border: 0;
+                background: transparent;
+                color: #fff;
+                font-size: 11px;
+                padding: 0;
+                outline: none;
+            }
+            .figma-ads-limit-input input::-webkit-outer-spin-button,
+            .figma-ads-limit-input input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            .figma-ads-limit-input input[type=number] { -moz-appearance: textfield; }
+            .figma-ads-limit-suffix {
+                flex-shrink: 0;
+                font-size: 10px;
+                color: rgba(255,255,255,.45);
+                white-space: nowrap;
+            }
             .figma-ads-limits select,
             .figma-ads-custom input {
                 height: 32px;
@@ -729,6 +763,12 @@
             html.light-mode .figma-ads-custom input {
                 background: #f7f5fa; color: #2d2d3a; border-color: #d4c4e8;
             }
+            html.light-mode .figma-ads-limit-input {
+                background: #f7f5fa;
+                border-color: #d4c4e8;
+            }
+            html.light-mode .figma-ads-limit-input input { color: #2d2d3a; }
+            html.light-mode .figma-ads-limit-suffix { color: #8a8298; }
 
             /* Detection panel — mockup sections (Bot Rules / Session / Profiles / Geo) */
             .ds-panel {
@@ -1958,37 +1998,65 @@
                             <div class="figma-ads-col">
                                 <h3 class="figma-ads-col-title">Click Frequency Limits (Same IP)</h3>
                                 <div class="figma-ads-limits">
-                                    <label>
+                                    <label class="figma-ads-limit-field">
                                         <span>Hourly Limit</span>
-                                        <select name="hourly_valid_click_limit">
-                                            @foreach ([1,2,3,5,10,20] as $n)
-                                                <option value="{{ $n }}" @selected((int) ($thr['hourly_valid_click_limit'] ?? 3) === $n)>{{ $n }} Clicks</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="figma-ads-limit-input">
+                                            <input
+                                                type="number"
+                                                name="hourly_valid_click_limit"
+                                                min="1"
+                                                max="100"
+                                                step="1"
+                                                value="{{ (int) ($thr['hourly_valid_click_limit'] ?? 3) }}"
+                                                required
+                                            >
+                                            <span class="figma-ads-limit-suffix">Clicks</span>
+                                        </div>
                                     </label>
-                                    <label>
+                                    <label class="figma-ads-limit-field">
                                         <span>Daily Limit</span>
-                                        <select name="daily_valid_click_limit">
-                                            @foreach ([1,2,3,5,10,20,50,100] as $n)
-                                                <option value="{{ $n }}" @selected((int) ($thr['daily_valid_click_limit'] ?? 20) === $n)>{{ $n }} Clicks</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="figma-ads-limit-input">
+                                            <input
+                                                type="number"
+                                                name="daily_valid_click_limit"
+                                                min="1"
+                                                max="500"
+                                                step="1"
+                                                value="{{ (int) ($thr['daily_valid_click_limit'] ?? 2) }}"
+                                                required
+                                            >
+                                            <span class="figma-ads-limit-suffix">Clicks</span>
+                                        </div>
                                     </label>
-                                    <label>
+                                    <label class="figma-ads-limit-field">
                                         <span>Weekly Limit</span>
-                                        <select name="weekly_valid_click_limit">
-                                            @foreach ([10,20,50,100,200,500] as $n)
-                                                <option value="{{ $n }}" @selected((int) ($thr['weekly_valid_click_limit'] ?? 100) === $n)>{{ $n }} Clicks</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="figma-ads-limit-input">
+                                            <input
+                                                type="number"
+                                                name="weekly_valid_click_limit"
+                                                min="1"
+                                                max="2000"
+                                                step="1"
+                                                value="{{ (int) ($thr['weekly_valid_click_limit'] ?? 100) }}"
+                                                required
+                                            >
+                                            <span class="figma-ads-limit-suffix">Clicks</span>
+                                        </div>
                                     </label>
-                                    <label>
+                                    <label class="figma-ads-limit-field">
                                         <span>Monthly Limit</span>
-                                        <select name="monthly_valid_click_limit">
-                                            @foreach ([50,100,200,300,500,1000] as $n)
-                                                <option value="{{ $n }}" @selected((int) ($thr['monthly_valid_click_limit'] ?? 300) === $n)>{{ $n }} Clicks</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="figma-ads-limit-input">
+                                            <input
+                                                type="number"
+                                                name="monthly_valid_click_limit"
+                                                min="1"
+                                                max="5000"
+                                                step="1"
+                                                value="{{ (int) ($thr['monthly_valid_click_limit'] ?? 300) }}"
+                                                required
+                                            >
+                                            <span class="figma-ads-limit-suffix">Clicks</span>
+                                        </div>
                                     </label>
                                 </div>
                             </div>
