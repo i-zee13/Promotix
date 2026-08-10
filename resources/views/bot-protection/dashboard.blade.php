@@ -250,8 +250,52 @@
                 .bpv2-table tr:last-child td { border-bottom: 0; font-weight: 700; color: #fff; }
                 .bpv2-table .num { text-align: right; font-variant-numeric: tabular-nums; }
                 .bpv2-swatch {
-                    display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle;
+                    display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle;
+                    border: 1px solid transparent;
+                    cursor: pointer;
                 }
+                .bpv2-swatch.is-off {
+                    background: transparent !important;
+                    border-color: rgba(255,255,255,.35);
+                    opacity: 0.55;
+                }
+                .bpv2-class-type {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0;
+                    cursor: pointer;
+                    user-select: none;
+                    background: none;
+                    border: 0;
+                    padding: 0;
+                    color: inherit;
+                    font: inherit;
+                    text-align: left;
+                }
+                .bpv2-class-type.is-off {
+                    opacity: 0.45;
+                    text-decoration: line-through;
+                }
+                .bpv2-legend span {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    cursor: pointer;
+                    user-select: none;
+                }
+                .bpv2-legend span.is-off { opacity: 0.45; text-decoration: line-through; }
+                .bpv2-legend i {
+                    display: inline-block;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 2px;
+                    border: 1px solid transparent;
+                }
+                .bpv2-legend span.is-off i {
+                    background: transparent !important;
+                    border-color: rgba(255,255,255,.35);
+                }
+                .bpv2-table tr.is-muted td { opacity: 0.45; }
                 .bpv2-bars { display: flex; flex-direction: column; gap: 10px; flex: 1; }
                 .bpv2-bar-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
                 .bpv2-bar-row__label { font-size: 11px; color: rgba(255,255,255,0.7); }
@@ -621,16 +665,25 @@
                     <div class="bpv2-card__head">
                         <h2 class="bpv2-card__title">Traffic Classification Overview</h2>
                         <div class="bpv2-legend">
-                            <span><i style="background:#6400B2"></i>Valid Users</span>
-                            <span><i style="background:#F43F5E"></i>Automated Traffic</span>
-                            <span><i style="background:#3B82F6"></i>Known Crawlers</span>
-                            <span><i style="background:#F59E0B"></i>Invalid Traffic</span>
+                            <template x-for="row in classificationRows()" :key="'leg-' + row.key">
+                                <span
+                                    role="button"
+                                    tabindex="0"
+                                    :class="{ 'is-off': isClassificationHidden(row.key) }"
+                                    @click="toggleClassification(row.key)"
+                                    @keydown.enter.prevent="toggleClassification(row.key)"
+                                    @keydown.space.prevent="toggleClassification(row.key)"
+                                >
+                                    <i :style="isClassificationHidden(row.key) ? '' : `background:${row.color}`"></i>
+                                    <span x-text="row.label"></span>
+                                </span>
+                            </template>
                         </div>
                     </div>
                     <div class="bpv2-class-body">
                         <div class="bpv2-donut" :style="classificationDonutStyle()" role="img" aria-label="Traffic classification">
                             <div class="bpv2-donut__hole">
-                                <strong x-text="fmt(summary.total_visits || 0)"></strong>
+                                <strong x-text="fmt(classificationVisibleTotal())"></strong>
                                 <span>Total Visits</span>
                             </div>
                         </div>
@@ -646,8 +699,24 @@
                                 </thead>
                                 <tbody>
                                     <template x-for="row in classificationRows()" :key="row.key">
-                                        <tr>
-                                            <td><span class="bpv2-swatch" :style="`background:${row.color}`"></span><span x-text="row.label"></span></td>
+                                        <tr :class="{ 'is-muted': isClassificationHidden(row.key) }">
+                                            <td>
+                                                <button
+                                                    type="button"
+                                                    class="bpv2-class-type"
+                                                    :class="{ 'is-off': isClassificationHidden(row.key) }"
+                                                    @click="toggleClassification(row.key)"
+                                                    :aria-pressed="(!isClassificationHidden(row.key)).toString()"
+                                                    :title="isClassificationHidden(row.key) ? 'Show on chart' : 'Hide from chart'"
+                                                >
+                                                    <span
+                                                        class="bpv2-swatch"
+                                                        :class="{ 'is-off': isClassificationHidden(row.key) }"
+                                                        :style="isClassificationHidden(row.key) ? '' : `background:${row.color}`"
+                                                    ></span>
+                                                    <span x-text="row.label"></span>
+                                                </button>
+                                            </td>
                                             <td class="num" x-text="fmt(row.value)"></td>
                                             <td class="num" x-text="row.pct + '%'"></td>
                                             <td class="num" :style="`color:${row.delta >= 0 ? '#34d399' : '#f87171'}`" x-text="formatDelta(row.delta)"></td>
@@ -655,7 +724,7 @@
                                     </template>
                                     <tr>
                                         <td>Total</td>
-                                        <td class="num" x-text="fmt(summary.total_visits || 0)"></td>
+                                        <td class="num" x-text="fmt(classificationVisibleTotal())"></td>
                                         <td class="num">100%</td>
                                         <td class="num">—</td>
                                     </tr>
@@ -1030,6 +1099,7 @@ function botProtectionFigma(config = {}) {
         charts: {},
         hiddenSeries: { area: {}, invalid: {} },
         hiddenDonutSegments: { ib: {}, mal: {} },
+        hiddenClassificationKeys: {},
         invalidHoverIndex: null,
         fmt(n) { return new Intl.NumberFormat().format(Number(n || 0)); },
         fmtCompact(n) {
@@ -1224,8 +1294,29 @@ function botProtectionFigma(config = {}) {
             ];
             return rows.map(r => ({ ...r, pct: this.sharePct(r.value, total) }));
         },
+        isClassificationHidden(key) {
+            return Boolean(this.hiddenClassificationKeys?.[key]);
+        },
+        toggleClassification(key) {
+            if (!key) return;
+            const visible = this.classificationRows().filter(r => !this.isClassificationHidden(r.key));
+            // Don't allow hiding the last remaining visible segment.
+            if (!this.isClassificationHidden(key) && visible.length <= 1 && visible[0]?.key === key) {
+                return;
+            }
+            this.hiddenClassificationKeys = {
+                ...this.hiddenClassificationKeys,
+                [key]: !this.hiddenClassificationKeys[key],
+            };
+        },
+        classificationVisibleRows() {
+            return this.classificationRows().filter(r => !this.isClassificationHidden(r.key));
+        },
+        classificationVisibleTotal() {
+            return this.classificationVisibleRows().reduce((a, r) => a + Number(r.value || 0), 0);
+        },
         classificationDonutStyle() {
-            const rows = this.classificationRows();
+            const rows = this.classificationVisibleRows();
             const total = rows.reduce((a, r) => a + Number(r.value || 0), 0);
             if (!total) return { background: 'conic-gradient(rgba(255,255,255,0.2) 0 100%)' };
             let deg = 0;
