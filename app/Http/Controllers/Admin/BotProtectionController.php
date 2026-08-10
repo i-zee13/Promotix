@@ -440,40 +440,107 @@ class BotProtectionController extends Controller
             return response()->json([]);
         }
 
+        $days = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
+        $prevTo = $from->copy()->subSecond();
+        $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
+
         $crawlerExpr = Schema::hasColumn('visits', 'is_crawler')
             ? 'SUM(CASE WHEN visits.is_crawler = 1 THEN 1 ELSE 0 END)'
             : '0';
+        $botExpr = 'SUM(CASE WHEN visits.is_invalid_traffic = 1 AND visits.threat_group IN (\'data_center\',\'vpn\',\'proxy\',\'abnormal_rate_limit\',\'malicious\') THEN 1 ELSE 0 END)';
+        if (! Schema::hasColumn('visits', 'threat_group')) {
+            $botExpr = 'SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END)';
+        }
 
-        $rows = Domain::query()
-            ->where('domains.user_id', $request->user()->id)
-            ->whereIn('domains.id', $domainIds)
-            ->leftJoin('visits', function ($join) use ($from, $to): void {
-                $join->on('domains.id', '=', 'visits.domain_id')
-                    ->whereBetween('visits.visited_at', [$from, $to]);
-                GoogleClickAttribution::excludeClickIds($join, 'visits');
-            })
-            ->select(
-                'domains.id',
-                'domains.hostname',
-                'domains.status',
-                DB::raw('COUNT(visits.id) as total_visits'),
-                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid_visits'),
-                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 0 OR visits.is_invalid_traffic IS NULL THEN 1 ELSE 0 END) as valid_visits'),
-                DB::raw("{$crawlerExpr} as known_crawlers")
-            )
-            ->groupBy('domains.id', 'domains.hostname', 'domains.status')
-            ->orderByDesc('total_visits')
-            ->limit(20)
-            ->get()
-            ->map(fn ($d) => [
-                'id' => (int) $d->id,
-                'hostname' => $d->hostname,
-                'status' => $d->status,
-                'total_visits' => (int) $d->total_visits,
-                'valid_visits' => (int) $d->valid_visits,
-                'invalid_visits' => (int) $d->invalid_visits,
-                'known_crawlers' => (int) $d->known_crawlers,
-            ]);
+        $selectDomainCols = ['domains.id', 'domains.hostname', 'domains.status'];
+        $groupBy = ['domains.id', 'domains.hostname', 'domains.status'];
+        if (Schema::hasColumn('domains', 'bot_mitigation_connected')) {
+            $selectDomainCols[] = 'domains.bot_mitigation_connected';
+            $groupBy[] = 'domains.bot_mitigation_connected';
+        }
+        if (Schema::hasColumn('domains', 'monitoring_only_mode')) {
+            $selectDomainCols[] = 'domains.monitoring_only_mode';
+            $groupBy[] = 'domains.monitoring_only_mode';
+        }
+
+        $buildRows = function (Carbon $rangeFrom, Carbon $rangeTo) use ($request, $domainIds, $crawlerExpr, $botExpr, $selectDomainCols, $groupBy) {
+            return Domain::query()
+                ->where('domains.user_id', $request->user()->id)
+                ->whereIn('domains.id', $domainIds)
+                ->leftJoin('visits', function ($join) use ($rangeFrom, $rangeTo): void {
+                    $join->on('domains.id', '=', 'visits.domain_id')
+                        ->whereBetween('visits.visited_at', [$rangeFrom, $rangeTo]);
+                    GoogleClickAttribution::excludeClickIds($join, 'visits');
+                })
+                ->select(array_merge($selectDomainCols, [
+                    DB::raw('COUNT(visits.id) as total_visits'),
+                    DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid_visits'),
+                    DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 0 OR visits.is_invalid_traffic IS NULL THEN 1 ELSE 0 END) as valid_visits'),
+                    DB::raw("{$crawlerExpr} as known_crawlers"),
+                    DB::raw("{$botExpr} as bots_detected"),
+                ]))
+                ->groupBy($groupBy)
+                ->get()
+                ->keyBy('id');
+        };
+
+        $current = $buildRows($from, $to);
+        $previous = $buildRows($prevFrom, $prevTo);
+
+        $pctDelta = static function (int|float $cur, int|float $prev): float {
+            $cur = (float) $cur;
+            $prev = (float) $prev;
+            if ($prev == 0.0) {
+                return $cur > 0 ? 100.0 : 0.0;
+            }
+
+            return round((($cur - $prev) / $prev) * 100, 1);
+        };
+
+        $rows = $current
+            ->sortByDesc(fn ($d) => (int) $d->total_visits)
+            ->take(20)
+            ->values()
+            ->map(function ($d) use ($previous, $pctDelta) {
+                $total = (int) $d->total_visits;
+                $invalid = (int) $d->invalid_visits;
+                $crawlers = (int) $d->known_crawlers;
+                $bots = (int) $d->bots_detected;
+                $human = max(0, $total - $bots - $crawlers);
+                $invalidPct = $total > 0 ? round(($invalid / $total) * 100, 2) : 0.0;
+                $risk = match (true) {
+                    $invalidPct >= 15.0 => 'High',
+                    $invalidPct >= 5.0 => 'Medium',
+                    default => 'Low',
+                };
+
+                $protected = (bool) ($d->bot_mitigation_connected ?? false);
+                $monitoringOnly = (bool) ($d->monitoring_only_mode ?? false);
+                $protectionStatus = match (true) {
+                    $protected && ! $monitoringOnly => 'Active',
+                    $protected && $monitoringOnly => 'Monitoring',
+                    default => 'Inactive',
+                };
+
+                $prevTotal = (int) ($previous->get($d->id)->total_visits ?? 0);
+                $trend = $pctDelta($total, $prevTotal);
+
+                return [
+                    'id' => (int) $d->id,
+                    'hostname' => $d->hostname,
+                    'status' => $d->status,
+                    'total_visits' => $total,
+                    'human_traffic' => $human,
+                    'bots' => $bots,
+                    'valid_visits' => (int) $d->valid_visits,
+                    'invalid_visits' => $invalid,
+                    'invalid_pct' => $invalidPct,
+                    'known_crawlers' => $crawlers,
+                    'risk_score' => $risk,
+                    'protection_status' => $protectionStatus,
+                    'trend_pct' => $trend,
+                ];
+            });
 
         return response()->json($rows);
     }

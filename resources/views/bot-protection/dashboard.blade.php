@@ -468,10 +468,69 @@
                     max-height: 340px;
                     overflow-y: auto;
                 }
-                /* Readable columns at full panel width (old sidebar grids were too narrow) */
+                /* Domain performance: screenshot columns (keep readable in side panel) */
                 .bpv2-tables-row .figma-bp-table-head--domain,
                 .bpv2-tables-row .figma-bp-table-row--domain {
-                    grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 0.85fr)) 100px;
+                    grid-template-columns:
+                        minmax(96px, 1.4fr)
+                        minmax(52px, 0.7fr)
+                        minmax(52px, 0.7fr)
+                        minmax(40px, 0.55fr)
+                        minmax(48px, 0.6fr)
+                        minmax(58px, 0.7fr)
+                        minmax(72px, 0.85fr)
+                        minmax(52px, 0.65fr);
+                    gap: 6px;
+                    font-size: 10px;
+                    padding: 8px 10px;
+                }
+                .bpv2-tables-row .figma-bp-domain-panel {
+                    overflow-x: auto;
+                }
+                .bpv2-tables-row .figma-bp-domain-panel .figma-bp-table {
+                    min-width: 640px;
+                }
+                .bpv2-tables-row .figma-bp-risk {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-width: 52px;
+                    padding: 2px 8px;
+                    border-radius: 999px;
+                    font-size: 10px;
+                    font-weight: 600;
+                    line-height: 1.3;
+                }
+                .bpv2-tables-row .figma-bp-risk--low {
+                    background: rgba(52, 199, 89, 0.18);
+                    color: #34c759;
+                }
+                .bpv2-tables-row .figma-bp-risk--medium {
+                    background: rgba(255, 176, 32, 0.18);
+                    color: #ffb020;
+                }
+                .bpv2-tables-row .figma-bp-risk--high {
+                    background: rgba(255, 80, 80, 0.18);
+                    color: #ff6b6b;
+                }
+                .bpv2-tables-row .figma-bp-protect {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    color: rgba(255,255,255,.85);
+                    font-size: 10px;
+                    white-space: nowrap;
+                }
+                .bpv2-tables-row .figma-bp-protect--inactive {
+                    color: rgba(255,255,255,.45);
+                }
+                .bpv2-tables-row .figma-bp-trend--up { color: #34c759; }
+                .bpv2-tables-row .figma-bp-trend--down { color: #ff6b6b; }
+                .bpv2-tables-row .figma-bp-trend--flat { color: rgba(255,255,255,.45); }
+                .bpv2-tables-row .figma-bp-table-foot {
+                    margin-top: 8px;
+                    font-size: 10px;
+                    color: rgba(255,255,255,.45);
                 }
                 .bpv2-tables-row .figma-bp-table-head--country,
                 .bpv2-tables-row .figma-bp-table-row--country {
@@ -775,10 +834,13 @@
                         <div class="figma-bp-table">
                             <div class="figma-bp-table-head figma-bp-table-head--domain">
                                 <span>Domain</span>
-                                <span class="figma-bp-num">Valid</span>
-                                <span class="figma-bp-num">Invalid</span>
-                                <span class="figma-bp-num">Crawlers</span>
-                                <span class="figma-bp-num">Action</span>
+                                <span class="figma-bp-num">Total Visits</span>
+                                <span class="figma-bp-num">Human Traffic</span>
+                                <span class="figma-bp-num">Bots</span>
+                                <span class="figma-bp-num">Invalid %</span>
+                                <span class="figma-bp-num">Risk Score</span>
+                                <span>Protection Status</span>
+                                <span class="figma-bp-num">Trend</span>
                             </div>
                             <div class="figma-bp-table-body promotix-slim-scroll">
                                 <template x-for="row in domainsList" :key="'d-' + row.id">
@@ -787,15 +849,26 @@
                                             <svg class="figma-bp-domain-icon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/></svg>
                                             <span class="truncate" x-text="row.hostname"></span>
                                         </span>
-                                        <span class="figma-bp-num" x-text="fmt(row.valid_visits)"></span>
-                                        <span class="figma-bp-num" x-text="fmt(row.invalid_visits)"></span>
-                                        <span class="figma-bp-num" x-text="fmt(row.known_crawlers)"></span>
-                                        <a href="{{ route('paid-marketing.detection-settings') }}" class="figma-bp-protect-btn">Get Protected</a>
+                                        <span class="figma-bp-num" x-text="fmt(row.total_visits ?? 0)"></span>
+                                        <span class="figma-bp-num" x-text="fmt(row.human_traffic ?? row.valid_visits ?? 0)"></span>
+                                        <span class="figma-bp-num" x-text="fmt(row.bots ?? 0)"></span>
+                                        <span class="figma-bp-num" x-text="domainInvalidPct(row)"></span>
+                                        <span class="figma-bp-num">
+                                            <span class="figma-bp-risk" :class="domainRiskClass(row)" x-text="domainRiskLabel(row)"></span>
+                                        </span>
+                                        <span class="figma-bp-protect" :class="{ 'figma-bp-protect--inactive': domainProtection(row) !== 'Active' }">
+                                            <template x-if="domainProtection(row) === 'Active'">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l8 3v6c0 5.25-3.4 9.74-8 11-4.6-1.26-8-5.75-8-11V5l8-3z"/></svg>
+                                            </template>
+                                            <span x-text="domainProtection(row)"></span>
+                                        </span>
+                                        <span class="figma-bp-num" :class="domainTrendClass(row)" x-text="domainTrendLabel(row)"></span>
                                     </div>
                                 </template>
                                 <p x-show="!domainsList.length" class="figma-bp-empty">No domains in this window.</p>
                             </div>
                         </div>
+                        <p class="figma-bp-table-foot" x-show="domainsList.length" x-text="domainFooterLabel()"></p>
                     </div>
                 </section>
 
@@ -900,8 +973,11 @@ function buildBpDemoPayload() {
             },
         },
         domainsList: [
-            { id: 1, hostname: 'www.example.com', valid_visits: 23800, invalid_visits: 230, known_crawlers: 500 },
-            { id: 2, hostname: 'www.infinitdigi.com', valid_visits: 8200, invalid_visits: 2100, known_crawlers: 340 },
+            { id: 1, hostname: 'internetpowerdeals.online', total_visits: 25430, human_traffic: 24900, bots: 342, invalid_visits: 1590, invalid_pct: 6.25, risk_score: 'Medium', protection_status: 'Active', trend_pct: 12.5 },
+            { id: 2, hostname: 'fibreopticnet.online', total_visits: 18250, human_traffic: 17820, bots: 215, invalid_visits: 971, invalid_pct: 5.32, risk_score: 'Low', protection_status: 'Active', trend_pct: 8.1 },
+            { id: 3, hostname: 'exampledomain.net', total_visits: 12400, human_traffic: 11980, bots: 180, invalid_visits: 620, invalid_pct: 5.0, risk_score: 'Medium', protection_status: 'Active', trend_pct: -1.4 },
+            { id: 4, hostname: 'shopdemo.io', total_visits: 8600, human_traffic: 8340, bots: 95, invalid_visits: 310, invalid_pct: 3.6, risk_score: 'Low', protection_status: 'Active', trend_pct: 4.2 },
+            { id: 5, hostname: 'testdomain.com', total_visits: 3210, human_traffic: 3050, bots: 60, invalid_visits: 160, invalid_pct: 4.98, risk_score: 'Medium', protection_status: 'Active', trend_pct: -3.2 },
         ],
         countries: [
             { country: 'US', total: 12400, invalid: 4200, percent: 34 },
@@ -966,6 +1042,43 @@ function botProtectionFigma(config = {}) {
             const c = String(code || '').trim().toLowerCase();
             if (!/^[a-z]{2}$/.test(c)) return '';
             return `https://flagcdn.com/w20/${c}.png`;
+        },
+        domainInvalidPct(row) {
+            if (row.invalid_pct != null && row.invalid_pct !== '') {
+                return `${Number(row.invalid_pct).toFixed(2)}%`;
+            }
+            const total = Number(row.total_visits || 0);
+            const invalid = Number(row.invalid_visits || 0);
+            if (!total) return '0%';
+            return `${((invalid / total) * 100).toFixed(2)}%`;
+        },
+        domainRiskLabel(row) {
+            return row.risk_score || 'Low';
+        },
+        domainRiskClass(row) {
+            const level = String(this.domainRiskLabel(row)).toLowerCase();
+            if (level === 'high') return 'figma-bp-risk--high';
+            if (level === 'medium') return 'figma-bp-risk--medium';
+            return 'figma-bp-risk--low';
+        },
+        domainProtection(row) {
+            return row.protection_status || 'Inactive';
+        },
+        domainTrendLabel(row) {
+            const t = Number(row.trend_pct || 0);
+            if (!Number.isFinite(t) || t === 0) return '—';
+            const arrow = t > 0 ? '↑' : '↓';
+            return `${arrow} ${Math.abs(t).toFixed(1)}%`;
+        },
+        domainTrendClass(row) {
+            const t = Number(row.trend_pct || 0);
+            if (!Number.isFinite(t) || t === 0) return 'figma-bp-trend--flat';
+            return t > 0 ? 'figma-bp-trend--up' : 'figma-bp-trend--down';
+        },
+        domainFooterLabel() {
+            const n = (this.domainsList || []).length;
+            if (!n) return '';
+            return `Showing 1 to ${n} of ${n} domains`;
         },
         async openCountryIps(country) {
             if (!country) return;
