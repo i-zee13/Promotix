@@ -342,6 +342,9 @@
                 .bpv2-signal {
                     display: flex; align-items: center; gap: 7px;
                     font-size: 11px; color: rgba(255,255,255,0.55); margin-bottom: 6px;
+                    cursor: pointer; user-select: none;
+                    background: none; border: 0; padding: 0; width: 100%; text-align: left;
+                    font: inherit;
                 }
                 .bpv2-signal.is-on { color: rgba(255,255,255,0.85); }
                 .bpv2-signal svg { width: 14px; height: 14px; color: #B893D8; flex-shrink: 0; opacity: 0.35; }
@@ -349,9 +352,20 @@
                 .bpv2-action {
                     display: flex; align-items: center; justify-content: space-between;
                     font-size: 11px; color: rgba(255,255,255,0.75); margin-bottom: 6px;
+                    cursor: pointer; user-select: none;
+                    background: none; border: 0; padding: 0; width: 100%;
+                    font: inherit;
                 }
+                .bpv2-action.is-off { opacity: 0.45; text-decoration: line-through; }
                 .bpv2-action__left { display: inline-flex; align-items: center; gap: 7px; }
-                .bpv2-dot { width: 7px; height: 7px; border-radius: 999px; display: inline-block; }
+                .bpv2-dot {
+                    width: 7px; height: 7px; border-radius: 999px; display: inline-block;
+                    border: 1px solid transparent; flex-shrink: 0;
+                }
+                .bpv2-action.is-off .bpv2-dot {
+                    background: transparent !important;
+                    border-color: rgba(255,255,255,.35);
+                }
                 /* Classic purple vertical pills for Google Ads Sessions */
                 .bpv2-ads {
                     display: grid;
@@ -754,7 +768,7 @@
                     <div class="bpv2-detect">
                         <div class="bpv2-donut" :style="botsDonutStyle()" role="img" aria-label="Bots detected">
                             <div class="bpv2-donut__hole">
-                                <strong x-text="fmt(summary.bots_detected || 0)"></strong>
+                                <strong x-text="fmt(botsVisibleTotal())"></strong>
                                 <span>Bots Detected</span>
                             </div>
                         </div>
@@ -762,22 +776,36 @@
                             <div class="bpv2-detect__signals">
                                 <h4>Detection Signals</h4>
                                 <template x-for="sig in (summary.signals || [])" :key="sig.key">
-                                    <div class="bpv2-signal" :class="{ 'is-on': sig.active }">
+                                    <button
+                                        type="button"
+                                        class="bpv2-signal"
+                                        :class="{ 'is-on': isDetectionSignalOn(sig) }"
+                                        @click="toggleDetectionSignal(sig.key)"
+                                        :aria-pressed="isDetectionSignalOn(sig).toString()"
+                                        :title="isDetectionSignalOn(sig) ? 'Turn signal off' : 'Turn signal on'"
+                                    >
                                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 13l4 4L19 7"/></svg>
                                         <span x-text="sig.label"></span>
-                                    </div>
+                                    </button>
                                 </template>
                             </div>
                             <div class="bpv2-detect__actions">
                                 <h4>Actions Taken</h4>
                                 <template x-for="row in actionRows()" :key="row.key">
-                                    <div class="bpv2-action">
+                                    <button
+                                        type="button"
+                                        class="bpv2-action"
+                                        :class="{ 'is-off': isBotActionHidden(row.key) }"
+                                        @click="toggleBotAction(row.key)"
+                                        :aria-pressed="(!isBotActionHidden(row.key)).toString()"
+                                        :title="isBotActionHidden(row.key) ? 'Show on chart' : 'Hide from chart'"
+                                    >
                                         <span class="bpv2-action__left">
-                                            <i class="bpv2-dot" :style="`background:${row.color}`"></i>
+                                            <i class="bpv2-dot" :style="isBotActionHidden(row.key) ? '' : `background:${row.color}`"></i>
                                             <span x-text="row.label"></span>
                                         </span>
                                         <span x-text="`${fmt(row.value)} · ${row.pct}%`"></span>
-                                    </div>
+                                    </button>
                                 </template>
                             </div>
                         </div>
@@ -1100,6 +1128,8 @@ function botProtectionFigma(config = {}) {
         hiddenSeries: { area: {}, invalid: {} },
         hiddenDonutSegments: { ib: {}, mal: {} },
         hiddenClassificationKeys: {},
+        hiddenBotActionKeys: {},
+        detectionSignalOverrides: {},
         invalidHoverIndex: null,
         fmt(n) { return new Intl.NumberFormat().format(Number(n || 0)); },
         fmtCompact(n) {
@@ -1358,8 +1388,44 @@ function botProtectionFigma(config = {}) {
             const total = rows.reduce((s, r) => s + r.value, 0) || 1;
             return rows.map(r => ({ ...r, pct: Math.round((r.value / total) * 1000) / 10 }));
         },
+        isDetectionSignalOn(sig) {
+            if (!sig) return false;
+            if (Object.prototype.hasOwnProperty.call(this.detectionSignalOverrides, sig.key)) {
+                return Boolean(this.detectionSignalOverrides[sig.key]);
+            }
+            return Boolean(sig.active);
+        },
+        toggleDetectionSignal(key) {
+            if (!key) return;
+            const sig = (this.summary?.signals || []).find(s => s.key === key);
+            const next = !this.isDetectionSignalOn(sig || { key, active: false });
+            this.detectionSignalOverrides = {
+                ...this.detectionSignalOverrides,
+                [key]: next,
+            };
+        },
+        isBotActionHidden(key) {
+            return Boolean(this.hiddenBotActionKeys?.[key]);
+        },
+        toggleBotAction(key) {
+            if (!key) return;
+            const visible = this.actionRows().filter(r => !this.isBotActionHidden(r.key));
+            if (!this.isBotActionHidden(key) && visible.length <= 1 && visible[0]?.key === key) {
+                return;
+            }
+            this.hiddenBotActionKeys = {
+                ...this.hiddenBotActionKeys,
+                [key]: !this.hiddenBotActionKeys[key],
+            };
+        },
+        botsVisibleRows() {
+            return this.actionRows().filter(r => !this.isBotActionHidden(r.key));
+        },
+        botsVisibleTotal() {
+            return this.botsVisibleRows().reduce((a, r) => a + Number(r.value || 0), 0);
+        },
         botsDonutStyle() {
-            const rows = this.actionRows();
+            const rows = this.botsVisibleRows();
             const total = rows.reduce((a, r) => a + r.value, 0);
             if (!total) return { background: 'conic-gradient(rgba(100,0,178,0.35) 0 100%)' };
             let deg = 0;
