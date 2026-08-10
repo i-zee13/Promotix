@@ -1646,6 +1646,8 @@ function paidAdvertisingFigma(config = {}) {
         googleSyncTimer: null,
         watermarkTimer: null,
         lastWatermarkId: null,
+        lastWatermarkVersion: null,
+        lastWatermarkCount: null,
         reloadInFlight: false,
         reloadQueued: false,
         reloadQueuedForceGoogle: false,
@@ -1656,7 +1658,7 @@ function paidAdvertisingFigma(config = {}) {
         livePollOn: false,
         livePollMs: 60000,
         googleSyncMs: 300000,
-        watermarkMs: 45000,
+        watermarkMs: 20000,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         scheduleReload() {
             clearTimeout(this.reloadTimer);
@@ -1747,19 +1749,29 @@ function paidAdvertisingFigma(config = {}) {
             }, this.googleSyncMs);
         },
         async checkWatermark() {
-            if (!this.livePollOn || document.hidden || this.reloadInFlight || this.summaryRefreshInFlight) return;
-            if (Date.now() - this.lastReloadAt < 15000) return;
+            // Always poll — do not wait for livePollOn. New visits/IPs must invalidate stale views.
+            if (document.hidden || this.reloadInFlight || this.summaryRefreshInFlight) return;
+            if (Date.now() - this.lastReloadAt < 8000) return;
             try {
                 const data = await fetch(`/paid-marketing/watermark?${this.qs()}`).then(r => r.json());
-                if (this.lastWatermarkId !== null && data.last_id > this.lastWatermarkId) {
-                    this.refreshSummaryOnly(false);
-                }
+                const version = data.version || `${data.last_id || 0}:${data.count || 0}:${data.domains_sig || ''}`;
+                const changed = this.lastWatermarkVersion !== null && version !== this.lastWatermarkVersion;
+                const grew = this.lastWatermarkId !== null && Number(data.last_id || 0) > Number(this.lastWatermarkId);
+                const countGrew = this.lastWatermarkCount !== null && Number(data.count || 0) > Number(this.lastWatermarkCount);
                 this.lastWatermarkId = data.last_id;
+                this.lastWatermarkCount = data.count;
+                this.lastWatermarkVersion = version;
+                if (changed || grew || countGrew) {
+                    // Full reload so IP table / charts also pick up new traffic (not summary-only).
+                    this.reload(false, false);
+                }
             } catch (e) { /* silent — next tick retries */ }
         },
         startWatermarkPoll() {
             clearInterval(this.watermarkTimer);
             this.watermarkTimer = setInterval(() => this.checkWatermark(), this.watermarkMs);
+            // Seed baseline version without forcing a second reload.
+            this.checkWatermark();
         },
         async refreshSummaryOnly(forceGoogle = false) {
             if (this.reloadInFlight || this.summaryRefreshInFlight) return;
@@ -1887,6 +1899,13 @@ function paidAdvertisingFigma(config = {}) {
                 await this.$nextTick();
                 this.render(false);
                 await this.$nextTick();
+                // Keep watermark baseline aligned after successful reload.
+                try {
+                    const wm = await fetch(`/paid-marketing/watermark?${qs}`).then(r => r.json());
+                    this.lastWatermarkId = wm.last_id;
+                    this.lastWatermarkCount = wm.count;
+                    this.lastWatermarkVersion = wm.version || `${wm.last_id || 0}:${wm.count || 0}:${wm.domains_sig || ''}`;
+                } catch (e) { /* next poll will seed */ }
             } catch (e) {
                 /* keep previous dashboard state */
             } finally {

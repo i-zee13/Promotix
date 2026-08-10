@@ -10,6 +10,7 @@ use App\Services\GoogleAdsConnectionService;
 use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
 use App\Services\IpIntel\IpFraudEvaluator;
+use App\Support\PaidMarketing\DashboardResponseCache;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleInvalidClickReconciler;
 use App\Support\GoogleVerifiedPaidTraffic;
@@ -52,6 +53,16 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     public function summary(Request $request): JsonResponse
+    {
+        return $this->rememberPaidDashboardJson(
+            $request,
+            'summary',
+            fn () => $this->summaryPayload($request),
+            $request->boolean('force_google_sync'),
+        );
+    }
+
+    private function summaryPayload(Request $request): array
     {
         [$from, $to] = $this->dateRange($request);
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
@@ -211,7 +222,7 @@ class PaidAdvertisingDashboardController extends Controller
         );
         $googleReconnectUrl = $this->googleReconnectUrl($selectedDomainId);
 
-        return response()->json([
+        return [
             'paid_visits' => $paid,
             'verified_paid_visits' => $verifiedPaid,
             'verified_valid_paid_visits' => $verifiedValidPaid,
@@ -253,7 +264,7 @@ class PaidAdvertisingDashboardController extends Controller
                 'from' => $from->toIso8601String(),
                 'to' => $to->toIso8601String(),
             ],
-        ]);
+        ];
     }
 
     /**
@@ -263,22 +274,27 @@ class PaidAdvertisingDashboardController extends Controller
      */
     public function watermark(Request $request): JsonResponse
     {
-        $domainIds = $this->scopedDomainIds($request);
-        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
-
-        if (! Schema::hasTable('visits') || $domainIds->isEmpty()) {
-            return response()->json(['last_id' => 0, 'count' => 0]);
-        }
-
-        $query = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo);
+        $meta = $this->dashboardCacheMeta($request);
 
         return response()->json([
-            'last_id' => (int) (clone $query)->max('id'),
-            'count' => (clone $query)->count(),
+            'last_id' => $meta['last_id'],
+            'count' => $meta['count'],
+            'version' => $meta['version'],
+            'domains_sig' => $meta['domains_sig'],
         ]);
     }
 
     public function trends(Request $request): JsonResponse
+    {
+        return $this->rememberPaidDashboardJson(
+            $request,
+            'trends',
+            fn () => $this->trendsPayload($request),
+            $request->boolean('force_google_sync'),
+        );
+    }
+
+    private function trendsPayload(Request $request): array
     {
         [$from, $to] = $this->dateRange($request);
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
@@ -374,20 +390,29 @@ class PaidAdvertisingDashboardController extends Controller
         }
         $lastWeekSeries = array_slice($lastWeekSeries, 0, count($paidSeries));
 
-        return response()->json([
+        return [
             'labels' => $labels,
             'invalid_daily' => $invalidSeries,
             'datasets' => [
                 ['name' => 'This Week', 'values' => $paidSeries, 'color' => '#FFFFFF'],
                 ['name' => 'Last Week', 'values' => $lastWeekSeries, 'color' => '#FF4BC1', 'dashed' => true],
             ],
-        ]);
+        ];
     }
 
     public function blockingActivity(Request $request): JsonResponse
     {
+        return $this->rememberPaidDashboardJson(
+            $request,
+            'blocking',
+            fn () => $this->blockingActivityPayload($request),
+        );
+    }
+
+    private function blockingActivityPayload(Request $request): array
+    {
         if (! Schema::hasTable('visits') || ! Schema::hasColumn('visits', 'action_taken')) {
-            return response()->json(['labels' => [], 'datasets' => []]);
+            return ['labels' => [], 'datasets' => []];
         }
 
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
@@ -417,7 +442,7 @@ class PaidAdvertisingDashboardController extends Controller
 
         $engine = $this->protectionEngineState($request, $domainIds);
 
-        return response()->json([
+        return [
             'labels' => $labels,
             'datasets' => [
                 ['name' => 'Blocked', 'values' => $blockSeries],
@@ -425,10 +450,20 @@ class PaidAdvertisingDashboardController extends Controller
             ],
             'rules' => $engine['rules'],
             'engine' => $engine,
-        ]);
+        ];
     }
 
     public function campaigns(Request $request): JsonResponse
+    {
+        return $this->rememberPaidDashboardJson(
+            $request,
+            'campaigns',
+            fn () => $this->campaignsPayload($request),
+            $request->boolean('force_google_sync'),
+        );
+    }
+
+    private function campaignsPayload(Request $request): array
     {
         [$from, $to] = $this->dateRange($request);
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
@@ -504,10 +539,10 @@ class PaidAdvertisingDashboardController extends Controller
             ->values()
             ->all();
 
-        return response()->json([
+        return [
             'campaigns' => $rows,
             'untagged_domains' => $untaggedDomains,
-        ]);
+        ];
     }
 
     /** @return list<array<string, mixed>> */
@@ -686,6 +721,15 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function keywords(Request $request): JsonResponse
     {
+        return $this->rememberPaidDashboardJson(
+            $request,
+            'keywords',
+            fn () => $this->keywordsPayload($request),
+        );
+    }
+
+    private function keywordsPayload(Request $request): array
+    {
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
         $merged = collect();
@@ -823,15 +867,23 @@ class PaidAdvertisingDashboardController extends Controller
             })
             ->sortByDesc('total')
             ->take(20)
-            ->values();
-
-        return response()->json($rows);
+            ->values()
+            ->all();
     }
 
     public function countries(Request $request): JsonResponse
     {
+        return $this->rememberPaidDashboardJson(
+            $request,
+            'countries',
+            fn () => $this->countriesPayload($request),
+        );
+    }
+
+    private function countriesPayload(Request $request): array
+    {
         if (! Schema::hasTable('visits')) {
-            return response()->json([]);
+            return [];
         }
 
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
@@ -849,11 +901,11 @@ class PaidAdvertisingDashboardController extends Controller
             ->limit(20)
             ->get();
 
-        return response()->json($rows->map(fn ($r) => [
+        return $rows->map(fn ($r) => [
             'country' => $r->country,
             'total' => (int) $r->total,
             'invalid' => (int) $r->invalid,
-        ])->values());
+        ])->values()->all();
     }
 
     public function countryIps(Request $request): JsonResponse
@@ -892,16 +944,25 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function ips(Request $request): JsonResponse
     {
+        return $this->rememberPaidDashboardJson(
+            $request,
+            'ips',
+            fn () => $this->ipsPayload($request),
+        );
+    }
+
+    private function ipsPayload(Request $request): array
+    {
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
 
         if ($domainIds->isEmpty()) {
-            return response()->json([]);
+            return [];
         }
 
         $rows = $this->resolveIpRows($request, $domainIds, $metricFrom, $metricTo);
 
-        return response()->json($rows->take(50)->values());
+        return $rows->take(50)->values()->all();
     }
 
     public function ipClicks(Request $request): JsonResponse
@@ -1130,9 +1191,18 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function heatmap(Request $request): JsonResponse
     {
+        return $this->rememberPaidDashboardJson(
+            $request,
+            'heatmap',
+            fn () => $this->heatmapPayload($request),
+        );
+    }
+
+    private function heatmapPayload(Request $request): array
+    {
         if (! Schema::hasTable('visits')
             && (! Schema::hasTable('paid_marketing_clicks') || ! Schema::hasTable('paid_marketing_visits'))) {
-            return response()->json(['matrix' => [], 'days' => [], 'hours' => []]);
+            return ['matrix' => [], 'days' => [], 'hours' => []];
         }
 
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
@@ -1185,11 +1255,11 @@ class PaidAdvertisingDashboardController extends Controller
             }
         }
 
-        return response()->json([
+        return [
             'days' => $days,
             'hours' => $hours,
             'matrix' => $matrix,
-        ]);
+        ];
     }
 
     /**
@@ -2714,5 +2784,96 @@ class PaidAdvertisingDashboardController extends Controller
             'flagged_paid_visits' => 0,
             'valid_paid_visits' => 0,
         ];
+    }
+
+    /**
+     * @param  \Closure():mixed  $builder
+     */
+    private function rememberPaidDashboardJson(
+        Request $request,
+        string $bucket,
+        \Closure $builder,
+        bool $bypass = false,
+    ): JsonResponse {
+        /** @var DashboardResponseCache $cache */
+        $cache = app(DashboardResponseCache::class);
+        $version = $this->dashboardCacheMeta($request)['version'];
+        $payload = $cache->remember($request, $bucket, $version, $builder, $bypass);
+
+        return response()->json($payload)->header('X-PM-Cache', $cache->lastStatus());
+    }
+
+    /**
+     * Cheap change detector used both for response-cache keys and the /watermark poll.
+     * New visits/IPs, domain changes, and detection-setting edits all bump the version.
+     *
+     * @return array{last_id:int,count:int,domains_sig:string,version:string}
+     */
+    private function dashboardCacheMeta(Request $request): array
+    {
+        $memoKey = '_pm_dash_cache_meta';
+        if ($request->attributes->has($memoKey)) {
+            return $request->attributes->get($memoKey);
+        }
+
+        $userId = (int) ($request->user()?->id ?? 0);
+        $domainIds = $this->scopedDomainIds($request);
+        [$metricFrom, $metricTo] = $this->calendarDateRange($request);
+
+        $lastId = 0;
+        $count = 0;
+        $visitsUpdated = '';
+
+        if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
+            $query = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo);
+            $select = 'MAX(id) as last_id, COUNT(*) as cnt';
+            if (Schema::hasColumn('visits', 'updated_at')) {
+                $select .= ', MAX(updated_at) as max_updated';
+            }
+            $stats = (clone $query)->selectRaw($select)->first();
+            $lastId = (int) ($stats->last_id ?? 0);
+            $count = (int) ($stats->cnt ?? 0);
+            $visitsUpdated = (string) ($stats->max_updated ?? '');
+        }
+
+        $domainsSig = '0';
+        if ($userId > 0 && Schema::hasTable('domains')) {
+            $domainRow = Domain::query()
+                ->where('user_id', $userId)
+                ->forPaidMarketing()
+                ->selectRaw('COUNT(*) as total, MAX(updated_at) as max_updated')
+                ->first();
+            $domainsSig = ((int) ($domainRow->total ?? 0)).'|'.(string) ($domainRow->max_updated ?? '');
+        }
+
+        $settingsSig = '0';
+        if ($domainIds->isNotEmpty() && Schema::hasTable('domain_detection_settings')) {
+            $settingsRow = DomainDetectionSetting::query()
+                ->whereIn('domain_id', $domainIds->all())
+                ->selectRaw('COUNT(*) as total, MAX(updated_at) as max_updated')
+                ->first();
+            $settingsSig = ((int) ($settingsRow->total ?? 0)).'|'.(string) ($settingsRow->max_updated ?? '');
+        }
+
+        $version = substr(hash('sha256', implode('|', [
+            (string) $userId,
+            (string) $lastId,
+            (string) $count,
+            $visitsUpdated,
+            $domainsSig,
+            $settingsSig,
+            (string) $metricFrom,
+            (string) $metricTo,
+        ])), 0, 24);
+
+        $meta = [
+            'last_id' => $lastId,
+            'count' => $count,
+            'domains_sig' => substr(hash('sha256', $domainsSig), 0, 16),
+            'version' => $version,
+        ];
+        $request->attributes->set($memoKey, $meta);
+
+        return $meta;
     }
 }
