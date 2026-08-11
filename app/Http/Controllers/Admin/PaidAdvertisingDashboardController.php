@@ -987,27 +987,43 @@ class PaidAdvertisingDashboardController extends Controller
             ? "COALESCE(NULLIF(TRIM(gclid), ''), NULLIF(TRIM(gbraid), ''), NULLIF(TRIM(wbraid), ''))"
             : "NULL";
 
+        $select = [
+            'visited_at',
+            'url',
+            'country',
+            'browser',
+            'os',
+            'device',
+            'is_invalid_traffic',
+            'threat_group',
+            'action_taken',
+            'detection_reasons',
+            DB::raw("{$campaignExpr} as campaign"),
+            DB::raw("{$paidIdExpr} as paid_id"),
+            DB::raw(Schema::hasColumn('visits', 'gclid') ? 'gclid' : 'NULL as gclid'),
+            DB::raw(Schema::hasColumn('visits', 'gbraid') ? 'gbraid' : 'NULL as gbraid'),
+            DB::raw(Schema::hasColumn('visits', 'wbraid') ? 'wbraid' : 'NULL as wbraid'),
+            DB::raw(Schema::hasColumn('visits', 'utm_term') ? 'utm_term as keyword' : 'NULL as keyword'),
+        ];
+        foreach ([
+            'device_id',
+            'browser_id',
+            'visitor_id',
+            'fingerprint_id',
+            'paid_identity_id',
+            'identity_confidence',
+            'ads_detections',
+        ] as $col) {
+            if (Schema::hasColumn('visits', $col)) {
+                $select[] = $col;
+            }
+        }
+
         $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
             ->where('ip', $ip)
             ->orderBy('visited_at')
             ->limit(100)
-            ->get([
-                'visited_at',
-                'url',
-                'country',
-                'browser',
-                'os',
-                'is_invalid_traffic',
-                'threat_group',
-                'action_taken',
-                'detection_reasons',
-                DB::raw("{$campaignExpr} as campaign"),
-                DB::raw("{$paidIdExpr} as paid_id"),
-                DB::raw(Schema::hasColumn('visits', 'gclid') ? 'gclid' : 'NULL as gclid'),
-                DB::raw(Schema::hasColumn('visits', 'gbraid') ? 'gbraid' : 'NULL as gbraid'),
-                DB::raw(Schema::hasColumn('visits', 'wbraid') ? 'wbraid' : 'NULL as wbraid'),
-                DB::raw(Schema::hasColumn('visits', 'utm_term') ? 'utm_term as keyword' : "NULL as keyword"),
-            ]);
+            ->get($select);
 
         if ($rows->isEmpty()) {
             return response()->json($this->ipClicksFromPaidMarketing($request, $domainIds, $metricFrom, $metricTo, $ip));
@@ -1019,6 +1035,25 @@ class PaidAdvertisingDashboardController extends Controller
                 $decoded = json_decode((string) $row->detection_reasons, true);
                 $reasons = is_array($decoded) ? $decoded : [];
             }
+
+            $ads = $row->ads_detections ?? null;
+            if (is_string($ads)) {
+                $ads = json_decode($ads, true);
+            }
+            $ads = is_array($ads) ? $ads : [];
+            foreach ($ads as $rule) {
+                if (! is_array($rule)) {
+                    continue;
+                }
+                $code = (string) ($rule['rule_code'] ?? $rule['code'] ?? '');
+                if ($code !== '' && ! in_array($code, $reasons, true)) {
+                    $reasons[] = $code;
+                }
+            }
+
+            $confidence = isset($row->identity_confidence) && is_numeric($row->identity_confidence)
+                ? (float) $row->identity_confidence
+                : null;
 
             return [
                 'clicked_at' => UserTimezone::isoForUser(
@@ -1041,6 +1076,15 @@ class PaidAdvertisingDashboardController extends Controller
                 'browser_name' => $row->browser,
                 'browser_version' => null,
                 'os' => $row->os,
+                'device' => $row->device ?? null,
+                'device_id' => filled($row->device_id ?? null) ? (string) $row->device_id : null,
+                'browser_id' => filled($row->browser_id ?? null) ? (string) $row->browser_id : null,
+                'visitor_id' => filled($row->visitor_id ?? null) ? (string) $row->visitor_id : null,
+                'fingerprint_id' => filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null,
+                'paid_identity_id' => filled($row->paid_identity_id ?? null) ? (string) $row->paid_identity_id : null,
+                'identity_confidence' => $confidence,
+                'identity_confidence_label' => $this->identityConfidenceLabel($confidence),
+                'ads_detections' => $ads,
                 'threat_group' => $row->threat_group,
                 'is_invalid' => (bool) $row->is_invalid_traffic,
                 'action_taken' => $row->action_taken,

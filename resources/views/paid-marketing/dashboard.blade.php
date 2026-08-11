@@ -1100,8 +1100,20 @@
                                     <p class="figma-modal-value" x-text="activeIpClick.browser_name || ipModal.row?.browser || '—'"></p>
                                 </div>
                                 <div class="figma-modal-field">
-                                    <p class="figma-modal-label">Device</p>
+                                    <p class="figma-modal-label">Device Type</p>
                                     <p class="figma-modal-value capitalize" x-text="ipModal.row?.device || activeIpClick.device || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Device ID</p>
+                                    <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm" :title="activeIpClick.device_id || ipModal.row?.device_id || ''" x-text="activeIpClick.device_id || ipModal.row?.device_id || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Paid Identity</p>
+                                    <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm" :title="activeIpClick.paid_identity_id || ipModal.row?.paid_identity_id || ''" x-text="activeIpClick.paid_identity_id || ipModal.row?.paid_identity_id || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Identity Conf.</p>
+                                    <p class="figma-modal-value" x-text="activeIpClick.identity_confidence_label || ipModal.row?.identity_confidence_label || '—'"></p>
                                 </div>
                                 <div class="figma-modal-field">
                                     <p class="figma-modal-label">Action</p>
