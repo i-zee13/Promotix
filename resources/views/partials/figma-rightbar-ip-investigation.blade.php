@@ -153,7 +153,7 @@
     @promotix-ip-investigation.window="setVisit($event.detail)"
 >
     <div class="pm-ip-invest__head">
-        <h2 class="pm-ip-invest__title">IP Investigation</h2>
+        <h2 class="pm-ip-invest__title">Paid Identity Investigation</h2>
         <span class="pm-ip-invest__live" x-show="visit" x-cloak>
             <span class="pm-ip-invest__live-dot"></span>
             Live
@@ -167,6 +167,24 @@
             <div class="pm-ip-invest__ip-row">
                 <p class="pm-ip-invest__ip" x-text="visit.ip || '—'"></p>
                 <span class="pm-ip-invest__badge" :class="'is-' + riskTone" x-text="riskLabel"></span>
+            </div>
+            <div class="pm-ip-invest__grid" style="margin-top:8px;grid-template-columns:1fr 1fr;">
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Device ID</p>
+                    <p class="pm-ip-invest__value pm-ip-invest__mono" x-text="shortId(visit.device_id)"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Paid Identity</p>
+                    <p class="pm-ip-invest__value pm-ip-invest__mono" x-text="shortId(visit.paid_identity_id)"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Browser ID</p>
+                    <p class="pm-ip-invest__value pm-ip-invest__mono" x-text="shortId(visit.browser_id)"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Identity Confidence</p>
+                    <p class="pm-ip-invest__value" x-text="visit.identity_confidence_label || 'Unknown'"></p>
+                </div>
             </div>
             <div class="pm-ip-invest__score-row">
                 <div>
@@ -213,11 +231,15 @@
         </section>
 
         <section class="pm-ip-invest__card">
-            <h3 class="pm-ip-invest__section-title">Device Fingerprint</h3>
+            <h3 class="pm-ip-invest__section-title">Device / Fingerprint</h3>
             <div class="pm-ip-invest__grid">
                 <div class="pm-ip-invest__field">
                     <p class="pm-ip-invest__label">Device ID</p>
-                    <p class="pm-ip-invest__value pm-ip-invest__mono" x-text="shortId(visit.device_fingerprint)"></p>
+                    <p class="pm-ip-invest__value pm-ip-invest__mono" x-text="shortId(visit.device_id)"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Fingerprint ID</p>
+                    <p class="pm-ip-invest__value pm-ip-invest__mono" x-text="shortId(visit.fingerprint_id || visit.device_fingerprint)"></p>
                 </div>
                 <div class="pm-ip-invest__field">
                     <p class="pm-ip-invest__label">Browser</p>
@@ -235,9 +257,49 @@
                     <p class="pm-ip-invest__label">Language</p>
                     <p class="pm-ip-invest__value" x-text="visit.language || '—'"></p>
                 </div>
+            </div>
+        </section>
+
+        <section class="pm-ip-invest__card">
+            <h3 class="pm-ip-invest__section-title">Click Windows</h3>
+            <div class="pm-ip-invest__grid">
                 <div class="pm-ip-invest__field">
-                    <p class="pm-ip-invest__label">Timezone</p>
-                    <p class="pm-ip-invest__value" x-text="visit.visitor_timezone || '—'"></p>
+                    <p class="pm-ip-invest__label">Clicks 60m</p>
+                    <p class="pm-ip-invest__value" x-text="visit.clicks_60m ?? visit.visits ?? 0"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Paid Clicks</p>
+                    <p class="pm-ip-invest__value" x-text="visit.visits ?? 0"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Invalid</p>
+                    <p class="pm-ip-invest__value" x-text="visit.invalid_clicks ?? 0"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Valid</p>
+                    <p class="pm-ip-invest__value" x-text="visit.valid_clicks ?? 0"></p>
+                </div>
+            </div>
+        </section>
+
+        <section class="pm-ip-invest__card">
+            <h3 class="pm-ip-invest__section-title">Detection Scoring</h3>
+            <div class="pm-ip-invest__grid">
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Primary Detection</p>
+                    <p class="pm-ip-invest__value" x-text="visit.primary_detection || '—'"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Paid Risk Score</p>
+                    <p class="pm-ip-invest__value" x-text="visit.paid_risk_score ?? riskScore"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Traffic Status</p>
+                    <p class="pm-ip-invest__value" x-text="visit.traffic_status || visit.risk_summary?.status || '—'"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Triggered Rules</p>
+                    <p class="pm-ip-invest__value" x-text="(visit.ads_detections || []).length"></p>
                 </div>
             </div>
         </section>
@@ -246,12 +308,16 @@
             <h3 class="pm-ip-invest__section-title">Protection Action</h3>
             <div class="pm-ip-invest__grid">
                 <div class="pm-ip-invest__field">
-                    <p class="pm-ip-invest__label">Detection Result</p>
-                    <p class="pm-ip-invest__value" :class="riskTone === 'high' ? 'is-danger' : ''" x-text="visit.risk_summary?.status || visit.status || riskLabel"></p>
+                    <p class="pm-ip-invest__label">Action Taken</p>
+                    <p class="pm-ip-invest__value" :class="visit.ip_is_blocked || visit.action_taken === 'block' ? 'is-danger' : ''" x-text="actionTaken"></p>
                 </div>
                 <div class="pm-ip-invest__field">
-                    <p class="pm-ip-invest__label">Action Taken</p>
-                    <p class="pm-ip-invest__value" :class="visit.ip_is_blocked ? 'is-danger' : ''" x-text="actionTaken"></p>
+                    <p class="pm-ip-invest__label">Block Scope</p>
+                    <p class="pm-ip-invest__value" x-text="visit.block_scope || (visit.ip_is_blocked ? 'IP' : '—')"></p>
+                </div>
+                <div class="pm-ip-invest__field">
+                    <p class="pm-ip-invest__label">Platform Exclusion</p>
+                    <p class="pm-ip-invest__value" x-text="visit.ip_exclusion || 'Not needed'"></p>
                 </div>
                 <div class="pm-ip-invest__field">
                     <p class="pm-ip-invest__label">VPN</p>
@@ -262,20 +328,8 @@
                     <p class="pm-ip-invest__value" :class="flagOn(visit.intel_datacenter, visit.data_center_hits) ? 'is-danger' : 'is-ok'" x-text="flagYes(visit.intel_datacenter, visit.data_center_hits)"></p>
                 </div>
                 <div class="pm-ip-invest__field">
-                    <p class="pm-ip-invest__label">Geo Mismatch</p>
-                    <p class="pm-ip-invest__value" :class="hasGeo ? 'is-danger' : 'is-ok'" x-text="hasGeo ? 'Yes' : 'No'"></p>
-                </div>
-                <div class="pm-ip-invest__field">
-                    <p class="pm-ip-invest__label">Invalid Device</p>
-                    <p class="pm-ip-invest__value" :class="hasInvalidDevice ? 'is-danger' : 'is-ok'" x-text="hasInvalidDevice ? 'Yes' : 'No'"></p>
-                </div>
-                <div class="pm-ip-invest__field">
                     <p class="pm-ip-invest__label">Threat Group</p>
                     <p class="pm-ip-invest__value" x-text="visit.threat_group || '—'"></p>
-                </div>
-                <div class="pm-ip-invest__field">
-                    <p class="pm-ip-invest__label">Invalid Clicks</p>
-                    <p class="pm-ip-invest__value" x-text="visit.invalid_clicks ?? 0"></p>
                 </div>
             </div>
         </section>
@@ -323,8 +377,8 @@ window.promotixIpInvestigation = function promotixIpInvestigation() {
         },
         derivedScore() {
             const v = this.visit || {};
-            let score = this.normalizeScore(v.intel_risk_score ?? v.risk_summary?.score);
-            if (score === null) score = this.normalizeScore(v.intel_confidence);
+            let score = this.normalizeScore(v.paid_risk_score ?? v.intel_risk_score ?? v.risk_summary?.score);
+            if (score === null) score = this.normalizeScore(v.identity_confidence != null ? v.identity_confidence * 100 : v.intel_confidence);
             if (score === null) score = 0;
             // Elevate when strong threat signals exist but intel score is near-zero.
             const signals = [
@@ -333,6 +387,7 @@ window.promotixIpInvestigation = function promotixIpInvestigation() {
                 v.intel_datacenter === 'Yes' || Number(v.data_center_hits) > 0,
                 /bot|blocked|malicious|invalid/i.test(threatBlob(v)),
                 Number(v.invalid_clicks) > 0,
+                (v.ads_detections || []).length > 0,
             ].filter(Boolean).length;
             if (score < 40 && signals >= 2) score = Math.max(score, 55 + signals * 8);
             if (score < 70 && v.ip_is_blocked) score = Math.max(score, 78);
@@ -342,9 +397,9 @@ window.promotixIpInvestigation = function promotixIpInvestigation() {
             return this.visit ? this.derivedScore() : '—';
         },
         get riskLabel() {
-            const level = String(this.visit?.intel_risk_level || this.visit?.risk_summary?.level || '').toLowerCase();
-            if (level.includes('high')) return 'High Risk';
-            if (level.includes('medium')) return 'Medium Risk';
+            const level = String(this.visit?.intel_risk_level || this.visit?.risk_summary?.level || this.visit?.traffic_status || '').toLowerCase();
+            if (level.includes('invalid') || level.includes('high') || level.includes('critical')) return 'High Risk';
+            if (level.includes('suspicious') || level.includes('medium')) return 'Medium Risk';
             if (level.includes('low') && this.derivedScore() < 40 && !this.visit?.ip_is_blocked) return 'Low Risk';
             const score = this.derivedScore();
             if (this.visit?.ip_is_blocked || score >= 70) return 'High Risk';
@@ -363,16 +418,26 @@ window.promotixIpInvestigation = function promotixIpInvestigation() {
         get hasInvalidDevice() {
             return /device|fingerprint|invalid_device/i.test(threatBlob(this.visit));
         },
+        hasAdsRule(needle) {
+            const rules = (this.visit?.ads_detections || [])
+                .map((r) => String(r?.rule_code || r?.code || '').toUpperCase())
+                .join(' ');
+            const primary = String(this.visit?.primary_detection || '').toUpperCase();
+            return rules.includes(String(needle).toUpperCase()) || primary.includes(String(needle).toUpperCase());
+        },
         get detectionRows() {
             const v = this.visit || {};
             return [
                 { label: 'VPN detected', on: v.intel_vpn === 'Yes' || Number(v.vpn_hits) > 0 },
                 { label: 'Datacenter IP', on: v.intel_datacenter === 'Yes' || Number(v.data_center_hits) > 0 },
                 { label: 'Geo mismatch', on: this.hasGeo },
-                { label: 'Invalid device', on: this.hasInvalidDevice },
-                { label: 'Bot behavior', on: /bot|automation/i.test(threatBlob(v)) },
-                { label: 'Repeated clicks', on: Number(v.invalid_clicks) > 1 || Number(v.visits) > 1 },
-                { label: 'Blocked', on: !!v.ip_is_blocked || /blocked/i.test(String(v.status || '') + ' ' + String(v.risk_summary?.status || '')) },
+                { label: 'Repeat 2/60m', on: this.hasAdsRule('REPEAT_2_60M') || Number(v.clicks_60m) >= 2 },
+                { label: 'Repeat 3/60m', on: this.hasAdsRule('REPEAT_3_60M') || Number(v.clicks_60m) >= 3 },
+                { label: 'Device new IP', on: this.hasAdsRule('DEVICE_NEW_IP') },
+                { label: 'Click-ID replay / dup', on: this.hasAdsRule('GCLID_DUP') || this.hasAdsRule('REPLAY') },
+                { label: 'Cross-campaign sweep', on: this.hasAdsRule('CROSS_CAMPAIGN') },
+                { label: 'Repeated clicks', on: Number(v.invalid_clicks) > 1 || Number(v.visits) > 1 || Number(v.clicks_60m) > 1 },
+                { label: 'Blocked', on: !!v.ip_is_blocked || v.action_taken === 'block' || /blocked/i.test(String(v.status || '') + ' ' + String(v.risk_summary?.status || '')) },
             ];
         },
         get browserLabel() {
@@ -382,6 +447,7 @@ window.promotixIpInvestigation = function promotixIpInvestigation() {
             return ver ? `${b} ${ver}` : b;
         },
         get actionTaken() {
+            if (this.visit?.action_taken) return this.visit.action_taken;
             if (this.visit?.ip_is_blocked) return 'Blocked';
             if (this.visit?.rule_explanation?.action) return this.visit.rule_explanation.action;
             if (this.visit?.threat_type) return this.visit.threat_type;

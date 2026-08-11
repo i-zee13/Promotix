@@ -1369,6 +1369,21 @@ class PaidMarketingController extends Controller
             'device' => $deviceLabel,
             'session_id' => $sessionMeta['session_id'],
             'device_fingerprint' => $sessionMeta['device_fingerprint'],
+            'device_id' => $sessionMeta['device_id'],
+            'browser_id' => $sessionMeta['browser_id'],
+            'visitor_id' => $sessionMeta['visitor_id'],
+            'fingerprint_id' => $sessionMeta['fingerprint_id'] ?: $sessionMeta['device_fingerprint'],
+            'paid_identity_id' => $sessionMeta['paid_identity_id'],
+            'identity_confidence' => $sessionMeta['identity_confidence'],
+            'identity_confidence_label' => $sessionMeta['identity_confidence_label'],
+            'ads_detections' => $sessionMeta['ads_detections'],
+            'primary_detection' => $sessionMeta['primary_detection'],
+            'clicks_60m' => $sessionMeta['clicks_60m'],
+            'paid_risk_score' => $sessionMeta['paid_risk_score'],
+            'traffic_status' => $sessionMeta['traffic_status'],
+            'block_scope' => $sessionMeta['block_scope'],
+            'ip_exclusion' => $sessionMeta['ip_exclusion'],
+            'action_taken' => $sessionMeta['action_taken'],
             'browser' => $sessionMeta['browser'] ?: ($firstClick?->browser_name),
             'os' => $sessionMeta['os'] ?: ($firstClick?->os),
             'screen_resolution' => $sessionMeta['screen'],
@@ -1709,7 +1724,30 @@ class PaidMarketingController extends Controller
     }
 
     /**
-     * @return array{session_id: ?string, device_fingerprint: ?string, browser: ?string, os: ?string, screen: ?string, language: ?string, timezone: ?string}
+     * @return array{
+     *   session_id: ?string,
+     *   device_fingerprint: ?string,
+     *   browser: ?string,
+     *   os: ?string,
+     *   screen: ?string,
+     *   language: ?string,
+     *   timezone: ?string,
+     *   device_id: ?string,
+     *   browser_id: ?string,
+     *   visitor_id: ?string,
+     *   fingerprint_id: ?string,
+     *   paid_identity_id: ?string,
+     *   identity_confidence: ?float,
+     *   identity_confidence_label: string,
+     *   ads_detections: list<array<string, mixed>>,
+     *   primary_detection: ?string,
+     *   clicks_60m: int,
+     *   paid_risk_score: ?int,
+     *   traffic_status: ?string,
+     *   block_scope: ?string,
+     *   ip_exclusion: string,
+     *   action_taken: ?string
+     * }
      */
     private function hydrateVisitSessionMeta(PaidMarketingVisit $visit): array
     {
@@ -1721,6 +1759,21 @@ class PaidMarketingController extends Controller
             'screen' => null,
             'language' => null,
             'timezone' => null,
+            'device_id' => null,
+            'browser_id' => null,
+            'visitor_id' => null,
+            'fingerprint_id' => null,
+            'paid_identity_id' => null,
+            'identity_confidence' => null,
+            'identity_confidence_label' => 'Unknown',
+            'ads_detections' => [],
+            'primary_detection' => null,
+            'clicks_60m' => 0,
+            'paid_risk_score' => null,
+            'traffic_status' => null,
+            'block_scope' => null,
+            'ip_exclusion' => 'Not needed',
+            'action_taken' => null,
         ];
 
         if (! Schema::hasTable('visits')) {
@@ -1728,7 +1781,24 @@ class PaidMarketingController extends Controller
         }
 
         $select = ['id'];
-        foreach (['session_id', 'device', 'browser', 'os', 'user_agent', 'language', 'timezone', 'screen_resolution'] as $col) {
+        foreach ([
+            'session_id',
+            'device',
+            'browser',
+            'os',
+            'user_agent',
+            'language',
+            'timezone',
+            'screen_resolution',
+            'device_id',
+            'browser_id',
+            'visitor_id',
+            'fingerprint_id',
+            'paid_identity_id',
+            'identity_confidence',
+            'ads_detections',
+            'action_taken',
+        ] as $col) {
             if (Schema::hasColumn('visits', $col)) {
                 $select[] = $col;
             }
@@ -1765,6 +1835,71 @@ class PaidMarketingController extends Controller
             $sessionId = $sessionId ? (string) $sessionId : null;
         }
 
+        $ads = $row->ads_detections ?? null;
+        if (is_string($ads)) {
+            $ads = json_decode($ads, true);
+        }
+        $ads = is_array($ads) ? array_values($ads) : [];
+        $primary = null;
+        $primaryPoints = -1;
+        $paidRisk = null;
+        foreach ($ads as $rule) {
+            if (! is_array($rule)) {
+                continue;
+            }
+            $code = (string) ($rule['rule_code'] ?? $rule['code'] ?? '');
+            $points = (int) ($rule['base_points'] ?? $rule['points'] ?? 0);
+            if ($code !== '' && $points >= $primaryPoints) {
+                $primaryPoints = $points;
+                $primary = $code;
+            }
+            $paidRisk = max((int) ($paidRisk ?? 0), $points);
+        }
+
+        $confidence = isset($row->identity_confidence) && is_numeric($row->identity_confidence)
+            ? (float) $row->identity_confidence
+            : null;
+
+        $actionTaken = filled($row->action_taken ?? null) ? (string) $row->action_taken : null;
+        $clicks60 = 0;
+        if (Schema::hasTable('click_windows')) {
+            $pid = filled($row->paid_identity_id ?? null) ? (string) $row->paid_identity_id : null;
+            $clicks60 = (int) DB::table('click_windows')
+                ->where('domain_id', $visit->domain_id)
+                ->where('window_key', '60m')
+                ->where(function ($q) use ($visit, $pid): void {
+                    $q->where(function ($inner) use ($visit): void {
+                        $inner->where('entity_type', 'ip')->where('entity_id', $visit->ip);
+                    });
+                    if ($pid) {
+                        $q->orWhere(function ($inner) use ($pid): void {
+                            $inner->where('entity_type', 'paid_identity')->where('entity_id', $pid);
+                        });
+                    }
+                })
+                ->max('click_count');
+        }
+
+        $identityLabel = 'Unknown';
+        if ($confidence !== null) {
+            $identityLabel = match (true) {
+                $confidence >= 0.95 => 'Very High',
+                $confidence >= 0.85 => 'High',
+                $confidence >= 0.70 => 'Medium',
+                $confidence >= 0.40 => 'Low',
+                default => 'Unknown',
+            };
+        }
+
+        $trafficStatus = null;
+        if ($actionTaken === 'block' || ($paidRisk ?? 0) >= 85) {
+            $trafficStatus = 'invalid';
+        } elseif (($paidRisk ?? 0) >= 40 || $actionTaken === 'flag') {
+            $trafficStatus = 'suspicious';
+        } elseif ($paidRisk !== null || $primary) {
+            $trafficStatus = 'valid';
+        }
+
         return [
             'session_id' => $sessionId,
             'device_fingerprint' => $fingerprint
@@ -1775,6 +1910,21 @@ class PaidMarketingController extends Controller
             'screen' => filled($row->screen_resolution ?? null) ? (string) $row->screen_resolution : null,
             'language' => filled($row->language ?? null) ? (string) $row->language : null,
             'timezone' => filled($row->timezone ?? null) ? (string) $row->timezone : null,
+            'device_id' => filled($row->device_id ?? null) ? (string) $row->device_id : null,
+            'browser_id' => filled($row->browser_id ?? null) ? (string) $row->browser_id : null,
+            'visitor_id' => filled($row->visitor_id ?? null) ? (string) $row->visitor_id : null,
+            'fingerprint_id' => filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null,
+            'paid_identity_id' => filled($row->paid_identity_id ?? null) ? (string) $row->paid_identity_id : null,
+            'identity_confidence' => $confidence,
+            'identity_confidence_label' => $identityLabel,
+            'ads_detections' => $ads,
+            'primary_detection' => $primary,
+            'clicks_60m' => $clicks60,
+            'paid_risk_score' => $paidRisk,
+            'traffic_status' => $trafficStatus,
+            'block_scope' => in_array(strtolower((string) $actionTaken), ['block', 'blocked'], true) ? 'Device' : null,
+            'ip_exclusion' => in_array(strtolower((string) $actionTaken), ['block', 'blocked'], true) ? 'Queued' : 'Not needed',
+            'action_taken' => $actionTaken,
         ];
     }
 

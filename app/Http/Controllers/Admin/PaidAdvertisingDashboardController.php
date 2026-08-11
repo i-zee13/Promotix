@@ -1137,6 +1137,11 @@ class PaidAdvertisingDashboardController extends Controller
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
                 'IP Address',
+                'Device ID',
+                'Paid Identity',
+                'Identity Confidence',
+                'Clicks 60m',
+                'Primary Detection',
                 'Country',
                 'Campaign',
                 'Device',
@@ -1145,6 +1150,7 @@ class PaidAdvertisingDashboardController extends Controller
                 'Risk',
                 'Risk %',
                 'Action',
+                'IP Exclusion',
                 'Invalid',
                 'Valid',
                 'Total',
@@ -1165,6 +1171,11 @@ class PaidAdvertisingDashboardController extends Controller
             foreach ($rows->take(5000) as $r) {
                 fputcsv($handle, [
                     $r['ip'],
+                    $r['device_id'] ?? '',
+                    $r['paid_identity_id'] ?? '',
+                    $r['identity_confidence_label'] ?? '',
+                    $r['clicks_60m'] ?? '',
+                    $r['primary_detection'] ?? '',
                     $r['country'],
                     $r['campaign'],
                     $r['device'] ?? '',
@@ -1173,6 +1184,7 @@ class PaidAdvertisingDashboardController extends Controller
                     $r['risk_level'] ?? '',
                     $r['risk_score'] ?? '',
                     $r['action'] ?? '',
+                    $r['ip_exclusion'] ?? '',
                     $r['invalid'],
                     $r['valid'] ?? max(0, (int) ($r['total'] ?? 0) - (int) ($r['invalid'] ?? 0)),
                     $r['total'],
@@ -1519,7 +1531,202 @@ class PaidAdvertisingDashboardController extends Controller
 
         $formatted = $this->formatIpRows($rows, $request->user(), $this->resolveActiveAllowListIps($request));
 
-        return $this->attachDeviceFingerprints($formatted, $domainIds)->take($cap)->values();
+        return $this->attachPaidIdentityMeta(
+            $this->attachDeviceFingerprints($formatted, $domainIds),
+            $domainIds,
+        )->take($cap)->values();
+    }
+
+    /**
+     * Attach paid identity fields (Device ID / PID / confidence / 60m clicks / primary ADS rule).
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $rows
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function attachPaidIdentityMeta($rows, $domainIds)
+    {
+        $domainIdList = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values();
+        $ips = $rows->pluck('ip')->map(fn ($ip) => (string) $ip)->filter()->unique()->values();
+        if ($ips->isEmpty() || $domainIdList->isEmpty() || ! Schema::hasTable('visits')) {
+            return $rows->map(fn (array $row) => $this->withPaidIdentityDefaults($row));
+        }
+
+        $select = ['ip', 'visited_at'];
+        foreach ([
+            'device_id',
+            'browser_id',
+            'visitor_id',
+            'fingerprint_id',
+            'paid_identity_id',
+            'identity_confidence',
+            'ads_detections',
+            'action_taken',
+        ] as $col) {
+            if (Schema::hasColumn('visits', $col)) {
+                $select[] = $col;
+            }
+        }
+
+        $metaByIp = [];
+        $visitRows = DB::table('visits')
+            ->whereIn('domain_id', $domainIdList->all())
+            ->whereIn('ip', $ips->all())
+            ->orderByDesc('visited_at')
+            ->get($select);
+
+        foreach ($visitRows as $visit) {
+            $ip = (string) ($visit->ip ?? '');
+            if ($ip === '' || isset($metaByIp[$ip])) {
+                continue;
+            }
+
+            $ads = $visit->ads_detections ?? null;
+            if (is_string($ads)) {
+                $ads = json_decode($ads, true);
+            }
+            $ads = is_array($ads) ? $ads : [];
+            $primary = null;
+            $primaryPoints = -1;
+            foreach ($ads as $rule) {
+                if (! is_array($rule)) {
+                    continue;
+                }
+                $code = (string) ($rule['rule_code'] ?? $rule['code'] ?? '');
+                if ($code === '') {
+                    continue;
+                }
+                $points = (int) ($rule['base_points'] ?? $rule['points'] ?? 0);
+                if ($points >= $primaryPoints) {
+                    $primaryPoints = $points;
+                    $primary = $code;
+                }
+            }
+
+            $confidence = isset($visit->identity_confidence) && is_numeric($visit->identity_confidence)
+                ? (float) $visit->identity_confidence
+                : null;
+
+            $metaByIp[$ip] = [
+                'device_id' => filled($visit->device_id ?? null) ? (string) $visit->device_id : null,
+                'browser_id' => filled($visit->browser_id ?? null) ? (string) $visit->browser_id : null,
+                'visitor_id' => filled($visit->visitor_id ?? null) ? (string) $visit->visitor_id : null,
+                'fingerprint_id' => filled($visit->fingerprint_id ?? null) ? (string) $visit->fingerprint_id : null,
+                'paid_identity_id' => filled($visit->paid_identity_id ?? null) ? (string) $visit->paid_identity_id : null,
+                'identity_confidence' => $confidence,
+                'identity_confidence_label' => $this->identityConfidenceLabel($confidence),
+                'primary_detection' => $primary,
+                'triggered_rules_count' => count($ads),
+                'latest_action_taken' => filled($visit->action_taken ?? null) ? (string) $visit->action_taken : null,
+            ];
+        }
+
+        $clicks60ByIp = [];
+        $clicks60ByPid = [];
+        if (Schema::hasTable('click_windows')) {
+            $windowRows = DB::table('click_windows')
+                ->whereIn('domain_id', $domainIdList->all())
+                ->where('window_key', '60m')
+                ->where(function ($q) use ($ips, $metaByIp): void {
+                    $q->where(function ($inner) use ($ips): void {
+                        $inner->where('entity_type', 'ip')->whereIn('entity_id', $ips->all());
+                    });
+                    $pids = collect($metaByIp)->pluck('paid_identity_id')->filter()->unique()->values();
+                    if ($pids->isNotEmpty()) {
+                        $q->orWhere(function ($inner) use ($pids): void {
+                            $inner->where('entity_type', 'paid_identity')->whereIn('entity_id', $pids->all());
+                        });
+                    }
+                })
+                ->get(['entity_type', 'entity_id', 'click_count']);
+
+            foreach ($windowRows as $win) {
+                $count = (int) ($win->click_count ?? 0);
+                if (($win->entity_type ?? '') === 'ip') {
+                    $clicks60ByIp[(string) $win->entity_id] = max($clicks60ByIp[(string) $win->entity_id] ?? 0, $count);
+                }
+                if (($win->entity_type ?? '') === 'paid_identity') {
+                    $clicks60ByPid[(string) $win->entity_id] = max($clicks60ByPid[(string) $win->entity_id] ?? 0, $count);
+                }
+            }
+        }
+
+        return $rows->map(function (array $row) use ($metaByIp, $clicks60ByIp, $clicks60ByPid) {
+            $ip = (string) ($row['ip'] ?? '');
+            $meta = $metaByIp[$ip] ?? [];
+            $pid = $meta['paid_identity_id'] ?? null;
+            $clicks60 = max(
+                (int) ($clicks60ByIp[$ip] ?? 0),
+                $pid ? (int) ($clicks60ByPid[$pid] ?? 0) : 0,
+            );
+
+            $actionHint = (string) ($meta['latest_action_taken'] ?? $row['action'] ?? '');
+
+            return array_merge($this->withPaidIdentityDefaults($row), $meta, [
+                'clicks_60m' => $clicks60 > 0 ? $clicks60 : (int) ($row['total'] ?? 0),
+                'ip_exclusion' => $this->ipExclusionLabel(
+                    $actionHint,
+                    (string) ($meta['primary_detection'] ?? ''),
+                ),
+                'block_scope' => in_array(strtolower($actionHint), ['block', 'blocked'], true) ? 'Device' : null,
+            ]);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function withPaidIdentityDefaults(array $row): array
+    {
+        $row['device_id'] = $row['device_id'] ?? null;
+        $row['browser_id'] = $row['browser_id'] ?? null;
+        $row['visitor_id'] = $row['visitor_id'] ?? null;
+        $row['fingerprint_id'] = $row['fingerprint_id'] ?? null;
+        $row['paid_identity_id'] = $row['paid_identity_id'] ?? null;
+        $row['identity_confidence'] = $row['identity_confidence'] ?? null;
+        $row['identity_confidence_label'] = $row['identity_confidence_label']
+            ?? $this->identityConfidenceLabel(
+                is_numeric($row['identity_confidence'] ?? null) ? (float) $row['identity_confidence'] : null
+            );
+        $row['primary_detection'] = $row['primary_detection'] ?? null;
+        $row['triggered_rules_count'] = $row['triggered_rules_count'] ?? 0;
+        $row['clicks_60m'] = $row['clicks_60m'] ?? (int) ($row['total'] ?? 0);
+        $row['ip_exclusion'] = $row['ip_exclusion'] ?? 'Not needed';
+        $row['block_scope'] = $row['block_scope'] ?? null;
+
+        return $row;
+    }
+
+    private function identityConfidenceLabel(?float $confidence): string
+    {
+        if ($confidence === null) {
+            return 'Unknown';
+        }
+        if ($confidence >= 0.95) {
+            return 'Very High';
+        }
+        if ($confidence >= 0.85) {
+            return 'High';
+        }
+        if ($confidence >= 0.70) {
+            return 'Medium';
+        }
+        if ($confidence >= 0.40) {
+            return 'Low';
+        }
+
+        return 'Unknown';
+    }
+
+    private function ipExclusionLabel(string $action, string $primaryDetection = ''): string
+    {
+        $action = strtolower(trim($action));
+        if (in_array($action, ['block', 'blocked'], true) || str_contains(strtoupper($primaryDetection), 'REPEAT')) {
+            return 'Queued';
+        }
+
+        return 'Not needed';
     }
 
     /**
