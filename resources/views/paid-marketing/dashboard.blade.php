@@ -494,11 +494,18 @@
     .paid-hrisk-table tr { cursor: pointer; }
     .paid-hrisk-table tr:hover td { background: rgba(255, 255, 255, 0.03); }
 
-    /* Recent Paid Traffic — avoid table-fixed % crush on Expert View */
+    /* Recent Paid Traffic table */
+    .paid-traffic-wrap {
+        margin-top: 6px;
+        max-height: 365px;
+        overflow: auto;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+    }
     .paid-traffic-table {
-        width: max-content;
-        min-width: 100%;
-        border-collapse: collapse;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
         table-layout: auto;
         text-align: left;
         font-size: 11px;
@@ -506,53 +513,74 @@
     }
     .paid-traffic-table th,
     .paid-traffic-table td {
-        padding: 7px 10px;
+        padding: 8px 10px;
         vertical-align: middle;
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
         box-sizing: border-box;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     }
     .paid-traffic-table thead th {
         position: sticky;
         top: 0;
-        z-index: 2;
+        z-index: 4;
         background: #6400B2;
         color: #fff;
         font-weight: 500;
+        line-height: 1.2;
     }
     .paid-traffic-table th .promotix-sortable {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         white-space: nowrap;
         max-width: none;
+        color: inherit;
     }
-    /* Basic View: remove Expert cols from layout (x-show on td/th leaves gaps) */
+    /* Proper column hide for Basic View (avoids blank header gaps) */
+    .paid-traffic-table[data-ip-view="basic"] col.pt-expert,
     .paid-traffic-table[data-ip-view="basic"] .pt-expert {
-        display: none !important;
+        visibility: collapse;
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
+        overflow: hidden !important;
     }
-    .paid-traffic-table .pt-col-ip { min-width: 132px; max-width: 150px; }
-    .paid-traffic-table .pt-col-device { min-width: 126px; max-width: 150px; }
-    .paid-traffic-table .pt-col-conf { min-width: 92px; }
-    .paid-traffic-table .pt-col-num { min-width: 72px; }
-    .paid-traffic-table .pt-col-detect { min-width: 140px; max-width: 180px; }
-    .paid-traffic-table .pt-col-risk { min-width: 88px; }
-    .paid-traffic-table .pt-col-action { min-width: 78px; }
-    .paid-traffic-table .pt-col-excl { min-width: 96px; }
-    .paid-traffic-table .pt-col-campaign { min-width: 150px; max-width: 200px; }
-    .paid-traffic-table .pt-col-pid { min-width: 120px; max-width: 140px; }
-    .paid-traffic-table .pt-col-fp { min-width: 110px; max-width: 130px; }
-    .paid-traffic-table .pt-col-time { min-width: 118px; }
+    .paid-traffic-table .pt-col-ip { min-width: 124px; width: 124px; }
+    .paid-traffic-table .pt-col-device { min-width: 118px; }
+    .paid-traffic-table .pt-col-conf { min-width: 88px; }
+    .paid-traffic-table .pt-col-num { min-width: 70px; }
+    .paid-traffic-table .pt-col-detect { min-width: 150px; max-width: 190px; }
+    .paid-traffic-table .pt-col-risk { min-width: 84px; }
+    .paid-traffic-table .pt-col-action { min-width: 72px; }
+    .paid-traffic-table .pt-col-excl { min-width: 92px; }
+    .paid-traffic-table .pt-col-campaign { min-width: 140px; }
+    .paid-traffic-table .pt-col-pid { min-width: 110px; }
+    .paid-traffic-table .pt-col-fp { min-width: 100px; }
+    .paid-traffic-table .pt-col-time { min-width: 110px; }
     .paid-traffic-table th.pt-sticky-ip,
     .paid-traffic-table td.pt-sticky-ip {
         position: sticky;
         left: 0;
-        z-index: 3;
     }
-    .paid-traffic-table th.pt-sticky-ip { background: #6400B2; }
-    .paid-traffic-table td.pt-sticky-ip { background: #0f0e0e; }
-    .paid-traffic-table tbody tr:hover td.pt-sticky-ip { background: #161515; }
-    html.light-mode .paid-traffic-table td.pt-sticky-ip { background: #fff; }
-    html.light-mode .paid-traffic-table tbody tr:hover td.pt-sticky-ip { background: #f7f5fb; }
+    .paid-traffic-table th.pt-sticky-ip {
+        z-index: 6;
+        background: #6400B2 !important;
+        box-shadow: 2px 0 0 #5a00a0;
+    }
+    .paid-traffic-table td.pt-sticky-ip {
+        z-index: 3;
+        background: #111111 !important;
+        box-shadow: 2px 0 6px rgba(0, 0, 0, 0.35);
+    }
+    .paid-traffic-table tbody tr:hover td.pt-sticky-ip {
+        background: #1a1a1a !important;
+    }
+    html.light-mode .paid-traffic-table td.pt-sticky-ip { background: #fff !important; }
+    html.light-mode .paid-traffic-table tbody tr:hover td.pt-sticky-ip { background: #f7f5fb !important; }
     .paid-score-high { color: #f87171; font-weight: 600; }
     .paid-score-medium { color: #fb923c; font-weight: 600; }
     .paid-score-low { color: #86efac; font-weight: 600; }
@@ -998,8 +1026,8 @@
 
         {{-- Recent Paid Traffic (full width) --}}
         <section class="paid-engine-card mt-[15px]">
-            <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[10px]">
-                <div class="flex flex-wrap items-center gap-[10px]">
+            <div class="mb-[6px] flex flex-wrap items-center justify-between gap-[8px]">
+                <div class="flex flex-wrap items-center gap-[8px]">
                     <h2 class="text-[18px] font-semibold leading-none text-[#a9a9a9] sm:text-[22px]">Recent Paid Traffic</h2>
                     <div class="flex rounded-[6px] border border-white/15 bg-black/30 p-[2px] text-[10px]">
                         <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'basic' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'basic'">Basic View</button>
@@ -1023,8 +1051,25 @@
                     </select>
                 </div>
             </div>
-            <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
-                <table class="paid-traffic-table" :data-ip-view="ipViewMode" :style="ipViewMode === 'expert' ? 'min-width: 1780px' : 'min-width: 1180px'">
+            <div class="paid-traffic-wrap promotix-slim-scroll">
+                <table class="paid-traffic-table" :data-ip-view="ipViewMode">
+                    <colgroup>
+                        <col class="pt-col-ip">
+                        <col class="pt-col-device">
+                        <col class="pt-col-conf">
+                        <col class="pt-col-num">
+                        <col class="pt-col-num">
+                        <col class="pt-col-num">
+                        <col class="pt-col-num">
+                        <col class="pt-col-detect">
+                        <col class="pt-col-risk">
+                        <col class="pt-col-action">
+                        <col class="pt-col-excl">
+                        <col class="pt-expert pt-col-campaign">
+                        <col class="pt-expert pt-col-pid">
+                        <col class="pt-expert pt-col-fp">
+                        <col class="pt-expert pt-col-time">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th class="pt-col-ip pt-sticky-ip">
@@ -1063,7 +1108,7 @@
                             <tr class="cursor-pointer transition hover:bg-white/5" @click="openIpModal(row)">
                                 <td class="pt-col-ip pt-sticky-ip">
                                     <span class="flex items-center gap-[4px]">
-                                        <span class="block max-w-[130px] truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
+                                        <span class="block max-w-[110px] truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
                                         <span x-show="row.is_allowlisted" class="shrink-0 rounded-[3px] bg-emerald-500/20 px-[4px] py-[1px] text-[8px] font-semibold uppercase text-emerald-300">WL</span>
                                     </span>
                                 </td>
@@ -1073,7 +1118,7 @@
                                 <td class="pt-col-num text-white/90" x-text="fmt(row.clicks_60m ?? row.total)"></td>
                                 <td class="pt-col-num text-rose-300" x-text="fmt(row.invalid)"></td>
                                 <td class="pt-col-num text-emerald-300" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
-                                <td class="pt-col-detect text-[10px] text-white/85" :title="row.primary_detection || threatsLabel(row)" x-text="row.primary_detection || threatsLabel(row)"></td>
+                                <td class="pt-col-detect max-w-[190px] truncate text-[10px] text-white/85" :title="row.primary_detection || threatsLabel(row)" x-text="row.primary_detection || threatsLabel(row)"></td>
                                 <td class="pt-col-risk">
                                     <span class="paid-risk-badge" :class="riskBadgeClass(row.risk_level)" x-text="(row.risk_level || '—') + (row.risk_score != null ? ' ' + row.risk_score : '')"></span>
                                 </td>
@@ -1780,13 +1825,13 @@ function paidAdvertisingFigma(config = {}) {
         googleSyncMs: 300000,
         watermarkMs: 20000,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
-        staggerMs: 3000,
+        staggerMs: 1000,
         reloadGeneration: 0,
         sleep(ms) {
             return new Promise((resolve) => setTimeout(resolve, ms));
         },
         /**
-         * Fire jobs 3s apart (start stagger) — do not wait for one to finish before starting the next.
+         * Fire jobs 1s apart (start stagger) — do not wait for one to finish before starting the next.
          * Each job applies its own slice so cards/tables populate progressively.
          */
         async runStaggered(jobs) {

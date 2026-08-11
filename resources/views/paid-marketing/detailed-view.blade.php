@@ -1409,7 +1409,7 @@
 
         return {
             debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
-            staggerMs: 3000,
+            staggerMs: 1000,
             fetchGeneration: 0,
             fetchTimer: null,
             loading: false,
@@ -1796,7 +1796,7 @@
                     this.filters.from = fmt(start);
                     this.filters.to = fmt(today);
                 }
-                // Progressive load: KPI summary → (+3s) table → (+3s) campaigns
+                // Progressive load: KPI summary → (+1s) table → (+1s) campaigns
                 this.fetchNow();
                 window.addEventListener('promotix:date-range', () => {
                     this.syncHeaderDates();
