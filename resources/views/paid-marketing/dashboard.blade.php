@@ -493,6 +493,63 @@
     .paid-hrisk-table tr:last-child td { border-bottom: 0; }
     .paid-hrisk-table tr { cursor: pointer; }
     .paid-hrisk-table tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+    /* Recent Paid Traffic — avoid table-fixed % crush on Expert View */
+    .paid-traffic-table {
+        width: max-content;
+        min-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: auto;
+        text-align: left;
+        font-size: 11px;
+        color: #a9a9a9;
+    }
+    .paid-traffic-table th,
+    .paid-traffic-table td {
+        padding: 7px 10px;
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        box-sizing: border-box;
+    }
+    .paid-traffic-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #6400B2;
+        color: #fff;
+        font-weight: 500;
+    }
+    .paid-traffic-table th .promotix-sortable {
+        white-space: nowrap;
+        max-width: none;
+    }
+    .paid-traffic-table .pt-col-ip { min-width: 132px; max-width: 150px; }
+    .paid-traffic-table .pt-col-device { min-width: 126px; max-width: 150px; }
+    .paid-traffic-table .pt-col-conf { min-width: 92px; }
+    .paid-traffic-table .pt-col-num { min-width: 72px; }
+    .paid-traffic-table .pt-col-detect { min-width: 140px; max-width: 180px; }
+    .paid-traffic-table .pt-col-risk { min-width: 88px; }
+    .paid-traffic-table .pt-col-action { min-width: 78px; }
+    .paid-traffic-table .pt-col-excl { min-width: 96px; }
+    .paid-traffic-table .pt-col-campaign { min-width: 150px; max-width: 200px; }
+    .paid-traffic-table .pt-col-pid { min-width: 120px; max-width: 140px; }
+    .paid-traffic-table .pt-col-fp { min-width: 110px; max-width: 130px; }
+    .paid-traffic-table .pt-col-time { min-width: 118px; }
+    .paid-traffic-table th.pt-sticky-ip,
+    .paid-traffic-table td.pt-sticky-ip {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+    }
+    .paid-traffic-table th.pt-sticky-ip { background: #6400B2; }
+    .paid-traffic-table td.pt-sticky-ip { background: #0f0e0e; }
+    .paid-traffic-table tbody tr:hover td.pt-sticky-ip { background: #161515; }
+    html.light-mode .paid-traffic-table td.pt-sticky-ip { background: #fff; }
+    html.light-mode .paid-traffic-table tbody tr:hover td.pt-sticky-ip { background: #f7f5fb; }
     .paid-score-high { color: #f87171; font-weight: 600; }
     .paid-score-medium { color: #fb923c; font-weight: 600; }
     .paid-score-low { color: #86efac; font-weight: 600; }
@@ -964,65 +1021,65 @@
                 </div>
             </div>
             <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
-                <table class="w-full table-fixed text-left text-[11px] text-[#a9a9a9]" :class="ipViewMode === 'expert' ? 'min-w-[1680px]' : 'min-w-[1280px]'">
-                    <thead class="sticky top-0 z-[1] bg-[#6400B2]">
+                <table class="paid-traffic-table" :style="ipViewMode === 'expert' ? 'min-width: 1780px' : 'min-width: 1180px'">
+                    <thead>
                         <tr>
-                            <th class="sticky left-0 z-[2] w-[12%] bg-[#6400B2] px-[8px] py-[7px] font-normal">
+                            <th class="pt-col-ip pt-sticky-ip">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('ip')" @click="setIpSort('ip')"><span>IP Address</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
-                            <th class="w-[10%] px-[8px] py-[7px] font-normal">Device ID</th>
-                            <th class="w-[8%] px-[8px] py-[7px] font-normal">Identity Conf.</th>
-                            <th class="w-[7%] px-[8px] py-[7px] font-normal">
+                            <th class="pt-col-device">Device ID</th>
+                            <th class="pt-col-conf">Identity Conf.</th>
+                            <th class="pt-col-num">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('total')" @click="setIpSort('total')"><span>Paid Clicks</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
-                            <th class="w-[7%] px-[8px] py-[7px] font-normal">Clicks 60m</th>
-                            <th class="w-[6%] px-[8px] py-[7px] font-normal">
+                            <th class="pt-col-num">Clicks 60m</th>
+                            <th class="pt-col-num">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('invalid')" @click="setIpSort('invalid')"><span>Invalid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
-                            <th class="w-[6%] px-[8px] py-[7px] font-normal">
+                            <th class="pt-col-num">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('valid')" @click="setIpSort('valid')"><span>Valid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
-                            <th class="w-[11%] px-[8px] py-[7px] font-normal">Primary Detection</th>
-                            <th class="w-[8%] px-[8px] py-[7px] font-normal">
+                            <th class="pt-col-detect">Primary Detection</th>
+                            <th class="pt-col-risk">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('risk_score')" @click="setIpSort('risk_score')"><span>Risk</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
-                            <th class="w-[7%] px-[8px] py-[7px] font-normal">Block</th>
-                            <th class="w-[8%] px-[8px] py-[7px] font-normal">IP Exclusion</th>
-                            <th class="w-[10%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">
+                            <th class="pt-col-action">Block</th>
+                            <th class="pt-col-excl">IP Exclusion</th>
+                            <th class="pt-col-campaign" x-show="ipViewMode === 'expert'">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('campaign')" @click="setIpSort('campaign')"><span>Campaign</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
-                            <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">PID</th>
-                            <th class="w-[9%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'" title="Same fingerprint as Advanced / Detailed View">Fingerprint</th>
-                            <th class="w-[8%] px-[8px] py-[7px] font-normal" x-show="ipViewMode === 'expert'">
+                            <th class="pt-col-pid" x-show="ipViewMode === 'expert'">PID</th>
+                            <th class="pt-col-fp" x-show="ipViewMode === 'expert'" title="Same fingerprint as Advanced / Detailed View">Fingerprint</th>
+                            <th class="pt-col-time" x-show="ipViewMode === 'expert'">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')" title="When invalid/paid evidence was last recorded for this IP"><span>Last Click</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-white/15">
+                    <tbody>
                         <template x-for="row in sortedIps" :key="row.ip">
-                            <tr class="cursor-pointer align-middle transition hover:bg-white/5" @click="openIpModal(row)">
-                                <td class="sticky left-0 z-[1] max-w-0 bg-[#0f0e0e] px-[8px] py-[6px]">
+                            <tr class="cursor-pointer transition hover:bg-white/5" @click="openIpModal(row)">
+                                <td class="pt-col-ip pt-sticky-ip">
                                     <span class="flex items-center gap-[4px]">
-                                        <span class="block truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
+                                        <span class="block max-w-[130px] truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
                                         <span x-show="row.is_allowlisted" class="shrink-0 rounded-[3px] bg-emerald-500/20 px-[4px] py-[1px] text-[8px] font-semibold uppercase text-emerald-300">WL</span>
                                     </span>
                                 </td>
-                                <td class="max-w-0 truncate px-[8px] py-[6px] font-mono text-[9px] text-white/90" :title="row.device_id || ''" x-text="row.device_id || '—'"></td>
-                                <td class="px-[8px] py-[6px] whitespace-nowrap text-[10px]" x-text="row.identity_confidence_label || 'Unknown'"></td>
-                                <td class="px-[8px] py-[6px] whitespace-nowrap text-white" x-text="fmt(row.total)"></td>
-                                <td class="px-[8px] py-[6px] whitespace-nowrap text-white/90" x-text="fmt(row.clicks_60m ?? row.total)"></td>
-                                <td class="px-[8px] py-[6px] whitespace-nowrap text-rose-300" x-text="fmt(row.invalid)"></td>
-                                <td class="px-[8px] py-[6px] whitespace-nowrap text-emerald-300" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
-                                <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px] text-white/85" :title="row.primary_detection || threatsLabel(row)" x-text="row.primary_detection || threatsLabel(row)"></td>
-                                <td class="px-[8px] py-[6px] whitespace-nowrap">
+                                <td class="pt-col-device font-mono text-[9px] text-white/90" :title="row.device_id || ''" x-text="row.device_id || '—'"></td>
+                                <td class="pt-col-conf text-[10px]" x-text="row.identity_confidence_label || 'Unknown'"></td>
+                                <td class="pt-col-num text-white" x-text="fmt(row.total)"></td>
+                                <td class="pt-col-num text-white/90" x-text="fmt(row.clicks_60m ?? row.total)"></td>
+                                <td class="pt-col-num text-rose-300" x-text="fmt(row.invalid)"></td>
+                                <td class="pt-col-num text-emerald-300" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
+                                <td class="pt-col-detect text-[10px] text-white/85" :title="row.primary_detection || threatsLabel(row)" x-text="row.primary_detection || threatsLabel(row)"></td>
+                                <td class="pt-col-risk">
                                     <span class="paid-risk-badge" :class="riskBadgeClass(row.risk_level)" x-text="(row.risk_level || '—') + (row.risk_score != null ? ' ' + row.risk_score : '')"></span>
                                 </td>
-                                <td class="px-[8px] py-[6px] whitespace-nowrap" x-text="row.action || '—'"></td>
-                                <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px]" x-text="row.ip_exclusion || 'Not needed'"></td>
-                                <td class="max-w-0 truncate px-[8px] py-[6px] text-[10px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
-                                <td class="max-w-0 truncate px-[8px] py-[6px] font-mono text-[9px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.paid_identity_id || ''" x-text="row.paid_identity_id || '—'"></td>
-                                <td class="max-w-0 truncate px-[8px] py-[6px] font-mono text-[9px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.fingerprint_id || row.device_fingerprint || ''" x-text="fingerprintLabel(row.fingerprint_id || row.device_fingerprint)"></td>
-                                <td class="whitespace-nowrap px-[8px] py-[6px] text-[10px] text-white/85" x-show="ipViewMode === 'expert'" :title="evidenceTimeTitle(row)" x-text="evidenceTimeLabel(row)"></td>
+                                <td class="pt-col-action" x-text="row.action || '—'"></td>
+                                <td class="pt-col-excl text-[10px]" x-text="row.ip_exclusion || 'Not needed'"></td>
+                                <td class="pt-col-campaign text-[10px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
+                                <td class="pt-col-pid font-mono text-[9px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.paid_identity_id || ''" x-text="row.paid_identity_id || '—'"></td>
+                                <td class="pt-col-fp font-mono text-[9px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.fingerprint_id || row.device_fingerprint || ''" x-text="fingerprintLabel(row.fingerprint_id || row.device_fingerprint)"></td>
+                                <td class="pt-col-time text-[10px] text-white/85" x-show="ipViewMode === 'expert'" :title="evidenceTimeTitle(row)" x-text="evidenceTimeLabel(row)"></td>
                             </tr>
                         </template>
                         <tr x-show="sortedIps.length === 0"><td colspan="15" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid traffic for this campaign in the selected date range.' : 'No paid traffic yet for the selected domain(s) and date range.'"></td></tr>
