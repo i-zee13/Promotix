@@ -498,8 +498,7 @@
     .paid-traffic-table {
         width: max-content;
         min-width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
+        border-collapse: collapse;
         table-layout: auto;
         text-align: left;
         font-size: 11px;
@@ -526,6 +525,10 @@
     .paid-traffic-table th .promotix-sortable {
         white-space: nowrap;
         max-width: none;
+    }
+    /* Basic View: remove Expert cols from layout (x-show on td/th leaves gaps) */
+    .paid-traffic-table[data-ip-view="basic"] .pt-expert {
+        display: none !important;
     }
     .paid-traffic-table .pt-col-ip { min-width: 132px; max-width: 150px; }
     .paid-traffic-table .pt-col-device { min-width: 126px; max-width: 150px; }
@@ -1021,7 +1024,7 @@
                 </div>
             </div>
             <div class="promotix-slim-scroll max-h-[365px] overflow-x-auto overflow-y-auto rounded-[4px] border border-white/15">
-                <table class="paid-traffic-table" :style="ipViewMode === 'expert' ? 'min-width: 1780px' : 'min-width: 1180px'">
+                <table class="paid-traffic-table" :data-ip-view="ipViewMode" :style="ipViewMode === 'expert' ? 'min-width: 1780px' : 'min-width: 1180px'">
                     <thead>
                         <tr>
                             <th class="pt-col-ip pt-sticky-ip">
@@ -1045,12 +1048,12 @@
                             </th>
                             <th class="pt-col-action">Block</th>
                             <th class="pt-col-excl">IP Exclusion</th>
-                            <th class="pt-col-campaign" x-show="ipViewMode === 'expert'">
+                            <th class="pt-col-campaign pt-expert">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('campaign')" @click="setIpSort('campaign')"><span>Campaign</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
-                            <th class="pt-col-pid" x-show="ipViewMode === 'expert'">PID</th>
-                            <th class="pt-col-fp" x-show="ipViewMode === 'expert'" title="Same fingerprint as Advanced / Detailed View">Fingerprint</th>
-                            <th class="pt-col-time" x-show="ipViewMode === 'expert'">
+                            <th class="pt-col-pid pt-expert">PID</th>
+                            <th class="pt-col-fp pt-expert" title="Same fingerprint as Advanced / Detailed View">Fingerprint</th>
+                            <th class="pt-col-time pt-expert">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')" title="When invalid/paid evidence was last recorded for this IP"><span>Last Click</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
                             </th>
                         </tr>
@@ -1076,13 +1079,17 @@
                                 </td>
                                 <td class="pt-col-action" x-text="row.action || '—'"></td>
                                 <td class="pt-col-excl text-[10px]" x-text="row.ip_exclusion || 'Not needed'"></td>
-                                <td class="pt-col-campaign text-[10px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
-                                <td class="pt-col-pid font-mono text-[9px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.paid_identity_id || ''" x-text="row.paid_identity_id || '—'"></td>
-                                <td class="pt-col-fp font-mono text-[9px] text-white/85" x-show="ipViewMode === 'expert'" :title="row.fingerprint_id || row.device_fingerprint || ''" x-text="fingerprintLabel(row.fingerprint_id || row.device_fingerprint)"></td>
-                                <td class="pt-col-time text-[10px] text-white/85" x-show="ipViewMode === 'expert'" :title="evidenceTimeTitle(row)" x-text="evidenceTimeLabel(row)"></td>
+                                <td class="pt-col-campaign pt-expert text-[10px] text-white/85" :title="row.campaign || ''" x-text="row.campaign || '—'"></td>
+                                <td class="pt-col-pid pt-expert font-mono text-[9px] text-white/85" :title="row.paid_identity_id || ''" x-text="row.paid_identity_id || '—'"></td>
+                                <td class="pt-col-fp pt-expert font-mono text-[9px] text-white/85" :title="row.fingerprint_id || row.device_fingerprint || ''" x-text="fingerprintLabel(row.fingerprint_id || row.device_fingerprint)"></td>
+                                <td class="pt-col-time pt-expert text-[10px] text-white/85" :title="evidenceTimeTitle(row)" x-text="evidenceTimeLabel(row)"></td>
                             </tr>
                         </template>
-                        <tr x-show="sortedIps.length === 0"><td colspan="15" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid traffic for this campaign in the selected date range.' : 'No paid traffic yet for the selected domain(s) and date range.'"></td></tr>
+                        <template x-if="sortedIps.length === 0">
+                            <tr>
+                                <td colspan="15" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid traffic for this campaign in the selected date range.' : 'No paid traffic yet for the selected domain(s) and date range.'"></td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>
@@ -1161,11 +1168,38 @@
                                     <p class="figma-modal-value capitalize" x-text="ipModal.row?.device || activeIpClick.device || '—'"></p>
                                 </div>
                                 <div class="figma-modal-field">
-                                    <p class="figma-modal-label">Device ID</p>
+                                    <div class="figma-modal-field__head">
+                                        <p class="figma-modal-label">Device ID</p>
+                                        <button type="button" class="figma-modal-copy-btn" x-show="activeIpClick.device_id || ipModal.row?.device_id" @click="copyText(activeIpClick.device_id || ipModal.row?.device_id)">Copy</button>
+                                    </div>
                                     <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm" :title="activeIpClick.device_id || ipModal.row?.device_id || ''" x-text="activeIpClick.device_id || ipModal.row?.device_id || '—'"></p>
                                 </div>
                                 <div class="figma-modal-field">
-                                    <p class="figma-modal-label">Paid Identity</p>
+                                    <div class="figma-modal-field__head">
+                                        <p class="figma-modal-label">Visitor ID</p>
+                                        <button type="button" class="figma-modal-copy-btn" x-show="activeIpClick.visitor_id || ipModal.row?.visitor_id" @click="copyText(activeIpClick.visitor_id || ipModal.row?.visitor_id)">Copy</button>
+                                    </div>
+                                    <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm" :title="activeIpClick.visitor_id || ipModal.row?.visitor_id || ''" x-text="activeIpClick.visitor_id || ipModal.row?.visitor_id || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <div class="figma-modal-field__head">
+                                        <p class="figma-modal-label">Browser ID</p>
+                                        <button type="button" class="figma-modal-copy-btn" x-show="activeIpClick.browser_id || ipModal.row?.browser_id" @click="copyText(activeIpClick.browser_id || ipModal.row?.browser_id)">Copy</button>
+                                    </div>
+                                    <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm" :title="activeIpClick.browser_id || ipModal.row?.browser_id || ''" x-text="activeIpClick.browser_id || ipModal.row?.browser_id || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <div class="figma-modal-field__head">
+                                        <p class="figma-modal-label">Fingerprint ID</p>
+                                        <button type="button" class="figma-modal-copy-btn" x-show="activeIpClick.fingerprint_id || ipModal.row?.fingerprint_id || ipModal.row?.device_fingerprint" @click="copyText(activeIpClick.fingerprint_id || ipModal.row?.fingerprint_id || ipModal.row?.device_fingerprint)">Copy</button>
+                                    </div>
+                                    <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm" :title="activeIpClick.fingerprint_id || ipModal.row?.fingerprint_id || ipModal.row?.device_fingerprint || ''" x-text="activeIpClick.fingerprint_id || ipModal.row?.fingerprint_id || fingerprintLabel(ipModal.row?.device_fingerprint) || '—'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <div class="figma-modal-field__head">
+                                        <p class="figma-modal-label">Paid Identity</p>
+                                        <button type="button" class="figma-modal-copy-btn" x-show="activeIpClick.paid_identity_id || ipModal.row?.paid_identity_id" @click="copyText(activeIpClick.paid_identity_id || ipModal.row?.paid_identity_id)">Copy</button>
+                                    </div>
                                     <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm" :title="activeIpClick.paid_identity_id || ipModal.row?.paid_identity_id || ''" x-text="activeIpClick.paid_identity_id || ipModal.row?.paid_identity_id || '—'"></p>
                                 </div>
                                 <div class="figma-modal-field">
@@ -1746,6 +1780,31 @@ function paidAdvertisingFigma(config = {}) {
         googleSyncMs: 300000,
         watermarkMs: 20000,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
+        staggerMs: 3000,
+        reloadGeneration: 0,
+        sleep(ms) {
+            return new Promise((resolve) => setTimeout(resolve, ms));
+        },
+        /**
+         * Fire jobs 3s apart (start stagger) — do not wait for one to finish before starting the next.
+         * Each job applies its own slice so cards/tables populate progressively.
+         */
+        async runStaggered(jobs) {
+            const generation = ++this.reloadGeneration;
+            const pending = [];
+            for (let i = 0; i < jobs.length; i++) {
+                if (generation !== this.reloadGeneration) break;
+                if (i > 0) await this.sleep(this.staggerMs);
+                if (generation !== this.reloadGeneration) break;
+                pending.push((async () => {
+                    try {
+                        await jobs[i]();
+                    } catch (e) { /* keep previous slice */ }
+                })());
+            }
+            await Promise.all(pending);
+            return generation === this.reloadGeneration;
+        },
         scheduleReload() {
             clearTimeout(this.reloadTimer);
             this.reloadTimer = setTimeout(() => this.reload(false, true), this.debounceMs);
@@ -1933,65 +1992,77 @@ function paidAdvertisingFigma(config = {}) {
             this.reloadInFlight = true;
             try {
                 const qs = this.qs(forceGoogle);
+                const ipsQs = this.ipsQueryString();
 
-                // Phase 1 — top KPI row (summary + campaigns) in parallel
-                const [summary, campaignsRaw] = await Promise.all([
-                    fetch(`/paid-marketing/summary?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json()),
+                const ok = await this.runStaggered([
+                    async () => {
+                        const summary = await fetch(`/paid-marketing/summary?${qs}`).then(r => r.json());
+                        this.summary = summary;
+                        this.lastSummaryFingerprint = JSON.stringify({
+                            paid_visits: summary?.paid_visits,
+                            invalid_paid_visits: summary?.invalid_paid_visits,
+                            total_click_count: summary?.total_click_count,
+                            google_clicks: summary?.google_clicks,
+                            tag_paid_visits: summary?.tag_paid_visits,
+                            block_attempts: summary?.block_attempts,
+                            block_enforced: summary?.block_enforced,
+                            flagged_paid_visits: summary?.flagged_paid_visits,
+                            invalid_reconciliation: summary?.invalid_reconciliation,
+                        });
+                        if (summary?.timezone_context?.reporting_timezone) {
+                            this.userTimezone = summary.timezone_context.reporting_timezone;
+                        }
+                        this.syncPaidTimezoneHeader();
+                    },
+                    async () => {
+                        const campaignsRaw = await fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json());
+                        this.campaigns = Array.isArray(campaignsRaw) ? campaignsRaw : (campaignsRaw.campaigns || []);
+                        this.untaggedDomains = Array.isArray(campaignsRaw) ? [] : (campaignsRaw.untagged_domains || []);
+                        this.syncCampaignFilter();
+                    },
+                    async () => {
+                        this.trends = await fetch(`/paid-marketing/trends?${qs}`).then(r => r.json());
+                        await this.$nextTick();
+                        this.render(false);
+                    },
+                    async () => {
+                        const keywords = await fetch(`/paid-marketing/keywords?${qs}`).then(r => r.json());
+                        this.keywords = Array.isArray(keywords) ? keywords : [];
+                    },
+                    async () => {
+                        const countries = await fetch(`/paid-marketing/countries?${qs}`).then(r => r.json());
+                        this.countries = Array.isArray(countries) ? countries : [];
+                        await this.$nextTick();
+                        this.render(false);
+                    },
+                    async () => {
+                        const heatmap = await fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json());
+                        this.heatmap = heatmap && typeof heatmap === 'object' ? heatmap : { days: [], hours: [], matrix: [] };
+                        await this.$nextTick();
+                        this.render(false);
+                    },
+                    async () => {
+                        this.blocking = await fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json());
+                    },
+                    async () => {
+                        const ips = await fetch(`/paid-marketing/ips?${ipsQs}`).then(r => r.json());
+                        this.ips = Array.isArray(ips) ? ips : (ips?.data || []);
+                        this.lastReloadAt = Date.now();
+                    },
+                    async () => {
+                        try {
+                            const wm = await fetch(`/paid-marketing/watermark?${qs}`).then(r => r.json());
+                            this.lastWatermarkId = wm.last_id;
+                            this.lastWatermarkCount = wm.count;
+                            this.lastWatermarkVersion = wm.version || `${wm.last_id || 0}:${wm.count || 0}:${wm.domains_sig || ''}`;
+                        } catch (e) { /* next poll will seed */ }
+                    },
                 ]);
-                this.summary = summary;
-                this.lastSummaryFingerprint = JSON.stringify({
-                    paid_visits: summary?.paid_visits,
-                    invalid_paid_visits: summary?.invalid_paid_visits,
-                    total_click_count: summary?.total_click_count,
-                    google_clicks: summary?.google_clicks,
-                    tag_paid_visits: summary?.tag_paid_visits,
-                    block_attempts: summary?.block_attempts,
-                    block_enforced: summary?.block_enforced,
-                    flagged_paid_visits: summary?.flagged_paid_visits,
-                    invalid_reconciliation: summary?.invalid_reconciliation,
-                });
-                if (summary?.timezone_context?.reporting_timezone) {
-                    this.userTimezone = summary.timezone_context.reporting_timezone;
+
+                if (ok) {
+                    await this.$nextTick();
+                    this.render(false);
                 }
-                this.campaigns = Array.isArray(campaignsRaw) ? campaignsRaw : (campaignsRaw.campaigns || []);
-                this.untaggedDomains = Array.isArray(campaignsRaw) ? [] : (campaignsRaw.untagged_domains || []);
-                this.syncCampaignFilter();
-                this.syncPaidTimezoneHeader();
-                await this.$nextTick();
-
-                // Phase 2 — charts row (trends / heatmap / keywords) + countries chart data
-                const [trends, keywords, countries, heatmap] = await Promise.all([
-                    fetch(`/paid-marketing/trends?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/keywords?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/countries?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json()),
-                ]);
-                this.trends = trends;
-                this.keywords = Array.isArray(keywords) ? keywords : [];
-                this.countries = Array.isArray(countries) ? countries : [];
-                this.heatmap = heatmap && typeof heatmap === 'object' ? heatmap : { days: [], hours: [], matrix: [] };
-                await this.$nextTick();
-                this.render(false);
-
-                // Phase 3 — bottom protection / IP tables
-                const [blocking, ips] = await Promise.all([
-                    fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json()),
-                    fetch(`/paid-marketing/ips?${this.ipsQueryString()}`).then(r => r.json()),
-                ]);
-                this.blocking = blocking;
-                this.ips = Array.isArray(ips) ? ips : (ips?.data || []);
-                this.lastReloadAt = Date.now();
-                await this.$nextTick();
-                this.render(false);
-                await this.$nextTick();
-                // Keep watermark baseline aligned after successful reload.
-                try {
-                    const wm = await fetch(`/paid-marketing/watermark?${qs}`).then(r => r.json());
-                    this.lastWatermarkId = wm.last_id;
-                    this.lastWatermarkCount = wm.count;
-                    this.lastWatermarkVersion = wm.version || `${wm.last_id || 0}:${wm.count || 0}:${wm.domains_sig || ''}`;
-                } catch (e) { /* next poll will seed */ }
             } catch (e) {
                 /* keep previous dashboard state */
             } finally {

@@ -1409,6 +1409,8 @@
 
         return {
             debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
+            staggerMs: 3000,
+            fetchGeneration: 0,
             fetchTimer: null,
             loading: false,
             filterMenuOpen: false,
@@ -1794,7 +1796,7 @@
                     this.filters.from = fmt(start);
                     this.filters.to = fmt(today);
                 }
-                this.loadCampaignsForDomain();
+                // Progressive load: KPI summary → (+3s) table → (+3s) campaigns
                 this.fetchNow();
                 window.addEventListener('promotix:date-range', () => {
                     this.syncHeaderDates();
@@ -1806,6 +1808,58 @@
                     const row = this.rows.find((r) => String(r.id) === String(visit.id)) || visit;
                     this.openClicks(row);
                 });
+            },
+            sleep(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            },
+            async runStaggered(jobs) {
+                const generation = ++this.fetchGeneration;
+                const pending = [];
+                for (let i = 0; i < jobs.length; i++) {
+                    if (generation !== this.fetchGeneration) break;
+                    if (i > 0) await this.sleep(this.staggerMs);
+                    if (generation !== this.fetchGeneration) break;
+                    pending.push((async () => {
+                        try {
+                            await jobs[i]();
+                        } catch (e) { /* keep previous slice */ }
+                    })());
+                }
+                await Promise.all(pending);
+                return generation === this.fetchGeneration;
+            },
+            kpiCardsFromSummary(summary) {
+                const googleClicks = Number(summary?.total_click_count ?? summary?.google_clicks ?? 0);
+                const tracked = Number(summary?.tracked_clicks ?? summary?.unique_paid_clicks ?? 0);
+                const valid = Number(summary?.unique_valid_paid_clicks ?? summary?.valid_paid_visits ?? 0);
+                const invalid = Number(summary?.unique_invalid_paid_clicks ?? summary?.invalid_paid_visits ?? 0);
+                const blocked = Number(summary?.block_enforced ?? summary?.block_attempts ?? summary?.blocked_paid_visits ?? 0);
+                const costSaved = Number(summary?.cost_saved ?? 0);
+                const trackingAccuracy = Number(summary?.tracking_accuracy_pct ?? summary?.tag_capture_pct ?? 0);
+                const pctBase = tracked > 0 ? tracked : Math.max(valid + invalid, 0);
+                const validPct = pctBase > 0 ? ((valid / pctBase) * 100).toFixed(1) : '0.0';
+                const invalidPct = pctBase > 0 ? ((invalid / pctBase) * 100).toFixed(1) : '0.0';
+                const googleNeedsReconnect = Boolean(summary?.google_needs_reconnect);
+                const reconnectUrl = summary?.google_reconnect_url || '{{ route('integrations.google.redirect') }}';
+                const fmt = (n) => Number(n || 0).toLocaleString();
+                return [
+                    {
+                        key: 'total',
+                        label: 'Total Clicks (Google Ads)',
+                        value: fmt(googleClicks),
+                        sub: googleNeedsReconnect
+                            ? 'Google sync blocked — reconnect Ads'
+                            : (tracked > 0 ? (`Tracked ${tracked}`) : 'Imported from Google Ads'),
+                        tone: 'purple',
+                        show_reconnect: googleNeedsReconnect,
+                        reconnect_url: reconnectUrl,
+                    },
+                    { key: 'valid', label: 'Valid Clicks', value: fmt(valid), sub: `${validPct}% of tracked clicks`, tone: 'green' },
+                    { key: 'invalid', label: 'Invalid Clicks', value: fmt(invalid), sub: `${invalidPct}% of tracked clicks`, tone: 'rose' },
+                    { key: 'blocked', label: 'Blocked Clicks', value: fmt(blocked), sub: 'Blocked by protection', tone: 'rose' },
+                    { key: 'waste', label: 'Estimated Waste Prevented', value: `$${Number(costSaved || 0).toFixed(2)}`, sub: 'Saved from invalid traffic', tone: 'green' },
+                    { key: 'risk', label: 'Tracking Accuracy', value: `${trackingAccuracy}%`, sub: `Tracked clicks ${tracked}`, tone: 'amber' },
+                ];
             },
             syncHeaderDates() {
                 try {
@@ -1912,59 +1966,76 @@
             async fetchNow() {
                 this.loading = true;
                 window.promotixPageLoader?.show('Loading Advanced View…');
+                const qs = this.queryString();
                 try {
-                    const qs = this.queryString();
-                    const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
-                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    });
-                    if (!res.ok) {
-                        const msg = res.status === 403
-                            ? 'Request blocked (403). Try a shorter date range — All time can be heavy.'
-                            : `Failed to load visits (${res.status}).`;
-                        throw new Error(msg);
-                    }
-                    const data = await res.json();
-                    this.rows = data.rows || [];
-                    this.statCards = data.stats?.cards || [];
-                    this.kpiCards = data.stats?.kpis || [];
-                    const charts = data.stats?.charts || {};
-                    this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
-                    this.chartRisk = charts.risk || { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' };
-                    this.chartCountries = charts.countries || [];
-                    this.highRiskIps = charts.high_risk_ips || [];
-                    this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
-                    this.timezoneContext = data.timezone_context || null;
-                    if (this.timezoneContext?.reporting_timezone) {
-                        this.reportingTimezone = this.timezoneContext.reporting_timezone;
-                    }
-                    this.syncPaidTimezoneHeader();
-                    // Auto-catch highest-risk IP for rightbar (no manual select required).
-                    const rank = (r) => {
-                        let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
-                        if (score > 0 && score < 1) score *= 100;
-                        if (!Number.isFinite(score)) score = 0;
-                        if (r.ip_is_blocked) score += 40;
-                        if (r.intel_vpn === 'Yes' || Number(r.vpn_hits) > 0) score += 15;
-                        if (r.intel_datacenter === 'Yes' || Number(r.data_center_hits) > 0) score += 15;
-                        if (Number(r.invalid_clicks) > 0) score += 10;
-                        if (r.threat_group) score += 8;
-                        return score;
-                    };
-                    let best = null;
-                    let bestScore = -1;
-                    for (const row of this.rows) {
-                        const s = rank(row);
-                        if (s > bestScore) {
-                            bestScore = s;
-                            best = row;
-                        }
-                    }
-                    if (best && bestScore > 0) {
-                        this.publishInvestigation(best);
-                    } else if (this.highRiskIps[0]?.id) {
-                        const visit = this.rows.find((r) => String(r.id) === String(this.highRiskIps[0].id));
-                        if (visit) this.publishInvestigation(visit);
-                    }
+                    await this.runStaggered([
+                        async () => {
+                            const summary = await fetch(`/paid-marketing/summary?${qs}`, {
+                                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            }).then((r) => r.json());
+                            this.kpiCards = this.kpiCardsFromSummary(summary || {});
+                            if (summary?.timezone_context?.reporting_timezone) {
+                                this.reportingTimezone = summary.timezone_context.reporting_timezone;
+                                this.timezoneContext = summary.timezone_context;
+                                this.syncPaidTimezoneHeader();
+                            }
+                        },
+                        async () => {
+                            const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
+                                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            });
+                            if (!res.ok) {
+                                const msg = res.status === 403
+                                    ? 'Request blocked (403). Try a shorter date range — All time can be heavy.'
+                                    : `Failed to load visits (${res.status}).`;
+                                throw new Error(msg);
+                            }
+                            const data = await res.json();
+                            this.rows = data.rows || [];
+                            this.statCards = data.stats?.cards || [];
+                            this.kpiCards = data.stats?.kpis || this.kpiCards;
+                            const charts = data.stats?.charts || {};
+                            this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
+                            this.chartRisk = charts.risk || { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' };
+                            this.chartCountries = charts.countries || [];
+                            this.highRiskIps = charts.high_risk_ips || [];
+                            this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
+                            this.timezoneContext = data.timezone_context || this.timezoneContext;
+                            if (this.timezoneContext?.reporting_timezone) {
+                                this.reportingTimezone = this.timezoneContext.reporting_timezone;
+                            }
+                            this.syncPaidTimezoneHeader();
+                            const rank = (r) => {
+                                let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
+                                if (score > 0 && score < 1) score *= 100;
+                                if (!Number.isFinite(score)) score = 0;
+                                if (r.ip_is_blocked) score += 40;
+                                if (r.intel_vpn === 'Yes' || Number(r.vpn_hits) > 0) score += 15;
+                                if (r.intel_datacenter === 'Yes' || Number(r.data_center_hits) > 0) score += 15;
+                                if (Number(r.invalid_clicks) > 0) score += 10;
+                                if (r.threat_group) score += 8;
+                                return score;
+                            };
+                            let best = null;
+                            let bestScore = -1;
+                            for (const row of this.rows) {
+                                const s = rank(row);
+                                if (s > bestScore) {
+                                    bestScore = s;
+                                    best = row;
+                                }
+                            }
+                            if (best && bestScore > 0) {
+                                this.publishInvestigation(best);
+                            } else if (this.highRiskIps[0]?.id) {
+                                const visit = this.rows.find((r) => String(r.id) === String(this.highRiskIps[0].id));
+                                if (visit) this.publishInvestigation(visit);
+                            }
+                        },
+                        async () => {
+                            await this.loadCampaignsForDomain();
+                        },
+                    ]);
                 } catch (e) {
                     console.error(e);
                     this.rows = [];

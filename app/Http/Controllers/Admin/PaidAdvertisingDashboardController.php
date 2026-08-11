@@ -1765,9 +1765,20 @@ class PaidAdvertisingDashboardController extends Controller
 
     private function ipExclusionLabel(string $action, string $primaryDetection = ''): string
     {
-        $action = strtolower(trim($action));
-        if (in_array($action, ['block', 'blocked'], true) || str_contains(strtoupper($primaryDetection), 'REPEAT')) {
+        // Only claim Google exclusion queue when paid ADS primary rule fired —
+        // legacy bot/IP blocks must not all read as "Queued".
+        $primary = strtoupper(trim($primaryDetection));
+        if ($primary !== '' && (
+            str_starts_with($primary, 'ADS_')
+            || str_contains($primary, 'REPEAT')
+            || str_contains($primary, 'GCLID')
+        )) {
             return 'Queued';
+        }
+
+        $action = strtolower(trim($action));
+        if (in_array($action, ['block', 'blocked'], true)) {
+            return 'Not needed';
         }
 
         return 'Not needed';
