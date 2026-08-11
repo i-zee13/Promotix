@@ -243,6 +243,30 @@ class VisitProtectionService
             'reasons' => $detection['reasons'],
         ];
 
+        if (! empty($detection['paid_identity']) && is_array($detection['paid_identity'])) {
+            $payload['paid_identity'] = $detection['paid_identity'];
+            $payload['identity_confidence'] = $detection['paid_identity']['identity_confidence'] ?? null;
+        }
+        if (! empty($detection['ads_detections']) && is_array($detection['ads_detections'])) {
+            $payload['triggered_rules'] = array_values(array_map(
+                fn ($row) => (string) ($row['rule_code'] ?? ''),
+                $detection['ads_detections']
+            ));
+            $payload['ads_detections'] = $detection['ads_detections'];
+            $payload['ads_ruleset_version'] = $detection['ads_ruleset_version'] ?? null;
+            $payload['block_scope'] = $detection['block_scope'] ?? null;
+        }
+        if (! empty($detection['traffic_status'])) {
+            $payload['traffic_status'] = $detection['traffic_status'];
+        }
+        if (isset($detection['paid_risk_score'])) {
+            $payload['paid_risk_score'] = $detection['paid_risk_score'];
+        }
+        if (isset($detection['ip_exclusion_status'])) {
+            $payload['ip_exclusion_status'] = $detection['ip_exclusion_status'];
+            $payload['ip_exclusion_eligible'] = (bool) ($detection['ip_exclusion_eligible'] ?? false);
+        }
+
         if ($recordSession) {
             $payload['record_session'] = true;
             $payload['recording_ms'] = 10000;

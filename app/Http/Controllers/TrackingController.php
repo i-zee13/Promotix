@@ -16,6 +16,8 @@ use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
 use App\Support\GoogleAdsClickRedirect;
 use App\Support\GoogleClickAttribution;
+use App\Support\PaidAdvertising\PaidAdvertisingPipeline;
+use App\Support\PaidAdvertising\ResolvedPaidIdentity;
 use App\Support\SessionBehaviorAnalyzer;
 use App\Support\SessionBehaviorFingerprint;
 use App\Support\UserTimezone;
@@ -324,6 +326,60 @@ class TrackingController extends Controller
         $captchaRequired = $protection->shouldEnforceCaptcha($domain, $detection, $ip);
         $skipVisitLog = $protection->shouldSkipOrganicRepeatVisit($domain, $sessionId, $isPaidTraffic, $visitedAt);
 
+        $paidId = (string) ($googleClick['id'] ?? '');
+        $duplicatePaidClick = $isPaidTraffic
+            && $paidId !== ''
+            && $this->paidClickIdExists($domain->id, $paidId);
+
+        $paidIdentity = null;
+        $adsDetections = [];
+        $ipExclusionEligible = false;
+        if ($isPaidTraffic) {
+            try {
+                $pipeline = app(PaidAdvertisingPipeline::class);
+                $clientFp = isset($data['fingerprint']) ? (string) $data['fingerprint'] : (
+                    isset($data['behavior_fingerprint']) ? (string) $data['behavior_fingerprint'] : null
+                );
+                $paidEnrichment = $pipeline->enrichPaidDetection(
+                    $request,
+                    $domain,
+                    $ip,
+                    $sessionId,
+                    $detection,
+                    $clientFp,
+                    [
+                        'paid_id' => $paidId !== '' ? $paidId : null,
+                        'click_type' => $googleClick['type'] ?? null,
+                        'duplicate_paid_click' => $duplicatePaidClick,
+                        'is_paid_traffic' => true,
+                    ],
+                );
+                $paidIdentity = $paidEnrichment['identity'];
+                $adsDetections = $paidEnrichment['detections'];
+                $detection = $paidEnrichment['detection'];
+                $ipExclusionEligible = (bool) ($paidEnrichment['exclusion']['eligible'] ?? false);
+                if (($detection['action_taken'] ?? '') === 'block') {
+                    $enforceBlock = $protection->shouldEnforceBlock($domain, $detection, $isPaidTraffic, $ip);
+                }
+                $captchaRequired = $protection->shouldEnforceCaptcha($domain, $detection, $ip);
+                foreach ($pipeline->cookiesFor($paidIdentity) as $cookie) {
+                    cookie()->queue(cookie(
+                        $cookie['name'],
+                        $cookie['value'],
+                        $cookie['minutes'],
+                        '/',
+                        null,
+                        $request->isSecure(),
+                        false,
+                        false,
+                        'Lax'
+                    ));
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
         $resolvedCountry = $country ?? $ipLog->intel_country_code ?? $ipLog->intel_country_name;
         $visitCountryCode = CountryValue::forVisitsTable($ipLog, $country);
         $displayCountry = CountryValue::forDisplay($ipLog, $country);
@@ -339,11 +395,6 @@ class TrackingController extends Controller
         $domain->save();
 
         $campaignAttribution = CampaignAttributionResolver::resolve($domain, $data);
-
-        $paidId = (string) ($googleClick['id'] ?? '');
-        $duplicatePaidClick = $isPaidTraffic
-            && $paidId !== ''
-            && $this->paidClickIdExists($domain->id, $paidId);
 
         $trackingConfidence = $this->resolveTrackingConfidence((string) ($data['click_source'] ?? 'tag'));
 
@@ -371,6 +422,8 @@ class TrackingController extends Controller
             $duplicatePaidClick,
             $enforceBlock,
             $trackingConfidence,
+            $paidIdentity,
+            $adsDetections,
         ): void {
         if ($isPaidTraffic) {
             // Paid marketing funnel: Google click IDs (gclid / gbraid / wbraid) only.
@@ -511,7 +564,44 @@ class TrackingController extends Controller
                 $visitPayload['ad_click_meta'] = json_encode($data['ad_click_meta']);
             }
 
+            if ($paidIdentity instanceof ResolvedPaidIdentity) {
+                if (Schema::hasColumn('visits', 'visitor_id')) {
+                    $visitPayload['visitor_id'] = $paidIdentity->visitorId;
+                }
+                if (Schema::hasColumn('visits', 'browser_id')) {
+                    $visitPayload['browser_id'] = $paidIdentity->browserId;
+                }
+                if (Schema::hasColumn('visits', 'device_id')) {
+                    $visitPayload['device_id'] = $paidIdentity->deviceId;
+                }
+                if (Schema::hasColumn('visits', 'fingerprint_id')) {
+                    $visitPayload['fingerprint_id'] = $paidIdentity->fingerprintId;
+                }
+                if (Schema::hasColumn('visits', 'paid_identity_id')) {
+                    $visitPayload['paid_identity_id'] = $paidIdentity->publicId;
+                }
+                if (Schema::hasColumn('visits', 'identity_confidence')) {
+                    $visitPayload['identity_confidence'] = $paidIdentity->confidence;
+                }
+            }
+            if (Schema::hasColumn('visits', 'ads_detections') && $adsDetections !== []) {
+                $visitPayload['ads_detections'] = json_encode($adsDetections);
+            }
+
             $visitId = DB::table('visits')->insertGetId($visitPayload);
+
+            if ($isPaidTraffic && $paidIdentity instanceof ResolvedPaidIdentity && ! $duplicatePaidClick) {
+                try {
+                    app(PaidAdvertisingPipeline::class)->recordClick(
+                        $domain,
+                        $ip,
+                        $paidIdentity,
+                        $campaignAttribution['campaign'] ?? null,
+                    );
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
         }
         });
 
@@ -592,12 +682,17 @@ class TrackingController extends Controller
                 $logRow['risk_level'] = $detection['risk_level'] ?? null;
             }
             if (Schema::hasColumn('detection_logs', 'clickronix_breakdown')) {
-                $logRow['clickronix_breakdown'] = isset($detection['clickronix'])
-                    ? json_encode($detection['clickronix'])
-                    : null;
+                $breakdown = is_array($detection['clickronix'] ?? null) ? $detection['clickronix'] : [];
+                if (! empty($detection['ads_detections'])) {
+                    $breakdown['ads_detections'] = $detection['ads_detections'];
+                    $breakdown['paid_identity'] = $detection['paid_identity'] ?? null;
+                    $breakdown['ads_ruleset_version'] = $detection['ads_ruleset_version'] ?? null;
+                }
+                $logRow['clickronix_breakdown'] = $breakdown !== [] ? json_encode($breakdown) : null;
             }
             if (Schema::hasColumn('detection_logs', 'ruleset_version')) {
-                $logRow['ruleset_version'] = $detection['clickronix']['ruleset_version'] ?? null;
+                $logRow['ruleset_version'] = $detection['ads_ruleset_version']
+                    ?? ($detection['clickronix']['ruleset_version'] ?? null);
             }
 
             DB::table('detection_logs')->insert($logRow);
@@ -607,6 +702,7 @@ class TrackingController extends Controller
             $detection['action_taken'] === 'block'
             && ! $protection->isAllowListed($domain, $ip)
             && $isPaidTraffic
+            && $ipExclusionEligible
         ) {
             app(GoogleAudienceExclusionService::class)->queueBlockedIpIfEligible(
                 $domain,
@@ -614,6 +710,9 @@ class TrackingController extends Controller
                 $detection['threat_group'] ?? null,
                 isPaidTraffic: true,
             );
+        } elseif ($isPaidTraffic && ($detection['action_taken'] ?? '') === 'block' && ! $ipExclusionEligible) {
+            // Identity may still be blocked on-site; Google IP exclusion suppressed by safety gate.
+            $detection['ip_exclusion_status'] = $detection['ip_exclusion_status'] ?? 'suppressed';
         }
 
         $clientPayload = $protection->clientPayload(
