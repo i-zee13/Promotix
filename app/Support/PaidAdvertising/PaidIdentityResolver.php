@@ -29,10 +29,17 @@ class PaidIdentityResolver
     ): ResolvedPaidIdentity {
         $visitorId = $this->readOrCreateCookieId($request, self::COOKIE_VISITOR);
         $browserId = $this->readOrCreateCookieId($request, self::COOKIE_BROWSER);
-        $fingerprintId = $this->fingerprintId($request, $clientFingerprint, $browserId);
-        $deviceId = $this->deviceId($fingerprintId, $browserId, $request);
+        $fingerprintId = PaidDeviceFingerprinter::fingerprintId(
+            $clientFingerprint,
+            $browserId,
+            $request->userAgent(),
+            $request->header('Accept-Language'),
+        );
+        $deviceId = PaidDeviceFingerprinter::deviceId($fingerprintId, $request->userAgent());
 
         [$confidence, $band] = $this->confidence($visitorId, $browserId, $fingerprintId, $clientFingerprint);
+        $fpSimilarity = 1.0;
+        $rematched = false;
 
         if (! $this->tableReady('paid_identities')) {
             return new ResolvedPaidIdentity(
@@ -43,6 +50,7 @@ class PaidIdentityResolver
                 fingerprintId: $fingerprintId,
                 confidence: $confidence,
                 confidenceBand: $band,
+                fpSimilarity: $fpSimilarity,
             );
         }
 
@@ -54,7 +62,19 @@ class PaidIdentityResolver
             $fingerprintId,
             $confidence,
             $band,
+            $clientFingerprint,
         );
+
+        if (! empty($row->_rematched_via_fingerprint)) {
+            $rematched = true;
+            $fpSimilarity = (float) ($row->_fp_similarity ?? 1.0);
+            // Cookie churn but same fingerprint → treat as high confidence rematch.
+            if (PaidDeviceFingerprinter::isHighSimilarity($fpSimilarity)) {
+                $confidence = max($confidence, 0.93);
+                $band = $confidence >= 0.95 ? 'very_high' : 'high';
+            }
+            $deviceId = (string) ($row->device_id ?: $deviceId);
+        }
 
         $this->touchLinks($row->id, [
             'visitor' => $visitorId,
@@ -71,10 +91,12 @@ class PaidIdentityResolver
             browserId: $browserId,
             deviceId: $deviceId,
             fingerprintId: $fingerprintId,
-            confidence: (float) $row->identity_confidence,
-            confidenceBand: (string) $row->confidence_band,
+            confidence: max($confidence, (float) $row->identity_confidence),
+            confidenceBand: $band,
             knownFraud: (bool) $row->known_fraud,
             rowId: (int) $row->id,
+            fpSimilarity: $fpSimilarity,
+            rematchedViaFingerprint: $rematched,
         );
     }
 
@@ -110,31 +132,17 @@ class PaidIdentityResolver
 
     private function fingerprintId(Request $request, ?string $clientFingerprint, string $browserId): string
     {
-        $client = trim((string) $clientFingerprint);
-        if ($client !== '') {
-            return 'FP_'.strtoupper(substr(hash('sha256', $client), 0, 12));
-        }
-
-        $ua = (string) $request->userAgent();
-        $lang = (string) $request->header('Accept-Language', '');
-        $basis = $browserId.'|'.$ua.'|'.$lang;
-
-        return 'FP_'.strtoupper(substr(hash('sha256', $basis), 0, 12));
+        return PaidDeviceFingerprinter::fingerprintId(
+            $clientFingerprint,
+            $browserId,
+            $request->userAgent(),
+            $request->header('Accept-Language'),
+        );
     }
 
     private function deviceId(string $fingerprintId, string $browserId, Request $request): string
     {
-        // Phase A: device = stable hash of fingerprint + coarse UA family (not IP).
-        $ua = strtolower((string) $request->userAgent());
-        $family = 'other';
-        foreach (['iphone', 'ipad', 'android', 'windows', 'mac os', 'linux', 'cros'] as $needle) {
-            if (str_contains($ua, $needle)) {
-                $family = str_replace(' ', '', $needle);
-                break;
-            }
-        }
-
-        return 'DEV_'.strtoupper(substr(hash('sha256', $fingerprintId.'|'.$family.'|'.$browserId), 0, 12));
+        return PaidDeviceFingerprinter::deviceId($fingerprintId, $request->userAgent());
     }
 
     /**
@@ -166,7 +174,43 @@ class PaidIdentityResolver
         string $fingerprintId,
         float $confidence,
         string $band,
+        ?string $clientFingerprint = null,
     ): object {
+        // 1) Exact fingerprint rematch (cookie Visitor/Browser reset, same device telemetry).
+        $byFingerprint = DB::table('paid_identities')
+            ->where('domain_id', $domainId)
+            ->where('fingerprint_id', $fingerprintId)
+            ->orderByDesc('last_seen_at')
+            ->first();
+
+        if ($byFingerprint) {
+            $sameCookies = ((string) $byFingerprint->visitor_id === $visitorId)
+                && ((string) $byFingerprint->browser_id === $browserId);
+            $similarity = $sameCookies ? 1.0 : 0.96;
+            if (filled($clientFingerprint)) {
+                $similarity = max($similarity, 1.0);
+            }
+
+            DB::table('paid_identities')->where('id', $byFingerprint->id)->update([
+                'visitor_id' => $visitorId,
+                'browser_id' => $browserId,
+                // Keep stable device id from first sighting when rematching by FP.
+                'device_id' => $byFingerprint->device_id ?: $deviceId,
+                'fingerprint_id' => $fingerprintId,
+                'identity_confidence' => max((float) $byFingerprint->identity_confidence, $confidence),
+                'confidence_band' => $confidence >= (float) $byFingerprint->identity_confidence ? $band : $byFingerprint->confidence_band,
+                'last_seen_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $fresh = DB::table('paid_identities')->where('id', $byFingerprint->id)->first();
+
+            return (object) array_merge((array) $fresh, [
+                '_rematched_via_fingerprint' => ! $sameCookies,
+                '_fp_similarity' => $similarity,
+            ]);
+        }
+
         $existing = DB::table('paid_identities')
             ->where('domain_id', $domainId)
             ->where(function ($q) use ($deviceId, $browserId, $visitorId) {
@@ -191,7 +235,12 @@ class PaidIdentityResolver
                 'updated_at' => $now,
             ]);
 
-            return DB::table('paid_identities')->where('id', $existing->id)->first();
+            $fresh = DB::table('paid_identities')->where('id', $existing->id)->first();
+
+            return (object) array_merge((array) $fresh, [
+                '_rematched_via_fingerprint' => false,
+                '_fp_similarity' => 1.0,
+            ]);
         }
 
         $publicId = 'PID_'.strtoupper(Str::random(10));
@@ -211,7 +260,12 @@ class PaidIdentityResolver
             'updated_at' => $now,
         ]);
 
-        return DB::table('paid_identities')->where('id', $id)->first();
+        $fresh = DB::table('paid_identities')->where('id', $id)->first();
+
+        return (object) array_merge((array) $fresh, [
+            '_rematched_via_fingerprint' => false,
+            '_fp_similarity' => 1.0,
+        ]);
     }
 
     /**

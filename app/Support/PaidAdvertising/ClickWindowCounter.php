@@ -91,6 +91,43 @@ class ClickWindowCounter
     }
 
     /**
+     * Distinct calendar days with paid clicks for a device / identity (Manual persistent-repeat).
+     */
+    public function distinctPaidDays(
+        int $domainId,
+        ?string $deviceId,
+        ?string $paidIdentityPublicId,
+        int $lookbackDays = 14,
+    ): int {
+        if (! $this->tableReady('visits') || ! $this->columnReady('visits', 'visited_at')) {
+            return 0;
+        }
+
+        $since = now()->subDays(max(1, $lookbackDays));
+        $q = DB::table('visits')
+            ->where('domain_id', $domainId)
+            ->where('is_paid_traffic', true)
+            ->where('visited_at', '>=', $since);
+
+        $q->where(function ($match) use ($deviceId, $paidIdentityPublicId): void {
+            $has = false;
+            if ($deviceId && $this->columnReady('visits', 'device_id')) {
+                $match->orWhere('device_id', $deviceId);
+                $has = true;
+            }
+            if ($paidIdentityPublicId && $this->columnReady('visits', 'paid_identity_id')) {
+                $match->orWhere('paid_identity_id', $paidIdentityPublicId);
+                $has = true;
+            }
+            if (! $has) {
+                $match->whereRaw('1=0');
+            }
+        });
+
+        return (int) $q->selectRaw('COUNT(DISTINCT DATE(visited_at)) as days')->value('days');
+    }
+
+    /**
      * @return array<string, int>
      */
     public function countsFor(int $domainId, string $entityType, string $entityId, Carbon $now): array

@@ -16,6 +16,7 @@ class AdsRepeatEvaluator
     /**
      * @param  array{ip: array<string,int>, browser: array<string,int>, device: array<string,int>, paid_identity: array<string,int>}  $windows
      * @param  array<string, int|bool>  $thresholds DetectionProfiles thresholds
+     * @param  array{repeat_days?: int}  $context
      * @return list<array{
      *   rule_code: string,
      *   decision_type: string,
@@ -26,7 +27,7 @@ class AdsRepeatEvaluator
      *   evidence: array<string, mixed>
      * }>
      */
-    public function evaluate(ResolvedPaidIdentity $identity, array $windows, array $thresholds = []): array
+    public function evaluate(ResolvedPaidIdentity $identity, array $windows, array $thresholds = [], array $context = []): array
     {
         $profile = $this->campaignProfile($thresholds);
         $triggered = [];
@@ -40,10 +41,20 @@ class AdsRepeatEvaluator
         $identityClicksInclCurrent = $id60 + 1;
         $ip60 = ((int) ($windows['ip']['60m'] ?? 0)) + 1;
         $id5 = ((int) ($windows['device']['5m'] ?? 0)) + 1;
+        $id15 = max(
+            (int) ($windows['paid_identity']['15m'] ?? 0),
+            (int) ($windows['device']['15m'] ?? 0),
+            (int) ($windows['browser']['15m'] ?? 0),
+        ) + 1;
         $id24 = max(
             (int) ($windows['paid_identity']['24h'] ?? 0),
             (int) ($windows['device']['24h'] ?? 0),
         ) + 1;
+        $id7d = max(
+            (int) ($windows['paid_identity']['7d'] ?? 0),
+            (int) ($windows['device']['7d'] ?? 0),
+        ) + 1;
+        $repeatDays = (int) ($context['repeat_days'] ?? 0);
 
         // --- IP-only supporting / correlated (never identity-block by itself) ---
         if ($ip60 >= 2 && ! $identity->isMediumOrBetter()) {
@@ -124,6 +135,18 @@ class AdsRepeatEvaluator
             );
         }
 
+        if ($identity->isMediumOrBetter() && $id15 >= 3) {
+            $triggered[] = $this->rule(
+                'ADS_REPEAT_3_15M',
+                'decisive',
+                true,
+                65,
+                75,
+                'block_identity',
+                ['identity_clicks_15m' => $id15]
+            );
+        }
+
         if ($identity->isMediumOrBetter() && $identityClicksInclCurrent >= 4) {
             $triggered[] = $this->rule(
                 'ADS_REPEAT_4_60M',
@@ -148,6 +171,18 @@ class AdsRepeatEvaluator
             );
         }
 
+        if ($identity->isMediumOrBetter() && $id24 >= 8) {
+            $triggered[] = $this->rule(
+                'ADS_REPEAT_8_24H',
+                'correlated',
+                false,
+                60,
+                75,
+                'challenge',
+                ['identity_clicks_24h' => $id24]
+            );
+        }
+
         if ($identity->isHigh() && $id24 >= 10) {
             $triggered[] = $this->rule(
                 'ADS_REPEAT_10_24H',
@@ -157,6 +192,30 @@ class AdsRepeatEvaluator
                 90,
                 'block_identity',
                 ['identity_clicks_24h' => $id24]
+            );
+        }
+
+        if ($identity->isMediumOrBetter() && $id7d >= 20) {
+            $triggered[] = $this->rule(
+                'ADS_REPEAT_20_7D',
+                'correlated',
+                false,
+                70,
+                90,
+                'challenge',
+                ['identity_clicks_7d' => $id7d]
+            );
+        }
+
+        if ($identity->isMediumOrBetter() && $repeatDays >= 3) {
+            $triggered[] = $this->rule(
+                'ADS_PERSISTENT_REPEAT',
+                'correlated',
+                false,
+                40,
+                60,
+                'challenge',
+                ['repeat_days' => $repeatDays]
             );
         }
 

@@ -69,13 +69,37 @@ class PaidAdvertisingPipeline
         );
 
         $thresholds = $this->thresholdsFor($domain);
+        $repeatDays = $this->windows->distinctPaidDays(
+            (int) $domain->id,
+            $identity->deviceId,
+            $identity->publicId,
+        );
         $adsDetections = array_values(array_merge(
-            $this->repeats->evaluate($identity, $snapshot, $thresholds),
+            $this->repeats->evaluate($identity, $snapshot, $thresholds, [
+                'repeat_days' => $repeatDays,
+            ]),
             $this->timing->evaluate((int) $domain->id, $identity, $snapshot),
             $this->attribution->evaluate(array_merge([
                 'is_paid_traffic' => true,
             ], $attribution)),
         ));
+
+        // GPT guidance: high FP rematch after cookie reset should appear in evidence.
+        if ($identity->rematchedViaFingerprint) {
+            $adsDetections[] = [
+                'rule_code' => 'ADS_FP_REMATCH',
+                'decision_type' => 'supporting',
+                'can_block_alone' => false,
+                'base_points' => 0,
+                'max_points' => 0,
+                'recommended_action' => 'monitor',
+                'evidence' => [
+                    'fp_similarity' => $identity->fpSimilarity,
+                    'rematched_via_fingerprint' => true,
+                ],
+                'ruleset_version' => self::RULESET_VERSION,
+            ];
+        }
 
         $merged = $this->mergeIntoDetection($detection, $adsDetections, $identity);
         $exclusion = $this->exclusionGate->evaluate((int) $domain->id, $ip, $identity, $merged);

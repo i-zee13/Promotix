@@ -17,6 +17,8 @@ final class ResolvedPaidIdentity
         public readonly string $confidenceBand,
         public readonly bool $knownFraud = false,
         public readonly ?int $rowId = null,
+        public readonly float $fpSimilarity = 1.0,
+        public readonly bool $rematchedViaFingerprint = false,
     ) {
     }
 
@@ -49,6 +51,8 @@ final class ResolvedPaidIdentity
             'identity_confidence' => $this->confidence,
             'confidence_band' => $this->confidenceBand,
             'known_fraud' => $this->knownFraud,
+            'fp_similarity' => $this->fpSimilarity,
+            'rematched_via_fingerprint' => $this->rematchedViaFingerprint,
         ];
     }
 }
