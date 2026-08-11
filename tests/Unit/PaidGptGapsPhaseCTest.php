@@ -11,17 +11,27 @@ class PaidGptGapsPhaseCTest extends TestCase
 {
     public function test_device_id_stable_when_browser_cookie_resets(): void
     {
-        $fp = PaidDeviceFingerprinter::fingerprintId('canvas:abc|webgl:xyz', 'BROWSER_A', 'Mozilla/5.0 (Linux; Android 14)', 'en-US');
-        $dev1 = PaidDeviceFingerprinter::deviceId($fp, 'Mozilla/5.0 (Linux; Android 14)');
-        $dev2 = PaidDeviceFingerprinter::deviceId($fp, 'Mozilla/5.0 (Linux; Android 14)');
+        $ua = 'Mozilla/5.0 (Linux; Android 14)';
+        $fpClient = PaidDeviceFingerprinter::fingerprintId('canvas:abc|webgl:xyz', 'BROWSER_A', $ua, 'en-US');
+        $dev1 = PaidDeviceFingerprinter::deviceId($fpClient, $ua);
+        $dev2 = PaidDeviceFingerprinter::deviceId($fpClient, $ua);
 
         $this->assertSame($dev1, $dev2);
         $this->assertStringStartsWith('DEV_', $dev1);
 
-        // Different browser cookie must NOT change device when fingerprint is same.
-        $fpB = PaidDeviceFingerprinter::fingerprintId('canvas:abc|webgl:xyz', 'BROWSER_B_RESET', 'Mozilla/5.0 (Linux; Android 14)', 'en-US');
-        $this->assertSame($fp, $fpB);
-        $this->assertSame($dev1, PaidDeviceFingerprinter::deviceId($fpB, 'Mozilla/5.0 (Linux; Android 14)'));
+        // Client FP same → device same even if browser cookie resets.
+        $fpB = PaidDeviceFingerprinter::fingerprintId('canvas:abc|webgl:xyz', 'BROWSER_B_RESET', $ua, 'en-US');
+        $this->assertSame($fpClient, $fpB);
+        $this->assertSame($dev1, PaidDeviceFingerprinter::deviceId($fpB, $ua));
+
+        // Fallback FP (no client fingerprint) must ALSO ignore browser cookie churn.
+        $fpFallbackA = PaidDeviceFingerprinter::fingerprintId(null, 'BROWSER_A', $ua, 'en-US');
+        $fpFallbackB = PaidDeviceFingerprinter::fingerprintId(null, 'BROWSER_NEW', $ua, 'en-US');
+        $this->assertSame($fpFallbackA, $fpFallbackB);
+        $this->assertSame(
+            PaidDeviceFingerprinter::deviceId($fpFallbackA, $ua),
+            PaidDeviceFingerprinter::deviceId($fpFallbackB, $ua)
+        );
     }
 
     public function test_fingerprint_similarity_threshold(): void

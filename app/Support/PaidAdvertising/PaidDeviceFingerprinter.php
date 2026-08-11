@@ -17,7 +17,10 @@ final class PaidDeviceFingerprinter
             return 'FP_'.strtoupper(substr(hash('sha256', $client), 0, 12));
         }
 
-        $basis = $browserId.'|'.((string) $userAgent).'|'.((string) $acceptLanguage);
+        // Fallback must be cookie-independent. Including $browserId here made
+        // FP_/DEV_ rotate every visit when cx_bid was missing / private mode.
+        $basis = 'ua|'.strtolower(trim((string) $userAgent))
+            .'|lang|'.strtolower(trim((string) $acceptLanguage));
 
         return 'FP_'.strtoupper(substr(hash('sha256', $basis), 0, 12));
     }
@@ -25,16 +28,23 @@ final class PaidDeviceFingerprinter
     public static function deviceId(string $fingerprintId, ?string $userAgent): string
     {
         $ua = strtolower((string) $userAgent);
-        $family = 'other';
+        $family = self::uaFamily($ua);
+
+        // Device = fingerprint hash + UA family only.
+        // Never Visitor ID / Browser ID — those are cookies and reset often.
+        return 'DEV_'.strtoupper(substr(hash('sha256', $fingerprintId.'|'.$family), 0, 12));
+    }
+
+    public static function uaFamily(?string $userAgent): string
+    {
+        $ua = strtolower((string) $userAgent);
         foreach (['iphone', 'ipad', 'android', 'windows', 'mac os', 'linux', 'cros'] as $needle) {
             if (str_contains($ua, $needle)) {
-                $family = str_replace(' ', '', $needle);
-                break;
+                return str_replace(' ', '', $needle);
             }
         }
 
-        // Fingerprint + coarse UA family only — cookie churn must not mint a new DEV_*.
-        return 'DEV_'.strtoupper(substr(hash('sha256', $fingerprintId.'|'.$family), 0, 12));
+        return 'other';
     }
 
     /**
