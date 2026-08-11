@@ -1112,8 +1112,12 @@
                                         <span x-show="row.is_allowlisted" class="shrink-0 rounded-[3px] bg-emerald-500/20 px-[4px] py-[1px] text-[8px] font-semibold uppercase text-emerald-300">WL</span>
                                     </span>
                                 </td>
-                                <td class="pt-col-device font-mono text-[9px] text-white/90" :title="row.device_id || ''" x-text="row.device_id || '—'"></td>
-                                <td class="pt-col-conf text-[10px]" x-text="row.identity_confidence_label || 'Unknown'"></td>
+                                <td class="pt-col-device font-mono text-[9px] text-white/90"
+                                    :title="(row.device_id || '') + (row.multi_identity ? (' · ' + (row.distinct_device_count || '?') + ' distinct devices on this IP') : '')"
+                                    x-text="row.device_id_label || row.device_id || '—'"></td>
+                                <td class="pt-col-conf text-[10px]"
+                                    :title="row.multi_identity ? ('IP row: ' + (row.distinct_visitor_count || 0) + ' visitors, ' + (row.distinct_browser_count || 0) + ' browsers, ' + (row.distinct_fingerprint_count || 0) + ' fingerprints') : ''"
+                                    x-text="row.identity_confidence_label || 'Unknown'"></td>
                                 <td class="pt-col-num text-white" x-text="fmt(row.total)"></td>
                                 <td class="pt-col-num text-white/90" x-text="fmt(row.clicks_60m ?? row.total)"></td>
                                 <td class="pt-col-num text-rose-300" x-text="fmt(row.invalid)"></td>

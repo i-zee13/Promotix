@@ -430,6 +430,39 @@ class TagController extends Controller
     }
   }
 
+  // Stable browser fingerprint (NOT cookies). Device ID on server hashes this.
+  function deviceFingerprint(){
+    var key = 'pm_fp_' + domainKey;
+    try {
+      var cached = localStorage.getItem(key);
+      if (cached && cached.length > 8) return cached;
+    } catch (e) {}
+    var parts = [];
+    try {
+      parts.push('ua=' + String(navigator.userAgent || ''));
+      parts.push('lang=' + String(navigator.language || (navigator.languages && navigator.languages[0]) || ''));
+      parts.push('plat=' + String(navigator.platform || ''));
+      parts.push('tz=' + String((Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || ''));
+      parts.push('tzoff=' + String(new Date().getTimezoneOffset()));
+      parts.push('scr=' + String(screen.width || 0) + 'x' + String(screen.height || 0) + 'x' + String(screen.colorDepth || 0));
+      parts.push('aw=' + String(window.screen.availWidth || 0) + 'x' + String(window.screen.availHeight || 0));
+      parts.push('pr=' + String(window.devicePixelRatio || 1));
+      parts.push('hc=' + String(navigator.hardwareConcurrency || 0));
+      parts.push('mem=' + String(navigator.deviceMemory || 0));
+      parts.push('touch=' + String(navigator.maxTouchPoints || 0));
+      parts.push('cookie=' + String(navigator.cookieEnabled ? 1 : 0));
+    } catch (e) {}
+    var raw = parts.join('|');
+    var hash = 0;
+    for (var i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+      hash |= 0;
+    }
+    var fp = 'cfp_' + Math.abs(hash).toString(36) + '_' + String(raw.length);
+    try { localStorage.setItem(key, fp); } catch (e) {}
+    return fp;
+  }
+
   function storedAttribution(key, value){
     var storageKey = 'pm_' + key + '_' + domainKey;
     try {
@@ -518,6 +551,7 @@ class TagController extends Controller
       path: String(location.pathname || ''),
       referrer: String(document.referrer || ''),
       session_id: sessionId(),
+      fingerprint: deviceFingerprint(),
       ts: Date.now()
     };
     try {

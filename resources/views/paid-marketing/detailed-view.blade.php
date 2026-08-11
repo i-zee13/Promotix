@@ -716,7 +716,7 @@
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
                     <label class="relative flex h-[28px] min-w-[200px] max-w-[280px] flex-1 items-center rounded-[6px] bg-white px-[10px]">
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input type="search" placeholder="Search IP or GCLID" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
+                        <input type="search" placeholder="Search IP, GCLID, or Device ID" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
                     </label>
                     <div class="relative" @click.outside="dataFilterMenuOpen = false">
                         <button type="button" @click="dataFilterMenuOpen = !dataFilterMenuOpen; filterMenuOpen = false" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">

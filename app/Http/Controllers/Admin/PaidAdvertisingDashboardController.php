@@ -1655,49 +1655,99 @@ class PaidAdvertisingDashboardController extends Controller
 
         foreach ($visitRows as $visit) {
             $ip = (string) ($visit->ip ?? '');
-            if ($ip === '' || isset($metaByIp[$ip])) {
+            if ($ip === '') {
                 continue;
             }
 
-            $ads = $visit->ads_detections ?? null;
-            if (is_string($ads)) {
-                $ads = json_decode($ads, true);
-            }
-            $ads = is_array($ads) ? $ads : [];
-            $primary = null;
-            $primaryPoints = -1;
-            foreach ($ads as $rule) {
-                if (! is_array($rule)) {
-                    continue;
+            if (! isset($metaByIp[$ip])) {
+                $ads = $visit->ads_detections ?? null;
+                if (is_string($ads)) {
+                    $ads = json_decode($ads, true);
                 }
-                $code = (string) ($rule['rule_code'] ?? $rule['code'] ?? '');
-                if ($code === '') {
-                    continue;
+                $ads = is_array($ads) ? $ads : [];
+                $primary = null;
+                $primaryPoints = -1;
+                foreach ($ads as $rule) {
+                    if (! is_array($rule)) {
+                        continue;
+                    }
+                    $code = (string) ($rule['rule_code'] ?? $rule['code'] ?? '');
+                    if ($code === '') {
+                        continue;
+                    }
+                    $points = (int) ($rule['base_points'] ?? $rule['points'] ?? 0);
+                    if ($points >= $primaryPoints) {
+                        $primaryPoints = $points;
+                        $primary = $code;
+                    }
                 }
-                $points = (int) ($rule['base_points'] ?? $rule['points'] ?? 0);
-                if ($points >= $primaryPoints) {
-                    $primaryPoints = $points;
-                    $primary = $code;
-                }
+
+                $confidence = isset($visit->identity_confidence) && is_numeric($visit->identity_confidence)
+                    ? (float) $visit->identity_confidence
+                    : null;
+
+                $metaByIp[$ip] = [
+                    'device_id' => filled($visit->device_id ?? null) ? (string) $visit->device_id : null,
+                    'browser_id' => filled($visit->browser_id ?? null) ? (string) $visit->browser_id : null,
+                    'visitor_id' => filled($visit->visitor_id ?? null) ? (string) $visit->visitor_id : null,
+                    'fingerprint_id' => filled($visit->fingerprint_id ?? null) ? (string) $visit->fingerprint_id : null,
+                    'paid_identity_id' => filled($visit->paid_identity_id ?? null) ? (string) $visit->paid_identity_id : null,
+                    'identity_confidence' => $confidence,
+                    'identity_confidence_label' => $this->identityConfidenceLabel($confidence),
+                    'primary_detection' => $primary,
+                    'triggered_rules_count' => count($ads),
+                    'latest_action_taken' => filled($visit->action_taken ?? null) ? (string) $visit->action_taken : null,
+                    '_devices' => [],
+                    '_browsers' => [],
+                    '_visitors' => [],
+                    '_fingerprints' => [],
+                    '_pids' => [],
+                ];
             }
 
-            $confidence = isset($visit->identity_confidence) && is_numeric($visit->identity_confidence)
-                ? (float) $visit->identity_confidence
-                : null;
-
-            $metaByIp[$ip] = [
-                'device_id' => filled($visit->device_id ?? null) ? (string) $visit->device_id : null,
-                'browser_id' => filled($visit->browser_id ?? null) ? (string) $visit->browser_id : null,
-                'visitor_id' => filled($visit->visitor_id ?? null) ? (string) $visit->visitor_id : null,
-                'fingerprint_id' => filled($visit->fingerprint_id ?? null) ? (string) $visit->fingerprint_id : null,
-                'paid_identity_id' => filled($visit->paid_identity_id ?? null) ? (string) $visit->paid_identity_id : null,
-                'identity_confidence' => $confidence,
-                'identity_confidence_label' => $this->identityConfidenceLabel($confidence),
-                'primary_detection' => $primary,
-                'triggered_rules_count' => count($ads),
-                'latest_action_taken' => filled($visit->action_taken ?? null) ? (string) $visit->action_taken : null,
-            ];
+            foreach ([
+                '_devices' => 'device_id',
+                '_browsers' => 'browser_id',
+                '_visitors' => 'visitor_id',
+                '_fingerprints' => 'fingerprint_id',
+                '_pids' => 'paid_identity_id',
+            ] as $bag => $col) {
+                $val = trim((string) ($visit->{$col} ?? ''));
+                if ($val !== '') {
+                    $metaByIp[$ip][$bag][$val] = true;
+                }
+            }
         }
+
+        foreach ($metaByIp as $ip => &$meta) {
+            $deviceCount = count($meta['_devices']);
+            $browserCount = count($meta['_browsers']);
+            $visitorCount = count($meta['_visitors']);
+            $fpCount = count($meta['_fingerprints']);
+            $pidCount = count($meta['_pids']);
+            unset($meta['_devices'], $meta['_browsers'], $meta['_visitors'], $meta['_fingerprints'], $meta['_pids']);
+
+            $meta['distinct_device_count'] = $deviceCount;
+            $meta['distinct_browser_count'] = $browserCount;
+            $meta['distinct_visitor_count'] = $visitorCount;
+            $meta['distinct_fingerprint_count'] = $fpCount;
+            $meta['distinct_paid_identity_count'] = $pidCount;
+            $meta['multi_identity'] = $deviceCount > 1 || $fpCount > 1 || $visitorCount > 1 || $browserCount > 1;
+
+            // IP row is not a single-device story — do not show "High" identity when IDs churn.
+            if ($meta['multi_identity']) {
+                $meta['identity_confidence'] = min((float) ($meta['identity_confidence'] ?? 0.55), 0.55);
+                $meta['identity_confidence_label'] = 'Shared IP · '.$deviceCount.' devices';
+                if ($deviceCount > 1 && filled($meta['device_id'])) {
+                    $meta['device_id_label'] = $meta['device_id'].' +'.($deviceCount - 1);
+                } else {
+                    $meta['device_id_label'] = $meta['device_id'];
+                }
+            } else {
+                $meta['device_id_label'] = $meta['device_id'];
+            }
+        }
+        unset($meta);
 
         $clicks60ByIp = [];
         $clicks60ByPid = [];
@@ -1739,14 +1789,19 @@ class PaidAdvertisingDashboardController extends Controller
             );
 
             $actionHint = (string) ($meta['latest_action_taken'] ?? $row['action'] ?? '');
+            $multi = (bool) ($meta['multi_identity'] ?? false);
 
             return array_merge($this->withPaidIdentityDefaults($row), $meta, [
                 'clicks_60m' => $clicks60 > 0 ? $clicks60 : (int) ($row['total'] ?? 0),
                 'ip_exclusion' => $this->ipExclusionLabel(
                     $actionHint,
                     (string) ($meta['primary_detection'] ?? ''),
+                    $multi,
                 ),
-                'block_scope' => in_array(strtolower($actionHint), ['block', 'blocked'], true) ? 'Device' : null,
+                // Shared IP with many devices → do not imply a single device was blocked.
+                'block_scope' => $multi
+                    ? 'IP (multi-device)'
+                    : (in_array(strtolower($actionHint), ['block', 'blocked'], true) ? 'Device' : null),
             ]);
         });
     }
@@ -1772,6 +1827,12 @@ class PaidAdvertisingDashboardController extends Controller
         $row['clicks_60m'] = $row['clicks_60m'] ?? (int) ($row['total'] ?? 0);
         $row['ip_exclusion'] = $row['ip_exclusion'] ?? 'Not needed';
         $row['block_scope'] = $row['block_scope'] ?? null;
+        $row['distinct_device_count'] = $row['distinct_device_count'] ?? null;
+        $row['distinct_browser_count'] = $row['distinct_browser_count'] ?? null;
+        $row['distinct_visitor_count'] = $row['distinct_visitor_count'] ?? null;
+        $row['distinct_fingerprint_count'] = $row['distinct_fingerprint_count'] ?? null;
+        $row['multi_identity'] = $row['multi_identity'] ?? false;
+        $row['device_id_label'] = $row['device_id_label'] ?? $row['device_id'];
 
         return $row;
     }
@@ -1797,15 +1858,26 @@ class PaidAdvertisingDashboardController extends Controller
         return 'Unknown';
     }
 
-    private function ipExclusionLabel(string $action, string $primaryDetection = ''): string
+    private function ipExclusionLabel(string $action, string $primaryDetection = '', bool $multiIdentity = false): string
     {
-        // Only claim Google exclusion queue when paid ADS primary rule fired —
-        // legacy bot/IP blocks must not all read as "Queued".
+        // Multi-device shared IP must never look like a clean Google IP exclusion queue.
+        if ($multiIdentity) {
+            return 'Suppressed (shared IP)';
+        }
+
         $primary = strtoupper(trim($primaryDetection));
+        // Correlated / supporting attribution rules must not claim exclusion queue.
         if ($primary !== '' && (
-            str_starts_with($primary, 'ADS_')
-            || str_contains($primary, 'REPEAT')
-            || str_contains($primary, 'GCLID')
+            str_contains($primary, 'GCLID_DUP')
+            || str_contains($primary, 'CLICKID_MISSING')
+            || str_contains($primary, 'ADS_IP_')
+        )) {
+            return 'Not needed';
+        }
+
+        if ($primary !== '' && (
+            str_starts_with($primary, 'ADS_REPEAT')
+            || str_contains($primary, 'KNOWN_FRAUD')
         )) {
             return 'Queued';
         }

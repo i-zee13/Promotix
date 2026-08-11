@@ -1036,6 +1036,17 @@ class PaidMarketingController extends Controller
             ->whereHas('domain', fn ($q) => $q->where('user_id', $user->id)->forPaidMarketing())
             ->where(function (Builder $activity) use ($metricFrom, $metricTo, $reportingTz, $user, $request): void {
                 $path = trim((string) $request->query('path', ''));
+                $search = trim((string) $request->query('ip', ''));
+                $isIdentitySearch = $this->looksLikeGoogleClickId($search) || $this->looksLikeDeviceId($search);
+
+                // Click / Device ID search: do not hide rows just because the default date chip is narrow.
+                if ($isIdentitySearch) {
+                    $activity->where(function (Builder $match) use ($search): void {
+                        $this->applyIpOrClickIdFilter($match, $search);
+                    });
+
+                    return;
+                }
 
                 // Legacy: paid_marketing_clicks inside the selected calendar range.
                 $activity->whereHas('clicks', function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user, $path): void {
@@ -1085,9 +1096,11 @@ class PaidMarketingController extends Controller
             $query->whereHas('domain', fn ($q) => $q->where('google_ads_account_id', $accountId));
         }
 
-        if ($ip = trim((string) $request->query('ip', ''))) {
-            $this->applyIpOrClickIdFilter($query, $ip);
+        $search = trim((string) $request->query('ip', ''));
+        if ($search !== '' && ! $this->looksLikeGoogleClickId($search) && ! $this->looksLikeDeviceId($search)) {
+            $this->applyIpFilter($query, 'ip', $search);
         }
+        // Click/Device ID already applied inside activity when searching those.
 
         if ($path = trim((string) $request->query('path', ''))) {
             $query->where('last_path', 'like', '%' . $path . '%');
@@ -2647,12 +2660,39 @@ class PaidMarketingController extends Controller
     }
 
     /**
-     * Advanced search box accepts IP or Google click IDs (gclid/gbraid/wbraid/paid_id).
+     * Advanced search box accepts IP, Google click IDs (gclid/gbraid/wbraid/paid_id), or Device ID.
      */
     private function applyIpOrClickIdFilter($query, string $term): void
     {
-        $term = trim($term);
+        $term = trim(preg_replace('/\s+/', '', $term) ?? $term);
         if ($term === '') {
+            return;
+        }
+
+        if ($this->looksLikeDeviceId($term)) {
+            $query->where(function ($match) use ($term): void {
+                if (Schema::hasTable('visits') && Schema::hasColumn('visits', 'device_id')) {
+                    $match->orWhereExists(function ($sq) use ($term): void {
+                        $sq->selectRaw('1')
+                            ->from('visits')
+                            ->whereColumn('visits.domain_id', 'paid_marketing_visits.domain_id')
+                            ->whereColumn('visits.ip', 'paid_marketing_visits.ip')
+                            ->where(function ($inner) use ($term): void {
+                                $inner->where('visits.device_id', $term)
+                                    ->orWhere('visits.device_id', 'like', '%'.$term.'%');
+                            });
+                    });
+                }
+
+                $match->orWhereHas('clicks', function ($cq) use ($term): void {
+                    if (Schema::hasColumn('paid_marketing_clicks', 'device_id')) {
+                        $cq->where('device_id', 'like', '%'.$term.'%');
+                    } else {
+                        $cq->whereRaw('1=0');
+                    }
+                });
+            });
+
             return;
         }
 
@@ -2669,12 +2709,29 @@ class PaidMarketingController extends Controller
 
             if ($model instanceof PaidMarketingVisit) {
                 $match->orWhereHas('clicks', function ($cq) use ($term): void {
-                    $cq->where('paid_id', 'like', '%'.$term.'%')
-                        ->orWhere('paid_id', $term);
+                    $cq->where('paid_id', $term)
+                        ->orWhere('paid_id', 'like', '%'.$term.'%');
                 });
 
                 if (Schema::hasColumn('paid_marketing_visits', 'gclid')) {
                     $match->orWhere('gclid', 'like', '%'.$term.'%');
+                }
+
+                if (Schema::hasTable('visits')) {
+                    $match->orWhereExists(function ($sq) use ($term): void {
+                        $sq->selectRaw('1')
+                            ->from('visits')
+                            ->whereColumn('visits.domain_id', 'paid_marketing_visits.domain_id')
+                            ->whereColumn('visits.ip', 'paid_marketing_visits.ip')
+                            ->where(function ($g) use ($term): void {
+                                foreach (['gclid', 'gbraid', 'wbraid'] as $col) {
+                                    if (Schema::hasColumn('visits', $col)) {
+                                        $g->orWhere('visits.'.$col, $term)
+                                            ->orWhere('visits.'.$col, 'like', '%'.$term.'%');
+                                    }
+                                }
+                            });
+                    });
                 }
 
                 return;
@@ -2694,12 +2751,20 @@ class PaidMarketingController extends Controller
 
     private function looksLikeGoogleClickId(string $value): bool
     {
+        $value = trim(preg_replace('/\s+/', '', $value) ?? $value);
         if (filter_var($value, FILTER_VALIDATE_IP)) {
             return false;
         }
 
-        // GCLIDs are long opaque tokens; never treat short IP/ASN fragments as click IDs.
-        return strlen($value) >= 20 && (bool) preg_match('/^[A-Za-z0-9_-]+$/', $value);
+        // Full or truncated paste from UI (min 12 of the opaque token).
+        return strlen($value) >= 12 && (bool) preg_match('/^[A-Za-z0-9_-]+$/', $value);
+    }
+
+    private function looksLikeDeviceId(string $value): bool
+    {
+        $value = trim($value);
+
+        return (bool) preg_match('/^DEV_[A-Za-z0-9]+$/i', $value);
     }
 
     private function campaignFromPath(?string $path): ?string
