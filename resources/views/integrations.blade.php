@@ -258,6 +258,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>
                                         </form>
                                         <a href="{{ route('integrations.google.redirect') }}" class="pi-text-link" title="Reconnect if Google Ads token expired">Reconnect Google</a>
+                                        <form method="POST" action="{{ route('integrations.google.reconnect-all') }}" onsubmit="return confirm('Refresh tokens for all Google connections / domains? Failed ones still need OAuth reconnect.');">
+                                            @csrf
+                                            <button type="submit" class="pi-text-link" title="Force-refresh tokens for every Google connection">Reconnect all domains</button>
+                                        </form>
                                         <a href="{{ route('integrations.google.redirect') }}" class="pi-text-link">+ Add Google Login</a>
                                     @else
                                         <a href="{{ route('integrations.google.redirect') }}" class="pi-primary-btn">
@@ -1099,17 +1103,24 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <td>
                                     <div class="pi-row-actions">
                                         <a href="{{ $row['action_url'] }}" class="pi-row-link">{{ $row['action_label'] }}</a>
-                                        @if (! empty($row['delete_url']))
+                                        @if (! empty($row['delete_url']) || ! empty($row['edit_url']))
                                             <div class="integration-row-menu inline-flex">
                                                 <x-integrations.platform-card-dropdown :menu-id="$row['menu_id']" label="Platform row options">
-                                                    <form method="POST" action="{{ $row['delete_url'] }}" onsubmit="return confirm('Remove this platform link?');">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="figma-platform-menu-item figma-platform-menu-item--danger w-full text-left">
-                                                            @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'mr-[8px] inline h-[14px] w-[14px]'])
-                                                            Delete
-                                                        </button>
-                                                    </form>
+                                                    @if (! empty($row['edit_url']))
+                                                        <a href="{{ $row['edit_url'] }}" class="figma-platform-menu-item">
+                                                            {{ $row['edit_label'] ?? 'Edit Connection' }}
+                                                        </a>
+                                                    @endif
+                                                    @if (! empty($row['delete_url']))
+                                                        <form method="POST" action="{{ $row['delete_url'] }}" onsubmit="return confirm('Remove this platform link?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="figma-platform-menu-item figma-platform-menu-item--danger w-full text-left">
+                                                                @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'mr-[8px] inline h-[14px] w-[14px]'])
+                                                                Delete
+                                                            </button>
+                                                        </form>
+                                                    @endif
                                                 </x-integrations.platform-card-dropdown>
                                             </div>
                                         @else

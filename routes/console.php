@@ -14,7 +14,9 @@ Schedule::command('analytics:aggregate-hourly --hours=2')
     ->everyMinute()
     ->appendOutputTo(storage_path('logs/cron.log'));
 
-Schedule::command('google-ads:sync-all --days=7')
+// Keep Google Ads totals available beyond the short UI default window.
+// App verification helps OAuth / refresh tokens; lookback is controlled here.
+Schedule::command('google-ads:sync-all --days=30')
     ->hourly()
     ->appendOutputTo(storage_path('logs/cron.log'));
 

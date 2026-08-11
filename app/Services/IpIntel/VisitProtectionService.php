@@ -92,7 +92,9 @@ class VisitProtectionService
             return $this->allowListedResult($domain, $ipLog, $isPaidTraffic);
         }
 
-        if ($ipLog->is_blocked) {
+        // Paid traffic always re-evaluates with the current pipeline so a wiped
+        // exclusion list / new ADS rules are not short-circuited by sticky ip_logs.is_blocked.
+        if ($ipLog->is_blocked && ! $isPaidTraffic) {
             return $this->blockedResult($ipLog, $domain, true, $isPaidTraffic);
         }
 
@@ -134,6 +136,10 @@ class VisitProtectionService
 
         if ($detection['action_taken'] === 'block' && ! AllowListMatcher::reasonsIndicateAllowList($detection['reasons'])) {
             $ipLog->is_blocked = true;
+            $ipLog->save();
+        } elseif ($ipLog->is_blocked) {
+            // Prior sticky block no longer matches current rules — clear so UI/pipeline stay in sync.
+            $ipLog->is_blocked = false;
             $ipLog->save();
         }
 

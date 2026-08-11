@@ -302,6 +302,11 @@ class IntegrationsController extends Controller
                 'clicks_label' => number_format($clicks),
                 'action_label' => 'Campaign Settings',
                 'action_url' => route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]),
+                'edit_url' => route('integrations.google.redirect', [
+                    'domain_id' => $mapping->domain_id,
+                    'context' => 'paid_domain',
+                ]),
+                'edit_label' => 'Edit Connection',
                 'delete_url' => route('integrations.destroy-mapping', $mapping),
                 'menu_id' => 'mapping-' . $mapping->id,
                 'search' => strtolower(trim(implode(' ', [
@@ -340,7 +345,9 @@ class IntegrationsController extends Controller
                 'clicks_label' => number_format($clicks),
                 'action_label' => 'Tag Settings',
                 'action_url' => route('domains.setup', $domain),
-                'delete_url' => null,
+                'edit_url' => route('domains.setup', $domain),
+                'edit_label' => 'Edit Connection',
+                'delete_url' => route('integrations.destroy-gtm', $domain),
                 'menu_id' => 'gtm-' . $domain->id,
                 'search' => strtolower(trim(implode(' ', [
                     'google tag manager',
@@ -370,7 +377,9 @@ class IntegrationsController extends Controller
                 'clicks_label' => '0',
                 'action_label' => 'Campaign Settings',
                 'action_url' => '#connected-platforms',
-                'delete_url' => null,
+                'edit_url' => route('integrations.google.redirect', ['context' => 'paid_domain']),
+                'edit_label' => 'Edit Connection',
+                'delete_url' => route('integrations.direct-ads.destroy', $row),
                 'menu_id' => 'direct-' . $row->id,
                 'search' => strtolower(trim(implode(' ', [
                     'direct ads',
@@ -1647,6 +1656,40 @@ class IntegrationsController extends Controller
         return response()->json(['logs' => $logs]);
     }
 
+    public function reconnectAllDomains(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $user = $request->user();
+        $isSuper = (bool) ($user->is_super_admin ?? false);
+
+        $connections = GoogleConnection::query()
+            ->when(! $isSuper, fn ($q) => $q->where('user_id', $user->id))
+            ->orderBy('id')
+            ->get();
+
+        $refreshed = 0;
+        $failed = [];
+
+        foreach ($connections as $connection) {
+            $token = app(GoogleAdsConnectionService::class)->resolveAccessToken($connection, true);
+            if ($token) {
+                $this->markConnectionHealth($connection, 'ok', 'Token refreshed via reconnect-all');
+                $refreshed++;
+                continue;
+            }
+
+            $error = app(GoogleAdsConnectionService::class)->lastRefreshError ?: 'Token refresh failed';
+            $this->markConnectionHealth($connection, 'error', $error);
+            $failed[] = ($connection->google_email ?: ('#'.$connection->id)).': '.$error;
+        }
+
+        $message = "Reconnect all: {$refreshed} refreshed";
+        if ($failed !== []) {
+            $message .= '; '.count($failed).' need OAuth reconnect ('.Str::limit(implode(' | ', $failed), 280).')';
+        }
+
+        return back()->with('status', $message);
+    }
+
     public function testConnection(Request $request, GoogleConnection $connection): JsonResponse
     {
         abort_unless($connection->user_id === $request->user()->id, 403);
@@ -1865,11 +1908,27 @@ class IntegrationsController extends Controller
         ]);
     }
 
-    public function directAdsDestroy(Request $request, DirectAdsIntegration $integration): JsonResponse
+    public function directAdsDestroy(Request $request, DirectAdsIntegration $integration): JsonResponse|\Illuminate\Http\RedirectResponse
     {
         abort_unless($integration->user_id === $request->user()->id, 403);
         $integration->delete();
 
-        return response()->json(['ok' => true, 'id' => $integration->id]);
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return response()->json(['ok' => true, 'id' => $integration->id]);
+        }
+
+        return back()->with('status', 'Direct Ads connection removed.');
+    }
+
+    public function destroyGtm(Request $request, Domain $domain): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless((int) $domain->user_id === (int) $request->user()->id || (bool) ($request->user()->is_super_admin ?? false), 403);
+
+        $domain->forceFill([
+            'tag_connected' => false,
+            'gtm_container_id' => null,
+        ])->save();
+
+        return back()->with('status', 'GTM / tracking connection removed for '.$domain->hostname.'.');
     }
 }

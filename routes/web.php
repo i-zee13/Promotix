@@ -181,6 +181,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::get('/integrations', [IntegrationsController::class, 'index'])->name('integrations');
         Route::post('/integrations/google/{connection}/sync-accounts', [IntegrationsController::class, 'syncAccounts'])->name('integrations.google.sync-accounts');
         Route::post('/integrations/google/{connection}/test', [IntegrationsController::class, 'testConnection'])->name('integrations.google.test');
+        Route::post('/integrations/google/reconnect-all', [IntegrationsController::class, 'reconnectAllDomains'])->name('integrations.google.reconnect-all');
         Route::delete('/integrations/google/{connection}', [IntegrationsController::class, 'disconnect'])->name('integrations.google.disconnect');
         Route::post('/integrations/accounts', [IntegrationsController::class, 'storeAccount'])->name('integrations.store-account');
         Route::post('/integrations/mappings', [IntegrationsController::class, 'storeMapping'])->name('integrations.store-mapping');
@@ -315,7 +316,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/integrations/google/audience-exclusion', [IntegrationsController::class, 'audienceExclusionSave']);
     Route::get('/integrations/direct-ads', [IntegrationsController::class, 'directAdsList']);
     Route::post('/integrations/direct-ads', [IntegrationsController::class, 'directAdsStore']);
-    Route::delete('/integrations/direct-ads/{integration}', [IntegrationsController::class, 'directAdsDestroy']);
+    Route::delete('/integrations/direct-ads/{integration}', [IntegrationsController::class, 'directAdsDestroy'])->name('integrations.direct-ads.destroy');
+    Route::delete('/integrations/gtm/{domain}', [IntegrationsController::class, 'destroyGtm'])->name('integrations.destroy-gtm');
 });
 
 Route::middleware(['auth', 'admin', 'portal-product'])

@@ -120,16 +120,25 @@
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
                                     <div class="flex flex-wrap items-center gap-[8px]">
-                                        @if ($d->bot_mitigation_connected)
-                                            <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
-                                        @else
-                                            <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
-                                        @endif
+                                        <span class="inline-flex items-center gap-[6px] text-[10px] text-[#d9d9d9]" title="Turn Bot Protection on for this domain (tag + detections).">
+                                            <x-figma-toggle
+                                                size="sm"
+                                                :show-labels="false"
+                                                :checked="$d->bot_mitigation_connected"
+                                                @change="toggleBotProtection({{ $d->id }}, $event.target.checked)"
+                                            />
+                                            @if ($d->bot_mitigation_connected)
+                                                <span class="inline-flex rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">Connected</span>
+                                            @else
+                                                <span class="text-[11px] text-white/55">Off</span>
+                                            @endif
+                                        </span>
                                         <span class="inline-flex items-center gap-[6px] text-[10px] text-[#d9d9d9]" title="Monitoring only — detection and stats continue; site blocking and CAPTCHA are disabled.">
                                             <x-figma-toggle
                                                 size="sm"
                                                 :show-labels="false"
                                                 :checked="$d->monitoring_only_mode"
+                                                :disabled="! $d->bot_mitigation_connected"
                                                 @change="toggleMode({{ $d->id }}, $event.target.checked)"
                                             />
                                             Monitoring only
@@ -163,6 +172,13 @@
                                                 <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
                                                 Reconnect Google Ads
                                             </a>
+                                            <form method="POST" action="{{ route('integrations.google.reconnect-all') }}" class="block">
+                                                @csrf
+                                                <button type="submit" class="flex w-full items-center gap-[8px] px-[12px] py-[8px] text-left hover:bg-white/60">
+                                                    <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
+                                                    Reconnect all domains
+                                                </button>
+                                            </form>
                                         @endif
                                         <button type="button" @click="openEdit(@js(['id' => $d->id, 'hostname' => $d->hostname, 'paid_marketing_connected' => $d->paid_marketing_connected, 'bot_mitigation_connected' => $d->bot_mitigation_connected]))" class="flex w-full items-center gap-[8px] px-[12px] py-[8px] hover:bg-white/60">
                                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 16"/></svg>
@@ -766,6 +782,26 @@ function siteManagementFigma() {
                 },
                 body: JSON.stringify({ monitoring_only_mode: on }),
             });
+        },
+        async toggleBotProtection(id, on) {
+            const res = await fetch(`/domains/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': this.csrf,
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({
+                    bot_mitigation_connected: on,
+                    // Turning protection off also clears monitoring-only soft mode.
+                    ...(on ? {} : { monitoring_only_mode: false }),
+                }),
+            });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                this.showToast('Could not update Bot Protection.');
+            }
         },
     };
 }

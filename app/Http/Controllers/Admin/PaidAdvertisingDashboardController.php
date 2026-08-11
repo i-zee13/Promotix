@@ -1004,6 +1004,7 @@ class PaidAdvertisingDashboardController extends Controller
             DB::raw(Schema::hasColumn('visits', 'gbraid') ? 'gbraid' : 'NULL as gbraid'),
             DB::raw(Schema::hasColumn('visits', 'wbraid') ? 'wbraid' : 'NULL as wbraid'),
             DB::raw(Schema::hasColumn('visits', 'utm_term') ? 'utm_term as keyword' : 'NULL as keyword'),
+            DB::raw(Schema::hasColumn('visits', 'threat_type') ? 'threat_type' : 'NULL as threat_type'),
         ];
         foreach ([
             'device_id',
@@ -1055,6 +1056,36 @@ class PaidAdvertisingDashboardController extends Controller
                 ? (float) $row->identity_confidence
                 : null;
 
+            $campaign = trim((string) ($row->campaign ?? ''));
+            if ($campaign === '' && filled($row->url ?? null)) {
+                $query = parse_url((string) $row->url, PHP_URL_QUERY);
+                if (is_string($query) && $query !== '') {
+                    parse_str($query, $params);
+                    foreach (['utm_campaign', 'campaign', 'gad_campaignid', 'campaign_id'] as $key) {
+                        $value = trim((string) ($params[$key] ?? ''));
+                        if ($value !== '') {
+                            $campaign = $value;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $keyword = trim((string) ($row->keyword ?? ''));
+            if ($keyword === '' && filled($row->url ?? null)) {
+                $query = parse_url((string) $row->url, PHP_URL_QUERY);
+                if (is_string($query) && $query !== '') {
+                    parse_str($query, $params);
+                    foreach (['utm_term', 'keyword'] as $key) {
+                        $value = trim((string) ($params[$key] ?? ''));
+                        if ($value !== '') {
+                            $keyword = $value;
+                            break;
+                        }
+                    }
+                }
+            }
+
             return [
                 'clicked_at' => UserTimezone::isoForUser(
                     ! empty($row->visited_at) ? Carbon::parse((string) $row->visited_at, 'UTC') : null,
@@ -1066,13 +1097,13 @@ class PaidAdvertisingDashboardController extends Controller
                 ),
                 'ip' => $ip,
                 'country' => $row->country,
-                'campaign' => $row->campaign,
+                'campaign' => $campaign !== '' ? $campaign : null,
                 'path' => $row->url,
                 'paid_id' => $row->paid_id,
                 'gclid' => $row->gclid ?? null,
                 'gbraid' => $row->gbraid ?? null,
                 'wbraid' => $row->wbraid ?? null,
-                'keyword' => $row->keyword ?? null,
+                'keyword' => $keyword !== '' ? $keyword : null,
                 'browser_name' => $row->browser,
                 'browser_version' => null,
                 'os' => $row->os,
@@ -1086,6 +1117,9 @@ class PaidAdvertisingDashboardController extends Controller
                 'identity_confidence_label' => $this->identityConfidenceLabel($confidence),
                 'ads_detections' => $ads,
                 'threat_group' => $row->threat_group,
+                'threat_type' => Schema::hasColumn('visits', 'threat_type')
+                    ? ($row->threat_type ?? null)
+                    : ($row->action_taken ?? null),
                 'is_invalid' => (bool) $row->is_invalid_traffic,
                 'action_taken' => $row->action_taken,
                 'detection_reasons' => $reasons,

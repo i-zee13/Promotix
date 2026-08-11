@@ -1265,7 +1265,7 @@
                                 </div>
                                 <div class="figma-modal-field">
                                     <p class="figma-modal-label">ASN</p>
-                                    <p class="figma-modal-value" x-text="ipModal.row?.asn || '—'"></p>
+                                    <p class="figma-modal-value" x-text="ipModal.row?.asn || activeIpClick.asn || '—'"></p>
                                 </div>
                                 <div class="figma-modal-field">
                                     <p class="figma-modal-label">Country</p>
@@ -1289,6 +1289,10 @@
                                 <div class="figma-modal-field">
                                     <p class="figma-modal-label">Threat Group</p>
                                     <p class="figma-modal-value" x-text="activeIpClick.threat_group || 'N/A'"></p>
+                                </div>
+                                <div class="figma-modal-field">
+                                    <p class="figma-modal-label">Threat Type</p>
+                                    <p class="figma-modal-value" x-text="activeIpClick.threat_type || activeIpClick.action_taken || 'N/A'"></p>
                                 </div>
                                 <div class="figma-modal-field">
                                     <p class="figma-modal-label">Campaign</p>

@@ -921,7 +921,7 @@ class PaidMarketingController extends Controller
     private function applyVisitsRequestFilters($query, Request $request): void
     {
         if ($ip = trim((string) $request->query('ip', ''))) {
-            $this->applyIpFilter($query, 'ip', $ip);
+            $this->applyIpOrClickIdFilter($query, $ip);
         }
 
         if ($path = trim((string) $request->query('path', ''))) {
@@ -1086,7 +1086,7 @@ class PaidMarketingController extends Controller
         }
 
         if ($ip = trim((string) $request->query('ip', ''))) {
-            $this->applyIpFilter($query, 'ip', $ip);
+            $this->applyIpOrClickIdFilter($query, $ip);
         }
 
         if ($path = trim((string) $request->query('path', ''))) {
@@ -1354,7 +1354,12 @@ class PaidMarketingController extends Controller
             'domain' => $visit->domain?->hostname,
             'campaign' => $visit->campaign_name
                 ?: $visit->campaign
-                ?: ($visit->getAttribute('range_campaign') ?: null),
+                ?: ($visit->getAttribute('range_campaign') ?: null)
+                ?: $this->campaignFromPath((string) ($visit->last_path ?? '')),
+            'keyword' => $firstClick?->keyword
+                ?: $this->keywordFromPath((string) ($firstClick?->path ?? $visit->last_path ?? '')),
+            'ads_primary_rule' => $sessionMeta['primary_detection'],
+            'block_status' => ((bool) ($visit->ip_is_blocked ?? $ipLog?->is_blocked)) ? 'Blocked' : 'Allowed',
             'last_click_at' => UserTimezone::isoForUser($lastClickAt, $user),
             'last_click_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y') ?? '-',
             'first_click_at' => UserTimezone::isoForUser($firstClickAt, $user),
@@ -1458,6 +1463,15 @@ class PaidMarketingController extends Controller
                     'action_taken' => $visit->threat_type,
                 ]);
                 $typed = $this->classifyPaidId((string) ($c->paid_id ?? ''));
+                $path = (string) ($c->path ?? '');
+                $campaign = trim((string) ($c->campaign_name ?: $c->campaign ?: ''));
+                if ($campaign === '') {
+                    $campaign = (string) ($this->campaignFromPath($path) ?? '');
+                }
+                $keyword = trim((string) ($c->keyword ?? ''));
+                if ($keyword === '') {
+                    $keyword = (string) ($this->keywordFromPath($path) ?? '');
+                }
 
                 return [
                 'id' => $c->id,
@@ -1465,18 +1479,20 @@ class PaidMarketingController extends Controller
                 'last_click_at' => UserTimezone::isoForUser($lastClick, $user),
                 'ip' => $c->ip,
                 'country' => $c->country,
-                'threat_group' => $c->threat_group,
-                'campaign' => $c->campaign_name ?: $c->campaign,
+                'threat_group' => $c->threat_group ?: $visit->threat_group,
+                'threat_type' => $visit->threat_type,
+                'campaign' => $campaign !== '' ? $campaign : null,
                 'paid_id' => $c->paid_id,
                 'gclid' => $typed['gclid'] ?: ($clickIds['gclid'] ?? null),
                 'gbraid' => $typed['gbraid'] ?: ($clickIds['gbraid'] ?? null),
                 'wbraid' => $typed['wbraid'] ?: ($clickIds['wbraid'] ?? null),
                 'path' => $c->path,
-                'keyword' => $c->keyword,
+                'keyword' => $keyword !== '' ? $keyword : null,
                 'browser_name' => $c->browser_name,
                 'browser_version' => $c->browser_version,
                 'os' => $c->os,
                 'device' => $deviceLabel,
+                'asn' => $intel['intel_asn'] ?? null,
                 'risk_decision' => $risk,
                 'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
             ];
@@ -2628,6 +2644,106 @@ class PaidMarketingController extends Controller
                 }
             }
         });
+    }
+
+    /**
+     * Advanced search box accepts IP or Google click IDs (gclid/gbraid/wbraid/paid_id).
+     */
+    private function applyIpOrClickIdFilter($query, string $term): void
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return;
+        }
+
+        if (! $this->looksLikeGoogleClickId($term)) {
+            $this->applyIpFilter($query, 'ip', $term);
+
+            return;
+        }
+
+        $model = method_exists($query, 'getModel') ? $query->getModel() : null;
+
+        $query->where(function ($match) use ($term, $model): void {
+            $match->where('ip', 'like', '%'.$term.'%');
+
+            if ($model instanceof PaidMarketingVisit) {
+                $match->orWhereHas('clicks', function ($cq) use ($term): void {
+                    $cq->where('paid_id', 'like', '%'.$term.'%')
+                        ->orWhere('paid_id', $term);
+                });
+
+                if (Schema::hasColumn('paid_marketing_visits', 'gclid')) {
+                    $match->orWhere('gclid', 'like', '%'.$term.'%');
+                }
+
+                return;
+            }
+
+            if (Schema::hasColumn('visits', 'gclid')) {
+                $match->orWhere('gclid', 'like', '%'.$term.'%');
+            }
+            if (Schema::hasColumn('visits', 'gbraid')) {
+                $match->orWhere('gbraid', 'like', '%'.$term.'%');
+            }
+            if (Schema::hasColumn('visits', 'wbraid')) {
+                $match->orWhere('wbraid', 'like', '%'.$term.'%');
+            }
+        });
+    }
+
+    private function looksLikeGoogleClickId(string $value): bool
+    {
+        if (filter_var($value, FILTER_VALIDATE_IP)) {
+            return false;
+        }
+
+        // GCLIDs are long opaque tokens; never treat short IP/ASN fragments as click IDs.
+        return strlen($value) >= 20 && (bool) preg_match('/^[A-Za-z0-9_-]+$/', $value);
+    }
+
+    private function campaignFromPath(?string $path): ?string
+    {
+        if (! filled($path)) {
+            return null;
+        }
+
+        $query = parse_url((string) $path, PHP_URL_QUERY);
+        if (! is_string($query) || $query === '') {
+            return null;
+        }
+
+        parse_str($query, $params);
+        foreach (['utm_campaign', 'campaign', 'gad_campaignid', 'campaign_id', 'campaignid'] as $key) {
+            $value = trim((string) ($params[$key] ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function keywordFromPath(?string $path): ?string
+    {
+        if (! filled($path)) {
+            return null;
+        }
+
+        $query = parse_url((string) $path, PHP_URL_QUERY);
+        if (! is_string($query) || $query === '') {
+            return null;
+        }
+
+        parse_str($query, $params);
+        foreach (['utm_term', 'keyword', 'utm_content'] as $key) {
+            $value = trim((string) ($params[$key] ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /** @return Collection<int, int> */

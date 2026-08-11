@@ -206,13 +206,15 @@ export function figmaDateRangePicker() {
 
         dayCell(dt, inMonth, selFrom, selTo) {
             const iso = fmt(dt);
+            // Outside (padded) days can share the same ISO as an adjacent in-month day.
+            // Only paint selection styles on in-month cells so prev-month 31 ≠ this-month 31.
             return {
                 iso,
                 day: dt.getDate(),
                 inMonth,
-                inRange: iso > selFrom && iso < selTo,
-                isStart: iso === selFrom,
-                isEnd: iso === selTo,
+                inRange: inMonth && iso > selFrom && iso < selTo,
+                isStart: inMonth && iso === selFrom,
+                isEnd: inMonth && iso === selTo,
                 isToday: iso === todayStr,
             };
         },

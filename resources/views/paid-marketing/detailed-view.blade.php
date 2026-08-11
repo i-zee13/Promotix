@@ -716,7 +716,7 @@
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
                     <label class="relative flex h-[28px] min-w-[200px] max-w-[280px] flex-1 items-center rounded-[6px] bg-white px-[10px]">
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input type="search" placeholder="Search for IP Address" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
+                        <input type="search" placeholder="Search IP or GCLID" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
                     </label>
                     <div class="relative" @click.outside="dataFilterMenuOpen = false">
                         <button type="button" @click="dataFilterMenuOpen = !dataFilterMenuOpen; filterMenuOpen = false" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
@@ -796,6 +796,18 @@
                             <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
                         </button>
                         <div x-show="filterMenuOpen" x-cloak class="paid-advanced-columns-menu promotix-slim-scroll">
+                            <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Column groups</p>
+                            <p class="mb-[6px] text-[9px] leading-snug text-white/40">Click a group to show its fields. IP stays first in every group.</p>
+                            <div class="mb-[10px] flex flex-col gap-[4px]">
+                                <template x-for="group in columnGroups" :key="group.id">
+                                    <button type="button"
+                                        class="rounded-[6px] border border-white/15 px-[8px] py-[5px] text-left text-[11px] text-white/85 hover:bg-white/10"
+                                        :class="{ 'border-[#9a1aff]/60 bg-[#9a1aff]/15': activeColumnGroup === group.id }"
+                                        @click="applyColumnGroup(group.id)"
+                                        x-text="group.label"></button>
+                                </template>
+                                <button type="button" class="rounded-[6px] px-[8px] py-[5px] text-left text-[10px] text-white/50 hover:text-white/80" @click="clearColumnGroup()">Clear group focus</button>
+                            </div>
                             <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Primary columns</p>
                             <template x-for="col in columnCatalog.filter(c => c.primary)" :key="col.key">
                                 <label class="paid-advanced-column-option is-locked">
@@ -1173,12 +1185,20 @@
                                         <p class="figma-modal-value" x-text="activeClick.threat_group || modal.visit?.threat_group || 'N/A'"></p>
                                     </div>
                                     <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Threat Type</p>
+                                        <p class="figma-modal-value" x-text="activeClick.threat_type || modal.visit?.threat_type || modal.visit?.threat_type_label || 'N/A'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">ASN</p>
+                                        <p class="figma-modal-value" x-text="activeClick.asn || modal.visit?.intel_asn || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
                                         <p class="figma-modal-label">Domain</p>
                                         <p class="figma-modal-value" x-text="modal.visit?.domain || activeClick.domain || '—'"></p>
                                     </div>
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">Campaign</p>
-                                        <p class="figma-modal-value" x-text="activeClick.campaign || modal.visit?.campaign || 'N/A'"></p>
+                                        <p class="figma-modal-value" x-text="activeClick.campaign || modal.visit?.campaign || campaignFromPath(activeClick.path || modal.visit?.last_path) || 'N/A'"></p>
                                     </div>
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">Risk decision</p>
@@ -1208,7 +1228,7 @@
                                     </div>
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">Keyword</p>
-                                        <p class="figma-modal-value" x-text="activeClick.keyword || 'N/A'"></p>
+                                        <p class="figma-modal-value" x-text="activeClick.keyword || keywordFromPath(activeClick.path || modal.visit?.last_path) || 'N/A'"></p>
                                     </div>
                                 </div>
 
@@ -1379,6 +1399,68 @@
             { key: 'intel_matched_provider', label: 'Matched Provider', primary: false, min: 110 },
             { key: 'intel_matched_dataset', label: 'Matched Dataset', primary: false, min: 110 },
             { key: 'intel_cloud_provider', label: 'Cloud Provider', primary: false, min: 100 },
+            { key: 'device_id', label: 'Device ID', primary: false, min: 100 },
+            { key: 'visitor_id', label: 'Visitor ID', primary: false, min: 100 },
+            { key: 'browser_id', label: 'Browser ID', primary: false, min: 100 },
+            { key: 'fingerprint_id', label: 'Fingerprint ID', primary: false, min: 100 },
+            { key: 'paid_identity_id', label: 'Paid Identity ID', primary: false, min: 110 },
+            { key: 'identity_confidence', label: 'Identity Confidence', primary: false, min: 90 },
+            { key: 'keyword', label: 'Keyword', primary: false, min: 90 },
+            { key: 'ads_primary_rule', label: 'Primary Detection', primary: false, min: 120 },
+            { key: 'block_status', label: 'Block Status', primary: false, min: 90 },
+        ];
+
+        const columnGroups = [
+            {
+                id: 'paid_identity',
+                label: 'Paid Identity',
+                keys: ['ip', 'paid_identity_id', 'visitor_id', 'device_id', 'browser_id', 'fingerprint_id', 'device_fingerprint', 'session_id', 'identity_confidence'],
+            },
+            {
+                id: 'attribution',
+                label: 'Attribution',
+                keys: ['ip', 'domain', 'campaign', 'keyword', 'gclid', 'gbraid', 'wbraid', 'google_verified_label'],
+            },
+            {
+                id: 'click_windows',
+                label: 'Click Windows',
+                keys: ['ip', 'visits', 'last_click_label', 'invalid_clicks', 'valid_clicks', 'cta_clicks', 'tel_clicks', 'page_changes'],
+            },
+            {
+                id: 'ip_intelligence',
+                label: 'IP Intelligence',
+                keys: ['ip', 'country', 'intel_region', 'intel_city', 'intel_asn', 'intel_asn_org', 'intel_isp', 'intel_provider_type', 'intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_ip_need_blockation', 'intel_block_reason'],
+            },
+            {
+                id: 'device_browser',
+                label: 'Device / Browser',
+                keys: ['ip', 'device', 'browser', 'os', 'screen_resolution', 'language', 'visitor_timezone', 'device_fingerprint'],
+            },
+            {
+                id: 'session_behavior',
+                label: 'Session / Behavior',
+                keys: ['ip', 'session_id', 'cta_clicks', 'tel_clicks', 'page_changes', 'session_recording', 'status'],
+            },
+            {
+                id: 'conversion_lead',
+                label: 'Conversion / Lead',
+                keys: ['ip', 'cta_clicks', 'tel_clicks', 'google_verified_label', 'valid_clicks', 'invalid_clicks'],
+            },
+            {
+                id: 'detection_scoring',
+                label: 'Detection / Scoring',
+                keys: ['ip', 'threat_group', 'threat_type', 'ads_primary_rule', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_block_reason'],
+            },
+            {
+                id: 'enforcement_review',
+                label: 'Enforcement / Review',
+                keys: ['ip', 'status', 'block_status', 'intel_ip_need_blockation', 'intel_blockation_type', 'intel_block_reason', 'intel_device_action'],
+            },
+            {
+                id: 'repeat_click',
+                label: 'Repeat Click Detection',
+                keys: ['ip', 'visits', 'invalid_clicks', 'valid_clicks', 'threat_group', 'threat_type', 'ads_primary_rule', 'last_click_label', 'device_id', 'identity_confidence'],
+            },
         ];
 
         let savedOptional = [];
@@ -1400,6 +1482,11 @@
             'intel_risk_score',
             'intel_ip_need_blockation',
             'intel_block_reason',
+            'intel_asn',
+            'keyword',
+            'ads_primary_rule',
+            'device_id',
+            'identity_confidence',
         ];
         defaultOptionalColumns.forEach((key) => {
             if (!savedOptional.includes(key)) {
@@ -1417,6 +1504,8 @@
             dataFilterMenuOpen: false,
             exportMenuOpen: false,
             campaignMenuOpen: false,
+            activeColumnGroup: null,
+            columnGroups,
             reportingTimezone: config.reportingTimezone || 'UTC',
             timezoneContext: null,
             domainCatalog: config.domainCatalog || {},
@@ -1606,7 +1695,10 @@
             },
             get activeFilterChips() {
                 const labels = {
-                    ip: 'IP', path: 'Path', campaign: 'Campaign', country: 'Country', keyword: 'Keyword',
+                    ip: (String(this.filters.ip || '').length >= 20 && !/^\d{1,3}(\.\d{1,3}){3}$/.test(String(this.filters.ip || '').trim()))
+                        ? 'Click ID'
+                        : 'IP',
+                    path: 'Path', campaign: 'Campaign', country: 'Country', keyword: 'Keyword',
                     ad_group: 'Ad group', source: 'Source', browser: 'Browser', device: 'Device',
                     detection: 'Detection', threat_group: 'Threat', risk_level: 'Risk', block_status: 'Block',
                 };
@@ -1737,6 +1829,15 @@
                 };
             },
             get visibleColumns() {
+                if (this.activeColumnGroup) {
+                    const group = this.columnGroups.find((g) => g.id === this.activeColumnGroup);
+                    if (group) {
+                        const ordered = ['ip', ...group.keys.filter((k) => k !== 'ip')];
+                        return ordered
+                            .map((key) => this.columnCatalog.find((c) => c.key === key))
+                            .filter(Boolean);
+                    }
+                }
                 return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
             },
             get gridStyle() {
@@ -1786,6 +1887,12 @@
                 if (ip) this.filters.ip = ip;
                 const campaign = params.get('campaign');
                 if (campaign) this.filters.campaign = campaign;
+                try {
+                    const savedGroup = localStorage.getItem('pm-adv-active-column-group');
+                    if (savedGroup && this.columnGroups.some((g) => g.id === savedGroup)) {
+                        this.activeColumnGroup = savedGroup;
+                    }
+                } catch (e) {}
                 this.applyDomainTimezoneFromCatalog();
                 this.syncHeaderDates();
                 if (!this.filters.from || !this.filters.to) {
@@ -1910,6 +2017,50 @@
                 try {
                     localStorage.setItem('pm-adv-optional-columns', JSON.stringify(this.optionalColumnKeys));
                 } catch (e) {}
+            },
+            applyColumnGroup(groupId) {
+                const group = this.columnGroups.find((g) => g.id === groupId);
+                if (!group) return;
+                this.activeColumnGroup = groupId;
+                const optional = group.keys.filter((key) => {
+                    const col = this.columnCatalog.find((c) => c.key === key);
+                    return col && !col.primary;
+                });
+                this.optionalColumnKeys = [...new Set(optional)];
+                try {
+                    localStorage.setItem('pm-adv-optional-columns', JSON.stringify(this.optionalColumnKeys));
+                    localStorage.setItem('pm-adv-active-column-group', groupId);
+                } catch (e) {}
+            },
+            clearColumnGroup() {
+                this.activeColumnGroup = null;
+                try {
+                    localStorage.removeItem('pm-adv-active-column-group');
+                } catch (e) {}
+            },
+            campaignFromPath(path) {
+                if (!path) return null;
+                try {
+                    const u = new URL(String(path), 'https://example.invalid');
+                    return u.searchParams.get('utm_campaign')
+                        || u.searchParams.get('campaign')
+                        || u.searchParams.get('gad_campaignid')
+                        || u.searchParams.get('campaign_id')
+                        || null;
+                } catch (e) {
+                    return null;
+                }
+            },
+            keywordFromPath(path) {
+                if (!path) return null;
+                try {
+                    const u = new URL(String(path), 'https://example.invalid');
+                    return u.searchParams.get('utm_term')
+                        || u.searchParams.get('keyword')
+                        || null;
+                } catch (e) {
+                    return null;
+                }
             },
             cellValue(visit, key) {
                 if (key === 'ip') return this.ipLabel(visit);
