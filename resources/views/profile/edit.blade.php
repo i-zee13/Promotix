@@ -10,14 +10,22 @@
 
         <div class="grid items-start gap-[16px] xl:grid-cols-12">
             <div class="space-y-[16px] xl:col-span-7">
-                @include('profile.partials.update-profile-information-form')
+                <div id="profile-information-section">
+                    @include('profile.partials.update-profile-information-form')
+                </div>
                 @include('profile.partials.organization-form')
-                @include('profile.partials.update-password-form')
+                <div id="password-security-section">
+                    @include('profile.partials.update-password-form')
+                </div>
             </div>
 
             <div class="space-y-[16px] xl:col-span-5">
-                @include('profile.partials.security-controls')
-                @include('profile.partials.login-history')
+                <div id="security-controls-section">
+                    @include('profile.partials.security-controls')
+                </div>
+                <div id="login-history-section">
+                    @include('profile.partials.login-history')
+                </div>
                 @include('profile.partials.delete-user-form')
             </div>
         </div>

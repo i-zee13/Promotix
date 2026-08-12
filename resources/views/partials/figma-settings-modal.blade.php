@@ -139,18 +139,72 @@
                 {{-- Security --}}
                 <div x-show="tab === 'security'" x-cloak>
                     <h3 class="pmx-settings__h">Security & Login</h3>
-                    <p class="pmx-settings__p">Password and login security from your profile page.</p>
-                    <div class="pmx-settings__card">
-                        <a href="{{ route('profile.edit') }}" class="pmx-settings__cta">Open Security settings →</a>
+                    <p class="pmx-settings__p">Password, login history, and rollout status for 2FA / API access from your account settings.</p>
+                    <div class="pmx-settings__card pmx-settings__stack">
+                        <div class="pmx-settings__row">
+                            <div>
+                                <p class="pmx-settings__label">Password</p>
+                                <p class="pmx-settings__hint">Update account password from Security.</p>
+                            </div>
+                            <a href="{{ route('profile.edit') }}#password-security-section" class="pmx-settings__btn">Open password</a>
+                        </div>
+                        <div class="pmx-settings__row">
+                            <div>
+                                <p class="pmx-settings__label">Login history</p>
+                                <p class="pmx-settings__hint">Recent sign-ins, IPs, browsers, and devices.</p>
+                            </div>
+                            <a href="{{ route('profile.edit') }}#login-history-section" class="pmx-settings__btn">View activity</a>
+                        </div>
+                        <div class="pmx-settings__row">
+                            <div>
+                                <p class="pmx-settings__label">Two-factor authentication</p>
+                                <p class="pmx-settings__hint">Authenticator-app challenge flow reserved here.</p>
+                            </div>
+                            <span class="pmx-settings__chip">Coming soon</span>
+                        </div>
+                        <div class="pmx-settings__row">
+                            <div>
+                                <p class="pmx-settings__label">API keys</p>
+                                <p class="pmx-settings__hint">Programmatic access / token management placeholder.</p>
+                            </div>
+                            <span class="pmx-settings__chip">Coming soon</span>
+                        </div>
+                        <div class="pmx-settings__row">
+                            <div>
+                                <p class="pmx-settings__label">Login alerts</p>
+                                <p class="pmx-settings__hint">New-device alerts are represented in the security rollout sheet.</p>
+                            </div>
+                            <span class="pmx-settings__chip">Queued</span>
+                        </div>
                     </div>
                 </div>
 
-                {{-- Trusted Contacts — no backend yet; show shape only --}}
+                {{-- Trusted Contacts --}}
                 <div x-show="tab === 'contacts'" x-cloak>
                     <h3 class="pmx-settings__h">Trusted Contacts</h3>
-                    <p class="pmx-settings__p">This tab is reserved for trusted contacts. No new backend yet — structure only for demos.</p>
-                    <div class="pmx-settings__card">
-                        <p class="pmx-settings__hint">Coming next: invite / manage trusted contacts for escalations.</p>
+                    <p class="pmx-settings__p">Recovery / escalation contacts from the sheet are not backed by a model yet, but the settings surface is now reserved.</p>
+                    <div class="pmx-settings__card pmx-settings__stack">
+                        <div class="pmx-settings__row">
+                            <div>
+                                <p class="pmx-settings__label">Recovery contacts</p>
+                                <p class="pmx-settings__hint">Add 1–3 trusted people for urgent account recovery or security escalation.</p>
+                            </div>
+                            <span class="pmx-settings__chip">Planned</span>
+                        </div>
+                        <div class="pmx-settings__row">
+                            <div>
+                                <p class="pmx-settings__label">Account owner details</p>
+                                <p class="pmx-settings__hint">Current profile/account page holds the owner identity details.</p>
+                            </div>
+                            <a href="{{ route('profile.edit') }}#profile-information-section" class="pmx-settings__btn">Open account</a>
+                        </div>
+                        <div class="pmx-settings__row">
+                            <div>
+                                <p class="pmx-settings__label">Security controls</p>
+                                <p class="pmx-settings__hint">2FA / API key rollout status lives in the Security block.</p>
+                            </div>
+                            <a href="{{ route('profile.edit') }}#security-controls-section" class="pmx-settings__btn">Open security</a>
+                        </div>
                     </div>
                 </div>
 
@@ -298,6 +352,10 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: #181818;
         padding: 14px;
+    }
+    .pmx-settings__stack {
+        display: flex;
+        flex-direction: column;
     }
     .pmx-settings__row {
         display: flex;
