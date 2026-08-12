@@ -431,34 +431,126 @@ class TagController extends Controller
   }
 
   // Stable browser fingerprint (NOT cookies). Device ID on server hashes this.
+  // Signals: WebGL vendor/renderer, canvas, browser/OS/device family, touch, pixel ratio, screen.
+  function hashString(raw){
+    var hash = 0;
+    for (var i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  function browserFamilyFromUa(ua){
+    ua = String(ua || '').toLowerCase();
+    if (ua.indexOf('edg/') !== -1 || ua.indexOf('edge/') !== -1) return 'edge';
+    if (ua.indexOf('opr/') !== -1 || ua.indexOf('opera') !== -1) return 'opera';
+    if (ua.indexOf('firefox') !== -1 || ua.indexOf('fxios') !== -1) return 'firefox';
+    if (ua.indexOf('crios') !== -1 || (ua.indexOf('chrome') !== -1 && ua.indexOf('chromium') === -1)) return 'chrome';
+    if (ua.indexOf('safari') !== -1) return 'safari';
+    if (ua.indexOf('samsung') !== -1) return 'samsung';
+    return 'other';
+  }
+
+  function osFamilyFromUa(ua){
+    ua = String(ua || '').toLowerCase();
+    if (ua.indexOf('iphone') !== -1 || ua.indexOf('ipad') !== -1 || ua.indexOf('ipod') !== -1) return 'ios';
+    if (ua.indexOf('android') !== -1) return 'android';
+    if (ua.indexOf('windows') !== -1) return 'windows';
+    if (ua.indexOf('mac os') !== -1 || ua.indexOf('macintosh') !== -1) return 'macos';
+    if (ua.indexOf('cros') !== -1) return 'chromeos';
+    if (ua.indexOf('linux') !== -1) return 'linux';
+    return 'other';
+  }
+
+  function deviceTypeFromSignals(ua, touchPoints){
+    ua = String(ua || '').toLowerCase();
+    if (ua.indexOf('ipad') !== -1 || (ua.indexOf('android') !== -1 && ua.indexOf('mobile') === -1) || ua.indexOf('tablet') !== -1) return 'tablet';
+    if (ua.indexOf('mobi') !== -1 || ua.indexOf('iphone') !== -1 || ua.indexOf('ipod') !== -1 || (touchPoints > 0 && ua.indexOf('windows') === -1 && ua.indexOf('macintosh') === -1)) return 'mobile';
+    return 'desktop';
+  }
+
+  function webglInfo(){
+    var out = { vendor: '', renderer: '' };
+    try {
+      var canvas = document.createElement('canvas');
+      var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) return out;
+      var ext = gl.getExtension('WEBGL_debug_renderer_info');
+      if (ext) {
+        out.vendor = String(gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) || '');
+        out.renderer = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '');
+      } else {
+        out.vendor = String(gl.getParameter(gl.VENDOR) || '');
+        out.renderer = String(gl.getParameter(gl.RENDERER) || '');
+      }
+    } catch (e) {}
+    return out;
+  }
+
+  function canvasCharacteristics(){
+    try {
+      var canvas = document.createElement('canvas');
+      canvas.width = 240;
+      canvas.height = 60;
+      var ctx = canvas.getContext('2d');
+      if (!ctx) return 'none';
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(10, 8, 80, 30);
+      ctx.fillStyle = '#069';
+      ctx.fillText('PromotixFP', 12, 12);
+      ctx.fillStyle = 'rgba(102,204,0,0.7)';
+      ctx.fillText('PromotixFP', 14, 16);
+      ctx.beginPath();
+      ctx.arc(180, 28, 16, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      var data = '';
+      try { data = canvas.toDataURL(); } catch (e) { data = 'blocked'; }
+      return hashString(data) + ':' + String(data.length) + ':' + String(canvas.width) + 'x' + String(canvas.height);
+    } catch (e) {
+      return 'err';
+    }
+  }
+
   function deviceFingerprint(){
-    var key = 'pm_fp_' + domainKey;
+    // v2 cache: richer WebGL/canvas/device signals (do not reuse v1 weak FP).
+    var key = 'pm_fp_v2_' + domainKey;
     try {
       var cached = localStorage.getItem(key);
       if (cached && cached.length > 8) return cached;
     } catch (e) {}
     var parts = [];
     try {
-      parts.push('ua=' + String(navigator.userAgent || ''));
+      var ua = String(navigator.userAgent || '');
+      var touchPoints = Number(navigator.maxTouchPoints || 0);
+      var gl = webglInfo();
+      var pr = Number(window.devicePixelRatio || 1);
+      parts.push('ua=' + ua);
       parts.push('lang=' + String(navigator.language || (navigator.languages && navigator.languages[0]) || ''));
       parts.push('plat=' + String(navigator.platform || ''));
       parts.push('tz=' + String((Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || ''));
       parts.push('tzoff=' + String(new Date().getTimezoneOffset()));
-      parts.push('scr=' + String(screen.width || 0) + 'x' + String(screen.height || 0) + 'x' + String(screen.colorDepth || 0));
+      parts.push('bf=' + browserFamilyFromUa(ua));
+      parts.push('osf=' + osFamilyFromUa(ua));
+      parts.push('dt=' + deviceTypeFromSignals(ua, touchPoints));
+      parts.push('touch=' + String(touchPoints));
+      parts.push('touchcap=' + String((('ontouchstart' in window) || touchPoints > 0) ? 1 : 0));
+      parts.push('pr=' + String(pr));
+      parts.push('scr=' + String(screen.width || 0) + 'x' + String(screen.height || 0) + 'x' + String(screen.colorDepth || 0) + 'x' + String(screen.pixelDepth || 0));
       parts.push('aw=' + String(window.screen.availWidth || 0) + 'x' + String(window.screen.availHeight || 0));
-      parts.push('pr=' + String(window.devicePixelRatio || 1));
+      parts.push('or=' + String(screen.orientation && screen.orientation.type ? screen.orientation.type : (window.orientation || 0)));
+      parts.push('glv=' + gl.vendor);
+      parts.push('glr=' + gl.renderer);
+      parts.push('cvs=' + canvasCharacteristics());
       parts.push('hc=' + String(navigator.hardwareConcurrency || 0));
       parts.push('mem=' + String(navigator.deviceMemory || 0));
-      parts.push('touch=' + String(navigator.maxTouchPoints || 0));
       parts.push('cookie=' + String(navigator.cookieEnabled ? 1 : 0));
     } catch (e) {}
     var raw = parts.join('|');
-    var hash = 0;
-    for (var i = 0; i < raw.length; i++) {
-      hash = ((hash << 5) - hash) + raw.charCodeAt(i);
-      hash |= 0;
-    }
-    var fp = 'cfp_' + Math.abs(hash).toString(36) + '_' + String(raw.length);
+    var fp = 'cfp2_' + hashString(raw) + '_' + String(raw.length);
     try { localStorage.setItem(key, fp); } catch (e) {}
     return fp;
   }

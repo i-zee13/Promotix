@@ -7,6 +7,11 @@ namespace App\Support\PaidAdvertising;
  *
  * Device ID must NOT include cookie Browser ID — otherwise a cookie reset
  * creates a "new device" even when the fingerprint is the same person.
+ *
+ * Client tag fingerprint (payload.fingerprint) should include:
+ * WebGL vendor/renderer, canvas characteristics, browser family, OS family,
+ * device type, touch capability, pixel ratio, screen characteristics.
+ * Server hashes that client string into FP_/DEV_ ids (cookie-independent).
  */
 final class PaidDeviceFingerprinter
 {
