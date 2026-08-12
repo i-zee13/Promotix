@@ -26,7 +26,7 @@ class ProfileController extends Controller
         LoginHistoryLogger::ensureCurrentSession($user, $request, 'session');
 
         return view('profile.edit', [
-            'user' => $user,
+            'user' => $user->load('apiKeys'),
             'loginHistories' => $user->loginHistories()->limit(40)->get(),
         ]);
     }

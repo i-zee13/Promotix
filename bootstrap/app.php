@@ -32,11 +32,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'protection' => \App\Http\Middleware\EnsureProtectionAccess::class,
             'redirect-super-admin' => \App\Http\Middleware\RedirectSuperAdminFromLegacyAdmin::class,
             'portal-product' => \App\Http\Middleware\EnsurePortalProductActive::class,
+            'two-factor' => \App\Http\Middleware\EnsureTwoFactorPassed::class,
         ]);
 
         // Onboarding gate: forces unverified / no-plan users through the funnel.
         $middleware->web(append: [
             \App\Http\Middleware\SetUserTimezone::class,
+            \App\Http\Middleware\EnsureTwoFactorPassed::class,
             \App\Http\Middleware\EnsureOnboardingComplete::class,
             \App\Http\Middleware\EnsureProtectionAccess::class,
         ]);

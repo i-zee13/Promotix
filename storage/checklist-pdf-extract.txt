@@ -1,0 +1,773 @@
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+CLICKRONIX
+Paid Advertising Fraud Detection, Identity, Scoring 
+& Enforcement
+Google Ads + Meta Ads + Microsoft Ads | Full Roman Urdu Implementation Manual
+Is manual ka maqsad
+Dashboard aur Advanced View ki exact field placement, filters/column selector/export design, Visitor/Device identity capture, 10 x 
+10 = 100 paid-ad detection rules, decisive vs correlated rules, 0-100 risk scoring, IP exclusion safety aur platform-specific 
+enforcement ko developer-ready Roman Urdu mein define karna hai.
+Version 4.0 | August 2026 | User-supplied Clickronix architecture + current official platform capability notes
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+1. Sab Se Pehle: System Ka Golden Rule
+Golden Rule
+IP Address hamesha dashboard ka anchor rahega, lekin IP ko "ek insan" ya "ek device" mat samjho. Repeat click decision ke liye 
+Device ID + Browser ID + Visitor ID + Fingerprint similarity + Session history ko correlate karo. Block owning identity ko pehle 
+karo; IP exclusion baad mein eligibility gate se guzray.
+Paid Advertising Protection ka sawal bot protection se different hai: "kya ye paid click advertiser ke liye repetitive, manipulated, 
+automated, competitive, accidental ya invalid lag raha hai?" Bot evidence supporting signal ho sakta hai, lekin paid module ki apni 
+identity aur repeat-click logic honi chahiye.
+ Score-first system mat banao. Identity-first + rule-first + score-when-uncertain model banao.
+ Decisive rule fire ho to 85/100 ya 100/100 ka wait mat karo.
+ Same IP only = low identity confidence. Same Device + Browser + Fingerprint >=90% = very high identity confidence.
+ GCLID / GBRAID / WBRAID attribution identifiers hain; physical Device ID nahi.
+ Dashboard compact rakho; Advanced View forensic detail ke liye use karo.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+Is flow mein do enforcement paths hain: (1) Decisive Rule - strong evidence, direct action; (2) Correlated/Signal - multiple 
+independent signals, risk score, trust deduction, phir final classification.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+2. Visitor ID, Browser ID, Fingerprint, Device ID aur Session ID 
+Kaise Banayen
+2.1 Visitor ID
+Visitor ID browser se ready-made nahi milti. Clickronix khud random first-party ID banaye. First visit par backend/JS random token 
+create kare, server usay sign kare, first-party cookie mein save kare. LocalStorage backup optional hai. Agar valid signed Visitor ID 
+pehle se ho to wahi reuse karo.
+Field Recommended implementation Important point
+Visitor ID Random UUID/token, e.g. VIS_xxx; first-party 
+signed cookie
+Returning browser/visitor continuity; clear ho 
+sakti hai
+Browser ID Signed first-party browser-profile token, e.g. 
+BR_xxx
+Browser profile continuity; physical hardware ID 
+nahi
+Session ID Random SES_xxx per visit/session; inactivity 
+expiry Current landing session ka owner
+Fingerprint ID Normalized browser/device telemetry ka 
+hash/similarity profile Exact hash se zyada similarity use karo
+Device ID Clickronix internal probable device identity 
+DEV_xxx
+Browser physical hardware serial expose nahi 
+karta
+Paid Identity ID PID_xxx canonical graph identity Visitor + Browser + Device + FP + IP/session 
+history ko link karta hai
+2.2 Fingerprint Signals
+Fingerprint ke liye stable/semi-stable browser telemetry collect karo. Privacy aur legal requirements ke mutabiq data minimization 
+rakho; raw fields ko forever store karne ke bajaye normalized hashes aur similarity components store karna behtar hai.
+Signal group Examples Use
+Browser User Agent, browser family/version, Client 
+Hints Browser consistency
+OS/Device OS family/version, device type, touch support Device profile
+Display Screen, pixel ratio, color depth Similarity evidence
+Locale Language, timezone Supporting consistency
+Hardware hints CPU concurrency, device memory Weak/semi-stable signal
+Rendering Canvas/WebGL renderer/fingerprint Similarity evidence
+Storage Cookie/local storage availability Continuity/evasion
+Integrity Headless/WebDriver/challenge results Automation evidence
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+2.3 Identity Confidence
+Level Required match Confidence Default enforcement
+Very High Valid signed Browser ID + same 
+Device ID + fingerprint >=90% 0.95-1.00 Strict repeat-click policy eligible
+High Same Device ID + fingerprint 
+>=85%; Browser ID may reset 0.85-0.94 Configured repeat threshold par 
+device block
+Medium Fingerprint >=75% + same 
+IP/UA/OS context 0.70-0.84 Challenge; extra signal required
+Low Same IP only 0.40-0.69 IP counter only; same person 
+claim nahi
+Unknown Only click ID / incomplete 
+telemetry <0.40 Log / UNKNOWN; no device block
+Important
+IP change hone par Device ID automatically new mat banao. Agar Browser/Visitor continuity aur fingerprint similarity high hai to 
+existing Device ID reuse karo. Agar same IP par multiple different devices hain to shared-network probability increase karo.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+3. Google, Meta aur Microsoft Paid Click Capture - Platform 
+Flow
+Platform Landing attribution capture Clickronix ka main action Platform-side handling
+Google Ads GCLID, GBRAID, WBRAID, UTM, 
+campaign/ad context
+Session/Browser/Device/Paid Identity 
+block + eligible current IP review
+Current Google Ads docs IP 
+exclusions support karti hain; Google 
+apni invalid-traffic filtering separately 
+karta hai. Platform response always 
+record karo.
+Microsoft Ads MSCLKID, UTM, campaign/ad 
+context
+Session/Browser/Device/Paid Identity 
+block + eligible current IPv4 review
+Microsoft docs: campaign-level IP 
+exclusions; max 100 IPv4/ranges per 
+campaign.
+Meta Ads FBCLID, first-party IDs, Pixel/CAPI 
+event ID, UTM/creative/placement
+Website identity block + fake 
+lead/event suppression + 
+placement/audience analysis
+Current Meta public docs invalid/non-
+human traffic filtering describe karti 
+hain; Google-style advertiser visitor-
+IP exclusion ko assume mat karo.
+Platform rule
+Detection engine common reh sakta hai, lekin enforcement adapter platform-specific hona chahiye. Har action ke sath 
+platform_exclusion_status = NOT_NEEDED / QUEUED / ADDED / FAILED / UNSUPPORTED store karo.
+Google Ads ke official help pages current IP exclusion UI ko document karti hain aur invalid traffic ke liye multiple click/impression 
+signals ka zikr karti hain. Microsoft current help campaign-level IPv4 exclusions aur 100-entry limit document karta hai. Meta public 
+methodology detectable invalid/non-human traffic filter karti hai; Clickronix ko Meta ke liye website-side identity enforcement aur 
+event/lead quality ko primary rakhna chahiye.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+4. PAGE 1 - Paid Advertising Dashboard: Exact Structure
+Dashboard ka kaam forensic detail dikhana nahi; operator ko 5 seconds mein batana hai: kitne paid clicks aaye, invalid kitne, kis 
+identity/IP par repeat hua, risk kya hai aur action kya liya gaya.
+4.1 Top Filters (sheet ke upar fixed)
+Filter Default Behavior
+Domain All Domains Protected domain select
+Traffic Source All / Google / Meta / Microsoft Platform filter
+Ad Account All Accounts Connected account
+Campaign All Campaigns Campaign-specific policy
+Landing Page All Pages Landing page filter
+Date Today / 24h / 7d / 30d / Custom Time window
+Compare Off Previous period comparison
+4.2 Summary Cards
+Card Must show
+Paid Click Summary Total clicks, tracked clicks, valid, invalid, blocked, cost-at-risk/saved, 
+tracking accuracy
+Fraud Actions Detection events, monitored, challenged, invalidated, blocked, 
+exclusions added/failed
+Campaign Performance Campaign, clicks, invalid %, cost at risk/saved
+Top High-Risk Identities IP + Device/PID, risk, clicks, primary detection, action
+Paid Traffic Trend Clicks / valid / invalid / blocked over time
+Click Activity Heatmap Day/hour repeat and suspicious density
+UI correction
+Paid Advertising page ke andar generic "Bot Protection" card ko "Paid Traffic Protection" ya "Fraud Signals" rename karo. Bot 
+module separate menu mein rahe.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+4.3 Recent Paid Traffic - Default Visible Columns
+# Column Purpose
+1 IP Address Anchor - hamesha visible/pinned
+2 Paid Clicks Identity/IP total paid clicks
+3 Clicks 60m Main rolling repeat counter
+4 Invalid Invalid classification count
+5 Valid Valid count
+6 Device ID Primary identity evidence
+7 Identity Confidence Very High/High/Medium/Low/Unknown
+8 Platform Google/Meta/Microsoft
+9 Campaign Campaign name
+10 Click ID GCLID/GBRAID/WBRAID/MSCLKID/FBCLID
+11 Last Click Latest timestamp
+12 Primary Detection Highest priority rule
+13 Triggered Rules Active rule count
+14 Risk Score 0-100
+15 Risk Level Valid/Low/Suspicious/High/Critical
+16 Traffic Status Valid/Suspicious/Invalid
+17 Block Status Allowed/Challenged/Blocked
+18 Block Scope Session/Browser/Device/IP
+19 IP Exclusion Not 
+needed/Queued/Added/Failed/Unsupported
+20 Evidence Short reason
+Main table rule
+IP Address column ko left-most pinned/frozen rakho. Operator scroll kare tab bhi IP visible rahe. Device ID aur Identity Confidence 
+ko IP ke qareeb rakho taake same-IP vs same-device confusion na ho.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+4.4 Tumhare Current Dashboard Screenshot Par Placement Recommendation
+ Top purple cards theek hain, lekin Bot Protection card ko Paid Traffic Protection/Fraud Signals karo.
+ Invalid Traffic Protection Engine mein sirf 5-6 generic toggles nahi; detection category cards + campaign policy selector do.
+ Recent IP Activity ko Recent Paid Traffic rename karo aur IP + Device ID + Identity Confidence + Clicks 60m + Primary Detection + 
+Risk + Block + Exclusion show karo.
+ Top High Risk IPs ko Top High Risk Identities rename karo; IP ke sath Device/PID bhi show karo.
+ Basic View = compact 20 columns; Expert View = user-selected columns. Export current view aur full forensic export dono do.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+5. PAGE 2 - Advanced View: Exact Structure
+Advanced View ek forensic investigation workspace hai. Ek random 50+ column table na banao. Table ka IP anchor pinned rahe, aur 
+column groups ko "Columns" selector se on/off karo. Row click par right-side Investigation Drawer khulay.
+5.1 Advanced View Default Visible Columns
+# Default column
+1 IP Address
+2 Paid Clicks
+3 Clicks 60m
+4 Device ID
+5 Browser ID
+6 Fingerprint ID
+7 Latest Session
+8 Campaign
+9 Click ID
+10 Identity Confidence
+11 Invalid
+12 Valid
+13 Primary Detection
+14 Triggered Rules
+15 Risk Score
+16 Risk Level
+17 Traffic Status
+18 Block Status
+19 Block Scope
+20 Block Reason
+21 IP Exclusion
+22 Last Click
+5.2 Column Selector Groups
+Column group Fields included
+Paid Identity
+IP, Paid Identity ID, Visitor ID, Device ID, Browser ID, Fingerprint ID, Identity 
+Cluster, Session, Identity Confidence, FP Similarity, first/last seen, device-IP 
+count, IP-device count, prior blocks, known fraud
+Attribution
+Platform, Account, Campaign, Campaign Type, Ad Group, Ad, Keyword, 
+Search Term, Match Type, Placement, Landing Page, Referrer, GCLID, 
+GBRAID, WBRAID, MSCLKID, FBCLID, UTMs, click-ID validity/reuse, 
+signature, attribution status
+Click Windows
+Clicks 1m/5m/15m/30m/60m/6h/24h/7d, first/previous/last click, time since 
+previous, min/avg interval, repeat days, unique campaigns/ad 
+groups/keywords/click IDs, duplicate IDs, same-IP/device/browser/FP counts, 
+cross-IP device count
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+Column group Fields included
+IP Intelligence
+Country, Region, City, ZIP, Lat/Long, ISP, ASN, ASN Org, Provider Type, 
+Network Range, Routed Prefix, Allocated Range, VPN, Proxy, Residential 
+Proxy, Tor, Datacenter, Hosting, Cloud, Mobile Carrier, shared/dynamic 
+probability, reputation, IP Risk, previous fraud/blocks, IP stability, exclusion 
+eligible
+Device / Browser
+Device Type/Brand/Model, Browser/Version, OS/Version, UA, Screen, Pixel 
+Ratio, Language, Timezone, Touch, Cookies, JS, Local Storage, Canvas, 
+WebGL, Headless, WebDriver, Browser Integrity, reset counts, IP rotation
+Session / Behavior
+Session ID, Duration, Time to First Action, Pages, Page Changes, Scroll, 
+Mouse/Touch/Keyboard, CTA, Tel, Form Start/Submit, Bounce, Engagement, 
+Hidden Tab, Challenge, Recording, Replay, Interaction Diversity
+Conversion / Lead
+Conversion count/type/time/value/event ID, duplicate conversion, 
+form/email/phone valid, duplicate lead, honeypot, CRM status, qualified lead, 
+sale, conversion trust, invalid reason
+Detection / Scoring
+Detection ID, Rule Code/Name/Version, Group, Entity, State, Detected Value, 
+Threshold, Window, Base/Max, Confidence, Multipliers, Correlation, Category 
+Cap, Trust, Final Contribution, Supporting Signals, Decision Type, Can Block 
+Alone, actions, evidence, timestamps
+Enforcement / Review
+Block Status/Scope/Reason, blocked at/until, blocked IP/device/browser/FP, 
+excluded IP, platform exclusion status/id/response, review 
+status/reviewer/notes, false positive, allowlist
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+5.3 Filter vs Column Selector - Dono ka Role Alag Hai
+Feature Kya karta hai Recommended UI
+Filter Rows ko narrow karta hai; data set change 
+hota hai Top/right Filters button + chips
+Column Selector Kaun se fields table mein nazar aayen Columns button; grouped checkboxes
+Investigation Drawer Selected row ki full forensic detail Right-side drawer, grouped cards
+Export Current View Jo filters + columns selected hain wahi 
+CSV/XLSX Export > Current View
+Export Full Record Selected rows ki complete forensic fields Export > Full Forensic
+Saved View Operator apne common columns/filters save 
+kare Basic / Expert / Custom View
+Best UX
+IP ko filter mat banao sirf - IP default visible anchor bhi rahe. User IP search/filter kare, row select kare, aur baqi detail 
+drawer/columns se dekhe. Yani IP "remain" karega; baqi data on-demand show hoga.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+5.4 Tumhare Advanced View Screenshot Par Recommendation
+ Existing right-side IP Investigation drawer useful hai; isay Paid Identity Investigation drawer banao. IP top par rahe, neeche Device 
+ID/PID/Browser ID bhi.
+ Detection Reasons mein generic VPN/Datacenter/Geo ke sath paid-specific Repeat 2/60m, Repeat 3/60m, Device New IP, Click-
+ID Replay, Cross-Campaign Sweep show karo.
+ Network Information aur Device Fingerprint cards theek hain; unke neeche Click Windows aur Detection Scoring cards add karo.
+ Protection Action section mein Action Taken + Block Scope + Block Until + Platform Exclusion Result show karo.
+ 54 columns ko flat list ke bajaye grouped selector mein organize karo; selected field groups export mein preserve hon.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+6. Exact Filters Jo Dashboard aur Advanced View Dono Mein 
+Hon
+Filter Options
+Time Today, 24h, 7d, 30d, custom
+Domain One / all domains
+Platform Google Ads, Meta Ads, Microsoft Ads
+Ad Account Connected account
+Campaign ID/name
+Ad Group ID/name
+Keyword / Search Term Where available
+Landing Page Specific page
+Traffic Status Valid / Suspicious / Invalid
+Risk Level Valid / Low / Suspicious / High / Critical
+Risk Score Range 0-100
+Block Status Allowed / Challenged / Blocked / Expired
+Block Scope Session / Browser / Device / Paid Identity / IP
+Primary Detection Repeat click / IP rotation / token replay / etc.
+Rule Code Exact rule
+Identity Confidence Very High / High / Medium / Low / Unknown
+Device ID Exact / contains
+Browser ID Exact / contains
+Fingerprint Exact / similarity band
+IP Address Exact / CIDR
+Country/Region/City Geo
+ISP/ASN Network
+VPN/Proxy/Tor/DC Boolean
+Click Count 1m/5m/15m/60m/24h thresholds
+Conversion None/valid/duplicate/invalid/qualified
+Exclusion Status Not needed/queued/added/failed/unsupported
+Review Status Automatic/pending/reviewed/false positive
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+7. Full Paid Advertising Detection Model - 10 x 10 = 100 Rules
+Har rule ke sath Rule Code, Trigger, Base Risk, Max Risk, Decision Type, Required Correlation, Owning Entity, Block Scope aur 
+Expiry store karo. "Alone?" ka matlab hai validated rule apne aap enforcement kar sakta hai ya nahi.
+Rule types
+STANDALONE/DECISIVE = strong evidence, direct action. CORRELATED = 1 high independent signal ya 2 medium independent 
+signals chahiye. SUPPORTING = kabhi akela block nahi. TRUST/SUPPRESS = risk kam/suppress karta hai.
+7.1 Repeat Click Detection
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_REPEAT_2_60M 2 clicks / 60m same very-
+high identity 35 45 Strict decisive Strict campaign only
+ADS_REPEAT_3_60M 3 clicks / 60m same high 
+identity 60 70 Decisive Yes
+ADS_REPEAT_3_15M 3 clicks / 15m same identity 65 75 Decisive Yes
+ADS_REPEAT_3_5M 3 clicks / 5m same identity 75 85 Decisive Yes
+ADS_REPEAT_4_60M 4 clicks / 60m same identity 75 85 Decisive Yes
+ADS_REPEAT_5_60M 5 clicks / 60m same identity 90 100 Standalone Yes
+ADS_REPEAT_8_24H 8 clicks / 24h same identity 60 75 Correlated Signals
+ADS_REPEAT_10_24H 10 clicks / 24h same 
+identity 75 90 Decisive Identity >= High
+ADS_REPEAT_20_7D 20 clicks / 7d same identity 70 90 Correlated History
+ADS_PERSISTENT_REPE
+AT
+Repeat paid clicks on 3+ 
+days 40 60 Correlated History + quality
+7.2 Click Timing / Velocity
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_RAPID_RECLICK Next paid click <10 sec 15 25 Supporting No
+ADS_ULTRA_RECLICK Next paid click <3 sec 25 35 Correlated Identity
+ADS_3_30S 3 clicks / 30 sec 40 55 Correlated Identity
+ADS_5_60S 5 clicks / 60 sec 70 85 Decisive Yes
+ADS_BURST_10_60S 10 clicks / 60 sec 100 100 Standalone Yes
+ADS_EXACT_INTERVAL Repeated identical click 
+intervals 20 35 Correlated Signals
+ADS_MS_PATTERN Machine-like millisecond 
+pattern 30 45 Correlated Signals
+ADS_PARALLEL_SESSIO
+NS
+Overlapping paid sessions 
+same identity 20 35 Correlated Identity
+ADS_SIMULT_CAMPAIGN Near-simultaneous 
+campaigns 40 55 Correlated Identity
+ADS_SCHEDULED_REPE
+AT
+Exact recurring timing over 
+days 25 45 Correlated History
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+7.3 Device / Identity
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_SAME_DEVICE_REP
+EAT
+Repeated paid clicks same 
+Device ID 20 30 Correlated Threshold
+ADS_SAME_BROWSER_
+REPEAT
+Repeated paid clicks same 
+Browser ID 15 25 Correlated Threshold
+ADS_FP_REPEAT Fingerprint >=90% across 
+repeat clicks 15 25 Supporting Threshold
+ADS_DEVICE_NEW_IP Same device re-click after 
+IP change 25 40 Correlated Repeat
+ADS_DEVICE_3IP_60M Same device 3 IPs / 60m 15 25 Supporting No
+ADS_DEVICE_5IP_60M Same device 5 IPs / 60m 25 40 Correlated Repeat
+ADS_DEVICE_10IP_60M Same device 10+ IPs / 60m 40 60 Strong correlated Paid repeat
+ADS_BROWSER_RESET Browser ID repeatedly 
+resets 20 35 Correlated Fingerprint
+ADS_COOKIE_RESET Visitor cookie repeatedly 
+resets 15 30 Correlated Fingerprint
+ADS_KNOWN_FRAUD_D
+EVICE
+Confirmed fraud device 
+returns 100 100 Standalone Yes
+7.4 IP Repeat / Network Identity
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_IP_2_60M Same IP 2 paid clicks / 60m 15 25 Supporting No
+ADS_IP_3_60M Same IP 3 paid clicks / 60m 25 35 Correlated Identity
+ADS_IP_5_60M Same IP 5 paid clicks / 60m 40 55 Correlated Identity
+ADS_IP_10_24H Same IP 10 paid clicks / 
+24h 50 65 Correlated Identity
+ADS_IP_CROSS_CAMPAI
+GN
+Same IP multiple 
+campaigns 20 35 Correlated Identity
+ADS_IP_CROSS_ACCOU
+NT
+Same IP multiple protected 
+accounts 30 45 Correlated Evidence
+ADS_PREV_INVALID_IP IP prior invalid paid event 20 35 Correlated Fresh event
+ADS_ACTIVE_BLOCK_IP IP active confirmed block 100 100 Standalone Yes
+ADS_FRAUD_IP_REP High-confidence fraud 
+reputation 40 60 Strong correlated High confidence + current
+ADS_SHARED_IP Many distinct valid devices 
+same IP -25 -25 Trust/Suppress Never block
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+7.5 Attribution / Click-ID Integrity
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_CLICKID_MISSING Expected click identifier 
+missing 5 10 Supporting No
+ADS_GCLID_MALFORME
+D GCLID structurally invalid 10 20 Correlated Signals
+ADS_GCLID_DUP Same GCLID reused 20 35 Correlated Signals
+ADS_GCLID_MULTI_DEVI
+CE
+One GCLID on unrelated 
+devices 50 70 Strong correlated Identity
+ADS_GCLID_MULTI_GEO One GCLID impossible 
+multi-geo 50 70 Strong correlated Identity
+ADS_GBRAID_REPLAY GBRAID suspicious replay 
+pattern 20 35 Correlated Signals
+ADS_WBRAID_REPLAY WBRAID suspicious replay 
+pattern 20 35 Correlated Signals
+ADS_SIGNED_TOKEN_IN
+VALID
+Clickronix signed token 
+invalid 100 100 Standalone Yes
+ADS_SIGNED_TOKEN_R
+EPLAY
+Signed nonce/token 
+replayed 100 100 Standalone Yes
+ADS_URL_TAMPER Landing/attribution params 
+tampered 40 60 Correlated Evidence
+7.6 Engagement Quality
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_SESSION_LT2S Paid session <2 sec 5 10 Supporting Never
+ADS_3_SHORT_SESS 3 short sessions same 
+identity 15 25 Correlated Identity
+ADS_NO_INTERACTION No meaningful page 
+interaction 5 10 Supporting Never
+ADS_IMMEDIATE_RETUR
+N
+Repeated immediate 
+return/re-click 10 20 Correlated Repeat
+ADS_NO_SCROLL_REPE
+AT
+Repeated no-scroll landing 
+sessions 5 10 Supporting No
+ADS_EXACT_JOURNEY Exact navigation/timing 
+replay 25 40 Correlated Signals
+ADS_MACHINE_CTA CTA at machine-
+improbable speed 25 40 Correlated Signals
+ADS_HIDDEN_TAB Actions while tab hidden 10 20 Supporting No
+ADS_NO_RESOURCES HTML without normal asset 
+loading 20 35 Correlated Browser evidence
+ADS_BEHAVIOR_REPLAY Identical event stream 
+reused 35 55 Strong correlated Signals
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+7.7 Browser Automation
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_HEADLESS Headless browser evidence 30 45 Correlated Paid signal
+ADS_WEBDRIVER WebDriver automation 
+evidence 30 45 Correlated Paid signal
+ADS_UA_MISMATCH UA conflicts runtime APIs 15 25 Supporting No
+ADS_CH_MISMATCH Client Hints conflict UA/OS 15 25 Supporting No
+ADS_TLS_MISMATCH TLS fingerprint conflicts 
+browser 20 35 Correlated Signals
+ADS_CANVAS_ANOM Canvas anomaly 10 20 Supporting No
+ADS_WEBGL_ANOM WebGL/renderer anomaly 10 20 Supporting No
+ADS_JS_CHALLENGE_FA
+IL Browser challenge fails 25 45 Strong correlated Signals
+ADS_CHALLENGE_TOKE
+N_INVALID
+Signed challenge token 
+invalid 100 100 Standalone Yes
+ADS_TRACKING_TAMPE
+R
+Tracking/protection 
+tampering 100 100 Standalone Yes
+7.8 Network / Location
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_VPN VPN detected 5 10 Supporting Never
+ADS_PUBLIC_PROXY Public/open proxy 10 20 Correlated Signals
+ADS_RES_PROXY Residential proxy service 15 25 Correlated Repeat
+ADS_TOR Tor exit node 15 25 Correlated Policy/signals
+ADS_DATACENTER Datacenter/hosting network 8 15 Supporting Never
+ADS_HIGH_RISK_ASN ASN abnormal fraud history 10 20 Supporting No
+ADS_OUTSIDE_TARGET Country outside campaign 
+target 10 20 Correlated Campaign evidence
+ADS_GEO_VELOCITY Same device impossible 
+geo travel 25 40 Correlated Device confidence
+ADS_ASN_ROTATION Rapid network/ASN rotation 20 35 Correlated Repeat
+ADS_MOBILE_SHARED Mobile/shared carrier NAT -15 -15 Trust/Suppress Never block
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+7.9 Conversion / Lead Fraud
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_HONEYPOT Paid form honeypot filled 100 100 Standalone Yes
+ADS_FORM_LT1S Complex form completed 
+<1 sec 25 40 Correlated Evidence
+ADS_PROGRAM_INPUT Programmatic form input 25 40 Correlated Evidence
+ADS_DUP_LEAD Same lead data repeats 15 30 Correlated Signals
+ADS_LEAD_MULTI_DEVI
+CE
+Same suspicious lead 
+across devices 25 40 Correlated Signals
+ADS_INVALID_PHONE Invalid phone data 10 15 Supporting No
+ADS_INVALID_EMAIL Invalid email data 10 15 Supporting No
+ADS_DUP_CONVERSION Conversion event reused 30 50 Event decisive Reject duplicate event
+ADS_CONV_BEFORE_CLI
+CK
+Conversion timestamp 
+before click 100 100 Standalone event Reject/investigate
+ADS_CRM_FRAUD CRM/manual downstream 
+fraud confirmation 100 100 Standalone Yes
+7.10 History / Evasion
+Rule Code Trigger Base Max Type Alone / Requirement
+ADS_PREV_SUSPICIOUS Previous suspicious paid 
+identity 10 20 Supporting No
+ADS_PREV_INVALID Previous confirmed invalid 
+click 15 25 Correlated Fresh event
+ADS_PREV_DEVICE_BLO
+CK Previous device block 25 40 Correlated Fresh event
+ADS_PREV_BROWSER_B
+LOCK Previous browser block 20 35 Correlated Fresh event
+ADS_PREV_IP_EXCLUSI
+ON Previous IP exclusion 20 35 Correlated Current click
+ADS_ACTIVE_EVASION Blocked identity returns 
+new IP 100 100 Standalone Yes
+ADS_COOKIE_EVASION Cookie reset after block 30 50 Correlated Fingerprint
+ADS_BROWSER_EVASIO
+N Browser ID reset after block 30 50 Correlated Fingerprint
+ADS_PERSISTENT_7D Repeated fraud pattern 
+across 7d 40 60 Correlated History
+ADS_MANUAL_FRAUD Manual reviewer confirms 
+fraud/competitor 100 100 Standalone Yes
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+8. Decisive Rules - Jin Par Score Ka Wait Nahi
+Rule Strong evidence Default action
+ADS_REPEAT_5_60M 5 clicks/60m same high-confidence identity under 
+strict policy Block identity; eligible IP review
+ADS_BURST_10_60S 10 verified paid clicks/60 sec Immediate temporary identity block
+ADS_KNOWN_FRAUD_DEVICE Known fraud device active history Reapply device/browser block
+ADS_ACTIVE_BLOCK_IP Active confirmed IP block Re-enforce current IP block policy
+ADS_ACTIVE_EVASION Blocked identity returns via new IP Block identity; evaluate new IP separately
+ADS_SIGNED_TOKEN_INVALID Forged/invalid signed tracking token Reject attribution + block session/browser
+ADS_SIGNED_TOKEN_REPLAY Signed token replay across sessions Invalidate linked events + block identity
+ADS_CHALLENGE_TOKEN_INVALID Forged browser challenge token Immediate enforcement
+ADS_TRACKING_TAMPER Tracking/protection tampering Immediate website/session block
+ADS_HONEYPOT Paid lead honeypot completed Reject lead + temporary identity block
+ADS_CONV_BEFORE_CLICK Conversion timestamp before paid click Reject event + investigate identity
+ADS_CRM_FRAUD CRM/manual downstream fraud confirmation Block configured identity
+ADS_MANUAL_FRAUD Human reviewer confirms fraud/competitor Configured long block
+Important nuance
+2-click/60m rule ko sirf advertiser-enabled Very Strict High-CPC profile mein decisive banao aur identity confidence 0.95+ require 
+karo. Same-IP-only 2 clicks kabhi direct device/IP block na kare.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+9. Correlated aur Supporting Signals - Kab Block Karna Hai
+Correlated detection Required support
+2 clicks/60m same IP only Device/Browser match, rapid timing, poor engagement ya history
+3 clicks/60m medium identity 1 high independent signal OR 2 medium independent signals
+VPN / Proxy / Datacenter Repeat behavior + failed challenge/rotation/reputation/history
+Short session / bounce Repeated pattern + identity match
+No conversion Fraud proof nahi; quality context only
+Same device 2-5 IPs Rapid switching + repeat paid clicks
+Outside target geo Campaign target evidence + reliable geo; still not alone
+Headless/WebDriver Paid-repeat, challenge, attribution/token evidence
+Missing/malformed click ID Other attribution inconsistency/replay
+Duplicate lead Velocity/identity cluster/fake contact evidence
+Same IP cross campaigns Same Device/Browser + suspicious timing
+Signals jo kabhi akelay block nahi karenge
+Signal Kyun
+VPN Legitimate users use karte hain
+Datacenter/hosting Business/dev/privacy relay ho sakta hai
+Mobile carrier IP Carrier NAT mein bohat users
+Same IP only IP person/device nahi
+2 clicks without identity Comparison shopping/shared network possible
+Short session Accidental click/poor landing fit
+No mouse Mobile/accessibility/keyboard
+No conversion Most valid paid clicks convert nahi karte
+GBRAID/WBRAID match Attribution evidence, unique device proof nahi
+New browser/device First-time/cross-device normal
+Location mismatch Travel/network routing
+New IP Dynamic residential/mobile normal
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+10. Risk Scoring - Weak Evidence Ko Kaise Combine Karna 
+Hai
+Category Cap Purpose
+Repeat click frequency 30 Configured paid-click thresholds
+Click timing / velocity 15 Rapid re-clicks, bursts, exact timing
+Device / identity 20 Same identity, IP rotation, reset/evasion
+Attribution integrity 15 Click-ID reuse/token/URL tamper
+Engagement quality 10 Repeated empty/machine-like sessions
+Conversion / lead 10 Fake/duplicate/impossible conversions
+Network / location 10 Proxy/reputation/location context
+Historical paid fraud 15 Prior invalid/evasion
+Verified trust deductions -30 max Passed challenge, valid lead, clean history
+Formula
+Final Paid Risk = min(100, max(0, category totals + historical risk - verified trust deductions)). Duplicate evidence ko deduplicate 
+karo: same 3 clicks ko IP, Device aur Browser categories mein 3 separate click events na samjho.
+Score Classification Default action
+0-19 Valid Allow + record
+20-39 Low Allow + monitor
+40-59 Suspicious Detailed evidence / optional challenge
+60-74 High Challenge ya strict repeat identity block
+75-84 Very High Terminate + temporary browser/device block
+85-94 Invalid Likely Block identity + eligible current IP
+95-100 Critical Immediate identity/session enforcement; IP if 
+safe
+Decisive Confirmed/Policy Invalid Rule-specific direct action
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+11. Strict Repeat-Click Policy - Exact Paid-Click Behavior
+Trigger Interpretation Base Action
+1st click Create identity, session, attribution 0 Allow + collect
+2nd /60m same 
+Device+Browser+FP>=90% Very-high identity repeat 35 Very Strict: mark 2nd invalid + block 
+identity; Standard: challenge
+2nd /60m same IP only Shared-IP risk 15 Monitor/challenge; no blanket IP 
+block
+2nd /60m same Device, new IP Same source likely 45 Block device/browser; evaluate IPs 
+separately
+3rd /60m same Device+Browser Beyond configured allowance 60 Decisive identity block; eligible IP 
+review
+3rd /60m same IP, different devices NAT/shared network 10 Do not block all users
+3 clicks /5m same identity Aggressive repeat 75 Terminate + block identity
+5 clicks /60m same identity Severe budget-waste pattern 90 Block + IP exclusion review
+10 clicks /60s Human-improbable burst 100 Standalone temporary block
+Recommended profiles
+High-CPC insurance/legal/emergency: advertiser opt-in 2/60m very-high identity. Local lead gen: 3/60m same identity. 
+Ecommerce: 5/60m challenge then block. Display/video: simple repeat threshold alone use na karo; placement + engagement + 
+conversion focus.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+12. IP Exclusion Gate - IP Kab Platform Ko Bhejna Hai
+Eligibility Policy
+Paid risk >=85 OR decisive repeat rule Normally required unless direct decisive security/tamper event
+Identity confidence >=0.85 Repeat source reasonably confirmed
+Current IP observed on invalid click Stale unrelated IP exclude na karo
+Shared-IP probability low Office/school/carrier/cafe/public network avoid
+IP stability medium/high Dynamic reassignment exclusion value kam karta hai
+At least 2 invalid events OR decisive rule Direct event exceptions allowed
+Expiry configured Temporary by default; re-evaluate
+Platform action supported ADDED/FAILED/UNSUPPORTED accurately store
+Google: eligible current IP ko supported exclusion control mein submit/queue karo aur API/UI result record karo. Microsoft: current 
+docs campaign-level IPv4 exclusions aur 100 entries/ranges per campaign document karti hain. Meta: direct Google-style visitor IP 
+exclusion assume na karo; website identity block, fake event/lead suppression, placement/audience controls use karo.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+13. Worked Examples - Developer Ko Expected Output 
+Samjhanay Ke Liye
+Example A - 2 clicks, same IP + same Device
+2nd/60m same Device+Browser +35; FP 97% +5; stable residential IP +3; short sessions +8; no engagement +5 = raw 56. Very Strict 
+High-CPC policy enabled ho to decisive 2nd-click threshold device/browser block kar sakta hai; IP sirf low shared-risk par short 
+exclusion.
+Example B - 2 clicks, same IP, different devices
+Same IP +15; different Device IDs -5; different Browser/FP -5; shared office evidence -10 => 0. Dono allow. IP block nahi.
+Example C - 3 clicks, same device, different IPs
+3/60m +60; same Device/Browser +10; 3 IPs/60m +15; FP 95% +5; short sessions +8; failed challenge +20 => raw 118, final 100. 
+Device/Browser/session block. Har current IP separately eligibility gate se.
+Example D - 3 clicks but valid customer
+3/60m +60; normal engagement -10; challenge passed -15; valid phone conversion -15; CRM qualified -20 => final 0. Trust/allow; 
+fraud label nahi.
+Example E - Same IP 3 campaigns
+IP alone enough nahi. Same Device/Browser + rapid exact timing + low engagement ho to cross-campaign sweep correlate karke 
+identity block.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+14. Detection Event Record - Har Rule Explainable Hona 
+Chahiye
+Field Example
+rule_code ADS_REPEAT_2_60M
+rule_version paid-risk-v4.0
+entity_type paid_identity
+entity_id PID_82F91A
+state TRIGGERED
+detected_value 2 clicks
+threshold 2 clicks / 60 minutes
+identity_confidence 0.97
+base_points 35
+confidence_multiplier 0.97
+recurrence_multiplier 1.00
+correlation_bonus 10
+category_cap 30
+final_contribution 30
+supporting_rules SHORT_SESSION_REPEAT, SAME_DEVICE, STABLE_IP
+decision_type STRICT_DECISIVE
+recommended_action BLOCK_IDENTITY
+final_action BLOCK_DEVICE_BROWSER_24H
+ip_exclusion_status QUEUED / NOT_NEEDED / ADDED / FAILED
+evidence click timestamps, session IDs, identity IDs, FP similarity
+expires_at 24h after enforcement
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+15. Minimum Database Tables
+Table Purpose
+ad_clicks One row per detected paid click + attribution context
+paid_identities Canonical Visitor/Browser/Device/Fingerprint identity
+paid_identity_links Many-to-many identity/IP/session links
+click_windows Rolling counters by IP/browser/device/PID/campaign
+paid_sessions Landing engagement + conversion
+click_identifiers GCLID/GBRAID/WBRAID/MSCLKID/FBCLID + reuse checks
+paid_detection_events Rule state/evidence/scoring/correlation
+paid_risk_snapshots Category + final score over time
+paid_enforcement_actions Blocks, scope, expiry, reversal
+platform_exclusions Platform action status + external ID/result
+manual_reviews False positives/allowlist/denylist
+conversion_quality Lead/CRM/sale feedback
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+16. Final Developer Build Order
+ 1. Paid click capture endpoint + server timestamp + trusted client IP extraction.
+ 2. Google/Meta/Microsoft attribution parser aur campaign context.
+ 3. Signed Visitor ID, Browser ID, Session ID.
+ 4. Browser/device telemetry + fingerprint normalization.
+ 5. Device/Paid Identity resolver + confidence model.
+ 6. Rolling click-window counters by IP, Browser, Device, PID aur Campaign.
+ 7. 100 detection rule registry with states: PASS/TRIGGERED/UNKNOWN/ERROR/SUPPRESSED/EXPIRED.
+ 8. Decisive rule engine separate from scoring engine.
+ 9. Correlation engine + category caps + trust deductions.
+ 10. Session/Browser/Device/Paid Identity enforcement.
+ 11. IP exclusion eligibility gate + platform adapters.
+ 12. Main Dashboard + Advanced View + Investigation Drawer.
+ 13. Filter engine + grouped Column Selector + Saved Views.
+ 14. Current View export + Full Forensic export.
+ 15. Manual review / false positive / allowlist workflow.
+ 16. Production calibration by campaign type, CPC, conversion behavior aur false positives.
+Final architecture
+IP hamesha visible anchor. Identity decision Device + Browser + Visitor + Fingerprint se. Decisive rule strong ho to direct action. 
+Weak signals ko correlate/scoring se. Block owning identity first. Eligible current IP ko platform exclusion gate ke baad hi bhejo.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+17. Current UI Images - Final Reference
+Neeche user-supplied UI reference images hain. Inka purpose current placement ko preserve karna aur field architecture ko improve 
+karna hai; full visual redesign required nahi.
+Mobile/compact field group view: IP Intelligence, Device/Browser aur Session/Behavior ko grouped cards/drawer mein rakhna sahi 
+direction hai. Desktop table mein sab fields default visible na hon.
+CLICKRONIX | Paid Advertising Protection | Roman Urdu Implementation Manual
+Production thresholds ko advertiser conversion data aur false-positive review ke sath validate karein.
+18. Source / Capability Notes (August 2026)
+Ye manual Clickronix ke user-supplied architecture ko implementation spec mein convert karta hai. ClickCease apne exact 
+proprietary weights/tests public nahi karta; is liye 100-rule matrix Clickronix design recommendation hai, ClickCease ke secret 
+algorithm ka claim nahi.
+Source Relevant current point
+Google Ads Help - About invalid traffic Google invalid traffic identify karne ke liye multiple click/impression 
+signals use karta hai; IP exclusions available hain.
+Google Ads Help - Exclude IP addresses Google IP exclusion controls documented; UI/account/campaign 
+behavior ko runtime response se verify/store karein.
+Microsoft Advertising Help Campaign-level IPv4 exclusions; maximum 100 IP addresses/ranges per 
+campaign documented.
+Meta Business methodology pages Meta detectable invalid/non-human activity filter karta hai; direct 
+advertiser visitor-IP exclusion ko assume na karein.
+ClickCease - Fraudulent Device Detection Public description: paid landing visit par unique Device ID fingerprint 
+assign karke changing IPs ke across fraudulent device link kiya jata hai.
+Official URLs: support.google.com/google-ads/answer/11182074 ; support.google.com/google-ads/answer/2456098 ; help.ads.microsoft.com/apex/index/3/en-
+us/51041 ; facebook.com/business/help/515459418788246 ; support.clickcease.com/hc/en-us/articles/11197185351057-Fraudulent-Device-Detection

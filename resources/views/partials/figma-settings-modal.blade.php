@@ -180,7 +180,7 @@
 
                 <div x-show="tab === 'security'" x-cloak>
                     <h3 class="pmx-settings__h">Security & Login</h3>
-                    <p class="pmx-settings__p">Password, login history, and security rollout controls.</p>
+                    <p class="pmx-settings__p">Password, 2FA, sessions, and API keys — same controls as the Security sheet.</p>
                     <div class="pmx-settings__card pmx-settings__stack">
                         <div class="pmx-settings__row">
                             <div>
@@ -209,16 +209,23 @@
                         <div class="pmx-settings__row">
                             <div>
                                 <p class="pmx-settings__label">Two-factor authentication</p>
-                                <p class="pmx-settings__hint">Authenticator-app challenge (backend next).</p>
+                                <p class="pmx-settings__hint">Authenticator app + recovery codes.</p>
                             </div>
-                            <span class="pmx-settings__chip">Coming soon</span>
+                            <a href="{{ route('profile.edit') }}#security-controls-section" class="pmx-settings__btn">{{ auth()->user()?->hasTwoFactorEnabled() ? 'Manage 2FA' : 'Enable 2FA' }}</a>
+                        </div>
+                        <div class="pmx-settings__row">
+                            <div>
+                                <p class="pmx-settings__label">Active sessions</p>
+                                <p class="pmx-settings__hint">Review devices and log out others.</p>
+                            </div>
+                            <a href="{{ route('profile.edit') }}#security-controls-section" class="pmx-settings__btn">Manage sessions</a>
                         </div>
                         <div class="pmx-settings__row">
                             <div>
                                 <p class="pmx-settings__label">API keys</p>
-                                <p class="pmx-settings__hint">Programmatic access tokens (backend next).</p>
+                                <p class="pmx-settings__hint">Create / revoke reporting API tokens.</p>
                             </div>
-                            <span class="pmx-settings__chip">Coming soon</span>
+                            <a href="{{ route('profile.edit') }}#security-controls-section" class="pmx-settings__btn">Manage keys</a>
                         </div>
                     </div>
                 </div>

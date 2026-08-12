@@ -28,9 +28,9 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
-        $request->session()->regenerate();
+        $user = $request->user();
 
-        if (in_array((string) ($request->user()->status ?? 'active'), ['suspended', 'banned'], true)) {
+        if (in_array((string) ($user->status ?? 'active'), ['suspended', 'banned'], true)) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -38,16 +38,27 @@ class AuthenticatedSessionController extends Controller
             return back()->withErrors(['email' => 'This account is not active.']);
         }
 
-        $user = $request->user();
+        if ($user->hasTwoFactorEnabled()) {
+            Auth::guard('web')->logout();
+            $request->session()->put('login.two_factor.id', $user->id);
+            $request->session()->put('login.two_factor.remember', $request->boolean('remember'));
+            $request->session()->regenerate();
+
+            return redirect()->route('two-factor.login');
+        }
+
+        $request->session()->regenerate();
+        $request->session()->put('auth.two_factor_passed', true);
+
         $user->forceFill(['last_login_at' => now()])->save();
         LoginHistoryLogger::record($user, $request);
         UserTimezone::captureForUser($user, $request);
 
-        if ($request->user()->is_super_admin ?? false) {
+        if ($user->is_super_admin ?? false) {
             return redirect()->intended(route('super-admin.dashboard', [], false));
         }
 
-        return redirect()->intended(route($request->user()->homeRouteName(), [], false));
+        return redirect()->intended(route($user->homeRouteName(), [], false));
     }
 
     /**

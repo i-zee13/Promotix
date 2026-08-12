@@ -409,6 +409,7 @@ class UsersController extends Controller
 
         $request->session()->put('impersonator_id', $request->user()->id);
         Auth::login($user);
+        $request->session()->put('auth.two_factor_passed', true);
 
         return redirect()
             ->route($user->homeRouteName())
@@ -426,6 +427,7 @@ class UsersController extends Controller
             return redirect()->route('dashboard');
         }
         Auth::login($original);
+        $request->session()->put('auth.two_factor_passed', true);
 
         return redirect()->route('super-admin.users.index')->with('status', 'Stopped impersonating.');
     }

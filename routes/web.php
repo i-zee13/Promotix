@@ -230,6 +230,14 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/timezone/sync', [\App\Http\Controllers\ProfileController::class, 'syncTimezone'])->name('profile.timezone.sync');
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::post('/profile/two-factor/enable', [\App\Http\Controllers\TwoFactorController::class, 'enable'])->name('two-factor.enable');
+    Route::post('/profile/two-factor/confirm', [\App\Http\Controllers\TwoFactorController::class, 'confirm'])->name('two-factor.confirm');
+    Route::post('/profile/two-factor/disable', [\App\Http\Controllers\TwoFactorController::class, 'disable'])->name('two-factor.disable');
+    Route::post('/profile/two-factor/recovery-codes', [\App\Http\Controllers\TwoFactorController::class, 'regenerateRecoveryCodes'])->name('two-factor.recovery');
+    Route::post('/profile/sessions/logout-others', [\App\Http\Controllers\TwoFactorController::class, 'destroyOtherSessions'])->name('two-factor.sessions.destroy-others');
+    Route::post('/profile/api-keys', [\App\Http\Controllers\TwoFactorController::class, 'storeApiKey'])->name('two-factor.api-keys.store');
+    Route::delete('/profile/api-keys/{apiKey}', [\App\Http\Controllers\TwoFactorController::class, 'destroyApiKey'])->name('two-factor.api-keys.destroy');
     Route::post('/impersonate/stop', [SuperAdminUsersController::class, 'stopImpersonating'])->name('impersonate.stop');
 
     // Onboarding (post email verification, pre dashboard)
