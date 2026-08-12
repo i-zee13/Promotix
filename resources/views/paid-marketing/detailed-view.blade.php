@@ -1875,18 +1875,46 @@
             get exportColumnKeys() {
                 return this.visibleColumns.map((col) => col.key);
             },
+            columnTrack(col) {
+                const min = this.columnMinPx(col);
+                const key = col.key;
+                // Fixed px tracks only — `fr` stretches few group columns across the
+                // full viewport and creates huge empty gaps between cells.
+                if (key === 'session_recording') return `${min}px`;
+                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
+                    return `${min}px`;
+                }
+                if (key === 'ip') return `${Math.max(min, 148)}px`;
+                if (key === 'domain' || key === 'campaign' || key === 'path') return `${Math.max(min, 120)}px`;
+                if (key === 'gclid' || key === 'gbraid' || key === 'wbraid') return `${Math.max(min, 120)}px`;
+                if (key === 'device_id' || key === 'visitor_id' || key === 'browser_id' || key === 'fingerprint_id' || key === 'paid_identity_id' || key === 'session_id' || key === 'device_fingerprint') {
+                    return `${Math.max(min, 110)}px`;
+                }
+                if (key === 'country' || key === 'last_click_label' || key === 'last_seen_label') {
+                    return `${Math.max(min, 88)}px`;
+                }
+                if (key === 'threat_group' || key === 'threat_type' || key === 'action_taken' || key === 'status' || key === 'ads_primary_rule') {
+                    return `${Math.max(min, 96)}px`;
+                }
+                return `${min}px`;
+            },
             get gridStyle() {
                 const cols = this.visibleColumns.map(col => this.columnTrack(col)).join(' ');
-                return `grid-template-columns: 36px ${cols}`;
+                return `grid-template-columns: 36px ${cols}; justify-content: start;`;
             },
             get syncStyle() {
-                return `min-width: ${this.tableMinWidth}px`;
+                // Grow with columns; do not force stretch when few group columns are visible.
+                return `min-width: ${this.tableMinWidth}px; width: max-content; max-width: none;`;
             },
             get tableMinWidth() {
                 const gap = 8;
                 const pad = 24;
                 const cols = this.visibleColumns.length + 1;
-                const colWidths = this.visibleColumns.reduce((sum, col) => sum + this.columnMinPx(col), 0) + 36;
+                const colWidths = this.visibleColumns.reduce((sum, col) => {
+                    const track = this.columnTrack(col);
+                    const px = parseInt(track, 10);
+                    return sum + (Number.isFinite(px) ? px : this.columnMinPx(col));
+                }, 0) + 36;
                 return colWidths + Math.max(0, cols - 1) * gap + pad;
             },
             columnMinPx(col) {
@@ -1896,23 +1924,6 @@
                     return 52;
                 }
                 return col.min || 72;
-            },
-            columnTrack(col) {
-                const min = this.columnMinPx(col);
-                const key = col.key;
-                if (key === 'session_recording') return `${min}px`;
-                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
-                    return `${min}px`;
-                }
-                if (key === 'ip') return `minmax(${min}px, 1.6fr)`;
-                if (key === 'domain' || key === 'campaign' || key === 'path') return `minmax(${min}px, 1.15fr)`;
-                if (key === 'country' || key === 'last_click_label' || key === 'last_seen_label') {
-                    return `minmax(${min}px, 0.95fr)`;
-                }
-                if (key === 'threat_group' || key === 'threat_type' || key === 'action_taken' || key === 'status') {
-                    return `minmax(${min}px, 0.85fr)`;
-                }
-                return `minmax(${min}px, 1fr)`;
             },
             init() {
                 const params = new URLSearchParams(window.location.search);

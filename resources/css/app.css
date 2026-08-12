@@ -693,14 +693,19 @@ html.light-mode .figma-click-modal-sidebar {
 }
 
 .pm-adv-table-sync {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
+    max-width: none;
     box-sizing: border-box;
 }
 
 .pm-adv-table-grid {
     display: grid;
     gap: 8px;
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
+    max-width: none;
+    justify-content: start;
     box-sizing: border-box;
 }
 
