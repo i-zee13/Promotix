@@ -106,8 +106,8 @@
             @include('partials.portal-switch')
             @include('partials.header-timezone')
             <div class="flex h-[27px] max-w-[60vw] items-center overflow-hidden rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] text-white sm:max-w-none">
-                <span class="flex h-full w-[30px] items-center justify-center border-r border-[#6400B2] bg-white/10">
-                    <svg class="h-[15px] w-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 1115 0"/></svg>
+                <span class="flex h-full w-[30px] shrink-0 items-center justify-center overflow-hidden border-r border-[#6400B2] bg-white/10">
+                    @include('partials.user-avatar', ['avatarUser' => $user])
                 </span>
                 <button type="button" @click="userMenuOpen = ! userMenuOpen" class="truncate px-[9px] text-left sm:px-[14px]">{{ $user?->name ?: $user?->email }}</button>
             </div>

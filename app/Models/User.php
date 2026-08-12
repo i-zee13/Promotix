@@ -28,6 +28,8 @@ class User extends Authenticatable
         'company_address',
         'support_email',
         'password',
+        'avatar_path',
+        'google_avatar_url',
         'is_admin',
         'is_super_admin',
         'status',
@@ -288,5 +290,26 @@ class User extends Authenticatable
     public function apiKeys(): HasMany
     {
         return $this->hasMany(UserApiKey::class)->latest('id');
+    }
+
+    /**
+     * Prefer uploaded avatar; otherwise Google/Gmail profile picture.
+     */
+    public function avatarUrl(): ?string
+    {
+        if (filled($this->avatar_path)) {
+            return asset('storage/'.$this->avatar_path);
+        }
+
+        $google = trim((string) ($this->google_avatar_url ?? ''));
+
+        return $google !== '' ? $google : null;
+    }
+
+    public function avatarInitial(): string
+    {
+        $source = trim((string) ($this->name ?: $this->email ?: '?'));
+
+        return strtoupper(mb_substr($source, 0, 1));
     }
 }

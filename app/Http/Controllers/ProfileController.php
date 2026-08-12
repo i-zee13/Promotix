@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
@@ -58,6 +59,39 @@ class ProfileController extends Controller
         $user->save();
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
+    }
+
+    public function updateAvatar(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+        $disk = Storage::disk('public');
+        $path = $request->file('avatar')->store('avatars/'.$user->id, 'public');
+
+        if (filled($user->avatar_path) && $disk->exists($user->avatar_path)) {
+            $disk->delete($user->avatar_path);
+        }
+
+        $user->forceFill(['avatar_path' => $path])->save();
+
+        return Redirect::route('profile.edit')->with('status', 'avatar-updated');
+    }
+
+    public function destroyAvatar(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $disk = Storage::disk('public');
+
+        if (filled($user->avatar_path) && $disk->exists($user->avatar_path)) {
+            $disk->delete($user->avatar_path);
+        }
+
+        $user->forceFill(['avatar_path' => null])->save();
+
+        return Redirect::route('profile.edit')->with('status', 'avatar-removed');
     }
 
     public function syncTimezone(Request $request): JsonResponse

@@ -1,10 +1,53 @@
 <article class="rounded-[10px] border border-white/15 bg-[#151515] p-[20px]">
     <h2 class="text-[16px] font-semibold text-white">Profile information</h2>
-    <p class="mt-[4px] text-[12px] text-[#a9a9a9]">Update your name, email, and timezone.</p>
+    <p class="mt-[4px] text-[12px] text-[#a9a9a9]">Update your photo, name, email, and timezone.</p>
 
     <form id="send-verification" method="post" action="{{ route('verification.send') }}">
         @csrf
     </form>
+
+    <div class="mt-[16px] flex flex-wrap items-center gap-[14px] rounded-[8px] border border-white/10 bg-black/20 p-[14px]">
+        <div class="flex h-[56px] w-[56px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#6400B2]/70 bg-white/10">
+            @include('partials.user-avatar', ['avatarUser' => $user, 'avatarTextClass' => 'text-[20px] font-semibold leading-none text-white/90'])
+        </div>
+        <div class="min-w-0 flex-1">
+            <p class="text-[13px] font-semibold text-white">Profile photo</p>
+            <p class="mt-[2px] text-[11px] text-[#8c8787]">
+                @if (filled($user->avatar_path))
+                    Custom upload
+                @elseif (filled($user->google_avatar_url))
+                    From Google / Gmail
+                @else
+                    No photo yet — upload one, or connect Google to use your Gmail picture
+                @endif
+            </p>
+            <div class="mt-[10px] flex flex-wrap items-center gap-[8px]">
+                <form method="post" action="{{ route('profile.avatar.update') }}" enctype="multipart/form-data" class="flex flex-wrap items-center gap-[8px]">
+                    @csrf
+                    <label class="cursor-pointer rounded-[6px] border border-white/20 bg-white/5 px-[12px] py-[7px] text-[12px] font-semibold text-white hover:bg-white/10">
+                        Change photo
+                        <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif" class="sr-only" onchange="this.form.submit()">
+                    </label>
+                </form>
+                @if (filled($user->avatar_path))
+                    <form method="post" action="{{ route('profile.avatar.destroy') }}" onsubmit="return confirm('Remove custom photo? Google picture will show again if available.');">
+                        @csrf
+                        @method('delete')
+                        <button type="submit" class="rounded-[6px] border border-rose-400/40 px-[12px] py-[7px] text-[12px] font-semibold text-rose-200 hover:bg-rose-500/10">Remove</button>
+                    </form>
+                @endif
+            </div>
+            @foreach ($errors->get('avatar') as $message)
+                <p class="mt-[6px] text-[12px] text-rose-300">{{ $message }}</p>
+            @endforeach
+            @if (session('status') === 'avatar-updated')
+                <p class="mt-[6px] text-[12px] text-emerald-300">Photo updated.</p>
+            @endif
+            @if (session('status') === 'avatar-removed')
+                <p class="mt-[6px] text-[12px] text-emerald-300">Custom photo removed.</p>
+            @endif
+        </div>
+    </div>
 
     <form method="post" action="{{ route('profile.update') }}" class="mt-[16px] space-y-[14px]">
         @csrf

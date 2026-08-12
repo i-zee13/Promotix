@@ -796,6 +796,25 @@
                     <h3 class="pmx-settings__h">Account</h3>
                     <p class="pmx-settings__p">Business profile, verification, and team access.</p>
 
+                    <div class="pmx-settings__card" style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+                        <div style="width:48px;height:48px;border-radius:999px;overflow:hidden;border:1px solid rgba(100,0,178,.55);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            @include('partials.user-avatar', ['avatarUser' => $settingsUser, 'avatarTextClass' => 'text-[16px] font-semibold leading-none text-white/90'])
+                        </div>
+                        <div style="min-width:0;flex:1;">
+                            <p class="pmx-settings__label" style="margin:0;">Profile photo</p>
+                            <p class="pmx-settings__hint" style="margin-top:2px;">
+                                @if (filled($settingsUser?->avatar_path))
+                                    Custom upload
+                                @elseif (filled($settingsUser?->google_avatar_url))
+                                    From Google / Gmail
+                                @else
+                                    Upload from Account settings, or connect Google
+                                @endif
+                            </p>
+                            <a href="{{ $profileUrl }}" class="pmx-settings__btn" style="margin-top:8px;display:inline-flex;">Change photo</a>
+                        </div>
+                    </div>
+
                     <form method="POST" action="{{ $profileUpdateUrl }}" class="pmx-settings__card pmx-settings__stack">
                         @csrf
                         @method('PATCH')

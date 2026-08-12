@@ -547,6 +547,7 @@ class IntegrationsController extends Controller
         $email = (string) ($info['email'] ?? '');
         $sub = (string) ($info['sub'] ?? '');
         $name = trim((string) ($info['name'] ?? ''));
+        $picture = trim((string) ($info['picture'] ?? ''));
         if ($email === '') {
             return $this->redirectAfterGoogleOAuth($request, $oauthContext, 'Google profile email not available.');
         }
@@ -566,15 +567,22 @@ class IntegrationsController extends Controller
                     'password' => Hash::make(Str::random(40)),
                     'role_id' => $defaultRole?->id,
                     'email_verified_at' => now(),
+                    'google_avatar_url' => $picture !== '' ? $picture : null,
                 ]
             );
 
             Auth::login($user);
             $request->session()->regenerate();
+            $request->session()->put('auth.two_factor_passed', true);
         }
 
         if (! $user) {
             return $this->redirectAfterGoogleOAuth($request, $oauthContext, 'No authenticated user for Google connection.');
+        }
+
+        // Prefer custom upload; otherwise keep Gmail/Google picture in sync.
+        if ($picture !== '' && ! filled($user->avatar_path) && (string) $user->google_avatar_url !== $picture) {
+            $user->forceFill(['google_avatar_url' => $picture])->save();
         }
 
         $connection = $this->upsertGoogleConnection($user->id, $email, $sub, $token, $accessToken);
