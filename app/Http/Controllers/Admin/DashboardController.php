@@ -436,33 +436,94 @@ class DashboardController extends Controller
     {
         $data = $request->validate([
             'dark_mode' => ['sometimes', 'boolean'],
+            'appearance' => ['sometimes', 'in:dark,light,system'],
+            'language' => ['sometimes', 'string', 'max:16'],
+            'timezone' => ['sometimes', 'nullable', 'timezone:all'],
+            'default_dashboard' => ['sometimes', 'in:overview,paid,bot'],
+            'data_display' => ['sometimes', 'array'],
+            'data_display.show_risk_scores' => ['sometimes', 'boolean'],
+            'data_display.show_technical_ip' => ['sometimes', 'boolean'],
+            'data_display.show_advanced_columns' => ['sometimes', 'boolean'],
+            'other_options' => ['sometimes', 'array'],
+            'other_options.auto_refresh' => ['sometimes', 'boolean'],
+            'other_options.dashboard_tips' => ['sometimes', 'boolean'],
+            'other_options.alert_sound' => ['sometimes', 'boolean'],
             'notifications' => ['sometimes', 'array'],
+            'notifications.email' => ['sometimes', 'boolean'],
+            'notifications.sms' => ['sometimes', 'boolean'],
+            'notifications.push' => ['sometimes', 'boolean'],
             'notifications.email_alerts' => ['sometimes', 'boolean'],
             'notifications.product_updates' => ['sometimes', 'boolean'],
             'notifications.weekly_digest' => ['sometimes', 'boolean'],
+            'notifications.invalid_clicks_threshold' => ['sometimes', 'integer', 'min:0', 'max:100000'],
+            'notifications.risk_score_threshold' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'notifications.detection' => ['sometimes', 'array'],
+            'notifications.system' => ['sometimes', 'array'],
+            'safety' => ['sometimes', 'array'],
+            'safety.invalid_traffic' => ['sometimes', 'boolean'],
+            'safety.bot_protection' => ['sometimes', 'boolean'],
+            'safety.session_recording' => ['sometimes', 'boolean'],
+            'safety.captcha' => ['sometimes', 'boolean'],
+            'safety.mask_passwords' => ['sometimes', 'boolean'],
+            'safety.mask_payment' => ['sometimes', 'boolean'],
+            'safety.cookie_consent' => ['sometimes', 'boolean'],
+            'safety.retention_days' => ['sometimes', 'integer', 'in:30,60,90,365'],
+            'safety.gdpr' => ['sometimes', 'boolean'],
+            'safety.ccpa' => ['sometimes', 'boolean'],
             'login_alerts' => ['sometimes', 'boolean'],
-            'trusted_contacts' => ['sometimes', 'array', 'max:3'],
+            'trusted_contacts' => ['sometimes', 'array', 'max:5'],
             'trusted_contacts.*.name' => ['nullable', 'string', 'max:120'],
             'trusted_contacts.*.email' => ['nullable', 'email', 'max:255'],
             'trusted_contacts.*.phone' => ['nullable', 'string', 'max:40'],
+            'trusted_contacts.*.role' => ['nullable', 'in:owner,admin,security,billing'],
+            'trusted_contacts.*.permissions' => ['sometimes', 'array'],
         ]);
 
         $user = $request->user();
         $prefs = (array) ($user->ui_preferences ?? []);
 
-        if (array_key_exists('dark_mode', $data)) {
-            $prefs['dark_mode'] = (bool) $data['dark_mode'];
+        if (array_key_exists('appearance', $data)) {
+            $prefs['appearance'] = $data['appearance'];
+            $prefs['dark_mode'] = $data['appearance'] !== 'light';
             $request->session()->put('preferences.dark_mode', $prefs['dark_mode']);
+        } elseif (array_key_exists('dark_mode', $data)) {
+            $prefs['dark_mode'] = (bool) $data['dark_mode'];
+            $prefs['appearance'] = $prefs['dark_mode'] ? 'dark' : 'light';
+            $request->session()->put('preferences.dark_mode', $prefs['dark_mode']);
+        }
+
+        foreach (['language', 'default_dashboard'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $prefs[$key] = $data[$key];
+            }
+        }
+
+        if (array_key_exists('timezone', $data) && filled($data['timezone'])) {
+            $user->timezone = $data['timezone'];
+            $user->timezone_source = 'manual';
+        }
+
+        if (isset($data['data_display']) && is_array($data['data_display'])) {
+            $prefs['data_display'] = array_merge((array) ($prefs['data_display'] ?? []), $data['data_display']);
+        }
+        if (isset($data['other_options']) && is_array($data['other_options'])) {
+            $prefs['other_options'] = array_merge((array) ($prefs['other_options'] ?? []), $data['other_options']);
         }
 
         if (isset($data['notifications']) && is_array($data['notifications'])) {
             $current = (array) ($prefs['notifications'] ?? []);
-            foreach (['email_alerts', 'product_updates', 'weekly_digest'] as $key) {
-                if (array_key_exists($key, $data['notifications'])) {
-                    $current[$key] = (bool) $data['notifications'][$key];
-                }
+            foreach ($data['notifications'] as $key => $value) {
+                $current[$key] = $value;
+            }
+            // Back-compat aliases
+            if (array_key_exists('email', $current)) {
+                $current['email_alerts'] = (bool) $current['email'];
             }
             $prefs['notifications'] = $current;
+        }
+
+        if (isset($data['safety']) && is_array($data['safety'])) {
+            $prefs['safety'] = array_merge((array) ($prefs['safety'] ?? []), $data['safety']);
         }
 
         if (array_key_exists('login_alerts', $data)) {
@@ -482,9 +543,11 @@ class DashboardController extends Controller
                     'name' => $name,
                     'email' => $email,
                     'phone' => $phone,
+                    'role' => (string) ($row['role'] ?? 'security'),
+                    'permissions' => (array) ($row['permissions'] ?? []),
                 ];
             }
-            $prefs['trusted_contacts'] = array_slice($contacts, 0, 3);
+            $prefs['trusted_contacts'] = array_slice($contacts, 0, 5);
         }
 
         $user->ui_preferences = $prefs;
@@ -494,6 +557,7 @@ class DashboardController extends Controller
             'ok' => true,
             'ui_preferences' => $prefs,
             'dark_mode' => (bool) ($prefs['dark_mode'] ?? true),
+            'timezone' => $user->timezone,
         ]);
     }
 
