@@ -387,11 +387,21 @@ class PaidMarketingController extends Controller
 
     public function exportDetailedCsv(Request $request): StreamedResponse
     {
-        $filename = 'clickronix-traffic-report-' . now()->format('YmdHis') . '.csv';
+        $columnGroup = trim((string) $request->query('column_group', ''));
+        $exportKeys = ClickronixTrafficReport::resolveExportKeys(
+            $columnGroup !== '' ? $columnGroup : null,
+            $request->query('columns')
+        );
+        $filename = ClickronixTrafficReport::exportFilename(
+            $columnGroup !== '' ? $columnGroup : null,
+            'csv'
+        );
 
-        return response()->streamDownload(function () use ($request): void {
+        return response()->streamDownload(function () use ($request, $exportKeys): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ClickronixTrafficReport::headers());
+            fputcsv($handle, $exportKeys !== null
+                ? ClickronixTrafficReport::headersForKeys($exportKeys)
+                : ClickronixTrafficReport::headers());
 
             [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
 
@@ -422,7 +432,7 @@ class PaidMarketingController extends Controller
                 $visits->pluck('ip')->unique()->filter()->values()
             );
 
-            $visits->each(function (PaidMarketingVisit $visit) use ($handle, $request, $verificationLookup, $reportingTz, $ipLogs, $behaviorCounts): void {
+            $visits->each(function (PaidMarketingVisit $visit) use ($handle, $request, $verificationLookup, $reportingTz, $ipLogs, $behaviorCounts, $exportKeys): void {
                 $row = $this->formatDetailedVisit(
                     $visit,
                     $request->user(),
@@ -432,7 +442,9 @@ class PaidMarketingController extends Controller
                     $reportingTz,
                     $behaviorCounts->get($visit->ip),
                 );
-                fputcsv($handle, ClickronixTrafficReport::valuesFromDetailedVisit($row));
+                fputcsv($handle, $exportKeys !== null
+                    ? ClickronixTrafficReport::valuesForKeys($row, $exportKeys)
+                    : ClickronixTrafficReport::valuesFromDetailedVisit($row));
             });
 
             fclose($handle);
@@ -444,9 +456,18 @@ class PaidMarketingController extends Controller
 
     public function exportDetailedXlsx(Request $request): StreamedResponse
     {
-        $filename = 'clickronix-traffic-report-' . now()->format('YmdHis') . '.xlsx';
+        $columnGroup = trim((string) $request->query('column_group', ''));
+        $exportKeys = ClickronixTrafficReport::resolveExportKeys(
+            $columnGroup !== '' ? $columnGroup : null,
+            $request->query('columns')
+        );
+        $filename = ClickronixTrafficReport::exportFilename(
+            $columnGroup !== '' ? $columnGroup : null,
+            'xlsx'
+        );
+        $sheetTitle = ClickronixTrafficReport::groupLabel($columnGroup !== '' ? $columnGroup : null) ?? 'Traffic Report';
 
-        return response()->streamDownload(function () use ($request): void {
+        return response()->streamDownload(function () use ($request, $exportKeys, $sheetTitle): void {
             [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
 
             $domains = Domain::query()
@@ -499,12 +520,15 @@ class PaidMarketingController extends Controller
 
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
-            $sheet->setTitle('Traffic Report');
-            $headers = ClickronixTrafficReport::headers();
+            $sheet->setTitle(mb_substr($sheetTitle, 0, 31));
+            $headers = $exportKeys !== null
+                ? ClickronixTrafficReport::headersForKeys($exportKeys)
+                : ClickronixTrafficReport::headers();
             foreach ($headers as $i => $header) {
                 $sheet->setCellValue([$i + 1, 1], $header);
             }
-            $headerStyle = $sheet->getStyle('A1:AP1');
+            $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(max(1, count($headers)));
+            $headerStyle = $sheet->getStyle('A1:'.$lastCol.'1');
             $headerStyle->getFont()->setBold(true);
             $headerStyle->getFill()
                 ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
@@ -513,7 +537,10 @@ class PaidMarketingController extends Controller
 
             $r = 2;
             foreach ($rows as $row) {
-                $sheet->fromArray([ClickronixTrafficReport::valuesFromDetailedVisit($row)], null, 'A' . $r);
+                $values = $exportKeys !== null
+                    ? ClickronixTrafficReport::valuesForKeys($row, $exportKeys)
+                    : ClickronixTrafficReport::valuesFromDetailedVisit($row);
+                $sheet->fromArray([$values], null, 'A' . $r);
                 $r++;
             }
 

@@ -714,12 +714,37 @@
             <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#6400B2] px-[16px] py-[12px]">
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
+                    <div class="relative" @click.outside="groupMenuOpen = false">
+                        <button type="button"
+                            @click="groupMenuOpen = !groupMenuOpen; filterMenuOpen = false; dataFilterMenuOpen = false; exportMenuOpen = false"
+                            class="inline-flex h-[28px] max-w-[220px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white"
+                            title="Show fields by sheet group">
+                            <span class="truncate" x-text="activeColumnGroupLabel"></span>
+                            <svg class="h-[12px] w-[12px] shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div x-show="groupMenuOpen" x-cloak class="absolute left-0 top-[calc(100%+6px)] z-50 max-h-[320px] w-[240px] overflow-y-auto rounded-[8px] border border-white/20 bg-[#0f0e0e] p-[6px] shadow-lg promotix-slim-scroll">
+                            <p class="mb-[6px] px-[8px] text-[9px] font-semibold uppercase tracking-wide text-white/45">Main groups</p>
+                            <button type="button"
+                                class="mb-[2px] block w-full rounded-[6px] px-[8px] py-[6px] text-left text-[11px] text-white/70 hover:bg-white/10"
+                                :class="{ 'bg-white/10 text-white': !activeColumnGroup }"
+                                @click="clearColumnGroup(); groupMenuOpen = false">
+                                All columns
+                            </button>
+                            <template x-for="group in columnGroups" :key="'main-' + group.id">
+                                <button type="button"
+                                    class="mb-[2px] block w-full rounded-[6px] px-[8px] py-[6px] text-left text-[11px] text-white/85 hover:bg-white/10"
+                                    :class="{ 'border border-[#9a1aff]/50 bg-[#9a1aff]/15 text-white': activeColumnGroup === group.id }"
+                                    @click="applyColumnGroup(group.id); groupMenuOpen = false"
+                                    x-text="group.label"></button>
+                            </template>
+                        </div>
+                    </div>
                     <label class="relative flex h-[28px] min-w-[200px] max-w-[280px] flex-1 items-center rounded-[6px] bg-white px-[10px]">
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input type="search" placeholder="Search IP, GCLID, or Device ID" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
                     </label>
                     <div class="relative" @click.outside="dataFilterMenuOpen = false">
-                        <button type="button" @click="dataFilterMenuOpen = !dataFilterMenuOpen; filterMenuOpen = false" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                        <button type="button" @click="dataFilterMenuOpen = !dataFilterMenuOpen; filterMenuOpen = false; groupMenuOpen = false" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
                             Filters
                             <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="activeDataFilterCount"></span>
                         </button>
@@ -791,7 +816,7 @@
                         </div>
                     </div>
                     <div class="relative" @click.outside="filterMenuOpen = false">
-                        <button type="button" @click="filterMenuOpen = !filterMenuOpen; dataFilterMenuOpen = false" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                        <button type="button" @click="filterMenuOpen = !filterMenuOpen; dataFilterMenuOpen = false; groupMenuOpen = false" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
                             Columns
                             <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
                         </button>
@@ -833,7 +858,8 @@
                             <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
                             Export
                         </button>
-                        <div x-show="exportMenuOpen" x-cloak class="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[140px] rounded-[8px] border border-white/20 bg-[#0f0e0e] p-[6px] shadow-lg">
+                        <div x-show="exportMenuOpen" x-cloak class="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[160px] rounded-[8px] border border-white/20 bg-[#0f0e0e] p-[6px] shadow-lg">
+                            <p class="mb-[4px] px-[10px] text-[9px] text-white/40" x-show="activeColumnGroup" x-cloak x-text="'Sheet: ' + activeColumnGroupLabel"></p>
                             <a :href="csvHref()" class="block rounded-[6px] px-[10px] py-[6px] text-[11px] text-white hover:bg-white/10">Download CSV</a>
                             <a :href="xlsxHref()" class="block rounded-[6px] px-[10px] py-[6px] text-[11px] text-white hover:bg-white/10">Download XLSX</a>
                         </div>
@@ -1503,6 +1529,7 @@
             filterMenuOpen: false,
             dataFilterMenuOpen: false,
             exportMenuOpen: false,
+            groupMenuOpen: false,
             campaignMenuOpen: false,
             activeColumnGroup: null,
             columnGroups,
@@ -1828,6 +1855,11 @@
                     modeLabel: ctx.reporting_mode_label,
                 };
             },
+            get activeColumnGroupLabel() {
+                if (!this.activeColumnGroup) return 'Groups';
+                const group = this.columnGroups.find((g) => g.id === this.activeColumnGroup);
+                return group ? group.label : 'Groups';
+            },
             get visibleColumns() {
                 if (this.activeColumnGroup) {
                     const group = this.columnGroups.find((g) => g.id === this.activeColumnGroup);
@@ -1839,6 +1871,9 @@
                     }
                 }
                 return this.columnCatalog.filter(col => col.primary || this.optionalColumnKeys.includes(col.key));
+            },
+            get exportColumnKeys() {
+                return this.visibleColumns.map((col) => col.key);
             },
             get gridStyle() {
                 const cols = this.visibleColumns.map(col => this.columnTrack(col)).join(' ');
@@ -2094,7 +2129,7 @@
                     this.campaignOptions = [];
                 }
             },
-            queryString() {
+            queryString(includeExportColumns = false) {
                 const p = new URLSearchParams();
                 Object.entries(this.filters).forEach(([k, v]) => {
                     if (k === 'traffic_source') return; // UI-only until multi-source backend ships
@@ -2104,14 +2139,21 @@
                     p.set('sort', this.sortKey);
                     p.set('dir', this.sortDir || 'asc');
                 }
+                if (includeExportColumns && this.activeColumnGroup) {
+                    p.set('column_group', this.activeColumnGroup);
+                    const keys = this.exportColumnKeys;
+                    if (keys.length) {
+                        p.set('columns', keys.join(','));
+                    }
+                }
                 return p.toString();
             },
             csvHref() {
-                const qs = this.queryString();
+                const qs = this.queryString(true);
                 return `{{ route('paid-marketing.detailed-export') }}${qs ? '?' + qs : ''}`;
             },
             xlsxHref() {
-                const qs = this.queryString();
+                const qs = this.queryString(true);
                 return `{{ route('paid-marketing.detailed-export-xlsx') }}${qs ? '?' + qs : ''}`;
             },
             async fetchNow() {

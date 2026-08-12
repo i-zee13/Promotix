@@ -53,4 +53,46 @@ class ClickronixTrafficReportTest extends TestCase
         $this->assertSame(1, $row[28]);
         $this->assertSame('tel:+15551212', $row[40]);
     }
+
+    public function test_group_export_matches_sheet_keys(): void
+    {
+        $keys = ClickronixTrafficReport::resolveExportKeys('paid_identity', null);
+
+        $this->assertSame([
+            'ip',
+            'paid_identity_id',
+            'visitor_id',
+            'device_id',
+            'browser_id',
+            'fingerprint_id',
+            'device_fingerprint',
+            'session_id',
+            'identity_confidence',
+        ], $keys);
+
+        $headers = ClickronixTrafficReport::headersForKeys($keys);
+        $this->assertSame('IP Address', $headers[0]);
+        $this->assertSame('Device ID', $headers[3]);
+        $this->assertSame('Identity Confidence', $headers[8]);
+
+        $values = ClickronixTrafficReport::valuesForKeys([
+            'ip' => '8.8.8.8',
+            'device_id' => 'DEV_abc',
+            'identity_confidence' => 'High',
+            'paid_identity_id' => 'pid-1',
+        ], $keys);
+
+        $this->assertSame('8.8.8.8', $values[0]);
+        $this->assertSame('pid-1', $values[1]);
+        $this->assertSame('DEV_abc', $values[3]);
+        $this->assertSame('High', $values[8]);
+    }
+
+    public function test_explicit_columns_override_group(): void
+    {
+        $keys = ClickronixTrafficReport::resolveExportKeys('attribution', 'ip,device_id,gclid');
+
+        $this->assertSame(['ip', 'device_id', 'gclid'], $keys);
+        $this->assertNull(ClickronixTrafficReport::resolveExportKeys(null, null));
+    }
 }
