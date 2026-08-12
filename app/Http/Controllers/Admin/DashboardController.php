@@ -435,19 +435,65 @@ class DashboardController extends Controller
     public function preferences(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'dark_mode' => ['required', 'boolean'],
+            'dark_mode' => ['sometimes', 'boolean'],
+            'notifications' => ['sometimes', 'array'],
+            'notifications.email_alerts' => ['sometimes', 'boolean'],
+            'notifications.product_updates' => ['sometimes', 'boolean'],
+            'notifications.weekly_digest' => ['sometimes', 'boolean'],
+            'login_alerts' => ['sometimes', 'boolean'],
+            'trusted_contacts' => ['sometimes', 'array', 'max:3'],
+            'trusted_contacts.*.name' => ['nullable', 'string', 'max:120'],
+            'trusted_contacts.*.email' => ['nullable', 'email', 'max:255'],
+            'trusted_contacts.*.phone' => ['nullable', 'string', 'max:40'],
         ]);
 
-        $request->session()->put('preferences.dark_mode', $data['dark_mode']);
         $user = $request->user();
         $prefs = (array) ($user->ui_preferences ?? []);
-        $prefs['dark_mode'] = (bool) $data['dark_mode'];
+
+        if (array_key_exists('dark_mode', $data)) {
+            $prefs['dark_mode'] = (bool) $data['dark_mode'];
+            $request->session()->put('preferences.dark_mode', $prefs['dark_mode']);
+        }
+
+        if (isset($data['notifications']) && is_array($data['notifications'])) {
+            $current = (array) ($prefs['notifications'] ?? []);
+            foreach (['email_alerts', 'product_updates', 'weekly_digest'] as $key) {
+                if (array_key_exists($key, $data['notifications'])) {
+                    $current[$key] = (bool) $data['notifications'][$key];
+                }
+            }
+            $prefs['notifications'] = $current;
+        }
+
+        if (array_key_exists('login_alerts', $data)) {
+            $prefs['login_alerts'] = (bool) $data['login_alerts'];
+        }
+
+        if (array_key_exists('trusted_contacts', $data)) {
+            $contacts = [];
+            foreach ((array) $data['trusted_contacts'] as $row) {
+                $name = trim((string) ($row['name'] ?? ''));
+                $email = trim((string) ($row['email'] ?? ''));
+                $phone = trim((string) ($row['phone'] ?? ''));
+                if ($name === '' && $email === '' && $phone === '') {
+                    continue;
+                }
+                $contacts[] = [
+                    'name' => $name,
+                    'email' => $email,
+                    'phone' => $phone,
+                ];
+            }
+            $prefs['trusted_contacts'] = array_slice($contacts, 0, 3);
+        }
+
         $user->ui_preferences = $prefs;
         $user->save();
 
         return response()->json([
             'ok' => true,
-            'dark_mode' => (bool) $data['dark_mode'],
+            'ui_preferences' => $prefs,
+            'dark_mode' => (bool) ($prefs['dark_mode'] ?? true),
         ]);
     }
 

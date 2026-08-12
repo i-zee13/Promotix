@@ -212,6 +212,7 @@ class UsersController extends Controller
             'email' => $invite->email,
         ]);
 
+        // Invite email is link-only — no subscription / plan card.
         $sent = AppMailer::sendTemplate('user_invite_email', $invite->email, [
             '{{user_name}}' => $invite->name ?: 'there',
             '{{invite_url}}' => $inviteUrl,
@@ -231,6 +232,63 @@ class UsersController extends Controller
         }
 
         return back()->with('status', "Invite email sent to {$invite->email}. If it is not in the inbox, check Spam/Promotions. Link: {$inviteUrl}");
+    }
+
+    /**
+     * Create a user immediately (no invite email / no subscription card required).
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'max:255'],
+            'role_id' => ['nullable', 'exists:roles,id'],
+            'plan_id' => ['nullable', 'exists:plans,id'],
+            'status' => ['nullable', 'in:active,pending,suspended'],
+        ]);
+
+        $defaultRole = Role::query()->where('slug', 'default-user')->first();
+        $roleId = $data['role_id'] ?? $defaultRole?->id;
+
+        $user = DB::transaction(function () use ($data, $roleId) {
+            $user = User::query()->create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+                'role_id' => $roleId,
+                'status' => $data['status'] ?? 'active',
+                'is_admin' => false,
+                'is_super_admin' => false,
+            ]);
+            $user->forceFill(['email_verified_at' => now()])->save();
+
+            // Optional plan attach — silent, no subscription email/card.
+            if (! empty($data['plan_id'])) {
+                $plan = Plan::query()->whereKey($data['plan_id'])->where('is_active', true)->first();
+                if ($plan) {
+                    Subscription::query()->create([
+                        'user_id' => $user->id,
+                        'plan_id' => $plan->id,
+                        'status' => 'active',
+                        'is_trial' => false,
+                        'amount_cents' => (int) $plan->price_cents,
+                        'currency' => $plan->currency,
+                        'billing_interval' => $plan->billing_interval ?? 'monthly',
+                        'started_at' => now(),
+                        'trial_ends_at' => null,
+                        'current_period_ends_at' => now()->addMonth(),
+                        'metadata' => ['source' => 'super_admin_create_user'],
+                    ]);
+                }
+            }
+
+            return $user;
+        });
+
+        return redirect()
+            ->route('super-admin.users.show', $user)
+            ->with('status', "User {$user->email} created. They can sign in with the password you set (no invite / subscription email sent).");
     }
 
     public function assignPlan(Request $request, User $user): RedirectResponse

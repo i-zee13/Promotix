@@ -896,7 +896,7 @@
                             <template x-for="col in visibleColumns" :key="'head-' + col.key">
                                 <button
                                     type="button"
-                                    class="promotix-sortable truncate"
+                                    class="promotix-sortable truncate pm-adv-cell"
                                     :class="sortClass(col.key)"
                                     :disabled="col.key === 'session_recording'"
                                     @click="setSort(col.key)"
@@ -918,17 +918,19 @@
                                         <input type="checkbox" class="rounded border-white/30" :checked="selectedIds.includes(visit.id)" @change="toggleSelect(visit.id, $event.target.checked)">
                                     </label>
                                     <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
-                                        <template x-if="col.key !== 'session_recording'">
-                                            <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(visit, col.key)" x-text="cellValue(visit, col.key)"></span>
-                                        </template>
-                                        <template x-if="col.key === 'session_recording'">
-                                            <span class="flex items-center justify-center">
-                                                <button type="button" x-show="visit.has_session_recording" @click.stop="openRecording(visit)" class="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#6400B2] text-white hover:bg-[#7B13C8]" title="Watch session recording">
-                                                    <svg class="h-[11px] w-[11px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                </button>
-                                                <span x-show="!visit.has_session_recording" class="text-[#8c8787]">—</span>
-                                            </span>
-                                        </template>
+                                        <div class="pm-adv-cell truncate" :class="col.key === 'ip' && 'font-medium'" :title="col.key === 'session_recording' ? '' : cellValue(visit, col.key)">
+                                            <template x-if="col.key !== 'session_recording'">
+                                                <span class="block truncate" x-text="cellValue(visit, col.key)"></span>
+                                            </template>
+                                            <template x-if="col.key === 'session_recording'">
+                                                <span class="flex items-center justify-center">
+                                                    <button type="button" x-show="visit.has_session_recording" @click.stop="openRecording(visit)" class="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#6400B2] text-white hover:bg-[#7B13C8]" title="Watch session recording">
+                                                        <svg class="h-[11px] w-[11px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                    </button>
+                                                    <span x-show="!visit.has_session_recording" class="text-[#8c8787]">—</span>
+                                                </span>
+                                            </template>
+                                        </div>
                                     </template>
                                 </div>
                             </template>
@@ -1878,43 +1880,38 @@
             columnTrack(col) {
                 const min = this.columnMinPx(col);
                 const key = col.key;
-                // Fixed px tracks only — `fr` stretches few group columns across the
-                // full viewport and creates huge empty gaps between cells.
+                // Numeric cols stay compact; text cols flex so the row fills width
+                // without leaving a dead gap or misaligned header/cells.
                 if (key === 'session_recording') return `${min}px`;
                 if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
                     return `${min}px`;
                 }
-                if (key === 'ip') return `${Math.max(min, 148)}px`;
-                if (key === 'domain' || key === 'campaign' || key === 'path') return `${Math.max(min, 120)}px`;
-                if (key === 'gclid' || key === 'gbraid' || key === 'wbraid') return `${Math.max(min, 120)}px`;
+                if (key === 'ip') return `minmax(160px, 1.6fr)`;
+                if (key === 'domain' || key === 'campaign' || key === 'path') return `minmax(${Math.max(min, 120)}px, 1.2fr)`;
+                if (key === 'gclid' || key === 'gbraid' || key === 'wbraid') return `minmax(${Math.max(min, 120)}px, 1.1fr)`;
                 if (key === 'device_id' || key === 'visitor_id' || key === 'browser_id' || key === 'fingerprint_id' || key === 'paid_identity_id' || key === 'session_id' || key === 'device_fingerprint') {
-                    return `${Math.max(min, 110)}px`;
+                    return `minmax(${Math.max(min, 110)}px, 1fr)`;
                 }
                 if (key === 'country' || key === 'last_click_label' || key === 'last_seen_label') {
-                    return `${Math.max(min, 88)}px`;
+                    return `minmax(${Math.max(min, 88)}px, 0.9fr)`;
                 }
-                if (key === 'threat_group' || key === 'threat_type' || key === 'action_taken' || key === 'status' || key === 'ads_primary_rule') {
-                    return `${Math.max(min, 96)}px`;
+                if (key === 'threat_group' || key === 'threat_type' || key === 'action_taken' || key === 'status' || key === 'ads_primary_rule' || key === 'google_verified_label') {
+                    return `minmax(${Math.max(min, 96)}px, 1fr)`;
                 }
-                return `${min}px`;
+                return `minmax(${min}px, 1fr)`;
             },
             get gridStyle() {
                 const cols = this.visibleColumns.map(col => this.columnTrack(col)).join(' ');
-                return `grid-template-columns: 36px ${cols}; justify-content: start;`;
+                return `grid-template-columns: 36px ${cols}; width: 100%;`;
             },
             get syncStyle() {
-                // Grow with columns; do not force stretch when few group columns are visible.
-                return `min-width: ${this.tableMinWidth}px; width: max-content; max-width: none;`;
+                return `width: 100%; min-width: max(100%, ${this.tableMinWidth}px);`;
             },
             get tableMinWidth() {
                 const gap = 8;
                 const pad = 24;
                 const cols = this.visibleColumns.length + 1;
-                const colWidths = this.visibleColumns.reduce((sum, col) => {
-                    const track = this.columnTrack(col);
-                    const px = parseInt(track, 10);
-                    return sum + (Number.isFinite(px) ? px : this.columnMinPx(col));
-                }, 0) + 36;
+                const colWidths = this.visibleColumns.reduce((sum, col) => sum + this.columnMinPx(col), 0) + 36;
                 return colWidths + Math.max(0, cols - 1) * gap + pad;
             },
             columnMinPx(col) {
@@ -1923,6 +1920,7 @@
                 if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
                     return 52;
                 }
+                if (key === 'ip') return 160;
                 return col.min || 72;
             },
             init() {

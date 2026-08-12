@@ -693,19 +693,17 @@ html.light-mode .figma-click-modal-sidebar {
 }
 
 .pm-adv-table-sync {
-    width: max-content;
+    width: 100%;
     min-width: 100%;
-    max-width: none;
     box-sizing: border-box;
 }
 
 .pm-adv-table-grid {
     display: grid;
     gap: 8px;
-    width: max-content;
-    min-width: 100%;
-    max-width: none;
-    justify-content: start;
+    width: 100%;
+    align-items: center;
+    justify-content: stretch;
     box-sizing: border-box;
 }
 
@@ -716,6 +714,12 @@ html.light-mode .figma-click-modal-sidebar {
 
 .pm-adv-table-grid--head .promotix-sortable {
     width: 100%;
+    min-width: 0;
+}
+
+.pm-adv-cell {
+    min-width: 0;
+    overflow: hidden;
 }
 
 /* Global sortable column headers (Advanced View, dashboards, server tables) */

@@ -99,6 +99,7 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/billing-automation', [BillingAutomationController::class, 'index'])->name('billing-automation.index');
         Route::post('/billing-automation', [BillingAutomationController::class, 'update'])->name('billing-automation.update');
         Route::post('/users/invite', [SuperAdminUsersController::class, 'invite'])->name('users.invite');
+        Route::post('/users/create', [SuperAdminUsersController::class, 'store'])->name('users.store');
         Route::get('/domains', [SuperAdminSupportPagesController::class, 'domains'])->name('domains.index');
         Route::patch('/domains/{domain}/tracking', [SuperAdminSupportPagesController::class, 'toggleDomainTracking'])->name('domains.toggle-tracking');
         Route::patch('/domains/{domain}/force-verify', [SuperAdminSupportPagesController::class, 'forceVerifyDomain'])->name('domains.force-verify');
