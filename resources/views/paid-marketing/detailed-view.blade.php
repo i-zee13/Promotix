@@ -101,6 +101,36 @@
                 height: 9px;
                 flex-shrink: 0;
             }
+            /* Layout guards — work even if Vite CSS is stale */
+            .pm-adv-table-sync {
+                width: max-content;
+                min-width: 100%;
+                box-sizing: border-box;
+            }
+            .pm-adv-table-grid {
+                display: grid;
+                gap: 8px;
+                width: max-content;
+                min-width: 100%;
+                align-items: center;
+                justify-content: start;
+                box-sizing: border-box;
+            }
+            .pm-adv-table-grid--head,
+            .pm-adv-table-grid--row {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+            .pm-adv-table-body-scroll {
+                padding-left: 0;
+                padding-right: 0;
+            }
+            .pm-adv-table-grid > * {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
             .pm-adv-page-head {
                 display: flex;
                 flex-direction: column;
@@ -1878,34 +1908,16 @@
                 return this.visibleColumns.map((col) => col.key);
             },
             columnTrack(col) {
-                const min = this.columnMinPx(col);
-                const key = col.key;
-                // Numeric cols stay compact; text cols flex so the row fills width
-                // without leaving a dead gap or misaligned header/cells.
-                if (key === 'session_recording') return `${min}px`;
-                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
-                    return `${min}px`;
-                }
-                if (key === 'ip') return `minmax(160px, 1.6fr)`;
-                if (key === 'domain' || key === 'campaign' || key === 'path') return `minmax(${Math.max(min, 120)}px, 1.2fr)`;
-                if (key === 'gclid' || key === 'gbraid' || key === 'wbraid') return `minmax(${Math.max(min, 120)}px, 1.1fr)`;
-                if (key === 'device_id' || key === 'visitor_id' || key === 'browser_id' || key === 'fingerprint_id' || key === 'paid_identity_id' || key === 'session_id' || key === 'device_fingerprint') {
-                    return `minmax(${Math.max(min, 110)}px, 1fr)`;
-                }
-                if (key === 'country' || key === 'last_click_label' || key === 'last_seen_label') {
-                    return `minmax(${Math.max(min, 88)}px, 0.9fr)`;
-                }
-                if (key === 'threat_group' || key === 'threat_type' || key === 'action_taken' || key === 'status' || key === 'ads_primary_rule' || key === 'google_verified_label') {
-                    return `minmax(${Math.max(min, 96)}px, 1fr)`;
-                }
-                return `minmax(${min}px, 1fr)`;
+                // Fixed pixel tracks only. Using 1fr / minmax(..., Nfr) stretches
+                // leftover viewport width into random columns (Device ID, gaps, etc.).
+                return `${this.columnMinPx(col)}px`;
             },
             get gridStyle() {
                 const cols = this.visibleColumns.map(col => this.columnTrack(col)).join(' ');
-                return `grid-template-columns: 36px ${cols}; width: 100%;`;
+                return `grid-template-columns: 36px ${cols}; width: max-content; min-width: 100%;`;
             },
             get syncStyle() {
-                return `width: 100%; min-width: max(100%, ${this.tableMinWidth}px);`;
+                return `width: max-content; min-width: max(100%, ${this.tableMinWidth}px);`;
             },
             get tableMinWidth() {
                 const gap = 8;
@@ -1916,12 +1928,25 @@
             },
             columnMinPx(col) {
                 const key = col.key;
-                if (key === 'session_recording') return 40;
+                if (key === 'session_recording') return 44;
                 if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
-                    return 52;
+                    return 56;
                 }
-                if (key === 'ip') return 160;
-                return col.min || 72;
+                if (['intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter'].includes(key)) return 72;
+                if (key === 'intel_risk_score' || key === 'intel_risk_level' || key === 'intel_confidence') return 88;
+                if (key === 'intel_evidence') return 96;
+                if (key === 'intel_ip_need_blockation') return 120;
+                if (key === 'intel_blockation_type' || key === 'intel_block_reason') return 110;
+                if (key === 'ip') return 150;
+                if (key === 'device_id' || key === 'visitor_id' || key === 'browser_id' || key === 'fingerprint_id' || key === 'paid_identity_id') {
+                    return 132;
+                }
+                if (key === 'session_id' || key === 'device_fingerprint') return 120;
+                if (key === 'identity_confidence') return 100;
+                if (key === 'ads_primary_rule') return 140;
+                if (key === 'gclid' || key === 'gbraid' || key === 'wbraid') return 128;
+                if (key === 'domain' || key === 'campaign' || key === 'keyword') return 120;
+                return Math.max(col.min || 72, 72);
             },
             init() {
                 const params = new URLSearchParams(window.location.search);

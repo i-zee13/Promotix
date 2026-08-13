@@ -1484,7 +1484,68 @@ class PaidAdvertisingDashboardController extends Controller
             }
         }
 
+        $this->applyAdvancedSearchFilter($query, $request, 'visits');
+
         return $query;
+    }
+
+    /**
+     * Advanced View / dashboard search box: IP, GCLID/GBRAID/WBRAID, or Device ID.
+     * Applied on visits queries and paid_marketing click inventory.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @param  'visits'|'paid_marketing'  $source
+     */
+    private function applyAdvancedSearchFilter($query, Request $request, string $source = 'visits'): void
+    {
+        $term = trim((string) $request->query('ip', ''));
+        if ($term === '') {
+            return;
+        }
+
+        $compact = trim(preg_replace('/\s+/', '', $term) ?? $term);
+        $isDeviceId = (bool) preg_match('/^DEV_[A-Za-z0-9]+$/i', $compact);
+        $isClickId = ! filter_var($compact, FILTER_VALIDATE_IP)
+            && strlen($compact) >= 12
+            && (bool) preg_match('/^[A-Za-z0-9_-]+$/', $compact);
+
+        if ($source === 'paid_marketing') {
+            $query->where(function ($match) use ($term, $compact, $isDeviceId, $isClickId): void {
+                $match->where('pc.ip', 'like', '%'.$term.'%');
+
+                if ($isDeviceId && Schema::hasColumn('paid_marketing_clicks', 'device_id')) {
+                    $match->orWhere('pc.device_id', 'like', '%'.$compact.'%');
+                }
+
+                if ($isClickId) {
+                    foreach (['paid_id', 'gclid', 'gbraid', 'wbraid'] as $col) {
+                        if (Schema::hasColumn('paid_marketing_clicks', $col)) {
+                            $match->orWhere("pc.{$col}", $compact)
+                                ->orWhere("pc.{$col}", 'like', '%'.$compact.'%');
+                        }
+                    }
+                }
+            });
+
+            return;
+        }
+
+        $query->where(function ($match) use ($term, $compact, $isDeviceId, $isClickId): void {
+            $match->where('ip', 'like', '%'.$term.'%');
+
+            if ($isDeviceId && Schema::hasColumn('visits', 'device_id')) {
+                $match->orWhere('device_id', 'like', '%'.$compact.'%');
+            }
+
+            if ($isClickId) {
+                foreach (['gclid', 'gbraid', 'wbraid'] as $col) {
+                    if (Schema::hasColumn('visits', $col)) {
+                        $match->orWhere($col, $compact)
+                            ->orWhere($col, 'like', '%'.$compact.'%');
+                    }
+                }
+            }
+        });
     }
 
     /**
@@ -1552,6 +1613,8 @@ class PaidAdvertisingDashboardController extends Controller
                 $this->applyDirectCampaignFilter($query, $request, 'pc.campaign', 'pc.google_campaign_id');
             }
         }
+
+        $this->applyAdvancedSearchFilter($query, $request, 'paid_marketing');
 
         return $query
             ->select(

@@ -693,7 +693,7 @@ html.light-mode .figma-click-modal-sidebar {
 }
 
 .pm-adv-table-sync {
-    width: 100%;
+    width: max-content;
     min-width: 100%;
     box-sizing: border-box;
 }
@@ -701,13 +701,16 @@ html.light-mode .figma-click-modal-sidebar {
 .pm-adv-table-grid {
     display: grid;
     gap: 8px;
-    width: 100%;
+    /* Fixed tracks from JS — never stretch with 1fr (causes huge column gaps). */
+    width: max-content;
+    min-width: 100%;
     align-items: center;
-    justify-content: stretch;
+    justify-content: start;
     box-sizing: border-box;
 }
 
 .pm-adv-table-grid--head {
+    /* Must match row horizontal padding so header/cells share one column line. */
     padding: 10px 12px;
     background: #1a1a1a;
 }
@@ -776,7 +779,7 @@ html.light-mode .figma-click-modal-sidebar {
 }
 
 .pm-adv-table-grid--row {
-    margin-bottom: 8px;
+    margin: 0 0 8px;
     padding: 10px 12px;
     border-radius: 10px;
     background: #d9d9d9;
@@ -828,7 +831,8 @@ html.light-mode .pm-adv-table-grid--row:hover {
     max-height: 420px;
     overflow-x: hidden;
     overflow-y: auto;
-    padding: 8px 12px;
+    /* No horizontal padding — head/row already use the same 12px inset. */
+    padding: 8px 0;
     scrollbar-width: thin;
     scrollbar-color: #6400b2 transparent;
 }
