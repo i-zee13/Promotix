@@ -560,15 +560,19 @@ class IntegrationsController extends Controller
 
         if ($isAuthFlow && ! $user) {
             $defaultRole = Role::query()->where('slug', 'default-user')->first();
+            $newUserData = [
+                'name' => $name !== '' ? $name : Str::before($email, '@'),
+                'password' => Hash::make(Str::random(40)),
+                'role_id' => $defaultRole?->id,
+                'email_verified_at' => now(),
+            ];
+            if (Schema::hasColumn('users', 'google_avatar_url')) {
+                $newUserData['google_avatar_url'] = $picture !== '' ? $picture : null;
+            }
+
             $user = User::query()->firstOrCreate(
                 ['email' => $email],
-                [
-                    'name' => $name !== '' ? $name : Str::before($email, '@'),
-                    'password' => Hash::make(Str::random(40)),
-                    'role_id' => $defaultRole?->id,
-                    'email_verified_at' => now(),
-                    'google_avatar_url' => $picture !== '' ? $picture : null,
-                ]
+                $newUserData
             );
 
             Auth::login($user);
@@ -581,7 +585,12 @@ class IntegrationsController extends Controller
         }
 
         // Prefer custom upload; otherwise keep Gmail/Google picture in sync.
-        if ($picture !== '' && ! filled($user->avatar_path) && (string) $user->google_avatar_url !== $picture) {
+        if (
+            $picture !== ''
+            && Schema::hasColumn('users', 'google_avatar_url')
+            && (! Schema::hasColumn('users', 'avatar_path') || ! filled($user->avatar_path))
+            && (string) $user->google_avatar_url !== $picture
+        ) {
             $user->forceFill(['google_avatar_url' => $picture])->save();
         }
 

@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -63,6 +64,11 @@ class ProfileController extends Controller
 
     public function updateAvatar(Request $request): RedirectResponse
     {
+        if (! $this->avatarColumnsReady()) {
+            return Redirect::route('profile.edit')
+                ->withErrors(['avatar' => 'Avatar storage is being updated. Please try again shortly.']);
+        }
+
         $request->validate([
             'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
         ]);
@@ -82,6 +88,11 @@ class ProfileController extends Controller
 
     public function destroyAvatar(Request $request): RedirectResponse
     {
+        if (! $this->avatarColumnsReady()) {
+            return Redirect::route('profile.edit')
+                ->withErrors(['avatar' => 'Avatar storage is being updated. Please try again shortly.']);
+        }
+
         $user = $request->user();
         $disk = Storage::disk('public');
 
@@ -92,6 +103,12 @@ class ProfileController extends Controller
         $user->forceFill(['avatar_path' => null])->save();
 
         return Redirect::route('profile.edit')->with('status', 'avatar-removed');
+    }
+
+    private function avatarColumnsReady(): bool
+    {
+        return Schema::hasColumn('users', 'avatar_path')
+            && Schema::hasColumn('users', 'google_avatar_url');
     }
 
     public function syncTimezone(Request $request): JsonResponse
