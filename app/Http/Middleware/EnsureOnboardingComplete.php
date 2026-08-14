@@ -11,7 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
  *
  *   - Not email-verified  → /verify-email
  *   - Verified but no active/trialing subscription → /onboarding/plan
- *   - Has subscription but no payment method → /onboarding/payment
+ *   - Has subscription but still needs card (self-serve) → /onboarding/payment
+ *   - Admin-created / admin-assigned / admin-verified billing skips the card step
  *   - Admins and super admins bypass both checks.
  *
  * Routes that should be reachable while onboarding is incomplete (login, logout,
@@ -71,7 +72,7 @@ class EnsureOnboardingComplete
             return redirect()->route('onboarding.plan');
         }
 
-        if (! $user->hasPaymentMethodOnFile()) {
+        if ($user->needsCardOnboarding()) {
             return redirect()->route('onboarding.payment');
         }
 

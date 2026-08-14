@@ -196,7 +196,7 @@ class User extends Authenticatable
             return 'onboarding.plan';
         }
 
-        if (! $this->hasPaymentMethodOnFile()) {
+        if ($this->needsCardOnboarding()) {
             return 'onboarding.payment';
         }
 
@@ -206,6 +206,56 @@ class User extends Authenticatable
     public function hasPaymentMethodOnFile(): bool
     {
         return $this->paymentMethods()->exists();
+    }
+
+    /**
+     * Card step is required only for self-serve checkout.
+     * Admin-created / admin-assigned / admin-verified billing skips it.
+     */
+    public function needsCardOnboarding(): bool
+    {
+        if ($this->hasPaymentMethodOnFile()) {
+            return false;
+        }
+
+        return ! $this->hasAdminSatisfiedBilling();
+    }
+
+    /**
+     * True when an admin already provisioned or verified this user's active plan.
+     */
+    public function hasAdminSatisfiedBilling(): bool
+    {
+        $subscription = $this->activeSubscription();
+        if (! $subscription) {
+            return false;
+        }
+
+        $source = strtolower(trim((string) data_get($subscription->metadata ?? [], 'source', '')));
+        if (in_array($source, [
+            'super_admin_create_user',
+            'super_admin_assign_plan',
+            'super_admin_payment_verify',
+        ], true)) {
+            return true;
+        }
+
+        if ($subscription->last_payment_id) {
+            $payment = $this->payments()
+                ->whereKey($subscription->last_payment_id)
+                ->where('status', 'paid')
+                ->whereNotNull('verified_by_id')
+                ->exists();
+            if ($payment) {
+                return true;
+            }
+        }
+
+        return $this->payments()
+            ->where('subscription_id', $subscription->id)
+            ->where('status', 'paid')
+            ->whereNotNull('verified_by_id')
+            ->exists();
     }
 
     /**

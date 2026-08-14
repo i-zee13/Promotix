@@ -130,7 +130,7 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.plan');
         }
 
-        if ($user->hasPaymentMethodOnFile()) {
+        if (! $user->needsCardOnboarding()) {
             return redirect()->route('dashboard');
         }
 

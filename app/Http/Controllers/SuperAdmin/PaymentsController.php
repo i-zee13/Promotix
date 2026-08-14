@@ -75,11 +75,14 @@ class PaymentsController extends Controller
             $subscription = $payment->subscription ?: Subscription::query()->where('user_id', $payment->user_id)->latest('id')->first();
             if ($subscription) {
                 BillingAccess::markPaymentRecovered($payment->user, $subscription);
+                $metadata = (array) ($subscription->metadata ?? []);
+                $metadata['source'] = 'super_admin_payment_verify';
                 $subscription->forceFill([
                     'is_trial' => false,
                     'plan_id' => $payment->plan_id ?? $subscription->plan_id,
                     'started_at' => $subscription->started_at ?: now(),
                     'last_payment_id' => $payment->id,
+                    'metadata' => $metadata,
                 ])->save();
             }
 
