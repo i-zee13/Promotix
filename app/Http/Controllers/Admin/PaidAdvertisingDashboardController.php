@@ -10,6 +10,7 @@ use App\Services\GoogleAdsConnectionService;
 use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
 use App\Services\IpIntel\IpFraudEvaluator;
+use App\Support\PaidAdvertising\IpRowRiskScorer;
 use App\Support\PaidMarketing\DashboardResponseCache;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleInvalidClickReconciler;
@@ -1460,14 +1461,18 @@ class PaidAdvertisingDashboardController extends Controller
         $query = DB::table('visits')
             ->whereIn('domain_id', $domainIds);
 
-        UserTimezone::applyCalendarDateRangeFilter(
-            $query,
-            'visited_at',
-            $fromDate,
-            $toDate,
-            $request->user(),
-            $this->reportingTimezone($request, $domainIds),
-        );
+        $search = trim((string) $request->query('ip', ''));
+        // IP / GCLID / Device ID search: do not hide rows just because the date chip is narrow.
+        if ($search === '') {
+            UserTimezone::applyCalendarDateRangeFilter(
+                $query,
+                'visited_at',
+                $fromDate,
+                $toDate,
+                $request->user(),
+                $this->reportingTimezone($request, $domainIds),
+            );
+        }
 
         GoogleClickAttribution::applyHasClickIdFilter($query);
 
@@ -1574,7 +1579,10 @@ class PaidAdvertisingDashboardController extends Controller
                 DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
                 DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
                 DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
-                DB::raw('MAX(threat_group) as top_threat')
+                DB::raw('MAX(threat_group) as top_threat'),
+                DB::raw(Schema::hasColumn('visits', 'threat_score')
+                    ? 'MAX(threat_score) as threat_score'
+                    : 'NULL as threat_score')
             )
             ->groupBy('ip')
             ->orderByDesc('total')
@@ -1595,14 +1603,17 @@ class PaidAdvertisingDashboardController extends Controller
             ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
             ->whereIn('pv.domain_id', $domainIds);
 
-        UserTimezone::applyCalendarDateRangeFilter(
-            $query,
-            'pc.clicked_at',
-            $fromDate,
-            $toDate,
-            $request->user(),
-            $this->reportingTimezone($request, $domainIds),
-        );
+        $search = trim((string) $request->query('ip', ''));
+        if ($search === '') {
+            UserTimezone::applyCalendarDateRangeFilter(
+                $query,
+                'pc.clicked_at',
+                $fromDate,
+                $toDate,
+                $request->user(),
+                $this->reportingTimezone($request, $domainIds),
+            );
+        }
 
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
 
@@ -1633,7 +1644,8 @@ class PaidAdvertisingDashboardController extends Controller
                 DB::raw("SUM(CASE WHEN pc.threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
                 DB::raw("SUM(CASE WHEN pc.threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
                 DB::raw("SUM(CASE WHEN pc.threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
-                DB::raw('MAX(pc.threat_group) as top_threat')
+                DB::raw('MAX(pc.threat_group) as top_threat'),
+                DB::raw('NULL as threat_score')
             )
             ->groupBy('pc.ip')
             ->orderByDesc('total')
@@ -2067,6 +2079,7 @@ class PaidAdvertisingDashboardController extends Controller
                 'data_center_hits' => max((int) ($existing->data_center_hits ?? 0), (int) ($row->data_center_hits ?? 0)),
                 'malicious_hits' => max((int) ($existing->malicious_hits ?? 0), (int) ($row->malicious_hits ?? 0)),
                 'top_threat' => $existing->top_threat ?? $row->top_threat ?? null,
+                'threat_score' => max((int) ($existing->threat_score ?? 0), (int) ($row->threat_score ?? 0)) ?: null,
             ];
         }
 
@@ -2218,31 +2231,18 @@ class PaidAdvertisingDashboardController extends Controller
             }
             $invalid = (int) ($row->invalid ?? 0);
             $totalClicks = (int) ($row->total ?? 0);
-            $riskScore = $intel?->ipdetails_abuser_score ?? $intel?->abuse_confidence_score;
-            $scorePct = null;
-            if (is_numeric($riskScore)) {
-                $score = (float) $riskScore;
-                $scorePct = $score <= 1 ? (int) round($score * 100) : (int) round($score);
-            } elseif ($invalid > 0) {
-                // No intel score — derive a usable score from invalid share so High Risk panel can rank IPs.
-                $scorePct = (int) min(99, max(28, round(($invalid / max(1, $totalClicks)) * 100)));
-            }
-
-            if ($scorePct !== null) {
-                $riskLevel = $scorePct >= 70 ? 'High' : ($scorePct >= 20 ? 'Medium' : 'Low');
-            } else {
-                $riskLevel = 'Low';
-            }
-
-            // Invalid paid traffic should never look "Low" just because a vendor score is soft.
-            if ($invalid > 0 && $riskLevel === 'Low') {
-                $riskLevel = 'Medium';
-                $scorePct = max($scorePct ?? 0, 28);
-            }
-            if ($invalid > 0 && ($invalid / max(1, $totalClicks)) >= 0.5 && $riskLevel !== 'High') {
-                $riskLevel = 'High';
-                $scorePct = max($scorePct ?? 0, 70);
-            }
+            $risk = IpRowRiskScorer::score([
+                'invalid' => $invalid,
+                'total' => $totalClicks,
+                'threat_score' => $row->threat_score ?? null,
+                'intel_score' => $intel?->ipdetails_abuser_score ?? $intel?->abuse_confidence_score,
+                'top_threat' => $row->top_threat ?? null,
+                'vpn_hits' => (int) ($row->vpn_hits ?? 0),
+                'data_center_hits' => (int) ($row->data_center_hits ?? 0),
+                'malicious_hits' => (int) ($row->malicious_hits ?? 0),
+            ]);
+            $riskLevel = $risk['risk_level'];
+            $scorePct = $risk['risk_score'];
 
             $actionRaw = strtolower(trim((string) data_get($row, 'action', '')));
             $isAllowlisted = IpFraudEvaluator::isIpAllowListed($ip, implode("\n", $allowListIps));

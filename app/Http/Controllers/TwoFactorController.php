@@ -17,7 +17,7 @@ class TwoFactorController extends Controller
     {
         $user = $request->user();
         if ($user->hasTwoFactorEnabled()) {
-            return back()->with('status', 'Two-factor authentication is already enabled.');
+            return $this->backToSecurity($request, 'Two-factor authentication is already enabled.', 'two_factor');
         }
 
         $secret = TotpAuthenticator::generateSecret();
@@ -29,7 +29,7 @@ class TwoFactorController extends Controller
 
         $request->session()->put('two_factor.setup_secret', $secret);
 
-        return back()->with('status', 'Scan the QR code with your authenticator app, then confirm with a 6-digit code.');
+        return $this->backToSecurity($request, 'Scan the QR code with your authenticator app, then confirm with a 6-digit code.', 'two_factor');
     }
 
     public function confirm(Request $request): RedirectResponse
@@ -59,7 +59,7 @@ class TwoFactorController extends Controller
         $request->session()->put('auth.two_factor_passed', true);
         $request->session()->flash('two_factor.recovery_codes', $recovery);
 
-        return back()->with('status', 'Two-factor authentication enabled. Save your recovery codes now.');
+        return $this->backToSecurity($request, 'Two-factor authentication enabled. Save your recovery codes now.', 'two_factor');
     }
 
     public function disable(Request $request): RedirectResponse
@@ -77,7 +77,7 @@ class TwoFactorController extends Controller
 
         $request->session()->forget(['two_factor.setup_secret', 'auth.two_factor_passed']);
 
-        return back()->with('status', 'Two-factor authentication disabled.');
+        return $this->backToSecurity($request, 'Two-factor authentication disabled.', 'two_factor');
     }
 
     public function regenerateRecoveryCodes(Request $request): RedirectResponse
@@ -92,7 +92,7 @@ class TwoFactorController extends Controller
         $user->forceFill(['two_factor_recovery_codes' => $recovery])->save();
         $request->session()->flash('two_factor.recovery_codes', $recovery);
 
-        return back()->with('status', 'New recovery codes generated. Save them now.');
+        return $this->backToSecurity($request, 'New recovery codes generated. Save them now.', 'two_factor');
     }
 
     public function destroyOtherSessions(Request $request): RedirectResponse
@@ -106,7 +106,7 @@ class TwoFactorController extends Controller
                 ->delete();
         }
 
-        return back()->with('status', 'Logged out of other devices / sessions.');
+        return $this->backToSecurity($request, 'Logged out of other devices / sessions.', 'sessions');
     }
 
     public function storeApiKey(Request $request): RedirectResponse
@@ -127,7 +127,7 @@ class TwoFactorController extends Controller
 
         $request->session()->flash('api_key.plain', $plain);
 
-        return back()->with('status', 'API key created. Copy it now — it will not be shown again.');
+        return $this->backToSecurity($request, 'API key created. Copy it now — it will not be shown again.', 'api_keys');
     }
 
     public function destroyApiKey(Request $request, UserApiKey $apiKey): RedirectResponse
@@ -135,7 +135,19 @@ class TwoFactorController extends Controller
         abort_unless((int) $apiKey->user_id === (int) $request->user()->id, 403);
         $apiKey->delete();
 
-        return back()->with('status', 'API key revoked.');
+        return $this->backToSecurity($request, 'API key revoked.', 'api_keys');
+    }
+
+    private function backToSecurity(Request $request, string $status, string $defaultTab): RedirectResponse
+    {
+        $tab = trim((string) $request->input('settings_security_tab', $defaultTab));
+        if (! in_array($tab, ['two_factor', 'password', 'sessions', 'api_keys', 'login_alerts'], true)) {
+            $tab = $defaultTab;
+        }
+
+        return back()
+            ->with('status', $status)
+            ->with('settings.security_tab', $tab);
     }
 
     /**

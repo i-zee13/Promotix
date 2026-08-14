@@ -14,7 +14,6 @@ final class GoogleAdsClickRedirect
     public const TEMPLATE_PARAMS = [
         'final_url',
         'source',
-        'campaign_id',
         'adgroup_id',
         'keyword',
         'device',
@@ -32,7 +31,6 @@ final class GoogleAdsClickRedirect
         'gclid',
         'gbraid',
         'wbraid',
-        'campaign_id',
         'adgroup_id',
         'keyword',
         'source',
@@ -41,7 +39,6 @@ final class GoogleAdsClickRedirect
         'matchtype',
         'creative',
         'placement',
-        'gad_campaignid',
         'gad_source',
     ];
 
@@ -49,7 +46,7 @@ final class GoogleAdsClickRedirect
     {
         $base = rtrim($baseUrl ?? (string) config('app.url'), '/');
 
-        return $base . '/click?final_url={lpurl}&source=google_ads&campaign_id={campaignid}'
+        return $base . '/click?final_url={lpurl}&source=google_ads'
             . '&adgroup_id={adgroupid}&keyword={keyword}&device={device}&network={network}'
             . '&matchtype={matchtype}&creative={creative}&placement={placement}';
     }
@@ -61,14 +58,9 @@ final class GoogleAdsClickRedirect
     {
         $finalUrl = trim((string) ($request->query('final_url') ?: $request->query('url') ?: ''));
 
-        $campaignId = trim((string) ($request->query('campaign_id') ?: $request->query('campaignid') ?: ''));
-        $gadCampaignId = trim((string) ($request->query('gad_campaignid') ?: $campaignId));
-
         return [
             'final_url' => $finalUrl,
             'source' => trim((string) $request->query('source', '')),
-            'campaign_id' => $campaignId,
-            'gad_campaignid' => $gadCampaignId,
             'adgroup_id' => trim((string) ($request->query('adgroup_id') ?: $request->query('adgroupid') ?: '')),
             'keyword' => trim((string) $request->query('keyword', '')),
             'device' => trim((string) $request->query('device', '')),
@@ -178,12 +170,6 @@ final class GoogleAdsClickRedirect
         }
         if (! empty($params['wbraid'])) {
             $query['wbraid'] = $params['wbraid'];
-        }
-        if (! empty($params['gad_campaignid'])) {
-            $query['gad_campaignid'] = preg_replace('/\D+/', '', (string) $params['gad_campaignid']) ?? $params['gad_campaignid'];
-        }
-        if (! empty($params['campaign_id']) && empty($query['gad_campaignid'])) {
-            $query['campaign_id'] = preg_replace('/\D+/', '', (string) $params['campaign_id']) ?? $params['campaign_id'];
         }
         if (! empty($params['keyword'])) {
             $query['keyword'] = $params['keyword'];

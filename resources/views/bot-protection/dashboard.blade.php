@@ -575,12 +575,14 @@
                     display: inline-flex;
                     align-items: center;
                     gap: 4px;
-                    color: rgba(255,255,255,.85);
+                    color: #6400b2;
                     font-size: 10px;
+                    font-weight: 600;
                     white-space: nowrap;
                 }
                 .bpv2-tables-row .figma-bp-protect--inactive {
-                    color: rgba(255,255,255,.45);
+                    color: #2d2d3a;
+                    font-weight: 500;
                 }
                 .bpv2-tables-row .figma-bp-trend--up { color: #34c759; }
                 .bpv2-tables-row .figma-bp-trend--down { color: #ff6b6b; }
@@ -1217,7 +1219,12 @@ function botProtectionFigma(config = {}) {
             return Math.round((Number(part || 0) / t) * 10000) / 100;
         },
         paidOfAllPct() {
-            return this.sharePct(this.summary?.paid?.total, this.summary?.total_visits);
+            const share = this.summary?.paid?.share_pct;
+            if (share !== undefined && share !== null) {
+                return Math.round(Number(share) * 10) / 10;
+            }
+            const paid = Number(this.summary?.paid?.total || 0);
+            return this.sharePct(paid, Number(this.summary?.total_visits || 0) + paid);
         },
         paidValidPct() {
             return this.sharePct(this.summary?.paid?.valid, this.summary?.paid?.total);

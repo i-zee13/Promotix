@@ -1412,6 +1412,7 @@
             { key: 'device_fingerprint', label: 'Fingerprint', primary: false, min: 90 },
             { key: 'device', label: 'Device', primary: true, min: 72 },
             { key: 'browser', label: 'Browser', primary: false, min: 80 },
+            { key: 'browser_version', label: 'Browser Version', primary: false, min: 92 },
             { key: 'os', label: 'OS', primary: false, min: 72 },
             { key: 'screen_resolution', label: 'Screen', primary: false, min: 72 },
             { key: 'language', label: 'Language', primary: false, min: 64 },
@@ -1492,7 +1493,7 @@
             {
                 id: 'device_browser',
                 label: 'Device / Browser',
-                keys: ['ip', 'device', 'browser', 'os', 'screen_resolution', 'language', 'visitor_timezone', 'device_fingerprint'],
+                keys: ['ip', 'device', 'browser', 'browser_version', 'os', 'screen_resolution', 'language', 'visitor_timezone', 'device_fingerprint'],
             },
             {
                 id: 'session_behavior',

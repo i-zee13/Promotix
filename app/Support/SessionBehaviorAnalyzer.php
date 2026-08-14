@@ -74,17 +74,15 @@ class SessionBehaviorAnalyzer
                 $hasKey = true;
             }
             if ($type === 'click') {
+                $classified = SessionClickClassifier::classifyClickEvent($raw);
                 $href = trim((string) ($raw['href'] ?? ''));
-                $hrefLower = strtolower($href);
-                $isTel = ! empty($raw['tel']) || ! empty($raw['is_tel']) || str_starts_with($hrefLower, 'tel:');
-                $isCta = ! empty($raw['cta']) || ! empty($raw['is_cta']);
-                if ($isTel) {
+                if ($classified['tel']) {
                     $telClicks++;
                     if ($href !== '') {
                         $lastCtaHref = mb_substr($href, 0, 500);
                     }
                 }
-                if ($isCta) {
+                if ($classified['cta']) {
                     $ctaClicks++;
                     if ($href !== '') {
                         $lastCtaHref = mb_substr($href, 0, 500);

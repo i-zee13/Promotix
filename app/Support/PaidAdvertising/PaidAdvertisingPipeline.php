@@ -78,7 +78,7 @@ class PaidAdvertisingPipeline
             $this->repeats->evaluate($identity, $snapshot, $thresholds, [
                 'repeat_days' => $repeatDays,
             ]),
-            $this->timing->evaluate((int) $domain->id, $identity, $snapshot),
+            $this->timing->evaluate((int) $domain->id, $identity, $snapshot, null, $attribution, $sessionId),
             $this->attribution->evaluate(array_merge([
                 'is_paid_traffic' => true,
             ], $attribution)),

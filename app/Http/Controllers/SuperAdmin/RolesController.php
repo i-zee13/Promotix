@@ -5,24 +5,28 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Support\PermissionGrouper;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class RolesController extends Controller
 {
     public function index(): View
     {
-        $roles = Role::withCount('users')->withCount('permissions')->orderBy('name')->paginate(15);
+        $roles = Role::with('permissions:id,name,slug,route_name')
+            ->withCount('users')
+            ->withCount('permissions')
+            ->orderBy('name')
+            ->paginate(15);
 
         return view('super-admin.roles.index', compact('roles'));
     }
 
     public function create(): View
     {
-        $permissions = Permission::orderBy('name')->get();
-
-        return view('super-admin.roles.create', compact('permissions'));
+        return view('super-admin.roles.create', $this->permissionPickerData());
     }
 
     public function store(Request $request): RedirectResponse
@@ -48,10 +52,12 @@ class RolesController extends Controller
 
     public function edit(Role $role): View
     {
-        $permissions = Permission::orderBy('name')->get();
         $role->load('permissions');
 
-        return view('super-admin.roles.edit', compact('role', 'permissions'));
+        return view('super-admin.roles.edit', [
+            'role' => $role,
+            ...$this->permissionPickerData(),
+        ]);
     }
 
     public function update(Request $request, Role $role): RedirectResponse
@@ -86,5 +92,18 @@ class RolesController extends Controller
         $role->delete();
 
         return redirect()->route('super-admin.roles.index')->with('status', 'Role deleted successfully.');
+    }
+
+    /**
+     * @return array{permissions: Collection<int, Permission>, groupedPermissions: array<string, Collection<int, Permission>>}
+     */
+    private function permissionPickerData(): array
+    {
+        $permissions = Permission::orderBy('name')->get();
+
+        return [
+            'permissions' => $permissions,
+            'groupedPermissions' => PermissionGrouper::group($permissions),
+        ];
     }
 }

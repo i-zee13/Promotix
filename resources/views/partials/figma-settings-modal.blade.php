@@ -90,6 +90,15 @@
         $twoFactorEnabled = false;
     }
 
+    $settingsSecurityTab = (string) old('settings_security_tab', session('settings.security_tab', 'two_factor'));
+    if (! in_array($settingsSecurityTab, ['two_factor', 'password', 'sessions', 'api_keys', 'login_alerts'], true)) {
+        $settingsSecurityTab = 'two_factor';
+    }
+    $settingsSecurityAutoOpen = (bool) old('settings_security_tab')
+        || (bool) session('settings.security_tab')
+        || $errors->updatePassword->isNotEmpty()
+        || $errors->has('code');
+
     $settingsContacts = array_values(array_map(function ($row) {
         $row = (array) $row;
         $perms = (array) ($row['permissions'] ?? []);
@@ -156,16 +165,27 @@
     $receiptRouteExists = \Illuminate\Support\Facades\Route::has('billing.receipt.download');
 
     $settingsTabs = [
-        ['id' => 'general', 'label' => 'General', 'icon' => '⚙️'],
-        ['id' => 'notifications', 'label' => 'Notifications', 'icon' => '🔔'],
-        ['id' => 'reports', 'label' => 'Data Reports', 'icon' => '📊'],
-        ['id' => 'billing', 'label' => 'Billing', 'icon' => '💳'],
-        ['id' => 'domains', 'label' => 'Domains', 'icon' => '🌐'],
-        ['id' => 'safety', 'label' => 'Safety', 'icon' => '🛡️'],
-        ['id' => 'security', 'label' => 'Security & Login', 'icon' => '🔐'],
-        ['id' => 'contacts', 'label' => 'Trusted Contacts', 'icon' => '👥'],
-        ['id' => 'account', 'label' => 'Account', 'icon' => '🏢'],
+        ['id' => 'general', 'label' => 'General', 'icon' => 'settings-general'],
+        ['id' => 'notifications', 'label' => 'Notifications', 'icon' => 'settings-notifications'],
+        ['id' => 'reports', 'label' => 'Data Reports', 'icon' => 'settings-data-reports'],
+        ['id' => 'billing', 'label' => 'Billing', 'icon' => 'settings-billing'],
+        ['id' => 'domains', 'label' => 'Domains', 'icon' => 'settings-domains'],
+        ['id' => 'safety', 'label' => 'Safety', 'icon' => 'settings-safety'],
+        ['id' => 'security', 'label' => 'Security & Login', 'icon' => 'settings-security-login'],
+        ['id' => 'contacts', 'label' => 'Trusted Contacts', 'icon' => 'settings-trusted-contacts'],
+        ['id' => 'account', 'label' => 'Account', 'icon' => 'settings-account'],
     ];
+    $settingsIconSvg = static function (string $name): string {
+        $path = public_path('images/settings-icons/'.$name.'.svg');
+        if (! is_file($path)) {
+            return '';
+        }
+        $svg = (string) file_get_contents($path);
+        // Ensure icons inherit tab text color (active/inactive).
+        $svg = preg_replace('/\s(width|height)="[^"]*"/i', '', $svg, 2) ?? $svg;
+
+        return $svg;
+    };
 
     $reportTypes = [
         ['key' => 'traffic', 'title' => 'Traffic Quality', 'desc' => 'Invalid clicks, risk scores, and quality trends.'],
@@ -231,10 +251,13 @@
             'ccpa' => (bool) ($settingsSafety['ccpa'] ?? false),
         ],
         'login_alerts' => (bool) ($settingsPrefs['login_alerts'] ?? true),
+        'security_tab' => $settingsSecurityTab,
+        'security_auto_open' => $settingsSecurityAutoOpen,
         'trusted_contacts' => $settingsContacts,
         'csrf' => csrf_token(),
         'prefsUrl' => url('/user/preferences'),
     ]))"
+    x-init="initModal()"
     x-cloak
     x-show="open"
     x-transition.opacity
@@ -263,7 +286,7 @@
                         :class="{ 'is-active': tab === '{{ $tab['id'] }}' }"
                         @click="tab = '{{ $tab['id'] }}'"
                     >
-                        <span class="pmx-settings__tab-icon" aria-hidden="true">{{ $tab['icon'] }}</span>
+                        <span class="pmx-settings__tab-icon" aria-hidden="true">{!! $settingsIconSvg($tab['icon']) !!}</span>
                         <span>{{ $tab['label'] }}</span>
                     </button>
                 @endforeach
@@ -695,50 +718,7 @@
                 <div x-show="tab === 'security'" x-cloak>
                     <h3 class="pmx-settings__h">Security & Login</h3>
                     <p class="pmx-settings__p">2FA, password, sessions, API keys, and login alerts.</p>
-
-                    <div class="pmx-settings__card pmx-settings__stack">
-                        <div class="pmx-settings__row">
-                            <div>
-                                <p class="pmx-settings__label">Two-factor authentication</p>
-                                <p class="pmx-settings__hint">Authenticator app and recovery codes</p>
-                            </div>
-                            <div class="pmx-settings__inline">
-                                <span class="pmx-settings__badge {{ $twoFactorEnabled ? 'is-ok' : '' }}">{{ $twoFactorEnabled ? 'Enabled' : 'Disabled' }}</span>
-                                <a href="{{ $profileUrl }}#security-controls-section" class="pmx-settings__btn">Manage</a>
-                            </div>
-                        </div>
-                        <div class="pmx-settings__row">
-                            <div>
-                                <p class="pmx-settings__label">Change password</p>
-                                <p class="pmx-settings__hint">Update your account password</p>
-                            </div>
-                            <a href="{{ $profileUrl }}#password-security-section" class="pmx-settings__btn">Change password</a>
-                        </div>
-                        <div class="pmx-settings__row">
-                            <div>
-                                <p class="pmx-settings__label">Active sessions</p>
-                                <p class="pmx-settings__hint">Review devices and sign out elsewhere</p>
-                            </div>
-                            <a href="{{ $profileUrl }}#security-controls-section" class="pmx-settings__btn">Manage sessions</a>
-                        </div>
-                        <div class="pmx-settings__row">
-                            <div>
-                                <p class="pmx-settings__label">API keys</p>
-                                <p class="pmx-settings__hint">Create or revoke reporting tokens</p>
-                            </div>
-                            <a href="{{ $profileUrl }}#security-controls-section" class="pmx-settings__btn">Manage keys</a>
-                        </div>
-                        <div class="pmx-settings__row">
-                            <div>
-                                <p class="pmx-settings__label">Login alerts</p>
-                                <p class="pmx-settings__hint">Notify on new-device or unusual sign-in</p>
-                            </div>
-                            <label class="pmx-settings__switch">
-                                <input type="checkbox" x-model="loginAlerts" @change="saveLoginAlerts()">
-                                <span></span>
-                            </label>
-                        </div>
-                    </div>
+                    @include('partials.settings-security-tabs')
                 </div>
 
                 {{-- TRUSTED CONTACTS --}}
@@ -973,11 +953,177 @@
         margin-bottom: 4px;
         cursor: pointer;
     }
-    .pmx-settings__tab-icon { font-size: 14px; line-height: 1; width: 18px; text-align: center; }
+    .pmx-settings__tab-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        color: inherit;
+        line-height: 0;
+    }
+    .pmx-settings__tab-icon svg {
+        width: 16px;
+        height: 16px;
+        display: block;
+    }
     .pmx-settings__tab.is-active {
         background: #6400B2;
         color: #fff;
         outline: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .pmx-security-tabs {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        margin-bottom: 12px;
+        padding-bottom: 3px;
+        scrollbar-width: thin;
+    }
+    .pmx-security-tabs__button {
+        flex: 0 0 auto;
+        min-height: 34px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 7px;
+        background: #181818;
+        color: rgba(255, 255, 255, 0.62);
+        padding: 7px 11px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .pmx-security-tabs__button:hover {
+        border-color: rgba(100, 0, 178, 0.65);
+        color: #fff;
+    }
+    .pmx-security-tabs__button.is-active {
+        border-color: #7900d8;
+        background: #6400B2;
+        color: #fff;
+        box-shadow: 0 0 10px rgba(100, 0, 178, 0.25);
+    }
+    .pmx-security-panel { padding: 14px; }
+    .pmx-security-panel__head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+    .pmx-security-panel__title {
+        margin: 0;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+    }
+    .pmx-security-status,
+    .pmx-security-notice {
+        margin: 0 0 12px;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        border-radius: 7px;
+        background: rgba(34, 197, 94, 0.08);
+        color: #bbf7d0;
+        padding: 9px 10px;
+        font-size: 11px;
+    }
+    .pmx-security-notice {
+        border-color: rgba(245, 158, 11, 0.35);
+        background: rgba(245, 158, 11, 0.08);
+        color: #fde68a;
+    }
+    .pmx-security-2fa-grid {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+    }
+    .pmx-security-qr {
+        width: 150px;
+        height: 150px;
+        border-radius: 8px;
+        background: #fff;
+        padding: 7px;
+    }
+    .pmx-security-secret {
+        margin-top: 5px;
+        overflow-wrap: anywhere;
+        color: #c4a0e8;
+        font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .pmx-security-codes {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px 12px;
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+        font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .pmx-security-form-row,
+    .pmx-security-inline-form {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    .pmx-security-form-row .pmx-settings__field { flex: 1; }
+    .pmx-security-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+    .pmx-security-inline-form {
+        align-items: stretch;
+        flex-direction: column;
+        margin-top: 0;
+    }
+    .pmx-security-danger {
+        border-color: rgba(244, 63, 94, 0.42) !important;
+        color: #fda4af !important;
+    }
+    .pmx-security-error {
+        margin: 5px 0 0;
+        color: #fda4af;
+        font-size: 10px;
+    }
+    .pmx-security-session-list {
+        display: grid;
+        gap: 7px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .pmx-security-session-list > li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 9px 10px;
+    }
+    .pmx-security-current {
+        margin-left: 5px;
+        color: #86efac;
+        font-size: 9px;
+        font-weight: 600;
+    }
+    .pmx-security-user-agent {
+        max-width: 260px;
+        overflow: hidden;
+        color: rgba(255, 255, 255, 0.36);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    @media (max-width: 720px) {
+        .pmx-security-2fa-grid,
+        .pmx-security-actions-grid { grid-template-columns: 1fr; }
+        .pmx-security-form-row { align-items: stretch; flex-direction: column; }
+        .pmx-security-session-list > li { align-items: flex-start; flex-direction: column; }
+        .pmx-security-user-agent { max-width: 100%; }
     }
     .pmx-settings__content {
         min-height: 0;
@@ -1386,6 +1532,22 @@
         border-color: #d9d0e6;
     }
     html.light-mode .pmx-settings__switch span { background: rgba(26, 21, 36, 0.18); }
+    html.light-mode .pmx-security-tabs__button {
+        border-color: #e0d7eb;
+        background: #faf8fc;
+        color: #5b5568;
+    }
+    html.light-mode .pmx-security-tabs__button.is-active {
+        border-color: #6400B2;
+        background: #6400B2;
+        color: #fff;
+    }
+    html.light-mode .pmx-security-panel__title { color: #1a1524; }
+    html.light-mode .pmx-security-session-list > li {
+        border-color: #e7e1ef;
+        background: #faf8fc;
+    }
+    html.light-mode .pmx-security-user-agent { color: #766e83; }
 </style>
 
 <script>
@@ -1401,6 +1563,7 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
     return {
         open: false,
         tab: 'general',
+        securityTab: seed.security_tab || 'two_factor',
         appearance: seed.appearance || 'dark',
         language: seed.language || 'en',
         timezone: seed.timezone || 'UTC',
@@ -1457,6 +1620,14 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         contactsStatus: '',
         contactsBusy: false,
 
+        initModal() {
+            if (seed.security_auto_open) {
+                this.tab = 'security';
+                this.securityTab = seed.security_tab || 'two_factor';
+                this.open = true;
+                document.body.style.overflow = 'hidden';
+            }
+        },
         openModal(tab) {
             if (tab) this.tab = tab;
             this.open = true;

@@ -13,6 +13,7 @@ class AdsTimingEvaluator
 {
     /**
      * @param  array{ip: array<string,int>, browser: array<string,int>, device: array<string,int>, paid_identity: array<string,int>}  $windows
+     * @param  array{paid_id?: ?string, click_type?: ?string}  $attribution
      * @return list<array<string, mixed>>
      */
     public function evaluate(
@@ -20,11 +21,20 @@ class AdsTimingEvaluator
         ResolvedPaidIdentity $identity,
         array $windows,
         ?Carbon $now = null,
+        array $attribution = [],
+        ?string $sessionId = null,
     ): array {
         $now = $now ?: now();
         $triggered = [];
 
-        $secondsSincePrevious = $this->secondsSincePreviousPaidClick($domainId, $identity, $now);
+        $paidId = trim((string) ($attribution['paid_id'] ?? ''));
+        $secondsSincePrevious = $this->secondsSincePreviousPaidClick(
+            $domainId,
+            $identity,
+            $now,
+            $paidId !== '' ? $paidId : null,
+            $sessionId,
+        );
         if ($secondsSincePrevious !== null && $secondsSincePrevious < 3) {
             $triggered[] = $this->rule(
                 'ADS_ULTRA_RECLICK',
@@ -92,6 +102,8 @@ class AdsTimingEvaluator
         int $domainId,
         ResolvedPaidIdentity $identity,
         Carbon $now,
+        ?string $excludePaidId = null,
+        ?string $excludeSessionId = null,
     ): ?int {
         if (! Schema::hasTable('visits')) {
             return null;
@@ -114,6 +126,26 @@ class AdsTimingEvaluator
                 $q->where('browser_id', $identity->browserId);
             } else {
                 return null;
+            }
+
+            // Same Google click ID (double tag / page reload) is not a re-click.
+            if ($excludePaidId !== null && $excludePaidId !== '') {
+                $q->where(function ($outer) use ($excludePaidId): void {
+                    foreach (['gclid', 'gbraid', 'wbraid'] as $col) {
+                        if (Schema::hasColumn('visits', $col)) {
+                            $outer->where(function ($inner) use ($col, $excludePaidId): void {
+                                $inner->whereNull($col)->orWhere($col, '!=', $excludePaidId);
+                            });
+                        }
+                    }
+                });
+            }
+
+            // Same browser session firing the tag twice within a few seconds is not a re-click.
+            if ($excludeSessionId !== null && $excludeSessionId !== '' && Schema::hasColumn('visits', 'session_id')) {
+                $q->where(function ($inner) use ($excludeSessionId): void {
+                    $inner->whereNull('session_id')->orWhere('session_id', '!=', $excludeSessionId);
+                });
             }
 
             $previous = $q->orderByDesc('visited_at')->value('visited_at');

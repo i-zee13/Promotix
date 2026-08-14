@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Support\PermissionCatalog;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -18,7 +19,7 @@ class RolesAndPermissionsSeeder extends Seeder
             $routeName = $item['route'] ?? $slug;
             Permission::updateOrCreate(
                 ['slug' => $slug],
-                ['name' => $item['label'] ?? $slug, 'route_name' => $routeName]
+                ['name' => PermissionCatalog::displayName($slug, $item['label'] ?? $slug), 'route_name' => $routeName]
             );
         }
 
@@ -27,7 +28,7 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::updateOrCreate(
                 ['slug' => $slug],
                 [
-                    'name' => Str::headline(str_replace('-', ' ', $slug)),
+                    'name' => PermissionCatalog::displayName($slug, Str::headline(str_replace('-', ' ', $slug))),
                     'route_name' => $slug,
                 ]
             );

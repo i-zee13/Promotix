@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use Illuminate\Contracts\Database\Query\Builder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 final class GoogleClickAttribution
@@ -28,48 +27,18 @@ final class GoogleClickAttribution
     }
 
     /**
-     * Paid marketing funnel:
-     * 1) Google click ID (gclid / gbraid / wbraid), or
-     * 2) campaign_id / gad_campaignid that matches a synced campaign for the domain.
+     * Paid marketing funnel is strictly click-ID based. A campaign ID alone is
+     * attribution metadata, not proof of a paid click.
      *
      * @param  array<string, mixed>  $data
      */
     public static function isPaidTraffic(array $data, ?int $domainId = null): bool
     {
-        if (self::resolve($data) !== null) {
-            return true;
-        }
-
-        if ($domainId === null) {
-            return false;
-        }
-
-        $campaignId = CampaignAttributionResolver::extractGoogleCampaignId($data);
-        if ($campaignId === '') {
-            return false;
-        }
-
-        return self::domainHasSyncedCampaign($domainId, $campaignId);
+        return self::resolve($data) !== null;
     }
 
     /**
-     * True when this campaign_id exists in google_ads_campaign_daily_metrics for the domain.
-     */
-    public static function domainHasSyncedCampaign(int $domainId, string $campaignId): bool
-    {
-        $campaignId = preg_replace('/\D+/', '', $campaignId) ?? $campaignId;
-        if ($campaignId === '' || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
-            return false;
-        }
-
-        return DB::table('google_ads_campaign_daily_metrics')
-            ->where('domain_id', $domainId)
-            ->where('campaign_id', $campaignId)
-            ->exists();
-    }
-
-    /**
-     * Paid marketing visits: click ID present, or explicitly marked paid (campaign match).
+     * Paid marketing visits: gclid / gbraid / wbraid only.
      */
     public static function applyHasClickIdFilter(Builder $query, string $prefix = ''): void
     {
@@ -90,15 +59,6 @@ final class GoogleClickAttribution
                     $group->orWhere($clause);
                 } else {
                     $group->where($clause);
-                    $added = true;
-                }
-            }
-
-            if (Schema::hasColumn('visits', 'is_paid_traffic')) {
-                if ($added) {
-                    $group->orWhere($p . 'is_paid_traffic', true);
-                } else {
-                    $group->where($p . 'is_paid_traffic', true);
                     $added = true;
                 }
             }
@@ -126,12 +86,6 @@ final class GoogleClickAttribution
             });
         }
 
-        if (Schema::hasColumn('visits', 'is_paid_traffic')) {
-            $query->where(function (Builder $group) use ($p): void {
-                $group->whereNull($p . 'is_paid_traffic')
-                    ->orWhere($p . 'is_paid_traffic', false);
-            });
-        }
     }
 
     /**

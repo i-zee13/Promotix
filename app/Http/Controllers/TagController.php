@@ -290,7 +290,8 @@ class TagController extends Controller
     }
 
     function isTelHref(href){
-      return String(href || '').trim().toLowerCase().indexOf('tel:') === 0;
+      var h = String(href || '').trim().toLowerCase();
+      return h.indexOf('tel:') === 0 || h.indexOf('callto:') === 0 || h.indexOf('sms:') === 0;
     }
 
     function isCtaEl(el){
@@ -299,10 +300,16 @@ class TagController extends Controller
       if (el.getAttribute && (el.getAttribute('data-cta') != null || el.getAttribute('data-action') === 'cta')) return true;
       var cls = String(el.className || '').toLowerCase();
       var id = String(el.id || '').toLowerCase();
-      if (/\\b(cta|call-to-action|btn-primary|button-primary|btn-cta|convert|signup|sign-up|buy-now|get-started)\\b/.test(cls + ' ' + id)) {
+      var hay = cls + ' ' + id;
+      if (/\\b(cta|call-to-action|btn-primary|button-primary|btn-cta|convert|signup|sign-up|buy-now|get-started|btn\\b|button\\b|wp-block-button|elementor-button|submit)\\b/.test(hay)) {
         return true;
       }
       if (tag === 'BUTTON') return true;
+      if (tag === 'INPUT') {
+        var t = String(el.type || '').toLowerCase();
+        if (t === 'submit' || t === 'button') return true;
+      }
+      if (tag === 'A' && /\\b(btn|button|cta)\\b/.test(hay)) return true;
       return false;
     }
 
@@ -319,6 +326,8 @@ class TagController extends Controller
         y: e.clientY,
         tag: (target && target.tagName) ? String(target.tagName) : '',
         href: href.slice(0, 500),
+        class: String((target && target.className) || '').slice(0, 200),
+        id: String((target && target.id) || '').slice(0, 120),
         cta: cta ? 1 : 0,
         tel: tel ? 1 : 0
       });
@@ -368,13 +377,23 @@ class TagController extends Controller
     window.addEventListener('popstate', markPageSoon);
     window.addEventListener('hashchange', markPageSoon);
 
-    setTimeout(function(){
+    var sent = false;
+    var recordingTimer = null;
+    function finishRecordingOnHide(){
+      if (document.visibilityState === 'hidden') finishRecording();
+    }
+    function finishRecording(){
+      if (sent) return;
+      sent = true;
+      if (recordingTimer) clearTimeout(recordingTimer);
       document.removeEventListener('mousemove', onMove);
       window.removeEventListener('scroll', onScroll);
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('input', onInput, true);
       window.removeEventListener('popstate', markPageSoon);
       window.removeEventListener('hashchange', markPageSoon);
+      window.removeEventListener('pagehide', finishRecording);
+      document.removeEventListener('visibilitychange', finishRecordingOnHide);
       window.__pmRecording = false;
       try {
         fetch(sessionRecordingUrl, {
@@ -394,7 +413,13 @@ class TagController extends Controller
           keepalive: true
         });
       } catch (e) {}
-    }, duration);
+    }
+
+    // CTA links frequently navigate before the recording timeout. Flush the
+    // captured click on page exit instead of losing it with the old page.
+    window.addEventListener('pagehide', finishRecording);
+    document.addEventListener('visibilitychange', finishRecordingOnHide);
+    recordingTimer = setTimeout(finishRecording, duration);
   }
 
   function send(payload, done){
@@ -596,8 +621,6 @@ class TagController extends Controller
       utm_medium: null,
       utm_campaign: null,
       utm_term: null,
-      gad_campaignid: null,
-      campaign_id: null,
       adgroup_id: null,
       keyword: null,
       device: null,
@@ -612,8 +635,6 @@ class TagController extends Controller
       out.gclid = storedAttribution('gclid', params.gclid || null);
       out.gbraid = storedAttribution('gbraid', params.gbraid || null);
       out.wbraid = storedAttribution('wbraid', params.wbraid || null);
-      out.gad_campaignid = storedAttribution('gad_campaignid', params.gad_campaignid || params.campaign_id || null);
-      out.campaign_id = storedAttribution('campaign_id', params.campaign_id || params.gad_campaignid || null);
       out.adgroup_id = storedAttribution('adgroup_id', params.adgroup_id || null);
       out.keyword = storedAttribution('keyword', params.keyword || null);
       out.device = storedAttribution('pm_device', params.device || null);
@@ -656,8 +677,6 @@ class TagController extends Controller
       payload.utm_medium = attr.utm_medium;
       payload.utm_campaign = attr.utm_campaign;
       payload.utm_term = attr.utm_term;
-      payload.gad_campaignid = attr.gad_campaignid || attr.campaign_id;
-      payload.campaign_id = attr.campaign_id;
       payload.adgroup_id = attr.adgroup_id;
       payload.keyword = attr.keyword || attr.utm_term;
       if (attr.keyword && !payload.utm_term) payload.utm_term = attr.keyword;

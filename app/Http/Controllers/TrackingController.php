@@ -20,6 +20,7 @@ use App\Support\PaidAdvertising\PaidAdvertisingPipeline;
 use App\Support\PaidAdvertising\ResolvedPaidIdentity;
 use App\Support\SessionBehaviorAnalyzer;
 use App\Support\SessionBehaviorFingerprint;
+use App\Support\SessionRecordingGate;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -51,7 +52,7 @@ class TrackingController extends Controller
 
         $redirectUrl = GoogleAdsClickRedirect::buildRedirectUrl($finalUrl, $params);
 
-        // Rule: save when Google click ID exists, or campaign_id matches a synced Ads campaign.
+        // Rule: save only when a Google click ID exists.
         $domain = GoogleAdsClickRedirect::resolveDomainFromFinalUrl($finalUrl);
         if (
             $domain
@@ -84,8 +85,6 @@ class TrackingController extends Controller
             'gclid' => $params['gclid'] ?: null,
             'gbraid' => $params['gbraid'] ?: null,
             'wbraid' => $params['wbraid'] ?: null,
-            'gad_campaignid' => $params['gad_campaignid'] ?: null,
-            'campaign_id' => $params['campaign_id'] ?: null,
             'adgroup_id' => $params['adgroup_id'] ?: null,
             'keyword' => $params['keyword'] ?: null,
             'device' => $params['device'] ?: null,
@@ -210,6 +209,9 @@ class TrackingController extends Controller
                     'updated_at' => UserTimezone::nowUtc(),
                 ];
 
+            if (Schema::hasColumn('visits', 'browser_version')) {
+                $visitPayload['browser_version'] = $browser['version'];
+            }
                 if (Schema::hasColumn('visits', 'gclid')) {
                     $visitPayload['gclid'] = $data['gclid'] ?? null;
                 }
@@ -274,9 +276,6 @@ class TrackingController extends Controller
             'utm_source' => ['nullable', 'string'],
             'utm_medium' => ['nullable', 'string'],
             'utm_campaign' => ['nullable', 'string'],
-            'gad_campaignid' => ['nullable', 'string'],
-            'campaign_id' => ['nullable', 'string'],
-            'campaignid' => ['nullable', 'string'],
             'utm_term' => ['nullable', 'string'],
             'keyword' => ['nullable', 'string'],
             'session_id' => ['nullable', 'string', 'max:128'],
@@ -513,6 +512,10 @@ class TrackingController extends Controller
                 'updated_at' => UserTimezone::nowUtc(),
             ];
 
+            if (Schema::hasColumn('visits', 'browser_version')) {
+                $visitPayload['browser_version'] = $browser['version'];
+            }
+
             if (Schema::hasColumn('visits', 'is_duplicate_paid_click')) {
                 $visitPayload['is_duplicate_paid_click'] = $duplicatePaidClick;
             }
@@ -722,6 +725,7 @@ class TrackingController extends Controller
             $this->shouldRecordSession($domain, $detection, $isPaidTraffic),
             $visitId,
             $domain,
+            $isPaidTraffic ? 30000 : 10000,
         );
 
         if ($request->isMethod('get')) {
@@ -942,45 +946,15 @@ class TrackingController extends Controller
     private function shouldRecordSession(Domain $domain, array $detection, bool $isPaidTraffic = false): bool
     {
         $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
-        if ($settings === null) {
-            return false;
-        }
+        $user = $domain->relationLoaded('user') ? $domain->user : $domain->user()->first();
 
-        $thresholds = DetectionProfiles::thresholdsFor(
-            $settings->detection_profile,
-            is_array($settings->detection_thresholds) ? $settings->detection_thresholds : null,
+        return SessionRecordingGate::shouldRecord(
+            $settings,
+            $detection,
+            $isPaidTraffic,
+            DetectionPlanFeatures::enabled($user, DetectionPlanFeatures::BEHAVIOR_CONTROL),
+            DetectionPlanFeatures::enabled($user, DetectionPlanFeatures::SESSION_RECORDINGS),
         );
-
-        // Behavior Control: record paid clicks so idle/scroll rules can fire on return visits.
-        if (
-            $isPaidTraffic
-            && (bool) ($thresholds['behavior_control_enabled'] ?? false)
-            && DetectionPlanFeatures::enabled(
-                $domain->relationLoaded('user') ? $domain->user : $domain->user()->first(),
-                DetectionPlanFeatures::BEHAVIOR_CONTROL
-            )
-        ) {
-            return true;
-        }
-
-        if (
-            ! $settings->session_recordings
-            || ! DetectionPlanFeatures::enabled(
-                $domain->relationLoaded('user') ? $domain->user : $domain->user()->first(),
-                DetectionPlanFeatures::SESSION_RECORDINGS
-            )
-        ) {
-            return false;
-        }
-
-        if (($detection['action_taken'] ?? 'allow') === 'allow') {
-            return false;
-        }
-
-        $group = strtolower((string) ($detection['threat_group'] ?? ''));
-
-        return $group === 'malicious'
-            || in_array($group, ['vpn', 'proxy', 'data_center', 'datacenter', 'abnormal_rate_limit'], true);
     }
 
     private function platformFromUa(string $ua): ?string
@@ -1024,11 +998,15 @@ class TrackingController extends Controller
 
     private function browserFromUa(string $ua): array
     {
-        // Very lightweight parsing (good enough for MVP UI).
+        // Persist exact browser version as fingerprint evidence as well as UI detail.
+        // Keep more-specific browser tokens before Chrome/Safari.
         $patterns = [
-            'Chrome' => '/Chrome\\/([0-9\\.]+)/',
             'Edge' => '/Edg\\/([0-9\\.]+)/',
+            'Samsung Internet' => '/SamsungBrowser\\/([0-9\\.]+)/',
+            'Opera' => '/(?:OPR|Opera)\\/([0-9\\.]+)/',
+            'Chrome' => '/(?:Chrome|CriOS)\\/([0-9\\.]+)/',
             'Firefox' => '/Firefox\\/([0-9\\.]+)/',
+            'Firefox iOS' => '/FxiOS\\/([0-9\\.]+)/',
             'Safari' => '/Version\\/([0-9\\.]+).*Safari/',
         ];
         foreach ($patterns as $name => $regex) {

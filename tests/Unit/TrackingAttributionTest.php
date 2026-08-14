@@ -16,72 +16,21 @@ class TrackingAttributionTest extends TestCase
         $this->assertTrue(GoogleClickAttribution::isPaidTraffic(['gclid' => 'abc']));
         $this->assertTrue(GoogleClickAttribution::isPaidTraffic(['gbraid' => 'xyz']));
         $this->assertTrue(GoogleClickAttribution::isPaidTraffic(['wbraid' => 'ios']));
-        // Campaign alone is never paid without a domain context / known synced campaign.
+        // Campaign IDs never qualify as paid traffic — only Google click IDs do.
         $this->assertFalse(GoogleClickAttribution::isPaidTraffic(['gad_campaignid' => '123']));
         $this->assertFalse(GoogleClickAttribution::isPaidTraffic(['campaign_id' => '123'], null));
         $this->assertFalse(GoogleClickAttribution::isPaidTraffic(['utm_medium' => 'cpc']));
     }
 
-    public function test_paid_from_campaign_id_requires_synced_match(): void
+    public function test_campaign_id_never_qualifies_as_paid_traffic(): void
     {
-        try {
-            if (! \Illuminate\Support\Facades\Schema::hasTable('google_ads_campaign_daily_metrics')) {
-                $this->markTestSkipped('google_ads_campaign_daily_metrics missing');
-            }
-        } catch (\Throwable $e) {
-            $this->markTestSkipped('Database unavailable: ' . $e->getMessage());
-        }
-
-        $domainId = 91001;
-        $campaignId = '23997382536';
-
-        \Illuminate\Support\Facades\DB::table('google_ads_campaign_daily_metrics')
-            ->where('domain_id', $domainId)
-            ->where('campaign_id', $campaignId)
-            ->delete();
-
         $this->assertFalse(GoogleClickAttribution::isPaidTraffic([
-            'campaign_id' => $campaignId,
-        ], $domainId));
-
-        try {
-            \Illuminate\Support\Facades\DB::table('google_ads_campaign_daily_metrics')->insert([
-                'domain_id' => $domainId,
-                'google_ads_account_id' => 1,
-                'campaign_id' => $campaignId,
-                'campaign_name' => 'QA Campaign',
-                'metric_date' => now()->toDateString(),
-                'clicks' => 1,
-                'impressions' => 10,
-                'cost' => 1,
-                'cpc' => 1,
-                'conversions' => 0,
-                'phone_calls' => 0,
-                'ctr' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        } catch (\Throwable $e) {
-            $this->markTestSkipped('Could not insert test campaign row: ' . $e->getMessage());
-        }
-
-        try {
-            $this->assertTrue(GoogleClickAttribution::isPaidTraffic([
-                'campaign_id' => $campaignId,
-            ], $domainId));
-            $this->assertTrue(GoogleClickAttribution::isPaidTraffic([
-                'gad_campaignid' => $campaignId,
-                'url' => 'https://example.com/?gad_campaignid=' . $campaignId,
-            ], $domainId));
-            $this->assertFalse(GoogleClickAttribution::isPaidTraffic([
-                'campaign_id' => '99999999999',
-            ], $domainId));
-        } finally {
-            \Illuminate\Support\Facades\DB::table('google_ads_campaign_daily_metrics')
-                ->where('domain_id', $domainId)
-                ->where('campaign_id', $campaignId)
-                ->delete();
-        }
+            'campaign_id' => '23997382536',
+        ], 91001));
+        $this->assertFalse(GoogleClickAttribution::isPaidTraffic([
+            'gad_campaignid' => '23997382536',
+            'url' => 'https://example.com/?gad_campaignid=23997382536',
+        ], 91001));
     }
 
     public function test_google_click_attribution_prefers_gclid_over_gbraid(): void

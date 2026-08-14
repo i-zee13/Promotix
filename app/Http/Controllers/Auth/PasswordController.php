@@ -24,6 +24,11 @@ class PasswordController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        return back()->with('status', 'password-updated');
+        $response = back()->with('status', 'password-updated');
+        if ($request->filled('settings_security_tab')) {
+            $response->with('settings.security_tab', 'password');
+        }
+
+        return $response;
     }
 }

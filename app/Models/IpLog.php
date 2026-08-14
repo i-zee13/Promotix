@@ -27,6 +27,8 @@ class IpLog extends Model
         'abuse_is_tor',
         'intel_country_code',
         'intel_country_name',
+        'intel_region',
+        'intel_city',
         'intel_isp',
         'intel_checked_at',
         'intel_status',

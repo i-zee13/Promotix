@@ -61,7 +61,16 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="figma-sa-roles-count-badge">{{ $role->permissions_count }}</span>
+                                    <div class="space-y-1">
+                                        <span class="figma-sa-roles-count-badge">{{ $role->permissions_count }}</span>
+                                        @if ($role->permissions->isNotEmpty())
+                                            <p class="max-w-[260px] text-[10px] leading-snug text-white/55">
+                                                {{ $role->permissions->take(3)->map(fn ($p) => \App\Support\PermissionCatalog::displayName($p->slug, $p->name))->implode(' · ') }}@if ($role->permissions_count > 3) +{{ $role->permissions_count - 3 }} more@endif
+                                            </p>
+                                        @else
+                                            <p class="text-[10px] text-amber-300">No access assigned</p>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="figma-sa-roles-count-badge figma-sa-roles-count-badge--muted">{{ $role->users_count }}</span>

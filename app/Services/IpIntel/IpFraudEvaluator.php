@@ -96,15 +96,15 @@ class IpFraudEvaluator
             return $this->finalizeStandaloneBlock('blocked', ['block_list'], 100);
         }
 
-        $resolvedCountryEarly = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: '')));
+        $resolvedCountryEarly = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: $ipLog->intel_country_name ?: '')));
         $rawEarly = (array) ($ipLog->ipdetails_raw ?? []);
         if (
             $can(DetectionPlanFeatures::GEO_BLOCK)
             && GeoAudienceMatcher::isBlocked(
                 $settings,
                 $resolvedCountryEarly,
-                $rawEarly['region'] ?? $rawEarly['state'] ?? null,
-                $rawEarly['city'] ?? null,
+                $ipLog->intel_region ?? $rawEarly['region'] ?? $rawEarly['state'] ?? null,
+                $ipLog->intel_city ?? $rawEarly['city'] ?? null,
                 $ipLog,
                 $domain,
             )
@@ -116,8 +116,8 @@ class IpFraudEvaluator
             $allowed = GeoAudienceMatcher::isAllowed(
                 $settings,
                 $resolvedCountryEarly,
-                $rawEarly['region'] ?? $rawEarly['state'] ?? null,
-                $rawEarly['city'] ?? null,
+                $ipLog->intel_region ?? $rawEarly['region'] ?? $rawEarly['state'] ?? null,
+                $ipLog->intel_city ?? $rawEarly['city'] ?? null,
                 $ipLog,
                 $domain,
             );
@@ -379,14 +379,14 @@ class IpFraudEvaluator
             );
         }
 
-        $resolvedCountry = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: '')));
+        $resolvedCountry = strtoupper(trim((string) ($country ?: $ipLog->intel_country_code ?: $ipLog->intel_country_name ?: '')));
         if ($can(DetectionPlanFeatures::GEO_ALLOW) && $settings->out_of_geo_enabled) {
             $raw = (array) ($ipLog->ipdetails_raw ?? []);
             $allowed = GeoAudienceMatcher::isAllowed(
                 $settings,
                 $resolvedCountry,
-                $raw['region'] ?? $raw['state'] ?? null,
-                $raw['city'] ?? null,
+                $ipLog->intel_region ?? $raw['region'] ?? $raw['state'] ?? null,
+                $ipLog->intel_city ?? $raw['city'] ?? null,
                 $ipLog,
                 $domain,
             );

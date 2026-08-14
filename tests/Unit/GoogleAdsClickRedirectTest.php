@@ -15,17 +15,15 @@ class GoogleAdsClickRedirectTest extends TestCase
         $this->assertStringContainsString('https://app.promotix.test/click?', $url);
         $this->assertStringContainsString('final_url={lpurl}', $url);
         $this->assertStringContainsString('source=google_ads', $url);
-        $this->assertStringContainsString('campaign_id={campaignid}', $url);
+        $this->assertStringNotContainsString('campaign_id={campaignid}', $url);
         $this->assertStringContainsString('keyword={keyword}', $url);
     }
 
-    public function test_build_redirect_forwards_click_id_and_campaign_params(): void
+    public function test_build_redirect_forwards_click_id_without_campaign_id(): void
     {
         $landing = 'https://insuranceforme.online/conventional/';
         $redirect = GoogleAdsClickRedirect::buildRedirectUrl($landing, [
             'gclid' => 'REAL_GOOGLE_CLICK_ID',
-            'gad_campaignid' => '23997382536',
-            'campaign_id' => '23997382536',
             'keyword' => 'insurance quotes',
             'source' => 'google_ads',
             'adgroup_id' => '123456789',
@@ -33,7 +31,8 @@ class GoogleAdsClickRedirectTest extends TestCase
         ]);
 
         $this->assertStringContainsString('gclid=REAL_GOOGLE_CLICK_ID', $redirect);
-        $this->assertStringContainsString('gad_campaignid=23997382536', $redirect);
+        $this->assertStringNotContainsString('gad_campaignid=', $redirect);
+        $this->assertStringNotContainsString('campaign_id=', $redirect);
         $this->assertStringContainsString('keyword=insurance+quotes', $redirect);
         $this->assertStringContainsString('adgroup_id=123456789', $redirect);
     }
@@ -48,6 +47,6 @@ class GoogleAdsClickRedirectTest extends TestCase
         $params = GoogleAdsClickRedirect::parseClickRequest($request);
 
         $this->assertSame('inside_final_url', $params['gclid']);
-        $this->assertSame('123', $params['campaign_id']);
+        $this->assertArrayNotHasKey('campaign_id', $params);
     }
 }

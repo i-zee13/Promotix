@@ -8,6 +8,226 @@ use App\Models\IpLog;
 
 class GeoAudienceMatcher
 {
+    /** @var array<string, list<string>> US state code → accepted aliases (lowercase). */
+    private const US_STATE_ALIASES = [
+        'AL' => ['alabama', 'al'],
+        'AK' => ['alaska', 'ak'],
+        'AZ' => ['arizona', 'az'],
+        'AR' => ['arkansas', 'ar'],
+        'CA' => ['california', 'ca', 'calif'],
+        'CO' => ['colorado', 'co'],
+        'CT' => ['connecticut', 'ct'],
+        'DE' => ['delaware', 'de'],
+        'FL' => ['florida', 'fl'],
+        'GA' => ['georgia', 'ga'],
+        'HI' => ['hawaii', 'hi'],
+        'ID' => ['idaho', 'id'],
+        'IL' => ['illinois', 'il'],
+        'IN' => ['indiana', 'in'],
+        'IA' => ['iowa', 'ia'],
+        'KS' => ['kansas', 'ks'],
+        'KY' => ['kentucky', 'ky'],
+        'LA' => ['louisiana', 'la'],
+        'ME' => ['maine', 'me'],
+        'MD' => ['maryland', 'md'],
+        'MA' => ['massachusetts', 'ma'],
+        'MI' => ['michigan', 'mi'],
+        'MN' => ['minnesota', 'mn'],
+        'MS' => ['mississippi', 'ms'],
+        'MO' => ['missouri', 'mo'],
+        'MT' => ['montana', 'mt'],
+        'NE' => ['nebraska', 'ne'],
+        'NV' => ['nevada', 'nv'],
+        'NH' => ['new hampshire', 'nh'],
+        'NJ' => ['new jersey', 'nj'],
+        'NM' => ['new mexico', 'nm'],
+        'NY' => ['new york', 'ny'],
+        'NC' => ['north carolina', 'nc'],
+        'ND' => ['north dakota', 'nd'],
+        'OH' => ['ohio', 'oh'],
+        'OK' => ['oklahoma', 'ok'],
+        'OR' => ['oregon', 'or'],
+        'PA' => ['pennsylvania', 'pa'],
+        'RI' => ['rhode island', 'ri'],
+        'SC' => ['south carolina', 'sc'],
+        'SD' => ['south dakota', 'sd'],
+        'TN' => ['tennessee', 'tn'],
+        'TX' => ['texas', 'tx'],
+        'UT' => ['utah', 'ut'],
+        'VT' => ['vermont', 'vt'],
+        'VA' => ['virginia', 'va'],
+        'WA' => ['washington', 'wa'],
+        'WV' => ['west virginia', 'wv'],
+        'WI' => ['wisconsin', 'wi'],
+        'WY' => ['wyoming', 'wy'],
+        'DC' => ['district of columbia', 'washington dc', 'washington, d.c.', 'dc'],
+    ];
+
+    /**
+     * Common US cities → state code. Used when IP intel has city but region is
+     * missing, a metro label, or the city was incorrectly stored as region.
+     *
+     * @var array<string, string>
+     */
+    private const US_CITY_STATE = [
+        // California (export false-positives + metros)
+        'los angeles' => 'CA',
+        'san diego' => 'CA',
+        'san francisco' => 'CA',
+        'san jose' => 'CA',
+        'sacramento' => 'CA',
+        'oakland' => 'CA',
+        'fresno' => 'CA',
+        'long beach' => 'CA',
+        'bakersfield' => 'CA',
+        'anaheim' => 'CA',
+        'santa ana' => 'CA',
+        'riverside' => 'CA',
+        'stockton' => 'CA',
+        'irvine' => 'CA',
+        'chula vista' => 'CA',
+        'fremont' => 'CA',
+        'san bernardino' => 'CA',
+        'modesto' => 'CA',
+        'fontana' => 'CA',
+        'oxnard' => 'CA',
+        'moreno valley' => 'CA',
+        'huntington beach' => 'CA',
+        'glendale' => 'CA',
+        'santa clarita' => 'CA',
+        'garden grove' => 'CA',
+        'oceanside' => 'CA',
+        'rancho cucamonga' => 'CA',
+        'santa rosa' => 'CA',
+        'ontario' => 'CA',
+        'elk grove' => 'CA',
+        'corona' => 'CA',
+        'lancaster' => 'CA',
+        'palmdale' => 'CA',
+        'salinas' => 'CA',
+        'hayward' => 'CA',
+        'pomona' => 'CA',
+        'escondido' => 'CA',
+        'sunnyvale' => 'CA',
+        'torrance' => 'CA',
+        'pasadena' => 'CA',
+        'orange' => 'CA',
+        'fullerton' => 'CA',
+        'thousand oaks' => 'CA',
+        'visalia' => 'CA',
+        'simi valley' => 'CA',
+        'concord' => 'CA',
+        'roseville' => 'CA',
+        'santa clara' => 'CA',
+        'vallejo' => 'CA',
+        'victorville' => 'CA',
+        'el monte' => 'CA',
+        'berkeley' => 'CA',
+        'downey' => 'CA',
+        'costa mesa' => 'CA',
+        'inglewood' => 'CA',
+        'carlsbad' => 'CA',
+        'san buenaventura' => 'CA',
+        'ventura' => 'CA',
+        'fairfield' => 'CA',
+        'west covina' => 'CA',
+        'murrieta' => 'CA',
+        'richmond' => 'CA',
+        'norwalk' => 'CA',
+        'antioch' => 'CA',
+        'temecula' => 'CA',
+        'burbank' => 'CA',
+        'daly city' => 'CA',
+        'rialto' => 'CA',
+        'el cajon' => 'CA',
+        'san mateo' => 'CA',
+        'clovis' => 'CA',
+        'compton' => 'CA',
+        'jurupa valley' => 'CA',
+        'vista' => 'CA',
+        'south gate' => 'CA',
+        'mission viejo' => 'CA',
+        'vacaville' => 'CA',
+        'carson' => 'CA',
+        'hesperia' => 'CA',
+        'santa maria' => 'CA',
+        'redding' => 'CA',
+        'chico' => 'CA',
+        'tracy' => 'CA',
+        'alhambra' => 'CA',
+        'livermore' => 'CA',
+        'citrus heights' => 'CA',
+        'hawthorne' => 'CA',
+        'whittier' => 'CA',
+        'newport beach' => 'CA',
+        'san leandro' => 'CA',
+        'san ramon' => 'CA',
+        'upland' => 'CA',
+        'mountain view' => 'CA',
+        'tujunga' => 'CA',
+        'north hills' => 'CA',
+        'sylmar' => 'CA',
+        'north highlands' => 'CA',
+        'van nuys' => 'CA',
+        'sherman oaks' => 'CA',
+        'hollywood hills' => 'CA',
+        'santa monica' => 'CA',
+        'palo alto' => 'CA',
+        'redwood city' => 'CA',
+        'cupertino' => 'CA',
+        'milpitas' => 'CA',
+        'napa' => 'CA',
+        'davis' => 'CA',
+        // Other frequent US cities (non-CA) so inference stays accurate
+        'las vegas' => 'NV',
+        'henderson' => 'NV',
+        'reno' => 'NV',
+        'seattle' => 'WA',
+        'spokane' => 'WA',
+        'tacoma' => 'WA',
+        'portland' => 'OR',
+        'phoenix' => 'AZ',
+        'tucson' => 'AZ',
+        'denver' => 'CO',
+        'houston' => 'TX',
+        'dallas' => 'TX',
+        'austin' => 'TX',
+        'san antonio' => 'TX',
+        'chicago' => 'IL',
+        'new york' => 'NY',
+        'new york city' => 'NY',
+        'brooklyn' => 'NY',
+        'miami' => 'FL',
+        'orlando' => 'FL',
+        'tampa' => 'FL',
+        'atlanta' => 'GA',
+        'boston' => 'MA',
+        'philadelphia' => 'PA',
+        'detroit' => 'MI',
+        'minneapolis' => 'MN',
+        'salt lake city' => 'UT',
+        'albuquerque' => 'NM',
+        'oklahoma city' => 'OK',
+        'tulsa' => 'OK',
+        'washington' => 'DC',
+        'washington dc' => 'DC',
+    ];
+
+    /** @var array<string, string> */
+    private const COUNTRY_ALIASES = [
+        'UNITED STATES' => 'US',
+        'UNITED STATES OF AMERICA' => 'US',
+        'USA' => 'US',
+        'U.S.' => 'US',
+        'U.S.A.' => 'US',
+        'AMERICA' => 'US',
+        'CANADA' => 'CA',
+        'UNITED KINGDOM' => 'GB',
+        'GREAT BRITAIN' => 'GB',
+        'UK' => 'GB',
+        'AUSTRALIA' => 'AU',
+    ];
+
     /**
      * Resolve effective geo settings (domain vs workspace inheritance — CT-04).
      */
@@ -43,9 +263,7 @@ class GeoAudienceMatcher
 
         return $clone;
     }
-    /**
-     * @param  array<int, array{country?: string, state?: ?string, city?: ?string}>  $rules
-     */
+
     public static function isAllowed(
         DomainDetectionSetting $settings,
         ?string $countryCode,
@@ -65,9 +283,8 @@ class GeoAudienceMatcher
             return true;
         }
 
-        $country = strtoupper(trim((string) ($countryCode ?: $ipLog?->intel_country_code ?: '')));
-        $regionName = self::normalizeName($region ?: self::regionFromIpLog($ipLog));
-        $cityName = self::normalizeName($city ?: self::cityFromIpLog($ipLog));
+        $country = self::normalizeCountryCode($countryCode ?: $ipLog?->intel_country_code ?: $ipLog?->intel_country_name);
+        [$regionName, $cityName] = self::resolvePlaceNames($region, $city, $ipLog);
 
         if ($country === '') {
             return false;
@@ -78,27 +295,27 @@ class GeoAudienceMatcher
                 continue;
             }
 
+            // Country-only rule (All regions).
             if ($rule['state'] === null && $rule['city'] === null) {
                 return true;
             }
 
-            if ($rule['state'] !== null && $regionName !== '' && self::regionMatches($rule['state'], $regionName)) {
-                if ($rule['city'] === null) {
-                    return true;
-                }
+            if ($rule['state'] !== null && ! self::stateRuleMatches($rule['state'], $regionName, $cityName, $country)) {
+                continue;
+            }
 
-                if ($cityName !== '' && self::cityMatches($rule['city'], $cityName)) {
-                    return true;
-                }
+            if ($rule['city'] === null) {
+                return true;
+            }
+
+            if ($cityName !== '' && self::cityMatches($rule['city'], $cityName)) {
+                return true;
             }
         }
 
         return false;
     }
 
-    /**
-     * Blocklist match: visitor matches a blocked geo rule.
-     */
     public static function isBlocked(
         DomainDetectionSetting $settings,
         ?string $countryCode,
@@ -118,9 +335,8 @@ class GeoAudienceMatcher
             return false;
         }
 
-        $country = strtoupper(trim((string) ($countryCode ?: $ipLog?->intel_country_code ?: '')));
-        $regionName = self::normalizeName($region ?: self::regionFromIpLog($ipLog));
-        $cityName = self::normalizeName($city ?: self::cityFromIpLog($ipLog));
+        $country = self::normalizeCountryCode($countryCode ?: $ipLog?->intel_country_code ?: $ipLog?->intel_country_name);
+        [$regionName, $cityName] = self::resolvePlaceNames($region, $city, $ipLog);
 
         if ($country === '') {
             return false;
@@ -135,14 +351,21 @@ class GeoAudienceMatcher
                 return true;
             }
 
-            if ($rule['state'] !== null && $regionName !== '' && self::regionMatches($rule['state'], $regionName)) {
-                if ($rule['city'] === null) {
-                    return true;
-                }
+            // Don't block on incomplete intel for state/city block rules.
+            if ($regionName === '' && $cityName === '') {
+                continue;
+            }
 
-                if ($cityName !== '' && self::cityMatches($rule['city'], $cityName)) {
-                    return true;
-                }
+            if ($rule['state'] !== null && ! self::stateRuleMatches($rule['state'], $regionName, $cityName, $country, softAllowIncomplete: false)) {
+                continue;
+            }
+
+            if ($rule['city'] === null) {
+                return true;
+            }
+
+            if ($cityName !== '' && self::cityMatches($rule['city'], $cityName)) {
+                return true;
             }
         }
 
@@ -161,7 +384,7 @@ class GeoAudienceMatcher
             if (! is_array($row)) {
                 continue;
             }
-            $country = strtoupper(trim((string) ($row['country'] ?? '')));
+            $country = self::normalizeCountryCode($row['country'] ?? null);
             if ($country === '') {
                 continue;
             }
@@ -188,7 +411,7 @@ class GeoAudienceMatcher
                 if (! is_array($row)) {
                     continue;
                 }
-                $country = strtoupper(trim((string) ($row['country'] ?? '')));
+                $country = self::normalizeCountryCode($row['country'] ?? null);
                 if ($country === '') {
                     continue;
                 }
@@ -203,7 +426,7 @@ class GeoAudienceMatcher
         }
 
         foreach ((array) ($settings->out_of_geo_countries ?? []) as $code) {
-            $code = strtoupper(trim((string) $code));
+            $code = self::normalizeCountryCode($code);
             if ($code !== '') {
                 $rules[] = ['country' => $code, 'state' => null, 'city' => null];
             }
@@ -212,18 +435,139 @@ class GeoAudienceMatcher
         return $rules;
     }
 
-    private static function regionFromIpLog(?IpLog $ipLog): ?string
+    public static function normalizeCountryCode(mixed $value): string
     {
-        $raw = (array) ($ipLog?->ipdetails_raw ?? []);
+        $value = strtoupper(trim((string) $value));
+        if ($value === '') {
+            return '';
+        }
 
-        return $raw['region'] ?? $raw['state'] ?? null;
+        if (isset(self::COUNTRY_ALIASES[$value])) {
+            return self::COUNTRY_ALIASES[$value];
+        }
+
+        if (strlen($value) === 2) {
+            return $value;
+        }
+
+        return self::COUNTRY_ALIASES[$value] ?? $value;
     }
 
-    private static function cityFromIpLog(?IpLog $ipLog): ?string
+    /**
+     * @return array{0: string, 1: string} [region, city] normalized lowercase
+     */
+    private static function resolvePlaceNames(?string $region, ?string $city, ?IpLog $ipLog): array
     {
         $raw = (array) ($ipLog?->ipdetails_raw ?? []);
 
-        return $raw['city'] ?? null;
+        $regionName = self::normalizeName(
+            $region
+            ?: ($ipLog?->intel_region ?? null)
+            ?: ($raw['region'] ?? null)
+            ?: ($raw['region_code'] ?? null)
+            ?: ($raw['state'] ?? null)
+            ?: ($raw['state_code'] ?? null)
+            ?: ($raw['_geo_region'] ?? null)
+        );
+        $cityName = self::normalizeName(
+            $city
+            ?: ($ipLog?->intel_city ?? null)
+            ?: ($raw['city'] ?? null)
+            ?: ($raw['_geo_city'] ?? null)
+        );
+
+        // Some providers put the city into "region" when state is missing.
+        if ($regionName !== '' && $cityName !== '' && $regionName === $cityName) {
+            $regionName = '';
+        }
+
+        return [$regionName, $cityName];
+    }
+
+    /**
+     * State-level allow/block match.
+     *
+     * Prefer an explicit US state on the IP. If region is missing / not a state
+     * (metro label, city leaked into region), infer state from city so CA cities
+     * are not false-positive Out of Geo against a California rule.
+     */
+    private static function stateRuleMatches(
+        string $ruleState,
+        string $regionName,
+        string $cityName,
+        string $country,
+        bool $softAllowIncomplete = true,
+    ): bool {
+        if ($regionName !== '' && self::looksLikeUsState($regionName, $country)) {
+            return self::regionMatches($ruleState, $regionName, $country);
+        }
+
+        if ($cityName !== '' && ($country === 'US' || $country === '')) {
+            $inferred = self::inferUsStateCodeFromCity($cityName);
+            if ($inferred !== null) {
+                return self::regionMatches($ruleState, $inferred, 'US');
+            }
+        }
+
+        if ($regionName !== '' && self::regionMatches($ruleState, $regionName, $country)) {
+            return true;
+        }
+
+        // Incomplete intel: prefer allow over false-positive Out of Geo.
+        if ($softAllowIncomplete && $regionName === '') {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static function looksLikeUsState(string $regionName, string $country = 'US'): bool
+    {
+        if ($country !== '' && $country !== 'US') {
+            return false;
+        }
+
+        $region = strtolower(trim($regionName));
+        if ($region === '') {
+            return false;
+        }
+
+        foreach (self::US_STATE_ALIASES as $code => $aliases) {
+            $aliasSet = array_merge([strtolower($code)], $aliases);
+            if (in_array($region, $aliasSet, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function inferUsStateCodeFromCity(string $cityName): ?string
+    {
+        $city = strtolower(trim($cityName));
+        if ($city === '') {
+            return null;
+        }
+
+        if (isset(self::US_CITY_STATE[$city])) {
+            return self::US_CITY_STATE[$city];
+        }
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('geo_cities')) {
+                $row = \Illuminate\Support\Facades\DB::table('geo_cities')
+                    ->where('country_code', 'US')
+                    ->whereRaw('LOWER(name) = ?', [$city])
+                    ->value('state_code');
+                if (is_string($row) && $row !== '') {
+                    return strtoupper($row);
+                }
+            }
+        } catch (\Throwable) {
+            // Unit tests / no DB — fall through.
+        }
+
+        return null;
     }
 
     private static function nullableCode(mixed $value): ?string
@@ -245,14 +589,45 @@ class GeoAudienceMatcher
         return strtolower(trim((string) $value));
     }
 
-    private static function regionMatches(string $ruleState, string $regionName): bool
+    private static function regionMatches(string $ruleState, string $regionName, string $country = ''): bool
     {
         $rule = strtolower(trim($ruleState));
-        if ($rule === $regionName) {
+        $region = strtolower(trim($regionName));
+        if ($rule === '' || $region === '') {
+            return false;
+        }
+
+        if ($rule === $region) {
             return true;
         }
 
-        return str_contains($regionName, $rule) || str_contains($rule, $regionName);
+        if ($country === 'US' || strlen($rule) === 2 || strlen($region) === 2) {
+            foreach (self::US_STATE_ALIASES as $stateCode => $aliases) {
+                $aliasSet = array_merge([strtolower($stateCode)], $aliases);
+                $ruleIsState = in_array($rule, $aliasSet, true);
+                $regionIsState = in_array($region, $aliasSet, true);
+                if ($ruleIsState && $regionIsState) {
+                    return true;
+                }
+            }
+
+            // Full-name contains match only for aliases longer than 2 chars
+            // (avoid "ca" matching inside "north carolina").
+            $code = strtoupper($rule);
+            $aliases = self::US_STATE_ALIASES[$code] ?? null;
+            if ($aliases !== null) {
+                foreach ($aliases as $alias) {
+                    if (strlen($alias) <= 2) {
+                        continue;
+                    }
+                    if ($region === $alias || str_contains($region, $alias)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return str_contains($region, $rule) || str_contains($rule, $region);
     }
 
     private static function cityMatches(string $ruleCity, string $cityName): bool

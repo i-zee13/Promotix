@@ -51,6 +51,27 @@ class SessionBehaviorAnalyzerTest extends TestCase
         $this->assertSame(400, $analysis['first_scroll_ms']);
     }
 
+    public function test_analyze_recognizes_tel_href_without_an_explicit_marker(): void
+    {
+        $analysis = SessionBehaviorAnalyzer::analyze([
+            ['type' => 'click', 't' => 100, 'href' => 'TEL:+15551212'],
+        ], 5000);
+
+        $this->assertSame(0, $analysis['cta_clicks']);
+        $this->assertSame(1, $analysis['tel_clicks']);
+        $this->assertSame('TEL:+15551212', $analysis['last_cta_href']);
+    }
+
+    public function test_analyze_infers_cta_from_btn_anchor_class(): void
+    {
+        $analysis = SessionBehaviorAnalyzer::analyze([
+            ['type' => 'click', 't' => 100, 'tag' => 'A', 'class' => 'btn btn-primary', 'href' => '/signup'],
+        ], 5000);
+
+        $this->assertSame(1, $analysis['cta_clicks']);
+        $this->assertSame(0, $analysis['tel_clicks']);
+    }
+
     public function test_fingerprint_includes_scroll_timing_bucket(): void
     {
         $fp = SessionBehaviorFingerprint::fromEvents([

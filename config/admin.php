@@ -9,11 +9,11 @@ return [
     */
     'menu' => [
         'dashboard'       => ['route' => 'dashboard',       'label' => 'Overview',          'icon' => 'home'],
-        'paid-marketing-dashboard' => ['route' => 'paid-marketing.dashboard', 'label' => 'Dashboard',          'icon' => 'chart'],
+        'paid-marketing-dashboard' => ['route' => 'paid-marketing.dashboard', 'label' => 'Paid Ads Dashboard',          'icon' => 'chart'],
         'paid-marketing-detailed' => ['route' => 'paid-marketing.detailed', 'label' => 'Advanced View',       'icon' => 'eye'],
         'paid-marketing-platform-connections' => ['route' => 'integrations', 'label' => 'Platform Integrate', 'icon' => 'plug'],
         'paid-marketing-detection-settings' => ['route' => 'paid-marketing.detection-settings', 'label' => 'Detection Panel', 'icon' => 'shield-check'],
-        'bot-protection' => ['route' => 'bot-protection.dashboard', 'label' => 'Dashboard',  'icon' => 'shield'],
+        'bot-protection' => ['route' => 'bot-protection.dashboard', 'label' => 'Bot Protection Dashboard',  'icon' => 'shield'],
         'domain-management' => ['route' => 'domains.index', 'label' => 'Domains',           'icon' => 'globe'],
         'upgrade-plan'      => ['route' => 'billing.index', 'label' => 'Billing',           'icon' => 'card'],
     ],
@@ -36,7 +36,7 @@ return [
         [
             'label' => 'PAID ADVERTISING',
             'items' => [
-                'paid-marketing-dashboard'         => ['route' => 'paid-marketing.dashboard',          'label' => 'Dashboard',          'icon' => 'chart'],
+                'paid-marketing-dashboard'         => ['route' => 'paid-marketing.dashboard',          'label' => 'Paid Ads Dashboard',          'icon' => 'chart'],
                 'paid-marketing-detailed'          => ['route' => 'paid-marketing.detailed',           'label' => 'Advanced View',       'icon' => 'eye'],
                 'paid-marketing-platform-connections' => ['route' => 'integrations',                   'label' => 'Platform Integrate', 'icon' => 'plug'],
                 'paid-marketing-detection-settings'=> ['route' => 'paid-marketing.detection-settings', 'label' => 'Detection Panel',     'icon' => 'shield-check'],
@@ -45,7 +45,7 @@ return [
         [
             'label' => 'BOT PROTECTION',
             'items' => [
-                'bot-protection' => ['route' => 'bot-protection.dashboard', 'label' => 'Dashboard',     'icon' => 'shield'],
+                'bot-protection' => ['route' => 'bot-protection.dashboard', 'label' => 'Bot Protection Dashboard',     'icon' => 'shield'],
                 // Advanced View shares the bot-protection permission slug — duplicate is OK because
                 // canAccess() checks the slug, not the route.
                 'bot-protection-advanced-alias' => ['route' => 'bot-protection.advanced', 'label' => 'Advanced View', 'icon' => 'eye', 'permission' => 'bot-protection'],
@@ -111,7 +111,6 @@ return [
         'traffic-bot-logs' => 'traffic-bot-logs',
         'automation'       => 'automation',
         'automation.show'  => 'automation',
-        'integrations'     => 'integrations',
         'support-system'   => 'support-system',
         'support-system.show' => 'support-system',
         'support-system.create' => 'support-system',

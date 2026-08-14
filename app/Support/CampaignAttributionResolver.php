@@ -15,30 +15,13 @@ final class CampaignAttributionResolver
     public static function resolve(Domain $domain, array $data): array
     {
         $utmCampaign = trim((string) ($data['utm_campaign'] ?? ''));
-        $googleCampaignId = self::extractGoogleCampaignId($data);
-
-        $campaignName = $utmCampaign !== '' ? $utmCampaign : null;
-
-        if (($campaignName === null || $campaignName === '') && $googleCampaignId !== '') {
-            $campaignName = self::lookupCampaignName($domain->id, $googleCampaignId);
-        }
-
-        if (
-            ($campaignName === null || $campaignName === '')
-            && $googleCampaignId === ''
-            && GoogleClickAttribution::isPaidTraffic($data)
-        ) {
-            $single = self::singleCampaignForDomain($domain->id);
-            if ($single !== null) {
-                $googleCampaignId = $single['campaign_id'];
-                $campaignName = $single['campaign_name'];
-            }
-        }
 
         return [
-            'google_campaign_id' => $googleCampaignId !== '' ? $googleCampaignId : null,
-            'campaign_name' => $campaignName,
-            'campaign' => $campaignName,
+            // Tracking does not read campaign_id / gad_campaignid from URLs.
+            // A paid click is defined only by gclid, gbraid, or wbraid.
+            'google_campaign_id' => null,
+            'campaign_name' => $utmCampaign !== '' ? $utmCampaign : null,
+            'campaign' => $utmCampaign !== '' ? $utmCampaign : null,
         ];
     }
 

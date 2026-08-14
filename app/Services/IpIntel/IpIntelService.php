@@ -53,12 +53,40 @@ class IpIntelService
                 ?? $reputation['ipdetails']['country_code']
                 ?? null;
             $log->intel_country_name = $geo['country'] ?? null;
+            if (\Illuminate\Support\Facades\Schema::hasColumn('ip_logs', 'intel_region')) {
+                $log->intel_region = $geo['region']
+                    ?? ($geo['region_code'] ?? null)
+                    ?? ($reputation['ipdetails']['region'] ?? null)
+                    ?? ($reputation['ipdetails']['state'] ?? null)
+                    ?? null;
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('ip_logs', 'intel_city')) {
+                $log->intel_city = $geo['city']
+                    ?? ($reputation['ipdetails']['city'] ?? null)
+                    ?? null;
+            }
             $log->intel_isp = $geo['isp']
                 ?? $reputation['ipdetails']['company']
                 ?? $reputation['abuse']['isp']
                 ?? null;
 
-            $log->ipdetails_raw = $reputation['ipdetails'] ?: null;
+            $ipdetails = is_array($reputation['ipdetails'] ?? null) ? $reputation['ipdetails'] : [];
+            // Keep geo region/city available to GeoAudienceMatcher even when ipdetails payload omits them.
+            if (! empty($geo['region']) && empty($ipdetails['region'])) {
+                $ipdetails['region'] = $geo['region'];
+            }
+            if (! empty($geo['region_code']) && empty($ipdetails['region_code'])) {
+                $ipdetails['region_code'] = $geo['region_code'];
+            }
+            if (! empty($geo['region_code']) && empty($ipdetails['state'])) {
+                $ipdetails['state'] = $geo['region_code'];
+            } elseif (! empty($geo['region']) && empty($ipdetails['state'])) {
+                $ipdetails['state'] = $geo['region'];
+            }
+            if (! empty($geo['city']) && empty($ipdetails['city'])) {
+                $ipdetails['city'] = $geo['city'];
+            }
+            $log->ipdetails_raw = $ipdetails !== [] ? $ipdetails : null;
             $log->ipdetails_abuser_score = $this->parseAbuserScore($reputation['ipdetails']['abuser_score'] ?? null);
 
             $log->abuse_confidence_score = isset($reputation['abuse']['abuseConfidenceScore'])
@@ -127,7 +155,8 @@ class IpIntelService
             'country_code' => $geoJson['country_code'] ?? null,
             'isp' => ($geoJson['connection']['isp'] ?? null) ?? ($geoJson['connection']['org'] ?? null),
             'city' => $geoJson['city'] ?? null,
-            'region' => $geoJson['region'] ?? null,
+            'region' => $geoJson['region'] ?? ($geoJson['region_code'] ?? null),
+            'region_code' => $geoJson['region_code'] ?? null,
         ];
 
         $ipdetails = $responses['ipdetails']->successful()

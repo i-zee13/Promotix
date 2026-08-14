@@ -978,8 +978,8 @@ class BotProtectionController extends Controller
         return [
             'status' => $status,
             'is_allowlisted' => $isAllowListed,
-            'intel_region' => $raw['region'] ?? $raw['state'] ?? null,
-            'intel_city' => $raw['city'] ?? null,
+            'intel_region' => $ipLog?->intel_region ?? $raw['region'] ?? $raw['region_code'] ?? $raw['state'] ?? null,
+            'intel_city' => $ipLog?->intel_city ?? $raw['city'] ?? null,
             'intel_latitude' => $raw['latitude'] ?? null,
             'intel_longitude' => $raw['longitude'] ?? null,
             'intel_asn' => $raw['asn'] ?? null,
@@ -1065,6 +1065,31 @@ class BotProtectionController extends Controller
         return $this->applyPathFilter($query, $request);
     }
 
+    /**
+     * Google Ads sessions live outside the bot-protection base query, which strips click-ID traffic.
+     *
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     */
+    private function paidVisitsQuery($domainIds, Carbon $from, Carbon $to, Request $request)
+    {
+        $query = DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('visited_at', [$from, $to]);
+
+        if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+            $query->where(function ($group) {
+                $group->where('is_paid_traffic', true)
+                    ->orWhere(function ($inner): void {
+                        GoogleClickAttribution::applyHasClickIdFilter($inner);
+                    });
+            });
+        } else {
+            GoogleClickAttribution::applyHasClickIdFilter($query);
+        }
+
+        return $this->applyPathFilter($query, $request);
+    }
+
     private function applyPathFilter($query, Request $request, string $column = 'url')
     {
         $path = trim((string) $request->query('path', ''));
@@ -1126,6 +1151,7 @@ class BotProtectionController extends Controller
                 'valid' => 0,
                 'invalid' => 0,
                 'bot_impact' => 0.0,
+                'share_pct' => 0.0,
             ],
             'actions' => [
                 'block' => 0,
@@ -1180,14 +1206,13 @@ class BotProtectionController extends Controller
         $valid = max(0, $total - $invalidBot - $invalidMalicious - $knownCrawlers);
         $botsDetected = $invalidBot + $invalidMalicious;
 
-        $paidTotal = 0;
-        $paidInvalid = 0;
-        if (Schema::hasColumn('visits', 'is_paid_traffic')) {
-            $paidTotal = (clone $base)->where('is_paid_traffic', true)->count();
-            $paidInvalid = (clone $base)->where('is_paid_traffic', true)->where('is_invalid_traffic', true)->count();
-        }
+        $paidBase = $this->paidVisitsQuery($domainIds, $from, $to, $request);
+        $paidTotal = (clone $paidBase)->count();
+        $paidInvalid = (clone $paidBase)->where('is_invalid_traffic', true)->count();
         $paidValid = max(0, $paidTotal - $paidInvalid);
         $botImpact = $paidTotal > 0 ? round(($paidInvalid / $paidTotal) * 100, 1) : 0.0;
+        $allSessions = $total + $paidTotal;
+        $paidSharePct = $allSessions > 0 ? round(($paidTotal / $allSessions) * 100, 1) : 0.0;
 
         $actions = ['block' => 0, 'challenge' => 0, 'allow' => 0];
         if (Schema::hasColumn('visits', 'action_taken')) {
@@ -1223,6 +1248,7 @@ class BotProtectionController extends Controller
                 'valid' => $paidValid,
                 'invalid' => $paidInvalid,
                 'bot_impact' => $botImpact,
+                'share_pct' => $paidSharePct,
             ],
             'actions' => $actions,
             'signals' => $this->detectionSignalFlags($domainIds, $from, $to),
@@ -1250,12 +1276,15 @@ class BotProtectionController extends Controller
         $crawlerSql = Schema::hasColumn('visits', 'is_crawler')
             ? 'SUM(CASE WHEN is_crawler = 1 THEN 1 ELSE 0 END) as crawlers'
             : '0 as crawlers';
-        $paidSql = Schema::hasColumn('visits', 'is_paid_traffic')
-            ? 'SUM(CASE WHEN is_paid_traffic = 1 THEN 1 ELSE 0 END) as paid_total, SUM(CASE WHEN is_paid_traffic = 1 AND is_invalid_traffic = 1 THEN 1 ELSE 0 END) as paid_invalid'
-            : '0 as paid_total, 0 as paid_invalid';
-
         $rows = $this->baseVisitsQuery($domainIds, $from, $to, $request)
-            ->selectRaw("DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid, SUM(CASE WHEN is_invalid_traffic = 1 AND threat_group IN ('data_center','vpn','abnormal_rate_limit','proxy','automation') THEN 1 ELSE 0 END) as bad_bots, {$crawlerSql}, {$paidSql}")
+            ->selectRaw("DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid, SUM(CASE WHEN is_invalid_traffic = 1 AND threat_group IN ('data_center','vpn','abnormal_rate_limit','proxy','automation') THEN 1 ELSE 0 END) as bad_bots, {$crawlerSql}")
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->keyBy('day');
+
+        $paidRows = $this->paidVisitsQuery($domainIds, $from, $to, $request)
+            ->selectRaw('DATE(visited_at) as day, COUNT(*) as paid_total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as paid_invalid')
             ->groupBy('day')
             ->orderBy('day')
             ->get()
@@ -1276,8 +1305,9 @@ class BotProtectionController extends Controller
             $inv = (int) ($row->invalid ?? 0);
             $bots = (int) ($row->bad_bots ?? 0);
             $crawl = (int) ($row->crawlers ?? 0);
-            $paidTotal = (int) ($row->paid_total ?? 0);
-            $paidInvalid = (int) ($row->paid_invalid ?? 0);
+            $paidRow = $paidRows->get($key);
+            $paidTotal = (int) ($paidRow->paid_total ?? 0);
+            $paidInvalid = (int) ($paidRow->paid_invalid ?? 0);
 
             $valid[] = max(0, $total - $inv);
             $automated[] = $bots;
