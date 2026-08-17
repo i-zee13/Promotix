@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use App\Services\LoginHistoryLogger;
 use App\Support\UserTimezone;
 use Illuminate\Http\JsonResponse;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProfileController extends Controller
 {
@@ -62,9 +64,28 @@ class ProfileController extends Controller
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
-    public function updateAvatar(Request $request): RedirectResponse
+    public function showAvatar(User $user): StreamedResponse
+    {
+        $path = trim((string) $user->avatar_path);
+        $disk = Storage::disk('public');
+
+        abort_unless($path !== '' && $disk->exists($path), 404);
+
+        return $disk->response($path, basename($path), [
+            'Cache-Control' => 'private, max-age=86400',
+            'Content-Disposition' => 'inline',
+        ]);
+    }
+
+    public function updateAvatar(Request $request): JsonResponse|RedirectResponse
     {
         if (! $this->avatarColumnsReady()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Avatar storage is being updated. Please try again shortly.',
+                ], 503);
+            }
+
             return Redirect::route('profile.edit')
                 ->withErrors(['avatar' => 'Avatar storage is being updated. Please try again shortly.']);
         }
@@ -83,12 +104,26 @@ class ProfileController extends Controller
 
         $user->forceFill(['avatar_path' => $path])->save();
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Profile photo updated.',
+                'avatar_url' => $user->fresh()->avatarUrl(),
+                'has_custom_avatar' => true,
+            ]);
+        }
+
         return Redirect::route('profile.edit')->with('status', 'avatar-updated');
     }
 
-    public function destroyAvatar(Request $request): RedirectResponse
+    public function destroyAvatar(Request $request): JsonResponse|RedirectResponse
     {
         if (! $this->avatarColumnsReady()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Avatar storage is being updated. Please try again shortly.',
+                ], 503);
+            }
+
             return Redirect::route('profile.edit')
                 ->withErrors(['avatar' => 'Avatar storage is being updated. Please try again shortly.']);
         }
@@ -101,6 +136,14 @@ class ProfileController extends Controller
         }
 
         $user->forceFill(['avatar_path' => null])->save();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Profile photo removed.',
+                'avatar_url' => $user->fresh()->avatarUrl(),
+                'has_custom_avatar' => false,
+            ]);
+        }
 
         return Redirect::route('profile.edit')->with('status', 'avatar-removed');
     }

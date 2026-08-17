@@ -28,7 +28,7 @@ class SubscriptionsController extends Controller
 
         $subscriptions = Subscription::query()
             ->with(['user', 'plan'])
-            ->leftJoin('users', 'users.id', '=', 'subscriptions.user_id')
+            ->join('users', 'users.id', '=', 'subscriptions.user_id')
             ->leftJoin('plans', 'plans.id', '=', 'subscriptions.plan_id')
             ->select('subscriptions.*')
             ->when($request->string('status')->toString(), fn ($q, string $status) => $q->where('subscriptions.status', $status))
@@ -46,7 +46,7 @@ class SubscriptionsController extends Controller
         return view('super-admin.subscriptions.index', [
             'subscriptions' => $subscriptions,
             'perPage' => min(50, max(10, $request->integer('per_page', 10))),
-            'statuses' => ['active', 'pending', 'past_due', 'cancelled', 'paused', 'trialing'],
+            'statuses' => ['active', 'pending', 'past_due', 'cancelled', 'paused', 'inactive', 'trialing'],
             'filterStatuses' => StatusTone::subscriptionFilters(),
             'plans' => Plan::orderBy('name')->get(['id', 'name']),
             'sort' => array_key_exists($sort, $allowedSorts) ? $sort : 'id',
@@ -56,12 +56,29 @@ class SubscriptionsController extends Controller
 
     public function update(Request $request, Subscription $subscription): RedirectResponse
     {
-        $data = $request->validate(['status' => ['required', 'in:active,pending,past_due,cancelled,paused,trialing']]);
+        $data = $request->validate(['status' => ['required', 'in:active,pending,past_due,cancelled,paused,inactive,trialing']]);
+
+        // An explicit inactive decision must take effect immediately. A user can
+        // otherwise retain access through an older active/trial row.
+        if ($data['status'] === 'inactive' && $subscription->user_id) {
+            Subscription::query()
+                ->where('user_id', $subscription->user_id)
+                ->whereIn('status', ['active', 'trialing'])
+                ->update(['status' => 'inactive', 'updated_at' => now()]);
+        }
+
         $subscription->update([
             'status' => $data['status'],
             'cancelled_at' => $data['status'] === 'cancelled' ? now() : $subscription->cancelled_at,
         ]);
 
         return back()->with('status', 'Subscription updated.');
+    }
+
+    public function destroy(Subscription $subscription): RedirectResponse
+    {
+        $subscription->delete();
+
+        return back()->with('status', 'Subscription removed.');
     }
 }

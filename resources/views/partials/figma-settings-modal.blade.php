@@ -149,6 +149,9 @@
     }
 
     $reportsUrl = \Illuminate\Support\Facades\Route::has('reports.index') ? route('reports.index') : '#';
+    $comprehensiveReportUrl = \Illuminate\Support\Facades\Route::has('paid-marketing.detailed-export-xlsx')
+        ? route('paid-marketing.detailed-export-xlsx')
+        : $reportsUrl;
     $billingUrl = \Illuminate\Support\Facades\Route::has('billing.index') ? route('billing.index') : '#';
     $domainsUrl = \Illuminate\Support\Facades\Route::has('domains.index') ? route('domains.index') : '#';
     $domainsCreateUrl = \Illuminate\Support\Facades\Route::has('domains.create')
@@ -159,6 +162,8 @@
         : '#';
     $profileUrl = \Illuminate\Support\Facades\Route::has('profile.edit') ? route('profile.edit') : '#';
     $profileUpdateUrl = \Illuminate\Support\Facades\Route::has('profile.update') ? route('profile.update') : '#';
+    $avatarUpdateUrl = \Illuminate\Support\Facades\Route::has('profile.avatar.update') ? route('profile.avatar.update') : '#';
+    $avatarDestroyUrl = \Illuminate\Support\Facades\Route::has('profile.avatar.destroy') ? route('profile.avatar.destroy') : '#';
     $usersUrl = \Illuminate\Support\Facades\Route::has('users')
         ? route('users')
         : (\Illuminate\Support\Facades\Route::has('users.index') ? route('users.index') : $profileUrl);
@@ -214,6 +219,14 @@
             'auto_refresh' => (bool) ($settingsOther['auto_refresh'] ?? true),
             'dashboard_tips' => (bool) ($settingsOther['dashboard_tips'] ?? true),
             'alert_sound' => (bool) ($settingsOther['alert_sound'] ?? false),
+        ],
+        'reportDownloadUrl' => $comprehensiveReportUrl,
+        'avatar' => [
+            'url' => $settingsUser?->avatarUrl(),
+            'initial' => $settingsUser?->avatarInitial() ?? '?',
+            'has_custom' => filled($settingsUser?->avatar_path),
+            'update_url' => $avatarUpdateUrl,
+            'destroy_url' => $avatarDestroyUrl,
         ],
         'notifications' => [
             'email' => (bool) ($settingsNotify['email'] ?? $settingsNotify['email_alerts'] ?? true),
@@ -462,12 +475,17 @@
                             <div class="pmx-settings__report-card">
                                 <p class="pmx-settings__label">{{ $rt['title'] }}</p>
                                 <p class="pmx-settings__hint">{{ $rt['desc'] }}</p>
-                                <a href="{{ $reportsUrl }}" class="pmx-settings__btn" style="margin-top:10px">Generate</a>
+                                <a
+                                    :href="buildReportDownloadUrl('{{ $rt['key'] }}')"
+                                    class="pmx-settings__btn"
+                                    style="margin-top:10px"
+                                    download
+                                >Download XLSX</a>
                             </div>
                         @endforeach
                     </div>
 
-                    <p class="pmx-settings__hint" style="margin-top:12px">Exports support CSV, XLSX, and PDF from the Reports page.</p>
+                    <p class="pmx-settings__hint" style="margin-top:12px">Every download includes all Advanced View column groups and available technical details for the selected date range.</p>
 
                     <div class="pmx-settings__card" style="margin-top:12px">
                         <div class="pmx-settings__row">
@@ -778,20 +796,28 @@
 
                     <div class="pmx-settings__card" style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
                         <div style="width:48px;height:48px;border-radius:999px;overflow:hidden;border:1px solid rgba(100,0,178,.55);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            @include('partials.user-avatar', ['avatarUser' => $settingsUser, 'avatarTextClass' => 'text-[16px] font-semibold leading-none text-white/90'])
+                            <template x-if="avatarUrl">
+                                <img :src="avatarUrl" alt="" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer">
+                            </template>
+                            <template x-if="!avatarUrl">
+                                <span class="text-[16px] font-semibold leading-none text-white/90" x-text="avatarInitial"></span>
+                            </template>
                         </div>
                         <div style="min-width:0;flex:1;">
                             <p class="pmx-settings__label" style="margin:0;">Profile photo</p>
-                            <p class="pmx-settings__hint" style="margin-top:2px;">
-                                @if (filled($settingsUser?->avatar_path))
-                                    Custom upload
-                                @elseif (filled($settingsUser?->google_avatar_url))
-                                    From Google / Gmail
-                                @else
-                                    Upload from Account settings, or connect Google
-                                @endif
-                            </p>
-                            <a href="{{ $profileUrl }}" class="pmx-settings__btn" style="margin-top:8px;display:inline-flex;">Change photo</a>
+                            <p class="pmx-settings__hint" style="margin-top:2px;" x-text="avatarHasCustom ? 'Custom upload' : (avatarUrl ? 'From Google / Gmail' : 'Upload a profile photo')"></p>
+                            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+                                <button type="button" class="pmx-settings__btn" @click="$refs.settingsAvatarInput.click()" :disabled="avatarBusy" x-text="avatarBusy ? 'Uploading…' : 'Change photo'"></button>
+                                <button type="button" class="pmx-settings__btn" x-show="avatarHasCustom" @click="removeAvatar()" :disabled="avatarBusy">Remove</button>
+                            </div>
+                            <input
+                                x-ref="settingsAvatarInput"
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/gif"
+                                style="display:none"
+                                @change="uploadAvatar($event)"
+                            >
+                            <p class="pmx-settings__hint" style="margin-top:6px;" x-show="avatarStatus" x-text="avatarStatus"></p>
                         </div>
                     </div>
 
@@ -1610,6 +1636,14 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             : [emptyContact()],
         csrf: seed.csrf || '',
         prefsUrl: seed.prefsUrl || '/user/preferences',
+        reportDownloadUrl: seed.reportDownloadUrl || '/reports',
+        avatarUrl: seed.avatar?.url || '',
+        avatarInitial: seed.avatar?.initial || '?',
+        avatarHasCustom: Boolean(seed.avatar?.has_custom),
+        avatarUpdateUrl: seed.avatar?.update_url || '/profile/avatar',
+        avatarDestroyUrl: seed.avatar?.destroy_url || '/profile/avatar',
+        avatarBusy: false,
+        avatarStatus: '',
         reportRange: '7d',
         generalStatus: '',
         generalBusy: false,
@@ -1620,6 +1654,112 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         contactsStatus: '',
         contactsBusy: false,
 
+        avatarErrorMessage(payload, fallback) {
+            const firstError = payload?.errors?.avatar;
+            if (Array.isArray(firstError) && firstError[0]) return firstError[0];
+            return payload?.message || fallback;
+        },
+        syncAvatarImages() {
+            if (!this.avatarUrl) return;
+            document.querySelectorAll('img[data-promotix-avatar]').forEach((img) => {
+                img.src = this.avatarUrl;
+            });
+        },
+        async uploadAvatar(event) {
+            const input = event?.target;
+            const file = input?.files?.[0];
+            if (!file || this.avatarBusy) return;
+
+            this.avatarBusy = true;
+            this.avatarStatus = '';
+            try {
+                const body = new FormData();
+                body.append('avatar', file);
+                const res = await fetch(this.avatarUpdateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body,
+                });
+                const payload = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(this.avatarErrorMessage(payload, 'Could not upload photo.'));
+
+                this.avatarUrl = payload.avatar_url || '';
+                this.avatarHasCustom = Boolean(payload.has_custom_avatar);
+                this.avatarStatus = payload.message || 'Profile photo updated.';
+                this.syncAvatarImages();
+            } catch (error) {
+                this.avatarStatus = error?.message || 'Could not upload photo.';
+            } finally {
+                this.avatarBusy = false;
+                if (input) input.value = '';
+            }
+        },
+        async removeAvatar() {
+            if (!this.avatarHasCustom || this.avatarBusy) return;
+
+            this.avatarBusy = true;
+            this.avatarStatus = '';
+            try {
+                const res = await fetch(this.avatarDestroyUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(this.avatarErrorMessage(payload, 'Could not remove photo.'));
+
+                this.avatarUrl = payload.avatar_url || '';
+                this.avatarHasCustom = false;
+                this.avatarStatus = payload.message || 'Profile photo removed.';
+                this.syncAvatarImages();
+            } catch (error) {
+                this.avatarStatus = error?.message || 'Could not remove photo.';
+            } finally {
+                this.avatarBusy = false;
+            }
+        },
+        reportDate(offsetDays = 0) {
+            const date = new Date(Date.now() + (Number(offsetDays) * 86400000));
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: this.timezone || 'UTC',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            });
+            const parts = Object.fromEntries(
+                formatter.formatToParts(date)
+                    .filter((part) => part.type !== 'literal')
+                    .map((part) => [part.type, part.value])
+            );
+
+            return `${parts.year}-${parts.month}-${parts.day}`;
+        },
+        reportDateRange() {
+            if (this.reportRange === 'yesterday') {
+                const yesterday = this.reportDate(-1);
+                return { from: yesterday, to: yesterday };
+            }
+
+            const fromOffset = this.reportRange === '30d' ? -29 : (this.reportRange === '7d' ? -6 : 0);
+            return { from: this.reportDate(fromOffset), to: this.reportDate(0) };
+        },
+        buildReportDownloadUrl(reportType) {
+            const url = new URL(this.reportDownloadUrl, window.location.origin);
+            const range = this.reportDateRange();
+            url.searchParams.set('from', range.from);
+            url.searchParams.set('to', range.to);
+            url.searchParams.set('columns', 'all');
+            url.searchParams.set('report_type', String(reportType || 'comprehensive'));
+
+            return url.toString();
+        },
         initModal() {
             if (seed.security_auto_open) {
                 this.tab = 'security';

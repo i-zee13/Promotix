@@ -130,6 +130,12 @@
                                 <span class="flex h-[16px] w-[16px] items-center justify-center rounded-full border text-[11px] leading-none">+</span>
                                 ADD DOMAIN
                             </a>
+                            @if (! $user?->is_super_admin && ! $user?->is_admin && $user?->activeSubscription()?->status === 'trialing')
+                                <a href="{{ route('upgrade-plan') }}" class="figma-add-domain-btn mt-[8px] flex h-[32px] w-full max-w-[188px] items-center justify-center gap-[6px] rounded-[8px] border border-[#9A1AFF] bg-[#6400B2]/20 text-[13px] font-bold uppercase text-white transition hover:bg-[#6400B2]">
+                                    <span class="text-[14px] leading-none">↑</span>
+                                    UPGRADE PLAN
+                                </a>
+                            @endif
                         @endif
                     </div>
                 @endforeach

@@ -7,6 +7,7 @@
 @if ($avatarUrl)
     <img
         src="{{ $avatarUrl }}"
+        data-promotix-avatar
         alt=""
         class="h-full w-full object-cover"
         referrerpolicy="no-referrer"

@@ -91,6 +91,7 @@ Route::middleware(['auth', 'super-admin'])
         Route::resource('plans', SuperAdminPlansController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::get('/subscriptions', [SuperAdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
         Route::put('/subscriptions/{subscription}', [SuperAdminSubscriptionsController::class, 'update'])->name('subscriptions.update');
+        Route::delete('/subscriptions/{subscription}', [SuperAdminSubscriptionsController::class, 'destroy'])->name('subscriptions.destroy');
         Route::get('/payments', [SuperAdminPaymentsController::class, 'index'])->name('payments.index');
         Route::get('/payments/{payment}/receipt', [SuperAdminPaymentsController::class, 'downloadReceipt'])->name('payments.receipt');
         Route::post('/payments/{payment}/verify', [SuperAdminPaymentsController::class, 'verify'])->name('payments.verify');
@@ -227,6 +228,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::get('/profile/avatar/{user}', [\App\Http\Controllers\ProfileController::class, 'showAvatar'])->name('profile.avatar.show');
     Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/avatar', [\App\Http\Controllers\ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::delete('/profile/avatar', [\App\Http\Controllers\ProfileController::class, 'destroyAvatar'])->name('profile.avatar.destroy');

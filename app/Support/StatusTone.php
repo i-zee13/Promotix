@@ -42,6 +42,7 @@ class StatusTone
             'pending' => 'expiry',
             'past_due' => 'blocked',
             'paused' => 'suspended',
+            'inactive' => 'deactivated',
             'cancelled' => 'ban',
             default => 'deactivated',
         };
@@ -57,6 +58,7 @@ class StatusTone
             ['value' => 'past_due', 'label' => 'Payment Failed', 'tone' => 'blocked'],
             ['value' => 'cancelled', 'label' => 'Cancelled', 'tone' => 'ban'],
             ['value' => 'paused', 'label' => 'Paused', 'tone' => 'suspended'],
+            ['value' => 'inactive', 'label' => 'Inactive', 'tone' => 'deactivated'],
             ['value' => 'trialing', 'label' => 'Trialing', 'tone' => 'expiry'],
         ];
     }

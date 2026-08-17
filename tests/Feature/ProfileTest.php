@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -59,6 +61,41 @@ class ProfileTest extends TestCase
             ->assertRedirect('/profile');
 
         $this->assertNotNull($user->refresh()->email_verified_at);
+    }
+
+    public function test_avatar_can_be_uploaded_and_served_without_public_storage_symlink(): void
+    {
+        Storage::fake('public');
+        $this->withoutMiddleware([
+            \App\Http\Middleware\EnsureTwoFactorPassed::class,
+            \App\Http\Middleware\EnsureOnboardingComplete::class,
+            \App\Http\Middleware\EnsureProtectionAccess::class,
+        ]);
+        $user = User::factory()->create();
+
+        $upload = $this
+            ->actingAs($user)
+            ->post(route('profile.avatar.update'), [
+                'avatar' => UploadedFile::fake()->image('avatar.jpg', 100, 100),
+            ], [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]);
+
+        $upload
+            ->assertOk()
+            ->assertJsonPath('has_custom_avatar', true);
+
+        $path = (string) $user->refresh()->avatar_path;
+        Storage::disk('public')->assertExists($path);
+        $this->assertStringContainsString(
+            route('profile.avatar.show', ['user' => $user], false),
+            (string) $upload->json('avatar_url')
+        );
+
+        $this
+            ->get(route('profile.avatar.show', ['user' => $user]))
+            ->assertOk();
     }
 
     public function test_user_can_delete_their_account(): void

@@ -467,6 +467,8 @@ class GeoAudienceMatcher
             ?: ($raw['region_code'] ?? null)
             ?: ($raw['state'] ?? null)
             ?: ($raw['state_code'] ?? null)
+            ?: ($raw['state1'] ?? null)
+            ?: ($raw['state2'] ?? null)
             ?: ($raw['_geo_region'] ?? null)
         );
         $cityName = self::normalizeName(
@@ -478,6 +480,13 @@ class GeoAudienceMatcher
 
         // Some providers put the city into "region" when state is missing.
         if ($regionName !== '' && $cityName !== '' && $regionName === $cityName) {
+            $regionName = '';
+        }
+
+        // ipdetails.io often uses state1/state2; if "region" is actually a city
+        // label, treat it as the city for California / state inference.
+        if ($regionName !== '' && $cityName === '' && ! self::looksLikeUsState($regionName)) {
+            $cityName = $regionName;
             $regionName = '';
         }
 

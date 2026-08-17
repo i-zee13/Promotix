@@ -58,6 +58,9 @@ class IpIntelService
                     ?? ($geo['region_code'] ?? null)
                     ?? ($reputation['ipdetails']['region'] ?? null)
                     ?? ($reputation['ipdetails']['state'] ?? null)
+                    // ipdetails.io returns California in state1 (not state/region).
+                    ?? ($reputation['ipdetails']['state1'] ?? null)
+                    ?? ($reputation['ipdetails']['state2'] ?? null)
                     ?? null;
             }
             if (\Illuminate\Support\Facades\Schema::hasColumn('ip_logs', 'intel_city')) {
@@ -82,6 +85,13 @@ class IpIntelService
                 $ipdetails['state'] = $geo['region_code'];
             } elseif (! empty($geo['region']) && empty($ipdetails['state'])) {
                 $ipdetails['state'] = $geo['region'];
+            }
+            // Normalize provider-specific state1 into fields GeoAudienceMatcher already reads.
+            if (empty($ipdetails['state']) && ! empty($ipdetails['state1'])) {
+                $ipdetails['state'] = $ipdetails['state1'];
+            }
+            if (empty($ipdetails['region']) && ! empty($ipdetails['state1'])) {
+                $ipdetails['region'] = $ipdetails['state1'];
             }
             if (! empty($geo['city']) && empty($ipdetails['city'])) {
                 $ipdetails['city'] = $geo['city'];

@@ -210,6 +210,7 @@
                 <div class="ov-card__head">
                     <div>
                         <h2 class="ov-card__title">Traffic Quality Overview</h2>
+                        <p id="traffic-quality-granularity" class="mt-[2px] text-[10px] text-white/45">Matches top calendar · Today = hourly, longer ranges = daily</p>
                         <div class="ov-chart-legend" id="traffic-quality-legend"></div>
                     </div>
                 </div>
@@ -515,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.fillStyle = 'rgba(255,255,255,.55)';
         ctx.font = '10px sans-serif';
-        const step = Math.max(1, Math.ceil((labels || []).length / 7));
+        const step = Math.max(1, Math.ceil((labels || []).length / (labels.length > 14 ? 8 : 7)));
         (labels || []).forEach((label, i) => {
             if (i % step !== 0 && i !== labels.length - 1) return;
             const x = left + i * ((w - left - right) / Math.max(labels.length - 1, 1));
@@ -818,6 +819,13 @@ document.addEventListener('DOMContentLoaded', () => {
             values: trends.values || [],
         }];
         lastTrendChart = { labels: trends.labels || [], datasets };
+        const granEl = document.getElementById('traffic-quality-granularity');
+        if (granEl) {
+            granEl.textContent = trends.granularity_label
+                || (trends.granularity === 'hourly'
+                    ? 'Hourly (Today selected in calendar)'
+                    : 'Daily (matches top calendar range)');
+        }
         drawTrendDual(lastTrendChart.labels, lastTrendChart.datasets);
         renderTrafficLegend(lastTrendChart.datasets);
         renderDonut(threats.labels || [], threats.values || [], threats.total);

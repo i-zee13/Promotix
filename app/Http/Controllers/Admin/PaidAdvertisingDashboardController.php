@@ -212,15 +212,11 @@ class PaidAdvertisingDashboardController extends Controller
         $googleSyncError = collect($googleSyncErrors)
             ->map(fn ($row) => trim((string) ($row['message'] ?? '')))
             ->first(fn ($message) => $message !== '');
-        $hasLinkedAds = $domains->contains(
-            fn ($domain) => $domain->googleAdsAccount && ! (bool) $domain->googleAdsAccount->is_manager
-        );
         $selectedDomainId = $selectedDomain?->id ?: (int) $request->query('domain_id', 0);
-        // Reconnect is domain-scoped OAuth — never prompt on "All Domains".
-        $googleNeedsReconnect = $selectedDomainId > 0 && (
-            $this->googleSyncLooksAuthRelated($googleSyncError)
-            || ($hasLinkedAds && $googleClicks === 0 && $uniquePaidClicks > 0)
-        );
+        // A zero Google total can be a date-range/reporting delay and does not prove
+        // that OAuth is broken. Only ask for reconnect after an actual auth error.
+        $googleNeedsReconnect = $selectedDomainId > 0
+            && $this->googleSyncLooksAuthRelated($googleSyncError);
         $googleReconnectUrl = $this->googleReconnectUrl($selectedDomainId);
 
         return [
@@ -297,11 +293,11 @@ class PaidAdvertisingDashboardController extends Controller
 
     private function trendsPayload(Request $request): array
     {
-        [$from, $to] = $this->dateRange($request);
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
         $userTz = $this->reportingTimezone($request, $domainIds);
         $domains = $this->scopedDomains($request, $domainIds);
+        $hourly = $metricFrom === $metricTo;
 
         $this->syncGoogleMetricsForDomains(
             $request,
@@ -311,19 +307,31 @@ class PaidAdvertisingDashboardController extends Controller
             $request->boolean('force_google_sync')
         );
 
-        $fetchRows = function (string $fromDate, string $toDate) use ($request, $domainIds, $userTz) {
+        $fetchRows = function (string $fromDate, string $toDate, bool $useHourly) use ($request, $domainIds, $userTz) {
             $rows = collect();
             if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
-                $dayExpr = UserTimezone::localDateSql('visited_at', $request->user(), $userTz);
+                $bucketExpr = $useHourly
+                    ? UserTimezone::localHourBucketSql('visited_at', $request->user(), $userTz)
+                    : UserTimezone::localDateSql('visited_at', $request->user(), $userTz);
                 $rows = $this->scopedVisitsQuery($request, $domainIds, $fromDate, $toDate)
-                    ->selectRaw("{$dayExpr} as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
-                    ->groupBy('day')
-                    ->orderBy('day')
-                    ->get();
+                    ->selectRaw("{$bucketExpr} as bucket, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
+                    ->groupBy('bucket')
+                    ->orderBy('bucket')
+                    ->get()
+                    ->map(function ($row) {
+                        $row->day = $row->bucket;
+
+                        return $row;
+                    });
             }
 
-            if ($rows->isEmpty() && $domainIds->isNotEmpty()) {
-                $rows = $this->paidMarketingDailyTrendRows($request, $domainIds, $fromDate, $toDate);
+            if (! $useHourly && $rows->isEmpty() && $domainIds->isNotEmpty()) {
+                $rows = $this->paidMarketingDailyTrendRows($request, $domainIds, $fromDate, $toDate)
+                    ->map(function ($row) {
+                        $row->bucket = $row->day;
+
+                        return $row;
+                    });
             }
 
             return $rows;
@@ -331,23 +339,38 @@ class PaidAdvertisingDashboardController extends Controller
 
         $chartFrom = Carbon::parse($metricFrom, $userTz)->startOfDay();
         $chartTo = Carbon::parse($metricTo, $userTz)->endOfDay();
-        $rows = $fetchRows($metricFrom, $metricTo);
+        $rows = $fetchRows($metricFrom, $metricTo, $hourly);
 
         $googleByDay = null;
-
-        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
+        if (! $hourly && Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
             $sync = app(GoogleAdsDomainMetricsSync::class);
             $googleByDay = $sync->dailyClicksByDateForDomainsReporting($domainIds, $metricFrom, $metricTo, $userTz, $domains);
         }
 
-        $buildSeries = function (string $rangeFromDate, string $rangeToDate, $dayRows, $googleDays) use ($userTz): array {
+        $buildSeries = function (string $rangeFromDate, string $rangeToDate, $dayRows, $googleDays, bool $useHourly) use ($userTz): array {
             $paid = [];
             $invalid = [];
+            if ($useHourly) {
+                $period = Carbon::parse($rangeFromDate, $userTz)->startOfDay();
+                $end = Carbon::parse($rangeToDate, $userTz)->endOfDay()->startOfHour();
+                while ($period->lte($end)) {
+                    $key = $period->format('Y-m-d H:00:00');
+                    $row = $dayRows->firstWhere('day', $key) ?? $dayRows->firstWhere('bucket', $key);
+                    $visitPaid = (int) ($row->total ?? 0);
+                    $invalidDay = (int) ($row->invalid ?? 0);
+                    $paid[] = $visitPaid;
+                    $invalid[] = $invalidDay;
+                    $period->addHour();
+                }
+
+                return ['paid' => $paid, 'invalid' => $invalid];
+            }
+
             $period = Carbon::parse($rangeFromDate, $userTz)->startOfDay();
             $end = Carbon::parse($rangeToDate, $userTz)->startOfDay();
             while ($period->lte($end)) {
                 $key = $period->toDateString();
-                $row = $dayRows->firstWhere('day', $key);
+                $row = $dayRows->firstWhere('day', $key) ?? $dayRows->firstWhere('bucket', $key);
                 $visitPaid = (int) ($row->total ?? 0);
                 $invalidDay = (int) ($row->invalid ?? 0);
                 $googlePaid = (int) ($googleDays?->get($key)?->clicks ?? 0);
@@ -362,42 +385,74 @@ class PaidAdvertisingDashboardController extends Controller
         };
 
         $labels = [];
-        $period = $chartFrom->copy();
-        while ($period->lte($chartTo)) {
-            $labels[] = $period->format('D');
-            $period->addDay();
+        if ($hourly) {
+            $period = $chartFrom->copy()->startOfDay();
+            $endHour = $chartTo->copy()->startOfHour();
+            while ($period->lte($endHour)) {
+                $labels[] = $period->format('g A');
+                $period->addHour();
+            }
+        } else {
+            $spanDays = $chartFrom->copy()->startOfDay()->diffInDays($chartTo->copy()->startOfDay()) + 1;
+            $period = $chartFrom->copy()->startOfDay();
+            $endDay = $chartTo->copy()->startOfDay();
+            while ($period->lte($endDay)) {
+                $labels[] = $spanDays <= 14
+                    ? $period->format('D n/j')
+                    : $period->format('M j');
+                $period->addDay();
+            }
         }
 
-        $current = $buildSeries($metricFrom, $metricTo, $rows, $googleByDay);
+        $current = $buildSeries($metricFrom, $metricTo, $rows, $googleByDay, $hourly);
         $paidSeries = $current['paid'];
         $invalidSeries = $current['invalid'];
 
-        $days = max(1, $chartFrom->diffInDays($chartTo) + 1);
-        $prevMetricFrom = Carbon::parse($metricFrom, $userTz)->subDays($days)->toDateString();
-        $prevMetricTo = Carbon::parse($metricFrom, $userTz)->subDay()->toDateString();
-        $prevRows = $fetchRows($prevMetricFrom, $prevMetricTo);
+        $lastWeekSeries = array_fill(0, count($paidSeries), 0);
+        if (! $hourly) {
+            $days = max(1, $chartFrom->diffInDays($chartTo->copy()->startOfDay()) + 1);
+            $prevMetricFrom = Carbon::parse($metricFrom, $userTz)->subDays($days)->toDateString();
+            $prevMetricTo = Carbon::parse($metricFrom, $userTz)->subDay()->toDateString();
+            $prevRows = $fetchRows($prevMetricFrom, $prevMetricTo, false);
 
-        $googlePrev = null;
-        if ($googleByDay !== null && $domainIds->isNotEmpty()) {
-            $googlePrev = app(GoogleAdsDomainMetricsSync::class)
-                ->dailyClicksByDateForDomains($domainIds, $prevMetricFrom, $prevMetricTo);
+            $googlePrev = null;
+            if ($googleByDay !== null && $domainIds->isNotEmpty()) {
+                $googlePrev = app(GoogleAdsDomainMetricsSync::class)
+                    ->dailyClicksByDateForDomains($domainIds, $prevMetricFrom, $prevMetricTo);
+            }
+
+            $previous = $buildSeries($prevMetricFrom, $prevMetricTo, $prevRows, $googlePrev, false);
+            $lastWeekSeries = $previous['paid'];
+            while (count($lastWeekSeries) < count($paidSeries)) {
+                array_unshift($lastWeekSeries, 0);
+            }
+            $lastWeekSeries = array_slice($lastWeekSeries, 0, count($paidSeries));
         }
 
-        $previous = $buildSeries($prevMetricFrom, $prevMetricTo, $prevRows, $googlePrev);
-        $lastWeekSeries = $previous['paid'];
-
-        while (count($lastWeekSeries) < count($paidSeries)) {
-            array_unshift($lastWeekSeries, 0);
+        $datasets = [
+            [
+                'name' => $hourly ? 'Today' : 'This Period',
+                'values' => $paidSeries,
+                'color' => '#FFFFFF',
+            ],
+        ];
+        if (! $hourly) {
+            $datasets[] = [
+                'name' => 'Previous Period',
+                'values' => $lastWeekSeries,
+                'color' => '#FF4BC1',
+                'dashed' => true,
+            ];
         }
-        $lastWeekSeries = array_slice($lastWeekSeries, 0, count($paidSeries));
 
         return [
             'labels' => $labels,
             'invalid_daily' => $invalidSeries,
-            'datasets' => [
-                ['name' => 'This Week', 'values' => $paidSeries, 'color' => '#FFFFFF'],
-                ['name' => 'Last Week', 'values' => $lastWeekSeries, 'color' => '#FF4BC1', 'dashed' => true],
-            ],
+            'granularity' => $hourly ? 'hourly' : 'daily',
+            'granularity_label' => $hourly
+                ? 'Hourly · '.Carbon::parse($metricFrom, $userTz)->format('M j')
+                : 'Daily · '.Carbon::parse($metricFrom, $userTz)->format('M j').' – '.Carbon::parse($metricTo, $userTz)->format('M j'),
+            'datasets' => $datasets,
         ];
     }
 
@@ -976,6 +1031,9 @@ class PaidAdvertisingDashboardController extends Controller
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
         $user = $request->user();
+        $deviceId = trim((string) $request->query('device_id', ''));
+        $paidIdentityId = trim((string) $request->query('paid_identity_id', ''));
+        $visitorId = trim((string) $request->query('visitor_id', ''));
 
         if ($domainIds->isEmpty() || ! Schema::hasTable('visits')) {
             return response()->json([]);
@@ -989,6 +1047,7 @@ class PaidAdvertisingDashboardController extends Controller
             : "NULL";
 
         $select = [
+            'ip',
             'visited_at',
             'url',
             'country',
@@ -1015,14 +1074,67 @@ class PaidAdvertisingDashboardController extends Controller
             'paid_identity_id',
             'identity_confidence',
             'ads_detections',
+            'browser_version',
         ] as $col) {
             if (Schema::hasColumn('visits', $col)) {
                 $select[] = $col;
             }
         }
 
-        $rows = $this->scopedVisitsQuery($request, $domainIds, $metricFrom, $metricTo)
-            ->where('ip', $ip)
+        // Modal must keep the dashboard date range for this IP (do not reuse search's
+        // "skip dates when ip= is set" behavior from scopedVisitsQuery).
+        // Related Device/PID clicks use a rolling 24h window so Clicks 60m / ADS_REPEAT
+        // evidence is visible even when those hits used different IPs.
+        $query = DB::table('visits')->whereIn('domain_id', $domainIds);
+        GoogleClickAttribution::applyHasClickIdFilter($query);
+
+        $reportingTz = $this->reportingTimezone($request, $domainIds);
+        $identityLookback = Carbon::now('UTC')->subDay();
+        $query->where(function ($match) use ($ip, $deviceId, $paidIdentityId, $visitorId, $identityLookback, $metricFrom, $metricTo, $user, $reportingTz): void {
+            $match->where(function ($thisIp) use ($ip, $metricFrom, $metricTo, $user, $reportingTz): void {
+                $thisIp->where('ip', $ip);
+                UserTimezone::applyCalendarDateRangeFilter(
+                    $thisIp,
+                    'visited_at',
+                    $metricFrom,
+                    $metricTo,
+                    $user,
+                    $reportingTz,
+                );
+            });
+
+            $match->orWhere(function ($related) use ($deviceId, $paidIdentityId, $visitorId, $identityLookback): void {
+                $related->where('visited_at', '>=', $identityLookback);
+                $related->where(function ($ids) use ($deviceId, $paidIdentityId, $visitorId): void {
+                    $added = false;
+                    if ($deviceId !== '' && Schema::hasColumn('visits', 'device_id')) {
+                        $ids->orWhere('device_id', $deviceId);
+                        $added = true;
+                    }
+                    if ($paidIdentityId !== '' && Schema::hasColumn('visits', 'paid_identity_id')) {
+                        $ids->orWhere('paid_identity_id', $paidIdentityId);
+                        $added = true;
+                    }
+                    if ($visitorId !== '' && Schema::hasColumn('visits', 'visitor_id')) {
+                        $ids->orWhere('visitor_id', $visitorId);
+                        $added = true;
+                    }
+                    if (! $added) {
+                        $ids->whereRaw('0 = 1');
+                    }
+                });
+            });
+        });
+
+        if ($this->hasCampaignFilter($request)) {
+            if (Schema::hasColumn('visits', 'campaign_name')) {
+                $this->applyDirectCampaignFilter($query, $request, 'campaign_name', 'google_campaign_id', 'utm_campaign');
+            } else {
+                $this->applyDirectCampaignFilter($query, $request, 'utm_campaign', 'google_campaign_id');
+            }
+        }
+
+        $rows = $query
             ->orderBy('visited_at')
             ->limit(100)
             ->get($select);
@@ -1059,9 +1171,9 @@ class PaidAdvertisingDashboardController extends Controller
 
             $campaign = trim((string) ($row->campaign ?? ''));
             if ($campaign === '' && filled($row->url ?? null)) {
-                $query = parse_url((string) $row->url, PHP_URL_QUERY);
-                if (is_string($query) && $query !== '') {
-                    parse_str($query, $params);
+                $queryString = parse_url((string) $row->url, PHP_URL_QUERY);
+                if (is_string($queryString) && $queryString !== '') {
+                    parse_str($queryString, $params);
                     foreach (['utm_campaign', 'campaign', 'gad_campaignid', 'campaign_id'] as $key) {
                         $value = trim((string) ($params[$key] ?? ''));
                         if ($value !== '') {
@@ -1074,9 +1186,9 @@ class PaidAdvertisingDashboardController extends Controller
 
             $keyword = trim((string) ($row->keyword ?? ''));
             if ($keyword === '' && filled($row->url ?? null)) {
-                $query = parse_url((string) $row->url, PHP_URL_QUERY);
-                if (is_string($query) && $query !== '') {
-                    parse_str($query, $params);
+                $queryString = parse_url((string) $row->url, PHP_URL_QUERY);
+                if (is_string($queryString) && $queryString !== '') {
+                    parse_str($queryString, $params);
                     foreach (['utm_term', 'keyword'] as $key) {
                         $value = trim((string) ($params[$key] ?? ''));
                         if ($value !== '') {
@@ -1087,6 +1199,9 @@ class PaidAdvertisingDashboardController extends Controller
                 }
             }
 
+            $rowIp = trim((string) ($row->ip ?? $ip));
+            $isRelated = $rowIp !== '' && $rowIp !== $ip;
+
             return [
                 'clicked_at' => UserTimezone::isoForUser(
                     ! empty($row->visited_at) ? Carbon::parse((string) $row->visited_at, 'UTC') : null,
@@ -1096,7 +1211,8 @@ class PaidAdvertisingDashboardController extends Controller
                     ! empty($row->visited_at) ? Carbon::parse((string) $row->visited_at, 'UTC') : null,
                     $user
                 ),
-                'ip' => $ip,
+                'ip' => $rowIp !== '' ? $rowIp : $ip,
+                'is_related' => $isRelated,
                 'country' => $row->country,
                 'campaign' => $campaign !== '' ? $campaign : null,
                 'path' => $row->url,
@@ -1106,7 +1222,7 @@ class PaidAdvertisingDashboardController extends Controller
                 'wbraid' => $row->wbraid ?? null,
                 'keyword' => $keyword !== '' ? $keyword : null,
                 'browser_name' => $row->browser,
-                'browser_version' => null,
+                'browser_version' => $row->browser_version ?? null,
                 'os' => $row->os,
                 'device' => $row->device ?? null,
                 'device_id' => filled($row->device_id ?? null) ? (string) $row->device_id : null,
@@ -3286,6 +3402,20 @@ class PaidAdvertisingDashboardController extends Controller
             $settingsSig = ((int) ($settingsRow->total ?? 0)).'|'.(string) ($settingsRow->max_updated ?? '');
         }
 
+        $googleMetricsSig = '0';
+        if ($domainIds->isNotEmpty() && Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            $googleMetricsRow = DB::table('google_ads_campaign_daily_metrics')
+                ->whereIn('domain_id', $domainIds->all())
+                ->whereBetween('metric_date', [$metricFrom, $metricTo])
+                ->selectRaw('COUNT(*) as total, MAX(updated_at) as max_updated, COALESCE(SUM(clicks), 0) as clicks')
+                ->first();
+            $googleMetricsSig = implode('|', [
+                (int) ($googleMetricsRow->total ?? 0),
+                (string) ($googleMetricsRow->max_updated ?? ''),
+                (int) ($googleMetricsRow->clicks ?? 0),
+            ]);
+        }
+
         $version = substr(hash('sha256', implode('|', [
             (string) $userId,
             (string) $lastId,
@@ -3293,6 +3423,7 @@ class PaidAdvertisingDashboardController extends Controller
             $visitsUpdated,
             $domainsSig,
             $settingsSig,
+            $googleMetricsSig,
             (string) $metricFrom,
             (string) $metricTo,
         ])), 0, 24);

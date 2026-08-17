@@ -27,6 +27,7 @@ class ClickronixTrafficReport
         'device_fingerprint' => 'Fingerprint',
         'device' => 'Device',
         'browser' => 'Browser',
+        'browser_version' => 'Browser Version',
         'os' => 'OS',
         'screen_resolution' => 'Screen',
         'language' => 'Language',
@@ -81,6 +82,28 @@ class ClickronixTrafficReport
         'keyword' => 'Keyword',
         'ads_primary_rule' => 'Primary Detection',
         'block_status' => 'Block Status',
+        'first_click_at' => 'First Click (ISO)',
+        'last_click_at' => 'Last Click (ISO)',
+        'first_click_label' => 'First Click',
+        'last_click_datetime_label' => 'Last Click Date/Time',
+        'session_count' => 'Session Count',
+        'last_path' => 'Last Page',
+        'last_cta' => 'Last CTA',
+        'clicks_60m' => 'Clicks 60m',
+        'paid_risk_score' => 'Paid Risk Score',
+        'traffic_status' => 'Traffic Status',
+        'block_scope' => 'Block Scope',
+        'ip_exclusion' => 'IP Exclusion',
+        'action_taken' => 'Action Taken',
+        'google_click_id' => 'Google Click ID',
+        'google_click_type' => 'Google Click Type',
+        'manual_decision' => 'Manual Decision',
+        'manual_decision_reason' => 'Manual Decision Reason',
+        'original_threat_group' => 'Original Threat Group',
+        'original_threat_type' => 'Original Threat Type',
+        'vpn_hits' => 'VPN Hits',
+        'data_center_hits' => 'Datacenter Hits',
+        'session_recording_id' => 'Session Recording ID',
     ];
 
     /**
@@ -107,7 +130,7 @@ class ClickronixTrafficReport
         ],
         'device_browser' => [
             'label' => 'Device / Browser',
-            'keys' => ['ip', 'device', 'browser', 'os', 'screen_resolution', 'language', 'visitor_timezone', 'device_fingerprint'],
+            'keys' => ['ip', 'device', 'browser', 'browser_version', 'os', 'screen_resolution', 'language', 'visitor_timezone', 'device_fingerprint'],
         ],
         'session_behavior' => [
             'label' => 'Session / Behavior',
@@ -190,6 +213,10 @@ class ClickronixTrafficReport
      */
     public static function resolveExportKeys(?string $columnGroup, ?string $columnsCsv): ?array
     {
+        if (strtolower(trim((string) $columnsCsv)) === 'all') {
+            return array_keys(self::COLUMN_LABELS);
+        }
+
         $fromCsv = self::parseColumnsCsv($columnsCsv);
         if ($fromCsv !== []) {
             return $fromCsv;
@@ -333,7 +360,11 @@ class ClickronixTrafficReport
     public static function valueForKey(array $row, string $key): mixed
     {
         if ($key === 'session_recording') {
-            $rec = $row['session_recording'] ?? $row['recording_id'] ?? null;
+            $rec = $row['session_recording']
+                ?? $row['session_recording_id']
+                ?? $row['recording_id']
+                ?? $row['has_session_recording']
+                ?? null;
             if (is_array($rec)) {
                 return ($rec['id'] ?? null) ? 'Yes' : 'No';
             }

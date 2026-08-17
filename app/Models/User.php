@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -347,8 +348,11 @@ class User extends Authenticatable
      */
     public function avatarUrl(): ?string
     {
-        if (filled($this->avatar_path)) {
-            return asset('storage/'.$this->avatar_path);
+        if (filled($this->avatar_path) && Storage::disk('public')->exists((string) $this->avatar_path)) {
+            return route('profile.avatar.show', [
+                'user' => $this->getKey(),
+                'v' => $this->updated_at?->getTimestamp(),
+            ]);
         }
 
         $google = trim((string) ($this->google_avatar_url ?? ''));

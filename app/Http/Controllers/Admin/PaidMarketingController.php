@@ -1720,7 +1720,7 @@ class PaidMarketingController extends Controller
             'status' => $status,
             'status_badge_class' => RiskLabels::cssClass($status),
             'is_allowlisted' => $isAllowListed,
-            'intel_region' => $ipLog?->intel_region ?? $raw['region'] ?? $raw['region_code'] ?? $raw['state'] ?? null,
+            'intel_region' => $ipLog?->intel_region ?? $raw['region'] ?? $raw['region_code'] ?? $raw['state'] ?? $raw['state1'] ?? $raw['state2'] ?? null,
             'intel_city' => $ipLog?->intel_city ?? $raw['city'] ?? null,
             'intel_latitude' => $raw['latitude'] ?? null,
             'intel_longitude' => $raw['longitude'] ?? null,

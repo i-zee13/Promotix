@@ -180,9 +180,14 @@
                                             </button>
                                         </x-slot:trigger>
                                         @if ($subscription->user_id)
-                                            <a href="{{ route('super-admin.users.show', $subscription->user_id) }}" class="figma-sa-users-action-item">View user</a>
+                                            <a href="{{ route('super-admin.users.show', $subscription->user_id) }}" class="figma-sa-users-action-item">Edit</a>
                                         @endif
                                         <button form="{{ $fid }}" type="submit" class="figma-sa-users-action-item w-full text-left">Save changes</button>
+                                        <form method="POST" action="{{ route('super-admin.subscriptions.destroy', $subscription) }}" onsubmit="return confirm('Remove this subscription?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="figma-sa-users-action-item w-full text-left text-rose-300">Remove</button>
+                                        </form>
                                     </x-super-admin.dashboard-dropdown>
                                 </td>
                             </tr>

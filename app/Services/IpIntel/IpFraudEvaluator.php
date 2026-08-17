@@ -103,7 +103,12 @@ class IpFraudEvaluator
             && GeoAudienceMatcher::isBlocked(
                 $settings,
                 $resolvedCountryEarly,
-                $ipLog->intel_region ?? $rawEarly['region'] ?? $rawEarly['state'] ?? null,
+                $ipLog->intel_region
+                    ?? $rawEarly['region']
+                    ?? $rawEarly['state']
+                    ?? $rawEarly['state1']
+                    ?? $rawEarly['region_code']
+                    ?? null,
                 $ipLog->intel_city ?? $rawEarly['city'] ?? null,
                 $ipLog,
                 $domain,
@@ -116,7 +121,12 @@ class IpFraudEvaluator
             $allowed = GeoAudienceMatcher::isAllowed(
                 $settings,
                 $resolvedCountryEarly,
-                $ipLog->intel_region ?? $rawEarly['region'] ?? $rawEarly['state'] ?? null,
+                $ipLog->intel_region
+                    ?? $rawEarly['region']
+                    ?? $rawEarly['state']
+                    ?? $rawEarly['state1']
+                    ?? $rawEarly['region_code']
+                    ?? null,
                 $ipLog->intel_city ?? $rawEarly['city'] ?? null,
                 $ipLog,
                 $domain,
@@ -385,7 +395,12 @@ class IpFraudEvaluator
             $allowed = GeoAudienceMatcher::isAllowed(
                 $settings,
                 $resolvedCountry,
-                $ipLog->intel_region ?? $raw['region'] ?? $raw['state'] ?? null,
+                $ipLog->intel_region
+                    ?? $raw['region']
+                    ?? $raw['state']
+                    ?? $raw['state1']
+                    ?? $raw['region_code']
+                    ?? null,
                 $ipLog->intel_city ?? $raw['city'] ?? null,
                 $ipLog,
                 $domain,

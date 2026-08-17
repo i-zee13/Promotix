@@ -468,6 +468,14 @@ class UserTimezone
         return "DATE(CONVERT_TZ({$column}, '+00:00', '{$offset}'))";
     }
 
+    /** SQL bucket key for local hour (e.g. 2026-08-17 14:00:00). */
+    public static function localHourBucketSql(string $column, ?User $user = null, ?string $timezone = null): string
+    {
+        $offset = Carbon::now($timezone && self::isValid($timezone) ? $timezone : self::reportingTimezoneForUser($user))->format('P');
+
+        return "DATE_FORMAT(CONVERT_TZ({$column}, '+00:00', '{$offset}'), '%Y-%m-%d %H:00:00')";
+    }
+
     /** SQL expression for the visit timestamp converted to the user's timezone. */
     public static function localDateTimeSql(string $column, ?User $user = null, ?string $timezone = null): string
     {

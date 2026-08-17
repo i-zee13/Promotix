@@ -314,7 +314,10 @@ class DashboardController extends Controller
     public function trends(Request $request): JsonResponse
     {
         $domainIds = $this->scopedDomainIds($request);
-        [$from, $to] = $this->dateRange($request);
+        $user = $request->user();
+        $tz = UserTimezone::reportingTimezoneForUser($user);
+        [$metricFrom, $metricTo] = UserTimezone::calendarDateRangeFromRequest($request, $user, 6, $tz);
+        $hourly = $metricFrom === $metricTo;
 
         $labels = [];
         $totalSeries = [];
@@ -323,43 +326,70 @@ class DashboardController extends Controller
         $indexed = [];
 
         if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
+            $bucketExpr = $hourly
+                ? UserTimezone::localHourBucketSql('visited_at', $user, $tz)
+                : UserTimezone::localDateSql('visited_at', $user, $tz);
+
             $query = $this->applyVisitFilters(
-                DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]),
+                DB::table('visits')->whereIn('domain_id', $domainIds),
                 $request
             );
+            UserTimezone::applyCalendarDateRangeFilter($query, 'visited_at', $metricFrom, $metricTo, $user, $tz);
             GoogleClickAttribution::applyHasClickIdFilter($query);
 
             $rows = $query
-                ->selectRaw('DATE(visited_at) as day, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid')
-                ->groupBy('day')
-                ->orderBy('day')
+                ->selectRaw("{$bucketExpr} as bucket, COUNT(*) as total, SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid")
+                ->groupBy('bucket')
+                ->orderBy('bucket')
                 ->get();
 
             foreach ($rows as $row) {
-                $day = Carbon::parse((string) $row->day)->toDateString();
-                $indexed[$day] = [
+                $key = (string) $row->bucket;
+                $indexed[$key] = [
                     'total' => (int) $row->total,
                     'invalid' => (int) $row->invalid,
                 ];
             }
         }
 
-        $cursor = $from->copy()->startOfDay();
-        $end = $to->copy()->startOfDay();
-        while ($cursor->lte($end)) {
-            $dateKey = $cursor->toDateString();
-            $labels[] = $cursor->format('M d');
-            $total = (int) ($indexed[$dateKey]['total'] ?? 0);
-            $invalid = (int) ($indexed[$dateKey]['invalid'] ?? 0);
-            $totalSeries[] = $total;
-            $invalidSeries[] = $invalid;
-            $validSeries[] = max(0, $total - $invalid);
-            $cursor->addDay();
+        if ($hourly) {
+            $cursor = Carbon::parse($metricFrom, $tz)->startOfDay();
+            $end = Carbon::parse($metricTo, $tz)->endOfDay()->startOfHour();
+            while ($cursor->lte($end)) {
+                $key = $cursor->format('Y-m-d H:00:00');
+                $labels[] = $cursor->format('g A');
+                $total = (int) ($indexed[$key]['total'] ?? 0);
+                $invalid = (int) ($indexed[$key]['invalid'] ?? 0);
+                $totalSeries[] = $total;
+                $invalidSeries[] = $invalid;
+                $validSeries[] = max(0, $total - $invalid);
+                $cursor->addHour();
+            }
+        } else {
+            $cursor = Carbon::parse($metricFrom, $tz)->startOfDay();
+            $end = Carbon::parse($metricTo, $tz)->startOfDay();
+            $spanDays = $cursor->diffInDays($end) + 1;
+            while ($cursor->lte($end)) {
+                $key = $cursor->toDateString();
+                $labels[] = $spanDays <= 14
+                    ? $cursor->format('D n/j')
+                    : $cursor->format('M j');
+                $total = (int) ($indexed[$key]['total'] ?? 0);
+                $invalid = (int) ($indexed[$key]['invalid'] ?? 0);
+                $totalSeries[] = $total;
+                $invalidSeries[] = $invalid;
+                $validSeries[] = max(0, $total - $invalid);
+                $cursor->addDay();
+            }
         }
 
         return response()->json([
             'labels' => $labels,
             'values' => $invalidSeries,
+            'granularity' => $hourly ? 'hourly' : 'daily',
+            'granularity_label' => $hourly
+                ? 'Hourly · '.Carbon::parse($metricFrom, $tz)->format('M j')
+                : 'Daily · '.Carbon::parse($metricFrom, $tz)->format('M j').' – '.Carbon::parse($metricTo, $tz)->format('M j'),
             'datasets' => [
                 ['key' => 'total', 'name' => 'Total Clicks', 'color' => '#B893D8', 'values' => $totalSeries],
                 ['key' => 'valid', 'name' => 'Valid Clicks', 'color' => '#4ADE80', 'values' => $validSeries],

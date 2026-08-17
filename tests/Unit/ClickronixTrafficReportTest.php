@@ -95,4 +95,21 @@ class ClickronixTrafficReportTest extends TestCase
         $this->assertSame(['ip', 'device_id', 'gclid'], $keys);
         $this->assertNull(ClickronixTrafficReport::resolveExportKeys(null, null));
     }
+
+    public function test_all_columns_option_exports_the_complete_catalog(): void
+    {
+        $keys = ClickronixTrafficReport::resolveExportKeys(null, 'all');
+
+        $this->assertSame(array_keys(ClickronixTrafficReport::COLUMN_LABELS), $keys);
+        $this->assertContains('paid_identity_id', $keys);
+        $this->assertContains('session_recording', $keys);
+        $this->assertContains('browser_version', $keys);
+        $this->assertContains('intel_cloud_provider', $keys);
+        $this->assertContains('ads_primary_rule', $keys);
+        $this->assertContains('last_path', $keys);
+        $this->assertContains('session_count', $keys);
+        $this->assertSame('Yes', ClickronixTrafficReport::valueForKey([
+            'session_recording_id' => 123,
+        ], 'session_recording'));
+    }
 }

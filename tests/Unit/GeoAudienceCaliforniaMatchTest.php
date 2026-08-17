@@ -64,4 +64,32 @@ class GeoAudienceCaliforniaMatchTest extends TestCase
         $this->assertFalse(GeoAudienceMatcher::isAllowed($settings, 'US', null, 'Tulsa'));
         $this->assertFalse(GeoAudienceMatcher::isAllowed($settings, 'US', 'Washington', 'Washington'));
     }
+
+    public function test_ipdetails_state1_california_cities_are_allowed(): void
+    {
+        $settings = $this->californiaSettings();
+
+        foreach ([
+            ['San Jose', 'California'],
+            ['Long Beach', 'California'],
+            ['San Diego', 'California'],
+        ] as [$city, $state1]) {
+            $ipLog = new \App\Models\IpLog([
+                'ip' => '1.2.3.4',
+                'intel_country_code' => 'US',
+                'intel_region' => null,
+                'intel_city' => null,
+                'ipdetails_raw' => [
+                    'city' => $city,
+                    'state1' => $state1,
+                    'country_code' => 'US',
+                ],
+            ]);
+
+            $this->assertTrue(
+                GeoAudienceMatcher::isAllowed($settings, 'US', null, null, $ipLog),
+                "Expected {$city} / {$state1} to be allowed for California audience"
+            );
+        }
+    }
 }

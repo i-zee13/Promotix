@@ -883,6 +883,7 @@
                 <div class="mb-[10px] flex flex-wrap items-center justify-between gap-[8px]">
                     <div class="flex min-w-0 flex-wrap items-center gap-[8px]">
                         <h2 class="text-[15px] font-semibold text-[#a9a9a9] sm:text-[16px]">Paid Traffic Trend</h2>
+                        <span class="rounded-[4px] border border-white/10 bg-white/5 px-[6px] py-[2px] text-[9px] text-white/55" x-text="trends.granularity_label || (filters.from && filters.from === filters.to ? 'Hourly · Today' : 'Daily')"></span>
                         <div class="flex flex-wrap items-center gap-[6px]">
                             <template x-for="item in trendsLegendItems()" :key="item.key">
                                 <button
@@ -898,8 +899,9 @@
                         </div>
                     </div>
                     <select x-model="filters.window" @change="setWindow()" class="paid-window-select">
-                        <option value="weekly">This Week</option>
-                        <option value="monthly">This Month</option>
+                        <option value="today">Today (Hourly)</option>
+                        <option value="weekly">This Week (Daily)</option>
+                        <option value="monthly">This Month (Daily)</option>
                     </select>
                 </div>
                 <div class="paid-trends-wrap flex-1" style="line-height: 0;">
@@ -912,8 +914,9 @@
                 <div class="mb-[10px] flex items-center justify-between gap-[8px]">
                     <h2 class="text-[15px] font-semibold text-[#a9a9a9] sm:text-[16px]">Click Activity Heatmap</h2>
                     <select x-model="filters.window" @change="setWindow()" class="paid-window-select">
-                        <option value="weekly">This Week</option>
-                        <option value="monthly">This Month</option>
+                        <option value="today">Today (Hourly)</option>
+                        <option value="weekly">This Week (Daily)</option>
+                        <option value="monthly">This Month (Daily)</option>
                     </select>
                 </div>
                 <div id="heatmap-grid" class="paid-heatmap-grid flex-1"></div>
@@ -1158,6 +1161,12 @@
 
             <div class="figma-click-modal-layout">
                 <aside class="figma-click-modal-sidebar">
+                    <template x-if="ipModal.row && !ipModal.loading">
+                        <div class="mb-3 space-y-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/70">
+                            <p><span class="text-white/45">Paid Clicks (this IP):</span> <span class="text-white" x-text="fmt(ipModal.row.total)"></span></p>
+                            <p><span class="text-white/45">Clicks 60m (device/PID):</span> <span class="text-white" x-text="fmt(ipModal.row.clicks_60m ?? ipModal.row.total)"></span></p>
+                        </div>
+                    </template>
                     <template x-if="ipModal.loading">
                         <p class="text-sm text-white/50">Loading clicks…</p>
                     </template>
@@ -1168,6 +1177,7 @@
                                 @click="ipModal.activeIndex = idx">
                             <p class="text-sm font-semibold text-white" x-text="`Click ${idx + 1}`"></p>
                             <p class="text-xs text-white/50" x-text="formatDateTime(c.clicked_at || c.last_click_at)"></p>
+                            <p class="mt-0.5 text-[10px] text-violet-300" x-show="c.is_related" x-text="c.ip ? ('Related · ' + ipLabel(c.ip)) : 'Related · other IP'"></p>
                         </button>
                     </template>
                     <template x-if="!ipModal.loading && ipModal.clicks.length === 0">
@@ -1181,12 +1191,12 @@
                             <div class="figma-click-modal-compact">
                                 <div class="figma-modal-field figma-modal-field--full">
                                     <div class="figma-modal-field__head">
-                                        <p class="figma-modal-label">IP</p>
-                                        <button type="button" class="figma-modal-copy-btn" @click="copyText(ipModal.row?.ip || activeIpClick.ip)">Copy</button>
+                                        <p class="figma-modal-label" x-text="activeIpClick.is_related ? 'IP (related click)' : 'IP'"></p>
+                                        <button type="button" class="figma-modal-copy-btn" @click="copyText(activeIpClick.ip || ipModal.row?.ip)">Copy</button>
                                     </div>
                                     <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm"
-                                       :title="ipModal.row?.ip || activeIpClick.ip"
-                                       x-text="ipLabel(ipModal.row?.ip || activeIpClick.ip)"></p>
+                                       :title="activeIpClick.ip || ipModal.row?.ip"
+                                       x-text="ipLabel(activeIpClick.ip || ipModal.row?.ip)"></p>
                                 </div>
                                 <div class="figma-modal-field">
                                     <p class="figma-modal-label">Status</p>
@@ -1792,11 +1802,37 @@ function paidAdvertisingFigma(config = {}) {
         },
         setWindow() {
             const today = new Date();
-            const days = this.filters.window === 'monthly' ? 29 : 6;
-            const start = new Date(today.getTime() - days * 86400000);
-            this.filters.from = start.toISOString().slice(0, 10);
-            this.filters.to = today.toISOString().slice(0, 10);
+            const iso = today.toISOString().slice(0, 10);
+            if (this.filters.window === 'today') {
+                this.filters.from = iso;
+                this.filters.to = iso;
+            } else {
+                const days = this.filters.window === 'monthly' ? 29 : 6;
+                const start = new Date(today.getTime() - days * 86400000);
+                this.filters.from = start.toISOString().slice(0, 10);
+                this.filters.to = iso;
+            }
+            try {
+                localStorage.setItem('promotix-date-range', JSON.stringify({
+                    from: this.filters.from,
+                    to: this.filters.to,
+                }));
+            } catch (e) {}
+            window.dispatchEvent(new CustomEvent('promotix:date-range', {
+                detail: { from: this.filters.from, to: this.filters.to },
+            }));
             this.reload(false, true);
+        },
+        syncWindowFromDates() {
+            if (!this.filters.from || !this.filters.to) return;
+            if (this.filters.from === this.filters.to) {
+                this.filters.window = 'today';
+                return;
+            }
+            const from = new Date(`${this.filters.from}T00:00:00`);
+            const to = new Date(`${this.filters.to}T00:00:00`);
+            const days = Math.round((to - from) / 86400000) + 1;
+            this.filters.window = days > 10 ? 'monthly' : 'weekly';
         },
         qs(forceGoogle = false) {
             const p = new URLSearchParams();
@@ -2013,16 +2049,18 @@ function paidAdvertisingFigma(config = {}) {
             this.syncHeaderDates();
             if (!this.filters.from || !this.filters.to) {
                 const today = new Date();
-                const days = this.filters.window === 'monthly' ? 29 : 6;
+                const days = this.filters.window === 'monthly' ? 29 : (this.filters.window === 'today' ? 0 : 6);
                 const start = new Date(today.getTime() - days * 86400000);
                 this.filters.from = start.toISOString().slice(0, 10);
                 this.filters.to = today.toISOString().slice(0, 10);
             }
+            this.syncWindowFromDates();
             this.startLivePoll();
             this.startGoogleSyncPoll();
             this.startWatermarkPoll();
             window.addEventListener('promotix:date-range', () => {
                 this.syncHeaderDates();
+                this.syncWindowFromDates();
                 this.scheduleReload();
             });
             document.addEventListener('visibilitychange', () => {
@@ -2141,6 +2179,9 @@ function paidAdvertisingFigma(config = {}) {
             try {
                 const p = new URLSearchParams(this.qs());
                 p.set('ip', row.ip);
+                if (row.device_id) p.set('device_id', row.device_id);
+                if (row.paid_identity_id) p.set('paid_identity_id', row.paid_identity_id);
+                if (row.visitor_id) p.set('visitor_id', row.visitor_id);
                 this.ipModal.clicks = await fetch(`/paid-marketing/ip-clicks?${p}`).then(r => r.json());
             } catch (e) {
                 this.ipModal.clicks = [];
