@@ -62,6 +62,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Roles UI permission picker groups (Product vs Advanced View)
+    | Sidebar nav still uses `groups` above; this only drives role create/edit.
+    |--------------------------------------------------------------------------
+    */
+    'permission_groups' => [
+        [
+            'label' => 'PRODUCT',
+            'slugs' => [
+                'dashboard',
+                'paid-marketing-dashboard',
+                'paid-marketing-platform-connections',
+                'paid-marketing-detection-settings',
+                'bot-protection',
+                'domain-management',
+                'upgrade-plan',
+            ],
+        ],
+        [
+            'label' => 'ADVANCED VIEW',
+            'slugs' => [
+                'paid-marketing-detailed',
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Route name => permission slug (for middleware)
     |--------------------------------------------------------------------------
     */

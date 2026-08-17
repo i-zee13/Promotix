@@ -8,7 +8,7 @@
         <label class="figma-sa-label">Permissions</label>
         <input type="search" x-model="filter" placeholder="Filter permissions..." class="figma-input w-full max-w-xs">
     </div>
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 figma-sa-perm-grid">
         @foreach ($groupedPermissions as $groupLabel => $items)
             <div class="figma-sa-row figma-sa-perm-group p-3" x-data="{ toggleAll(state) { this.$root.querySelectorAll('input[type=checkbox][data-perm]').forEach(el => el.checked = state); } }">
                 <div class="mb-2 flex items-center justify-between gap-2">
@@ -25,14 +25,14 @@
                             $description = \App\Support\PermissionDescription::for($p->slug, $p->route_name);
                             $filterHaystack = strtolower($displayName.' '.$p->slug.' '.$description);
                         @endphp
-                        <label class="figma-sa-perm-item flex cursor-pointer items-center gap-2 rounded px-2 py-1.5"
+                        <label class="figma-sa-perm-item flex cursor-pointer items-start gap-2 rounded px-2 py-1.5"
                             x-show="filter === '' || '{{ addslashes($filterHaystack) }}'.includes(filter.toLowerCase())">
-                            <input type="checkbox" data-perm name="permissions[]" value="{{ $p->id }}" @checked(in_array($p->id, $checkedIds)) class="figma-sa-checkbox rounded">
-                            <span class="min-w-0">
+                            <input type="checkbox" data-perm name="permissions[]" value="{{ $p->id }}" @checked(in_array($p->id, $checkedIds)) class="figma-sa-checkbox mt-0.5 shrink-0 rounded">
+                            <span class="min-w-0 flex-1">
                                 <span class="figma-sa-perm-item__name block">{{ $displayName }}</span>
-                                <span class="mt-0.5 block text-[10px] leading-snug text-white/55">{{ $description }}</span>
+                                <span class="figma-sa-perm-item__desc mt-0.5 block text-[10px] leading-snug">{{ $description }}</span>
+                                <span class="figma-sa-perm-item__slug mt-0.5 block font-mono text-[10px]">{{ $p->slug }}</span>
                             </span>
-                            <span class="figma-sa-perm-item__slug ml-auto shrink-0 font-mono text-[10px]">{{ $p->slug }}</span>
                         </label>
                     @endforeach
                 </div>

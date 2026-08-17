@@ -52,7 +52,8 @@ class PermissionGrouper
      */
     public static function groupOrder(): array
     {
-        $labels = collect(config('admin.groups', []))
+        $source = self::permissionGroupConfig();
+        $labels = collect($source)
             ->pluck('label')
             ->filter()
             ->values()
@@ -74,9 +75,20 @@ class PermissionGrouper
         }
 
         $map = [];
-        foreach ((array) config('admin.groups', []) as $group) {
+        foreach (self::permissionGroupConfig() as $group) {
             $groupLabel = (string) ($group['label'] ?? '');
             if ($groupLabel === '') {
+                continue;
+            }
+
+            if (isset($group['slugs']) && is_array($group['slugs'])) {
+                foreach ($group['slugs'] as $slug) {
+                    $slug = (string) $slug;
+                    if ($slug !== '') {
+                        $map[$slug] = $groupLabel;
+                    }
+                }
+
                 continue;
             }
 
@@ -96,6 +108,21 @@ class PermissionGrouper
         }
 
         return $map;
+    }
+
+    /**
+     * Prefer dedicated roles UI groups; fall back to sidebar `groups`.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function permissionGroupConfig(): array
+    {
+        $dedicated = config('admin.permission_groups');
+        if (is_array($dedicated) && $dedicated !== []) {
+            return $dedicated;
+        }
+
+        return (array) config('admin.groups', []);
     }
 
     /**

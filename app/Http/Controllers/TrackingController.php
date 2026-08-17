@@ -593,7 +593,9 @@ class TrackingController extends Controller
 
             $visitId = DB::table('visits')->insertGetId($visitPayload);
 
-            if ($isPaidTraffic && $paidIdentity instanceof ResolvedPaidIdentity && ! $duplicatePaidClick) {
+            // Duplicate attribution IDs are excluded from unique Google totals,
+            // but every paid visit must advance fraud rolling windows.
+            if ($isPaidTraffic && $paidIdentity instanceof ResolvedPaidIdentity) {
                 try {
                     app(PaidAdvertisingPipeline::class)->recordClick(
                         $domain,

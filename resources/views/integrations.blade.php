@@ -39,10 +39,10 @@
                 @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[16px] w-[16px]'])
                 <span>Generate Tag</span>
             </a>
-            <a href="{{ route('reports.index') }}" class="paid-quick-action" title="View Reports">
+            <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings',{detail:{tab:'reports'}}))" class="paid-quick-action" title="View Reports">
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[16px] w-[16px]'])
                 <span>View Reports</span>
-            </a>
+            </button>
         </div>
     </div>
 
@@ -1411,7 +1411,9 @@ function platformIntegrations(config) {
         get healthItems() {
             const syncAgo = this.relativeAgo(this.connectionHealth.last_sync_at);
             const eventAgo = this.relativeAgo(this.connectionHealth.last_event_at);
-            const apiOk = Boolean(this.googleOAuthConnected || this.googleConnected)
+            // A connected GTM/tag does not mean the Google Ads OAuth/API is
+            // connected. Keep these signals separate in Connection Health.
+            const apiOk = Boolean(this.googleOAuthConnected)
                 && String(this.connectionHealth.health_status || '').toLowerCase() !== 'error';
             const tagOk = this.tagManagerConnected;
             const trackOk = this.trackingScriptOk;
@@ -1442,7 +1444,8 @@ function platformIntegrations(config) {
             return Math.round((items.filter((i) => i.ok).length / items.length) * 100);
         },
         get healthLive() {
-            return this.healthPct >= 75;
+            return Boolean(this.healthItems.find((item) => item.key === 'api')?.ok)
+                && this.healthPct >= 75;
         },
         get filteredPlatformRows() {
             const q = String(this.platformSearch || '').trim().toLowerCase();

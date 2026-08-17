@@ -96,6 +96,17 @@ class IpIntelService
             if (! empty($geo['city']) && empty($ipdetails['city'])) {
                 $ipdetails['city'] = $geo['city'];
             }
+            // ipwho.is exposes ASN/provider data under connection. Preserve it
+            // when ipdetails.io omits those fields so Advanced View is not blank.
+            if (! empty($geo['asn']) && empty($ipdetails['asn'])) {
+                $ipdetails['asn'] = $geo['asn'];
+            }
+            if (! empty($geo['org']) && empty($ipdetails['org'])) {
+                $ipdetails['org'] = $geo['org'];
+            }
+            if (! empty($geo['network']) && empty($ipdetails['network'])) {
+                $ipdetails['network'] = $geo['network'];
+            }
             $log->ipdetails_raw = $ipdetails !== [] ? $ipdetails : null;
             $log->ipdetails_abuser_score = $this->parseAbuserScore($reputation['ipdetails']['abuser_score'] ?? null);
 
@@ -164,6 +175,11 @@ class IpIntelService
             'country' => $geoJson['country'] ?? null,
             'country_code' => $geoJson['country_code'] ?? null,
             'isp' => ($geoJson['connection']['isp'] ?? null) ?? ($geoJson['connection']['org'] ?? null),
+            'asn' => $geoJson['connection']['asn'] ?? null,
+            'org' => $geoJson['connection']['org'] ?? null,
+            'network' => $geoJson['connection']['network']
+                ?? $geoJson['connection']['route']
+                ?? null,
             'city' => $geoJson['city'] ?? null,
             'region' => $geoJson['region'] ?? ($geoJson['region_code'] ?? null),
             'region_code' => $geoJson['region_code'] ?? null,

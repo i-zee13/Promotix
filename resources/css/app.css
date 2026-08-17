@@ -10480,6 +10480,10 @@ a.figma-sa-users-filter-option {
     height: 40px;
     border-radius: 50%;
     background: #d9d9d9;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .figma-sa-users-avatar--sm {
@@ -11007,8 +11011,18 @@ a.figma-sa-users-filter-option {
     color: #ece6f5;
 }
 
+.figma-sa-perm-item__desc {
+    color: rgba(255, 255, 255, 0.55);
+    word-break: break-word;
+}
+
 .figma-sa-perm-item__slug {
     color: #8c8787;
+    word-break: break-all;
+}
+
+.figma-sa-perm-grid {
+    align-items: start;
 }
 
 .light-mode .figma-sa-perm-group__title {
@@ -11033,6 +11047,10 @@ a.figma-sa-users-filter-option {
 
 .light-mode .figma-sa-perm-item__name {
     color: #2d2d3a !important;
+}
+
+.light-mode .figma-sa-perm-item__desc {
+    color: #6b6280 !important;
 }
 
 .light-mode .figma-sa-perm-item__slug {
@@ -11785,9 +11803,44 @@ a.figma-sa-users-filter-option {
     width: auto;
 }
 
+.figma-sa-user-detail-table--logins {
+    min-width: 720px;
+}
+
+.figma-sa-user-detail-table--logins th:nth-child(1),
+.figma-sa-user-detail-table--logins td:nth-child(1) {
+    width: 22%;
+    white-space: nowrap;
+}
+
 .figma-sa-user-detail-table--logins th:nth-child(2),
 .figma-sa-user-detail-table--logins td:nth-child(2) {
-    width: 140px;
+    width: 28%;
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.figma-sa-user-detail-table--logins th:nth-child(3),
+.figma-sa-user-detail-table--logins td:nth-child(3) {
+    width: 14%;
+    white-space: nowrap;
+}
+
+.figma-sa-user-detail-table--logins th:nth-child(4),
+.figma-sa-user-detail-table--logins td:nth-child(4) {
+    width: 14%;
+    white-space: nowrap;
+}
+
+.figma-sa-user-detail-table--logins th:nth-child(5),
+.figma-sa-user-detail-table--logins td:nth-child(5) {
+    width: 22%;
+    min-width: 110px;
+    padding-right: 12px;
+    text-align: left;
+    white-space: nowrap;
 }
 
 .figma-sa-user-detail-mono {

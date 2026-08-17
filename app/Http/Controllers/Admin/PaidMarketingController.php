@@ -103,6 +103,8 @@ class PaidMarketingController extends Controller
             $domains,
         );
 
+        $preferDeviceId = $this->preferredDeviceIdFromRequest($request);
+
         $rows = $visits->map(fn (PaidMarketingVisit $visit) => $this->formatDetailedVisit(
             $visit,
             $request->user(),
@@ -111,7 +113,19 @@ class PaidMarketingController extends Controller
             $verificationLookup,
             $reportingTz,
             $behaviorCounts->get($visit->ip),
+            $preferDeviceId,
         ));
+
+        if ($preferDeviceId !== null) {
+            $needle = strtoupper($preferDeviceId);
+            $rows = $rows
+                ->filter(function (array $row) use ($needle): bool {
+                    $deviceId = strtoupper(trim((string) ($row['device_id'] ?? '')));
+
+                    return $deviceId !== '' && str_starts_with($deviceId, $needle);
+                })
+                ->values();
+        }
 
         $sortKey = trim((string) $request->query('sort', ''));
         $sortDir = strtolower((string) $request->query('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
@@ -432,7 +446,9 @@ class PaidMarketingController extends Controller
                 $visits->pluck('ip')->unique()->filter()->values()
             );
 
-            $visits->each(function (PaidMarketingVisit $visit) use ($handle, $request, $verificationLookup, $reportingTz, $ipLogs, $behaviorCounts, $exportKeys): void {
+            $preferDeviceId = $this->preferredDeviceIdFromRequest($request);
+
+            $visits->each(function (PaidMarketingVisit $visit) use ($handle, $request, $verificationLookup, $reportingTz, $ipLogs, $behaviorCounts, $exportKeys, $preferDeviceId): void {
                 $row = $this->formatDetailedVisit(
                     $visit,
                     $request->user(),
@@ -441,7 +457,14 @@ class PaidMarketingController extends Controller
                     $verificationLookup,
                     $reportingTz,
                     $behaviorCounts->get($visit->ip),
+                    $preferDeviceId,
                 );
+                if ($preferDeviceId !== null) {
+                    $deviceId = strtoupper(trim((string) ($row['device_id'] ?? '')));
+                    if ($deviceId === '' || ! str_starts_with($deviceId, $preferDeviceId)) {
+                        return;
+                    }
+                }
                 fputcsv($handle, $exportKeys !== null
                     ? ClickronixTrafficReport::valuesForKeys($row, $exportKeys)
                     : ClickronixTrafficReport::valuesFromDetailedVisit($row));
@@ -496,8 +519,10 @@ class PaidMarketingController extends Controller
                 $visits->pluck('ip')->unique()->filter()->values()
             );
 
+            $preferDeviceId = $this->preferredDeviceIdFromRequest($request);
+
             $rows = $visits
-                ->map(function (PaidMarketingVisit $visit) use ($request, $verificationLookup, $reportingTz, $ipLogs, $behaviorCounts) {
+                ->map(function (PaidMarketingVisit $visit) use ($request, $verificationLookup, $reportingTz, $ipLogs, $behaviorCounts, $preferDeviceId) {
                     return $this->formatDetailedVisit(
                         $visit,
                         $request->user(),
@@ -506,9 +531,24 @@ class PaidMarketingController extends Controller
                         $verificationLookup,
                         $reportingTz,
                         $behaviorCounts->get($visit->ip),
+                        $preferDeviceId,
                     );
                 })
+                ->when($preferDeviceId !== null, function (Collection $collection) use ($preferDeviceId) {
+                    return $collection->filter(function (array $row) use ($preferDeviceId): bool {
+                        $deviceId = strtoupper(trim((string) ($row['device_id'] ?? '')));
+
+                        return $deviceId !== '' && str_starts_with($deviceId, $preferDeviceId);
+                    })->values();
+                })
                 ->values();
+
+            if ($request->query('report_group') === 'repeated_ips') {
+                $rows = $rows
+                    ->filter(fn (array $row): bool => (int) ($row['visits'] ?? 0) > 1
+                        || (int) ($row['clicks_60m'] ?? 0) > 1)
+                    ->values();
+            }
 
             $sortKey = trim((string) $request->query('sort', ''));
             $sortDir = strtolower((string) $request->query('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
@@ -524,25 +564,41 @@ class PaidMarketingController extends Controller
             $headers = $exportKeys !== null
                 ? ClickronixTrafficReport::headersForKeys($exportKeys)
                 : ClickronixTrafficReport::headers();
-            foreach ($headers as $i => $header) {
-                $sheet->setCellValue([$i + 1, 1], $header);
-            }
-            $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(max(1, count($headers)));
-            $headerStyle = $sheet->getStyle('A1:'.$lastCol.'1');
-            $headerStyle->getFont()->setBold(true);
-            $headerStyle->getFill()
-                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                ->getStartColor()->setRGB('6400B2');
-            $headerStyle->getFont()->getColor()->setRGB('FFFFFF');
+            $values = $rows->map(fn (array $row) => $exportKeys !== null
+                ? ClickronixTrafficReport::valuesForKeys($row, $exportKeys)
+                : ClickronixTrafficReport::valuesFromDetailedVisit($row));
+            $this->writeXlsxSheet($sheet, $headers, $values);
 
-            $r = 2;
-            foreach ($rows as $row) {
-                $values = $exportKeys !== null
-                    ? ClickronixTrafficReport::valuesForKeys($row, $exportKeys)
-                    : ClickronixTrafficReport::valuesFromDetailedVisit($row);
-                $sheet->fromArray([$values], null, 'A' . $r);
-                $r++;
-            }
+            // Keep the detailed report first, then provide direct identity
+            // relationships in both directions for fraud investigation.
+            $relationships = $this->deviceIpRelationshipRows($request);
+            $ipSheet = $spreadsheet->createSheet();
+            $ipSheet->setTitle('IP to Devices');
+            $this->writeXlsxSheet(
+                $ipSheet,
+                ['IP Address', 'Device ID', 'Device', 'Browser', 'OS', 'Screen', 'Language', 'Timezone', 'Fingerprint ID', 'Visits', 'First Seen', 'Last Seen'],
+                $relationships
+                    ->sortBy(fn (array $row) => $row['ip']."\0".$row['device_id'])
+                    ->map(fn (array $row) => [
+                        $row['ip'], $row['device_id'], $row['device'], $row['browser'], $row['os'],
+                        $row['screen_resolution'], $row['language'], $row['timezone'], $row['fingerprint_id'],
+                        $row['visits'], $row['first_seen'], $row['last_seen'],
+                    ])
+            );
+
+            $deviceSheet = $spreadsheet->createSheet();
+            $deviceSheet->setTitle('Device to IPs');
+            $this->writeXlsxSheet(
+                $deviceSheet,
+                ['Device ID', 'IP Address', 'Device', 'Browser', 'OS', 'Screen', 'Language', 'Timezone', 'Fingerprint ID', 'Visits', 'First Seen', 'Last Seen'],
+                $relationships
+                    ->sortBy(fn (array $row) => $row['device_id']."\0".$row['ip'])
+                    ->map(fn (array $row) => [
+                        $row['device_id'], $row['ip'], $row['device'], $row['browser'], $row['os'],
+                        $row['screen_resolution'], $row['language'], $row['timezone'], $row['fingerprint_id'],
+                        $row['visits'], $row['first_seen'], $row['last_seen'],
+                    ])
+            );
 
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
             $writer->save('php://output');
@@ -551,6 +607,143 @@ class PaidMarketingController extends Controller
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
         ]);
+    }
+
+    /**
+     * Write a consistently styled export sheet.
+     *
+     * @param  iterable<int, iterable<int, mixed>>  $rows
+     */
+    private function writeXlsxSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $headers, iterable $rows): void
+    {
+        foreach ($headers as $i => $header) {
+            $sheet->setCellValue([$i + 1, 1], $header);
+        }
+
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(max(1, count($headers)));
+        $headerStyle = $sheet->getStyle('A1:'.$lastCol.'1');
+        $headerStyle->getFont()->setBold(true);
+        $headerStyle->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('6400B2');
+        $headerStyle->getFont()->getColor()->setRGB('FFFFFF');
+        $sheet->freezePane('A2');
+        $sheet->setAutoFilter('A1:'.$lastCol.'1');
+
+        $rowNumber = 2;
+        foreach ($rows as $values) {
+            $sheet->fromArray([is_array($values) ? $values : iterator_to_array($values)], null, 'A'.$rowNumber);
+            $rowNumber++;
+        }
+    }
+
+    /**
+     * Paid-click identities within the selected Advanced View scope, grouped by
+     * IP and device. The same data can then be ordered either way in XLSX.
+     *
+     * @return Collection<int, array{
+     *   ip: string, device_id: string, device: string, browser: string, os: string,
+     *   screen_resolution: string, language: string, timezone: string,
+     *   fingerprint_id: string, visits: int, first_seen: string, last_seen: string
+     * }>
+     */
+    private function deviceIpRelationshipRows(Request $request): Collection
+    {
+        if (! Schema::hasTable('visits')) {
+            return collect();
+        }
+
+        [$from, $to, , $reportingTz] = $this->reportingWindow($request);
+        $domainIds = $this->scopedPaidDomainIds($request);
+        if ($domainIds->isEmpty()) {
+            return collect();
+        }
+
+        $column = static fn (string $name, string $alias): string => Schema::hasColumn('visits', $name)
+            ? "{$name} as {$alias}"
+            : "NULL as {$alias}";
+        $query = DB::table('visits')
+            ->whereIn('domain_id', $domainIds->all())
+            ->select([
+                'ip',
+                DB::raw($column('device_id', 'device_id')),
+                DB::raw($column('device', 'device')),
+                DB::raw($column('browser', 'browser')),
+                DB::raw($column('os', 'os')),
+                DB::raw($column('screen_resolution', 'screen_resolution')),
+                DB::raw($column('language', 'language')),
+                DB::raw($column('timezone', 'timezone')),
+                DB::raw($column('fingerprint_id', 'fingerprint_id')),
+                'visited_at',
+            ])
+            ->whereNotNull('ip')
+            ->where('ip', '!=', '');
+
+        UserTimezone::applyCalendarDateRangeFilter(
+            $query,
+            'visited_at',
+            $from,
+            $to,
+            $request->user(),
+            $reportingTz,
+        );
+        GoogleClickAttribution::applyHasClickIdFilter($query);
+
+        $search = trim((string) $request->query('ip', ''));
+        if ($search !== '') {
+            $query->where(function ($match) use ($search): void {
+                $match->where('ip', 'like', '%'.$search.'%');
+                if (Schema::hasColumn('visits', 'device_id')) {
+                    $match->orWhere('device_id', 'like', '%'.$search.'%');
+                }
+            });
+        }
+
+        return $query
+            ->orderByDesc('visited_at')
+            ->limit(25000)
+            ->get()
+            ->map(function (object $visit): array {
+                $deviceId = trim((string) ($visit->device_id ?? ''));
+                $fingerprintId = trim((string) ($visit->fingerprint_id ?? ''));
+                // Do not merge unknown devices together. A row without a stable
+                // device identifier remains attributable to its IP only.
+                $key = $deviceId !== '' ? $deviceId : ($fingerprintId !== '' ? $fingerprintId : 'Unknown');
+
+                return [
+                    'ip' => (string) $visit->ip,
+                    'device_key' => $key,
+                    'device_id' => $deviceId !== '' ? $deviceId : '—',
+                    'device' => (string) ($visit->device ?? ''),
+                    'browser' => (string) ($visit->browser ?? ''),
+                    'os' => (string) ($visit->os ?? ''),
+                    'screen_resolution' => (string) ($visit->screen_resolution ?? ''),
+                    'language' => (string) ($visit->language ?? ''),
+                    'timezone' => (string) ($visit->timezone ?? ''),
+                    'fingerprint_id' => $fingerprintId,
+                    'visited_at' => (string) ($visit->visited_at ?? ''),
+                ];
+            })
+            ->groupBy(fn (array $row) => $row['ip'].'|'.$row['device_key'])
+            ->map(function (Collection $rows): array {
+                $latest = $rows->sortByDesc('visited_at')->first();
+
+                return [
+                    'ip' => $latest['ip'],
+                    'device_id' => $latest['device_id'],
+                    'device' => $latest['device'],
+                    'browser' => $latest['browser'],
+                    'os' => $latest['os'],
+                    'screen_resolution' => $latest['screen_resolution'],
+                    'language' => $latest['language'],
+                    'timezone' => $latest['timezone'],
+                    'fingerprint_id' => $latest['fingerprint_id'],
+                    'visits' => $rows->count(),
+                    'first_seen' => (string) $rows->min('visited_at'),
+                    'last_seen' => (string) $rows->max('visited_at'),
+                ];
+            })
+            ->values();
     }
 
     public function showSessionRecording(Request $request, int $recording): JsonResponse
@@ -1286,6 +1479,7 @@ class PaidMarketingController extends Controller
         ?GoogleVerifiedCampaignLookup $verificationLookup = null,
         ?string $reportingTz = null,
         ?object $behaviorCounts = null,
+        ?string $preferDeviceId = null,
     ): array {
         // Prefer live `visits` range stats (same source as Paid Dashboard Recent IPs).
         // Never fall back to lifetime paid_marketing_visits.visits — that inflates
@@ -1355,7 +1549,7 @@ class PaidMarketingController extends Controller
 
         $intel = $this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain);
         $clickIds = $this->hydrateGoogleClickIds($visit, $clicks);
-        $sessionMeta = $this->hydrateVisitSessionMeta($visit);
+        $sessionMeta = $this->hydrateVisitSessionMeta($visit, $preferDeviceId);
         $deviceLabel = $this->normalizeDeviceLabel($visit->platform ?: ($sessionMeta['os'] ?? null));
         $reasons = [];
         if ($visit->manual_decision) {
@@ -1679,6 +1873,22 @@ class PaidMarketingController extends Controller
         return ucfirst($platform);
     }
 
+    private function intelScalar(mixed $value): ?string
+    {
+        if (is_array($value)) {
+            $value = $value['asn']
+                ?? $value['name']
+                ?? $value['org']
+                ?? $value['range']
+                ?? $value['prefix']
+                ?? null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : null;
+    }
+
     /** @return array<string, mixed> */
     private function intelFieldsForVisit(PaidMarketingVisit $visit, ?IpLog $ipLog, ?\App\Models\User $user = null, ?Domain $domain = null): array
     {
@@ -1724,12 +1934,34 @@ class PaidMarketingController extends Controller
             'intel_city' => $ipLog?->intel_city ?? $raw['city'] ?? null,
             'intel_latitude' => $raw['latitude'] ?? null,
             'intel_longitude' => $raw['longitude'] ?? null,
-            'intel_asn' => $raw['asn'] ?? null,
-            'intel_asn_org' => $raw['company'] ?? $raw['org'] ?? $ipLog?->intel_isp,
+            'intel_asn' => $this->intelScalar(
+                $raw['asn']
+                    ?? $raw['as_number']
+                    ?? $raw['asn_number']
+                    ?? $raw['autonomous_system_number']
+                    ?? data_get($raw, 'connection.asn')
+            ),
+            'intel_asn_org' => $this->intelScalar(
+                $raw['company']
+                    ?? $raw['org']
+                    ?? data_get($raw, 'connection.org')
+                    ?? $ipLog?->intel_isp
+            ),
             'intel_isp' => $ipLog?->intel_isp ?? null,
             'intel_network_range' => $raw['network'] ?? $raw['network_range'] ?? null,
             'intel_routed_prefix' => $raw['prefix'] ?? $raw['routed_prefix'] ?? null,
-            'intel_allocated_range' => $raw['allocated'] ?? $raw['allocated_range'] ?? null,
+            'intel_allocated_range' => $this->intelScalar(
+                $raw['allocated']
+                    ?? $raw['allocated_range']
+                    ?? data_get($raw, 'rir.allocated')
+                    ?? $raw['network']
+                    ?? $raw['network_range']
+                    ?? $raw['range']
+                    ?? $raw['cidr']
+                    ?? $raw['prefix']
+                    ?? $raw['routed_prefix']
+                    ?? null
+            ),
             'intel_range_note' => $raw['range_note'] ?? null,
             'intel_vpn' => $isVpn ? 'Yes' : 'No',
             'intel_proxy' => $isProxy ? 'Yes' : 'No',
@@ -1780,6 +2012,16 @@ class PaidMarketingController extends Controller
         return $needs ? 'Yes' : 'No';
     }
 
+    private function preferredDeviceIdFromRequest(Request $request): ?string
+    {
+        $term = trim(preg_replace('/\s+/', '', (string) $request->query('ip', '')) ?? '');
+        if ($term === '' || ! preg_match('/^DEV_[A-Za-z0-9]+$/i', $term)) {
+            return null;
+        }
+
+        return strtoupper($term);
+    }
+
     /**
      * @return array{
      *   session_id: ?string,
@@ -1806,7 +2048,7 @@ class PaidMarketingController extends Controller
      *   action_taken: ?string
      * }
      */
-    private function hydrateVisitSessionMeta(PaidMarketingVisit $visit): array
+    private function hydrateVisitSessionMeta(PaidMarketingVisit $visit, ?string $preferDeviceId = null): array
     {
         $empty = [
             'session_id' => null,
@@ -1863,11 +2105,26 @@ class PaidMarketingController extends Controller
             }
         }
 
-        $row = DB::table('visits')
+        $base = DB::table('visits')
             ->where('domain_id', $visit->domain_id)
-            ->where('ip', $visit->ip)
-            ->orderByDesc('visited_at')
-            ->first($select);
+            ->where('ip', $visit->ip);
+
+        $row = null;
+        if ($preferDeviceId && Schema::hasColumn('visits', 'device_id')) {
+            $row = (clone $base)
+                ->where(function ($q) use ($preferDeviceId): void {
+                    $q->where('device_id', $preferDeviceId)
+                        ->orWhere('device_id', 'like', $preferDeviceId.'%');
+                })
+                ->orderByDesc('visited_at')
+                ->first($select);
+        }
+
+        if (! $row) {
+            $row = (clone $base)
+                ->orderByDesc('visited_at')
+                ->first($select);
+        }
 
         $fingerprint = null;
         if (Schema::hasTable('visit_session_recordings') && Schema::hasColumn('visit_session_recordings', 'behavior_fingerprint')) {
@@ -2860,9 +3117,10 @@ class PaidMarketingController extends Controller
 
     public function detectionSettings(Request $request): View
     {
+        // Detection rules apply to any manual domain — do not require Google Ads linkage.
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
+            ->forPaidMarketingSetup()
             ->orderBy('hostname')
             ->get();
 

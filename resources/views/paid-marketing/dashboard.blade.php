@@ -33,10 +33,10 @@
                 @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[16px] w-[16px]'])
                 <span>Generate Tag</span>
             </a>
-            <a href="{{ route('reports.index') }}" class="paid-quick-action" title="View Reports">
+            <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings',{detail:{tab:'reports'}}))" class="paid-quick-action" title="View Reports">
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[16px] w-[16px]'])
                 <span>View Reports</span>
-            </a>
+            </button>
         </div>
     </div>
 

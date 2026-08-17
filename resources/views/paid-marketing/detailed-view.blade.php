@@ -1402,6 +1402,16 @@
     function paidMarketingDetailed(config = {}) {
         const columnCatalog = [
             { key: 'ip', label: 'IP Address', primary: true, min: 120 },
+            { key: 'device_id', label: 'Device ID', primary: true, min: 112 },
+            { key: 'device', label: 'Device', primary: true, min: 72 },
+            { key: 'browser', label: 'Browser', primary: true, min: 80 },
+            { key: 'browser_version', label: 'Browser Version', primary: true, min: 92 },
+            { key: 'os', label: 'OS', primary: true, min: 72 },
+            { key: 'screen_resolution', label: 'Screen', primary: true, min: 72 },
+            { key: 'language', label: 'Language', primary: true, min: 64 },
+            { key: 'visitor_timezone', label: 'Timezone', primary: true, min: 80 },
+            { key: 'fingerprint_id', label: 'Fingerprint ID', primary: true, min: 112 },
+            { key: 'device_fingerprint', label: 'Fingerprint', primary: true, min: 100 },
             { key: 'visits', label: 'Visits', primary: true, min: 44 },
             { key: 'domain', label: 'Domain', primary: true, min: 100 },
             { key: 'campaign', label: 'Campaigns', primary: true, min: 100 },
@@ -1409,14 +1419,6 @@
             { key: 'gbraid', label: 'GBRAID', primary: false, min: 110 },
             { key: 'wbraid', label: 'WBRAID', primary: false, min: 110 },
             { key: 'session_id', label: 'Session ID', primary: false, min: 100 },
-            { key: 'device_fingerprint', label: 'Fingerprint', primary: false, min: 90 },
-            { key: 'device', label: 'Device', primary: true, min: 72 },
-            { key: 'browser', label: 'Browser', primary: false, min: 80 },
-            { key: 'browser_version', label: 'Browser Version', primary: false, min: 92 },
-            { key: 'os', label: 'OS', primary: false, min: 72 },
-            { key: 'screen_resolution', label: 'Screen', primary: false, min: 72 },
-            { key: 'language', label: 'Language', primary: false, min: 64 },
-            { key: 'visitor_timezone', label: 'Timezone', primary: false, min: 80 },
             { key: 'last_click_label', label: 'Last Click', primary: true, min: 76 },
             { key: 'threat_group', label: 'Threat Group', primary: true, min: 84 },
             { key: 'threat_type', label: 'Threat Type', primary: true, min: 76 },
@@ -1458,10 +1460,8 @@
             { key: 'intel_matched_provider', label: 'Matched Provider', primary: false, min: 110 },
             { key: 'intel_matched_dataset', label: 'Matched Dataset', primary: false, min: 110 },
             { key: 'intel_cloud_provider', label: 'Cloud Provider', primary: false, min: 100 },
-            { key: 'device_id', label: 'Device ID', primary: false, min: 100 },
             { key: 'visitor_id', label: 'Visitor ID', primary: false, min: 100 },
             { key: 'browser_id', label: 'Browser ID', primary: false, min: 100 },
-            { key: 'fingerprint_id', label: 'Fingerprint ID', primary: false, min: 100 },
             { key: 'paid_identity_id', label: 'Paid Identity ID', primary: false, min: 110 },
             { key: 'identity_confidence', label: 'Identity Confidence', primary: false, min: 90 },
             { key: 'keyword', label: 'Keyword', primary: false, min: 90 },
@@ -1488,7 +1488,7 @@
             {
                 id: 'ip_intelligence',
                 label: 'IP Intelligence',
-                keys: ['ip', 'country', 'intel_region', 'intel_city', 'intel_asn', 'intel_asn_org', 'intel_isp', 'intel_provider_type', 'intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_ip_need_blockation', 'intel_block_reason'],
+                keys: ['ip', 'country', 'intel_region', 'intel_city', 'intel_asn', 'intel_asn_org', 'intel_isp', 'intel_network_range', 'intel_routed_prefix', 'intel_allocated_range', 'intel_provider_type', 'intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_ip_need_blockation', 'intel_block_reason'],
             },
             {
                 id: 'device_browser',
@@ -1754,10 +1754,14 @@
                 return this.dataFilterKeys.filter((key) => String(this.filters[key] || '').trim() !== '').length;
             },
             get activeFilterChips() {
-                const labels = {
-                    ip: (String(this.filters.ip || '').length >= 20 && !/^\d{1,3}(\.\d{1,3}){3}$/.test(String(this.filters.ip || '').trim()))
+                const searchTerm = String(this.filters.ip || '').trim();
+                const searchLabel = /^DEV_[A-Za-z0-9]+$/i.test(searchTerm)
+                    ? 'Device ID'
+                    : ((searchTerm.length >= 20 && !/^\d{1,3}(\.\d{1,3}){3}$/.test(searchTerm))
                         ? 'Click ID'
-                        : 'IP',
+                        : 'IP');
+                const labels = {
+                    ip: searchLabel,
                     path: 'Path', campaign: 'Campaign', country: 'Country', keyword: 'Keyword',
                     ad_group: 'Ad group', source: 'Source', browser: 'Browser', device: 'Device',
                     detection: 'Detection', threat_group: 'Threat', risk_level: 'Risk', block_status: 'Block',
@@ -1989,21 +1993,27 @@
             sleep(ms) {
                 return new Promise((resolve) => setTimeout(resolve, ms));
             },
-            async runStaggered(jobs) {
-                const generation = ++this.fetchGeneration;
+            isFetchCurrent(generation) {
+                return generation === this.fetchGeneration;
+            },
+            async runStaggered(jobs, generation) {
                 const pending = [];
                 for (let i = 0; i < jobs.length; i++) {
-                    if (generation !== this.fetchGeneration) break;
+                    if (! this.isFetchCurrent(generation)) break;
                     if (i > 0) await this.sleep(this.staggerMs);
-                    if (generation !== this.fetchGeneration) break;
+                    if (! this.isFetchCurrent(generation)) break;
+                    const job = jobs[i];
                     pending.push((async () => {
                         try {
-                            await jobs[i]();
-                        } catch (e) { /* keep previous slice */ }
+                            await job(generation);
+                        } catch (e) {
+                            // Stale generations must not clear the newest result set.
+                            if (this.isFetchCurrent(generation)) throw e;
+                        }
                     })());
                 }
                 await Promise.all(pending);
-                return generation === this.fetchGeneration;
+                return this.isFetchCurrent(generation);
             },
             kpiCardsFromSummary(summary) {
                 const googleClicks = Number(summary?.total_click_count ?? summary?.google_clicks ?? 0);
@@ -2053,10 +2063,10 @@
                         to: this.filters.to,
                     }));
                 } catch (e) {}
+                // Listener on promotix:date-range already schedules fetch — avoid a second race.
                 window.dispatchEvent(new CustomEvent('promotix:date-range', {
                     detail: { from: this.filters.from, to: this.filters.to },
                 }));
-                this.scheduleFetch();
             },
             scheduleFetch(fast = false) {
                 clearTimeout(this.fetchTimer);
@@ -2192,15 +2202,17 @@
                 return `{{ route('paid-marketing.detailed-export-xlsx') }}${qs ? '?' + qs : ''}`;
             },
             async fetchNow() {
+                const generation = ++this.fetchGeneration;
                 this.loading = true;
                 window.promotixPageLoader?.show('Loading Advanced View…');
                 const qs = this.queryString();
                 try {
-                    await this.runStaggered([
-                        async () => {
+                    const stillCurrent = await this.runStaggered([
+                        async (gen) => {
                             const summary = await fetch(`/paid-marketing/summary?${qs}`, {
                                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                             }).then((r) => r.json());
+                            if (! this.isFetchCurrent(gen)) return;
                             this.kpiCards = this.kpiCardsFromSummary(summary || {});
                             if (summary?.timezone_context?.reporting_timezone) {
                                 this.reportingTimezone = summary.timezone_context.reporting_timezone;
@@ -2208,10 +2220,11 @@
                                 this.syncPaidTimezoneHeader();
                             }
                         },
-                        async () => {
+                        async (gen) => {
                             const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
                                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                             });
+                            if (! this.isFetchCurrent(gen)) return;
                             if (!res.ok) {
                                 const msg = res.status === 403
                                     ? 'Request blocked (403). Try a shorter date range — All time can be heavy.'
@@ -2219,6 +2232,7 @@
                                 throw new Error(msg);
                             }
                             const data = await res.json();
+                            if (! this.isFetchCurrent(gen)) return;
                             this.rows = data.rows || [];
                             this.statCards = data.stats?.cards || [];
                             this.kpiCards = data.stats?.kpis || this.kpiCards;
@@ -2260,17 +2274,23 @@
                                 if (visit) this.publishInvestigation(visit);
                             }
                         },
-                        async () => {
+                        async (gen) => {
+                            if (! this.isFetchCurrent(gen)) return;
                             await this.loadCampaignsForDomain();
                         },
-                    ]);
+                    ], generation);
+                    if (! stillCurrent) return;
                 } catch (e) {
                     console.error(e);
-                    this.rows = [];
-                    window.alert?.(e?.message || 'Failed to load Advanced View data.');
+                    if (this.isFetchCurrent(generation)) {
+                        this.rows = [];
+                        window.alert?.(e?.message || 'Failed to load Advanced View data.');
+                    }
                 } finally {
-                    this.loading = false;
-                    window.promotixPageLoader?.hide();
+                    if (this.isFetchCurrent(generation)) {
+                        this.loading = false;
+                        window.promotixPageLoader?.hide();
+                    }
                 }
             },
             publishInvestigation(visit) {

@@ -982,12 +982,34 @@ class BotProtectionController extends Controller
             'intel_city' => $ipLog?->intel_city ?? $raw['city'] ?? null,
             'intel_latitude' => $raw['latitude'] ?? null,
             'intel_longitude' => $raw['longitude'] ?? null,
-            'intel_asn' => $raw['asn'] ?? null,
-            'intel_asn_org' => $raw['company'] ?? $raw['org'] ?? $ipLog?->intel_isp,
+            'intel_asn' => $this->intelScalar(
+                $raw['asn']
+                    ?? $raw['as_number']
+                    ?? $raw['asn_number']
+                    ?? $raw['autonomous_system_number']
+                    ?? data_get($raw, 'connection.asn')
+            ),
+            'intel_asn_org' => $this->intelScalar(
+                $raw['company']
+                    ?? $raw['org']
+                    ?? data_get($raw, 'connection.org')
+                    ?? $ipLog?->intel_isp
+            ),
             'intel_isp' => $ipLog?->intel_isp ?? null,
             'intel_network_range' => $raw['network'] ?? $raw['network_range'] ?? null,
             'intel_routed_prefix' => $raw['prefix'] ?? $raw['routed_prefix'] ?? null,
-            'intel_allocated_range' => $raw['allocated'] ?? $raw['allocated_range'] ?? null,
+            'intel_allocated_range' => $this->intelScalar(
+                $raw['allocated']
+                    ?? $raw['allocated_range']
+                    ?? data_get($raw, 'rir.allocated')
+                    ?? $raw['network']
+                    ?? $raw['network_range']
+                    ?? $raw['range']
+                    ?? $raw['cidr']
+                    ?? $raw['prefix']
+                    ?? $raw['routed_prefix']
+                    ?? null
+            ),
             'intel_range_note' => $raw['range_note'] ?? null,
             'intel_vpn' => $isVpn ? 'Yes' : 'No',
             'intel_proxy' => $isProxy ? 'Yes' : 'No',
@@ -1010,6 +1032,22 @@ class BotProtectionController extends Controller
             'intel_matched_dataset' => $raw['dataset'] ?? null,
             'intel_cloud_provider' => $raw['cloud_provider'] ?? null,
         ];
+    }
+
+    private function intelScalar(mixed $value): ?string
+    {
+        if (is_array($value)) {
+            $value = $value['asn']
+                ?? $value['name']
+                ?? $value['org']
+                ?? $value['range']
+                ?? $value['prefix']
+                ?? null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : null;
     }
 
     private function threatGroupLabel(?string $group, bool $invalid): string

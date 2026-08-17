@@ -32,9 +32,9 @@
             @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
             <span>Paid Ads</span>
         </a>
-        <a href="{{ route('reports.index') }}" class="paid-quick-action" title="Reports">
+        <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings',{detail:{tab:'reports'}}))" class="paid-quick-action" title="Reports">
             @include('partials.sidebar-icon', ['name' => 'box', 'class' => 'h-[16px] w-[16px]'])
             <span>Reports</span>
-        </a>
+        </button>
     </div>
 </div>

@@ -152,12 +152,9 @@ class ClickWindowCounter
             ->where('is_paid_traffic', true)
             ->where('visited_at', '>=', $since);
 
-        if ($this->columnReady('visits', 'is_duplicate_paid_click')) {
-            $q->where(function ($inner) {
-                $inner->whereNull('is_duplicate_paid_click')
-                    ->orWhere('is_duplicate_paid_click', false);
-            });
-        }
+        // A reused Google click ID is still a repeat visit/click for fraud
+        // detection. Attribution may mark it duplicate for Google totals, but
+        // excluding it here made three same-device visits appear as 1 in 60m.
 
         match ($entityType) {
             'ip' => $q->where('ip', $entityId),

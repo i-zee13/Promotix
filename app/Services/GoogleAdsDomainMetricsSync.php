@@ -8,6 +8,7 @@ use App\Models\GoogleAdsCampaignDailyMetric;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class GoogleAdsDomainMetricsSync
@@ -105,26 +106,48 @@ class GoogleAdsDomainMetricsSync
             ]);
         }
 
-        GoogleAdsCampaignDailyMetric::query()
+        $now = now();
+        $validRows = collect($dailyRows)
+            ->filter(fn (array $row): bool => trim((string) ($row['campaign_id'] ?? '')) !== '')
+            ->values();
+
+        // Never delete a previously successful snapshot unless the replacement
+        // payload contains rows that can actually be stored.
+        if ($validRows->isEmpty()) {
+            $this->lastMessage = 'Google returned no usable campaign metric rows; keeping the previous successful totals.';
+
+            return array_merge($empty, ['message' => $this->lastMessage]);
+        }
+
+        $incomingClicks = (int) $validRows->sum(fn (array $row) => (int) ($row['clicks'] ?? 0));
+        $storedClicks = (int) GoogleAdsCampaignDailyMetric::query()
             ->where('domain_id', $domain->id)
             ->whereBetween('metric_date', [$fromDate, $toDate])
-            ->delete();
+            ->sum('clicks');
+        if ($storedClicks > 0 && $incomingClicks === 0) {
+            $this->lastMessage = 'Google returned a transient zero-click snapshot; keeping the previous successful totals.';
 
-        $now = now();
-        $saved = 0;
+            Log::warning('Google Ads domain metrics sync ignored transient zero snapshot', [
+                'domain_id' => $domain->id,
+                'stored_clicks' => $storedClicks,
+                'incoming_clicks' => $incomingClicks,
+            ]);
 
-        foreach ($dailyRows as $row) {
-            $campaignId = (string) ($row['campaign_id'] ?? '');
-            if ($campaignId === '') {
-                continue;
-            }
+            return array_merge($empty, ['message' => $this->lastMessage]);
+        }
 
-            $metricDate = (string) ($row['metric_date'] ?? '');
-            if ($metricDate === '') {
-                $metricDate = $toDate;
-            }
+        $saved = DB::transaction(function () use ($domain, $account, $fromDate, $toDate, $validRows, $now): int {
+            GoogleAdsCampaignDailyMetric::query()
+                ->where('domain_id', $domain->id)
+                ->whereBetween('metric_date', [$fromDate, $toDate])
+                ->delete();
 
-            GoogleAdsCampaignDailyMetric::query()->create([
+            $savedRows = 0;
+            foreach ($validRows as $row) {
+                $campaignId = trim((string) $row['campaign_id']);
+                $metricDate = trim((string) ($row['metric_date'] ?? '')) ?: $toDate;
+
+                GoogleAdsCampaignDailyMetric::query()->create([
                 'domain_id' => $domain->id,
                 'google_ads_account_id' => $account->id,
                 'campaign_id' => $campaignId,
@@ -140,12 +163,15 @@ class GoogleAdsDomainMetricsSync
                 'ctr' => (float) ($row['ctr'] ?? 0),
                 'created_at' => $now,
                 'updated_at' => $now,
-            ]);
-            $saved++;
-        }
+                ]);
+                $savedRows++;
+            }
 
-        $domain->ads_synced_at = $now;
-        $domain->save();
+            $domain->ads_synced_at = $now;
+            $domain->save();
+
+            return $savedRows;
+        });
 
         Log::info('Google Ads domain metrics sync ← done', [
             'domain_id' => $domain->id,

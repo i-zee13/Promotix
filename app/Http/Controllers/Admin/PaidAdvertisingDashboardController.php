@@ -72,13 +72,19 @@ class PaidAdvertisingDashboardController extends Controller
         $googleTz = $this->resolveGoogleTimezone($request, $domainIds);
         $domains = $this->scopedDomains($request, $domainIds);
 
-        $googleSyncErrors = $this->syncGoogleMetricsForDomains(
-            $request,
-            $domains,
-            $metricFrom,
-            $metricTo,
-            $request->boolean('force_google_sync')
-        );
+        // Dashboard reads the last successful stored metrics. Do not make a
+        // Google API call during normal card refreshes: a transient API/token
+        // response must never make previously displayed totals disappear.
+        $forceGoogleSync = $request->boolean('force_google_sync');
+        $googleSyncErrors = $forceGoogleSync
+            ? $this->syncGoogleMetricsForDomains(
+                $request,
+                $domains,
+                $metricFrom,
+                $metricTo,
+                true
+            )
+            : [];
 
         $tagPaid = 0;
         $verifiedPaid = 0;
@@ -191,7 +197,11 @@ class PaidAdvertisingDashboardController extends Controller
 
         $paid = $this->displayPaidTrafficCount($verifiedValidPaid, $uniqueValidPaidClicks, $googleClicks);
         $validTagPaid = max(0, $uniqueValidPaidClicks);
-        $totalClickCount = $googleClicks;
+        // Keep the card useful while Google metrics have not synced yet. Stored
+        // Google totals remain authoritative when available.
+        $totalClickCount = $googleClicks > 0
+            ? $googleClicks
+            : max($uniquePaidClicks, $tagPaid);
         // Tracking accuracy = distinct tracked Google click IDs / Google Ads reported clicks.
         $trackingAccuracyPct = $googleClicks > 0
             ? (int) round(min(100, ($uniquePaidClicks / $googleClicks) * 100))
@@ -1517,17 +1527,13 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         foreach ([
-            '403',
             '401',
-            'permission',
             'unauthenticated',
-            'token',
-            'expired',
-            'reconnect',
-            'login-customer-id',
-            'could not build google api headers',
-            'access denied',
             'invalid_grant',
+            'refresh token',
+            'oauth token',
+            'token has been expired or revoked',
+            'no refresh token',
         ] as $needle) {
             if (str_contains($message, $needle)) {
                 return true;
@@ -1626,17 +1632,42 @@ class PaidAdvertisingDashboardController extends Controller
 
         $compact = trim(preg_replace('/\s+/', '', $term) ?? $term);
         $isDeviceId = (bool) preg_match('/^DEV_[A-Za-z0-9]+$/i', $compact);
-        $isClickId = ! filter_var($compact, FILTER_VALIDATE_IP)
+        $isClickId = ! $isDeviceId
+            && ! filter_var($compact, FILTER_VALIDATE_IP)
             && strlen($compact) >= 12
             && (bool) preg_match('/^[A-Za-z0-9_-]+$/', $compact);
 
-        if ($source === 'paid_marketing') {
-            $query->where(function ($match) use ($term, $compact, $isDeviceId, $isClickId): void {
-                $match->where('pc.ip', 'like', '%'.$term.'%');
-
-                if ($isDeviceId && Schema::hasColumn('paid_marketing_clicks', 'device_id')) {
-                    $match->orWhere('pc.device_id', 'like', '%'.$compact.'%');
+        // Device IDs must not fall through to ip LIKE — that returns unrelated IPs
+        // and then the UI hydrates the latest (often different) device on each IP.
+        if ($isDeviceId) {
+            if ($source === 'paid_marketing') {
+                if (Schema::hasColumn('paid_marketing_clicks', 'device_id')) {
+                    $query->where(function ($match) use ($compact): void {
+                        $match->where('pc.device_id', $compact)
+                            ->orWhere('pc.device_id', 'like', $compact.'%');
+                    });
+                } else {
+                    $query->whereRaw('0 = 1');
                 }
+
+                return;
+            }
+
+            if (Schema::hasColumn('visits', 'device_id')) {
+                $query->where(function ($match) use ($compact): void {
+                    $match->where('device_id', $compact)
+                        ->orWhere('device_id', 'like', $compact.'%');
+                });
+            } else {
+                $query->whereRaw('0 = 1');
+            }
+
+            return;
+        }
+
+        if ($source === 'paid_marketing') {
+            $query->where(function ($match) use ($term, $compact, $isClickId): void {
+                $match->where('pc.ip', 'like', '%'.$term.'%');
 
                 if ($isClickId) {
                     foreach (['paid_id', 'gclid', 'gbraid', 'wbraid'] as $col) {
@@ -1651,12 +1682,8 @@ class PaidAdvertisingDashboardController extends Controller
             return;
         }
 
-        $query->where(function ($match) use ($term, $compact, $isDeviceId, $isClickId): void {
+        $query->where(function ($match) use ($term, $compact, $isClickId): void {
             $match->where('ip', 'like', '%'.$term.'%');
-
-            if ($isDeviceId && Schema::hasColumn('visits', 'device_id')) {
-                $match->orWhere('device_id', 'like', '%'.$compact.'%');
-            }
 
             if ($isClickId) {
                 foreach (['gclid', 'gbraid', 'wbraid'] as $col) {
@@ -1841,6 +1868,10 @@ class PaidAdvertisingDashboardController extends Controller
         $visitRows = DB::table('visits')
             ->whereIn('domain_id', $domainIdList->all())
             ->whereIn('ip', $ips->all())
+            ->when(
+                Schema::hasColumn('visits', 'is_paid_traffic'),
+                fn ($query) => $query->where('is_paid_traffic', true)
+            )
             ->orderByDesc('visited_at')
             ->get($select);
 
@@ -1970,13 +2001,29 @@ class PaidAdvertisingDashboardController extends Controller
             }
         }
 
-        return $rows->map(function (array $row) use ($metaByIp, $clicks60ByIp, $clicks60ByPid) {
+        return $rows->map(function (array $row) use ($metaByIp, $clicks60ByIp, $clicks60ByPid, $visitRows) {
             $ip = (string) ($row['ip'] ?? '');
             $meta = $metaByIp[$ip] ?? [];
             $pid = $meta['paid_identity_id'] ?? null;
+            $windowEnd = ! empty($row['last_seen'])
+                ? Carbon::parse((string) $row['last_seen'], 'UTC')
+                : null;
+            $derivedIp60 = $windowEnd
+                ? $visitRows
+                    ->filter(function ($visit) use ($ip, $windowEnd): bool {
+                        if ((string) ($visit->ip ?? '') !== $ip || empty($visit->visited_at)) {
+                            return false;
+                        }
+                        $at = Carbon::parse((string) $visit->visited_at, 'UTC');
+
+                        return $at->lte($windowEnd) && $at->gte($windowEnd->copy()->subMinutes(60));
+                    })
+                    ->count()
+                : 0;
             $clicks60 = max(
                 (int) ($clicks60ByIp[$ip] ?? 0),
                 $pid ? (int) ($clicks60ByPid[$pid] ?? 0) : 0,
+                $derivedIp60,
             );
 
             $actionHint = (string) ($meta['latest_action_taken'] ?? $row['action'] ?? '');

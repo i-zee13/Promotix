@@ -24,7 +24,12 @@ class PermissionCatalog
         }
 
         if (self::needsGroupPrefix($menuLabel)) {
-            return self::shortGroupName($group).' · '.$menuLabel;
+            $short = self::shortGroupName($group);
+            if (strcasecmp($short, $menuLabel) === 0) {
+                return $menuLabel;
+            }
+
+            return $short.' · '.$menuLabel;
         }
 
         return $menuLabel;
@@ -46,6 +51,8 @@ class PermissionCatalog
             'BOT PROTECTION' => 'Bot Protection',
             'SITE MANAGEMENT' => 'Site',
             'HOME' => 'Home',
+            'PRODUCT' => 'Product',
+            'ADVANCED VIEW' => 'Advanced View',
             default => Str::title(strtolower($groupLabel)),
         };
     }

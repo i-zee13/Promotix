@@ -122,7 +122,9 @@
                                     <td><input type="checkbox" class="figma-sa-users-checkbox" aria-label="Select {{ $user->name }}"></td>
                                     <td>
                                         <div class="figma-sa-users-usercell">
-                                            <span class="figma-sa-users-avatar" aria-hidden="true"></span>
+                                            <span class="figma-sa-users-avatar" aria-hidden="true">
+                                                @include('partials.user-avatar', ['avatarUser' => $user, 'avatarTextClass' => 'text-[11px] font-semibold leading-none text-[#6400b2]'])
+                                            </span>
                                             <span>
                                                 <span class="figma-sa-users-name">{{ $user->name }}</span>
                                                 <span class="figma-sa-users-subemail">{{ $user->email }}</span>
@@ -210,7 +212,9 @@
                         <div class="figma-sa-teams-column-body">
                             @forelse ($members as $member)
                                 <div class="figma-sa-teams-card">
-                                    <span class="figma-sa-users-avatar figma-sa-users-avatar--sm" aria-hidden="true"></span>
+                                    <span class="figma-sa-users-avatar figma-sa-users-avatar--sm" aria-hidden="true">
+                                        @include('partials.user-avatar', ['avatarUser' => $member, 'avatarTextClass' => 'text-[10px] font-semibold leading-none text-[#6400b2]'])
+                                    </span>
                                     <div class="min-w-0 flex-1">
                                         <p class="figma-sa-teams-card-name">{{ $member->name }}</p>
                                         <p class="figma-sa-teams-card-email">{{ $member->email }}</p>

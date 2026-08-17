@@ -42,6 +42,7 @@ class User extends Authenticatable
         'workspace_geo_settings',
         'last_login_at',
         'stripe_customer_id',
+        'team_owner_id',
     ];
 
     public function role(): BelongsTo
@@ -52,6 +53,22 @@ class User extends Authenticatable
     public function domains(): HasMany
     {
         return $this->hasMany(Domain::class);
+    }
+
+    /**
+     * The workspace account that owns this member's team.
+     */
+    public function teamOwner(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'team_owner_id');
+    }
+
+    /**
+     * Members invited into this account's workspace.
+     */
+    public function teamMembers(): HasMany
+    {
+        return $this->hasMany(self::class, 'team_owner_id');
     }
 
     public function googleConnections(): HasMany

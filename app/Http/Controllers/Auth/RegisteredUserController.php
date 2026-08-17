@@ -132,6 +132,13 @@ class RegisteredUserController extends Controller
                 'accepted_at' => now(),
             ]);
 
+            $inviter = $invite->invitedBy;
+            // Super-admin provisioning invites create independent customer
+            // accounts. Customer invitations instead join the inviter's team.
+            if ($inviter && ! $inviter->is_super_admin && ! $inviter->is_admin) {
+                $user->update(['team_owner_id' => $inviter->team_owner_id ?: $inviter->id]);
+            }
+
             if (! $invite->plan_id) {
                 return;
             }

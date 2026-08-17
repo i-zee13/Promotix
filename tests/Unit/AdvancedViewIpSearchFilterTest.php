@@ -49,4 +49,34 @@ class AdvancedViewIpSearchFilterTest extends TestCase
 
         $this->assertSame($before, $query->toSql());
     }
+
+    public function test_device_id_search_does_not_use_ip_like(): void
+    {
+        \Illuminate\Support\Facades\Schema::shouldReceive('hasColumn')
+            ->andReturnUsing(fn (string $table, string $column): bool => $table === 'visits' && $column === 'device_id');
+
+        $controller = app(PaidAdvertisingDashboardController::class);
+        $method = new ReflectionMethod($controller, 'applyAdvancedSearchFilter');
+        $method->setAccessible(true);
+
+        $request = Request::create('/paid-marketing/detailed-visits', 'GET', [
+            'ip' => 'DEV_6F831D99B9B3',
+        ]);
+
+        $query = \Illuminate\Support\Facades\DB::table('visits');
+        $method->invoke($controller, $query, $request, 'visits');
+
+        $sql = strtolower($query->toSql());
+        $bindings = $query->getBindings();
+
+        $this->assertStringContainsString('device_id', $sql);
+        $this->assertTrue(
+            collect($bindings)->contains(fn ($b) => is_string($b) && str_contains(strtoupper($b), 'DEV_6F831D99B9B3')),
+            'Device ID search should bind the DEV_ term.'
+        );
+        $this->assertFalse(
+            collect($bindings)->contains(fn ($b) => is_string($b) && str_starts_with($b, '%DEV_')),
+            'Device ID search must not use IP-style %DEV_% like matching.'
+        );
+    }
 }

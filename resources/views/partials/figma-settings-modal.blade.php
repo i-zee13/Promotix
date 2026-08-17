@@ -167,6 +167,18 @@
     $usersUrl = \Illuminate\Support\Facades\Route::has('users')
         ? route('users')
         : (\Illuminate\Support\Facades\Route::has('users.index') ? route('users.index') : $profileUrl);
+    $teamOwner = $settingsUser;
+    $teamMembers = collect();
+    if ($settingsUser && \Illuminate\Support\Facades\Schema::hasColumn('users', 'team_owner_id')) {
+        $teamOwner = $settingsUser->team_owner_id
+            ? \App\Models\User::query()->find($settingsUser->team_owner_id) ?? $settingsUser
+            : $settingsUser;
+        $teamMembers = \App\Models\User::query()
+            ->with('role')
+            ->where('team_owner_id', $teamOwner->id)
+            ->orderBy('name')
+            ->get();
+    }
     $receiptRouteExists = \Illuminate\Support\Facades\Route::has('billing.receipt.download');
 
     $settingsTabs = [
@@ -228,6 +240,20 @@
             'update_url' => $avatarUpdateUrl,
             'destroy_url' => $avatarDestroyUrl,
         ],
+        'team' => [
+            'owner' => [
+                'name' => $teamOwner?->name ?? 'Workspace owner',
+                'email' => $teamOwner?->email ?? '',
+                'role' => 'Owner',
+                'initial' => $teamOwner?->avatarInitial() ?? '?',
+            ],
+            'members' => $teamMembers->map(fn ($member) => [
+                'name' => $member->name,
+                'email' => $member->email,
+                'role' => $member->role?->name ?? 'Team member',
+                'initial' => $member->avatarInitial(),
+            ])->values(),
+        ],
         'notifications' => [
             'email' => (bool) ($settingsNotify['email'] ?? $settingsNotify['email_alerts'] ?? true),
             'sms' => (bool) ($settingsNotify['sms'] ?? false),
@@ -283,6 +309,38 @@
 >
     <div class="pmx-settings__backdrop" @click="close()"></div>
     <div class="pmx-settings__panel" @click.stop x-transition>
+        <div class="pmx-team-modal" x-show="teamOpen" x-transition.opacity @click.self="teamOpen = false" x-cloak>
+            <section class="pmx-team-modal__card" role="dialog" aria-modal="true" aria-labelledby="pmx-team-title">
+                <div class="pmx-team-modal__head">
+                    <div>
+                        <h3 id="pmx-team-title">Your team</h3>
+                        <p>Only members in your workspace are shown here.</p>
+                    </div>
+                    <button type="button" class="pmx-settings__close" @click="teamOpen = false" aria-label="Close team members">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="pmx-team-member">
+                    <span class="pmx-team-member__avatar" x-text="team.owner.initial"></span>
+                    <div class="min-w-0 flex-1">
+                        <p x-text="team.owner.name"></p>
+                        <span x-text="team.owner.email"></span>
+                    </div>
+                    <span class="pmx-settings__badge">Owner</span>
+                </div>
+                <template x-for="member in team.members" :key="member.email">
+                    <div class="pmx-team-member">
+                        <span class="pmx-team-member__avatar" x-text="member.initial"></span>
+                        <div class="min-w-0 flex-1">
+                            <p x-text="member.name"></p>
+                            <span x-text="member.email"></span>
+                        </div>
+                        <span class="pmx-settings__badge" x-text="member.role"></span>
+                    </div>
+                </template>
+                <p class="pmx-settings__hint mt-3" x-show="!team.members.length">No additional team members yet.</p>
+            </section>
+        </div>
         <header class="pmx-settings__head">
             <h2 id="pmx-settings-title">Clickronix Settings</h2>
             <button type="button" class="pmx-settings__close" @click="close()" aria-label="Close settings">
@@ -468,6 +526,32 @@
                         <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === 'yesterday' }" @click="reportRange = 'yesterday'">Yesterday</button>
                         <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === '7d' }" @click="reportRange = '7d'">Last 7 Days</button>
                         <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === '30d' }" @click="reportRange = '30d'">Last 30 Days</button>
+                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === 'custom' }" @click="reportRange = 'custom'">
+                            <svg style="width:13px;height:13px;margin-right:5px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14H3V6a2 2 0 012-2z"/></svg>
+                            Custom dates
+                        </button>
+                    </div>
+
+                    <div class="pmx-settings__card" style="margin-bottom:12px">
+                        <div class="pmx-settings__report-controls">
+                            <label class="pmx-settings__field" x-show="reportRange === 'custom'">
+                                <span class="pmx-settings__label">From</span>
+                                <input type="date" class="pmx-settings__input" x-model="reportCustomFrom">
+                            </label>
+                            <label class="pmx-settings__field" x-show="reportRange === 'custom'">
+                                <span class="pmx-settings__label">To</span>
+                                <input type="date" class="pmx-settings__input" x-model="reportCustomTo">
+                            </label>
+                            <label class="pmx-settings__field">
+                                <span class="pmx-settings__label">Report group</span>
+                                <select class="pmx-settings__select" x-model="reportGroup">
+                                    <option value="all">All details</option>
+                                    <option value="device_id">Device IDs</option>
+                                    <option value="repeated_ips">Repeated IPs</option>
+                                    <option value="allocated_range">IP allocated ranges</option>
+                                </select>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="pmx-settings__report-grid">
@@ -487,15 +571,6 @@
 
                     <p class="pmx-settings__hint" style="margin-top:12px">Every download includes all Advanced View column groups and available technical details for the selected date range.</p>
 
-                    <div class="pmx-settings__card" style="margin-top:12px">
-                        <div class="pmx-settings__row">
-                            <div>
-                                <p class="pmx-settings__label">Recent reports</p>
-                                <p class="pmx-settings__hint">Open the full history and download prior exports.</p>
-                            </div>
-                            <a href="{{ $reportsUrl }}" class="pmx-settings__cta">View reports →</a>
-                        </div>
-                    </div>
                 </div>
 
                 {{-- BILLING --}}
@@ -868,7 +943,7 @@
                                 <p class="pmx-settings__label">Team members</p>
                                 <p class="pmx-settings__hint">Invite and manage roles for your workspace.</p>
                             </div>
-                            <a href="{{ $usersUrl }}" class="pmx-settings__btn">Manage team</a>
+                            <button type="button" class="pmx-settings__btn" @click="teamOpen = true">Manage team</button>
                         </div>
                     </div>
 
@@ -1182,6 +1257,84 @@
         background: #181818;
         padding: 14px;
     }
+    .pmx-team-modal {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.68);
+    }
+    .pmx-team-modal__card {
+        width: min(100%, 470px);
+        max-height: min(560px, calc(100dvh - 64px));
+        overflow: auto;
+        border: 1px solid rgba(196, 160, 232, 0.28);
+        border-radius: 12px;
+        background: #181818;
+        box-shadow: 0 20px 55px rgba(0, 0, 0, 0.45);
+        padding: 16px;
+    }
+    .pmx-team-modal__head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+    .pmx-team-modal__head h3 {
+        margin: 0;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+    }
+    .pmx-team-modal__head p {
+        margin: 3px 0 0;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 11px;
+    }
+    .pmx-team-member {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 60px;
+        padding: 9px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .pmx-team-member__avatar {
+        display: inline-flex;
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: rgba(100, 0, 178, 0.28);
+        color: #e4d4f4;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .pmx-team-member p {
+        overflow: hidden;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 12px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .pmx-team-member span:not(.pmx-team-member__avatar):not(.pmx-settings__badge) {
+        display: block;
+        overflow: hidden;
+        margin-top: 2px;
+        color: rgba(255, 255, 255, 0.45);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
     .pmx-settings__stack { display: flex; flex-direction: column; }
     .pmx-settings__row {
         display: flex;
@@ -1304,6 +1457,12 @@
         gap: 8px;
         margin-bottom: 14px;
     }
+    .pmx-settings__report-controls {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        align-items: end;
+    }
     .pmx-settings__report-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1315,6 +1474,7 @@
     }
     @media (max-width: 560px) {
         .pmx-settings__report-grid { grid-template-columns: 1fr; }
+        .pmx-settings__report-controls { grid-template-columns: 1fr; }
         .pmx-settings__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     .pmx-settings__report-card {
@@ -1644,7 +1804,12 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         avatarDestroyUrl: seed.avatar?.destroy_url || '/profile/avatar',
         avatarBusy: false,
         avatarStatus: '',
+        teamOpen: false,
+        team: Object.assign({ owner: { name: 'Workspace owner', email: '', role: 'Owner', initial: '?' }, members: [] }, seed.team || {}),
         reportRange: '7d',
+        reportGroup: 'all',
+        reportCustomFrom: '',
+        reportCustomTo: '',
         generalStatus: '',
         generalBusy: false,
         notifyStatus: '',
@@ -1742,6 +1907,12 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             return `${parts.year}-${parts.month}-${parts.day}`;
         },
         reportDateRange() {
+            if (this.reportRange === 'custom' && this.reportCustomFrom && this.reportCustomTo) {
+                return {
+                    from: this.reportCustomFrom <= this.reportCustomTo ? this.reportCustomFrom : this.reportCustomTo,
+                    to: this.reportCustomFrom <= this.reportCustomTo ? this.reportCustomTo : this.reportCustomFrom,
+                };
+            }
             if (this.reportRange === 'yesterday') {
                 const yesterday = this.reportDate(-1);
                 return { from: yesterday, to: yesterday };
@@ -1757,6 +1928,16 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             url.searchParams.set('to', range.to);
             url.searchParams.set('columns', 'all');
             url.searchParams.set('report_type', String(reportType || 'comprehensive'));
+            const groups = {
+                device_id: 'paid_identity',
+                repeated_ips: 'repeat_click',
+                allocated_range: 'ip_intelligence',
+            };
+            if (groups[this.reportGroup]) {
+                url.searchParams.set('column_group', groups[this.reportGroup]);
+                url.searchParams.delete('columns');
+            }
+            url.searchParams.set('report_group', this.reportGroup || 'all');
 
             return url.toString();
         },

@@ -39,9 +39,9 @@
             <a href="{{ route('paid-marketing.detection-settings') }}" title="Detection" class="ov-tool-btn">
                 @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[18px] w-[18px]'])
             </a>
-            <a href="{{ route('reports.index') }}" title="Reports" class="ov-tool-btn">
+            <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings',{detail:{tab:'reports'}}))" title="Reports" class="ov-tool-btn">
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[18px] w-[18px]'])
-            </a>
+            </button>
             <a href="{{ route('profile.edit') }}" title="Settings" class="ov-tool-btn">
                 @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[18px] w-[18px]'])
             </a>
