@@ -77,6 +77,8 @@ return [
                 'bot-protection',
                 'domain-management',
                 'upgrade-plan',
+                'team-invite',
+                'provider-ip-whitelist',
             ],
         ],
         [

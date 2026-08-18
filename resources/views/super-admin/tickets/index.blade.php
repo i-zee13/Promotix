@@ -116,7 +116,9 @@
                                 </td>
                                 <td>
                                     <a href="{{ route('super-admin.tickets.show', $ticket) }}" class="figma-sa-subs-user">
-                                        <span class="figma-sa-subs-avatar" aria-hidden="true"></span>
+                                        <span class="figma-sa-subs-avatar" aria-hidden="true">
+                                            @include('partials.user-avatar', ['avatarUser' => $ticket->requester, 'avatarTextClass' => 'text-[12px] font-semibold leading-none text-[#6400b2]'])
+                                        </span>
                                         <span class="figma-sa-subs-user-text">
                                             <span class="figma-sa-subs-user-name">#{{ $ticket->ticket_number ?? $ticket->id }} · {{ $ticket->subject }}</span>
                                             <span class="figma-sa-subs-user-email">{{ $ticket->requester?->name ?? 'Deleted user' }} · {{ $ticket->requester?->email }}</span>

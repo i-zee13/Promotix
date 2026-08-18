@@ -68,6 +68,9 @@ class TagController extends Controller
         if (!Object.prototype.hasOwnProperty.call(obj,k)) continue;
         var v = obj[k];
         if (v === undefined || v === null || v === '') continue;
+        if (typeof v === 'object') {
+          try { v = JSON.stringify(v); } catch (e) { continue; }
+        }
         p.set(k, String(v));
       }
       p.set('_', String(Date.now()));
@@ -79,9 +82,15 @@ class TagController extends Controller
     try{
       payload = payload || {};
       payload.click_source = payload.click_source || 'pixel';
+      var copy = {};
+      for (var k in payload) {
+        if (!Object.prototype.hasOwnProperty.call(payload, k)) continue;
+        if (k === 'fingerprint_signals') continue;
+        copy[k] = payload[k];
+      }
       var img = new Image();
       img.referrerPolicy = 'no-referrer-when-downgrade';
-      img.src = collectUrl + (collectUrl.indexOf('?') === -1 ? '?' : '&') + qp(payload);
+      img.src = collectUrl + (collectUrl.indexOf('?') === -1 ? '?' : '&') + qp(copy);
     }catch(e){}
   }
 
@@ -456,7 +465,7 @@ class TagController extends Controller
   }
 
   // Stable browser fingerprint (NOT cookies). Device ID on server hashes this.
-  // Signals: WebGL vendor/renderer, canvas, browser/OS/device family, touch, pixel ratio, screen.
+  // Spec signals: browser/OS/device, UA-CH, screen, touch, CPU/RAM, WebGL, canvas, locale, pointer, API profile.
   function hashString(raw){
     var hash = 0;
     for (var i = 0; i < raw.length; i++) {
@@ -468,39 +477,73 @@ class TagController extends Controller
 
   function browserFamilyFromUa(ua){
     ua = String(ua || '').toLowerCase();
-    if (ua.indexOf('edg/') !== -1 || ua.indexOf('edge/') !== -1) return 'edge';
-    if (ua.indexOf('opr/') !== -1 || ua.indexOf('opera') !== -1) return 'opera';
-    if (ua.indexOf('firefox') !== -1 || ua.indexOf('fxios') !== -1) return 'firefox';
-    if (ua.indexOf('crios') !== -1 || (ua.indexOf('chrome') !== -1 && ua.indexOf('chromium') === -1)) return 'chrome';
-    if (ua.indexOf('safari') !== -1) return 'safari';
-    if (ua.indexOf('samsung') !== -1) return 'samsung';
-    return 'other';
+    if (ua.indexOf('edg/') !== -1 || ua.indexOf('edge/') !== -1) return 'Edge';
+    if (ua.indexOf('opr/') !== -1 || ua.indexOf('opera') !== -1) return 'Opera';
+    if (ua.indexOf('firefox') !== -1 || ua.indexOf('fxios') !== -1) return 'Firefox';
+    if (ua.indexOf('crios') !== -1 || (ua.indexOf('chrome') !== -1 && ua.indexOf('chromium') === -1)) return 'Chrome';
+    if (ua.indexOf('safari') !== -1) return 'Safari';
+    if (ua.indexOf('samsung') !== -1) return 'Samsung';
+    return 'Other';
   }
 
   function osFamilyFromUa(ua){
     ua = String(ua || '').toLowerCase();
-    if (ua.indexOf('iphone') !== -1 || ua.indexOf('ipad') !== -1 || ua.indexOf('ipod') !== -1) return 'ios';
-    if (ua.indexOf('android') !== -1) return 'android';
-    if (ua.indexOf('windows') !== -1) return 'windows';
-    if (ua.indexOf('mac os') !== -1 || ua.indexOf('macintosh') !== -1) return 'macos';
-    if (ua.indexOf('cros') !== -1) return 'chromeos';
-    if (ua.indexOf('linux') !== -1) return 'linux';
-    return 'other';
+    if (ua.indexOf('iphone') !== -1 || ua.indexOf('ipad') !== -1 || ua.indexOf('ipod') !== -1) return 'iOS';
+    if (ua.indexOf('android') !== -1) return 'Android';
+    if (ua.indexOf('windows') !== -1) return 'Windows';
+    if (ua.indexOf('mac os') !== -1 || ua.indexOf('macintosh') !== -1) return 'macOS';
+    if (ua.indexOf('cros') !== -1) return 'Chrome OS';
+    if (ua.indexOf('linux') !== -1) return 'Linux';
+    return 'Other';
+  }
+
+  function osVersionFromUa(ua){
+    ua = String(ua || '');
+    var m;
+    if ((m = ua.match(/Android (\d+(?:\.\d+)?)/))) return 'Android ' + m[1];
+    if ((m = ua.match(/CPU (?:iPhone )?OS (\d+[_\.]\d+(?:[_\.]\d+)?)/))) return 'iOS ' + String(m[1]).replace(/_/g, '.');
+    if ((m = ua.match(/Mac OS X (\d+[_\.]\d+(?:[_\.]\d+)?)/))) return 'macOS ' + String(m[1]).replace(/_/g, '.');
+    if (/Windows NT 10\.0/.test(ua)) return 'Windows 10+';
+    if (/Windows NT 6\.3/.test(ua)) return 'Windows 8.1';
+    if (/Windows NT 6\.1/.test(ua)) return 'Windows 7';
+    if (/CrOS/.test(ua)) return 'Chrome OS';
+    return '';
+  }
+
+  function browserMajorFromUa(ua){
+    ua = String(ua || '');
+    var m = ua.match(/(?:Edg|OPR|Firefox|FxiOS|CriOS|Chrome|SamsungBrowser|Version)\/(\d+)/);
+    return m ? m[1] : '';
   }
 
   function deviceTypeFromSignals(ua, touchPoints){
     ua = String(ua || '').toLowerCase();
-    if (ua.indexOf('ipad') !== -1 || (ua.indexOf('android') !== -1 && ua.indexOf('mobile') === -1) || ua.indexOf('tablet') !== -1) return 'tablet';
-    if (ua.indexOf('mobi') !== -1 || ua.indexOf('iphone') !== -1 || ua.indexOf('ipod') !== -1 || (touchPoints > 0 && ua.indexOf('windows') === -1 && ua.indexOf('macintosh') === -1)) return 'mobile';
-    return 'desktop';
+    if (ua.indexOf('ipad') !== -1 || (ua.indexOf('android') !== -1 && ua.indexOf('mobile') === -1) || ua.indexOf('tablet') !== -1) return 'Tablet';
+    if (ua.indexOf('mobi') !== -1 || ua.indexOf('iphone') !== -1 || ua.indexOf('ipod') !== -1 || (touchPoints > 0 && ua.indexOf('windows') === -1 && ua.indexOf('macintosh') === -1)) return 'Mobile';
+    return 'Desktop';
+  }
+
+  function pointerType(){
+    try {
+      if (window.matchMedia) {
+        var coarse = matchMedia('(pointer: coarse)').matches;
+        var fine = matchMedia('(pointer: fine)').matches;
+        var anyCoarse = matchMedia('(any-pointer: coarse)').matches;
+        if (coarse && !fine) return 'coarse';
+        if (fine && anyCoarse) return 'fine+touch';
+        if (fine) return 'fine';
+      }
+    } catch (e) {}
+    return Number(navigator.maxTouchPoints || 0) > 0 ? 'coarse' : 'fine';
   }
 
   function webglInfo(){
-    var out = { vendor: '', renderer: '' };
+    var out = { vendor: '', renderer: '', hash: 'wgl_none', gl: null };
     try {
       var canvas = document.createElement('canvas');
       var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
       if (!gl) return out;
+      out.gl = gl;
       var ext = gl.getExtension('WEBGL_debug_renderer_info');
       if (ext) {
         out.vendor = String(gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) || '');
@@ -509,17 +552,32 @@ class TagController extends Controller
         out.vendor = String(gl.getParameter(gl.VENDOR) || '');
         out.renderer = String(gl.getParameter(gl.RENDERER) || '');
       }
+      var bits = [
+        gl.getParameter(gl.MAX_TEXTURE_SIZE),
+        gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),
+        gl.getParameter(gl.MAX_VERTEX_ATTRIBS),
+        gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS),
+        gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS),
+        gl.getParameter(gl.MAX_VARYING_VECTORS),
+        String(gl.getParameter(gl.MAX_VIEWPORT_DIMS) || ''),
+        String(gl.getParameter(gl.ALIASED_LINE_WIDTH_RANGE) || ''),
+        String(gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) || ''),
+        String(gl.getParameter(gl.SHADING_LANGUAGE_VERSION) || ''),
+        String(gl.getParameter(gl.VERSION) || ''),
+        ((gl.getSupportedExtensions() || []).slice().sort().join(','))
+      ];
+      out.hash = 'wgl_' + hashString(bits.join('|'));
     } catch (e) {}
     return out;
   }
 
-  function canvasCharacteristics(){
+  function canvasHash(){
     try {
       var canvas = document.createElement('canvas');
       canvas.width = 240;
       canvas.height = 60;
       var ctx = canvas.getContext('2d');
-      if (!ctx) return 'none';
+      if (!ctx) return 'cnv_none';
       ctx.textBaseline = 'top';
       ctx.font = '14px Arial';
       ctx.fillStyle = '#f60';
@@ -534,50 +592,199 @@ class TagController extends Controller
       ctx.fill();
       var data = '';
       try { data = canvas.toDataURL(); } catch (e) { data = 'blocked'; }
-      return hashString(data) + ':' + String(data.length) + ':' + String(canvas.width) + 'x' + String(canvas.height);
+      return 'cnv_' + hashString(data + ':' + String(data.length));
     } catch (e) {
-      return 'err';
+      return 'cnv_err';
     }
   }
 
-  function deviceFingerprint(){
-    // v2 cache: richer WebGL/canvas/device signals (do not reuse v1 weak FP).
-    var key = 'pm_fp_v2_' + domainKey;
+  function featureApiProfile(){
+    var n = navigator;
+    var flags = [
+      'wgl2=' + (typeof WebGL2RenderingContext !== 'undefined' ? 1 : 0),
+      'gpu=' + (n.gpu ? 1 : 0),
+      'sw=' + ('serviceWorker' in n ? 1 : 0),
+      'notif=' + ('Notification' in window ? 1 : 0),
+      'bt=' + (n.bluetooth ? 1 : 0),
+      'usb=' + (n.usb ? 1 : 0),
+      'hid=' + (n.hid ? 1 : 0),
+      'serial=' + (n.serial ? 1 : 0),
+      'xr=' + (n.xr ? 1 : 0),
+      'md=' + (n.mediaDevices && n.mediaDevices.getUserMedia ? 1 : 0),
+      'rtc=' + ('RTCPeerConnection' in window ? 1 : 0),
+      'ac=' + ((window.AudioContext || window.webkitAudioContext) ? 1 : 0),
+      'wasm=' + (window.WebAssembly ? 1 : 0),
+      'offc=' + ('OffscreenCanvas' in window ? 1 : 0),
+      'sab=' + (typeof SharedArrayBuffer !== 'undefined' ? 1 : 0),
+      'pay=' + ('PaymentRequest' in window ? 1 : 0),
+      'cred=' + (n.credentials ? 1 : 0),
+      'wake=' + (n.wakeLock ? 1 : 0),
+      'share=' + (typeof n.share === 'function' ? 1 : 0),
+      'storage=' + (n.storage ? 1 : 0)
+    ];
+    return 'cap_' + hashString(flags.join('|'));
+  }
+
+  function clientHintsSync(){
+    var uaData = navigator.userAgentData;
+    var out = {
+      platform: uaData && uaData.platform ? String(uaData.platform) : String(navigator.platform || ''),
+      mobile: uaData ? (uaData.mobile ? 1 : 0) : null,
+      brands: '',
+      architecture: '',
+      bitness: '',
+      model: '',
+      platformVersion: '',
+      fullVersionList: '',
+      uaFullVersion: ''
+    };
+    if (uaData && uaData.brands && uaData.brands.length) {
+      out.brands = uaData.brands.map(function(b){ return String(b.brand || '') + '/' + String(b.version || ''); }).join(', ');
+    }
+    return out;
+  }
+
+  function clientHintsAsync(){
+    var low = clientHintsSync();
+    var uaData = navigator.userAgentData;
+    if (!uaData || typeof uaData.getHighEntropyValues !== 'function') {
+      return Promise.resolve(low);
+    }
+    var high = uaData.getHighEntropyValues([
+      'architecture', 'bitness', 'model', 'platformVersion', 'fullVersionList', 'uaFullVersion', 'wow64'
+    ]).then(function(h){
+      return Object.assign({}, low, {
+        architecture: String(h.architecture || ''),
+        bitness: String(h.bitness || ''),
+        model: String(h.model || ''),
+        platformVersion: String(h.platformVersion || ''),
+        fullVersionList: (h.fullVersionList || []).map(function(b){ return String(b.brand || '') + '/' + String(b.version || ''); }).join(', '),
+        uaFullVersion: String(h.uaFullVersion || '')
+      });
+    }).catch(function(){ return low; });
+
+    return Promise.race([
+      high,
+      new Promise(function(resolve){ setTimeout(function(){ resolve(low); }, 220); })
+    ]);
+  }
+
+  function brandFromHints(hints){
+    var list = String((hints && (hints.fullVersionList || hints.brands)) || '').toLowerCase();
+    if (list.indexOf('edge') !== -1) return 'Edge';
+    if (list.indexOf('opera') !== -1) return 'Opera';
+    if (list.indexOf('firefox') !== -1) return 'Firefox';
+    if (list.indexOf('chrome') !== -1) return 'Chrome';
+    if (list.indexOf('safari') !== -1) return 'Safari';
+    if (list.indexOf('chromium') !== -1) return 'Chromium';
+    return '';
+  }
+
+  function majorFromHints(hints){
+    var list = (hints && hints.fullVersionList) ? hints.fullVersionList : (hints && hints.brands ? hints.brands : '');
+    var parts = String(list).split(',');
+    for (var i = 0; i < parts.length; i++) {
+      var piece = String(parts[i] || '').trim();
+      if (!piece || /not.?a.?brand/i.test(piece) || /brand/i.test(piece) && /not/i.test(piece)) continue;
+      var ver = piece.split('/')[1] || '';
+      var major = String(ver).split('.')[0];
+      if (major) return major;
+    }
+    if (hints && hints.uaFullVersion) return String(hints.uaFullVersion).split('.')[0];
+    return '';
+  }
+
+  function clientHintsLabel(hints, osFamily, deviceType){
+    var platform = (hints && hints.platform) ? String(hints.platform) : osFamily;
+    var brand = brandFromHints(hints) || 'Chromium';
+    var form = (hints && hints.mobile === 1) || deviceType === 'Mobile' ? 'Mobile' : (deviceType === 'Tablet' ? 'Tablet' : 'Desktop');
+    return [platform, brand, form].filter(Boolean).join(' / ');
+  }
+
+  function buildFingerprintSignals(hints){
+    var ua = String(navigator.userAgent || '');
+    var touchPoints = Number(navigator.maxTouchPoints || 0);
+    var gl = webglInfo();
+    var pr = Number(window.devicePixelRatio || 1);
+    var osFamily = osFamilyFromUa(ua);
+    var deviceType = deviceTypeFromSignals(ua, touchPoints);
+    var osVersion = '';
+    if (hints && hints.platformVersion) {
+      var plat = String(hints.platform || osFamily || '').trim();
+      osVersion = (plat ? plat + ' ' : '') + String(hints.platformVersion);
+    }
+    if (!osVersion) osVersion = osVersionFromUa(ua);
+    var major = majorFromHints(hints) || browserMajorFromUa(ua);
+    var family = brandFromHints(hints) || browserFamilyFromUa(ua);
+    var mem = navigator.deviceMemory ? (String(navigator.deviceMemory) + ' GB') : '0';
+    var cores = navigator.hardwareConcurrency ? (String(navigator.hardwareConcurrency) + ' cores') : '0';
+    return {
+      browser_family: family,
+      browser_major: major,
+      user_agent: ua.slice(0, 220),
+      client_hints: clientHintsLabel(hints, osFamily, deviceType),
+      os_family: osFamily,
+      os_version: osVersion,
+      device_type: deviceType,
+      screen_size: String(screen.width || 0) + ' x ' + String(screen.height || 0),
+      pixel_ratio: String(pr),
+      touch_points: String(touchPoints),
+      hardware_concurrency: cores,
+      device_memory: mem,
+      webgl_vendor: gl.vendor,
+      webgl_renderer: gl.renderer,
+      webgl_hash: gl.hash,
+      canvas_hash: canvasHash(),
+      language: String(navigator.language || (navigator.languages && navigator.languages[0]) || ''),
+      timezone: String(((Intl.DateTimeFormat().resolvedOptions() || {}).timeZone) || ''),
+      pointer_type: pointerType(),
+      api_profile: featureApiProfile()
+    };
+  }
+
+  function fingerprintIdFromSignals(signals){
+    var keys = [
+      'browser_family','browser_major','client_hints','os_family','os_version','device_type',
+      'screen_size','pixel_ratio','touch_points','hardware_concurrency','device_memory',
+      'webgl_vendor','webgl_renderer','webgl_hash','canvas_hash','language','timezone',
+      'pointer_type','api_profile','user_agent'
+    ];
+    var parts = [];
+    for (var i = 0; i < keys.length; i++) {
+      parts.push(keys[i] + '=' + String(signals[keys[i]] || ''));
+    }
+    var raw = parts.join('|');
+    return 'cfp3_' + hashString(raw) + '_' + String(raw.length);
+  }
+
+  function collectDeviceFingerprint(){
+    var key = 'pm_fp_v3_' + domainKey;
     try {
       var cached = localStorage.getItem(key);
-      if (cached && cached.length > 8) return cached;
+      if (cached) {
+        var parsed = JSON.parse(cached);
+        if (parsed && parsed.id && parsed.signals) return Promise.resolve(parsed);
+      }
     } catch (e) {}
-    var parts = [];
+
+    return clientHintsAsync().then(function(hints){
+      var signals = buildFingerprintSignals(hints);
+      var result = { id: fingerprintIdFromSignals(signals), signals: signals };
+      try { localStorage.setItem(key, JSON.stringify(result)); } catch (e) {}
+      return result;
+    });
+  }
+
+  function deviceFingerprint(){
     try {
-      var ua = String(navigator.userAgent || '');
-      var touchPoints = Number(navigator.maxTouchPoints || 0);
-      var gl = webglInfo();
-      var pr = Number(window.devicePixelRatio || 1);
-      parts.push('ua=' + ua);
-      parts.push('lang=' + String(navigator.language || (navigator.languages && navigator.languages[0]) || ''));
-      parts.push('plat=' + String(navigator.platform || ''));
-      parts.push('tz=' + String((Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || ''));
-      parts.push('tzoff=' + String(new Date().getTimezoneOffset()));
-      parts.push('bf=' + browserFamilyFromUa(ua));
-      parts.push('osf=' + osFamilyFromUa(ua));
-      parts.push('dt=' + deviceTypeFromSignals(ua, touchPoints));
-      parts.push('touch=' + String(touchPoints));
-      parts.push('touchcap=' + String((('ontouchstart' in window) || touchPoints > 0) ? 1 : 0));
-      parts.push('pr=' + String(pr));
-      parts.push('scr=' + String(screen.width || 0) + 'x' + String(screen.height || 0) + 'x' + String(screen.colorDepth || 0) + 'x' + String(screen.pixelDepth || 0));
-      parts.push('aw=' + String(window.screen.availWidth || 0) + 'x' + String(window.screen.availHeight || 0));
-      parts.push('or=' + String(screen.orientation && screen.orientation.type ? screen.orientation.type : (window.orientation || 0)));
-      parts.push('glv=' + gl.vendor);
-      parts.push('glr=' + gl.renderer);
-      parts.push('cvs=' + canvasCharacteristics());
-      parts.push('hc=' + String(navigator.hardwareConcurrency || 0));
-      parts.push('mem=' + String(navigator.deviceMemory || 0));
-      parts.push('cookie=' + String(navigator.cookieEnabled ? 1 : 0));
+      var cached = localStorage.getItem('pm_fp_v3_' + domainKey);
+      if (cached) {
+        var parsed = JSON.parse(cached);
+        if (parsed && parsed.id) return parsed.id;
+      }
     } catch (e) {}
-    var raw = parts.join('|');
-    var fp = 'cfp2_' + hashString(raw) + '_' + String(raw.length);
-    try { localStorage.setItem(key, fp); } catch (e) {}
-    return fp;
+    var signals = buildFingerprintSignals(clientHintsSync());
+    return fingerprintIdFromSignals(signals);
   }
 
   function storedAttribution(key, value){
@@ -664,7 +871,6 @@ class TagController extends Controller
       path: String(location.pathname || ''),
       referrer: String(document.referrer || ''),
       session_id: sessionId(),
-      fingerprint: deviceFingerprint(),
       ts: Date.now()
     };
     try {
@@ -696,7 +902,14 @@ class TagController extends Controller
       };
     } catch (e) {}
 
-    send(payload);
+    collectDeviceFingerprint().then(function(fp){
+      payload.fingerprint = fp.id;
+      payload.fingerprint_signals = fp.signals || {};
+      send(payload);
+    }).catch(function(){
+      payload.fingerprint = deviceFingerprint();
+      send(payload);
+    });
   }
 
   function hookSpaNavigation(){

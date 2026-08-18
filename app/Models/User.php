@@ -193,6 +193,24 @@ class User extends Authenticatable
         return $this->domainsUsed() < $limit;
     }
 
+    public function canInviteTeamMembers(): bool
+    {
+        if ($this->is_admin || ($this->is_super_admin ?? false)) {
+            return true;
+        }
+
+        if (! \App\Support\WorkspacePlanFeatures::enabled($this, \App\Support\WorkspacePlanFeatures::TEAM_INVITE)) {
+            return false;
+        }
+
+        $permission = Permission::query()->where('slug', 'team-invite')->first();
+        if ($permission === null || ! $this->role) {
+            return true;
+        }
+
+        return $this->role->permissions()->where('permissions.id', $permission->id)->exists();
+    }
+
     /**
      * Default route after login or email verification.
      */

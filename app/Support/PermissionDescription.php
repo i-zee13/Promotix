@@ -34,5 +34,7 @@ class PermissionDescription
         'traffic-bot-logs' => 'View traffic and bot-detection logs across the platform.',
         'upgrade-plan' => 'View plans, invoices, billing methods, and manage subscription changes.',
         'users' => 'View users and assign their roles.',
+        'team-invite' => 'Invite teammates into the workspace (Enterprise / Advanced / Custom plans).',
+        'provider-ip-whitelist' => 'Use provider and IP whitelist so Google / Bing / Meta ranges are not blocked.',
     ];
 }

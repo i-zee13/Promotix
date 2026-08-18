@@ -12,6 +12,7 @@ use App\Services\GoogleAdsMetricsService;
 use App\Services\IpIntel\IpFraudEvaluator;
 use App\Support\PaidAdvertising\IpRowRiskScorer;
 use App\Support\PaidMarketing\DashboardResponseCache;
+use App\Support\GlobalIpAllowlist;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleInvalidClickReconciler;
 use App\Support\GoogleVerifiedPaidTraffic;
@@ -1339,6 +1340,9 @@ class PaidAdvertisingDashboardController extends Controller
         $filename = 'paid-marketing-ips-' . now()->format('YmdHis') . '.csv';
 
         return response()->streamDownload(function () use ($request, $domainIds, $metricFrom, $metricTo): void {
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(120);
+            }
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
                 'IP Address',
@@ -2408,7 +2412,12 @@ class PaidAdvertisingDashboardController extends Controller
             $scorePct = $risk['risk_score'];
 
             $actionRaw = strtolower(trim((string) data_get($row, 'action', '')));
-            $isAllowlisted = IpFraudEvaluator::isIpAllowListed($ip, implode("\n", $allowListIps));
+            $isAllowlisted = GlobalIpAllowlist::matches($ip, [
+                'isp' => $intel?->intel_isp,
+                'org' => $raw['company'] ?? $raw['org'] ?? $intel?->intel_isp,
+                'asn' => $raw['ASN'] ?? $raw['asn'] ?? $raw['as_number'] ?? data_get($raw, 'connection.asn'),
+                'raw' => $raw,
+            ]) || IpFraudEvaluator::isIpAllowListed($ip, implode("\n", $allowListIps));
             if ($isAllowlisted) {
                 $actionLabel = 'Whitelisted';
                 $actionTone = 'allow';
@@ -3463,6 +3472,18 @@ class PaidAdvertisingDashboardController extends Controller
             ]);
         }
 
+        $allowlistSig = implode('|', \App\Support\GlobalIpAllowlist::patterns());
+        if (Schema::hasTable('global_ip_allowlist_entries')) {
+            $allowlistRow = DB::table('global_ip_allowlist_entries')
+                ->selectRaw('COUNT(*) as total, MAX(updated_at) as max_updated, SUM(enabled) as enabled_n')
+                ->first();
+            $allowlistSig .= '|'.implode('|', [
+                (int) ($allowlistRow->total ?? 0),
+                (string) ($allowlistRow->max_updated ?? ''),
+                (int) ($allowlistRow->enabled_n ?? 0),
+            ]);
+        }
+
         $version = substr(hash('sha256', implode('|', [
             (string) $userId,
             (string) $lastId,
@@ -3471,6 +3492,7 @@ class PaidAdvertisingDashboardController extends Controller
             $domainsSig,
             $settingsSig,
             $googleMetricsSig,
+            $allowlistSig,
             (string) $metricFrom,
             (string) $metricTo,
         ])), 0, 24);

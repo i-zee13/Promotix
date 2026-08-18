@@ -12,6 +12,7 @@ use App\Models\PaidMarketingVisit;
 use App\Services\DetectionSettingsAuditLogger;
 use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
+use App\Support\GlobalIpAllowlist;
 use App\Services\GeoCatalogService;
 use App\Services\GoogleAdsIpExclusionSyncService;
 use App\Services\GoogleAdsLocationExclusionSyncService;
@@ -412,6 +413,9 @@ class PaidMarketingController extends Controller
         );
 
         return response()->streamDownload(function () use ($request, $exportKeys): void {
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(120);
+            }
             $handle = fopen('php://output', 'w');
             fputcsv($handle, $exportKeys !== null
                 ? ClickronixTrafficReport::headersForKeys($exportKeys)
@@ -489,8 +493,12 @@ class PaidMarketingController extends Controller
             'xlsx'
         );
         $sheetTitle = ClickronixTrafficReport::groupLabel($columnGroup !== '' ? $columnGroup : null) ?? 'Traffic Report';
+        $includeRelationships = $request->boolean('include_relationships');
 
-        return response()->streamDownload(function () use ($request, $exportKeys, $sheetTitle): void {
+        return response()->streamDownload(function () use ($request, $exportKeys, $sheetTitle, $includeRelationships): void {
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(120);
+            }
             [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
 
             $domains = Domain::query()
@@ -569,36 +577,38 @@ class PaidMarketingController extends Controller
                 : ClickronixTrafficReport::valuesFromDetailedVisit($row));
             $this->writeXlsxSheet($sheet, $headers, $values);
 
-            // Keep the detailed report first, then provide direct identity
-            // relationships in both directions for fraud investigation.
-            $relationships = $this->deviceIpRelationshipRows($request);
-            $ipSheet = $spreadsheet->createSheet();
-            $ipSheet->setTitle('IP to Devices');
-            $this->writeXlsxSheet(
-                $ipSheet,
-                ['IP Address', 'Device ID', 'Device', 'Browser', 'OS', 'Screen', 'Language', 'Timezone', 'Fingerprint ID', 'Visits', 'First Seen', 'Last Seen'],
-                $relationships
-                    ->sortBy(fn (array $row) => $row['ip']."\0".$row['device_id'])
-                    ->map(fn (array $row) => [
-                        $row['ip'], $row['device_id'], $row['device'], $row['browser'], $row['os'],
-                        $row['screen_resolution'], $row['language'], $row['timezone'], $row['fingerprint_id'],
-                        $row['visits'], $row['first_seen'], $row['last_seen'],
-                    ])
-            );
+            // Extra identity sheets are optional: building them often times out
+            // Chrome downloads ("Site wasn't available") on larger date ranges.
+            if ($includeRelationships) {
+                $relationships = $this->deviceIpRelationshipRows($request);
+                $ipSheet = $spreadsheet->createSheet();
+                $ipSheet->setTitle('IP to Devices');
+                $this->writeXlsxSheet(
+                    $ipSheet,
+                    ['IP Address', 'Device ID', 'Device', 'Browser', 'OS', 'Screen', 'Language', 'Timezone', 'Fingerprint ID', 'Visits', 'First Seen', 'Last Seen'],
+                    $relationships
+                        ->sortBy(fn (array $row) => $row['ip']."\0".$row['device_id'])
+                        ->map(fn (array $row) => [
+                            $row['ip'], $row['device_id'], $row['device'], $row['browser'], $row['os'],
+                            $row['screen_resolution'], $row['language'], $row['timezone'], $row['fingerprint_id'],
+                            $row['visits'], $row['first_seen'], $row['last_seen'],
+                        ])
+                );
 
-            $deviceSheet = $spreadsheet->createSheet();
-            $deviceSheet->setTitle('Device to IPs');
-            $this->writeXlsxSheet(
-                $deviceSheet,
-                ['Device ID', 'IP Address', 'Device', 'Browser', 'OS', 'Screen', 'Language', 'Timezone', 'Fingerprint ID', 'Visits', 'First Seen', 'Last Seen'],
-                $relationships
-                    ->sortBy(fn (array $row) => $row['device_id']."\0".$row['ip'])
-                    ->map(fn (array $row) => [
-                        $row['device_id'], $row['ip'], $row['device'], $row['browser'], $row['os'],
-                        $row['screen_resolution'], $row['language'], $row['timezone'], $row['fingerprint_id'],
-                        $row['visits'], $row['first_seen'], $row['last_seen'],
-                    ])
-            );
+                $deviceSheet = $spreadsheet->createSheet();
+                $deviceSheet->setTitle('Device to IPs');
+                $this->writeXlsxSheet(
+                    $deviceSheet,
+                    ['Device ID', 'IP Address', 'Device', 'Browser', 'OS', 'Screen', 'Language', 'Timezone', 'Fingerprint ID', 'Visits', 'First Seen', 'Last Seen'],
+                    $relationships
+                        ->sortBy(fn (array $row) => $row['device_id']."\0".$row['ip'])
+                        ->map(fn (array $row) => [
+                            $row['device_id'], $row['ip'], $row['device'], $row['browser'], $row['os'],
+                            $row['screen_resolution'], $row['language'], $row['timezone'], $row['fingerprint_id'],
+                            $row['visits'], $row['first_seen'], $row['last_seen'],
+                        ])
+                );
+            }
 
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
             $writer->save('php://output');
@@ -1623,6 +1633,7 @@ class PaidMarketingController extends Controller
             'block_scope' => $sessionMeta['block_scope'],
             'ip_exclusion' => $sessionMeta['ip_exclusion'],
             'action_taken' => $sessionMeta['action_taken'],
+            'fingerprint_scan' => $sessionMeta['fingerprint_scan'] ?? [],
             'browser' => $sessionMeta['browser'] ?: ($firstClick?->browser_name),
             'browser_version' => $sessionMeta['browser_version'] ?: ($firstClick?->browser_version),
             'os' => $sessionMeta['os'] ?: ($firstClick?->os),
@@ -1912,9 +1923,16 @@ class PaidMarketingController extends Controller
         $isHosting = $intel ? $intel->isHostingType($ipLog) : false;
         $isProxy = $intel ? $intel->isProxySuspect($ipLog) : false;
 
-        $isAllowListed = $domain !== null
-            && $ipLog !== null
-            && AllowListMatcher::isAllowListed($domain, $ipLog->ip);
+        $ip = (string) ($ipLog?->ip ?: $visit->ip ?: '');
+        $isAllowListed = $ip !== '' && (
+            GlobalIpAllowlist::matches($ip, [
+                'isp' => $ipLog?->intel_isp,
+                'org' => $raw['company'] ?? $raw['org'] ?? $ipLog?->intel_isp,
+                'asn' => $raw['ASN'] ?? $raw['asn'] ?? $raw['as_number'] ?? data_get($raw, 'connection.asn'),
+                'raw' => $raw,
+            ], $ipLog)
+            || ($domain !== null && AllowListMatcher::isAllowListed($domain, $ip))
+        );
 
         $status = RiskLabels::fromContext([
             'is_allowlisted' => $isAllowListed,
@@ -1935,7 +1953,8 @@ class PaidMarketingController extends Controller
             'intel_latitude' => $raw['latitude'] ?? null,
             'intel_longitude' => $raw['longitude'] ?? null,
             'intel_asn' => $this->intelScalar(
-                $raw['asn']
+                $raw['ASN']
+                    ?? $raw['asn']
                     ?? $raw['as_number']
                     ?? $raw['asn_number']
                     ?? $raw['autonomous_system_number']
@@ -2074,6 +2093,8 @@ class PaidMarketingController extends Controller
             'block_scope' => null,
             'ip_exclusion' => 'Not needed',
             'action_taken' => null,
+            'fingerprint_signals' => [],
+            'fingerprint_scan' => [],
         ];
 
         if (! Schema::hasTable('visits')) {
@@ -2095,6 +2116,7 @@ class PaidMarketingController extends Controller
             'browser_id',
             'visitor_id',
             'fingerprint_id',
+            'fingerprint_signals',
             'paid_identity_id',
             'identity_confidence',
             'ads_detections',
@@ -2216,6 +2238,11 @@ class PaidMarketingController extends Controller
             $trafficStatus = 'valid';
         }
 
+        $fpSignals = [];
+        if (isset($row->fingerprint_signals)) {
+            $fpSignals = \App\Support\DeviceFingerprintCatalog::sanitize($row->fingerprint_signals);
+        }
+
         return [
             'session_id' => $sessionId,
             'device_fingerprint' => $fingerprint
@@ -2242,6 +2269,8 @@ class PaidMarketingController extends Controller
             'block_scope' => in_array(strtolower((string) $actionTaken), ['block', 'blocked'], true) ? 'Device' : null,
             'ip_exclusion' => in_array(strtolower((string) $actionTaken), ['block', 'blocked'], true) ? 'Queued' : 'Not needed',
             'action_taken' => $actionTaken,
+            'fingerprint_signals' => $fpSignals,
+            'fingerprint_scan' => \App\Support\DeviceFingerprintCatalog::rows($fpSignals),
         ];
     }
 
@@ -2508,6 +2537,9 @@ class PaidMarketingController extends Controller
         $countryInvalid = [];
 
         foreach ($rows as $visit) {
+            if (! empty($visit['is_allowlisted'])) {
+                continue;
+            }
             $visits = max(1, (int) ($visit['visits'] ?? 1));
             $invalid = (int) ($visit['invalid_clicks'] ?? 0);
             $isInvalid = $invalid > 0
@@ -2572,13 +2604,13 @@ class PaidMarketingController extends Controller
             }
 
             $level = strtolower((string) ($visit['intel_risk_level'] ?? data_get($visit, 'risk_summary.level') ?? ''));
-            $score = $visit['intel_risk_score'] ?? data_get($visit, 'risk_summary.score');
-            if ($level === '' && is_numeric($score)) {
-                $score = (float) $score;
-                $level = $score >= 70 ? 'high' : ($score >= 40 ? 'medium' : 'low');
+            $score = $this->normalizedRiskScore($visit['intel_risk_score'] ?? data_get($visit, 'risk_summary.score'));
+            if ($level === '' && $score !== null) {
+                $level = $score >= 40 ? 'high' : ($score >= 20 ? 'medium' : 'low');
             }
             if (! in_array($level, ['high', 'medium', 'low'], true)) {
-                $level = 'medium';
+                $group = strtolower(trim((string) ($visit['threat_group'] ?? '')));
+                $level = in_array($group, ['data_center', 'datacenter', 'vpn', 'malicious'], true) ? 'high' : 'medium';
             }
             $riskBuckets[$level]['count'] += 1;
 
@@ -2613,7 +2645,12 @@ class PaidMarketingController extends Controller
             $threatGradientStops[] = 'rgba(100,0,178,0.25) 0% 100%';
         }
 
-        $uniqueIps = $rows->pluck('ip')->filter()->unique()->count();
+        $uniqueIps = $rows
+            ->reject(fn ($visit) => ! empty($visit['is_allowlisted']))
+            ->pluck('ip')
+            ->filter()
+            ->unique()
+            ->count();
         $riskTotal = max(1, array_sum(array_column($riskBuckets, 'count')));
         $riskItems = [];
         $riskGradientStops = [];
@@ -2732,17 +2769,20 @@ class PaidMarketingController extends Controller
     {
         return $rows
             ->map(function (array $visit): ?array {
-                $score = $visit['intel_risk_score'] ?? data_get($visit, 'risk_summary.score');
-                $level = strtolower((string) ($visit['intel_risk_level'] ?? data_get($visit, 'risk_summary.level') ?? ''));
-                if (! is_numeric($score) && $level === '') {
+                if (! empty($visit['is_allowlisted'])) {
                     return null;
                 }
-                $score = is_numeric($score) ? (int) round((float) $score) : match ($level) {
+                $score = $this->normalizedRiskScore($visit['intel_risk_score'] ?? data_get($visit, 'risk_summary.score'));
+                $level = strtolower((string) ($visit['intel_risk_level'] ?? data_get($visit, 'risk_summary.level') ?? ''));
+                if ($score === null && $level === '') {
+                    return null;
+                }
+                $score = $score ?? match ($level) {
                     'high' => 85,
                     'medium' => 55,
                     default => 25,
                 };
-                if ($score < 55 && $level !== 'high') {
+                if ($score < 40 && $level !== 'high') {
                     return null;
                 }
 
@@ -2824,6 +2864,20 @@ class PaidMarketingController extends Controller
                 return $card;
             })
             ->all();
+    }
+
+    private function normalizedRiskScore(mixed $score): ?int
+    {
+        if (! is_numeric($score)) {
+            return null;
+        }
+
+        $value = (float) $score;
+        if ($value <= 1) {
+            $value *= 100;
+        }
+
+        return (int) round($value);
     }
 
     private function countryFlagEmoji(string $country): string
@@ -3689,11 +3743,17 @@ class PaidMarketingController extends Controller
             return [];
         }
 
+        $domain = Domain::query()->find($domainId);
+        if (! $domain || ! $domain->hasGoogleAdsConnection()) {
+            return [];
+        }
+
         return DB::table('google_ads_ip_exclusions')
             ->where('domain_id', $domainId)
             ->orderByDesc('updated_at')
             ->limit(50)
             ->get()
+            ->filter(fn ($row) => ! GlobalIpAllowlist::matches((string) ($row->ip ?? '')))
             ->map(fn ($row) => $this->formatGoogleExclusionRow($row))
             ->values()
             ->all();

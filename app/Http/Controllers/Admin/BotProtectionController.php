@@ -8,6 +8,7 @@ use App\Models\GoogleAdsAccount;
 use App\Models\IpLog;
 use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
+use App\Support\GlobalIpAllowlist;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
@@ -691,78 +692,21 @@ class BotProtectionController extends Controller
     {
         $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
+        $isDashboard = $request->query('source') === 'dashboard';
+        $filename = ($isDashboard ? 'bot-protection-dashboard-' : 'bot-protection-advanced-')
+            .now()->format('YmdHis').'.csv';
 
-        $filename = 'bot-protection-' . now()->format('YmdHis') . '.csv';
-
-        return response()->streamDownload(function () use ($request, $domainIds, $from, $to): void {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, [
-                'IP Address',
-                'Visits',
-                'Invalid',
-                'Valid',
-                'Domain',
-                'Path',
-                'Last Seen',
-                'Threat Group',
-                'Threat Type',
-                'Action',
-                'Country',
-                'Browser',
-                'OS',
-                'Status',
-                'UTM Campaign',
-                'Risk Score',
-            ]);
-
-            if (! Schema::hasTable('visits') || $domainIds->isEmpty()) {
-                fclose($handle);
-
-                return;
+        return response()->streamDownload(function () use ($request, $domainIds, $from, $to, $isDashboard): void {
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(120);
             }
 
-            $rows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
-                ->orderByDesc('total')
-                ->orderByDesc('visited_at')
-                ->limit(5000)
-                ->get();
+            $handle = fopen('php://output', 'w');
 
-            $ipLogs = IpLog::query()
-                ->whereIn('ip', $rows->pluck('ip')->unique()->filter()->values())
-                ->get()
-                ->keyBy('ip');
-
-            $domainsById = Domain::query()
-                ->whereIn('id', $rows->pluck('domain_id')->unique()->filter()->values())
-                ->get(['id', 'user_id', 'hostname', 'monitoring_only_mode'])
-                ->keyBy('id');
-
-            foreach ($rows as $v) {
-                $row = $this->formatVisit(
-                    $v,
-                    $ipLogs->get($v->ip),
-                    $request->user(),
-                    null,
-                    $domainsById->get($v->domain_id),
-                );
-                fputcsv($handle, [
-                    $row['ip'] ?? '',
-                    $row['visits'] ?? 0,
-                    $row['invalid_visits'] ?? 0,
-                    $row['valid_visits'] ?? 0,
-                    $row['domain'] ?? '',
-                    $row['path'] ?? '',
-                    $row['last_seen_label'] ?? '',
-                    $row['threat_group'] ?? '',
-                    $row['threat_type'] ?? '',
-                    $row['action_taken'] ?? '',
-                    $row['country'] ?? '',
-                    $row['browser'] ?? '',
-                    $row['os'] ?? '',
-                    $row['status'] ?? '',
-                    $row['utm_campaign'] ?? '',
-                    $row['intel_risk_score'] ?? '',
-                ]);
+            if ($isDashboard) {
+                $this->writeDashboardCsv($handle, $request, $domainIds, $from, $to);
+            } else {
+                $this->writeAdvancedCsv($handle, $request, $domainIds, $from, $to);
             }
 
             fclose($handle);
@@ -770,6 +714,137 @@ class BotProtectionController extends Controller
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
         ]);
+    }
+
+    /**
+     * @param  resource  $handle
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     */
+    private function writeDashboardCsv($handle, Request $request, $domainIds, Carbon $from, Carbon $to): void
+    {
+        fputcsv($handle, [
+            'IP Address',
+            'Domain',
+            'Path',
+            'Visited At',
+            'Threat Group',
+            'Threat Type',
+            'Action',
+            'Country',
+            'Invalid',
+            'Browser',
+            'OS',
+        ]);
+
+        if (! Schema::hasTable('visits') || collect($domainIds)->isEmpty()) {
+            return;
+        }
+
+        $rows = $this->baseVisitsQuery($domainIds, $from, $to, $request)
+            ->orderByDesc('visited_at')
+            ->limit(5000)
+            ->get();
+
+        $domainsById = Domain::query()
+            ->whereIn('id', $rows->pluck('domain_id')->unique()->filter()->values())
+            ->get(['id', 'hostname'])
+            ->keyBy('id');
+
+        foreach ($rows as $v) {
+            $path = (string) ($v->url ?? $v->path ?? '');
+            if ($path !== '' && str_starts_with($path, 'http')) {
+                $parsed = parse_url($path, PHP_URL_PATH);
+                $path = is_string($parsed) && $parsed !== '' ? $parsed : $path;
+            }
+
+            fputcsv($handle, [
+                $v->ip ?? '',
+                $domainsById->get($v->domain_id)?->hostname ?? '',
+                $path,
+                $v->visited_at ?? '',
+                $v->threat_group ?? '',
+                $v->threat_type ?? '',
+                $v->action_taken ?? '',
+                $v->country ?? '',
+                ! empty($v->is_invalid_traffic) ? 'Yes' : 'No',
+                $v->browser ?? '',
+                $v->os ?? '',
+            ]);
+        }
+    }
+
+    /**
+     * @param  resource  $handle
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     */
+    private function writeAdvancedCsv($handle, Request $request, $domainIds, Carbon $from, Carbon $to): void
+    {
+        fputcsv($handle, [
+            'IP Address',
+            'Visits',
+            'Invalid',
+            'Valid',
+            'Domain',
+            'Path',
+            'Last Seen',
+            'Threat Group',
+            'Threat Type',
+            'Action',
+            'Country',
+            'Browser',
+            'OS',
+            'Status',
+            'UTM Campaign',
+            'Risk Score',
+        ]);
+
+        if (! Schema::hasTable('visits') || collect($domainIds)->isEmpty()) {
+            return;
+        }
+
+        $rows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
+            ->orderByDesc('total')
+            ->orderByDesc('visited_at')
+            ->limit(5000)
+            ->get();
+
+        $ipLogs = IpLog::query()
+            ->whereIn('ip', $rows->pluck('ip')->unique()->filter()->values())
+            ->get()
+            ->keyBy('ip');
+
+        $domainsById = Domain::query()
+            ->whereIn('id', $rows->pluck('domain_id')->unique()->filter()->values())
+            ->get(['id', 'user_id', 'hostname', 'monitoring_only_mode'])
+            ->keyBy('id');
+
+        foreach ($rows as $v) {
+            $row = $this->formatVisit(
+                $v,
+                $ipLogs->get($v->ip),
+                $request->user(),
+                null,
+                $domainsById->get($v->domain_id),
+            );
+            fputcsv($handle, [
+                $row['ip'] ?? '',
+                $row['visits'] ?? 0,
+                $row['invalid_visits'] ?? 0,
+                $row['valid_visits'] ?? 0,
+                $row['domain'] ?? '',
+                $row['path'] ?? '',
+                $row['last_seen_label'] ?? '',
+                $row['threat_group'] ?? '',
+                $row['threat_type'] ?? '',
+                $row['action_taken'] ?? '',
+                $row['country'] ?? '',
+                $row['browser'] ?? '',
+                $row['os'] ?? '',
+                $row['status'] ?? '',
+                $row['utm_campaign'] ?? '',
+                $row['intel_risk_score'] ?? '',
+            ]);
+        }
     }
 
     /**
@@ -891,9 +966,11 @@ class BotProtectionController extends Controller
             ? (int) ($v->invalid ?? 0)
             : (((bool) $v->is_invalid_traffic) ? 1 : 0);
         $isInvalid = $invalid > 0 || (bool) ($v->is_invalid_traffic ?? false);
-        $isAllowListed = $domain !== null
-            && $ipLog !== null
-            && AllowListMatcher::isAllowListed($domain, $ipLog->ip);
+        $isAllowListed = ($ip = (string) ($ipLog?->ip ?: $v->ip ?: '')) !== ''
+            && (
+                GlobalIpAllowlist::matches($ip)
+                || ($domain !== null && AllowListMatcher::isAllowListed($domain, $ip))
+            );
 
         $rowId = (int) ($v->id ?? 0);
         if ($rowId <= 0) {
@@ -963,9 +1040,11 @@ class BotProtectionController extends Controller
         $isProxy = $ipLog ? app(IpIntelService::class)->isProxySuspect($ipLog) : false;
 
         $status = 'Valid';
-        $isAllowListed = $domain !== null
-            && $ipLog !== null
-            && AllowListMatcher::isAllowListed($domain, $ipLog->ip);
+        $isAllowListed = ($ip = (string) ($ipLog?->ip ?: $visit->ip ?: '')) !== ''
+            && (
+                GlobalIpAllowlist::matches($ip)
+                || ($domain !== null && AllowListMatcher::isAllowListed($domain, $ip))
+            );
 
         if ($isAllowListed) {
             $status = 'Valid';

@@ -1,4 +1,7 @@
 {{-- Replaces “Digital Promotix” text in the account rightbar --}}
+@php
+    $canInviteTeam = auth()->user()?->canInviteTeamMembers() ?? false;
+@endphp
 <div class="figma-rightbar-center mb-[16px]" id="rightbar-notify-root">
     <div class="mx-auto grid w-full max-w-[168px] grid-cols-4 gap-[9px]" role="toolbar" aria-label="Quick panel actions">
         <button
@@ -28,20 +31,30 @@
             </svg>
         </button>
 
-        <button
-            type="button"
-            class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]"
-            title="Share"
-            aria-label="Share"
-            onclick="navigator.clipboard?.writeText(window.location.href)"
-        >
-            <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="18" cy="5" r="2.4" stroke-width="1.7"/>
-                <circle cx="6" cy="12" r="2.4" stroke-width="1.7"/>
-                <circle cx="18" cy="19" r="2.4" stroke-width="1.7"/>
-                <path stroke-linecap="round" stroke-width="1.7" d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6"/>
-            </svg>
-        </button>
+        @if ($canInviteTeam)
+            <button
+                type="button"
+                class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]"
+                title="Invite teammate"
+                aria-label="Invite teammate"
+                onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings', { detail: { tab: 'account', team: true } }))"
+            >
+                <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M18 9v3m0 0v3m0-3h3m-3 0h-3M8 11a4 4 0 100-8 4 4 0 000 8zM6 14a6 6 0 00-6 6h8"/>
+                </svg>
+            </button>
+        @else
+            <a
+                href="{{ route('billing.index') }}"
+                class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2]/50 text-white/70 hover:bg-[#6400B2]"
+                title="Invite teammates — Enterprise, Advanced, or Custom plan"
+                aria-label="Upgrade to invite teammates"
+            >
+                <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M18 9v3m0 0v3m0-3h3m-3 0h-3M8 11a4 4 0 100-8 4 4 0 000 8zM6 14a6 6 0 00-6 6h8"/>
+                </svg>
+            </a>
+        @endif
 
         <a
             href="{{ route('profile.edit') }}"

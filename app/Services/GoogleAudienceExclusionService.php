@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\SyncGoogleAdsIpExclusionJob;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
+use App\Support\GlobalIpAllowlist;
 
 class GoogleAudienceExclusionService
 {
@@ -47,6 +48,14 @@ class GoogleAudienceExclusionService
         bool $isPaidTraffic = true,
     ): bool {
         if ($ip === '' || ! $isPaidTraffic) {
+            return false;
+        }
+
+        if (! $domain->hasGoogleAdsConnection()) {
+            return false;
+        }
+
+        if (GlobalIpAllowlist::matches($ip)) {
             return false;
         }
 

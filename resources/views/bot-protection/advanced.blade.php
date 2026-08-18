@@ -725,7 +725,7 @@
 
         <section class="bp-adv-charts">
             <article class="bp-adv-chart-card">
-                <h3 class="bp-adv-chart-card__title">Threat Distribution</h3>
+                <h3 class="bp-adv-chart-card__title" x-text="hasThreatData ? 'Threat Distribution' : 'No threat distribution'"></h3>
                 <div class="bp-adv-chart-card__body">
                     <div class="bp-adv-donut" :style="`--bp-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">
@@ -759,7 +759,7 @@
             </article>
 
             <article class="bp-adv-chart-card">
-                <h3 class="bp-adv-chart-card__title">Risk Level Distribution</h3>
+                <h3 class="bp-adv-chart-card__title" x-text="hasRiskData ? 'Risk Level Distribution' : 'No risk level distribution'"></h3>
                 <div class="bp-adv-chart-card__body">
                     <div class="bp-adv-donut" :style="`--bp-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">
@@ -792,7 +792,7 @@
             </article>
 
             <article class="bp-adv-chart-card">
-                <h3 class="bp-adv-chart-card__title">Top Countries by Invalid Clicks</h3>
+                <h3 class="bp-adv-chart-card__title" x-text="hasCountryFlags ? 'Top Countries by Invalid Clicks' : 'No flags'"></h3>
                 <div class="bp-adv-countries">
                     <template x-for="row in chartCountries" :key="'country-' + row.name">
                         <div class="bp-adv-country-row">
@@ -815,7 +815,7 @@
 
         <section class="bp-adv-hip">
             <div class="bp-adv-hip__head">
-                <h2 class="bp-adv-hip__title">Recent High Risk IPs</h2>
+                <h2 class="bp-adv-hip__title" x-text="highRiskIps.length ? 'Recent High Risk IPs' : 'No recent high risk IPs'"></h2>
                 <div class="bp-adv-hip__nav" x-show="highRiskIps.length > 1">
                     <button type="button" class="bp-adv-hip__btn" @click="scrollHighRisk(-1)" aria-label="Previous high risk IPs">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
@@ -1049,6 +1049,15 @@ function botProtectionAdvancedFigma() {
         },
         get riskDonut() {
             return this.buildDonutFromItems(this.chartRisk.items, this.hiddenRiskKeys);
+        },
+        get hasThreatData() {
+            return (this.chartThreat.items || []).some((item) => Number(item?.count || 0) > 0);
+        },
+        get hasRiskData() {
+            return (this.chartRisk.items || []).some((item) => Number(item?.count || 0) > 0);
+        },
+        get hasCountryFlags() {
+            return (this.chartCountries || []).length > 0;
         },
         get chartsUpdatedLabel() {
             if (!this.chartsUpdatedAt) return 'Updated: —';

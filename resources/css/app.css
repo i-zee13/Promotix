@@ -3094,12 +3094,23 @@ html.figma-gads-calendar-open body {
 }
 
 .figma-sa-subs-avatar {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     height: 36px;
-    width: 38px;
+    width: 36px;
     flex-shrink: 0;
     border-radius: 50%;
     background: #d9d9d9;
+    overflow: hidden;
+}
+
+.figma-sa-subs-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
 }
 
 .figma-sa-subs-user-text {
@@ -6956,6 +6967,22 @@ html.light-mode .figma-geo-combobox-label {
     flex-shrink: 0;
 }
 
+html.light-mode .paid-heatmap-hour,
+html.light-mode .paid-heatmap-day {
+    color: #6b6578;
+}
+
+html.light-mode .paid-trends-tooltip {
+    border-color: #d4c4e8;
+    background: #ffffff;
+    color: #2d2d3a;
+    box-shadow: 0 8px 24px rgba(100, 0, 178, 0.12);
+}
+
+html.light-mode .paid-trends-tooltip span {
+    color: #5c5470;
+}
+
 .paid-sidebar-card {
     min-height: 158px;
     border-radius: 10px;
@@ -10486,10 +10513,18 @@ a.figma-sa-users-filter-option {
     justify-content: center;
 }
 
+.figma-sa-users-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
 .figma-sa-users-avatar--sm {
     width: 24px;
     height: 24px;
-    border-radius: 3px;
+    border-radius: 50%;
 }
 
 .figma-sa-users-subemail {
@@ -11612,6 +11647,8 @@ a.figma-sa-users-filter-option {
     width: 56px;
     height: 56px;
     flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
 }
 
 .figma-sa-user-detail-hero-main {
@@ -13126,6 +13163,9 @@ a.figma-sa-users-filter-option {
     font-weight: 500;
     color: #6400b3;
     cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
 }
 
 .figma-sa-settings-card-btn:hover {

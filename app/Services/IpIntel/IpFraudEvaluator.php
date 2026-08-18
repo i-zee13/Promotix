@@ -12,6 +12,7 @@ use App\Support\Clickronix\TriggeredSignal;
 use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
 use App\Support\GeoAudienceMatcher;
+use App\Support\GlobalIpAllowlist;
 
 /**
  * Collects Promotix signals and scores them via Clickronix ScoringEngine (manual v2).
@@ -88,6 +89,14 @@ class IpFraudEvaluator
         $can = static fn (string $key): bool => (bool) ($planFeatures[$key] ?? true);
 
         // —— Policy short-circuits (manual: standalone / trust) ——
+        if (GlobalIpAllowlist::matches($ipLog->ip, [
+            'isp' => $ipLog->intel_isp,
+            'org' => $ipLog->intel_isp,
+            'raw' => $ipLog->ipdetails_raw,
+        ], $ipLog)) {
+            return $this->finalizePolicyAllow(['allow_list', 'global_allow_list']);
+        }
+
         if ($can(DetectionPlanFeatures::ALLOW_LIST) && $settings->allow_list_enabled && self::isIpInList($ipLog->ip, (string) $settings->allow_list_ips)) {
             return $this->finalizePolicyAllow(['allow_list']);
         }
@@ -587,24 +596,30 @@ class IpFraudEvaluator
         }
 
         [$subnet, $mask] = explode('/', $cidr, 2);
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false
-            || filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
-            return false;
-        }
-
         $mask = (int) $mask;
-        if ($mask < 0 || $mask > 32) {
+        $ipBin = @inet_pton($ip);
+        $subnetBin = @inet_pton($subnet);
+        if ($ipBin === false || $subnetBin === false || strlen($ipBin) !== strlen($subnetBin)) {
             return false;
         }
 
-        $ipLong = ip2long($ip);
-        $subnetLong = ip2long($subnet);
-        if ($ipLong === false || $subnetLong === false) {
+        $bitLength = strlen($ipBin) * 8;
+        if ($mask < 0 || $mask > $bitLength) {
             return false;
         }
 
-        $maskLong = $mask === 0 ? 0 : (~0 << (32 - $mask));
+        $fullBytes = intdiv($mask, 8);
+        $remainBits = $mask % 8;
+        if ($fullBytes > 0 && substr($ipBin, 0, $fullBytes) !== substr($subnetBin, 0, $fullBytes)) {
+            return false;
+        }
 
-        return ($ipLong & $maskLong) === ($subnetLong & $maskLong);
+        if ($remainBits === 0) {
+            return true;
+        }
+
+        $maskByte = (~0 << (8 - $remainBits)) & 0xFF;
+
+        return (ord($ipBin[$fullBytes]) & $maskByte) === (ord($subnetBin[$fullBytes]) & $maskByte);
     }
 }

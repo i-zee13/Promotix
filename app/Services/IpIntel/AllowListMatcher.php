@@ -4,11 +4,16 @@ namespace App\Services\IpIntel;
 
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
+use App\Support\GlobalIpAllowlist;
 
 class AllowListMatcher
 {
     public static function isAllowListed(Domain $domain, string $ip): bool
     {
+        if (GlobalIpAllowlist::matches($ip)) {
+            return true;
+        }
+
         $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
 
         return self::matchesSettings($settings, $ip);

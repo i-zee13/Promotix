@@ -260,6 +260,27 @@
                         </div>
                     </div>
 
+                    <div class="mt-4">
+                        <label class="figma-sa-label">Workspace features (plan gate)</label>
+                        <p class="mt-1 text-[11px] text-[#a9a9a9]">Team invite and provider whitelist. Default on for Enterprise / Advanced / Custom.</p>
+                        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                            @foreach (\App\Support\WorkspacePlanFeatures::catalog() as $feat)
+                                <label class="inline-flex items-start gap-2 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-[11px] text-[#d9d9d9] cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        class="mt-[2px] accent-[#6400B2]"
+                                        :checked="workspaceFlagOn(@js($feat['key']))"
+                                        @change="setWorkspaceFlag(@js($feat['key']), $event.target.checked)"
+                                    >
+                                    <span>
+                                        <span class="block font-semibold text-white">{{ $feat['label'] }}</span>
+                                        <span class="block text-[#a9a9a9]">{{ $feat['description'] }}</span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
                     <div class="mt-4 flex flex-wrap gap-5">
                         <label class="inline-flex items-center gap-2 cursor-pointer">
                             <input type="hidden" name="is_active" value="0">
@@ -409,6 +430,24 @@ function plansPricingPage(plans, products, storeUrl, defaultProductTitle) {
             return map[key] !== false;
         },
         setDetectionFlag(key, on) {
+            const map = this.parseFlagMap(this.form.feature_flags);
+            map[key] = !!on;
+            this.form.feature_flags = this.serializeFlagMap(map);
+        },
+        workspaceFlagOn(key) {
+            const map = this.parseFlagMap(this.form.feature_flags);
+            if (Object.prototype.hasOwnProperty.call(map, key)) {
+                return !!map[key];
+            }
+            const tier = String(this.form.tier || '').toLowerCase();
+            const name = String(this.form.name || '').toLowerCase();
+            return !!this.form.is_custom
+                || ['enterprise', 'custom', 'premium', 'advanced'].includes(tier)
+                || name.includes('enterprise')
+                || name.includes('advanced')
+                || name.includes('custom');
+        },
+        setWorkspaceFlag(key, on) {
             const map = this.parseFlagMap(this.form.feature_flags);
             map[key] = !!on;
             this.form.feature_flags = this.serializeFlagMap(map);

@@ -72,7 +72,27 @@ class Domain extends Model
             return false;
         }
 
-        return $this->google_ads_account_id !== null || $this->googleAdsMappings()->exists();
+        return $this->hasGoogleAdsConnection();
+    }
+
+    /**
+     * True when this domain is linked to a Google Ads account (direct FK or mapping).
+     */
+    public function hasGoogleAdsConnection(): bool
+    {
+        if ($this->google_ads_account_id !== null) {
+            return true;
+        }
+
+        if ($this->relationLoaded('googleAdsMappings')) {
+            return $this->googleAdsMappings->isNotEmpty();
+        }
+
+        try {
+            return $this->googleAdsMappings()->exists();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function scopeManual($query)

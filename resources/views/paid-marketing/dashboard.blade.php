@@ -579,8 +579,115 @@
     .paid-traffic-table tbody tr:hover td.pt-sticky-ip {
         background: #1a1a1a !important;
     }
-    html.light-mode .paid-traffic-table td.pt-sticky-ip { background: #fff !important; }
+    html.light-mode .paid-traffic-table td.pt-sticky-ip {
+        background: #fff !important;
+        box-shadow: 2px 0 6px rgba(100, 0, 178, 0.08);
+    }
     html.light-mode .paid-traffic-table tbody tr:hover td.pt-sticky-ip { background: #f7f5fb !important; }
+
+    /* Light mode: dark panel cards → white surfaces + readable text (purple KPIs stay purple) */
+    html.light-mode .paid-panel-card,
+    html.light-mode .paid-engine-card {
+        background: #ffffff;
+        border-color: #d4c4e8;
+        box-shadow: 0 1px 10px rgba(100, 0, 178, 0.08);
+    }
+    html.light-mode .paid-window-select {
+        background-color: #ffffff;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b6578'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+        border-color: #d4c4e8;
+        color: #2d2d3a;
+    }
+    html.light-mode .paid-heatmap-legend,
+    html.light-mode .paid-heatmap-hour,
+    html.light-mode .paid-heatmap-day {
+        color: #6b6578;
+    }
+    html.light-mode .paid-keyword-table { color: #2d2d3a; }
+    html.light-mode .paid-keyword-table th {
+        color: #6b6578;
+        border-bottom-color: #e7e1ef;
+    }
+    html.light-mode .paid-keyword-table td { border-bottom-color: #efeaf6; }
+    html.light-mode .paid-engine-col__title { color: #6b6578; }
+    html.light-mode .paid-engine-rule__label,
+    html.light-mode .paid-engine-action__name { color: #2d2d3a; }
+    html.light-mode .paid-engine-active.is-off {
+        background: #efeaf6;
+        color: #6b6578;
+    }
+    html.light-mode .paid-engine-active.is-off .paid-engine-active__dot { background: #9a93a8; }
+    html.light-mode .paid-engine-on.is-off {
+        background: #efeaf6;
+        color: #6b6578;
+    }
+    html.light-mode .paid-engine-action-badge.is-off {
+        border-color: #d4c4e8;
+        color: #6b6578;
+    }
+    html.light-mode .paid-engine-link { color: #6400B2; }
+    html.light-mode .paid-engine-link:hover { color: #7B13C8; }
+    html.light-mode .paid-hrisk-table { color: #5c5470; }
+    html.light-mode .paid-hrisk-table th {
+        color: #6b6578;
+        border-bottom-color: #e7e1ef;
+    }
+    html.light-mode .paid-hrisk-table td { border-bottom-color: #efeaf6; }
+    html.light-mode .paid-hrisk-table tr:hover td { background: #f7f5fb; }
+    html.light-mode .paid-traffic-wrap { border-color: #e7e1ef; }
+    html.light-mode .paid-traffic-table { color: #5c5470; }
+    html.light-mode .paid-traffic-table th,
+    html.light-mode .paid-traffic-table td { border-bottom-color: #efeaf6; }
+    html.light-mode .paid-score-low { color: #15803d; }
+    html.light-mode .paid-outline-badge.is-high,
+    html.light-mode .paid-outline-badge.is-block { color: #be123c; border-color: rgba(190, 18, 60, 0.45); }
+    html.light-mode .paid-outline-badge.is-medium,
+    html.light-mode .paid-outline-badge.is-monitor { color: #c2410c; border-color: rgba(194, 65, 12, 0.4); }
+    html.light-mode .paid-outline-badge.is-low,
+    html.light-mode .paid-outline-badge.is-allow { color: #15803d; border-color: rgba(21, 128, 61, 0.4); }
+    html.light-mode .paid-panel-card [class*="text-white"],
+    html.light-mode .paid-engine-card [class*="text-white"] {
+        color: #2d2d3a !important;
+    }
+    html.light-mode .paid-panel-card [class*="text-white/"],
+    html.light-mode .paid-engine-card [class*="text-white/"] {
+        color: #6b6578 !important;
+    }
+    html.light-mode .paid-panel-card [class*="bg-white/5"] {
+        background: #efeaf6 !important;
+        border-color: #d4c4e8 !important;
+    }
+    html.light-mode .paid-panel-card a[class*="hover:text-white"]:hover {
+        color: #4D008E !important;
+    }
+    html.light-mode .paid-engine-card [class*="bg-[#6400B2]"],
+    html.light-mode .paid-engine-card [class*="bg-[#6400B2]"] [class*="text-white"],
+    html.light-mode .paid-view-tabs [class*="bg-[#6400B2]"],
+    html.light-mode .paid-view-tabs [class*="bg-[#6400B2]"] [class*="text-white"] {
+        color: #ffffff !important;
+    }
+    html.light-mode .figma-main .paid-view-tabs {
+        background: #efeaf6 !important;
+        border-color: #d4c4e8 !important;
+        color: #6b6578 !important;
+    }
+    html.light-mode .paid-view-tabs button:not([class*="bg-[#6400B2]"]) {
+        color: #6b6578 !important;
+    }
+    html.light-mode .paid-export-btn {
+        background: #ffffff !important;
+        color: #6400B2 !important;
+        border-color: #d4c4e8 !important;
+    }
+    html.light-mode .paid-export-btn:hover {
+        background: rgba(100, 0, 178, 0.08) !important;
+        color: #4D008E !important;
+    }
+    html.light-mode #keyword-list [class*="text-white"] { color: #5c5470 !important; }
+    html.light-mode #keyword-list button {
+        color: #6400B2 !important;
+        background: rgba(100, 0, 178, 0.08) !important;
+    }
     .paid-score-high { color: #f87171; font-weight: 600; }
     .paid-score-medium { color: #fb923c; font-weight: 600; }
     .paid-score-low { color: #86efac; font-weight: 600; }
@@ -612,7 +719,7 @@
     .paid-status-dot.is-monitor { background: #fb923c; }
     .paid-status-dot.is-allow { background: #22c55e; }
 </style>
-<div class="min-h-[calc(100vh-49px)] bg-[#0d0d0d]" x-data="paidAdvertisingFigma(@js([
+<div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="paidAdvertisingFigma(@js([
     'countryGetStarted' => $countryGetStarted,
     'userTimezone' => \App\Support\UserTimezone::reportingTimezoneForUser(
         auth()->user(),
@@ -1032,11 +1139,11 @@
             <div class="mb-[6px] flex flex-wrap items-center justify-between gap-[8px]">
                 <div class="flex flex-wrap items-center gap-[8px]">
                     <h2 class="text-[18px] font-semibold leading-none text-[#a9a9a9] sm:text-[22px]">Recent Paid Traffic</h2>
-                    <div class="flex rounded-[6px] border border-white/15 bg-black/30 p-[2px] text-[10px]">
+                    <div class="paid-view-tabs flex rounded-[6px] border border-white/15 bg-black/30 p-[2px] text-[10px]">
                         <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'basic' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'basic'">Basic View</button>
                         <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'expert' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'expert'">Expert View</button>
                     </div>
-                    <button type="button" @click="exportIpsCsv()" title="Download CSV" class="flex h-[26px] w-[26px] items-center justify-center rounded-[4px] border border-[#6400B2]/60 bg-[#1a1a1a] text-[#B893D8] transition hover:border-[#6400B2] hover:bg-[#6400B2]/20 hover:text-white">
+                    <button type="button" @click="exportIpsCsv()" title="Download CSV" class="paid-export-btn flex h-[26px] w-[26px] items-center justify-center rounded-[4px] border border-[#6400B2]/60 bg-[#1a1a1a] text-[#B893D8] transition hover:border-[#6400B2] hover:bg-[#6400B2]/20 hover:text-white">
                         <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
                     </button>
                 </div>
@@ -1959,10 +2066,14 @@ function paidAdvertisingFigma(config = {}) {
             return p.toString();
         },
         async reloadIps() {
+            const gen = this.reloadGeneration;
             try {
                 const qs = this.ipsQueryString();
-                this.ips = await fetch(`/paid-marketing/ips?${qs}`).then(r => r.json());
+                const ips = await fetch(`/paid-marketing/ips?${qs}`).then(r => r.json());
+                if (gen !== this.reloadGeneration) return;
+                this.ips = Array.isArray(ips) ? ips : (ips?.data || []);
             } catch (e) {
+                if (gen !== this.reloadGeneration) return;
                 this.ips = [];
             }
         },
@@ -2057,10 +2168,14 @@ function paidAdvertisingFigma(config = {}) {
             this.syncWindowFromDates();
             this.startLivePoll();
             this.startGoogleSyncPoll();
-            this.startWatermarkPoll();
-            window.addEventListener('promotix:date-range', () => {
+            window.addEventListener('promotix:date-range', (event) => {
+                const prevFrom = this.filters.from;
+                const prevTo = this.filters.to;
                 this.syncHeaderDates();
+                if (event?.detail?.from) this.filters.from = event.detail.from;
+                if (event?.detail?.to) this.filters.to = event.detail.to;
                 this.syncWindowFromDates();
+                if (this.filters.from === prevFrom && this.filters.to === prevTo) return;
                 this.scheduleReload();
             });
             document.addEventListener('visibilitychange', () => {
@@ -2069,10 +2184,15 @@ function paidAdvertisingFigma(config = {}) {
             });
             window.addEventListener('promotix:export-ips-csv', () => this.exportIpsCsv());
             await this.reload(false, false);
+            this.startWatermarkPoll();
             window.addEventListener('resize', () => {
                 clearTimeout(window.__paidFigmaResize);
                 window.__paidFigmaResize = setTimeout(() => this.render(true), 180);
             });
+            if (!this._themeObserver) {
+                this._themeObserver = new MutationObserver(() => this.render(true));
+                this._themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+            }
         },
         async reload(forceGoogle = false, withLoader = false) {
             if (this.reloadInFlight) {
@@ -2087,7 +2207,16 @@ function paidAdvertisingFigma(config = {}) {
 
                 const ok = await this.runStaggered([
                     async () => {
+                        const gen = this.reloadGeneration;
+                        const ips = await fetch(`/paid-marketing/ips?${ipsQs}`).then(r => r.json());
+                        if (gen !== this.reloadGeneration) return;
+                        this.ips = Array.isArray(ips) ? ips : (ips?.data || []);
+                        this.lastReloadAt = Date.now();
+                    },
+                    async () => {
+                        const gen = this.reloadGeneration;
                         const summary = await fetch(`/paid-marketing/summary?${qs}`).then(r => r.json());
+                        if (gen !== this.reloadGeneration) return;
                         this.summary = summary;
                         this.lastSummaryFingerprint = JSON.stringify({
                             paid_visits: summary?.paid_visits,
@@ -2106,43 +2235,54 @@ function paidAdvertisingFigma(config = {}) {
                         this.syncPaidTimezoneHeader();
                     },
                     async () => {
+                        const gen = this.reloadGeneration;
                         const campaignsRaw = await fetch(`/paid-marketing/campaigns?${qs}`).then(r => r.json());
+                        if (gen !== this.reloadGeneration) return;
                         this.campaigns = Array.isArray(campaignsRaw) ? campaignsRaw : (campaignsRaw.campaigns || []);
                         this.untaggedDomains = Array.isArray(campaignsRaw) ? [] : (campaignsRaw.untagged_domains || []);
                         this.syncCampaignFilter();
                     },
                     async () => {
-                        this.trends = await fetch(`/paid-marketing/trends?${qs}`).then(r => r.json());
+                        const gen = this.reloadGeneration;
+                        const trends = await fetch(`/paid-marketing/trends?${qs}`).then(r => r.json());
+                        if (gen !== this.reloadGeneration) return;
+                        this.trends = trends;
                         await this.$nextTick();
                         this.render(false);
                     },
                     async () => {
+                        const gen = this.reloadGeneration;
                         const keywords = await fetch(`/paid-marketing/keywords?${qs}`).then(r => r.json());
+                        if (gen !== this.reloadGeneration) return;
                         this.keywords = Array.isArray(keywords) ? keywords : [];
                     },
                     async () => {
+                        const gen = this.reloadGeneration;
                         const countries = await fetch(`/paid-marketing/countries?${qs}`).then(r => r.json());
+                        if (gen !== this.reloadGeneration) return;
                         this.countries = Array.isArray(countries) ? countries : [];
                         await this.$nextTick();
                         this.render(false);
                     },
                     async () => {
+                        const gen = this.reloadGeneration;
                         const heatmap = await fetch(`/paid-marketing/heatmap?${qs}`).then(r => r.json());
+                        if (gen !== this.reloadGeneration) return;
                         this.heatmap = heatmap && typeof heatmap === 'object' ? heatmap : { days: [], hours: [], matrix: [] };
                         await this.$nextTick();
                         this.render(false);
                     },
                     async () => {
-                        this.blocking = await fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json());
+                        const gen = this.reloadGeneration;
+                        const blocking = await fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json());
+                        if (gen !== this.reloadGeneration) return;
+                        this.blocking = blocking;
                     },
                     async () => {
-                        const ips = await fetch(`/paid-marketing/ips?${ipsQs}`).then(r => r.json());
-                        this.ips = Array.isArray(ips) ? ips : (ips?.data || []);
-                        this.lastReloadAt = Date.now();
-                    },
-                    async () => {
+                        const gen = this.reloadGeneration;
                         try {
                             const wm = await fetch(`/paid-marketing/watermark?${qs}`).then(r => r.json());
+                            if (gen !== this.reloadGeneration) return;
                             this.lastWatermarkId = wm.last_id;
                             this.lastWatermarkCount = wm.count;
                             this.lastWatermarkVersion = wm.version || `${wm.last_id || 0}:${wm.count || 0}:${wm.domains_sig || ''}`;
@@ -2261,6 +2401,7 @@ function paidAdvertisingFigma(config = {}) {
                 hidden: this.hiddenTrendSeries,
                 compare: this.compareEnabled,
                 ipView: this.ipViewMode,
+                light: this.isLightMode(),
             });
             if (!force && fingerprint === this.lastRenderFingerprint) {
                 return;
@@ -2278,6 +2419,19 @@ function paidAdvertisingFigma(config = {}) {
                 this.updatePaidRightbar();
             });
         },
+        isLightMode() {
+            return document.documentElement.classList.contains('light-mode');
+        },
+        compareThisWeekColor() {
+            return this.isLightMode() ? '#6400B2' : '#FFFFFF';
+        },
+        trendLineColor(ds) {
+            const raw = String(ds?.color || '').toUpperCase();
+            if (!raw || raw === '#FFF' || raw === '#FFFFFF') {
+                return this.compareThisWeekColor();
+            }
+            return ds.color;
+        },
         trendsLegendItems() {
             if (this.compareEnabled) {
                 const datasets = this.trends.datasets || [];
@@ -2285,11 +2439,11 @@ function paidAdvertisingFigma(config = {}) {
                     return datasets.map(ds => ({
                         key: ds.dashed ? 'lastWeek' : 'thisWeek',
                         name: ds.name || (ds.dashed ? 'Last Week' : 'This Week'),
-                        color: ds.color || (ds.dashed ? '#FF4BC1' : '#FFFFFF'),
+                        color: ds.dashed ? (ds.color || '#FF4BC1') : this.trendLineColor(ds),
                     }));
                 }
                 return [
-                    { key: 'thisWeek', name: 'This Week', color: '#FFFFFF' },
+                    { key: 'thisWeek', name: 'This Week', color: this.compareThisWeekColor() },
                     { key: 'lastWeek', name: 'Last Week', color: '#FF4BC1' },
                 ];
             }
@@ -2404,7 +2558,7 @@ function paidAdvertisingFigma(config = {}) {
                 const thisDs = datasets.find(d => !d.dashed) || datasets[0];
                 const lastDs = datasets.find(d => d.dashed);
                 if (thisDs && !this.isTrendSeriesHidden('thisWeek')) {
-                    rows.push(`<span><i style="background:${thisDs.color || '#6625F8'}"></i>${thisDs.name || 'This Week'} ${this.fmtCompact(Number(thisDs.values?.[idx] || 0))}</span>`);
+                    rows.push(`<span><i style="background:${this.trendLineColor(thisDs)}"></i>${thisDs.name || 'This Week'} ${this.fmtCompact(Number(thisDs.values?.[idx] || 0))}</span>`);
                 }
                 if (lastDs && !this.isTrendSeriesHidden('lastWeek')) {
                     rows.push(`<span><i style="background:${lastDs.color || '#FF4BC1'}"></i>${lastDs.name || 'Last Week'} ${this.fmtCompact(Number(lastDs.values?.[idx] || 0))}</span>`);
@@ -2412,7 +2566,7 @@ function paidAdvertisingFigma(config = {}) {
             } else {
                 datasets.forEach((ds) => {
                     if (!ds || this.isTrendSeriesHidden(ds.key)) return;
-                    rows.push(`<span><i style="background:${ds.color || '#fff'}"></i>${ds.name || ds.key} ${this.fmtCompact(Number(ds.values?.[idx] || 0))}</span>`);
+                    rows.push(`<span><i style="background:${this.trendLineColor(ds)}"></i>${ds.name || ds.key} ${this.fmtCompact(Number(ds.values?.[idx] || 0))}</span>`);
                 });
             }
             return `<strong>${label}</strong>${rows.join('')}`;
@@ -2433,14 +2587,15 @@ function paidAdvertisingFigma(config = {}) {
             const xStep = (w - left - right) / Math.max(pointCount - 1, 1);
             const yAt = v => h - bottom - (Number(v) / max) * (h - top - bottom);
 
-            ctx.strokeStyle = 'rgba(255,255,255,.14)';
+            const light = this.isLightMode();
+            ctx.strokeStyle = light ? 'rgba(100,0,178,0.12)' : 'rgba(255,255,255,.14)';
             ctx.lineWidth = 1;
             for (let i = 0; i < 6; i++) {
                 const y = top + i * ((h - top - bottom) / 5);
                 ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(w - right, y); ctx.stroke();
             }
 
-            ctx.fillStyle = 'rgba(255,255,255,0.45)';
+            ctx.fillStyle = light ? '#6b6578' : 'rgba(255,255,255,0.45)';
             ctx.font = '9px Inter, sans-serif';
             for (let i = 0; i < 6; i++) {
                 const val = Math.round(max - (i * max / 5));
@@ -2465,7 +2620,7 @@ function paidAdvertisingFigma(config = {}) {
 
             series.forEach(ds => {
                 const pts = ds.values.map((v, i) => ({ x: left + i * xStep, y: yAt(v) }));
-                ctx.strokeStyle = ds.color || '#fff';
+                ctx.strokeStyle = this.trendLineColor(ds);
                 ctx.lineWidth = ds.dashed ? 1 : 1.5;
                 ctx.setLineDash(ds.dashed ? [5, 4] : []);
                 ctx.beginPath();
@@ -2476,7 +2631,7 @@ function paidAdvertisingFigma(config = {}) {
 
             if (hoverIndex != null && labels[hoverIndex] != null) {
                 const x = left + hoverIndex * xStep;
-                ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+                ctx.strokeStyle = light ? 'rgba(100,0,178,0.4)' : 'rgba(255,255,255,0.55)';
                 ctx.setLineDash([3, 3]);
                 ctx.beginPath();
                 ctx.moveTo(x, top);
@@ -2486,13 +2641,13 @@ function paidAdvertisingFigma(config = {}) {
                 series.forEach(ds => {
                     const v = Number(ds.values[hoverIndex] || 0);
                     ctx.beginPath();
-                    ctx.fillStyle = ds.color || (ds.dashed ? '#FF4BC1' : '#6625F8');
+                    ctx.fillStyle = this.trendLineColor(ds) || (ds.dashed ? '#FF4BC1' : '#6625F8');
                     ctx.arc(x, yAt(v), 4, 0, Math.PI * 2);
                     ctx.fill();
                 });
             }
 
-            ctx.fillStyle = '#D9D9D9';
+            ctx.fillStyle = light ? '#5c5470' : '#D9D9D9';
             ctx.font = '10px Inter, sans-serif';
             const labelCount = labels.length;
             const useSingleLetter = labelCount > 10;
@@ -2516,8 +2671,8 @@ function paidAdvertisingFigma(config = {}) {
             const series = datasets.map(d => d.values || []);
             const max = Math.max(...series.flat(), 1);
             const left = 28, right = 10, top = 8, bottom = 22;
-            const colors = ['#6625F8', '#FFFFFF'];
-            ctx.strokeStyle = 'rgba(255,255,255,.16)';
+            const colors = ['#6625F8', this.compareThisWeekColor()];
+            ctx.strokeStyle = this.isLightMode() ? 'rgba(100,0,178,0.14)' : 'rgba(255,255,255,.16)';
             ctx.lineWidth = 1;
             for (let i = 0; i < 5; i++) {
                 const y = top + i * ((h - top - bottom) / 4);
@@ -2534,7 +2689,7 @@ function paidAdvertisingFigma(config = {}) {
                 pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
                 ctx.stroke();
             });
-            ctx.fillStyle = '#9D9D9D';
+            ctx.fillStyle = this.isLightMode() ? '#6b6578' : '#9D9D9D';
             ctx.font = '9px Inter, sans-serif';
             labels.forEach((l, i) => {
                 if (i % Math.ceil(labels.length / 7 || 1) === 0) {
@@ -2583,12 +2738,13 @@ function paidAdvertisingFigma(config = {}) {
                 const cells = hourTicks.map((h) => {
                     const v = Number(matrix?.[dIdx]?.[h] || 0);
                     const t = max ? v / max : 0;
-                    let bg = 'rgba(255,255,255,0.08)';
+                    const light = this.isLightMode();
+                    let bg = light ? 'rgba(100,0,178,0.08)' : 'rgba(255,255,255,0.08)';
                     if (t > 0.85) bg = '#ef4444';
                     else if (t > 0.65) bg = '#f59e0b';
                     else if (t > 0.4) bg = '#6625F8';
-                    else if (t > 0.15) bg = '#4a1d8a';
-                    else if (t > 0) bg = '#2a1248';
+                    else if (t > 0.15) bg = light ? '#8b5cf6' : '#4a1d8a';
+                    else if (t > 0) bg = light ? '#c4b5fd' : '#2a1248';
                     return `<span class="paid-heatmap-cell" title="${day} ${h}:00 — ${v}" style="background:${bg}"></span>`;
                 }).join('');
                 return `<div class="paid-heatmap-day">${day}</div>${cells}`;

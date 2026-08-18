@@ -147,7 +147,9 @@
                                 </td>
                                 <td>
                                     <div class="figma-sa-subs-user">
-                                        <span class="figma-sa-subs-avatar" aria-hidden="true"></span>
+                                        <span class="figma-sa-subs-avatar" aria-hidden="true">
+                                            @include('partials.user-avatar', ['avatarUser' => $subscription->user, 'avatarTextClass' => 'text-[12px] font-semibold leading-none text-[#6400b2]'])
+                                        </span>
                                         <span class="figma-sa-subs-user-text">
                                             <span class="figma-sa-subs-user-name">{{ $subscription->user?->name ?? 'Deleted user' }}</span>
                                             <span class="figma-sa-subs-user-email">{{ $subscription->user?->email }}</span>

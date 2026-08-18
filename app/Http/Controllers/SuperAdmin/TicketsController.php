@@ -14,7 +14,7 @@ class TicketsController extends Controller
     public function index(Request $request): View
     {
         $tickets = SupportTicket::query()
-            ->with(['requester:id,name,email', 'assignee:id,name,email', 'owner:id,name,email'])
+            ->with(['requester:id,name,email,avatar_path,google_avatar_url', 'assignee:id,name,email', 'owner:id,name,email'])
             ->when($request->string('status')->toString(), fn ($q, $s) => $q->where('status', $s))
             ->when($request->string('priority')->toString(), fn ($q, $p) => $q->where('priority', $p))
             ->when($request->string('search')->toString(), function ($q, $term): void {

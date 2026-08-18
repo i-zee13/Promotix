@@ -34,6 +34,7 @@ use App\Http\Controllers\SuperAdmin\SupportPagesController as SuperAdminSupportP
 use App\Http\Controllers\SuperAdmin\TicketsController as SuperAdminTicketsController;
 use App\Http\Controllers\SuperAdmin\RolesController as SuperAdminRolesController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
+use App\Http\Controllers\SuperAdmin\IpAllowlistController as SuperAdminIpAllowlistController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\DatabaseExportController;
 use App\Http\Controllers\Onboarding\OnboardingController;
@@ -113,6 +114,10 @@ Route::middleware(['auth', 'super-admin'])
         Route::post('/security/{id}/flag', [SuperAdminSupportPagesController::class, 'flagDetection'])->name('security.flag');
         Route::get('/settings', [SuperAdminSupportPagesController::class, 'settings'])->name('settings.index');
         Route::post('/settings', [SuperAdminSupportPagesController::class, 'saveSettings'])->name('settings.save');
+        Route::get('/settings/whitelist', [SuperAdminIpAllowlistController::class, 'index'])->name('settings.whitelist');
+        Route::post('/settings/whitelist', [SuperAdminIpAllowlistController::class, 'store'])->name('settings.whitelist.store');
+        Route::patch('/settings/whitelist/{entry}/toggle', [SuperAdminIpAllowlistController::class, 'toggle'])->name('settings.whitelist.toggle');
+        Route::delete('/settings/whitelist/{entry}', [SuperAdminIpAllowlistController::class, 'destroy'])->name('settings.whitelist.destroy');
         Route::put('/email-templates/{emailTemplate}', [SuperAdminSupportPagesController::class, 'updateEmailTemplate'])->name('email-templates.update');
         Route::post('/email-templates/{emailTemplate}/restore', [SuperAdminSupportPagesController::class, 'restoreEmailTemplate'])->name('email-templates.restore');
         Route::post('/email-templates/{emailTemplate}/send-test', [SuperAdminSupportPagesController::class, 'sendTestEmailTemplate'])->name('email-templates.send-test');
@@ -168,6 +173,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         })->name('domains.paid-marketing.connect');
         Route::get('/domains/{domain}/wordpress-plugin.zip', [DomainManagementController::class, 'downloadWpPlugin'])->name('domains.wp-plugin');
         Route::get('/users', [UsersController::class, 'index'])->name('users');
+        Route::post('/team/invite', [UsersController::class, 'invite'])->name('team.invite');
         Route::patch('/users/{user}/role', [UsersController::class, 'updateRole'])->name('users.update-role');
         Route::get('/saas-products', [SaaSProductsController::class, 'index'])->name('saas-products');
         Route::get('/plans', [PlansController::class, 'index'])->name('plans');

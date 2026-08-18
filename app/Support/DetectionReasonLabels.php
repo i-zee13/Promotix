@@ -7,6 +7,7 @@ class DetectionReasonLabels
     /** @var array<string, string> */
     private const MAP = [
         'allow_list' => 'IP is on the allow list (highest precedence).',
+        'global_allow_list' => 'IP matches the platform IP / provider whitelist.',
         'block_list' => 'IP is on the block list.',
         'blocked_country' => 'Visitor country/region is on the block-country list.',
         'out_of_geo' => 'Visitor is outside the allow-country audience.',

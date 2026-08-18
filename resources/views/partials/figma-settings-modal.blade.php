@@ -149,9 +149,21 @@
     }
 
     $reportsUrl = \Illuminate\Support\Facades\Route::has('reports.index') ? route('reports.index') : '#';
-    $comprehensiveReportUrl = \Illuminate\Support\Facades\Route::has('paid-marketing.detailed-export-xlsx')
-        ? route('paid-marketing.detailed-export-xlsx')
+    $comprehensiveReportUrl = \Illuminate\Support\Facades\Route::has('paid-marketing.detailed-export')
+        ? route('paid-marketing.detailed-export')
         : $reportsUrl;
+    $reportDownloadUrls = [
+        'dashboard_ips' => \Illuminate\Support\Facades\Route::has('paid-marketing.ips.export')
+            ? route('paid-marketing.ips.export')
+            : $comprehensiveReportUrl,
+        'advanced' => $comprehensiveReportUrl,
+        'bot' => \Illuminate\Support\Facades\Route::has('bot-protection.export')
+            ? route('bot-protection.export')
+            : $comprehensiveReportUrl,
+        'bot_advanced' => \Illuminate\Support\Facades\Route::has('bot-protection.export')
+            ? route('bot-protection.export')
+            : $comprehensiveReportUrl,
+    ];
     $billingUrl = \Illuminate\Support\Facades\Route::has('billing.index') ? route('billing.index') : '#';
     $domainsUrl = \Illuminate\Support\Facades\Route::has('domains.index') ? route('domains.index') : '#';
     $domainsCreateUrl = \Illuminate\Support\Facades\Route::has('domains.create')
@@ -203,15 +215,6 @@
 
         return $svg;
     };
-
-    $reportTypes = [
-        ['key' => 'traffic', 'title' => 'Traffic Quality', 'desc' => 'Invalid clicks, risk scores, and quality trends.'],
-        ['key' => 'google', 'title' => 'Google Ads', 'desc' => 'Campaign spend, CPC, and conversion health.'],
-        ['key' => 'ip', 'title' => 'IP Intelligence', 'desc' => 'VPN, proxy, and datacenter traffic breakdown.'],
-        ['key' => 'bot', 'title' => 'Bot', 'desc' => 'Automated traffic patterns and bot signatures.'],
-        ['key' => 'session', 'title' => 'Session Recording', 'desc' => 'Session replay summaries and drop-off points.'],
-        ['key' => 'custom', 'title' => 'Custom', 'desc' => 'Build a tailored export for your team.'],
-    ];
 @endphp
 
 <div
@@ -233,6 +236,7 @@
             'alert_sound' => (bool) ($settingsOther['alert_sound'] ?? false),
         ],
         'reportDownloadUrl' => $comprehensiveReportUrl,
+        'reportUrls' => $reportDownloadUrls,
         'avatar' => [
             'url' => $settingsUser?->avatarUrl(),
             'initial' => $settingsUser?->avatarInitial() ?? '?',
@@ -301,7 +305,7 @@
     x-show="open"
     x-transition.opacity
     @keydown.escape.window="close()"
-    @open-promotix-settings.window="openModal($event.detail?.tab)"
+    @open-promotix-settings.window="openModal($event.detail?.tab, $event.detail)"
     @close-promotix-settings.window="close()"
     role="dialog"
     aria-modal="true"
@@ -339,6 +343,17 @@
                     </div>
                 </template>
                 <p class="pmx-settings__hint mt-3" x-show="!team.members.length">No additional team members yet.</p>
+                @if (auth()->user()?->canInviteTeamMembers())
+                    <form method="POST" action="{{ route('team.invite') }}" class="mt-4 space-y-2">
+                        @csrf
+                        <p class="pmx-settings__label">Invite teammate</p>
+                        <input type="text" name="name" class="pmx-settings__input" placeholder="Name (optional)">
+                        <input type="email" name="email" class="pmx-settings__input" placeholder="Email" required>
+                        <button type="submit" class="pmx-settings__cta">Send invite</button>
+                    </form>
+                @else
+                    <p class="pmx-settings__hint mt-3">Team invite is available on Enterprise, Advanced, and Custom plans.</p>
+                @endif
             </section>
         </div>
         <header class="pmx-settings__head">
@@ -522,11 +537,11 @@
                     <p class="pmx-settings__p">Generate exports for traffic quality, ads, bots, and more.</p>
 
                     <div class="pmx-settings__range">
-                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === 'today' }" @click="reportRange = 'today'">Today</button>
-                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === 'yesterday' }" @click="reportRange = 'yesterday'">Yesterday</button>
-                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === '7d' }" @click="reportRange = '7d'">Last 7 Days</button>
-                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === '30d' }" @click="reportRange = '30d'">Last 30 Days</button>
-                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === 'custom' }" @click="reportRange = 'custom'">
+                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === 'today' }" @click="setReportRange('today')">Today</button>
+                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === 'yesterday' }" @click="setReportRange('yesterday')">Yesterday</button>
+                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === '7d' }" @click="setReportRange('7d')">Last 7 Days</button>
+                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === '30d' }" @click="setReportRange('30d')">Last 30 Days</button>
+                        <button type="button" class="pmx-settings__chip-btn" :class="{ 'is-active': reportRange === 'custom' }" @click="setReportRange('custom')">
                             <svg style="width:13px;height:13px;margin-right:5px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14H3V6a2 2 0 012-2z"/></svg>
                             Custom dates
                         </button>
@@ -534,42 +549,35 @@
 
                     <div class="pmx-settings__card" style="margin-bottom:12px">
                         <div class="pmx-settings__report-controls">
-                            <label class="pmx-settings__field" x-show="reportRange === 'custom'">
+                            <label class="pmx-settings__field">
                                 <span class="pmx-settings__label">From</span>
-                                <input type="date" class="pmx-settings__input" x-model="reportCustomFrom">
-                            </label>
-                            <label class="pmx-settings__field" x-show="reportRange === 'custom'">
-                                <span class="pmx-settings__label">To</span>
-                                <input type="date" class="pmx-settings__input" x-model="reportCustomTo">
+                                <input type="date" class="pmx-settings__input" x-model="reportCustomFrom" @change="reportRange = 'custom'">
                             </label>
                             <label class="pmx-settings__field">
-                                <span class="pmx-settings__label">Report group</span>
+                                <span class="pmx-settings__label">To</span>
+                                <input type="date" class="pmx-settings__input" x-model="reportCustomTo" @change="reportRange = 'custom'">
+                            </label>
+                            <label class="pmx-settings__field">
+                                <span class="pmx-settings__label">Download</span>
                                 <select class="pmx-settings__select" x-model="reportGroup">
-                                    <option value="all">All details</option>
-                                    <option value="device_id">Device IDs</option>
-                                    <option value="repeated_ips">Repeated IPs</option>
-                                    <option value="allocated_range">IP allocated ranges</option>
+                                    <option value="dashboard_ips">Main dashboard IP stats</option>
+                                    <option value="advanced">Advanced View stats</option>
+                                    <option value="bot">Bot protection</option>
+                                    <option value="bot_advanced">Advanced bot protection</option>
                                 </select>
                             </label>
+                            <button
+                                type="button"
+                                class="pmx-settings__cta pmx-settings__report-download"
+                                @click="downloadReport()"
+                                :disabled="reportBusy"
+                                x-text="reportBusy ? 'Preparing…' : 'Download CSV'"
+                            ></button>
                         </div>
                     </div>
 
-                    <div class="pmx-settings__report-grid">
-                        @foreach ($reportTypes as $rt)
-                            <div class="pmx-settings__report-card">
-                                <p class="pmx-settings__label">{{ $rt['title'] }}</p>
-                                <p class="pmx-settings__hint">{{ $rt['desc'] }}</p>
-                                <a
-                                    :href="buildReportDownloadUrl('{{ $rt['key'] }}')"
-                                    class="pmx-settings__btn"
-                                    style="margin-top:10px"
-                                    download
-                                >Download XLSX</a>
-                            </div>
-                        @endforeach
-                    </div>
-
-                    <p class="pmx-settings__hint" style="margin-top:12px">Every download includes all Advanced View column groups and available technical details for the selected date range.</p>
+                    <p class="pmx-settings__hint" x-show="reportStatus" x-text="reportStatus" style="margin-top:0;margin-bottom:8px"></p>
+                    <p class="pmx-settings__hint" style="margin-top:4px">Pick a date range, then download stats for the dashboard, Advanced View, or Bot Protection.</p>
 
                 </div>
 
@@ -943,7 +951,11 @@
                                 <p class="pmx-settings__label">Team members</p>
                                 <p class="pmx-settings__hint">Invite and manage roles for your workspace.</p>
                             </div>
-                            <button type="button" class="pmx-settings__btn" @click="teamOpen = true">Manage team</button>
+                            @if (auth()->user()?->canInviteTeamMembers())
+                                <button type="button" class="pmx-settings__btn" @click="teamOpen = true">Manage team</button>
+                            @else
+                                <a href="{{ route('billing.index') }}" class="pmx-settings__btn">Upgrade to invite</a>
+                            @endif
                         </div>
                     </div>
 
@@ -1459,9 +1471,25 @@
     }
     .pmx-settings__report-controls {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(140px, 1.6fr) auto;
         gap: 10px;
         align-items: end;
+    }
+    .pmx-settings__report-controls .pmx-settings__field {
+        margin-bottom: 0;
+    }
+    .pmx-settings__report-controls .pmx-settings__input,
+    .pmx-settings__report-controls .pmx-settings__select {
+        height: 38px;
+        min-height: 38px;
+        box-sizing: border-box;
+    }
+    .pmx-settings__report-download {
+        height: 38px;
+        min-height: 38px;
+        padding: 0 16px;
+        white-space: nowrap;
+        margin: 0;
     }
     .pmx-settings__report-grid {
         display: grid;
@@ -1470,6 +1498,8 @@
     }
     @media (max-width: 840px) {
         .pmx-settings__report-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .pmx-settings__report-controls { grid-template-columns: 1fr 1fr; }
+        .pmx-settings__report-download { grid-column: 1 / -1; }
         .pmx-settings__appear-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 560px) {
@@ -1797,6 +1827,7 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         csrf: seed.csrf || '',
         prefsUrl: seed.prefsUrl || '/user/preferences',
         reportDownloadUrl: seed.reportDownloadUrl || '/reports',
+        reportUrls: seed.reportUrls || {},
         avatarUrl: seed.avatar?.url || '',
         avatarInitial: seed.avatar?.initial || '?',
         avatarHasCustom: Boolean(seed.avatar?.has_custom),
@@ -1807,9 +1838,11 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         teamOpen: false,
         team: Object.assign({ owner: { name: 'Workspace owner', email: '', role: 'Owner', initial: '?' }, members: [] }, seed.team || {}),
         reportRange: '7d',
-        reportGroup: 'all',
+        reportGroup: 'dashboard_ips',
         reportCustomFrom: '',
         reportCustomTo: '',
+        reportBusy: false,
+        reportStatus: '',
         generalStatus: '',
         generalBusy: false,
         notifyStatus: '',
@@ -1907,7 +1940,7 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             return `${parts.year}-${parts.month}-${parts.day}`;
         },
         reportDateRange() {
-            if (this.reportRange === 'custom' && this.reportCustomFrom && this.reportCustomTo) {
+            if (this.reportCustomFrom && this.reportCustomTo) {
                 return {
                     from: this.reportCustomFrom <= this.reportCustomTo ? this.reportCustomFrom : this.reportCustomTo,
                     to: this.reportCustomFrom <= this.reportCustomTo ? this.reportCustomTo : this.reportCustomFrom,
@@ -1921,27 +1954,79 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             const fromOffset = this.reportRange === '30d' ? -29 : (this.reportRange === '7d' ? -6 : 0);
             return { from: this.reportDate(fromOffset), to: this.reportDate(0) };
         },
-        buildReportDownloadUrl(reportType) {
-            const url = new URL(this.reportDownloadUrl, window.location.origin);
+        setReportRange(range) {
+            this.reportRange = range;
+            if (range === 'custom') return;
+            const next = this.computedReportRange(range);
+            this.reportCustomFrom = next.from;
+            this.reportCustomTo = next.to;
+        },
+        computedReportRange(range) {
+            if (range === 'yesterday') {
+                const yesterday = this.reportDate(-1);
+                return { from: yesterday, to: yesterday };
+            }
+            const fromOffset = range === '30d' ? -29 : (range === '7d' ? -6 : 0);
+            return { from: this.reportDate(fromOffset), to: this.reportDate(0) };
+        },
+        buildReportDownloadUrl() {
+            const group = this.reportGroup || 'dashboard_ips';
+            const base = this.reportUrls[group] || this.reportDownloadUrl;
+            const url = new URL(base, window.location.origin);
             const range = this.reportDateRange();
             url.searchParams.set('from', range.from);
             url.searchParams.set('to', range.to);
-            url.searchParams.set('columns', 'all');
-            url.searchParams.set('report_type', String(reportType || 'comprehensive'));
-            const groups = {
-                device_id: 'paid_identity',
-                repeated_ips: 'repeat_click',
-                allocated_range: 'ip_intelligence',
-            };
-            if (groups[this.reportGroup]) {
-                url.searchParams.set('column_group', groups[this.reportGroup]);
-                url.searchParams.delete('columns');
+            if (group === 'bot') {
+                url.searchParams.set('source', 'dashboard');
+            } else if (group === 'bot_advanced') {
+                url.searchParams.set('source', 'advanced');
             }
-            url.searchParams.set('report_group', this.reportGroup || 'all');
 
             return url.toString();
         },
+        filenameFromDisposition(header, fallback) {
+            const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(header || '');
+            const raw = decodeURIComponent((match && (match[1] || match[2])) || fallback);
+            return raw.replace(/[/\\]/g, '');
+        },
+        async downloadReport() {
+            if (this.reportBusy) return;
+            this.reportBusy = true;
+            this.reportStatus = 'Preparing download…';
+            try {
+                const url = this.buildReportDownloadUrl();
+                const res = await fetch(url, {
+                    headers: {
+                        'Accept': 'text/csv,application/octet-stream,*/*',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                if (!res.ok) {
+                    throw new Error('Download failed (' + res.status + '). Try a shorter date range.');
+                }
+                const blob = await res.blob();
+                if (!blob || blob.size < 8 || (blob.type || '').includes('text/html')) {
+                    throw new Error('The report did not finish. Try a shorter date range.');
+                }
+                const fallback = (this.reportGroup || 'report') + '.csv';
+                const filename = this.filenameFromDisposition(res.headers.get('content-disposition'), fallback);
+                const href = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = href;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(href), 1500);
+                this.reportStatus = 'Download started.';
+            } catch (error) {
+                this.reportStatus = error?.message || 'Download failed. Please try again.';
+            } finally {
+                this.reportBusy = false;
+            }
+        },
         initModal() {
+            this.setReportRange(this.reportRange || '7d');
             if (seed.security_auto_open) {
                 this.tab = 'security';
                 this.securityTab = seed.security_tab || 'two_factor';
@@ -1949,9 +2034,10 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
                 document.body.style.overflow = 'hidden';
             }
         },
-        openModal(tab) {
+        openModal(tab, detail) {
             if (tab) this.tab = tab;
             this.open = true;
+            this.teamOpen = Boolean(detail?.team);
             document.body.style.overflow = 'hidden';
         },
         close() {

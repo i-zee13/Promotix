@@ -279,6 +279,8 @@ class TrackingController extends Controller
             'utm_term' => ['nullable', 'string'],
             'keyword' => ['nullable', 'string'],
             'session_id' => ['nullable', 'string', 'max:128'],
+            'fingerprint' => ['nullable', 'string', 'max:512'],
+            'fingerprint_signals' => ['nullable'],
             'ts' => ['nullable', 'numeric'],
             'click_source' => ['nullable', 'string', 'max:16'],
             'ad_click_meta' => ['nullable'],
@@ -291,6 +293,10 @@ class TrackingController extends Controller
         if (! isset($data['ad_click_meta']) || ! is_array($data['ad_click_meta'])) {
             $data['ad_click_meta'] = [];
         }
+        $data['fingerprint'] = (string) ($data['fingerprint'] ?? $request->input('fingerprint') ?? '');
+        $data['fingerprint_signals'] = \App\Support\DeviceFingerprintCatalog::sanitize(
+            $data['fingerprint_signals'] ?? $request->input('fingerprint_signals')
+        );
         if (! filled($data['click_source'] ?? null)) {
             $data['click_source'] = $request->isMethod('get') ? 'pixel' : 'tag';
         }
@@ -306,6 +312,21 @@ class TrackingController extends Controller
         $os = $this->osFromUa($ua);
         $country = $request->headers->get('CF-IPCountry') ?: null;
         $device = $this->platformFromUa($ua);
+        $fpSignals = is_array($data['fingerprint_signals'] ?? null) ? $data['fingerprint_signals'] : [];
+        if (filled($fpSignals['browser_family'] ?? null)) {
+            $browser['name'] = (string) $fpSignals['browser_family'];
+        }
+        if (filled($fpSignals['browser_major'] ?? null)) {
+            $browser['version'] = (string) $fpSignals['browser_major'];
+        }
+        if (filled($fpSignals['os_version'] ?? null)) {
+            $os = (string) $fpSignals['os_version'];
+        } elseif (filled($fpSignals['os_family'] ?? null)) {
+            $os = (string) $fpSignals['os_family'];
+        }
+        if (filled($fpSignals['device_type'] ?? null)) {
+            $device = (string) $fpSignals['device_type'];
+        }
         $isCrawler = $this->isCrawlerUa($ua);
         $isPaidTraffic = GoogleClickAttribution::isPaidTraffic($data, (int) $domain->id);
         $googleClick = GoogleClickAttribution::resolve($data);
@@ -336,9 +357,10 @@ class TrackingController extends Controller
         if ($isPaidTraffic) {
             try {
                 $pipeline = app(PaidAdvertisingPipeline::class);
-                $clientFp = isset($data['fingerprint']) ? (string) $data['fingerprint'] : (
-                    isset($data['behavior_fingerprint']) ? (string) $data['behavior_fingerprint'] : null
-                );
+                $clientFp = (string) ($data['fingerprint'] ?? $request->input('fingerprint') ?: (
+                    $data['behavior_fingerprint'] ?? $request->input('behavior_fingerprint') ?: ''
+                ));
+                $clientFp = $clientFp !== '' ? $clientFp : null;
                 $paidEnrichment = $pipeline->enrichPaidDetection(
                     $request,
                     $domain,
@@ -589,6 +611,21 @@ class TrackingController extends Controller
             }
             if (Schema::hasColumn('visits', 'ads_detections') && $adsDetections !== []) {
                 $visitPayload['ads_detections'] = json_encode($adsDetections);
+            }
+            $fpSignals = is_array($data['fingerprint_signals'] ?? null) ? $data['fingerprint_signals'] : [];
+            if ($fpSignals !== [] && Schema::hasColumn('visits', 'fingerprint_signals')) {
+                $visitPayload['fingerprint_signals'] = json_encode($fpSignals);
+            }
+            if ($fpSignals !== []) {
+                if (Schema::hasColumn('visits', 'screen_resolution') && filled($fpSignals['screen_size'] ?? null)) {
+                    $visitPayload['screen_resolution'] = (string) $fpSignals['screen_size'];
+                }
+                if (Schema::hasColumn('visits', 'language') && filled($fpSignals['language'] ?? null)) {
+                    $visitPayload['language'] = (string) $fpSignals['language'];
+                }
+                if (Schema::hasColumn('visits', 'timezone') && filled($fpSignals['timezone'] ?? null)) {
+                    $visitPayload['timezone'] = (string) $fpSignals['timezone'];
+                }
             }
 
             $visitId = DB::table('visits')->insertGetId($visitPayload);

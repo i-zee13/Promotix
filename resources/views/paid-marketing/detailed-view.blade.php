@@ -973,7 +973,7 @@
 
         <section class="pm-adv-charts mt-[18px]">
             <article class="pm-adv-chart-card">
-                <h3 class="pm-adv-chart-card__title">Threat Distribution</h3>
+                <h3 class="pm-adv-chart-card__title" x-text="hasThreatData ? 'Threat Distribution' : 'No threat distribution'"></h3>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
@@ -1007,7 +1007,7 @@
             </article>
 
             <article class="pm-adv-chart-card">
-                <h3 class="pm-adv-chart-card__title">Risk Level Distribution</h3>
+                <h3 class="pm-adv-chart-card__title" x-text="hasRiskData ? 'Risk Level Distribution' : 'No risk level distribution'"></h3>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
@@ -1040,7 +1040,7 @@
             </article>
 
             <article class="pm-adv-chart-card">
-                <h3 class="pm-adv-chart-card__title">Top Countries by Invalid Clicks</h3>
+                <h3 class="pm-adv-chart-card__title" x-text="hasCountryFlags ? 'Top Countries by Invalid Clicks' : 'No flags'"></h3>
                 <div class="pm-adv-countries">
                     <template x-for="row in chartCountries" :key="'country-' + row.name">
                         <div class="pm-adv-country-row">
@@ -1063,7 +1063,7 @@
 
         <section class="pm-adv-hip">
             <div class="pm-adv-hip__head">
-                <h2 class="pm-adv-hip__title">Recent High Risk IPs</h2>
+                <h2 class="pm-adv-hip__title" x-text="highRiskIps.length ? 'Recent High Risk IPs' : 'No recent high risk IPs'"></h2>
                 <div class="pm-adv-hip__nav" x-show="highRiskIps.length > 1">
                     <button type="button" class="pm-adv-hip__btn" @click="scrollHighRisk(-1)" aria-label="Previous high risk IPs">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
@@ -1184,6 +1184,31 @@
                                 Session: <span class="font-mono text-white/70" x-text="modal.visit?.session_id || '—'"></span>
                                 · Fingerprint: <span class="font-mono text-white/70" x-text="modal.visit?.device_fingerprint || '—'"></span>
                             </p>
+                        </div>
+                        <div class="mb-3 overflow-hidden rounded-[8px] border border-white/15 bg-black/30" x-show="(modal.visit?.fingerprint_scan || []).length">
+                            <p class="border-b border-white/10 px-[12px] py-[8px] text-[11px] font-semibold uppercase tracking-wide text-white/55">Fingerprint scan</p>
+                            <div class="max-h-[240px] overflow-auto promotix-slim-scroll">
+                                <table class="w-full text-left text-[10px] text-white/80">
+                                    <thead class="sticky top-0 bg-[#101010] text-white/45">
+                                        <tr>
+                                            <th class="px-[10px] py-[6px] font-medium">Group</th>
+                                            <th class="px-[10px] py-[6px] font-medium">Field</th>
+                                            <th class="px-[10px] py-[6px] font-medium">Value</th>
+                                            <th class="px-[10px] py-[6px] font-medium">Role</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="row in (modal.visit?.fingerprint_scan || [])" :key="row.key">
+                                            <tr class="border-t border-white/10">
+                                                <td class="px-[10px] py-[5px] text-white/50" x-text="row.group"></td>
+                                                <td class="px-[10px] py-[5px]" x-text="row.label"></td>
+                                                <td class="max-w-[220px] truncate px-[10px] py-[5px] font-mono text-white" :title="row.value" x-text="row.value"></td>
+                                                <td class="px-[10px] py-[5px] text-white/50" x-text="row.role"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         <template x-if="activeClick">
                             <div class="figma-click-modal-fields">
@@ -1658,6 +1683,15 @@
             },
             get riskDonut() {
                 return this.buildDonutFromItems(this.chartRisk.items, this.hiddenRiskKeys);
+            },
+            get hasThreatData() {
+                return (this.chartThreat.items || []).some((item) => Number(item?.count || 0) > 0);
+            },
+            get hasRiskData() {
+                return (this.chartRisk.items || []).some((item) => Number(item?.count || 0) > 0);
+            },
+            get hasCountryFlags() {
+                return (this.chartCountries || []).length > 0;
             },
             modal: { open: false, visit: null, clicks: [], activeIndex: 0, timeline: [], timelineOpen: true, timelineLoading: false },
             recordingModal: { open: false, id: null, visit_id: null, ip: '', page_url: '', events: [] },
@@ -2199,7 +2233,7 @@
             },
             xlsxHref() {
                 const qs = this.queryString(true);
-                return `{{ route('paid-marketing.detailed-export-xlsx') }}${qs ? '?' + qs : ''}`;
+                return `{{ route('paid-marketing.detailed-export-xlsx') }}${qs ? '?' + qs + '&' : '?'}include_relationships=1`;
             },
             async fetchNow() {
                 const generation = ++this.fetchGeneration;

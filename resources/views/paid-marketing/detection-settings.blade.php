@@ -391,20 +391,25 @@
                 grid-template-columns: 1fr;
                 gap: 14px;
                 margin-bottom: 18px;
+                align-items: stretch;
             }
             @media (min-width: 1100px) {
                 .figma-bip-gaem { grid-template-columns: 1.15fr 0.85fr; }
             }
             .figma-bip, .figma-gaem {
                 min-width: 0;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
                 border-radius: 12px;
                 border: 1px solid #e4dceb;
                 background: #fff;
                 padding: 16px;
             }
             .figma-bip-head, .figma-gaem-head {
-                display: flex; flex-wrap: wrap; align-items: flex-start;
+                display: flex; flex-wrap: wrap; align-items: center;
                 justify-content: space-between; gap: 10px; margin-bottom: 14px;
+                min-height: 42px;
             }
             .figma-bip-title, .figma-gaem-title { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #2d2d3a; }
             .figma-bip-lead, .figma-gaem-lead { margin: 0; font-size: 11px; color: #6b6578; }
@@ -440,7 +445,7 @@
                 background: #fff; color: #2d2d3a; font-size: 11px; padding: 0 12px; cursor: pointer;
             }
             .figma-gaem-ghost-btn:hover { background: #f7f5fa; }
-            .figma-bip-table-wrap, .figma-gaem-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #e4dceb; }
+            .figma-bip-table-wrap, .figma-gaem-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #e4dceb; flex: 1; }
             .figma-bip-table, .figma-gaem-table { width: 100%; border-collapse: collapse; font-size: 11px; color: #2d2d3a; }
             .figma-bip-table th, .figma-gaem-table th {
                 text-align: left; font-weight: 500; color: #6b6578;
@@ -1751,6 +1756,7 @@
                                 'syncUrl' => route('paid-marketing.detection-settings.google-exclusion.sync', $domain),
                                 'csrf' => csrf_token(),
                                 'rows' => $ipExclusions,
+                                'adsConnected' => $domain->hasGoogleAdsConnection(),
                             ]))"
                         >
                             <div class="figma-gaem-head">
@@ -1797,7 +1803,7 @@
                                     </thead>
                                     <tbody>
                                         <template x-if="!rows.length">
-                                            <tr><td colspan="4" class="figma-bip-empty">No exclusions queued yet.</td></tr>
+                                            <tr><td colspan="4" class="figma-bip-empty" x-text="adsConnected ? 'No exclusions queued yet.' : 'Connect Google Ads to queue campaign exclusions.'"></td></tr>
                                         </template>
                                         <template x-for="row in rows.slice(0, showAllExclusions ? rows.length : 5)" :key="row.ip + row.updated_at">
                                             <tr>
@@ -2274,6 +2280,7 @@ function googleExclusionPanel(config) {
         bulkFile: null,
         bulkFileName: '',
         rows: config.rows || [],
+        adsConnected: Boolean(config.adsConnected),
         pushUrl: config.pushUrl,
         pushRowUrl: config.pushRowUrl,
         toggleRowUrl: config.toggleRowUrl,
