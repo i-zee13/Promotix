@@ -89,6 +89,33 @@ final class GoogleClickAttribution
     }
 
     /**
+     * Hide Google click-ID rows only for domains that already appear in Paid Advertising.
+     * New accounts without a Google Ads link would otherwise have IPs in neither product.
+     *
+     * @param  list<int>  $paidMarketingDomainIds
+     */
+    public static function excludeClickIdsForPaidDomains(Builder $query, array $paidMarketingDomainIds, string $prefix = ''): void
+    {
+        $paidIds = array_values(array_unique(array_filter(
+            array_map(static fn ($id) => (int) $id, $paidMarketingDomainIds),
+            static fn (int $id) => $id > 0
+        )));
+
+        if ($paidIds === []) {
+            return;
+        }
+
+        $domainCol = $prefix !== '' ? $prefix . '.domain_id' : 'domain_id';
+        $query->where(function (Builder $group) use ($paidIds, $domainCol, $prefix): void {
+            $group->whereNotIn($domainCol, $paidIds)
+                ->orWhere(function (Builder $paid) use ($paidIds, $domainCol, $prefix): void {
+                    $paid->whereIn($domainCol, $paidIds);
+                    self::excludeClickIds($paid, $prefix);
+                });
+        });
+    }
+
+    /**
      * Legacy paid_marketing_clicks rows keyed by paid_id (gclid family).
      */
     public static function applyPaidClickIdFilter(Builder $query, string $paidIdColumn = 'paid_id'): void

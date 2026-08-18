@@ -44,12 +44,13 @@ class BotProtectionController extends Controller
 
     public function summary(Request $request): JsonResponse
     {
-        $domainIds = $this->scopedDomainIds($request);
-        [$from, $to] = $this->dateRange($request);
+        try {
+            $domainIds = $this->scopedDomainIds($request);
+            [$from, $to] = $this->dateRange($request);
 
-        if (! Schema::hasTable('visits')) {
-            return response()->json($this->emptySummary());
-        }
+            if (! Schema::hasTable('visits') || collect($domainIds)->isEmpty()) {
+                return response()->json($this->emptySummary());
+            }
 
         $current = $this->visitClassificationStats($domainIds, $from, $to, $request);
         $days = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
@@ -96,6 +97,11 @@ class BotProtectionController extends Controller
                 'previous_to' => $prevTo->toIso8601String(),
             ],
         ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json($this->emptySummary() + ['error' => 'Could not load Bot Protection.'], 500);
+        }
     }
 
     public function trafficBreakdown(Request $request): JsonResponse
@@ -468,10 +474,10 @@ class BotProtectionController extends Controller
             return Domain::query()
                 ->where('domains.user_id', $request->user()->id)
                 ->whereIn('domains.id', $domainIds)
-                ->leftJoin('visits', function ($join) use ($rangeFrom, $rangeTo): void {
+                ->leftJoin('visits', function ($join) use ($rangeFrom, $rangeTo, $domainIds): void {
                     $join->on('domains.id', '=', 'visits.domain_id')
                         ->whereBetween('visits.visited_at', [$rangeFrom, $rangeTo]);
-                    GoogleClickAttribution::excludeClickIds($join, 'visits');
+                    $this->applyBotFunnelFilter($join, $domainIds, 'visits');
                 })
                 ->select(array_merge($selectDomainCols, [
                     DB::raw('COUNT(visits.id) as total_visits'),
@@ -568,124 +574,152 @@ class BotProtectionController extends Controller
 
     public function botStats(Request $request): JsonResponse
     {
-        $domainIds = $this->scopedDomainIds($request);
-        [$from, $to] = $this->dateRange($request);
-
-        if (! Schema::hasTable('visits')) {
-            return response()->json([
-                'blocked' => 0,
-                'invalid_traffic' => 0,
-                'paid_traffic' => 0,
-                'bot_detection' => 0,
-                'country' => 0,
-                'overall' => 0,
-                'charts' => $this->emptyAdvancedCharts(),
-            ]);
-        }
-
-        $base = $this->baseVisitsQuery($domainIds, $from, $to, $request);
-
-        $total = max(1, (clone $base)->count());
-        $blocked = (clone $base)->where('action_taken', 'block')->count();
-        $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
-        $bot = (clone $base)->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit'])->count();
-        $withCountry = (clone $base)->whereNotNull('country')->where('country', '!=', '')->count();
-        $valid = max(0, (clone $base)->count() - $invalid);
-
-        // Same IP-aggregate grain as Advanced table / Dashboard country IPs.
-        $chartRows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
-            ->orderByDesc('total')
-            ->limit(500)
-            ->get();
-
-        $ipLogs = IpLog::query()
-            ->whereIn('ip', $chartRows->pluck('ip')->unique()->filter()->values())
-            ->get(['ip', 'is_blocked', 'ipdetails_abuser_score', 'abuse_confidence_score'])
-            ->keyBy('ip');
-
-        return response()->json([
-            'blocked' => (int) round(($blocked / $total) * 100),
-            'invalid_traffic' => (int) round(($invalid / $total) * 100),
+        $empty = [
+            'blocked' => 0,
+            'invalid_traffic' => 0,
             'paid_traffic' => 0,
-            'bot_detection' => (int) round(($bot / $total) * 100),
-            'country' => (int) round(($withCountry / $total) * 100),
-            'overall' => (int) round(($valid / $total) * 100),
-            'charts' => $this->computeAdvancedCharts($chartRows, $ipLogs),
-        ]);
+            'bot_detection' => 0,
+            'country' => 0,
+            'overall' => 0,
+            'charts' => $this->emptyAdvancedCharts(),
+        ];
+
+        try {
+            $domainIds = $this->scopedDomainIds($request);
+            [$from, $to] = $this->dateRange($request);
+
+            if (! Schema::hasTable('visits') || collect($domainIds)->isEmpty()) {
+                return response()->json($empty);
+            }
+
+            $base = $this->baseVisitsQuery($domainIds, $from, $to, $request);
+
+            $total = max(1, (clone $base)->count());
+            $blocked = (clone $base)->where('action_taken', 'block')->count();
+            $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
+            $bot = (clone $base)->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit'])->count();
+            $withCountry = (clone $base)->whereNotNull('country')->where('country', '!=', '')->count();
+            $valid = max(0, (clone $base)->count() - $invalid);
+
+            // Same IP-aggregate grain as Advanced table / Dashboard country IPs.
+            $chartRows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
+                ->orderByDesc('total')
+                ->limit(500)
+                ->get();
+
+            $ipLogs = IpLog::query()
+                ->whereIn('ip', $chartRows->pluck('ip')->unique()->filter()->values())
+                ->get(['ip', 'is_blocked', 'ipdetails_abuser_score', 'abuse_confidence_score'])
+                ->keyBy('ip');
+
+            return response()->json([
+                'blocked' => (int) round(($blocked / $total) * 100),
+                'invalid_traffic' => (int) round(($invalid / $total) * 100),
+                'paid_traffic' => 0,
+                'bot_detection' => (int) round(($bot / $total) * 100),
+                'country' => (int) round(($withCountry / $total) * 100),
+                'overall' => (int) round(($valid / $total) * 100),
+                'charts' => $this->computeAdvancedCharts($chartRows, $ipLogs),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json($empty + ['error' => 'Could not load stats.'], 500);
+        }
     }
 
     public function visits(Request $request): JsonResponse
     {
-        $domainIds = $this->scopedDomainIds($request);
-        [$from, $to] = $this->dateRange($request);
-
-        if (! Schema::hasTable('visits')) {
-            return response()->json(['data' => [], 'meta' => ['total' => 0, 'page' => 1, 'per_page' => 25]]);
-        }
-
-        $perPage = min(100, max(10, (int) $request->query('per_page', 25)));
+        $perPage = min(100, max(10, (int) $request->query('per_page', 20)));
         $page = max(1, (int) $request->query('page', 1));
 
-        $total = $this->countAdvancedUniqueIps($request, $domainIds, $from, $to);
-        $rows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
-            ->orderByDesc('total')
-            ->orderByDesc('visited_at')
-            ->forPage($page, $perPage)
-            ->get();
+        $payload = function (array $data = [], int $total = 0, int $domainCount = 0, int $paidHidden = 0, ?string $error = null) use ($page, $perPage): JsonResponse {
+            return response()->json([
+                'data' => $data,
+                'meta' => [
+                    'total' => $total,
+                    'page' => $page,
+                    'per_page' => $perPage,
+                    'domain_count' => $domainCount,
+                    'paid_hidden' => $paidHidden,
+                ],
+                'error' => $error,
+            ], $error ? 500 : 200);
+        };
 
-        $ipLogs = IpLog::query()
-            ->whereIn('ip', $rows->pluck('ip')->unique()->filter()->values())
-            ->get()
-            ->keyBy('ip');
+        try {
+            $domainIds = $this->scopedDomainIds($request);
+            [$from, $to] = $this->dateRange($request);
+            $domainCount = collect($domainIds)->count();
 
-        $recordings = collect();
-        $behaviorCounts = collect();
-        if (Schema::hasTable('visit_session_recordings') && $rows->isNotEmpty()) {
-            $ips = $rows->pluck('ip')->unique()->filter()->values();
-            $recordings = DB::table('visit_session_recordings')
-                ->whereIn('ip', $ips)
-                ->whereIn('domain_id', $domainIds)
-                ->orderByDesc('id')
+            if (! Schema::hasTable('visits') || $domainCount === 0) {
+                return $payload(domainCount: $domainCount);
+            }
+
+            $total = $this->countAdvancedUniqueIps($request, $domainIds, $from, $to);
+            $paidHidden = $total === 0 ? $this->countPaidHiddenIps($request, $domainIds, $from, $to) : 0;
+            $rows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
+                ->orderByDesc('total')
+                ->orderByDesc('visited_at')
+                ->forPage($page, $perPage)
+                ->get();
+
+            $ipLogs = IpLog::query()
+                ->whereIn('ip', $rows->pluck('ip')->unique()->filter()->values())
                 ->get()
-                ->groupBy('ip')
-                ->map->first();
+                ->keyBy('ip');
 
-            if (Schema::hasColumn('visit_session_recordings', 'cta_clicks')) {
-                $behaviorCounts = DB::table('visit_session_recordings')
-                    ->select([
-                        'ip',
-                        DB::raw('COALESCE(SUM(cta_clicks), 0) as cta_clicks'),
-                        DB::raw('COALESCE(SUM(tel_clicks), 0) as tel_clicks'),
-                        DB::raw('COALESCE(SUM(page_changes), 0) as page_changes'),
-                    ])
+            $recordings = collect();
+            $behaviorCounts = collect();
+            if (Schema::hasTable('visit_session_recordings') && $rows->isNotEmpty()) {
+                $ips = $rows->pluck('ip')->unique()->filter()->values();
+                $recordings = DB::table('visit_session_recordings')
                     ->whereIn('ip', $ips)
                     ->whereIn('domain_id', $domainIds)
-                    ->groupBy('ip')
+                    ->orderByDesc('id')
                     ->get()
-                    ->keyBy('ip');
+                    ->groupBy('ip')
+                    ->map->first();
+
+                if (Schema::hasColumn('visit_session_recordings', 'cta_clicks')) {
+                    $behaviorCounts = DB::table('visit_session_recordings')
+                        ->select([
+                            'ip',
+                            DB::raw('COALESCE(SUM(cta_clicks), 0) as cta_clicks'),
+                            DB::raw('COALESCE(SUM(tel_clicks), 0) as tel_clicks'),
+                            DB::raw('COALESCE(SUM(page_changes), 0) as page_changes'),
+                        ])
+                        ->whereIn('ip', $ips)
+                        ->whereIn('domain_id', $domainIds)
+                        ->groupBy('ip')
+                        ->get()
+                        ->keyBy('ip');
+                }
             }
+
+            $domainsById = Domain::query()
+                ->whereIn('id', $rows->pluck('domain_id')->unique()->filter()->values())
+                ->get(['id', 'user_id', 'hostname', 'monitoring_only_mode'])
+                ->keyBy('id');
+
+            return $payload(
+                data: $rows->map(fn ($v) => $this->formatVisit(
+                    $v,
+                    $ipLogs->get($v->ip),
+                    $request->user(),
+                    $recordings->get($v->ip),
+                    $domainsById->get($v->domain_id),
+                    $behaviorCounts->get($v->ip),
+                ))->values()->all(),
+                total: $total,
+                domainCount: $domainCount,
+                paidHidden: $paidHidden,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $payload(error: 'Could not load IPs. Please retry.');
         }
-
-        $domainsById = Domain::query()
-            ->whereIn('id', $rows->pluck('domain_id')->unique()->filter()->values())
-            ->get(['id', 'user_id', 'hostname', 'monitoring_only_mode'])
-            ->keyBy('id');
-
-        return response()->json([
-            'data' => $rows->map(fn ($v) => $this->formatVisit(
-                $v,
-                $ipLogs->get($v->ip),
-                $request->user(),
-                $recordings->get($v->ip),
-                $domainsById->get($v->domain_id),
-                $behaviorCounts->get($v->ip),
-            ))->values(),
-            'meta' => [
-                'total' => $total,
-                'page' => $page,
-                'per_page' => $perPage,
-            ],
-        ]);
     }
 
     public function exportCsv(Request $request): StreamedResponse
@@ -856,11 +890,14 @@ class BotProtectionController extends Controller
             ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
             ->whereIn('visits.domain_id', $domainIds)
             ->whereBetween('visits.visited_at', [$from, $to]);
-        GoogleClickAttribution::excludeClickIds($query, 'visits');
+        GoogleClickAttribution::excludeClickIdsForPaidDomains(
+            $query,
+            $this->paidMarketingDomainIds($domainIds),
+            'visits',
+        );
         $this->applyAdvancedVisitFilters($query, $request);
 
-        return $query
-            ->select(
+        $columns = [
                 'visits.domain_id',
                 'visits.ip',
                 'domains.hostname',
@@ -881,7 +918,13 @@ class BotProtectionController extends Controller
                 DB::raw('MAX(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as is_invalid_traffic'),
                 DB::raw('MAX(CASE WHEN visits.is_paid_traffic = 1 THEN 1 ELSE 0 END) as is_paid_traffic'),
                 DB::raw('MAX(visits.id) as id'),
-            )
+        ];
+        if (Schema::hasColumn('visits', 'gclid')) {
+            $columns[] = DB::raw('MAX(visits.gclid) as gclid');
+        }
+
+        return $query
+            ->select($columns)
             ->groupBy('visits.domain_id', 'visits.ip', 'domains.hostname');
     }
 
@@ -890,7 +933,11 @@ class BotProtectionController extends Controller
         $query = DB::table('visits')
             ->whereIn('visits.domain_id', $domainIds)
             ->whereBetween('visits.visited_at', [$from, $to]);
-        GoogleClickAttribution::excludeClickIds($query, 'visits');
+        GoogleClickAttribution::excludeClickIdsForPaidDomains(
+            $query,
+            $this->paidMarketingDomainIds($domainIds),
+            'visits',
+        );
         $this->applyAdvancedVisitFilters($query, $request);
 
         return (int) $query
@@ -932,7 +979,11 @@ class BotProtectionController extends Controller
             ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
             ->whereIn('visits.domain_id', $domainIds)
             ->whereBetween('visits.visited_at', [$from, $to]);
-        GoogleClickAttribution::excludeClickIds($query, 'visits');
+        GoogleClickAttribution::excludeClickIdsForPaidDomains(
+            $query,
+            $this->paidMarketingDomainIds($domainIds),
+            'visits',
+        );
         $this->applyAdvancedVisitFilters($query, $request);
 
         return $query->select(
@@ -979,16 +1030,21 @@ class BotProtectionController extends Controller
 
         return [
             'id' => $rowId,
+            'click_id' => $rowId > 0 ? ('CK-' . str_pad((string) $rowId, 6, '0', STR_PAD_LEFT)) : '—',
             'domain_id' => (int) ($v->domain_id ?? 0),
             'hostname' => $v->hostname,
             'domain' => $v->hostname,
             'ip' => $v->ip,
+            'campaign' => $v->utm_campaign ?: null,
+            'gclid' => $v->gclid ?? null,
             'visits' => $total,
             'path' => $v->url,
             'country' => $v->country,
             'country_label' => $this->countryLabel($v->country),
             'browser' => $v->browser,
             'os' => $v->os,
+            'device' => $this->deviceLabelFromOs((string) ($v->os ?? '')),
+            'status' => $isAllowListed ? 'allowed' : (($ipLog?->is_blocked || strtolower((string) ($v->action_taken ?? '')) === 'block') ? 'blocked' : ($isInvalid ? 'monitored' : 'allowed')),
             'url' => $v->url,
             'domain_url' => $v->url ?: ($v->hostname ?? ''),
             'referrer' => $v->referrer,
@@ -1113,6 +1169,22 @@ class BotProtectionController extends Controller
         ];
     }
 
+    private function deviceLabelFromOs(string $os): string
+    {
+        $value = strtolower(trim($os));
+        if ($value === '') {
+            return '—';
+        }
+        if (str_contains($value, 'android') || str_contains($value, 'iphone') || str_contains($value, 'ios')) {
+            return 'Mobile';
+        }
+        if (str_contains($value, 'ipad') || str_contains($value, 'tablet')) {
+            return 'Tablet';
+        }
+
+        return 'Desktop';
+    }
+
     private function intelScalar(mixed $value): ?string
     {
         if (is_array($value)) {
@@ -1177,13 +1249,17 @@ class BotProtectionController extends Controller
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('visited_at', [$from, $to]);
 
-        GoogleClickAttribution::excludeClickIds($query);
+        GoogleClickAttribution::excludeClickIdsForPaidDomains(
+            $query,
+            $this->paidMarketingDomainIds($domainIds),
+        );
 
         return $this->applyPathFilter($query, $request);
     }
 
     /**
-     * Google Ads sessions live outside the bot-protection base query, which strips click-ID traffic.
+     * Google Ads sessions on Ads-linked domains. Unlinked new accounts keep those
+     * visits in the bot-protection base query so IPs are not invisible.
      *
      * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
      */
@@ -1221,6 +1297,57 @@ class BotProtectionController extends Controller
         }
 
         return $query;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     * @return list<int>
+     */
+    private function paidMarketingDomainIds($domainIds): array
+    {
+        $ids = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->unique()->sort()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return Domain::query()
+            ->whereIn('id', $ids->all())
+            ->forPaidMarketing()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    private function applyBotFunnelFilter($query, $domainIds, string $prefix = ''): void
+    {
+        GoogleClickAttribution::excludeClickIdsForPaidDomains(
+            $query,
+            $this->paidMarketingDomainIds($domainIds),
+            $prefix,
+        );
+    }
+
+    /**
+     * Unique IPs that Bot Protection hid because they already belong in Paid Advertising.
+     *
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     */
+    private function countPaidHiddenIps(Request $request, $domainIds, Carbon $from, Carbon $to): int
+    {
+        $paidIds = $this->paidMarketingDomainIds($domainIds);
+        if ($paidIds === []) {
+            return 0;
+        }
+
+        $query = DB::table('visits')
+            ->whereIn('visits.domain_id', $paidIds)
+            ->whereBetween('visits.visited_at', [$from, $to]);
+        GoogleClickAttribution::applyHasClickIdFilter($query, 'visits');
+        $this->applyAdvancedVisitFilters($query, $request);
+
+        return (int) $query
+            ->selectRaw('COUNT(DISTINCT CONCAT(visits.domain_id, "|", visits.ip)) as aggregate_count')
+            ->value('aggregate_count');
     }
 
     private function scopedDomainIds(Request $request)

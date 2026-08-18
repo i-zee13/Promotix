@@ -668,6 +668,9 @@
                 <div class="pm-adv-table-x-scroll">
                     <div class="pm-adv-table-sync" :style="syncStyle">
                         <div class="pm-adv-table-grid pm-adv-table-grid--head text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
+                            <label class="flex items-center justify-center">
+                                <input type="checkbox" class="rounded border-white/30" disabled>
+                            </label>
                             <template x-for="col in visibleColumns" :key="'head-' + col.key">
                                 <span class="truncate" x-text="col.label"></span>
                             </template>
@@ -676,33 +679,37 @@
                         <div class="pm-adv-table-body-scroll">
                             <template x-for="row in rows" :key="(row.domain_id || '') + '|' + row.ip + '|' + row.id">
                                 <div class="pm-adv-table-grid pm-adv-table-grid--row text-[10px] sm:text-[11px]" :style="gridStyle">
+                                    <label class="flex items-center justify-center">
+                                        <input type="checkbox" class="rounded border-white/30">
+                                    </label>
                                     <template x-for="col in visibleColumns" :key="(row.domain_id || '') + '|' + row.ip + '-' + col.key">
-                                        <template x-if="col.key !== 'session_recording'">
-                                            <span class="truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue(row, col.key)" x-text="cellValue(row, col.key)"></span>
-                                        </template>
-                                        <template x-if="col.key === 'session_recording'">
-                                            <span class="flex items-center justify-center">
-                                                <button type="button" x-show="row.has_session_recording" @click.stop="openRecording(row)" class="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#6400B2] text-white hover:bg-[#7B13C8]" title="Watch session recording">
-                                                    <svg class="h-[11px] w-[11px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                </button>
-                                                <span x-show="!row.has_session_recording" class="text-[#8c8787]">—</span>
-                                            </span>
-                                        </template>
+                                        <div class="pm-adv-cell">
+                                            @include('partials.advanced-view-rich-cell', ['item' => 'row'])
+                                        </div>
                                     </template>
                                 </div>
                             </template>
-                            <p x-show="rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]">No matching IPs in this window.</p>
+                            <p x-show="rows.length === 0" class="py-[24px] text-center text-[12px] text-[#a9a9a9]" x-text="emptyMessage()"></p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between border-t border-[#6706b3]/40 px-[14px] py-[10px] text-[10px] text-[#a9a9a9]">
+            <div class="adv-pager">
                 <span x-text="paginationLabel()"></span>
-                <div class="flex gap-[8px]">
-                    <button type="button" class="rounded-[6px] border border-[#6706b3] px-[12px] py-[4px] text-[10px] text-white disabled:opacity-40" :disabled="meta.page <= 1" @click="changePage(meta.page - 1)">Prev</button>
-                    <button type="button" class="rounded-[6px] border border-[#6706b3] px-[12px] py-[4px] text-[10px] text-white disabled:opacity-40" :disabled="meta.page * meta.per_page >= meta.total" @click="changePage(meta.page + 1)">Next</button>
+                <div class="adv-pager__pages">
+                    <button type="button" class="adv-pager__btn" :disabled="meta.page <= 1" @click="changePage(meta.page - 1)">‹</button>
+                    <template x-for="item in pageItems" :key="'p-'+item">
+                        <button type="button" class="adv-pager__btn" :class="item === meta.page && 'is-active'" :disabled="item === '…'" @click="item !== '…' && changePage(item)" x-text="item"></button>
+                    </template>
+                    <button type="button" class="adv-pager__btn" :disabled="meta.page * meta.per_page >= meta.total" @click="changePage(meta.page + 1)">›</button>
                 </div>
+                <select x-model.number="meta.per_page" @change="changePage(1)">
+                    <option :value="10">10 / page</option>
+                    <option :value="20">20 / page</option>
+                    <option :value="25">25 / page</option>
+                    <option :value="50">50 / page</option>
+                </select>
             </div>
         </section>
 
@@ -725,7 +732,7 @@
 
         <section class="bp-adv-charts">
             <article class="bp-adv-chart-card">
-                <h3 class="bp-adv-chart-card__title" x-text="hasThreatData ? 'Threat Distribution' : 'No threat distribution'"></h3>
+                <h3 class="bp-adv-chart-card__title">Threat Distribution</h3>
                 <div class="bp-adv-chart-card__body">
                     <div class="bp-adv-donut" :style="`--bp-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">
@@ -759,7 +766,7 @@
             </article>
 
             <article class="bp-adv-chart-card">
-                <h3 class="bp-adv-chart-card__title" x-text="hasRiskData ? 'Risk Level Distribution' : 'No risk level distribution'"></h3>
+                <h3 class="bp-adv-chart-card__title">Risk Level Distribution</h3>
                 <div class="bp-adv-chart-card__body">
                     <div class="bp-adv-donut" :style="`--bp-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">
@@ -792,7 +799,7 @@
             </article>
 
             <article class="bp-adv-chart-card">
-                <h3 class="bp-adv-chart-card__title" x-text="hasCountryFlags ? 'Top Countries by Invalid Clicks' : 'No flags'"></h3>
+                <h3 class="bp-adv-chart-card__title">Top Countries by Invalid Clicks</h3>
                 <div class="bp-adv-countries">
                     <template x-for="row in chartCountries" :key="'country-' + row.name">
                         <div class="bp-adv-country-row">
@@ -815,8 +822,8 @@
 
         <section class="bp-adv-hip">
             <div class="bp-adv-hip__head">
-                <h2 class="bp-adv-hip__title" x-text="highRiskIps.length ? 'Recent High Risk IPs' : 'No recent high risk IPs'"></h2>
-                <div class="bp-adv-hip__nav" x-show="highRiskIps.length > 1">
+                <h2 class="bp-adv-hip__title">Recent High Risk IPs</h2>
+                <div class="bp-adv-hip__nav">
                     <button type="button" class="bp-adv-hip__btn" @click="scrollHighRisk(-1)" aria-label="Previous high risk IPs">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                     </button>
@@ -850,28 +857,35 @@
     </section>
 
 @include('partials.session-recording-player')
+@include('partials.advanced-view-table-helpers')
 
 <script>
 function botProtectionAdvancedFigma() {
     const columnCatalog = [
         { key: 'ip', label: 'IP Address', primary: true, min: 120 },
+        { key: 'click_id', label: 'Click ID', primary: true, min: 88 },
+        { key: 'gclid', label: 'GCLID', primary: true, min: 110 },
+        { key: 'campaign', label: 'Campaign', primary: true, min: 100 },
         { key: 'visits', label: 'Visits', primary: true, min: 44 },
-        { key: 'domain', label: 'Domain', primary: true, min: 100 },
-        { key: 'path', label: 'Path', primary: true, min: 100 },
-        { key: 'last_seen_label', label: 'Last Seen', primary: true, min: 76 },
-        { key: 'threat_group', label: 'Threat Group', primary: true, min: 84 },
-        { key: 'threat_type', label: 'Threat Type', primary: true, min: 76 },
-        { key: 'action_taken', label: 'Action Taken', primary: true, min: 76 },
+        { key: 'last_seen_label', label: 'Last Click', primary: true, min: 96 },
         { key: 'country', label: 'Country', primary: true, min: 72 },
+        { key: 'device', label: 'Device', primary: true, min: 56 },
+        { key: 'browser', label: 'Browser', primary: true, min: 56 },
+        { key: 'os', label: 'OS', primary: true, min: 48 },
+        { key: 'intel_risk_score', label: 'Risk Score', primary: true, min: 72 },
+        { key: 'intel_risk_level', label: 'Risk Level', primary: true, min: 80 },
         { key: 'invalid_visits', label: 'Invalid', primary: true, min: 52 },
         { key: 'valid_visits', label: 'Valid', primary: true, min: 52 },
+        { key: 'action_taken', label: 'Action', primary: true, min: 84 },
+        { key: 'status', label: 'Status', primary: true, min: 56 },
+        { key: 'domain', label: 'Domain', primary: false, min: 100 },
+        { key: 'path', label: 'Path', primary: false, min: 100 },
+        { key: 'threat_group', label: 'Threat Group', primary: false, min: 84 },
+        { key: 'threat_type', label: 'Threat Type', primary: false, min: 76 },
         { key: 'cta_clicks', label: 'CTA Clicks', primary: false, min: 64 },
         { key: 'tel_clicks', label: 'Tel Clicks', primary: false, min: 64 },
         { key: 'page_changes', label: 'Page Changes', primary: false, min: 72 },
         { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
-        { key: 'status', label: 'Status', primary: false, min: 72 },
-        { key: 'browser', label: 'Browser', primary: false, min: 80 },
-        { key: 'os', label: 'OS', primary: false, min: 72 },
         { key: 'referrer', label: 'Referrer', primary: false, min: 100 },
         { key: 'threat_score', label: 'Threat Score', primary: false, min: 72 },
         { key: 'utm_source', label: 'UTM Source', primary: false, min: 80 },
@@ -892,8 +906,6 @@ function botProtectionAdvancedFigma() {
         { key: 'intel_proxy', label: 'Proxy', primary: false, min: 48 },
         { key: 'intel_tor', label: 'Tor', primary: false, min: 48 },
         { key: 'intel_datacenter', label: 'Datacenter', primary: false, min: 72 },
-        { key: 'intel_risk_score', label: 'Risk Score', primary: false, min: 72 },
-        { key: 'intel_risk_level', label: 'Risk Level', primary: false, min: 72 },
         { key: 'intel_confidence', label: 'Confidence', primary: false, min: 72 },
         { key: 'intel_evidence', label: 'Evidence', primary: false, min: 90 },
         { key: 'intel_checked_at', label: 'Checked At', primary: false, min: 100 },
@@ -910,18 +922,13 @@ function botProtectionAdvancedFigma() {
 
     let savedOptional = [];
     try {
-        savedOptional = JSON.parse(localStorage.getItem('bp-adv-optional-columns') || '[]');
+        savedOptional = JSON.parse(localStorage.getItem('bp-adv-optional-columns-v2') || '[]');
     } catch (e) {}
-    if (!savedOptional.includes('session_recording')) {
-        savedOptional = [...savedOptional, 'session_recording'];
-    }
-    ['cta_clicks', 'tel_clicks', 'page_changes'].forEach((key) => {
-        if (!savedOptional.includes(key)) {
-            savedOptional = [...savedOptional, key];
-        }
-    });
 
     return {
+        ...window.promotixAdvTableHelpers || {},
+        hasDomains: @json($domains->isNotEmpty()),
+        loadError: '',
         columnCatalog,
         optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
         recordingModal: { open: false, ip: '', page_url: '', events: [] },
@@ -932,7 +939,7 @@ function botProtectionAdvancedFigma() {
         },
         get gridStyle() {
             const cols = this.visibleColumns.map(col => this.columnTrack(col)).join(' ');
-            return `grid-template-columns: ${cols}`;
+            return `grid-template-columns: 36px ${cols}`;
         },
         get syncStyle() {
             return `min-width: ${this.tableMinWidth}px`;
@@ -940,8 +947,8 @@ function botProtectionAdvancedFigma() {
         get tableMinWidth() {
             const gap = 8;
             const pad = 24;
-            const cols = this.visibleColumns.length;
-            const colWidths = this.visibleColumns.reduce((sum, col) => sum + this.columnMinPx(col), 0);
+            const cols = this.visibleColumns.length + 1;
+            const colWidths = this.visibleColumns.reduce((sum, col) => sum + this.columnMinPx(col), 0) + 36;
             return colWidths + Math.max(0, cols - 1) * gap + pad;
         },
         columnMinPx(col) {
@@ -985,7 +992,7 @@ function botProtectionAdvancedFigma() {
             to: '',
         },
         rows: [],
-        meta: { total: 0, page: 1, per_page: 25 },
+        meta: { total: 0, page: 1, per_page: 20, domain_count: 0, paid_hidden: 0 },
         moreFiltersOpen: false,
         stats: { blocked: 0, invalid_traffic: 0, paid_traffic: 0, bot_detection: 0, country: 0, overall: 0 },
         chartThreat: { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' },
@@ -1131,12 +1138,34 @@ function botProtectionAdvancedFigma() {
             });
             await this.reload(true);
         },
+        emptyMessage() {
+            if (this.loadError) return this.loadError;
+            if (!this.hasDomains) {
+                return 'Add a domain and install the tracking tag to see IPs here.';
+            }
+            const hidden = Number(this.meta.paid_hidden || 0);
+            if (hidden > 0) {
+                return `No organic IPs in this window. ${hidden.toLocaleString()} paid Google Ads IP${hidden === 1 ? '' : 's'} ${hidden === 1 ? 'is' : 'are'} listed under Paid Advertising.`;
+            }
+            return 'No matching IPs in this window.';
+        },
+        async parseJson(res) {
+            try {
+                return await res.json();
+            } catch (e) {
+                return {};
+            }
+        },
         async reload(resetPage = false) {
             if (resetPage) this.meta.page = 1;
+            this.loadError = '';
             window.promotixPageLoader?.show('Loading Advanced View…');
             try {
-                // KPI cards first so the page feels responsive.
-                const stats = await fetch(`/bot-protection/bot-stats?${this.qs()}`).then(r => r.json());
+                const statsRes = await fetch(`/bot-protection/bot-stats?${this.qs()}`);
+                const stats = await this.parseJson(statsRes);
+                if (!statsRes.ok) {
+                    this.loadError = stats.error || `Could not load stats (${statsRes.status}).`;
+                }
                 this.stats = {
                     blocked: stats.blocked ?? 0,
                     invalid_traffic: stats.invalid_traffic ?? 0,
@@ -1155,9 +1184,17 @@ function botProtectionAdvancedFigma() {
                 window.promotixPageLoader?.hide();
 
                 const qs = this.qs({ page: this.meta.page, per_page: this.meta.per_page });
-                const visits = await fetch(`/bot-protection/visits?${qs}`).then(r => r.json());
+                const visitsRes = await fetch(`/bot-protection/visits?${qs}`);
+                const visits = await this.parseJson(visitsRes);
                 this.rows = visits.data || [];
                 this.meta = { ...this.meta, ...(visits.meta || {}) };
+                if (!visitsRes.ok) {
+                    this.loadError = visits.error || visits.message || `Could not load IPs (${visitsRes.status}).`;
+                    this.rows = [];
+                }
+            } catch (e) {
+                this.loadError = 'Could not load Advanced View. Check the network tab and retry.';
+                this.rows = [];
             } finally {
                 window.promotixPageLoader?.hide();
             }
@@ -1180,7 +1217,11 @@ function botProtectionAdvancedFigma() {
         paginationLabel() {
             const start = this.rows.length ? ((this.meta.page - 1) * this.meta.per_page + 1) : 0;
             const end = Math.min(this.meta.total, this.meta.page * this.meta.per_page);
-            return `${start}-${end} of ${this.meta.total}`;
+            return `Showing ${start} to ${end} of ${Number(this.meta.total || 0).toLocaleString()} results`;
+        },
+        get pageItems() {
+            const totalPages = Math.max(1, Math.ceil((this.meta.total || 0) / Math.max(this.meta.per_page, 1)));
+            return this.pagerPages(this.meta.page, totalPages);
         },
         toggleOptionalColumn(key) {
             if (this.optionalColumnKeys.includes(key)) {
@@ -1189,7 +1230,7 @@ function botProtectionAdvancedFigma() {
                 this.optionalColumnKeys = [...this.optionalColumnKeys, key];
             }
             try {
-                localStorage.setItem('bp-adv-optional-columns', JSON.stringify(this.optionalColumnKeys));
+                localStorage.setItem('bp-adv-optional-columns-v2', JSON.stringify(this.optionalColumnKeys));
             } catch (e) {}
         },
         cellValue(row, key) {

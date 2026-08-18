@@ -33,6 +33,26 @@ class TrackingAttributionTest extends TestCase
         ], 91001));
     }
 
+    public function test_exclude_click_ids_for_paid_domains_is_noop_without_paid_domains(): void
+    {
+        $query = \Illuminate\Support\Facades\DB::table('visits');
+        $sql = $query->toSql();
+
+        GoogleClickAttribution::excludeClickIdsForPaidDomains($query, []);
+
+        $this->assertSame($sql, $query->toSql());
+    }
+
+    public function test_bot_protection_uses_paid_domain_click_id_filter(): void
+    {
+        $source = file_get_contents(
+            (new \ReflectionClass(\App\Http\Controllers\Admin\BotProtectionController::class))->getFileName()
+        );
+
+        $this->assertStringContainsString('excludeClickIdsForPaidDomains', $source);
+        $this->assertStringContainsString('paidMarketingDomainIds', $source);
+    }
+
     public function test_google_click_attribution_prefers_gclid_over_gbraid(): void
     {
         $resolved = GoogleClickAttribution::resolve([

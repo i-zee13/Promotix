@@ -659,6 +659,8 @@
                 html.light-mode .bpv2-tables-row .figma-bp-empty { color: #8a8498; }
             </style>
 
+            <p x-show="loadError" x-cloak class="mb-[12px] rounded-[8px] border border-rose-500/40 bg-rose-500/10 px-[12px] py-[8px] text-[12px] text-rose-200" x-text="loadError"></p>
+
             {{-- Row 1: KPI metric cards --}}
             <div class="bpv2-kpi-row">
                 <template x-for="card in kpiCards()" :key="card.key">
@@ -1102,6 +1104,8 @@ function botProtectionFigma(config = {}) {
 
     return {
         useDemo: Boolean(config.useDemo),
+        loadError: '',
+        hasDomains: @json($domains->isNotEmpty()),
         filters: {
             domain_id: '',
             traffic_source: 'google_ads',
@@ -1624,11 +1628,19 @@ function botProtectionFigma(config = {}) {
             const name = this.threatLabel(label);
             return `${name}: ${Number(value || 0)}`;
         },
+        async parseJson(res) {
+            try {
+                return await res.json();
+            } catch (e) {
+                return {};
+            }
+        },
         dataIsEmpty() {
             return Number(this.summary?.total_visits || 0) === 0;
         },
         async reload() {
             window.promotixPageLoader?.show('Loading Bot Protection…');
+            this.loadError = '';
             try {
                 if (this.useDemo) {
                     this.applyDemoPayload();
@@ -1638,20 +1650,23 @@ function botProtectionFigma(config = {}) {
 
                 const qs = this.qs();
 
-                // 1) Top cards first — hide loader as soon as the viewport KPIs can paint.
-                const summary = await fetch(`/bot-protection/summary?${qs}`).then(r => r.json());
+                const summaryRes = await fetch(`/bot-protection/summary?${qs}`);
+                const summary = await this.parseJson(summaryRes);
+                if (!summaryRes.ok) {
+                    this.loadError = summary.error || summary.message || `Could not load Bot Protection (${summaryRes.status}).`;
+                    return;
+                }
                 this.summary = summary;
                 await this.$nextTick();
                 window.promotixPageLoader?.hide();
 
-                // 2) Remaining panels load in the background.
                 const [traffic, trends, th, ib, c, ds] = await Promise.all([
-                    fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/threat-groups?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/countries?${qs}`).then(r => r.json()),
-                    fetch(`/bot-protection/domains-summary?${qs}`).then(r => r.json()),
+                    fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => this.parseJson(r)),
+                    fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => this.parseJson(r)),
+                    fetch(`/bot-protection/threat-groups?${qs}`).then(r => this.parseJson(r)),
+                    fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => this.parseJson(r)),
+                    fetch(`/bot-protection/countries?${qs}`).then(r => this.parseJson(r)),
+                    fetch(`/bot-protection/domains-summary?${qs}`).then(r => this.parseJson(r)),
                 ]);
                 this.invalidTrends = trends;
                 this.countries = c;
@@ -1667,9 +1682,13 @@ function botProtectionFigma(config = {}) {
                 if (this.useDemo && this.dataIsEmpty()) {
                     this.applyDemoPayload();
                 }
+                if (!this.hasDomains && this.dataIsEmpty()) {
+                    this.loadError = 'Add a domain and install the tracking tag to see Bot Protection data.';
+                }
                 this.$nextTick(() => this.renderCharts());
             } catch (e) {
                 console.error(e);
+                this.loadError = 'Could not load Bot Protection. Check the network tab and retry.';
             } finally {
                 window.promotixPageLoader?.hide();
             }

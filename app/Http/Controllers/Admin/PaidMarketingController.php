@@ -45,7 +45,7 @@ class PaidMarketingController extends Controller
     {
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
+            ->forPaidMarketingSetup()
             ->with('googleAdsAccount')
             ->orderBy('hostname')
             ->get(['id', 'hostname', 'google_ads_account_id']);
@@ -90,7 +90,7 @@ class PaidMarketingController extends Controller
 
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
+            ->forPaidMarketingSetup()
             ->when($request->query('domain_id'), fn ($q, $id) => $q->where('id', (int) $id))
             ->with('googleAdsAccount')
             ->get();
@@ -1139,7 +1139,7 @@ class PaidMarketingController extends Controller
     {
         return Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
+            ->forPaidMarketingSetup()
             ->when((int) $request->query('domain_id', 0) > 0, fn ($q) => $q->where('id', (int) $request->query('domain_id')))
             ->when((int) $request->query('google_ads_account_id', 0) > 0, fn ($q) => $q->where('google_ads_account_id', (int) $request->query('google_ads_account_id')))
             ->pluck('id');
@@ -1591,6 +1591,7 @@ class PaidMarketingController extends Controller
 
         return [
             'id' => $visit->id,
+            'click_id' => 'CK-' . str_pad((string) $visit->id, 6, '0', STR_PAD_LEFT),
             'ip' => $visit->ip,
             'ip_parts' => $ipParts,
             'ip_count' => max(count($ipParts), 1),

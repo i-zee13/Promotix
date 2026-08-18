@@ -31,7 +31,7 @@ class PaidAdvertisingDashboardController extends Controller
     {
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
+            ->forPaidMarketingSetup()
             ->with('googleAdsAccount')
             ->orderBy('hostname')
             ->get(['id', 'hostname', 'paid_marketing_connected', 'source', 'google_ads_account_id']);
@@ -1563,7 +1563,7 @@ class PaidAdvertisingDashboardController extends Controller
     {
         $userDomainIds = Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
+            ->forPaidMarketingSetup()
             ->pluck('id');
 
         if ($id = (int) $request->query('domain_id', 0)) {
@@ -3130,7 +3130,7 @@ class PaidAdvertisingDashboardController extends Controller
     {
         return Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forPaidMarketing()
+            ->forPaidMarketingSetup()
             ->whereIn('id', $domainIds)
             ->with('googleAdsAccount')
             ->get();

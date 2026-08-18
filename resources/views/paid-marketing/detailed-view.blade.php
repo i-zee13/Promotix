@@ -942,24 +942,14 @@
                         </div>
 
                         <div class="pm-adv-table-body-scroll">
-                            <template x-for="visit in sortedRows" :key="visit.id">
+                            <template x-for="visit in pagedRows" :key="visit.id">
                                 <div class="pm-adv-table-grid pm-adv-table-grid--row cursor-pointer text-[10px] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
                                     <label class="flex items-center justify-center" @click.stop>
                                         <input type="checkbox" class="rounded border-white/30" :checked="selectedIds.includes(visit.id)" @change="toggleSelect(visit.id, $event.target.checked)">
                                     </label>
                                     <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
-                                        <div class="pm-adv-cell truncate" :class="col.key === 'ip' && 'font-medium'" :title="col.key === 'session_recording' ? '' : cellValue(visit, col.key)">
-                                            <template x-if="col.key !== 'session_recording'">
-                                                <span class="block truncate" x-text="cellValue(visit, col.key)"></span>
-                                            </template>
-                                            <template x-if="col.key === 'session_recording'">
-                                                <span class="flex items-center justify-center">
-                                                    <button type="button" x-show="visit.has_session_recording" @click.stop="openRecording(visit)" class="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#6400B2] text-white hover:bg-[#7B13C8]" title="Watch session recording">
-                                                        <svg class="h-[11px] w-[11px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                    </button>
-                                                    <span x-show="!visit.has_session_recording" class="text-[#8c8787]">—</span>
-                                                </span>
-                                            </template>
+                                        <div class="pm-adv-cell">
+                                            @include('partials.advanced-view-rich-cell', ['item' => 'visit'])
                                         </div>
                                     </template>
                                 </div>
@@ -969,11 +959,26 @@
                     </div>
                 </div>
             </div>
+            <div class="adv-pager">
+                <span x-text="paginationLabel()"></span>
+                <div class="adv-pager__pages">
+                    <button type="button" class="adv-pager__btn" :disabled="page <= 1" @click="page = Math.max(1, page - 1)">‹</button>
+                    <template x-for="item in pageItems" :key="'pm-p-'+item">
+                        <button type="button" class="adv-pager__btn" :class="item === page && 'is-active'" :disabled="item === '…'" @click="item !== '…' && (page = item)" x-text="item"></button>
+                    </template>
+                    <button type="button" class="adv-pager__btn" :disabled="page >= totalPages" @click="page = Math.min(totalPages, page + 1)">›</button>
+                </div>
+                <select x-model.number="perPage" @change="page = 1">
+                    <option :value="10">10 / page</option>
+                    <option :value="20">20 / page</option>
+                    <option :value="50">50 / page</option>
+                </select>
+            </div>
         </section>
 
         <section class="pm-adv-charts mt-[18px]">
             <article class="pm-adv-chart-card">
-                <h3 class="pm-adv-chart-card__title" x-text="hasThreatData ? 'Threat Distribution' : 'No threat distribution'"></h3>
+                <h3 class="pm-adv-chart-card__title">Threat Distribution</h3>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
@@ -1007,7 +1012,7 @@
             </article>
 
             <article class="pm-adv-chart-card">
-                <h3 class="pm-adv-chart-card__title" x-text="hasRiskData ? 'Risk Level Distribution' : 'No risk level distribution'"></h3>
+                <h3 class="pm-adv-chart-card__title">Risk Level Distribution</h3>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
@@ -1040,7 +1045,7 @@
             </article>
 
             <article class="pm-adv-chart-card">
-                <h3 class="pm-adv-chart-card__title" x-text="hasCountryFlags ? 'Top Countries by Invalid Clicks' : 'No flags'"></h3>
+                <h3 class="pm-adv-chart-card__title">Top Countries by Invalid Clicks</h3>
                 <div class="pm-adv-countries">
                     <template x-for="row in chartCountries" :key="'country-' + row.name">
                         <div class="pm-adv-country-row">
@@ -1063,8 +1068,8 @@
 
         <section class="pm-adv-hip">
             <div class="pm-adv-hip__head">
-                <h2 class="pm-adv-hip__title" x-text="highRiskIps.length ? 'Recent High Risk IPs' : 'No recent high risk IPs'"></h2>
-                <div class="pm-adv-hip__nav" x-show="highRiskIps.length > 1">
+                <h2 class="pm-adv-hip__title">Recent High Risk IPs</h2>
+                <div class="pm-adv-hip__nav">
                     <button type="button" class="pm-adv-hip__btn" @click="scrollHighRisk(-1)" aria-label="Previous high risk IPs">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                     </button>
@@ -1422,40 +1427,46 @@
 </div>
 
 @include('partials.session-recording-player')
+@include('partials.advanced-view-table-helpers')
 
 <script>
     function paidMarketingDetailed(config = {}) {
         const columnCatalog = [
             { key: 'ip', label: 'IP Address', primary: true, min: 120 },
-            { key: 'device_id', label: 'Device ID', primary: true, min: 112 },
-            { key: 'device', label: 'Device', primary: true, min: 72 },
-            { key: 'browser', label: 'Browser', primary: true, min: 80 },
-            { key: 'browser_version', label: 'Browser Version', primary: true, min: 92 },
-            { key: 'os', label: 'OS', primary: true, min: 72 },
-            { key: 'screen_resolution', label: 'Screen', primary: true, min: 72 },
-            { key: 'language', label: 'Language', primary: true, min: 64 },
-            { key: 'visitor_timezone', label: 'Timezone', primary: true, min: 80 },
-            { key: 'fingerprint_id', label: 'Fingerprint ID', primary: true, min: 112 },
-            { key: 'device_fingerprint', label: 'Fingerprint', primary: true, min: 100 },
-            { key: 'visits', label: 'Visits', primary: true, min: 44 },
-            { key: 'domain', label: 'Domain', primary: true, min: 100 },
-            { key: 'campaign', label: 'Campaigns', primary: true, min: 100 },
+            { key: 'click_id', label: 'Click ID', primary: true, min: 88 },
             { key: 'gclid', label: 'GCLID', primary: true, min: 110 },
+            { key: 'campaign', label: 'Campaign', primary: true, min: 100 },
+            { key: 'visits', label: 'Visits', primary: true, min: 44 },
+            { key: 'last_click_datetime_label', label: 'Last Click', primary: true, min: 96 },
+            { key: 'country', label: 'Country', primary: true, min: 72 },
+            { key: 'device', label: 'Device', primary: true, min: 56 },
+            { key: 'browser', label: 'Browser', primary: true, min: 56 },
+            { key: 'os', label: 'OS', primary: true, min: 48 },
+            { key: 'intel_risk_score', label: 'Risk Score', primary: true, min: 72 },
+            { key: 'intel_risk_level', label: 'Risk Level', primary: true, min: 80 },
+            { key: 'invalid_clicks', label: 'Invalid', primary: true, min: 52 },
+            { key: 'valid_clicks', label: 'Valid', primary: true, min: 52 },
+            { key: 'action_taken', label: 'Action', primary: true, min: 84 },
+            { key: 'status', label: 'Status', primary: true, min: 56 },
+            { key: 'device_id', label: 'Device ID', primary: false, min: 112 },
+            { key: 'browser_version', label: 'Browser Version', primary: false, min: 92 },
+            { key: 'screen_resolution', label: 'Screen', primary: false, min: 72 },
+            { key: 'language', label: 'Language', primary: false, min: 64 },
+            { key: 'visitor_timezone', label: 'Timezone', primary: false, min: 80 },
+            { key: 'fingerprint_id', label: 'Fingerprint ID', primary: false, min: 112 },
+            { key: 'device_fingerprint', label: 'Fingerprint', primary: false, min: 100 },
+            { key: 'domain', label: 'Domain', primary: false, min: 100 },
             { key: 'gbraid', label: 'GBRAID', primary: false, min: 110 },
             { key: 'wbraid', label: 'WBRAID', primary: false, min: 110 },
             { key: 'session_id', label: 'Session ID', primary: false, min: 100 },
-            { key: 'last_click_label', label: 'Last Click', primary: true, min: 76 },
-            { key: 'threat_group', label: 'Threat Group', primary: true, min: 84 },
-            { key: 'threat_type', label: 'Threat Type', primary: true, min: 76 },
-            { key: 'country', label: 'Country', primary: true, min: 72 },
-            { key: 'invalid_clicks', label: 'Invalid', primary: true, min: 52 },
-            { key: 'valid_clicks', label: 'Valid', primary: true, min: 52 },
+            { key: 'last_click_label', label: 'Last Click (date)', primary: false, min: 76 },
+            { key: 'threat_group', label: 'Threat Group', primary: false, min: 84 },
+            { key: 'threat_type', label: 'Threat Type', primary: false, min: 76 },
             { key: 'cta_clicks', label: 'CTA Clicks', primary: false, min: 64 },
             { key: 'tel_clicks', label: 'Tel Clicks', primary: false, min: 64 },
             { key: 'page_changes', label: 'Page Changes', primary: false, min: 72 },
             { key: 'google_verified_label', label: 'Google Verified', primary: false, min: 88 },
             { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
-            { key: 'status', label: 'Status', primary: false, min: 72 },
             { key: 'intel_region', label: 'Region', primary: false, min: 80 },
             { key: 'intel_city', label: 'City', primary: false, min: 80 },
             { key: 'intel_latitude', label: 'Latitude', primary: false, min: 72 },
@@ -1471,10 +1482,8 @@
             { key: 'intel_proxy', label: 'Proxy', primary: false, min: 48 },
             { key: 'intel_tor', label: 'Tor', primary: false, min: 48 },
             { key: 'intel_datacenter', label: 'Datacenter', primary: false, min: 72 },
-            { key: 'intel_risk_score', label: 'Risk Score', primary: false, min: 72 },
-            { key: 'intel_risk_level', label: 'Risk Level', primary: false, min: 72 },
-            { key: 'intel_confidence', label: 'Confidence', primary: true, min: 72 },
-            { key: 'intel_evidence', label: 'Evidence', primary: true, min: 90 },
+            { key: 'intel_confidence', label: 'Confidence', primary: false, min: 72 },
+            { key: 'intel_evidence', label: 'Evidence', primary: false, min: 90 },
             { key: 'intel_checked_at', label: 'Checked At', primary: false, min: 100 },
             { key: 'intel_error', label: 'Error', primary: false, min: 56 },
             { key: 'intel_ip_need_blockation', label: 'IP Need Blockation', primary: false, min: 110 },
@@ -1549,36 +1558,11 @@
 
         let savedOptional = [];
         try {
-            savedOptional = JSON.parse(localStorage.getItem('pm-adv-optional-columns') || '[]');
+            savedOptional = JSON.parse(localStorage.getItem('pm-adv-optional-columns-v2') || '[]');
         } catch (e) {}
-        const defaultOptionalColumns = [
-            'session_recording',
-            'cta_clicks',
-            'tel_clicks',
-            'page_changes',
-            'google_verified_label',
-            'status',
-            'intel_vpn',
-            'intel_proxy',
-            'intel_tor',
-            'intel_datacenter',
-            'intel_risk_level',
-            'intel_risk_score',
-            'intel_ip_need_blockation',
-            'intel_block_reason',
-            'intel_asn',
-            'keyword',
-            'ads_primary_rule',
-            'device_id',
-            'identity_confidence',
-        ];
-        defaultOptionalColumns.forEach((key) => {
-            if (!savedOptional.includes(key)) {
-                savedOptional.push(key);
-            }
-        });
 
         return {
+            ...window.promotixAdvTableHelpers,
             debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
             staggerMs: 1000,
             fetchGeneration: 0,
@@ -1606,6 +1590,8 @@
             },
             campaignOptions: [],
             rows: [],
+            page: 1,
+            perPage: 20,
             selectedIds: [],
             bulkMessage: '',
             overrideUrl: config.overrideUrl || '',
@@ -1701,7 +1687,7 @@
             recordingStop: null,
             get activeClick() { return this.modal.clicks[this.modal.activeIndex] || null; },
             get allVisibleSelected() {
-                return this.sortedRows.length > 0 && this.sortedRows.every((row) => this.selectedIds.includes(row.id));
+                return this.pagedRows.length > 0 && this.pagedRows.every((row) => this.selectedIds.includes(row.id));
             },
             toggleSelect(id, on) {
                 if (on) {
@@ -1715,7 +1701,7 @@
                     this.selectedIds = [];
                     return;
                 }
-                this.selectedIds = this.sortedRows.map((row) => row.id);
+                this.selectedIds = this.pagedRows.map((row) => row.id);
             },
             async bulkAction(action) {
                 if (!this.bulkUrl || !this.selectedIds.length) return;
@@ -1836,6 +1822,23 @@
                 const api = window.promotixSortable;
                 if (!api?.sortRows) return this.rows;
                 return api.sortRows(this.rows, this.sortKey, this.sortDir, this.sortNumericKeys);
+            },
+            get totalPages() {
+                return Math.max(1, Math.ceil((this.sortedRows.length || 0) / Math.max(this.perPage, 1)));
+            },
+            get pagedRows() {
+                const start = (Math.max(1, this.page) - 1) * this.perPage;
+                return this.sortedRows.slice(start, start + this.perPage);
+            },
+            get pageItems() {
+                return this.pagerPages(this.page, this.totalPages);
+            },
+            paginationLabel() {
+                const total = this.sortedRows.length;
+                if (!total) return 'Showing 0 to 0 of 0 results';
+                const start = (this.page - 1) * this.perPage + 1;
+                const end = Math.min(total, this.page * this.perPage);
+                return `Showing ${start} to ${end} of ${Number(total).toLocaleString()} results`;
             },
             setSort(key) {
                 if (!key || key === 'session_recording') return;
@@ -2129,7 +2132,7 @@
                     this.optionalColumnKeys = [...this.optionalColumnKeys, key];
                 }
                 try {
-                    localStorage.setItem('pm-adv-optional-columns', JSON.stringify(this.optionalColumnKeys));
+                    localStorage.setItem('pm-adv-optional-columns-v2', JSON.stringify(this.optionalColumnKeys));
                 } catch (e) {}
             },
             applyColumnGroup(groupId) {
@@ -2142,7 +2145,7 @@
                 });
                 this.optionalColumnKeys = [...new Set(optional)];
                 try {
-                    localStorage.setItem('pm-adv-optional-columns', JSON.stringify(this.optionalColumnKeys));
+                    localStorage.setItem('pm-adv-optional-columns-v2', JSON.stringify(this.optionalColumnKeys));
                     localStorage.setItem('pm-adv-active-column-group', groupId);
                 } catch (e) {}
             },
@@ -2268,6 +2271,7 @@
                             const data = await res.json();
                             if (! this.isFetchCurrent(gen)) return;
                             this.rows = data.rows || [];
+                            this.page = 1;
                             this.statCards = data.stats?.cards || [];
                             this.kpiCards = data.stats?.kpis || this.kpiCards;
                             const charts = data.stats?.charts || {};

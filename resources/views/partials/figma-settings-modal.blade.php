@@ -313,49 +313,6 @@
 >
     <div class="pmx-settings__backdrop" @click="close()"></div>
     <div class="pmx-settings__panel" @click.stop x-transition>
-        <div class="pmx-team-modal" x-show="teamOpen" x-transition.opacity @click.self="teamOpen = false" x-cloak>
-            <section class="pmx-team-modal__card" role="dialog" aria-modal="true" aria-labelledby="pmx-team-title">
-                <div class="pmx-team-modal__head">
-                    <div>
-                        <h3 id="pmx-team-title">Your team</h3>
-                        <p>Only members in your workspace are shown here.</p>
-                    </div>
-                    <button type="button" class="pmx-settings__close" @click="teamOpen = false" aria-label="Close team members">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </div>
-                <div class="pmx-team-member">
-                    <span class="pmx-team-member__avatar" x-text="team.owner.initial"></span>
-                    <div class="min-w-0 flex-1">
-                        <p x-text="team.owner.name"></p>
-                        <span x-text="team.owner.email"></span>
-                    </div>
-                    <span class="pmx-settings__badge">Owner</span>
-                </div>
-                <template x-for="member in team.members" :key="member.email">
-                    <div class="pmx-team-member">
-                        <span class="pmx-team-member__avatar" x-text="member.initial"></span>
-                        <div class="min-w-0 flex-1">
-                            <p x-text="member.name"></p>
-                            <span x-text="member.email"></span>
-                        </div>
-                        <span class="pmx-settings__badge" x-text="member.role"></span>
-                    </div>
-                </template>
-                <p class="pmx-settings__hint mt-3" x-show="!team.members.length">No additional team members yet.</p>
-                @if (auth()->user()?->canInviteTeamMembers())
-                    <form method="POST" action="{{ route('team.invite') }}" class="mt-4 space-y-2">
-                        @csrf
-                        <p class="pmx-settings__label">Invite teammate</p>
-                        <input type="text" name="name" class="pmx-settings__input" placeholder="Name (optional)">
-                        <input type="email" name="email" class="pmx-settings__input" placeholder="Email" required>
-                        <button type="submit" class="pmx-settings__cta">Send invite</button>
-                    </form>
-                @else
-                    <p class="pmx-settings__hint mt-3">Team invite is available on Enterprise, Advanced, and Custom plans.</p>
-                @endif
-            </section>
-        </div>
         <header class="pmx-settings__head">
             <h2 id="pmx-settings-title">Clickronix Settings</h2>
             <button type="button" class="pmx-settings__close" @click="close()" aria-label="Close settings">
@@ -945,16 +902,54 @@
                         </div>
                     </div>
 
-                    <div class="pmx-settings__card" style="margin-top:12px">
+                    <div class="pmx-settings__card" style="margin-top:12px" x-ref="teamSection">
                         <div class="pmx-settings__row">
                             <div>
-                                <p class="pmx-settings__label">Team members</p>
+                                <p class="pmx-settings__label" id="pmx-team-title">Team members</p>
                                 <p class="pmx-settings__hint">Invite and manage roles for your workspace.</p>
                             </div>
+                            <button
+                                type="button"
+                                class="pmx-settings__btn"
+                                @click="teamOpen = !teamOpen"
+                                :aria-expanded="teamOpen"
+                                aria-controls="pmx-team-panel"
+                            >
+                                <span x-text="teamOpen ? 'Hide team' : 'Manage team'"></span>
+                            </button>
+                        </div>
+                        <div id="pmx-team-panel" class="pmx-team-inline" x-show="teamOpen" x-cloak x-transition.opacity>
+                            <p class="pmx-settings__hint" style="margin:10px 0 0;">Only members in your workspace are shown here.</p>
+                            <div class="pmx-team-member">
+                                <span class="pmx-team-member__avatar" x-text="team.owner.initial"></span>
+                                <div class="min-w-0 flex-1">
+                                    <p x-text="team.owner.name"></p>
+                                    <span x-text="team.owner.email"></span>
+                                </div>
+                                <span class="pmx-settings__badge">Owner</span>
+                            </div>
+                            <template x-for="member in team.members" :key="member.email">
+                                <div class="pmx-team-member">
+                                    <span class="pmx-team-member__avatar" x-text="member.initial"></span>
+                                    <div class="min-w-0 flex-1">
+                                        <p x-text="member.name"></p>
+                                        <span x-text="member.email"></span>
+                                    </div>
+                                    <span class="pmx-settings__badge" x-text="member.role"></span>
+                                </div>
+                            </template>
+                            <p class="pmx-settings__hint mt-3" x-show="!team.members.length">No additional team members yet.</p>
                             @if (auth()->user()?->canInviteTeamMembers())
-                                <button type="button" class="pmx-settings__btn" @click="teamOpen = true">Manage team</button>
+                                <form method="POST" action="{{ route('team.invite') }}" class="pmx-team-invite">
+                                    @csrf
+                                    <p class="pmx-settings__label">Invite teammate</p>
+                                    <input type="text" name="name" class="pmx-settings__input" placeholder="Name (optional)">
+                                    <input type="email" name="email" class="pmx-settings__input" placeholder="Email" required>
+                                    <button type="submit" class="pmx-settings__cta">Send invite</button>
+                                </form>
                             @else
-                                <a href="{{ route('billing.index') }}" class="pmx-settings__btn">Upgrade to invite</a>
+                                <p class="pmx-settings__hint mt-3">Team invite is available on Enterprise, Advanced, and Custom plans.</p>
+                                <a href="{{ route('billing.index') }}" class="pmx-settings__btn" style="margin-top:10px;">Upgrade to invite</a>
                             @endif
                         </div>
                     </div>
@@ -1269,44 +1264,16 @@
         background: #181818;
         padding: 14px;
     }
-    .pmx-team-modal {
-        position: absolute;
-        inset: 0;
-        z-index: 5;
+    .pmx-team-inline {
+        margin-top: 4px;
+    }
+    .pmx-team-invite {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 18px;
-        border-radius: 14px;
-        background: rgba(0, 0, 0, 0.68);
-    }
-    .pmx-team-modal__card {
-        width: min(100%, 470px);
-        max-height: min(560px, calc(100dvh - 64px));
-        overflow: auto;
-        border: 1px solid rgba(196, 160, 232, 0.28);
-        border-radius: 12px;
-        background: #181818;
-        box-shadow: 0 20px 55px rgba(0, 0, 0, 0.45);
-        padding: 16px;
-    }
-    .pmx-team-modal__head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 10px;
-    }
-    .pmx-team-modal__head h3 {
-        margin: 0;
-        color: #fff;
-        font-size: 16px;
-        font-weight: 700;
-    }
-    .pmx-team-modal__head p {
-        margin: 3px 0 0;
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 11px;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
     .pmx-team-member {
         display: flex;
@@ -2039,6 +2006,9 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             this.open = true;
             this.teamOpen = Boolean(detail?.team);
             document.body.style.overflow = 'hidden';
+            if (this.teamOpen) {
+                this.$nextTick(() => this.$refs.teamSection?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+            }
         },
         close() {
             this.open = false;
