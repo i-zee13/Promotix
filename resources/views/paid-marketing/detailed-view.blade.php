@@ -349,7 +349,20 @@
                 align-items: center;
                 gap: 8px;
             }
-            .pm-adv-country-row__flag { font-size: 14px; line-height: 1; }
+            .pm-adv-country-row__flag {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 18px;
+                height: 14px;
+            }
+            .pm-adv-country-row__flag img {
+                display: block;
+                width: 16px;
+                height: 12px;
+                object-fit: cover;
+                border-radius: 2px;
+            }
             .pm-adv-country-row__name {
                 font-size: 12px;
                 color: rgba(255, 255, 255, 0.88);
@@ -1052,7 +1065,15 @@
                 <div class="pm-adv-countries">
                     <template x-for="row in chartCountries" :key="'country-' + row.name">
                         <div class="pm-adv-country-row">
-                            <span class="pm-adv-country-row__flag" x-text="row.flag || '🌐'"></span>
+                            <span class="pm-adv-country-row__flag">
+                                <img x-show="countryFlagUrl(row.code || row.name)"
+                                     :src="countryFlagUrl(row.code || row.name)"
+                                     alt=""
+                                     width="16"
+                                     height="12"
+                                     loading="lazy"
+                                     decoding="async">
+                            </span>
                             <span class="pm-adv-country-row__name" x-text="row.name"></span>
                             <div class="pm-adv-country-row__track">
                                 <span class="pm-adv-country-row__bar" :style="`width:${row.bar || 0}%`"></span>
@@ -2351,6 +2372,7 @@
                 if (visit) this.openClicks(visit);
             },
             async openClicks(visit) {
+                if (!visit) return;
                 this.modal.visit = visit;
                 this.modal.clicks = (visit.clicks || []).slice();
                 this.modal.activeIndex = 0;
@@ -2524,7 +2546,7 @@
             countryFlagUrl(value) {
                 const code = this.countryCode(value).toLowerCase();
                 if (!/^[a-z]{2}$/.test(code)) return '';
-                return `https://flagcdn.com/w20/${code}.png`;
+                return `/media/flags/${code}`;
             },
             async copyText(value) {
                 const text = String(value || '').trim();

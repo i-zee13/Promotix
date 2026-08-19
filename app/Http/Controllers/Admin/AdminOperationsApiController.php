@@ -10,6 +10,7 @@ use App\Models\AdminWebhook;
 use App\Models\Domain;
 use App\Models\IpLog;
 use App\Models\SupportTicket;
+use App\Support\CountryFlag;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -448,7 +449,7 @@ class AdminOperationsApiController extends Controller
             'ip' => $row->ip,
             'domain_hostname' => $row->domain_hostname,
             'country' => $row->country,
-            'country_flag' => $this->countryFlag($row->country),
+            'country_flag' => CountryFlag::url($row->country),
             'url' => $row->url,
             'referrer' => $row->referrer,
             'utm_campaign' => $row->utm_campaign,
@@ -469,17 +470,6 @@ class AdminOperationsApiController extends Controller
             'display_name' => $row->ip ?: 'Unknown visitor',
             'display_sub' => $row->domain_hostname ?: \Illuminate\Support\Str::limit((string) ($row->url ?? '—'), 42),
         ];
-    }
-
-    private function countryFlag(?string $country): string
-    {
-        if (! $country || strlen($country) !== 2) {
-            return '🌐';
-        }
-
-        $country = strtoupper($country);
-
-        return mb_chr(0x1F1E6 + ord($country[0]) - 65).mb_chr(0x1F1E6 + ord($country[1]) - 65);
     }
 
     private function domainIds(Request $request)

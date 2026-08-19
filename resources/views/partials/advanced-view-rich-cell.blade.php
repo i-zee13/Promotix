@@ -1,8 +1,16 @@
 @php $item = $item ?? 'row'; @endphp
 <template x-if="col.key === 'country'">
     <span class="adv-cell-flag">
-        <img x-show="countryFlagUrl({{ $item }}.country)" :src="countryFlagUrl({{ $item }}.country)" alt="" width="16" height="12">
-        <span x-text="countryCode({{ $item }}.country)"></span>
+        <img x-show="countryFlagUrl({{ $item }}.country)"
+             :src="countryFlagUrl({{ $item }}.country)"
+             alt=""
+             width="16"
+             height="12"
+             loading="lazy"
+             decoding="async"
+             referrerpolicy="no-referrer"
+             @error="$el.style.display='none'">
+        <span x-text="countryCode({{ $item }}.country) || {{ $item }}.country || '—'"></span>
     </span>
 </template>
 <template x-if="col.key === 'intel_risk_score'">

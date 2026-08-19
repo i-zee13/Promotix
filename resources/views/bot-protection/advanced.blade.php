@@ -316,7 +316,20 @@
                 align-items: center;
                 gap: 8px;
             }
-            .bp-adv-country-row__flag { font-size: 14px; line-height: 1; }
+            .bp-adv-country-row__flag {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 18px;
+                height: 14px;
+            }
+            .bp-adv-country-row__flag img {
+                display: block;
+                width: 16px;
+                height: 12px;
+                object-fit: cover;
+                border-radius: 2px;
+            }
             .bp-adv-country-row__name {
                 font-size: 12px;
                 color: rgba(255, 255, 255, 0.88);
@@ -806,7 +819,15 @@
                 <div class="bp-adv-countries">
                     <template x-for="row in chartCountries" :key="'country-' + row.name">
                         <div class="bp-adv-country-row">
-                            <span class="bp-adv-country-row__flag" x-text="row.flag || '🌐'"></span>
+                            <span class="bp-adv-country-row__flag">
+                                <img x-show="countryFlagUrl(row.code || row.name)"
+                                     :src="countryFlagUrl(row.code || row.name)"
+                                     alt=""
+                                     width="16"
+                                     height="12"
+                                     loading="lazy"
+                                     decoding="async">
+                            </span>
                             <span class="bp-adv-country-row__name" x-text="row.name"></span>
                             <div class="bp-adv-country-row__track">
                                 <span class="bp-adv-country-row__bar" :style="`width:${row.bar || 0}%`"></span>
@@ -1255,11 +1276,6 @@ function botProtectionAdvancedFigma() {
             if (!raw) return '—';
             if (raw.length > 20) return raw.slice(0, 18) + '…';
             return raw;
-        },
-        countryFlagUrl(code) {
-            const c = String(code || '').trim().toLowerCase();
-            if (!/^[a-z]{2}$/.test(c)) return '';
-            return `https://flagcdn.com/w20/${c}.png`;
         },
         async openRecording(row) {
             if (!row?.session_recording_id) return;

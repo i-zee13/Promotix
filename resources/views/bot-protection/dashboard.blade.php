@@ -1147,7 +1147,7 @@ function botProtectionFigma(config = {}) {
         countryFlagUrl(code) {
             const c = String(code || '').trim().toLowerCase();
             if (!/^[a-z]{2}$/.test(c)) return '';
-            return `https://flagcdn.com/w20/${c}.png`;
+            return `/media/flags/${c}`;
         },
         domainInvalidPct(row) {
             if (row.invalid_pct != null && row.invalid_pct !== '') {

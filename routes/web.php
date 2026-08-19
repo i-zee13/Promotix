@@ -35,6 +35,7 @@ use App\Http\Controllers\SuperAdmin\TicketsController as SuperAdminTicketsContro
 use App\Http\Controllers\SuperAdmin\RolesController as SuperAdminRolesController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
 use App\Http\Controllers\SuperAdmin\IpAllowlistController as SuperAdminIpAllowlistController;
+use App\Http\Controllers\CountryFlagController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\DatabaseExportController;
 use App\Http\Controllers\Onboarding\OnboardingController;
@@ -50,6 +51,9 @@ Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::clas
 Route::match(['get', 'post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->middleware('throttle:240,1')->name('ingest.visit');
 Route::get('/click', [TrackingController::class, 'googleAdsClick'])->middleware('throttle:120,1')->name('google-ads.click');
 Route::match(['post', 'options'], '/ingest/session-recording', [TrackingController::class, 'sessionRecording'])->middleware('throttle:120,1')->name('ingest.session-recording');
+Route::get('/media/flags/{code}', [CountryFlagController::class, 'show'])
+    ->where('code', '[a-zA-Z]{2}')
+    ->name('country-flag');
 Route::get('/tag/{domainKey}.js', [TagController::class, 'js'])->name('tag.js');
 Route::get('/tag/{domainKey}.html', [TagController::class, 'noscript'])->name('tag.noscript');
 

@@ -1850,7 +1850,7 @@ function paidAdvertisingFigma(config = {}) {
         countryFlagUrl(value) {
             const code = this.countryCode(value).toLowerCase();
             if (!/^[a-z]{2}$/.test(code)) return '';
-            return `https://flagcdn.com/w20/${code}.png`;
+            return `/media/flags/${code}`;
         },
         ipLabel(value) {
             const raw = String(value || '').trim();

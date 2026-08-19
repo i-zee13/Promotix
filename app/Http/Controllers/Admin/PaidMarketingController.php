@@ -20,6 +20,7 @@ use App\Services\GoogleAudienceExclusionService;
 use App\Support\DetectionProfiles;
 use App\Support\DetectionReasonLabels;
 use App\Support\ClickronixTrafficReport;
+use App\Support\CountryFlag;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleIpBlockFormatter;
 use App\Support\GoogleVerifiedCampaignLookup;
@@ -2682,7 +2683,7 @@ class PaidMarketingController extends Controller
                 'count_label' => number_format($count),
                 'pct' => round(($count / $countryInvalidTotal) * 100, 1),
                 'bar' => round(($count / $countryMax) * 100, 1),
-                'flag' => $this->countryFlagEmoji((string) $name),
+                'code' => CountryFlag::iso2((string) $name),
             ];
         }
 
@@ -2879,44 +2880,6 @@ class PaidMarketingController extends Controller
         }
 
         return (int) round($value);
-    }
-
-    private function countryFlagEmoji(string $country): string
-    {
-        $map = [
-            'united states' => '🇺🇸', 'usa' => '🇺🇸', 'us' => '🇺🇸',
-            'germany' => '🇩🇪', 'de' => '🇩🇪',
-            'india' => '🇮🇳', 'in' => '🇮🇳',
-            'singapore' => '🇸🇬', 'sg' => '🇸🇬',
-            'russia' => '🇷🇺', 'ru' => '🇷🇺',
-            'united kingdom' => '🇬🇧', 'uk' => '🇬🇧', 'gb' => '🇬🇧',
-            'canada' => '🇨🇦', 'ca' => '🇨🇦',
-            'france' => '🇫🇷', 'fr' => '🇫🇷',
-            'brazil' => '🇧🇷', 'br' => '🇧🇷',
-            'pakistan' => '🇵🇰', 'pk' => '🇵🇰',
-            'china' => '🇨🇳', 'cn' => '🇨🇳',
-            'australia' => '🇦🇺', 'au' => '🇦🇺',
-            'netherlands' => '🇳🇱', 'nl' => '🇳🇱',
-            'japan' => '🇯🇵', 'jp' => '🇯🇵',
-        ];
-
-        $key = strtolower(trim($country));
-        if (isset($map[$key])) {
-            return $map[$key];
-        }
-
-        if (strlen($country) === 2 && ctype_alpha($country)) {
-            $code = strtoupper($country);
-            return implode(
-                '',
-                array_map(
-                    fn ($char) => mb_chr(0x1F1E6 + ord($char) - ord('A')),
-                    str_split($code)
-                )
-            );
-        }
-
-        return '🌐';
     }
 
     private function campaignNamesForUser(Request $request): Collection

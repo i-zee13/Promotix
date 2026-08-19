@@ -162,7 +162,8 @@
 
     <p class="pm-ip-invest__empty" x-show="!visit" x-cloak>Waiting for high-risk traffic…</p>
 
-    <div class="pm-ip-invest__body promotix-slim-scroll" x-show="visit" x-cloak>
+    <template x-if="visit">
+    <div class="pm-ip-invest__body promotix-slim-scroll">
         <div class="pm-ip-invest__hero">
             <div class="pm-ip-invest__ip-row">
                 <p class="pm-ip-invest__ip" x-text="visit.ip || '—'"></p>
@@ -334,10 +335,10 @@
             </div>
         </section>
 
-        <section class="pm-ip-invest__card" x-show="(visit.clicks || []).length">
+        <section class="pm-ip-invest__card" x-show="(visit?.clicks || []).length">
             <h3 class="pm-ip-invest__section-title">Timeline</h3>
             <ul class="pm-ip-invest__timeline">
-                <template x-for="(click, idx) in (visit.clicks || []).slice(0, 5)" :key="click.id || idx">
+                <template x-for="(click, idx) in (visit?.clicks || []).slice(0, 5)" :key="click.id || idx">
                     <li>
                         <span class="pm-ip-invest__dot"></span>
                         <p class="pm-ip-invest__tl-title" x-text="click.threat_group || click.action || 'Click event'"></p>
@@ -352,6 +353,7 @@
             <a :href="exclusionHref" class="pm-ip-invest__btn pm-ip-invest__btn--ghost">Add to Exclusion</a>
         </div>
     </div>
+    </template>
 </div>
 
 <script>

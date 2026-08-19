@@ -9,6 +9,7 @@ use App\Models\IpLog;
 use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
 use App\Support\GlobalIpAllowlist;
+use App\Support\CountryFlag;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
@@ -1990,7 +1991,7 @@ class BotProtectionController extends Controller
                 'count_label' => number_format($count),
                 'pct' => round(($count / $countryInvalidTotal) * 100, 1),
                 'bar' => round(($count / $countryMax) * 100, 1),
-                'flag' => $this->countryFlagEmoji((string) $name),
+                'code' => CountryFlag::iso2((string) $name),
             ];
         }
 
@@ -2020,42 +2021,6 @@ class BotProtectionController extends Controller
             'countries' => $topCountries,
             'high_risk_ips' => array_values($highRiskCards),
         ];
-    }
-
-    private function countryFlagEmoji(string $country): string
-    {
-        $map = [
-            'united states' => '🇺🇸', 'usa' => '🇺🇸', 'us' => '🇺🇸',
-            'germany' => '🇩🇪', 'de' => '🇩🇪',
-            'india' => '🇮🇳', 'in' => '🇮🇳',
-            'singapore' => '🇸🇬', 'sg' => '🇸🇬',
-            'russia' => '🇷🇺', 'ru' => '🇷🇺',
-            'united kingdom' => '🇬🇧', 'uk' => '🇬🇧', 'gb' => '🇬🇧',
-            'canada' => '🇨🇦', 'ca' => '🇨🇦',
-            'france' => '🇫🇷', 'fr' => '🇫🇷',
-            'brazil' => '🇧🇷', 'br' => '🇧🇷',
-            'pakistan' => '🇵🇰', 'pk' => '🇵🇰',
-            'china' => '🇨🇳', 'cn' => '🇨🇳',
-            'australia' => '🇦🇺', 'au' => '🇦🇺',
-            'netherlands' => '🇳🇱', 'nl' => '🇳🇱',
-            'japan' => '🇯🇵', 'jp' => '🇯🇵',
-            'united arab emirates' => '🇦🇪', 'ae' => '🇦🇪',
-        ];
-
-        $key = strtolower(trim($country));
-        if (isset($map[$key])) {
-            return $map[$key];
-        }
-
-        if (strlen($key) === 2) {
-            $a = ord($key[0]) - 97;
-            $b = ord($key[1]) - 97;
-            if ($a >= 0 && $a < 26 && $b >= 0 && $b < 26) {
-                return mb_chr(0x1F1E6 + $a).mb_chr(0x1F1E6 + $b);
-            }
-        }
-
-        return '🌐';
     }
 
     private function crawlerBrowserList(): array

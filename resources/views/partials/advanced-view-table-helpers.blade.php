@@ -5,15 +5,22 @@ window.promotixAdvTableHelpers = {
     },
     countryCode(rowOrCode) {
         const raw = (rowOrCode && typeof rowOrCode === 'object')
-            ? String(rowOrCode.country || '').trim()
+            ? String(rowOrCode.country || rowOrCode.code || '').trim()
             : String(rowOrCode || '').trim();
         if (/^[a-z]{2}$/i.test(raw)) return raw.toUpperCase();
-        return raw ? raw.slice(0, 2).toUpperCase() : '—';
+        const names = {
+            'united states': 'US', usa: 'US', 'united kingdom': 'GB', uk: 'GB',
+            pakistan: 'PK', germany: 'DE', france: 'FR', india: 'IN', canada: 'CA',
+            'united arab emirates': 'AE', uae: 'AE', mexico: 'MX', 'dominican republic': 'DO',
+            china: 'CN', australia: 'AU', brazil: 'BR', japan: 'JP', netherlands: 'NL',
+            singapore: 'SG', russia: 'RU', spain: 'ES', italy: 'IT', turkey: 'TR',
+        };
+        return names[raw.toLowerCase()] || '';
     },
     countryFlagUrl(code) {
-        const c = String(code || '').trim().toLowerCase();
-        if (!/^[a-z]{2}$/.test(c)) return '';
-        return `https://flagcdn.com/w20/${c}.png`;
+        const iso = this.countryCode(code).toLowerCase();
+        if (!/^[a-z]{2}$/.test(iso)) return '';
+        return `/media/flags/${iso}`;
     },
     score100(row) {
         const n = Number(row?.intel_risk_score ?? row?.threat_score ?? 0);
