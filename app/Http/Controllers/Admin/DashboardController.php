@@ -1035,13 +1035,19 @@ class DashboardController extends Controller
         $paidInvalidVisits = $uniqueInvalidPaidClicks;
         $paidValidClicks = $uniqueValidPaidClicks;
 
-        // Bot card: organic only (exclude paid click IDs / paid flag). Never use global ip_logs.
+        // Bot card: organic on Ads-linked domains; tag-only (unlinked) domains keep all visits visible.
         $botBlockedHits = 0;
         $botInvalidVisits = 0;
         $botTotalVisits = 0;
         if ($visitBase) {
             $organicBase = clone $visitBase;
-            GoogleClickAttribution::excludeClickIds($organicBase);
+            $paidDomainIds = Domain::query()
+                ->whereIn('id', $domainIds)
+                ->forPaidMarketing()
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            GoogleClickAttribution::excludeClickIdsForPaidDomains($organicBase, $paidDomainIds);
             $botTotalVisits = (int) (clone $organicBase)->count();
             $botInvalidVisits = (int) (clone $organicBase)->where('is_invalid_traffic', true)->count();
             if (Schema::hasColumn('visits', 'action_taken')) {
@@ -1076,17 +1082,20 @@ class DashboardController extends Controller
         $lastEventAt = null;
         $eventsToday = 0;
         $blockedToday = 0;
-        $todayLocal = now($user->timezone ?? config('app.timezone'))->toDateString();
+        $tz = UserTimezone::forUser($user);
+        $todayLocal = Carbon::now($tz)->toDateString();
+        $todayStart = Carbon::parse($todayLocal, $tz)->startOfDay()->utc();
+        $todayEnd = Carbon::parse($todayLocal, $tz)->endOfDay()->utc();
         if (Schema::hasTable('visits')) {
             $lastEventAt = DB::table('visits')->whereIn('domain_id', $domainIds)->max('visited_at');
             $eventsToday = (int) DB::table('visits')
                 ->whereIn('domain_id', $domainIds)
-                ->whereDate('visited_at', $todayLocal)
+                ->whereBetween('visited_at', [$todayStart, $todayEnd])
                 ->count();
             if (Schema::hasColumn('visits', 'action_taken')) {
                 $blockedToday = (int) DB::table('visits')
                     ->whereIn('domain_id', $domainIds)
-                    ->whereDate('visited_at', $todayLocal)
+                    ->whereBetween('visited_at', [$todayStart, $todayEnd])
                     ->where('action_taken', 'block')
                     ->count();
             }
@@ -1142,7 +1151,7 @@ class DashboardController extends Controller
             ],
             'connectionStatus' => [
                 'tracking' => $tagHealthy ? 'Healthy' : 'Pending setup',
-                'ingestion' => ($paidVisits + $botTotalVisits) > 0 ? 'Online' : 'Waiting for traffic',
+                'ingestion' => ($eventsToday > 0 || $paidVisits + $botTotalVisits > 0) ? 'Online' : 'Waiting for traffic',
                 'protection' => ($paidInvalidVisits > 0 || $botBlockedHits > 0 || $botInvalidVisits > 0) ? 'Active' : 'Monitoring',
                 'googleAdsApi' => $googleAdsApi,
                 'detectionEngine' => $detectionEngine,

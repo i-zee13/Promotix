@@ -691,7 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const quick = data.quickStats || {};
         const conn = data.connectionStatus || {};
 
-        setSuiteStat('suite-paid-clicks', paid.googleAdsClicks ?? paid.visits, paidDelta.googleAdsClicks ?? paidDelta.visits);
+        setSuiteStat('suite-paid-clicks', Number(paid.googleAdsClicks) > 0 ? paid.googleAdsClicks : (paid.trackedClicks ?? paid.visits ?? 0), Number(paidDelta.googleAdsClicks) > 0 ? paidDelta.googleAdsClicks : (paidDelta.trackedClicks ?? paidDelta.visits));
         setSuiteStat('suite-paid-valid', paid.validClicks ?? Math.max(0, Number(paid.visits || 0) - Number(paid.invalidVisits || 0)), paidDelta.validClicks);
         setSuiteStat('suite-paid-visits', paid.invalidClicks ?? paid.invalidVisits, paidDelta.invalidClicks ?? paidDelta.invalidVisits);
         setSuiteStat('suite-paid-rate', paid.protectionRate ?? paid.invalidRate ?? 0, paidDelta.protectionRate ?? paidDelta.invalidRate, { isRate: true });

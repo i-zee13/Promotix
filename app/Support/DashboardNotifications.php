@@ -4,7 +4,7 @@ namespace App\Support;
 
 use App\Models\Domain;
 use App\Models\GoogleConnection;
-use App\Models\IpLog;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -13,30 +13,46 @@ class DashboardNotifications
 {
     public static function forUser(int $userId): array
     {
-        $domainIds = Domain::query()->where('user_id', $userId)->forPaidMarketing()->pluck('id');
-        $blockedToday = (int) IpLog::query()
-            ->where('is_blocked', true)
-            ->whereDate('updated_at', Carbon::today())
-            ->sum('hits');
+        $domainIds = Domain::query()->where('user_id', $userId)->pluck('id');
+        $user = User::query()->find($userId);
+        $tz = UserTimezone::forUser($user);
+        $today = Carbon::now($tz)->toDateString();
+        $todayStart = Carbon::parse($today, $tz)->startOfDay()->utc();
+        $todayEnd = Carbon::parse($today, $tz)->endOfDay()->utc();
 
+        $blockedToday = 0;
         $paidVisitsToday = 0;
         $invalidToday = 0;
-        $today = Carbon::today()->toDateString();
 
-        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
+        if (Schema::hasTable('visits') && $domainIds->isNotEmpty()) {
+            $blockedQuery = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$todayStart, $todayEnd]);
+            if (Schema::hasColumn('visits', 'action_taken')) {
+                $blockedQuery->where('action_taken', 'block');
+            } else {
+                $blockedQuery->where('is_invalid_traffic', true);
+            }
+            $blockedToday = (int) $blockedQuery->count();
+
+            $invalidQuery = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->where('is_invalid_traffic', true)
+                ->whereBetween('visited_at', [$todayStart, $todayEnd]);
+            $invalidToday = (int) $invalidQuery->count();
+
+            $paidQuery = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$todayStart, $todayEnd]);
+            GoogleClickAttribution::applyHasClickIdFilter($paidQuery);
+            $paidVisitsToday = (int) $paidQuery->count();
+        }
+
+        if ($paidVisitsToday === 0 && Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
             $paidVisitsToday = (int) DB::table('google_ads_campaign_daily_metrics')
                 ->whereIn('domain_id', $domainIds)
                 ->whereDate('metric_date', $today)
                 ->sum('clicks');
-        }
-
-        if (Schema::hasTable('visits')) {
-            $invalidQuery = DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->where('is_invalid_traffic', true)
-                ->whereDate('visited_at', Carbon::today());
-            GoogleClickAttribution::applyHasClickIdFilter($invalidQuery);
-            $invalidToday = (int) $invalidQuery->count();
         }
 
         $manualDomains = Domain::query()->where('user_id', $userId)->forBotProtection()->get();
@@ -65,8 +81,8 @@ class DashboardNotifications
                 'type' => 'traffic',
                 'title' => 'Paid traffic today',
                 'body' => $paidVisitsToday > 0
-                    ? number_format($paidVisitsToday) . ' Google Ads click(s) synced for today.'
-                    : 'No Google Ads clicks synced yet today — connect and sync your ad account.',
+                    ? number_format($paidVisitsToday) . ' Google Ads click(s) tracked for today.'
+                    : 'No Google Ads clicks tracked yet today — connect Ads or wait for tagged clicks.',
             ],
         ];
 
@@ -74,7 +90,7 @@ class DashboardNotifications
             $items[] = [
                 'type' => 'security',
                 'title' => 'Invalid visits today',
-                'body' => number_format($invalidToday) . ' invalid paid click visit(s) detected today.',
+                'body' => number_format($invalidToday) . ' invalid visit(s) detected today.',
             ];
         }
 
