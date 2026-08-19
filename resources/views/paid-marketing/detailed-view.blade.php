@@ -21,6 +21,7 @@
     'csrf' => csrf_token(),
 ]))" x-init="init()">
     <section class="mx-auto w-full min-w-0 px-[12px] pb-[20px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
+        @include('partials.advanced-view-pager-styles')
         <style>
             .pm-adv-kpi-grid {
                 display: grid;
@@ -969,7 +970,7 @@
                         </template>
                         <button type="button" class="adv-pager__btn" :disabled="page >= totalPages" @click="page = Math.min(totalPages, page + 1)">›</button>
                     </div>
-                    <select x-model.number="perPage" @change="page = 1" aria-label="Rows per page">
+                    <select class="adv-pager__select" x-model.number="perPage" @change="page = 1" aria-label="Rows per page" style="width:108px;height:28px;max-width:108px">
                         <option :value="10">10 / page</option>
                         <option :value="20">20 / page</option>
                         <option :value="50">50 / page</option>

@@ -12,6 +12,7 @@
 @section('content')
 <div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma()" x-init="init()">
     <section class="mx-auto w-full min-w-0 px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
+        @include('partials.advanced-view-pager-styles')
         <style>
             .bp-adv-page-head {
                 display: flex;
@@ -705,7 +706,7 @@
                         </template>
                         <button type="button" class="adv-pager__btn" :disabled="meta.page * meta.per_page >= meta.total" @click="changePage(meta.page + 1)">›</button>
                     </div>
-                    <select x-model.number="meta.per_page" @change="changePage(1)" aria-label="Rows per page">
+                    <select class="adv-pager__select" x-model.number="meta.per_page" @change="changePage(1)" aria-label="Rows per page" style="width:108px;height:28px;max-width:108px">
                         <option :value="10">10 / page</option>
                         <option :value="20">20 / page</option>
                         <option :value="25">25 / page</option>
