@@ -1,7 +1,7 @@
 <script>
 window.promotixAdvTableHelpers = {
     isRichCol(key) {
-        return ['country', 'device', 'browser', 'os', 'intel_risk_score', 'intel_risk_level', 'action_taken', 'status', 'session_recording'].includes(key);
+        return ['country', 'intel_risk_score', 'intel_risk_level', 'action_taken', 'status', 'session_recording'].includes(key);
     },
     countryCode(rowOrCode) {
         const raw = (rowOrCode && typeof rowOrCode === 'object')
@@ -14,11 +14,6 @@ window.promotixAdvTableHelpers = {
         const c = String(code || '').trim().toLowerCase();
         if (!/^[a-z]{2}$/.test(c)) return '';
         return `https://flagcdn.com/w20/${c}.png`;
-    },
-    deviceKind(row) {
-        const raw = `${row?.device || ''} ${row?.os || ''}`.toLowerCase();
-        if (/(mobile|android|iphone|ios|phone)/.test(raw)) return 'mobile';
-        return 'desktop';
     },
     score100(row) {
         const n = Number(row?.intel_risk_score ?? row?.threat_score ?? 0);
