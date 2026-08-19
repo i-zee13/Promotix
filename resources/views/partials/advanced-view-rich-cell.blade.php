@@ -9,7 +9,7 @@
              loading="lazy"
              decoding="async"
              referrerpolicy="no-referrer"
-             @error="$el.style.display='none'">
+             @@error="$el.style.display='none'">
         <span x-text="countryCode({{ $item }}.country) || {{ $item }}.country || '—'"></span>
     </span>
 </template>
