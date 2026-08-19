@@ -960,19 +960,21 @@
                 </div>
             </div>
             <div class="adv-pager">
-                <span x-text="paginationLabel()"></span>
-                <div class="adv-pager__pages">
-                    <button type="button" class="adv-pager__btn" :disabled="page <= 1" @click="page = Math.max(1, page - 1)">‹</button>
-                    <template x-for="item in pageItems" :key="'pm-p-'+item">
-                        <button type="button" class="adv-pager__btn" :class="item === page && 'is-active'" :disabled="item === '…'" @click="item !== '…' && (page = item)" x-text="item"></button>
-                    </template>
-                    <button type="button" class="adv-pager__btn" :disabled="page >= totalPages" @click="page = Math.min(totalPages, page + 1)">›</button>
+                <span class="adv-pager__label" x-text="paginationLabel()"></span>
+                <div class="adv-pager__controls">
+                    <div class="adv-pager__pages">
+                        <button type="button" class="adv-pager__btn" :disabled="page <= 1" @click="page = Math.max(1, page - 1)">‹</button>
+                        <template x-for="item in pageItems" :key="'pm-p-'+item">
+                            <button type="button" class="adv-pager__btn" :class="item === page && 'is-active'" :disabled="item === '…'" @click="item !== '…' && (page = item)" x-text="item"></button>
+                        </template>
+                        <button type="button" class="adv-pager__btn" :disabled="page >= totalPages" @click="page = Math.min(totalPages, page + 1)">›</button>
+                    </div>
+                    <select x-model.number="perPage" @change="page = 1" aria-label="Rows per page">
+                        <option :value="10">10 / page</option>
+                        <option :value="20">20 / page</option>
+                        <option :value="50">50 / page</option>
+                    </select>
                 </div>
-                <select x-model.number="perPage" @change="page = 1">
-                    <option :value="10">10 / page</option>
-                    <option :value="20">20 / page</option>
-                    <option :value="50">50 / page</option>
-                </select>
             </div>
         </section>
 

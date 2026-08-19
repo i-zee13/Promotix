@@ -696,20 +696,22 @@
             </div>
 
             <div class="adv-pager">
-                <span x-text="paginationLabel()"></span>
-                <div class="adv-pager__pages">
-                    <button type="button" class="adv-pager__btn" :disabled="meta.page <= 1" @click="changePage(meta.page - 1)">‹</button>
-                    <template x-for="item in pageItems" :key="'p-'+item">
-                        <button type="button" class="adv-pager__btn" :class="item === meta.page && 'is-active'" :disabled="item === '…'" @click="item !== '…' && changePage(item)" x-text="item"></button>
-                    </template>
-                    <button type="button" class="adv-pager__btn" :disabled="meta.page * meta.per_page >= meta.total" @click="changePage(meta.page + 1)">›</button>
+                <span class="adv-pager__label" x-text="paginationLabel()"></span>
+                <div class="adv-pager__controls">
+                    <div class="adv-pager__pages">
+                        <button type="button" class="adv-pager__btn" :disabled="meta.page <= 1" @click="changePage(meta.page - 1)">‹</button>
+                        <template x-for="item in pageItems" :key="'p-'+item">
+                            <button type="button" class="adv-pager__btn" :class="item === meta.page && 'is-active'" :disabled="item === '…'" @click="item !== '…' && changePage(item)" x-text="item"></button>
+                        </template>
+                        <button type="button" class="adv-pager__btn" :disabled="meta.page * meta.per_page >= meta.total" @click="changePage(meta.page + 1)">›</button>
+                    </div>
+                    <select x-model.number="meta.per_page" @change="changePage(1)" aria-label="Rows per page">
+                        <option :value="10">10 / page</option>
+                        <option :value="20">20 / page</option>
+                        <option :value="25">25 / page</option>
+                        <option :value="50">50 / page</option>
+                    </select>
                 </div>
-                <select x-model.number="meta.per_page" @change="changePage(1)">
-                    <option :value="10">10 / page</option>
-                    <option :value="20">20 / page</option>
-                    <option :value="25">25 / page</option>
-                    <option :value="50">50 / page</option>
-                </select>
             </div>
         </section>
 

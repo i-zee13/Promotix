@@ -7058,15 +7058,28 @@ html.light-mode .paid-trends-tooltip span {
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px 16px;
     border-top: 1px solid rgba(103, 6, 179, 0.4);
     padding: 10px 14px;
     font-size: 11px;
     color: #a9a9a9;
 }
+.adv-pager__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    line-height: 28px;
+}
+.adv-pager__controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex: 0 0 auto;
+}
 .adv-pager__pages {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 4px;
 }
@@ -7087,19 +7100,37 @@ html.light-mode .paid-trends-tooltip span {
 }
 .adv-pager__btn:disabled { opacity: 0.35; }
 .adv-pager select {
-    height: 28px;
+    appearance: none;
+    -webkit-appearance: none;
+    width: auto !important;
+    min-width: 6.75rem;
+    max-width: 8.5rem;
+    height: 28px !important;
+    flex: 0 0 auto;
+    box-sizing: border-box;
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.18);
-    background: #111;
+    background-color: #111;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a9a9a9'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 12px;
     color: #d4d4d4;
-    font-size: 11px;
-    padding: 0 8px;
+    font-size: 11px !important;
+    line-height: 26px;
+    padding: 0 22px 0 8px !important;
+    margin: 0;
 }
 html.light-mode .adv-risk-ring::before { background: #fff; }
 html.light-mode .adv-risk-ring { color: #1a1a1a; }
 html.light-mode .adv-pager { color: #5c5470; }
 html.light-mode .adv-pager__btn { color: #2d2d3a; border-color: #d4c4e8; }
-html.light-mode .adv-pager select { background: #fff; color: #2d2d3a; border-color: #d4c4e8; }
+html.light-mode .adv-pager select {
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%235c5470'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    color: #2d2d3a;
+    border-color: #d4c4e8;
+}
 
 .paid-sidebar-card {
     min-height: 158px;
