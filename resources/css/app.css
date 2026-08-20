@@ -4329,15 +4329,22 @@ select.figma-sa-subs-status-pill {
     padding-right: 0;
 }
 
+.figma-shell.figma-rightbar-collapsed .figma-rightbar,
 .figma-rightbar-collapsed .figma-rightbar {
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    border-left-width: 0 !important;
+    overflow: hidden !important;
     transform: translateX(100%);
     pointer-events: none;
+    visibility: hidden;
 }
 
 .figma-rightbar-edge-toggle {
     position: fixed;
     top: 50%;
-    z-index: 25;
+    z-index: 40;
     display: flex;
     height: 40px;
     width: 22px;

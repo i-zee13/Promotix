@@ -16,6 +16,7 @@ use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
 use App\Support\GoogleAdsClickRedirect;
 use App\Support\GoogleClickAttribution;
+use App\Support\TransparentClickTracker;
 use App\Support\PaidAdvertising\PaidAdvertisingPipeline;
 use App\Support\PaidAdvertising\ResolvedPaidIdentity;
 use App\Support\SessionBehaviorAnalyzer;
@@ -47,24 +48,35 @@ class TrackingController extends Controller
         $finalUrl = (string) ($params['final_url'] ?? '');
 
         if ($finalUrl === '') {
-            return response('Missing final_url', 400);
+            return response('Missing redirect (or final_url)', 400);
         }
 
+        $cxtrkId = TransparentClickTracker::mintId();
+        $params['cxtrk'] = $cxtrkId;
         $redirectUrl = GoogleAdsClickRedirect::buildRedirectUrl($finalUrl, $params);
 
-        // Rule: save only when a Google click ID exists.
-        $domain = GoogleAdsClickRedirect::resolveDomainFromFinalUrl($finalUrl);
-        if (
-            $domain
-            && GoogleClickAttribution::isPaidTraffic($params, (int) $domain->id)
-            && GoogleAdsClickRedirect::isAllowedFinalUrl($finalUrl, $domain)
-            && ($domain->status ?? 'pending') !== 'disabled'
-        ) {
-            try {
+        try {
+            $domain = GoogleAdsClickRedirect::resolveDomainFromFinalUrl($finalUrl);
+            TransparentClickTracker::record(
+                $request,
+                $params,
+                $finalUrl,
+                $cxtrkId,
+                $domain?->id,
+                $this->clientIp($request),
+            );
+
+            // Rule: save only when a Google click ID exists.
+            if (
+                $domain
+                && GoogleClickAttribution::isPaidTraffic($params, (int) $domain->id)
+                && GoogleAdsClickRedirect::isAllowedFinalUrl($finalUrl, $domain)
+                && ($domain->status ?? 'pending') !== 'disabled'
+            ) {
                 $this->ingestGoogleAdsServerClick($request, $domain, $params, $finalUrl);
-            } catch (\Throwable $e) {
-                report($e);
             }
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         // Always send the visitor to the landing page (never block Google / never 204 here).
@@ -96,6 +108,7 @@ class TrackingController extends Controller
             'utm_medium' => ($params['source'] ?? '') === 'google_ads' ? 'cpc' : null,
             'click_source' => 'server',
             'ad_click_meta' => GoogleAdsClickRedirect::adClickMeta($params),
+            'cxtrk' => $params['cxtrk'] ?? null,
         ];
 
         $ip = $this->clientIp($request);
@@ -284,6 +297,7 @@ class TrackingController extends Controller
             'ts' => ['nullable', 'numeric'],
             'click_source' => ['nullable', 'string', 'max:16'],
             'ad_click_meta' => ['nullable'],
+            'cxtrk' => ['nullable', 'string', 'max:32'],
         ])->validate();
 
         if (isset($data['ad_click_meta']) && is_string($data['ad_click_meta'])) {
@@ -629,6 +643,8 @@ class TrackingController extends Controller
             }
 
             $visitId = DB::table('visits')->insertGetId($visitPayload);
+
+            TransparentClickTracker::joinLandingVisit((int) $domain->id, (int) $visitId, $data);
 
             // Duplicate attribution IDs are excluded from unique Google totals,
             // but every paid visit must advance fraud rolling windows.

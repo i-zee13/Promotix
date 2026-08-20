@@ -44,9 +44,10 @@ final class GoogleAdsClickRedirect
 
     public static function trackingTemplateUrl(?string $baseUrl = null): string
     {
-        $base = rtrim($baseUrl ?? (string) config('app.url'), '/');
+        $base = TransparentClickTracker::baseUrl($baseUrl);
 
-        return $base . '/click?final_url={lpurl}&source=google_ads'
+        return $base . '/click?redirect={lpurl}&final_url={lpurl}&source=google_ads'
+            . '&cx_campaign={campaignid}&cx_adgroup={adgroupid}&cx_creative={creative}&cx_keyword={keyword}'
             . '&adgroup_id={adgroupid}&keyword={keyword}&device={device}&network={network}'
             . '&matchtype={matchtype}&creative={creative}&placement={placement}';
     }
@@ -56,10 +57,13 @@ final class GoogleAdsClickRedirect
      */
     public static function parseClickRequest(Request $request): array
     {
-        $finalUrl = trim((string) ($request->query('final_url') ?: $request->query('url') ?: ''));
+        $finalUrl = TransparentClickTracker::landingUrl($request);
+        $registry = TransparentClickTracker::registryFromRequest($request);
 
         return [
             'final_url' => $finalUrl,
+            'cxtrk' => trim((string) $request->query('cxtrk', '')),
+            'cx_registry' => $registry,
             'source' => trim((string) $request->query('source', '')),
             'adgroup_id' => trim((string) ($request->query('adgroup_id') ?: $request->query('adgroupid') ?: '')),
             'keyword' => trim((string) $request->query('keyword', '')),
@@ -177,6 +181,9 @@ final class GoogleAdsClickRedirect
         if (! empty($params['source'])) {
             $query['source'] = $params['source'];
         }
+        if (! empty($params['cxtrk'])) {
+            $query['cxtrk'] = $params['cxtrk'];
+        }
         foreach (['adgroup_id', 'device', 'network', 'matchtype', 'creative', 'placement'] as $key) {
             if (! empty($params[$key])) {
                 $query[$key] = $params[$key];
@@ -196,8 +203,12 @@ final class GoogleAdsClickRedirect
      */
     public static function adClickMeta(array $params): array
     {
+        $registry = is_array($params['cx_registry'] ?? null) ? $params['cx_registry'] : [];
+
         return array_filter([
             'source' => $params['source'] ?? null,
+            'cxtrk' => $params['cxtrk'] ?? null,
+            'cx_registry' => $registry !== [] ? $registry : null,
             'adgroup_id' => $params['adgroup_id'] ?? null,
             'keyword' => $params['keyword'] ?? null,
             'device' => $params['device'] ?? null,

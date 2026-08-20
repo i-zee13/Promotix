@@ -44,6 +44,7 @@ class EnsureOnboardingComplete
         'pricing',
         'impersonate.stop',
         'google-ads.click',
+        'click-tracker.docs',
     ];
 
     public function handle(Request $request, Closure $next): Response

@@ -39,6 +39,7 @@ class EnsureProtectionAccess
         'verification.send-code',
         'logout',
         'google-ads.click',
+        'click-tracker.docs',
     ];
 
     public function handle(Request $request, Closure $next): Response

@@ -13,9 +13,10 @@ class GoogleAdsClickRedirectTest extends TestCase
         $url = GoogleAdsClickRedirect::trackingTemplateUrl('https://app.promotix.test');
 
         $this->assertStringContainsString('https://app.promotix.test/click?', $url);
+        $this->assertStringContainsString('redirect={lpurl}', $url);
         $this->assertStringContainsString('final_url={lpurl}', $url);
         $this->assertStringContainsString('source=google_ads', $url);
-        $this->assertStringNotContainsString('campaign_id={campaignid}', $url);
+        $this->assertStringContainsString('cx_campaign={campaignid}', $url);
         $this->assertStringContainsString('keyword={keyword}', $url);
     }
 
@@ -35,6 +36,22 @@ class GoogleAdsClickRedirectTest extends TestCase
         $this->assertStringNotContainsString('campaign_id=', $redirect);
         $this->assertStringContainsString('keyword=insurance+quotes', $redirect);
         $this->assertStringContainsString('adgroup_id=123456789', $redirect);
+    }
+
+    public function test_parse_click_accepts_redirect_alias_and_cx_registry(): void
+    {
+        $request = Request::create(
+            '/click?redirect=' . urlencode('https://insuranceforme.online/lp')
+            . '&cx_campaign=2399&adgroup_id=88&gclid=ABC123',
+            'GET'
+        );
+
+        $params = GoogleAdsClickRedirect::parseClickRequest($request);
+
+        $this->assertSame('https://insuranceforme.online/lp', $params['final_url']);
+        $this->assertSame('ABC123', $params['gclid']);
+        $this->assertSame('2399', $params['cx_registry']['cx_campaign']);
+        $this->assertSame('88', $params['cx_registry']['cx_adgroup']);
     }
 
     public function test_parse_click_reads_gclid_from_encoded_final_url(): void

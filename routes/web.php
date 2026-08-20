@@ -50,6 +50,12 @@ Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::clas
 // GET must be allowed: the embedded tag falls back to an <img> pixel (query string) when sendBeacon/fetch fail.
 Route::match(['get', 'post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->middleware('throttle:240,1')->name('ingest.visit');
 Route::get('/click', [TrackingController::class, 'googleAdsClick'])->middleware('throttle:120,1')->name('google-ads.click');
+Route::get('/docs/click-tracker', function () {
+    return response()->view('docs.transparent-click-tracker', [
+        'trackerHost' => \App\Support\TransparentClickTracker::baseUrl(),
+        'template' => \App\Support\GoogleAdsClickRedirect::trackingTemplateUrl(),
+    ]);
+})->name('click-tracker.docs');
 Route::match(['post', 'options'], '/ingest/session-recording', [TrackingController::class, 'sessionRecording'])->middleware('throttle:120,1')->name('ingest.session-recording');
 Route::get('/media/flags/{code}', [CountryFlagController::class, 'show'])
     ->where('code', '[a-zA-Z]{2}')
