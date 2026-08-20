@@ -63,7 +63,9 @@ class IntegrationsController extends Controller
         $domainConnections = $manualDomains->map(fn (Domain $d) => [
             'id' => $d->id,
             'hostname' => $d->hostname,
-            'google_connected' => (bool) $d->tag_connected,
+            // Tag script only — never treat as Google Ads API / OAuth.
+            'tag_connected' => (bool) $d->tag_connected,
+            'google_connected' => false,
             'google_ads_connected' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0,
             'steps' => [
                 ['label' => 'Tag Manager', 'done' => (bool) $d->tag_connected],
@@ -155,11 +157,15 @@ class IntegrationsController extends Controller
 
             $linkedAccount = $domain->googleAdsAccount
                 ?: $domain->googleAdsMappings->first()?->account;
-            $adsDone = $linkedAccount !== null
+            $adsDone = $googleConnected && (
+                $linkedAccount !== null
                 || $domain->google_ads_account_id !== null
-                || (int) ($domain->google_ads_mappings_count ?? 0) > 0;
+                || (int) ($domain->google_ads_mappings_count ?? 0) > 0
+            );
             $adsDetail = 'Link an ads account';
-            if ($linkedAccount) {
+            if (! $googleConnected) {
+                $adsDetail = 'Connect Google first';
+            } elseif ($linkedAccount) {
                 $tag = (string) ($linkedAccount->google_tag_id ?: '');
                 $cid = (string) ($linkedAccount->display_customer_id ?: $linkedAccount->customer_id ?: '');
                 $adsDetail = $tag !== '' ? $tag : ($cid !== '' ? $cid : $adsDetail);
@@ -240,12 +246,16 @@ class IntegrationsController extends Controller
             [
                 'key' => 'ads',
                 'label' => 'Google Ads Connected',
-                'done' => $accounts->isNotEmpty() || $manualDomains->contains(
-                    fn (Domain $d) => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0
+                'done' => $googleConnected && (
+                    $accounts->isNotEmpty() || $manualDomains->contains(
+                        fn (Domain $d) => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0
+                    )
                 ),
-                'detail' => $adsCustomerId !== ''
-                    ? ((string) ($firstAccount?->google_tag_id ?: $adsCustomerId))
-                    : 'Link an ads account',
+                'detail' => (! $googleConnected)
+                    ? 'Connect Google first'
+                    : ($adsCustomerId !== ''
+                        ? ((string) ($firstAccount?->google_tag_id ?: $adsCustomerId))
+                        : 'Link an ads account'),
             ],
             [
                 'key' => 'tracking',
@@ -300,6 +310,7 @@ class IntegrationsController extends Controller
                 'last_sync_at' => optional($lastSyncAt)->toIso8601String(),
                 'clicks' => $clicks,
                 'clicks_label' => number_format($clicks),
+                'clicks_caption' => 'Tracked visits',
                 'action_label' => 'Campaign Settings',
                 'action_url' => route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]),
                 'edit_url' => route('integrations.google.redirect', [

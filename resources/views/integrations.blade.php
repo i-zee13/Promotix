@@ -229,9 +229,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                         @include('partials.icons.google', ['class' => 'h-[44px] w-[44px]'])
                                     </div>
                                     <p class="text-[15px] font-semibold leading-none text-white">Google Ads</p>
-                                    <span class="pi-status-pill mt-[8px]" :class="googleConnected || {{ $googleOAuthConnected ? 'true' : 'false' }} ? 'is-on' : 'is-off'">
+                                    <span class="pi-status-pill mt-[8px]" :class="googleOAuthConnected ? 'is-on' : 'is-off'">
                                         <span class="pi-status-dot"></span>
-                                        <span x-text="(googleConnected || {{ $googleOAuthConnected ? 'true' : 'false' }}) ? 'Connected' : 'Not connected'"></span>
+                                        <span x-text="googleOAuthConnected ? 'Connected' : 'Not connected'"></span>
                                     </span>
                                 </div>
 
@@ -414,9 +414,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 @include('partials.icons.google', ['class' => 'h-[16px] w-[16px]'])
                             </span>
                             <span class="min-w-0 flex-1 truncate text-[12px] text-white/90">Google Ads API</span>
-                            <span class="pi-status-pill" :class="(googleConnected || {{ $googleOAuthConnected ? 'true' : 'false' }}) ? 'is-on' : 'is-off'">
+                            <span class="pi-status-pill" :class="googleAdsApiHealthy ? 'is-on' : 'is-off'">
                                 <span class="pi-status-dot"></span>
-                                <span x-text="(googleConnected || {{ $googleOAuthConnected ? 'true' : 'false' }}) ? 'Connected' : 'Offline'"></span>
+                                <span x-text="googleAdsApiHealthy ? 'Connected' : (googleOAuthConnected ? 'Pending' : 'Offline')"></span>
                             </span>
                         </div>
                         <div class="pi-status-row">
@@ -453,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <span class="min-w-0 flex-1 truncate text-white/80" x-text="item.label"></span>
                                     <span class="inline-flex items-center gap-[4px] shrink-0" :class="item.ok ? 'text-emerald-300' : 'text-amber-300'">
                                         <svg x-show="item.ok" class="h-[12px] w-[12px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7"/></svg>
-                                        <span x-text="item.ok ? 'Healthy' : 'Pending'"></span>
+                                        <span x-text="item.stateLabel || (item.ok ? 'Healthy' : 'Pending')"></span>
                                     </span>
                                     <span class="w-[42px] shrink-0 text-right text-[10px] text-white/40" x-text="item.ago"></span>
                                 </div>
@@ -1057,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <th>Connected Entity ID</th>
                             <th>Status</th>
                             <th>Last Sync</th>
-                            <th>Clicks Imported</th>
+                            <th>Tracked Clicks</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -1397,34 +1397,41 @@ function platformIntegrations(config) {
         },
         get tagManagerConnected() {
             if (this.activeDomainStatus) {
-                return Boolean(this.activeDomainStatus.google_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
+                return Boolean(this.activeDomainStatus.tag_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
             }
             return Boolean(this.tagReady);
         },
         get trackingScriptOk() {
-            // Same domain-aware signal as Tag Manager / setup "Tracking Script Installed"
+            // Tag script only — not Google Ads OAuth/API.
             if (this.activeDomainStatus) {
-                return Boolean(this.activeDomainStatus.google_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
+                return Boolean(this.activeDomainStatus.tag_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
             }
             return Boolean(this.tagReady);
         },
         get healthItems() {
             const syncAgo = this.relativeAgo(this.connectionHealth.last_sync_at);
             const eventAgo = this.relativeAgo(this.connectionHealth.last_event_at);
-            // A connected GTM/tag does not mean the Google Ads OAuth/API is
-            // connected. Keep these signals separate in Connection Health.
-            const apiOk = Boolean(this.googleOAuthConnected)
-                && String(this.connectionHealth.health_status || '').toLowerCase() !== 'error';
+            // Tag/GTM ≠ Google Ads API. API is healthy only after OAuth + non-error health.
+            const apiStatus = String(this.connectionHealth.health_status || '').toLowerCase();
+            const apiLinked = Boolean(this.googleOAuthConnected);
+            const apiOk = apiLinked && apiStatus !== 'error' && apiStatus !== 'pending';
             const tagOk = this.tagManagerConnected;
             const trackOk = this.trackingScriptOk;
             const botOk = this.activeDomainStatus
                 ? Boolean((this.activeDomainStatus.steps || []).find((s) => s.label === 'Bot Protection')?.done)
                 : Boolean(this.botReady || this.domainConnections.some((d) => (d.steps || []).find((s) => s.label === 'Bot Protection')?.done));
             return [
-                { key: 'api', label: 'Google Ads API', ok: apiOk, ago: syncAgo },
-                { key: 'gtm', label: 'Tag Manager', ok: tagOk, ago: eventAgo },
-                { key: 'script', label: 'Tracking Script', ok: trackOk, ago: eventAgo },
-                { key: 'bot', label: 'Bot Protection', ok: botOk, ago: eventAgo },
+                {
+                    key: 'api',
+                    label: 'Google Ads API',
+                    ok: apiOk,
+                    // Linked but never verified / token issue → Pending (not “Connected via tag”).
+                    stateLabel: apiOk ? 'Healthy' : (apiLinked ? 'Pending' : 'Not connected'),
+                    ago: apiLinked ? syncAgo : '—',
+                },
+                { key: 'gtm', label: 'Tag Manager', ok: tagOk, stateLabel: tagOk ? 'Healthy' : 'Pending', ago: eventAgo },
+                { key: 'script', label: 'Tracking Script', ok: trackOk, stateLabel: trackOk ? 'Healthy' : 'Pending', ago: eventAgo },
+                { key: 'bot', label: 'Bot Protection', ok: botOk, stateLabel: botOk ? 'Healthy' : 'Pending', ago: eventAgo },
             ];
         },
         get setupProgressFill() {
@@ -1444,8 +1451,7 @@ function platformIntegrations(config) {
             return Math.round((items.filter((i) => i.ok).length / items.length) * 100);
         },
         get healthLive() {
-            return Boolean(this.healthItems.find((item) => item.key === 'api')?.ok)
-                && this.healthPct >= 75;
+            return this.googleAdsApiHealthy && this.healthPct >= 75;
         },
         get filteredPlatformRows() {
             const q = String(this.platformSearch || '').trim().toLowerCase();
@@ -1536,8 +1542,12 @@ function platformIntegrations(config) {
             return this.setupProgressAll;
         },
         get googleConnected() {
-            if (this.activeDomainStatus) return Boolean(this.activeDomainStatus.google_connected);
-            return this.domainConnections.some((d) => d.google_connected);
+            // OAuth / Ads API only — never infer from tag script.
+            return Boolean(this.googleOAuthConnected);
+        },
+        get googleAdsApiHealthy() {
+            const status = String(this.connectionHealth.health_status || '').toLowerCase();
+            return Boolean(this.googleOAuthConnected) && status !== 'error' && status !== 'pending';
         },
         get googleAdsConnected() {
             if (this.activeDomainStatus) return Boolean(this.activeDomainStatus.google_ads_connected);
