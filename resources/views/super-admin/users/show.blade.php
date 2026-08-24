@@ -158,7 +158,91 @@
                     @endif
                 </form>
             </section>
+
+            <section class="figma-sa-user-detail-panel" id="assign-team">
+                <div class="figma-sa-user-detail-panel-head">
+                    <h2>Team assignment</h2>
+                    <p>Users are never auto-added to teams. Only Super Admin can assign.</p>
+                </div>
+                @if (($userTeams ?? collect())->isNotEmpty())
+                    <ul class="mb-3 space-y-1 text-[13px] text-white/80">
+                        @foreach ($userTeams as $team)
+                            <li class="flex items-center justify-between gap-2 rounded border border-white/10 px-3 py-2">
+                                <span>{{ $team->name }}</span>
+                                <form method="POST" action="{{ route('super-admin.users.assign-team', $user) }}">
+                                    @csrf
+                                    <input type="hidden" name="team_id" value="{{ $team->id }}">
+                                    <input type="hidden" name="action" value="remove">
+                                    <button type="submit" class="text-[11px] text-rose-300 hover:text-rose-200">Remove</button>
+                                </form>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="figma-sa-user-detail-muted mb-3">Unassigned — not on any team.</p>
+                @endif
+                <form method="POST" action="{{ route('super-admin.users.assign-team', $user) }}" class="figma-sa-user-detail-plan-form">
+                    @csrf
+                    <input type="hidden" name="action" value="assign">
+                    @if (($assignableTeams ?? collect())->isEmpty())
+                        <p class="figma-sa-user-detail-muted">No teams yet. Run AdminPanelBootstrapSeeder or create teams.</p>
+                    @else
+                        <div class="figma-sa-user-detail-field">
+                            <label class="figma-sa-label" for="assign-team-id">Assign to team</label>
+                            <div class="figma-sa-user-detail-select-wrap">
+                                <select name="team_id" id="assign-team-id" required class="figma-sa-user-detail-select">
+                                    @foreach ($assignableTeams as $team)
+                                        <option value="{{ $team->id }}">{{ $team->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="figma-sa-users-invite-btn figma-sa-user-detail-submit">Assign team</button>
+                    @endif
+                </form>
+            </section>
         </div>
+
+        <section class="figma-sa-user-detail-panel figma-sa-user-detail-panel--table" id="portal-users">
+            <div class="figma-sa-user-detail-panel-head">
+                <h2>Portal users</h2>
+                <p>Seat users under this account owner (not the same as operational Teams).</p>
+            </div>
+            <div class="figma-sa-products-table-shell figma-sa-user-detail-table-shell">
+                <div class="figma-sa-table-scroll">
+                    <table class="figma-sa-products-table figma-sa-user-detail-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($portalUsers ?? [] as $portal)
+                                <tr>
+                                    <td>
+                                        <a href="{{ route('super-admin.users.show', $portal) }}" class="text-[#FFB380] hover:underline">{{ $portal->name }}</a>
+                                    </td>
+                                    <td>{{ $portal->email }}</td>
+                                    <td>{{ $portal->role?->name ?? '—' }}</td>
+                                    <td>
+                                        <x-super-admin.status-pill
+                                            :tone="\App\Support\StatusTone::user($portal->status ?? 'active')"
+                                            :label="ucfirst($portal->status ?? 'active')" />
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="figma-sa-products-empty">No portal users under this owner.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
 
         <section class="figma-sa-user-detail-panel figma-sa-user-detail-panel--table" id="roles">
             <div class="figma-sa-user-detail-panel-head">
@@ -214,7 +298,9 @@
                             @forelse ($user->loginHistories as $entry)
                                 <tr>
                                     <td>{{ $entry->created_at->timezone(config('app.timezone'))->format('M j, Y H:i') }}</td>
-                                    <td class="figma-sa-user-detail-mono">{{ $entry->ip_address ?? '—' }}</td>
+                                    <td>
+                                        <span class="figma-sa-user-detail-ip" title="{{ $entry->ip_address ?? '' }}">{{ $entry->ip_address ?? '—' }}</span>
+                                    </td>
                                     <td>{{ $entry->device ?? '—' }}</td>
                                     <td>{{ $entry->browser ?? '—' }}</td>
                                     <td>

@@ -1,16 +1,16 @@
 @extends('layouts.admin')
 
-@section('title', 'Bot Protection | Advanced View')
+@section('title', 'Analytics | Traffic Control')
 
 @section('rightbar')
 <div class="figma-rightbar-default paid-rightbar">
     @include('partials.figma-rightbar-header-actions')
-    @include('partials.figma-rightbar-bot-protection')
+    @include('partials.figma-rightbar-analytics')
 </div>
 @endsection
 
 @section('content')
-<div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma()" x-init="init()">
+<div class="brand-page-bg analytics-skin min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma()" x-init="init()">
     <section class="mx-auto w-full min-w-0 px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         @include('partials.advanced-view-pager-styles')
         <style>
@@ -512,9 +512,9 @@
 
         <div class="bp-adv-page-head">
             <div class="flex flex-wrap items-center gap-[8px] shrink-0">
-                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Bot Protection</h1>
+                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Analytics</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
-                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
+                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Traffic Control</span>
             </div>
 
             <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-adv ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
@@ -599,9 +599,9 @@
             </template>
         </div>
 
-        <section class="overflow-visible rounded-[12px] border border-[#6706b3]">
-            <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#6400B2] px-[16px] py-[12px]">
-                <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
+        <section class="overflow-visible rounded-[12px] border border-[#FF6600]/60">
+            <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#FF6600] px-[16px] py-[12px]">
+                <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Traffic Control</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
                     <div class="relative" @click.outside="filterMenuOpen = false">
                         <button type="button" @click="filterMenuOpen = !filterMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
@@ -1183,7 +1183,7 @@ function botProtectionAdvancedFigma() {
         async reload(resetPage = false) {
             if (resetPage) this.meta.page = 1;
             this.loadError = '';
-            window.promotixPageLoader?.show('Loading Advanced View…');
+            window.promotixPageLoader?.show('Loading Traffic Control…');
             try {
                 const statsRes = await fetch(`/bot-protection/bot-stats?${this.qs()}`);
                 const stats = await this.parseJson(statsRes);
@@ -1217,7 +1217,7 @@ function botProtectionAdvancedFigma() {
                     this.rows = [];
                 }
             } catch (e) {
-                this.loadError = 'Could not load Advanced View. Check the network tab and retry.';
+                this.loadError = 'Could not load Traffic Control. Check the network tab and retry.';
                 this.rows = [];
             } finally {
                 window.promotixPageLoader?.hide();

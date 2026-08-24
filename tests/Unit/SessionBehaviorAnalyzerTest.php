@@ -72,6 +72,24 @@ class SessionBehaviorAnalyzerTest extends TestCase
         $this->assertSame(0, $analysis['tel_clicks']);
     }
 
+    public function test_analyze_counts_forms_and_commerce(): void
+    {
+        $analysis = SessionBehaviorAnalyzer::analyze([
+            ['type' => 'form_start', 't' => 50, 'form_id' => 'lead'],
+            ['type' => 'form_submit', 't' => 100, 'form_id' => 'lead', 'success' => true],
+            ['type' => 'add_to_cart', 't' => 150, 'sku' => 'A'],
+            ['type' => 'checkout', 't' => 200],
+            ['type' => 'purchase', 't' => 250, 'order_id' => '1'],
+        ], 5000);
+
+        $this->assertSame(1, $analysis['form_starts']);
+        $this->assertSame(1, $analysis['form_submits']);
+        $this->assertSame(1, $analysis['add_to_cart']);
+        $this->assertSame(1, $analysis['checkouts']);
+        $this->assertSame(1, $analysis['purchases']);
+        $this->assertNotEmpty($analysis['timeline']);
+    }
+
     public function test_fingerprint_includes_scroll_timing_bucket(): void
     {
         $fp = SessionBehaviorFingerprint::fromEvents([

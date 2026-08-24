@@ -995,6 +995,7 @@
         <section class="pm-adv-charts mt-[18px]">
             <article class="pm-adv-chart-card">
                 <h3 class="pm-adv-chart-card__title">Threat Distribution</h3>
+                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Invalid clicks by named category · center = Invalid Clicks total</p>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
@@ -1029,6 +1030,7 @@
 
             <article class="pm-adv-chart-card">
                 <h3 class="pm-adv-chart-card__title">Risk Level Distribution</h3>
+                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Unique IPs by Critical / High / Medium / Low · legend shows count + %</p>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
@@ -1445,6 +1447,28 @@
                 </div>
                 <p class="mt-2 text-[10px] text-white/40">Pink markers = clicks · cyan = scrolls · click timeline to seek</p>
                 <p class="mt-1 text-[11px] text-white/50" x-text="recordingModal.page_url || ''"></p>
+
+                <div class="mt-4 rounded-[8px] border border-white/15 bg-black/20 p-[10px]">
+                    <button type="button" class="flex w-full items-center justify-between text-left" @click="recordingTimelineOpen = !recordingTimelineOpen">
+                        <span class="text-[12px] font-semibold text-white">
+                            Behaviour timeline
+                            <span class="ml-1 font-normal text-white/50" x-text="`(${(recordingModal.timeline || []).length} events)`"></span>
+                        </span>
+                        <span class="text-white/60" x-text="recordingTimelineOpen ? '▾' : '▸'"></span>
+                    </button>
+                    <div x-show="recordingTimelineOpen" x-cloak class="mt-3 max-h-[220px] space-y-[8px] overflow-y-auto promotix-slim-scroll">
+                        <template x-for="(event, idx) in (recordingModal.timeline || [])" :key="'tl-'+idx+'-'+event.t">
+                            <div class="rounded-[6px] border border-white/10 bg-white/5 px-[10px] py-[8px]">
+                                <div class="flex flex-wrap items-center justify-between gap-[6px]">
+                                    <span class="rounded-[4px] px-[6px] py-[1px] text-[9px] font-semibold uppercase bg-[#6400B2]/40 text-white" x-text="event.label"></span>
+                                    <span class="text-[10px] text-white/55" x-text="formatRecordingMs(event.t)"></span>
+                                </div>
+                                <p class="mt-1 break-all text-[11px] text-white/80" x-text="event.detail || '—'"></p>
+                            </div>
+                        </template>
+                        <p x-show="!(recordingModal.timeline || []).length" class="text-[11px] text-white/50">No narrative events in this recording. Toggle Session Record ON in Detection Panel to capture richer timelines.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -1704,7 +1728,8 @@
                 return (this.chartCountries || []).length > 0;
             },
             modal: { open: false, visit: null, clicks: [], activeIndex: 0, timeline: [], timelineOpen: true, timelineLoading: false },
-            recordingModal: { open: false, id: null, visit_id: null, ip: '', page_url: '', events: [] },
+            recordingModal: { open: false, id: null, visit_id: null, ip: '', page_url: '', events: [], timeline: [] },
+            recordingTimelineOpen: true,
             recordingController: null,
             recordingPlaying: true,
             recordingSpeed: 1,
@@ -2423,7 +2448,9 @@
                         ip: data.ip || visit.ip,
                         page_url: data.page_url || '',
                         events: data.events || [],
+                        timeline: data.timeline || [],
                     };
+                    this.recordingTimelineOpen = true;
                     this.recordingPlaying = true;
                     this.recordingSpeed = 1;
                     this.$nextTick(() => this.renderRecording(data.events || []));
@@ -2439,7 +2466,13 @@
                 }
                 this.recordingController = null;
                 this.recordingPlaying = false;
-                this.recordingModal = { open: false, id: null, visit_id: null, ip: '', page_url: '', events: [] };
+                this.recordingModal = { open: false, id: null, visit_id: null, ip: '', page_url: '', events: [], timeline: [] };
+            },
+            formatRecordingMs(ms) {
+                const total = Math.max(0, Math.round(Number(ms) || 0) / 1000);
+                const m = Math.floor(total / 60);
+                const s = Math.floor(total % 60);
+                return m > 0 ? `${m}m ${String(s).padStart(2, '0')}s` : `${s}s`;
             },
             renderRecording(events) {
                 if (this.recordingController?.stop) this.recordingController.stop();

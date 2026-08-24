@@ -1,6 +1,10 @@
 {{-- Live agent chat panel (trigger via @click or $dispatch('open-live-agent')) --}}
 <div
-    x-data="liveAgentChat()"
+    x-data="liveAgentChat({
+        askUrl: @js(url('/api/admin/guidance/ask')),
+        ticketUrl: @js(url('/api/admin/guidance/ticket')),
+        csrf: @js(csrf_token()),
+    })"
     x-cloak
     @open-live-agent.window="openPanel()"
     class="contents"
@@ -9,7 +13,7 @@
         x-show="open"
         x-transition.opacity
         class="fixed inset-0 z-[300] bg-black/55"
-        @click="open = false"
+        @click="closePanel()"
         aria-hidden="true"
     ></div>
 
@@ -18,16 +22,18 @@
         x-transition:enter="transition ease-out duration-200"
         x-transition:enter-start="translate-y-4 opacity-0"
         x-transition:enter-end="translate-y-0 opacity-100"
-        class="fixed bottom-[20px] right-[20px] z-[310] flex h-[min(520px,85vh)] w-[min(360px,calc(100vw-24px))] flex-col overflow-hidden rounded-[12px] border border-[#6400B2]/60 bg-[#101010] shadow-[0_16px_48px_rgba(0,0,0,.55)]"
+        class="fixed bottom-[20px] right-[20px] z-[310] flex h-[min(560px,88vh)] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden rounded-[12px] border border-[#FF6600]/45 bg-[#0F0F10] shadow-[0_16px_48px_rgba(0,0,0,.55)]"
         role="dialog"
         aria-label="Live agent chat"
+        @mousemove="bumpActivity()"
+        @keydown="bumpActivity()"
     >
-        <header class="flex items-center justify-between border-b border-white/10 bg-[#6400B2] px-[14px] py-[12px]">
+        <header class="flex items-center justify-between border-b border-white/10 bg-[#FF6600] px-[14px] py-[12px]">
             <div>
-                <p class="text-[13px] font-semibold text-white">Live Agent</p>
-                <p class="text-[10px] text-white/75" x-text="agentOnline ? 'Online — typically replies in a few minutes' : 'Connecting…'"></p>
+                <p class="text-[13px] font-semibold text-white">Guidance Agent</p>
+                <p class="text-[10px] text-white/90" x-text="typing ? 'Typing…' : (agentOnline ? 'Online — answers from admin knowledge base' : 'Connecting…')"></p>
             </div>
-            <button type="button" @click="open = false" class="rounded p-1 text-white/80 hover:bg-white/10" aria-label="Close chat">
+            <button type="button" @click="closePanel()" class="rounded p-1 text-white/80 hover:bg-white/10" aria-label="Close chat">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </header>
@@ -37,9 +43,25 @@
                 <div :class="msg.from === 'user' ? 'ml-[24px] text-right' : 'mr-[24px]'">
                     <p
                         class="inline-block max-w-full rounded-[8px] px-[10px] py-[8px] text-left"
-                        :class="msg.from === 'user' ? 'bg-[#6400B2] text-white' : 'bg-[#1a1a1a] text-white/90 border border-white/10'"
+                        :class="msg.from === 'user' ? 'bg-[#FF6600] text-white' : 'bg-[#1a1a1a] text-white/90 border border-white/10'"
                         x-text="msg.text"
                     ></p>
+                    <template x-if="msg.from === 'agent' && msg.related_page">
+                        <p class="mt-1 text-[10px] text-[#FFB380]">
+                            Related: <a :href="msg.related_page" class="underline" x-text="msg.related_page"></a>
+                        </p>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="offerTicket">
+                <div class="rounded-[8px] border border-amber-400/30 bg-amber-500/10 p-3 text-[11px] text-amber-50">
+                    <p class="mb-2 font-medium">Low confidence — open a ticket?</p>
+                    <input type="text" x-model="ticketSubject" placeholder="Subject" class="mb-2 h-[32px] w-full rounded border border-white/15 bg-[#0d0d0d] px-2 text-[12px] text-white">
+                    <textarea x-model="ticketBody" rows="3" placeholder="Describe the issue" class="mb-2 w-full rounded border border-white/15 bg-[#0d0d0d] px-2 py-1 text-[12px] text-white"></textarea>
+                    <button type="button" @click="createTicket()" class="rounded bg-[#FF6600] px-3 py-1.5 text-[11px] font-semibold text-white" :disabled="ticketBusy">
+                        <span x-text="ticketBusy ? 'Creating…' : 'Create support ticket'"></span>
+                    </button>
                 </div>
             </template>
         </div>
@@ -49,53 +71,163 @@
                 <input
                     x-model="draft"
                     type="text"
-                    placeholder="Type your message…"
-                    class="h-[36px] flex-1 rounded-[6px] border border-white/15 bg-[#0d0d0d] px-[10px] text-[12px] text-white placeholder:text-white/40 focus:border-[#6400B2] focus:ring-0"
+                    placeholder="Ask about setup, billing, integrations…"
+                    class="h-[36px] flex-1 rounded-[6px] border border-white/15 bg-[#0d0d0d] px-[10px] text-[12px] text-white placeholder:text-white/40 focus:border-[#FF6600] focus:ring-0"
+                    :disabled="typing"
                 >
-                <button type="submit" class="shrink-0 rounded-[6px] bg-[#6400B2] px-[14px] text-[12px] font-semibold text-white hover:bg-[#7B13C8]">Send</button>
+                <button type="submit" class="shrink-0 rounded-[6px] bg-[#FF6600] px-[14px] text-[12px] font-semibold text-white hover:bg-[#ff7a1a]" :disabled="typing">Send</button>
             </div>
+            <p class="mt-2 text-[10px] text-white/40">Idle chats close after 3 minutes.</p>
         </form>
     </div>
 </div>
 
 <script>
-function liveAgentChat() {
+function liveAgentChat(config) {
     return {
         open: false,
         draft: '',
         agentOnline: true,
+        typing: false,
+        sessionId: null,
+        offerTicket: false,
+        ticketSubject: '',
+        ticketBody: '',
+        ticketBusy: false,
+        lastActivityAt: Date.now(),
+        idleTimer: null,
         messages: [
-            { from: 'agent', text: 'Hi! I\'m your PromoTix live agent. Ask about integrations, bot protection, or paid marketing setup.' },
+            { from: 'agent', text: 'Hi! Ask about tag install, Pixel Guard, reports, or billing. Answers come from the admin Guidance KB.' },
         ],
         openPanel() {
             this.open = true;
-            this.$nextTick(() => {
-                const el = document.getElementById('live-agent-messages');
-                if (el) el.scrollTop = el.scrollHeight;
-            });
+            this.bumpActivity();
+            this.startIdleWatch();
+            this.$nextTick(() => this.scrollMessages());
         },
-        send() {
+        closePanel() {
+            this.open = false;
+            this.stopIdleWatch();
+        },
+        bumpActivity() {
+            this.lastActivityAt = Date.now();
+        },
+        startIdleWatch() {
+            this.stopIdleWatch();
+            this.idleTimer = setInterval(() => {
+                if (!this.open) return;
+                if (Date.now() - this.lastActivityAt >= 3 * 60 * 1000) {
+                    this.messages.push({ from: 'agent', text: 'Chat closed due to 3 minutes of inactivity. Open again anytime.' });
+                    this.closePanel();
+                }
+            }, 15000);
+        },
+        stopIdleWatch() {
+            if (this.idleTimer) {
+                clearInterval(this.idleTimer);
+                this.idleTimer = null;
+            }
+        },
+        scrollMessages() {
+            const el = document.getElementById('live-agent-messages');
+            if (el) el.scrollTop = el.scrollHeight;
+        },
+        async send() {
             const text = String(this.draft || '').trim();
-            if (!text) return;
+            if (!text || this.typing) return;
             this.messages.push({ from: 'user', text });
             this.draft = '';
-            const replies = [
-                'Thanks — a specialist will follow up shortly. For Google Ads sync, use Platform Integrate → Sync Ads.',
-                'You can review invalid traffic under Bot Protection and Paid Marketing dashboards.',
-                'Need help linking a domain? Open Platform Integrate and filter your connected mappings.',
-            ];
-            const reply = replies[Math.floor(Math.random() * replies.length)];
-            setTimeout(() => {
-                this.messages.push({ from: 'agent', text: reply });
-                this.$nextTick(() => {
-                    const el = document.getElementById('live-agent-messages');
-                    if (el) el.scrollTop = el.scrollHeight;
+            this.offerTicket = false;
+            this.bumpActivity();
+            this.typing = true;
+            this.$nextTick(() => this.scrollMessages());
+
+            let payload = null;
+            let errMsg = null;
+            try {
+                const res = await fetch(config.askUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': config.csrf,
+                    },
+                    body: JSON.stringify({
+                        message: text,
+                        session_id: this.sessionId,
+                        channel: 'dashboard',
+                    }),
                 });
-            }, 700);
-            this.$nextTick(() => {
-                const el = document.getElementById('live-agent-messages');
-                if (el) el.scrollTop = el.scrollHeight;
-            });
+                payload = await res.json();
+                if (!res.ok || !payload.ok) {
+                    errMsg = payload.message || 'Could not reach guidance service.';
+                }
+            } catch (e) {
+                errMsg = 'Network error talking to guidance.';
+            }
+
+            const delay = Math.max(500, Number(payload?.ux_delay_ms || 500));
+            await new Promise((r) => setTimeout(r, delay));
+
+            this.typing = false;
+            if (errMsg) {
+                this.messages.push({ from: 'agent', text: errMsg });
+                this.offerTicket = true;
+                this.ticketSubject = text.slice(0, 120);
+                this.ticketBody = text;
+            } else {
+                if (payload.session_id) this.sessionId = payload.session_id;
+                this.messages.push({
+                    from: 'agent',
+                    text: payload.answer || 'No answer returned.',
+                    related_page: payload.related_page || null,
+                });
+                if (payload.offer_ticket || (payload.confidence !== undefined && payload.confidence < 0.35)) {
+                    this.offerTicket = true;
+                    this.ticketSubject = text.slice(0, 120);
+                    this.ticketBody = text;
+                }
+            }
+            this.bumpActivity();
+            this.$nextTick(() => this.scrollMessages());
+        },
+        async createTicket() {
+            if (this.ticketBusy) return;
+            const subject = String(this.ticketSubject || '').trim() || 'Guidance chat follow-up';
+            const body = String(this.ticketBody || '').trim();
+            if (!body) return;
+            this.ticketBusy = true;
+            try {
+                const res = await fetch(config.ticketUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': config.csrf,
+                    },
+                    body: JSON.stringify({
+                        session_id: this.sessionId,
+                        subject,
+                        body,
+                        department: 'support',
+                    }),
+                });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    this.messages.push({
+                        from: 'agent',
+                        text: 'Ticket ' + (data.ticket_number || data.ticket_id) + ' created. Our team will follow up.',
+                    });
+                    this.offerTicket = false;
+                } else {
+                    this.messages.push({ from: 'agent', text: data.message || 'Could not create ticket.' });
+                }
+            } catch (e) {
+                this.messages.push({ from: 'agent', text: 'Ticket request failed.' });
+            }
+            this.ticketBusy = false;
+            this.bumpActivity();
+            this.$nextTick(() => this.scrollMessages());
         },
     };
 }

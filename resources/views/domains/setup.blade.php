@@ -240,6 +240,33 @@
             </p>
         </div>
 
+        <div class="figma-domain-setup__panel mt-[22px] rounded-[12px] border border-white/15 bg-[#0F0F10] p-[18px] sm:p-[22px]">
+            <h2 class="text-[15px] font-semibold text-white">Installation guidance knowledge</h2>
+            <p class="mt-[8px] text-[12px] leading-relaxed text-white/70">
+                Keys are unique per domain. Use Copy / Copy all on the WordPress tab. Tag status becomes
+                <strong class="text-white/90">Installed</strong> after the server verifies at least one hit
+                (<span class="text-white/55">Not detected</span> until then; <span class="text-white/55">Last seen</span> updates from live ingest).
+            </p>
+            <div class="mt-[14px] grid gap-[10px] sm:grid-cols-2">
+                <div class="rounded-[8px] border border-white/10 bg-black/30 p-[12px]">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-[#FF6600]">Google Tag Manager</p>
+                    <p class="mt-[6px] text-[11px] text-white/70">Custom HTML → paste invocation tag → support document.write → priority 9999 → Initialization — All Pages → Publish.</p>
+                </div>
+                <div class="rounded-[8px] border border-white/10 bg-black/30 p-[12px]">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-[#FF6600]">WordPress Plugin</p>
+                    <p class="mt-[6px] text-[11px] text-white/70">Install plugin → paste Domain / Secret / Auth keys → verify. Exclude tag from cache plugins.</p>
+                </div>
+                <div class="rounded-[8px] border border-white/10 bg-black/30 p-[12px]">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-[#FF6600]">Direct Installation</p>
+                    <p class="mt-[6px] text-[11px] text-white/70">Place the script in <code class="text-white/90">&lt;head&gt;</code> on every page (or site-wide theme header).</p>
+                </div>
+                <div class="rounded-[8px] border border-white/10 bg-black/30 p-[12px]">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-[#FF6600]">Email my Developer</p>
+                    <p class="mt-[6px] text-[11px] text-white/70">Sends install instructions + keys to your developer email from this setup page.</p>
+                </div>
+            </div>
+        </div>
+
         <div class="mt-[28px] flex justify-end">
             <a href="{{ route('domains.index') }}" class="figma-domain-setup__btn-done">Done</a>
         </div>

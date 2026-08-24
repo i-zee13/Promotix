@@ -17,6 +17,7 @@ return [
         'automation'    => ['route' => 'super-admin.automation.index',    'label' => 'Automation',         'icon' => 'repeat'],
         'integrations'  => ['route' => 'super-admin.integrations.index',  'label' => 'Integrations',       'icon' => 'plug'],
         'tickets'       => ['route' => 'super-admin.tickets.index',       'label' => 'Support System',     'icon' => 'support'],
+        'guidance'      => ['route' => 'super-admin.guidance.index',      'label' => 'Guidance KB',        'icon' => 'box'],
         'analytics'     => ['route' => 'super-admin.analytics.index',     'label' => 'Analytics',          'icon' => 'chart'],
         'security'      => ['route' => 'super-admin.security.index',      'label' => 'Security & Logs',    'icon' => 'shield'],
         'settings'      => ['route' => 'super-admin.settings.index',      'label' => 'System Settings',    'icon' => 'settings'],
@@ -27,7 +28,7 @@ return [
         'HOME' => ['dashboard'],
         'USERS & BILLING' => ['users', 'roles', 'products', 'plans', 'subscriptions', 'payments'],
         'OPERATIONS' => ['domains', 'traffic', 'automation'],
-        'SYSTEM' => ['integrations', 'tickets', 'analytics', 'security', 'settings', 'billing-automation'],
+        'SYSTEM' => ['integrations', 'tickets', 'guidance', 'analytics', 'security', 'settings', 'billing-automation'],
     ],
 
     'legacy_route_redirects' => [

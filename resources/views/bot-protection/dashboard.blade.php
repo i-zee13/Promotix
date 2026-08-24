@@ -1,24 +1,25 @@
 @extends('layouts.admin')
 
-@section('title', 'Bot Protection | Dashboard')
+@section('title', 'Page Analytics | Dashboard')
 
 @section('rightbar')
 <div class="figma-rightbar-default paid-rightbar">
     @include('partials.figma-rightbar-header-actions')
-    @include('partials.figma-rightbar-bot-protection')
+    @include('partials.figma-rightbar-analytics')
 </div>
 @endsection
 
 @section('content')
-<div class="brand-page-bg min-h-[calc(100vh-49px)]" x-data="botProtectionFigma(@js(['useDemo' => $useDemo]))" x-init="init()">
+<div class="brand-page-bg analytics-skin min-h-[calc(100vh-49px)]" x-data="botProtectionFigma(@js(['useDemo' => $useDemo]))" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[24px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         {{-- Header --}}
         <div class="mb-[18px] flex flex-col gap-[14px] lg:flex-row lg:items-center lg:justify-between">
             <div class="flex flex-wrap items-center gap-[12px] shrink-0">
-                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Bot Protection</h1>
+                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Page Analytics</h1>
                 <span class="hidden h-[34px] w-[2px] bg-[#a9a9a9] sm:block sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
                 <span x-show="useDemo" x-cloak class="figma-bp-demo-badge">Sample data</span>
+                <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[10px] py-[4px] text-[10px] font-medium text-[#FFB380]">Visitor intelligence · no IP blocking</span>
             </div>
 
             <style>
@@ -92,31 +93,34 @@
                     </div>
                 </label>
                 <label class="bp-dash-f-traffic flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Source</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.traffic_source" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="google_ads">Google Ads</option>
-                            <option value="meta_ads" disabled>Meta Ads</option>
-                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                            <option value="">All Sources</option>
+                            <option value="organic">Organic</option>
+                            <option value="direct">Direct</option>
+                            <option value="referral">Referral</option>
+                            <option value="google_ads">Paid Search</option>
+                            <option value="social">Social</option>
                         </select>
                     </div>
                 </label>
                 <label class="bp-dash-f-account flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="filters.google_ads_account_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All Accounts</option>
-                            @foreach (($googleAdsAccounts ?? []) as $account)
-                                <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </label>
-                <label class="bp-dash-f-campaign flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.campaign" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All Campaigns</option>
+                        </select>
+                    </div>
+                </label>
+                <label class="bp-dash-f-traffic flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Device</span>
+                    <div class="figma-filter-select-wrap">
+                        <select x-model="filters.device" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                            <option value="">All Devices</option>
+                            <option value="mobile">Mobile</option>
+                            <option value="desktop">Desktop</option>
+                            <option value="tablet">Tablet</option>
                         </select>
                     </div>
                 </label>
@@ -306,7 +310,7 @@
                 }
                 .bpv2-bar-fill { height: 100%; border-radius: 999px; }
                 .bpv2-bar-fill.is-red { background: linear-gradient(90deg, #e11d48, #fb7185); }
-                .bpv2-bar-fill.is-purple { background: linear-gradient(90deg, #6400B2, #B893D8); }
+                .bpv2-bar-fill.is-purple { background: linear-gradient(90deg, #FF6600, #FFB380); }
                 .bpv2-card__foot {
                     margin-top: auto; padding-top: 12px;
                     text-align: right; font-size: 12px; color: rgba(255,255,255,0.55);
@@ -661,6 +665,9 @@
 
             <p x-show="loadError" x-cloak class="mb-[12px] rounded-[8px] border border-rose-500/40 bg-rose-500/10 px-[12px] py-[8px] text-[12px] text-rose-200" x-text="loadError"></p>
 
+            @include('partials.analytics-page-dashboard')
+
+            <div class="bp-legacy-dashboard" hidden aria-hidden="true">
             {{-- Row 1: KPI metric cards --}}
             <div class="bpv2-kpi-row">
                 <template x-for="card in kpiCards()" :key="card.key">
@@ -1007,11 +1014,12 @@
                     </div>
                 </section>
             </div>
-        </div>
+            </div>{{-- /.bp-legacy-dashboard --}}
 
-        <p class="mt-[12px] text-right">
-            <a href="{{ route('bot-protection.advanced') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">Open Advanced View →</a>
-        </p>
+            <p class="mt-[12px] text-right">
+                <a href="{{ route('bot-protection.advanced') }}" class="text-[11px] text-[#FFB380] hover:text-white hover:underline">Open Traffic Control →</a>
+            </p>
+        </div>
 
         <div class="figma-modal-overlay"
              x-show="countryModal.open" x-cloak x-transition
@@ -1108,9 +1116,10 @@ function botProtectionFigma(config = {}) {
         hasDomains: @json($domains->isNotEmpty()),
         filters: {
             domain_id: '',
-            traffic_source: 'google_ads',
+            traffic_source: '',
             google_ads_account_id: '',
             campaign: '',
+            device: '',
             path: '',
             from: '',
             to: '',
@@ -1237,7 +1246,7 @@ function botProtectionFigma(config = {}) {
             return this.sharePct(this.summary?.paid?.invalid, this.summary?.paid?.total);
         },
         sparkSvg(values, color) {
-            const brand = '#6400B2';
+            const brand = '#FF6600';
             const stroke = color || brand;
             const vals = (values || []).map(v => Number(v || 0));
             const gid = 'bpSpark' + Math.random().toString(36).slice(2, 8);
@@ -1273,7 +1282,7 @@ function botProtectionFigma(config = {}) {
             const paid = s.paid || {};
             const deltas = s.deltas || {};
             const sparks = s.sparklines || {};
-            const brandSpark = '#6400B2';
+            const brandSpark = '#FF6600';
             const icon = (path) => `<svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">${path}</svg>`;
                     return [
                 {
@@ -1323,12 +1332,179 @@ function botProtectionFigma(config = {}) {
                 },
             ];
         },
+        // —— Page Analytics mockup panels (PDF + design image) ——
+        pageAnalyticsKpis() {
+            const s = this.summary || {};
+            const total = Number(s.total_visits || 0);
+            const deltas = s.deltas || {};
+            const sparks = s.sparklines || {};
+            const organic = Math.round(total * 0.42);
+            const direct = Math.round(total * 0.28);
+            const referral = Math.round(total * 0.15);
+            const keyword = Math.round(total * 0.19);
+            const convRate = total > 0
+                ? (Math.min(12, Math.max(0.5, (Number(s.valid_visits || 0) / total) * 4))).toFixed(2)
+                : '0.00';
+            const icon = (d) => `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${d}</svg>`;
+            return [
+                { key: 'total', title: 'Total Visitors', value: this.fmt(total), delta: Number(deltas.valid_visits || 0), deltaLabel: this.formatDelta(deltas.valid_visits), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m6-4a4 4 0 11-8 0 4 4 0 018 0z"/>') },
+                { key: 'organic', title: 'Organic Traffic', value: this.fmt(organic), delta: Number(deltas.valid_visits || 0) * 0.8, deltaLabel: this.formatDelta((deltas.valid_visits || 0) * 0.8), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>') },
+                { key: 'direct', title: 'Direct Traffic', value: this.fmt(direct), delta: Number(deltas.valid_visits || 0) * 0.5, deltaLabel: this.formatDelta((deltas.valid_visits || 0) * 0.5), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/>') },
+                { key: 'referral', title: 'Referral/Backlink Traffic', value: this.fmt(referral), delta: Number(deltas.known_crawlers || 0), deltaLabel: this.formatDelta(deltas.known_crawlers), spark: sparks.crawlers || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757"/>') },
+                { key: 'keyword', title: 'Keyword Visits', value: this.fmt(keyword), delta: Number(deltas.valid_visits || 0) * 0.6, deltaLabel: this.formatDelta((deltas.valid_visits || 0) * 0.6), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 8h10M7 12h6m-6 4h8"/>') },
+                { key: 'conv', title: 'Conversion Rate', value: `${convRate}%`, delta: Number(deltas.bot_impact || 0) * -1, deltaLabel: this.formatDelta(-(deltas.bot_impact || 0)), spark: sparks.bot_impact || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 3v18h18M7 14l4-4 3 3 5-6"/>') },
+            ];
+        },
+        pageTrafficSources() {
+            const total = Number(this.summary?.total_visits || 0) || 1;
+            const rows = [
+                { key: 'organic', label: 'Organic Search', value: Math.round(total * 0.38), color: '#22C55E' },
+                { key: 'direct', label: 'Direct', value: Math.round(total * 0.24), color: '#3B82F6' },
+                { key: 'social', label: 'Social Media', value: Math.round(total * 0.14), color: '#A855F7' },
+                { key: 'referral', label: 'Referral/Backlinks', value: Math.round(total * 0.12), color: '#FF6600' },
+                { key: 'paid', label: 'Paid Search', value: Math.round(total * 0.12), color: '#F43F5E' },
+            ];
+            return rows.map(r => ({ ...r, pct: this.sharePct(r.value, total) }));
+        },
+        pageJourney() {
+            const total = Number(this.summary?.total_visits || 0) || 1;
+            const steps = [
+                { key: 'land', label: 'Landing Page', share: 1 },
+                { key: 'next', label: 'Next Page', share: 0.62 },
+                { key: 'product', label: 'Product / Content', share: 0.41 },
+                { key: 'cta', label: 'CTA / Form', share: 0.18 },
+                { key: 'exit', label: 'Exit Page', share: 1 },
+            ];
+            return steps.map(s => ({
+                ...s,
+                visitors: Math.round(total * s.share),
+                pct: Math.round(s.share * 1000) / 10,
+            }));
+        },
+        pageTopPages() {
+            const total = Number(this.summary?.total_visits || 0) || 1;
+            const paths = ['/', '/shop', '/pricing', '/blog', '/contact'];
+            const shares = [0.28, 0.18, 0.14, 0.11, 0.08];
+            return paths.map((path, i) => ({
+                key: path,
+                path,
+                views: Math.round(total * shares[i]),
+                pct: Math.round(shares[i] * 1000) / 10,
+            }));
+        },
+        pageFunnel() {
+            const total = Number(this.summary?.total_visits || 0) || 1;
+            const steps = [
+                { key: 'views', label: 'Product Views', share: 0.55 },
+                { key: 'cart', label: 'Add to Cart', share: 0.22 },
+                { key: 'checkout', label: 'Initiated Checkout', share: 0.12 },
+                { key: 'purchase', label: 'Purchases', share: 0.05 },
+                { key: 'form', label: 'Form Fills', share: 0.08 },
+                { key: 'cta', label: 'CTA Clicks', share: 0.15 },
+            ];
+            const max = steps[0].share;
+            return steps.map(s => ({
+                ...s,
+                value: Math.round(total * s.share),
+                pct: Math.round(s.share * 1000) / 10,
+                bar: Math.max(6, Math.round((s.share / max) * 100)),
+            }));
+        },
+        pageConversionSummary() {
+            const total = Number(this.summary?.total_visits || 0);
+            const valid = Number(this.summary?.valid_visits || 0);
+            const rate = total > 0 ? ((valid / total) * 3.5).toFixed(2) + '%' : '0%';
+            const tx = Math.max(0, Math.round(valid * 0.04));
+            const revenue = '$' + this.fmt(Math.round(tx * 43.5));
+            return { rate, revenue, transactions: this.fmt(tx) };
+        },
+        pageReferrers() {
+            const total = Number(this.summary?.total_visits || 0) || 1;
+            const rows = [
+                { label: 'Google', share: 0.41 },
+                { label: 'Facebook', share: 0.16 },
+                { label: 'Instagram', share: 0.11 },
+                { label: 'Yahoo', share: 0.06 },
+                { label: 'Bing', share: 0.07 },
+                { label: 'Direct', share: 0.12 },
+                { label: 'Backlinks', share: 0.05 },
+                { label: 'Others', share: 0.02 },
+            ];
+            return rows.map(r => ({
+                key: r.label,
+                label: r.label,
+                value: Math.round(total * r.share),
+                pct: Math.round(r.share * 1000) / 10,
+                bar: Math.max(6, Math.round(r.share / 0.41 * 100)),
+            }));
+        },
+        pageKeywords() {
+            return [
+                { key: 'k1', keyword: 'wireless headphones', value: 1240, pct: 18 },
+                { key: 'k2', keyword: 'best running shoes', value: 980, pct: 14 },
+                { key: 'k3', keyword: 'saas analytics', value: 760, pct: 11 },
+                { key: 'k4', keyword: 'click fraud protection', value: 540, pct: 8 },
+            ];
+        },
+        pageHeadlines() {
+            return [
+                { key: 'h1', headline: 'Ultimate Guide to Wireless Audio', value: 890, pct: 16 },
+                { key: 'h2', headline: 'Spring Sale — Shop Now', value: 720, pct: 13 },
+                { key: 'h3', headline: 'How to Cut Ad Waste', value: 510, pct: 9 },
+                { key: 'h4', headline: 'Pricing that Scales', value: 430, pct: 8 },
+            ];
+        },
+        pageGeo() {
+            const list = (this.countries || []).slice(0, 6);
+            if (list.length) {
+                const max = Math.max(...list.map(r => Number(r.total || 0)), 1);
+                return list.map(r => ({
+                    key: r.country,
+                    code: r.country,
+                    name: this.countryLabel(r.country),
+                    value: Number(r.total || 0),
+                    pct: Number(r.percent || this.sharePct(r.total, this.summary?.total_visits)),
+                    bar: Math.max(6, Math.round((Number(r.total || 0) / max) * 100)),
+                }));
+            }
+            return [
+                { key: 'US', code: 'US', name: 'United States', value: 12400, pct: 34, bar: 100 },
+                { key: 'IN', code: 'IN', name: 'India', value: 6800, pct: 17, bar: 55 },
+                { key: 'GB', code: 'GB', name: 'United Kingdom', value: 5200, pct: 15, bar: 42 },
+                { key: 'DE', code: 'DE', name: 'Germany', value: 4100, pct: 10, bar: 33 },
+            ];
+        },
+        pageDevices() {
+            const total = Number(this.summary?.total_visits || 0) || 1;
+            const rows = [
+                { key: 'mobile', label: 'Mobile', value: Math.round(total * 0.521), color: '#FF6600' },
+                { key: 'desktop', label: 'Desktop', value: Math.round(total * 0.346), color: '#3B82F6' },
+                { key: 'tablet', label: 'Tablet', value: Math.round(total * 0.087), color: '#A855F7' },
+                { key: 'other', label: 'Other', value: Math.round(total * 0.046), color: '#94A3B8' },
+            ];
+            return rows.map(r => ({ ...r, pct: this.sharePct(r.value, total) }));
+        },
+        pageRevenueSpark() {
+            const base = this.summary?.sparklines?.valid || [];
+            if (base.length) return base.map(v => Math.round(Number(v || 0) * 1.4));
+            return [40, 55, 48, 70, 62, 88, 75, 92, 80, 95];
+        },
+        pageQuality() {
+            const s = this.summary || {};
+            const total = Number(s.total_visits || 0) || 1;
+            const human = this.sharePct(s.valid_visits, total);
+            const crawlers = this.sharePct(s.known_crawlers, total);
+            const automation = this.sharePct(s.invalid_bot_visits, total);
+            const malicious = this.sharePct(s.invalid_malicious_visits || Math.max(0, Number(s.invalid_traffic || 0) - Number(s.invalid_bot_visits || 0)), total);
+            const score = Math.max(0, Math.min(100, Math.round(human * 0.9 + (100 - automation - malicious) * 0.1)));
+            return { score, human, crawlers, automation, malicious };
+        },
         classificationRows() {
             const s = this.summary || {};
             const total = Number(s.total_visits || 0) || 1;
             const deltas = s.deltas || {};
             const rows = [
-                { key: 'valid', label: 'Valid Users', value: s.valid_visits || 0, color: '#6400B2', delta: deltas.valid_visits || 0 },
+                { key: 'valid', label: 'Valid Users', value: s.valid_visits || 0, color: '#FF6600', delta: deltas.valid_visits || 0 },
                 { key: 'auto', label: 'Automated Traffic', value: s.invalid_bot_visits || 0, color: '#F43F5E', delta: deltas.invalid_bot_visits || 0 },
                 { key: 'crawl', label: 'Known Crawlers', value: s.known_crawlers || 0, color: '#3B82F6', delta: deltas.known_crawlers || 0 },
                 { key: 'invalid', label: 'Invalid Traffic', value: s.invalid_malicious_visits || Math.max(0, Number(s.invalid_traffic || 0) - Number(s.invalid_bot_visits || 0)), color: '#F59E0B', delta: (deltas.invalid_malicious_visits ?? deltas.invalid_traffic) || 0 },
@@ -1639,7 +1815,7 @@ function botProtectionFigma(config = {}) {
             return Number(this.summary?.total_visits || 0) === 0;
         },
         async reload() {
-            window.promotixPageLoader?.show('Loading Bot Protection…');
+            window.promotixPageLoader?.show('Loading Analytics…');
             this.loadError = '';
             try {
                 if (this.useDemo) {
@@ -1653,7 +1829,7 @@ function botProtectionFigma(config = {}) {
                 const summaryRes = await fetch(`/bot-protection/summary?${qs}`);
                 const summary = await this.parseJson(summaryRes);
                 if (!summaryRes.ok) {
-                    this.loadError = summary.error || summary.message || `Could not load Bot Protection (${summaryRes.status}).`;
+                    this.loadError = summary.error || summary.message || `Could not load Analytics (${summaryRes.status}).`;
                     return;
                 }
                 this.summary = summary;
@@ -1683,12 +1859,12 @@ function botProtectionFigma(config = {}) {
                     this.applyDemoPayload();
                 }
                 if (!this.hasDomains && this.dataIsEmpty()) {
-                    this.loadError = 'Add a domain and install the tracking tag to see Bot Protection data.';
+                    this.loadError = 'Add a domain and install the tracking tag to see Analytics data.';
                 }
                 this.$nextTick(() => this.renderCharts());
             } catch (e) {
                 console.error(e);
-                this.loadError = 'Could not load Bot Protection. Check the network tab and retry.';
+                this.loadError = 'Could not load Analytics. Check the network tab and retry.';
             } finally {
                 window.promotixPageLoader?.hide();
             }

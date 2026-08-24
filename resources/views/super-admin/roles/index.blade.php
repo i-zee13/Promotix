@@ -61,26 +61,19 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="space-y-1">
-                                        <span class="figma-sa-roles-count-badge">{{ $role->permissions_count }}</span>
-                                        @if ($role->permissions->isNotEmpty())
-                                            @php
-                                                $permissionPreview = $role->permissions
-                                                    ->take(3)
-                                                    ->map(fn ($p) => \App\Support\PermissionCatalog::displayName($p->slug, $p->name))
-                                                    ->implode(' · ');
-                                                if ($role->permissions_count > 3) {
-                                                    $permissionPreview .= ' +'.($role->permissions_count - 3).' more';
-                                                }
-                                            @endphp
-                                            <p class="max-w-[260px] text-[10px] leading-snug text-white/55">{{ $permissionPreview }}</p>
-                                        @else
-                                            <p class="text-[10px] text-amber-300">No access assigned</p>
-                                        @endif
+                                    <div class="figma-sa-roles-count-cell">
+                                        <span
+                                            class="figma-sa-roles-count-badge"
+                                            @if ($role->permissions->isNotEmpty())
+                                                title="{{ $role->permissions->take(8)->map(fn ($p) => \App\Support\PermissionCatalog::displayName($p->slug, $p->name))->implode(', ') }}{{ $role->permissions_count > 8 ? '…' : '' }}"
+                                            @endif
+                                        >{{ $role->permissions_count }}</span>
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="figma-sa-roles-count-badge figma-sa-roles-count-badge--muted">{{ $role->users_count }}</span>
+                                    <div class="figma-sa-roles-count-cell">
+                                        <span class="figma-sa-roles-count-badge figma-sa-roles-count-badge--muted">{{ $role->users_count }}</span>
+                                    </div>
                                 </td>
                                 <td class="text-right">
                                     <div class="figma-sa-roles-actions">
@@ -91,6 +84,8 @@
                                                 @method('DELETE')
                                                 <button type="submit" class="figma-sa-roles-action-btn figma-sa-roles-action-btn--danger">Delete</button>
                                             </form>
+                                        @else
+                                            <span class="figma-sa-roles-action-spacer" aria-hidden="true"></span>
                                         @endif
                                     </div>
                                 </td>

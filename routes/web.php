@@ -91,6 +91,7 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/users', [SuperAdminUsersController::class, 'index'])->name('users.index');
         Route::get('/users/{user}', [SuperAdminUsersController::class, 'show'])->name('users.show');
         Route::post('/users/{user}/assign-plan', [SuperAdminUsersController::class, 'assignPlan'])->name('users.assign-plan');
+        Route::post('/users/{user}/assign-team', [SuperAdminUsersController::class, 'assignTeam'])->name('users.assign-team');
         Route::put('/users/{user}', [SuperAdminUsersController::class, 'update'])->name('users.update');
         Route::patch('/users/{user}/status', [SuperAdminUsersController::class, 'status'])->name('users.status');
         Route::post('/users/{user}/reset-password', [SuperAdminUsersController::class, 'resetPassword'])->name('users.reset-password');
@@ -100,6 +101,7 @@ Route::middleware(['auth', 'super-admin'])
         Route::resource('products', SuperAdminProductsController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::post('/products/{product}/duplicate', [SuperAdminProductsController::class, 'duplicate'])->name('products.duplicate');
         Route::resource('plans', SuperAdminPlansController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::post('/plans/{plan}/roles', [SuperAdminPlansController::class, 'syncPlanRoles'])->name('plans.roles');
         Route::get('/subscriptions', [SuperAdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
         Route::put('/subscriptions/{subscription}', [SuperAdminSubscriptionsController::class, 'update'])->name('subscriptions.update');
         Route::delete('/subscriptions/{subscription}', [SuperAdminSubscriptionsController::class, 'destroy'])->name('subscriptions.destroy');
@@ -135,6 +137,12 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/tickets', [SuperAdminTicketsController::class, 'index'])->name('tickets.index');
         Route::get('/tickets/{ticket}', [SuperAdminTicketsController::class, 'show'])->name('tickets.show');
         Route::post('/tickets/{ticket}/assign', [SuperAdminTicketsController::class, 'assign'])->name('tickets.assign');
+        Route::post('/tickets/{ticket}/reply', [SuperAdminTicketsController::class, 'reply'])->name('tickets.reply');
+        Route::get('/guidance', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'index'])->name('guidance.index');
+        Route::post('/guidance', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'store'])->name('guidance.store');
+        Route::put('/guidance/{guidance}', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'update'])->name('guidance.update');
+        Route::delete('/guidance/{guidance}', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'destroy'])->name('guidance.destroy');
+        Route::get('/traffic-bot-logs/cross-domain', [SuperAdminSupportPagesController::class, 'crossDomainIntel'])->name('traffic.cross-domain');
         Route::post('/feature-flags', [SuperAdminSupportPagesController::class, 'storeFeatureFlag'])->name('feature-flags.store');
         Route::patch('/feature-flags/{featureFlag}/toggle', [SuperAdminSupportPagesController::class, 'toggleFeatureFlag'])->name('feature-flags.toggle');
         Route::get('/traffic-bot-logs', [SuperAdminSupportPagesController::class, 'trafficBotLogs'])->name('traffic.index');
@@ -220,6 +228,8 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::get('/paid-marketing/geo/cities', [PaidMarketingController::class, 'geoCities'])->name('paid-marketing.geo.cities');
         Route::get('/bot-protection', [BotProtectionController::class, 'dashboard'])->name('bot-protection.dashboard');
         Route::get('/bot-protection/advanced', [BotProtectionController::class, 'advancedView'])->name('bot-protection.advanced');
+        Route::get('/analytics/dashboard', [BotProtectionController::class, 'dashboard'])->name('analytics.dashboard');
+        Route::get('/analytics/traffic-control', [BotProtectionController::class, 'advancedView'])->name('analytics.traffic-control');
         Route::get('/support-system', [SupportSystemController::class, 'index'])->name('support-system');
         Route::get('/support-system/create', [SupportSystemController::class, 'create'])->name('support-system.create');
         Route::post('/support-system', [SupportSystemController::class, 'store'])->name('support-system.store');
@@ -378,6 +388,9 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::patch('/tickets/{id}/assign', [AdminOperationsApiController::class, 'assignTicket'])->name('tickets.assign');
         Route::post('/tickets/{id}/escalate', [AdminOperationsApiController::class, 'escalateTicket'])->name('tickets.escalate');
         Route::post('/tickets/{id}/close', [AdminOperationsApiController::class, 'closeTicket'])->name('tickets.close');
+
+        Route::post('/guidance/ask', [\App\Http\Controllers\Api\GuidanceChatController::class, 'ask'])->name('guidance.ask');
+        Route::post('/guidance/ticket', [\App\Http\Controllers\Api\GuidanceChatController::class, 'createTicket'])->name('guidance.ticket');
     });
 
 

@@ -326,6 +326,9 @@ class SupportPagesController extends Controller
             'settingsByGroup' => $grouped,
             'plans' => \App\Models\Plan::where('is_active', true)->orderBy('price_cents')->get(['id', 'slug', 'name', 'feature_flags', 'feature_limits']),
             'emailTemplates' => \App\Models\EmailTemplate::orderBy('name')->get(),
+            'emailLogs' => Schema::hasTable('email_logs')
+                ? \App\Models\EmailLog::query()->latest('id')->limit(40)->get()
+                : collect(),
         ]);
     }
 
@@ -447,7 +450,7 @@ class SupportPagesController extends Controller
             $rows = [];
         }
 
-        foreach ($rows as $row) {
+            foreach ($rows as $row) {
             if (! is_array($row)) {
                 continue;
             }
@@ -455,7 +458,14 @@ class SupportPagesController extends Controller
             if ($key === '') {
                 continue;
             }
-            AppSetting::set($key, $row['value'] ?? null);
+            $value = $row['value'] ?? null;
+            if (is_string($key) && str_starts_with($key, 'branding.color_')) {
+                $value = $this->normalizeBrandingColor($value);
+                if ($value === null) {
+                    continue;
+                }
+            }
+            AppSetting::set($key, $value);
             $updated++;
         }
 
@@ -478,6 +488,13 @@ class SupportPagesController extends Controller
 
                 if (! is_string($resolved) || $resolved === '') {
                     continue;
+                }
+
+                if (str_starts_with($resolved, 'branding.color_')) {
+                    $value = $this->normalizeBrandingColor($value);
+                    if ($value === null) {
+                        continue;
+                    }
                 }
 
                 AppSetting::set($resolved, $value);
@@ -544,7 +561,103 @@ class SupportPagesController extends Controller
         return view('super-admin.traffic.index', [
             'stats' => $stats,
             'domains' => Domain::query()->orderBy('hostname')->get(['id', 'hostname']),
+            'crossDomainIntel' => $this->buildCrossDomainIntel(12),
         ]);
+    }
+
+    public function crossDomainIntel(Request $request): View|\Illuminate\Http\JsonResponse
+    {
+        $rows = $this->buildCrossDomainIntel(50);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'ok' => true,
+                'note' => 'Scores are evidence signals only — they do not auto-block.',
+                'rows' => $rows,
+            ]);
+        }
+
+        return view('super-admin.traffic.cross-domain', [
+            'rows' => $rows,
+        ]);
+    }
+
+    private function buildCrossDomainIntel(int $limit = 20): array
+    {
+        if (! Schema::hasTable('visits') || ! Schema::hasColumn('visits', 'ip')) {
+            return [];
+        }
+
+        $scoreCol = Schema::hasColumn('visits', 'bot_score') ? 'bot_score' : (Schema::hasColumn('visits', 'threat_score') ? 'threat_score' : null);
+        $dateCol = Schema::hasColumn('visits', 'visited_at') ? 'visited_at' : 'created_at';
+
+        $select = [
+            'ip',
+            DB::raw('COUNT(*) as hits'),
+            DB::raw('COUNT(DISTINCT domain_id) as domain_count'),
+        ];
+        if ($scoreCol) {
+            $select[] = DB::raw("MAX({$scoreCol}) as max_bot_score");
+            $select[] = DB::raw("AVG({$scoreCol}) as avg_bot_score");
+        } else {
+            $select[] = DB::raw('0 as max_bot_score');
+            $select[] = DB::raw('0 as avg_bot_score');
+        }
+
+        $query = DB::table('visits')
+            ->select($select)
+            ->whereNotNull('ip')
+            ->where('ip', '!=', '')
+            ->where($dateCol, '>=', now()->subDays(30))
+            ->groupBy('ip')
+            ->havingRaw('COUNT(DISTINCT domain_id) > 1')
+            ->orderByDesc('domain_count')
+            ->orderByDesc('hits')
+            ->limit($limit);
+
+        $domainNames = Domain::query()->pluck('hostname', 'id');
+
+        return collect($query->get())->map(function ($row) use ($domainNames, $dateCol): array {
+            $ip = (string) $row->ip;
+            $domainIds = DB::table('visits')
+                ->where('ip', $ip)
+                ->where($dateCol, '>=', now()->subDays(30))
+                ->distinct()
+                ->limit(8)
+                ->pluck('domain_id');
+            $domains = $domainIds->map(fn ($id) => $domainNames[$id] ?? ('#'.$id))->values()->all();
+
+            $domainCount = (int) $row->domain_count;
+            $hits = (int) $row->hits;
+            $maxBot = (float) ($row->max_bot_score ?? 0);
+            $invalidBoost = 0;
+            if (Schema::hasColumn('visits', 'is_invalid_traffic')) {
+                $invalidBoost = (int) DB::table('visits')
+                    ->where('ip', $ip)
+                    ->where('is_invalid_traffic', true)
+                    ->where($dateCol, '>=', now()->subDays(30))
+                    ->limit(1)
+                    ->exists() ? 15 : 0;
+            }
+
+            $evidence = min(100, (int) round(
+                min(40, $domainCount * 12)
+                + min(30, log(max(1, $hits), 10) * 12)
+                + min(30, $maxBot * 0.3)
+                + $invalidBoost
+            ));
+
+            return [
+                'ip' => $ip,
+                'hits' => $hits,
+                'domain_count' => $domainCount,
+                'domains' => $domains,
+                'max_bot_score' => round($maxBot, 1),
+                'avg_bot_score' => round((float) ($row->avg_bot_score ?? 0), 1),
+                'evidence_score' => $evidence,
+                'auto_block' => false,
+            ];
+        })->values()->all();
     }
 
     public function automation(Request $request): View
@@ -561,6 +674,37 @@ class SupportPagesController extends Controller
 
         return view('super-admin.integrations.index', [
             'integrations' => $cards,
+            'guidanceSync' => [
+                'published_articles' => Schema::hasTable('guidance_articles')
+                    ? \App\Models\GuidanceArticle::query()->where('is_published', true)->count()
+                    : 0,
+                'open_chat_sessions' => Schema::hasTable('chat_sessions')
+                    ? \App\Models\ChatSession::query()->where('status', 'open')->count()
+                    : 0,
+                'dashboard_endpoint' => url('/api/admin/guidance/ask'),
+                'status' => Schema::hasTable('guidance_articles') ? 'synced' : 'pending_migration',
+            ],
         ]);
+    }
+
+    private function normalizeBrandingColor(mixed $value): ?string
+    {
+        $color = trim((string) ($value ?? ''));
+        if ($color === '') {
+            return null;
+        }
+        if ($color[0] !== '#') {
+            $color = '#'.$color;
+        }
+        if (preg_match('/^#([A-Fa-f0-9]{3})$/', $color, $m)) {
+            $h = $m[1];
+
+            return strtoupper(sprintf('#%s%s%s%s%s%s', $h[0], $h[0], $h[1], $h[1], $h[2], $h[2]));
+        }
+        if (preg_match('/^#([A-Fa-f0-9]{6})$/', $color)) {
+            return strtoupper($color);
+        }
+
+        return null;
     }
 }

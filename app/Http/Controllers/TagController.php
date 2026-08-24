@@ -278,11 +278,25 @@ class TagController extends Controller
     }
 
     var lastScrollAt = 0;
+    var scrollMarks = { 25: false, 50: false, 75: false, 90: false, 100: false };
+    function scrollDepthPct(){
+      var doc = document.documentElement || document.body;
+      var scrollTop = window.scrollY || doc.scrollTop || 0;
+      var height = Math.max(1, (doc.scrollHeight || 0) - (window.innerHeight || 0));
+      return Math.min(100, Math.round((scrollTop / height) * 100));
+    }
     function onScroll(){
       var now = Date.now();
       if (now - lastScrollAt < 120) return;
       lastScrollAt = now;
       push('scroll', { x: window.scrollX || 0, y: window.scrollY || 0 });
+      var depth = scrollDepthPct();
+      [25, 50, 75, 90, 100].forEach(function(mark){
+        if (depth >= mark && !scrollMarks[mark]) {
+          scrollMarks[mark] = true;
+          push('scroll', { depth: mark, page_url: String(location.href || '').slice(0, 500) });
+        }
+      });
     }
 
     function closestActionEl(el){
@@ -325,9 +339,13 @@ class TagController extends Controller
     function onClick(e){
       var target = closestActionEl(e.target);
       var href = '';
+      var text = '';
       try {
         href = String((target && (target.href || (target.getAttribute && target.getAttribute('href')))) || '');
       } catch (err) { href = ''; }
+      try {
+        text = String((target && (target.innerText || target.textContent || target.value || '')) || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
+      } catch (err2) { text = ''; }
       var tel = isTelHref(href);
       var cta = !tel && isCtaEl(target);
       push('click', {
@@ -335,14 +353,80 @@ class TagController extends Controller
         y: e.clientY,
         tag: (target && target.tagName) ? String(target.tagName) : '',
         href: href.slice(0, 500),
+        text: text,
         class: String((target && target.className) || '').slice(0, 200),
         id: String((target && target.id) || '').slice(0, 120),
         cta: cta ? 1 : 0,
-        tel: tel ? 1 : 0
+        tel: tel ? 1 : 0,
+        page_url: String(location.href || '').slice(0, 500)
       });
       if (target && String(target.tagName).toUpperCase() === 'A' && href && !tel) {
         markPageSoon();
       }
+    }
+
+    var formStarted = {};
+    function formKey(el){
+      if (!el) return 'form';
+      return String(el.id || el.getAttribute('name') || el.getAttribute('action') || 'form').slice(0, 120);
+    }
+    function onFormFocus(e){
+      var el = e.target;
+      if (!el || !el.tagName) return;
+      var tag = String(el.tagName).toLowerCase();
+      if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') return;
+      if (isSensitiveInput(el)) return;
+      var form = el.form || (el.closest && el.closest('form'));
+      if (!form) return;
+      var key = formKey(form);
+      if (formStarted[key]) return;
+      formStarted[key] = true;
+      push('form_start', {
+        form_id: key,
+        page_url: String(location.href || '').slice(0, 500)
+      });
+    }
+    function onFormSubmit(e){
+      var form = e.target;
+      if (!form || String(form.tagName || '').toUpperCase() !== 'FORM') return;
+      push('form_submit', {
+        form_id: formKey(form),
+        page_url: String(location.href || '').slice(0, 500),
+        success: 1
+      });
+    }
+
+    function pushCommerce(type, detail){
+      var row = { page_url: String(location.href || '').slice(0, 500) };
+      if (detail && typeof detail === 'object') {
+        ['product_id', 'product_name', 'sku', 'order_id', 'value', 'revenue', 'currency'].forEach(function(k){
+          if (detail[k] != null) row[k] = String(detail[k]).slice(0, 120);
+        });
+      }
+      push(type, row);
+    }
+    function onDataLayerPush(){
+      try {
+        if (!window.dataLayer || !window.dataLayer.length) return;
+        var last = window.dataLayer[window.dataLayer.length - 1];
+        if (!last || typeof last !== 'object') return;
+        var ev = String(last.event || last.eventName || '').toLowerCase();
+        if (ev === 'add_to_cart' || ev === 'add-to-cart') pushCommerce('add_to_cart', last);
+        else if (ev === 'begin_checkout' || ev === 'checkout') pushCommerce('checkout', last);
+        else if (ev === 'purchase' || ev === 'sale') pushCommerce('purchase', {
+          order_id: last.transaction_id || last.order_id,
+          revenue: last.value || last.revenue,
+          currency: last.currency
+        });
+      } catch (err) {}
+    }
+    if (window.dataLayer && Array.isArray(window.dataLayer)) {
+      var _dlPush = window.dataLayer.push;
+      window.dataLayer.push = function(){
+        var r = _dlPush.apply(window.dataLayer, arguments);
+        onDataLayerPush();
+        return r;
+      };
     }
 
     var seenPages = {};
@@ -383,6 +467,8 @@ class TagController extends Controller
     window.addEventListener('scroll', onScroll, { passive: true });
     document.addEventListener('click', onClick, true);
     document.addEventListener('input', onInput, true);
+    document.addEventListener('focusin', onFormFocus, true);
+    document.addEventListener('submit', onFormSubmit, true);
     window.addEventListener('popstate', markPageSoon);
     window.addEventListener('hashchange', markPageSoon);
 
@@ -399,6 +485,8 @@ class TagController extends Controller
       window.removeEventListener('scroll', onScroll);
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('input', onInput, true);
+      document.removeEventListener('focusin', onFormFocus, true);
+      document.removeEventListener('submit', onFormSubmit, true);
       window.removeEventListener('popstate', markPageSoon);
       window.removeEventListener('hashchange', markPageSoon);
       window.removeEventListener('pagehide', finishRecording);

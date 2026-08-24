@@ -16,10 +16,15 @@ class SupportTicket extends Model
         'status',
         'priority',
         'category',
+        'department',
+        'source',
+        'context',
+        'ticket_number',
         'body',
         'sla_due_at',
         'escalated_at',
         'closed_at',
+        'first_response_at',
     ];
 
     protected function casts(): array
@@ -28,6 +33,8 @@ class SupportTicket extends Model
             'sla_due_at' => 'datetime',
             'escalated_at' => 'datetime',
             'closed_at' => 'datetime',
+            'first_response_at' => 'datetime',
+            'context' => 'array',
         ];
     }
 

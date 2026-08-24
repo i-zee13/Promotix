@@ -40,6 +40,10 @@ class EmailTemplateDefaults
                 'subject' => 'Your {{card_brand}} card is active on {{app_name}}',
                 'body' => "Hi {{user_name}},\n\nYour payment method was saved and verified on {{app_name}}.\n\nCard: {{card_brand}} •••• {{last_four}}\nStatus: Active / valid for billing\n\nYou can manage cards anytime here:\n{{billing_url}}\n\nIf you did not add this card, contact support immediately.\n\n— {{app_name}} Billing",
             ],
+            'invoice_email' => [
+                'subject' => 'Invoice {{invoice_number}} from {{app_name}}',
+                'body' => "Hi {{user_name}},\n\nThanks for your payment.\n\nInvoice: {{invoice_number}}\nPlan: {{plan_name}}\nAmount: {{amount}}\nDate: {{invoice_date}}\n\nView / download your invoice:\n{{invoice_url}}\n\nManage billing:\n{{billing_url}}\n\n— {{app_name}} Billing",
+            ],
             default => null,
         };
     }

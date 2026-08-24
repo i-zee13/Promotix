@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Role;
+use App\Models\Team;
 use App\Support\StatusTone;
 use App\Models\RoleChange;
 use App\Models\Subscription;
@@ -16,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -102,12 +104,28 @@ class UsersController extends Controller
             return $user;
         });
 
-        $teamUsers = (clone $baseQuery)->latest('id')->limit(120)->get();
-        $teamsBoard = collect(self::TEAM_COLUMNS)->mapWithKeys(function (string $column) use ($teamUsers) {
-            return [
-                $column => $teamUsers->filter(fn (User $user) => $this->resolveTeamColumn($user) === $column)->values(),
-            ];
-        });
+        // Teams board: ONLY admin-assigned team_members. Never auto-bucket users by id/role.
+        $teamsBoard = collect();
+        $teamColumns = self::TEAM_COLUMNS;
+        $assignableTeams = collect();
+        if (Schema::hasTable('teams')) {
+            $teams = Team::query()
+                ->with(['members' => fn ($q) => $q->with('role')->orderBy('name')])
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
+            $assignableTeams = $teams;
+            $teamsBoard = $teams->mapWithKeys(fn (Team $team) => [
+                $team->name => $team->members,
+            ]);
+            $teamColumns = $teams->pluck('name')->all();
+            if ($teamColumns === []) {
+                $teamColumns = self::TEAM_COLUMNS;
+                $teamsBoard = collect($teamColumns)->mapWithKeys(fn (string $c) => [$c => collect()]);
+            }
+        } else {
+            $teamsBoard = collect(self::TEAM_COLUMNS)->mapWithKeys(fn (string $c) => [$c => collect()]);
+        }
 
         $filterStatuses = StatusTone::userFilters();
 
@@ -119,7 +137,8 @@ class UsersController extends Controller
             'plans' => Plan::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'slug']),
             'tab' => $tab,
             'teamsBoard' => $teamsBoard,
-            'teamColumns' => self::TEAM_COLUMNS,
+            'teamColumns' => $teamColumns,
+            'assignableTeams' => $assignableTeams,
             'perPage' => $perPage,
         ]);
     }
@@ -134,18 +153,36 @@ class UsersController extends Controller
         };
     }
 
-    private function resolveTeamColumn(User $user): string
+    public function assignTeam(Request $request, User $user): RedirectResponse
     {
-        $roleName = strtolower((string) ($user->role?->name ?? ''));
+        abort_unless(Schema::hasTable('team_members') && Schema::hasTable('teams'), 404);
 
-        foreach (self::TEAM_COLUMNS as $column) {
-            $needle = strtolower(str_replace(' ', '', $column));
-            if ($roleName !== '' && str_contains(str_replace(' ', '', $roleName), $needle)) {
-                return $column;
+        $data = $request->validate([
+            'team_id' => ['nullable', 'exists:teams,id'],
+            'action' => ['nullable', 'in:assign,remove'],
+        ]);
+
+        $action = $data['action'] ?? 'assign';
+        if ($action === 'remove' || empty($data['team_id'])) {
+            if (! empty($data['team_id'])) {
+                DB::table('team_members')->where('team_id', $data['team_id'])->where('user_id', $user->id)->delete();
+            } else {
+                DB::table('team_members')->where('user_id', $user->id)->delete();
             }
+
+            return back()->with('status', 'Team assignment removed. User stays unassigned until admin assigns again.');
         }
 
-        return self::TEAM_COLUMNS[$user->id % count(self::TEAM_COLUMNS)];
+        DB::table('team_members')->updateOrInsert(
+            ['team_id' => (int) $data['team_id'], 'user_id' => $user->id],
+            [
+                'assigned_by' => $request->user()->id,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        return back()->with('status', 'User assigned to team by admin.');
     }
 
     public function show(User $user): View
@@ -167,15 +204,42 @@ class UsersController extends Controller
 
         $pendingInvites = UserInvite::query()
             ->where('status', 'pending')
+            ->when(
+                Schema::hasColumn('user_invites', 'invited_by_id'),
+                fn ($q) => $q->where(function ($qq) use ($user): void {
+                    $qq->where('invited_by_id', $user->id)->orWhereNull('invited_by_id');
+                })
+            )
             ->latest('id')
             ->limit(20)
             ->get();
+
+        $portalUsers = User::query()
+            ->when(
+                Schema::hasColumn('users', 'team_owner_id'),
+                fn ($q) => $q->where('team_owner_id', $user->id),
+                fn ($q) => $q->whereRaw('1 = 0')
+            )
+            ->with('role:id,name,slug')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'role_id', 'status', 'created_at']);
+
+        $userTeams = Schema::hasTable('teams')
+            ? Team::query()->whereHas('members', fn ($q) => $q->where('users.id', $user->id))->orderBy('name')->get()
+            : collect();
+
+        $assignableTeams = Schema::hasTable('teams')
+            ? Team::query()->where('is_active', true)->orderBy('name')->get()
+            : collect();
 
         return view('super-admin.users.show', [
             'user' => $user,
             'assignablePlans' => $assignablePlans,
             'roles' => Role::orderBy('name')->get(),
             'pendingInvites' => $pendingInvites,
+            'portalUsers' => $portalUsers,
+            'userTeams' => $userTeams,
+            'assignableTeams' => $assignableTeams,
         ]);
     }
 

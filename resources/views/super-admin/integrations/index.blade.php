@@ -36,6 +36,26 @@
             </x-super-admin.dashboard-dropdown>
         </div>
 
+        @if (! empty($guidanceSync))
+            <article class="rounded-[10px] border border-[#FF6600]/35 bg-[#1a1a1a] p-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-[16px] font-semibold text-white">Guidance chatbot / KB sync</h3>
+                        <p class="mt-1 text-[12px] text-white/55">Dashboard + website chat both read published Guidance articles from Super Admin.</p>
+                    </div>
+                    <span class="rounded-full px-3 py-1 text-[11px] font-medium {{ ($guidanceSync['status'] ?? '') === 'synced' ? 'bg-emerald-500/15 text-emerald-200' : 'bg-amber-500/15 text-amber-200' }}">
+                        {{ ($guidanceSync['status'] ?? '') === 'synced' ? 'Synced' : 'Pending' }}
+                    </span>
+                </div>
+                <dl class="mt-3 grid gap-2 sm:grid-cols-3 text-[12px] text-white/70">
+                    <div><dt class="text-white/40">Published articles</dt><dd class="text-white">{{ number_format($guidanceSync['published_articles'] ?? 0) }}</dd></div>
+                    <div><dt class="text-white/40">Open chat sessions</dt><dd class="text-white">{{ number_format($guidanceSync['open_chat_sessions'] ?? 0) }}</dd></div>
+                    <div><dt class="text-white/40">Ask endpoint</dt><dd class="truncate text-[#FFB380]">{{ $guidanceSync['dashboard_endpoint'] ?? '—' }}</dd></div>
+                </dl>
+                <a href="{{ route('super-admin.guidance.index') }}" class="mt-3 inline-block text-[12px] text-[#FFB380] hover:underline">Manage Guidance KB →</a>
+            </article>
+        @endif
+
         <div class="grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-3">
             <template x-for="integration in filteredIntegrations" :key="integration.id">
                 <article class="figma-sa-integration-card">

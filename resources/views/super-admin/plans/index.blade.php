@@ -507,4 +507,31 @@ function plansPricingPage(plans, products, storeUrl, defaultProductTitle) {
     };
 }
 </script>
+
+    @if (($roles ?? collect())->isNotEmpty())
+        <section class="mt-6 rounded-[10px] border border-white/12 bg-[#1a1a1a] p-4">
+            <div class="mb-3">
+                <h2 class="text-[15px] font-semibold text-white">Package → role entitlements</h2>
+                <p class="text-[11px] text-white/50">Map which portal roles each plan unlocks. Separate from operational Teams.</p>
+            </div>
+            <div class="grid gap-4 lg:grid-cols-2">
+                @foreach ($plans as $plan)
+                    <form method="POST" action="{{ route('super-admin.plans.roles', $plan) }}" class="rounded-[8px] border border-white/10 bg-black/25 p-3">
+                        @csrf
+                        <p class="mb-2 text-[13px] font-semibold text-white">{{ $plan->name }}</p>
+                        <div class="mb-3 flex flex-wrap gap-3">
+                            @foreach ($roles as $role)
+                                <label class="inline-flex items-center gap-2 text-[12px] text-white/75">
+                                    <input type="checkbox" name="role_ids[]" value="{{ $role->id }}"
+                                        @checked($plan->relationLoaded('roles') ? $plan->roles->contains('id', $role->id) : false)>
+                                    {{ $role->name }}
+                                </label>
+                            @endforeach
+                        </div>
+                        <button class="figma-sa-btn figma-sa-btn-outline !px-3 !py-1.5 text-[12px]">Save roles</button>
+                    </form>
+                @endforeach
+            </div>
+        </section>
+    @endif
 @endsection

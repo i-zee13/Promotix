@@ -86,7 +86,26 @@
                 @endforeach
             </x-super-admin.dashboard-dropdown>
 
+            <x-super-admin.dashboard-dropdown align="left">
+                <x-slot:trigger>
+                    <button type="button" class="figma-sa-subs-filter-chip">
+                        <span>{{ request('department') ? ucfirst(request('department')) : 'All Departments' }}</span>
+                        <span class="figma-sa-subs-chip-chevron">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </span>
+                    </button>
+                </x-slot:trigger>
+                <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['department', 'page']), [])) }}" class="figma-sa-users-action-item">All Departments</a>
+                @foreach ($departments as $dept)
+                    <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['department', 'page']), ['department' => $dept])) }}" class="figma-sa-users-action-item">{{ ucfirst($dept) }}</a>
+                @endforeach
+            </x-super-admin.dashboard-dropdown>
+
             <button type="submit" class="figma-sa-btn figma-sa-btn-outline !px-4 !py-2 text-[13px]">Filter</button>
+            <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['unassigned', 'page']), request()->boolean('unassigned') ? [] : ['unassigned' => 1])) }}"
+               class="figma-sa-btn {{ request()->boolean('unassigned') ? 'figma-sa-btn-primary' : 'figma-sa-btn-outline' }} !px-4 !py-2 text-[13px]">
+                Unassigned ({{ number_format($stats['unassigned'] ?? 0) }})
+            </a>
         </form>
 
         <div class="figma-sa-subs-panel">

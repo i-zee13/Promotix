@@ -27,6 +27,7 @@ use App\Support\GoogleVerifiedCampaignLookup;
 use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\IpListParser;
 use App\Support\RiskLabels;
+use App\Support\SessionBehaviorTimeline;
 use App\Support\SessionRecordingNormalizer;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
@@ -770,6 +771,8 @@ class PaidMarketingController extends Controller
 
         abort_unless($row, 404);
 
+        $rawEvents = json_decode((string) $row->events, true) ?: [];
+
         return response()->json([
             'id' => (int) $row->id,
             'visit_id' => $row->visit_id ? (int) $row->visit_id : null,
@@ -781,7 +784,8 @@ class PaidMarketingController extends Controller
             'behavior_signals' => Schema::hasColumn('visit_session_recordings', 'behavior_signals')
                 ? (json_decode((string) ($row->behavior_signals ?? '[]'), true) ?: [])
                 : [],
-            'events' => SessionRecordingNormalizer::normalize(json_decode((string) $row->events, true) ?: []),
+            'events' => SessionRecordingNormalizer::normalize($rawEvents),
+            'timeline' => SessionBehaviorTimeline::fromEvents(is_array($rawEvents) ? $rawEvents : []),
             'created_at' => $row->created_at,
         ]);
     }
@@ -2522,18 +2526,20 @@ class PaidMarketingController extends Controller
         $invalidPct = $totalClicks > 0 ? round(($invalidClicks / $totalClicks) * 100, 1) : 0.0;
 
         $threatBuckets = [
-            'vpn' => ['label' => 'VPN / Proxy', 'color' => '#A855F7', 'count' => 0],
-            'datacenter' => ['label' => 'Data Center', 'color' => '#3B82F6', 'count' => 0],
-            'geo' => ['label' => 'Geo Mismatch', 'color' => '#D6B27C', 'count' => 0],
-            'device' => ['label' => 'Invalid Device', 'color' => '#C084FC', 'count' => 0],
-            'bot' => ['label' => 'Bot Behavior', 'color' => '#22D3EE', 'count' => 0],
             'repeat' => ['label' => 'Repeated Clicks', 'color' => '#14B8A6', 'count' => 0],
+            'vpn' => ['label' => 'VPN/Proxy', 'color' => '#A855F7', 'count' => 0],
+            'datacenter' => ['label' => 'Datacenter/Hosting', 'color' => '#3B82F6', 'count' => 0],
+            'bot' => ['label' => 'Automation/Bot', 'color' => '#22D3EE', 'count' => 0],
+            'device' => ['label' => 'Suspicious Device', 'color' => '#C084FC', 'count' => 0],
+            'cross_domain' => ['label' => 'Cross-Domain Pattern', 'color' => '#F59E0B', 'count' => 0],
+            'other' => ['label' => 'Other', 'color' => '#94A3B8', 'count' => 0],
         ];
 
         $riskBuckets = [
-            'high' => ['label' => 'High Risk', 'color' => '#F43F5E', 'count' => 0],
-            'medium' => ['label' => 'Medium Risk', 'color' => '#F59E0B', 'count' => 0],
-            'low' => ['label' => 'Low Risk', 'color' => '#22C55E', 'count' => 0],
+            'critical' => ['label' => 'Critical', 'color' => '#BE123C', 'count' => 0],
+            'high' => ['label' => 'High', 'color' => '#F43F5E', 'count' => 0],
+            'medium' => ['label' => 'Medium', 'color' => '#F59E0B', 'count' => 0],
+            'low' => ['label' => 'Low', 'color' => '#22C55E', 'count' => 0],
         ];
 
         $countryInvalid = [];
@@ -2581,36 +2587,45 @@ class PaidMarketingController extends Controller
                 || str_contains($blob, 'fingerprint')
                 || str_contains($blob, 'invalid_device')
                 || str_contains($type, 'device');
-            $isBot = str_contains($blob, 'bot') || str_contains($blob, 'automation');
+            $isBot = str_contains($blob, 'bot') || str_contains($blob, 'automation') || str_contains($blob, 'crawler');
             $isRepeat = $visits > 1
                 || $invalid > 1
                 || str_contains($blob, 'repeat')
                 || str_contains($blob, 'duplicate')
-                || str_contains($blob, 'multiple');
+                || str_contains($blob, 'multiple')
+                || str_contains($blob, 'reclick');
+            $isCrossDomain = str_contains($blob, 'cross_domain')
+                || str_contains($blob, 'cross-domain')
+                || str_contains($blob, 'cross domain');
 
-            // Priority: VPN → Data Center → Geo → Invalid Device → Bot → Repeated
-            if ($isVpn) {
+            // Priority matches product labels: Repeat → VPN → DC → Bot → Device → Cross-domain → Other
+            // (Geo mismatch folds into Other so every segment has an explicit named category.)
+            if ($isRepeat) {
+                $threatBuckets['repeat']['count'] += $weight;
+            } elseif ($isVpn) {
                 $threatBuckets['vpn']['count'] += $weight;
             } elseif ($isDc) {
                 $threatBuckets['datacenter']['count'] += $weight;
-            } elseif ($isGeo) {
-                $threatBuckets['geo']['count'] += $weight;
-            } elseif ($isDevice) {
-                $threatBuckets['device']['count'] += $weight;
             } elseif ($isBot) {
                 $threatBuckets['bot']['count'] += $weight;
-            } elseif ($isRepeat) {
-                $threatBuckets['repeat']['count'] += $weight;
+            } elseif ($isDevice) {
+                $threatBuckets['device']['count'] += $weight;
+            } elseif ($isCrossDomain) {
+                $threatBuckets['cross_domain']['count'] += $weight;
+            } elseif ($isGeo) {
+                $threatBuckets['other']['count'] += $weight;
             } else {
-                $threatBuckets['bot']['count'] += $weight;
+                $threatBuckets['other']['count'] += $weight;
             }
 
             $level = strtolower((string) ($visit['intel_risk_level'] ?? data_get($visit, 'risk_summary.level') ?? ''));
             $score = $this->normalizedRiskScore($visit['intel_risk_score'] ?? data_get($visit, 'risk_summary.score'));
             if ($level === '' && $score !== null) {
-                $level = $score >= 40 ? 'high' : ($score >= 20 ? 'medium' : 'low');
+                $level = $score >= 85 ? 'critical' : ($score >= 70 ? 'high' : ($score >= 40 ? 'medium' : 'low'));
             }
-            if (! in_array($level, ['high', 'medium', 'low'], true)) {
+            if ($level === 'critical' || $level === 'crit') {
+                $level = 'critical';
+            } elseif (! in_array($level, ['critical', 'high', 'medium', 'low'], true)) {
                 $group = strtolower(trim((string) ($visit['threat_group'] ?? '')));
                 $level = in_array($group, ['data_center', 'datacenter', 'vpn', 'malicious'], true) ? 'high' : 'medium';
             }
@@ -2780,11 +2795,14 @@ class PaidMarketingController extends Controller
                     return null;
                 }
                 $score = $score ?? match ($level) {
+                    'critical', 'crit' => 92,
                     'high' => 85,
                     'medium' => 55,
                     default => 25,
                 };
-                if ($score < 40 && $level !== 'high') {
+                // Align widget with table high/critical rows (avoid empty widget when table has them).
+                $isHighOrCritical = in_array($level, ['high', 'critical', 'crit'], true) || $score >= 70;
+                if (! $isHighOrCritical) {
                     return null;
                 }
 

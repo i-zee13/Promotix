@@ -5,9 +5,11 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\FeatureFlag;
 use App\Models\Plan;
+use App\Models\Role;
 use App\Models\SaasProduct;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -15,10 +17,17 @@ class PlansController extends Controller
 {
     public function index(): View
     {
+        $plans = Plan::with(['product', 'planFeatures'])
+            ->when(Schema::hasTable('plan_role'), fn ($q) => $q->with('roles:id,name,slug'))
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
         return view('super-admin.plans.index', [
-            'plans' => Plan::with(['product', 'planFeatures'])->orderBy('sort_order')->orderBy('id')->get(),
+            'plans' => $plans,
             'products' => SaasProduct::where('is_active', true)->orderBy('name')->get(),
             'featureFlags' => FeatureFlag::orderBy('name')->get(),
+            'roles' => Role::orderBy('name')->get(['id', 'name', 'slug']),
         ]);
     }
 
@@ -28,6 +37,7 @@ class PlansController extends Controller
         $plan = Plan::create($data + ['slug' => Str::slug($data['name']).'-'.Str::lower(Str::random(5))]);
         $this->syncFeatureLimits($request, $plan);
         $this->syncFeatureFlags($request, $plan);
+        $this->syncRoles($request, $plan);
 
         return back()->with('status', 'Plan created.');
     }
@@ -37,6 +47,7 @@ class PlansController extends Controller
         $plan->update($this->validated($request));
         $this->syncFeatureLimits($request, $plan);
         $this->syncFeatureFlags($request, $plan);
+        $this->syncRoles($request, $plan);
 
         return back()->with('status', 'Plan updated.');
     }
@@ -119,5 +130,35 @@ class PlansController extends Controller
 
         $plan->feature_flags = $flags;
         $plan->save();
+    }
+
+    public function syncPlanRoles(Request $request, Plan $plan): RedirectResponse
+    {
+        if (! Schema::hasTable('plan_role')) {
+            return back()->withErrors(['plan' => 'plan_role table missing — run migrations.']);
+        }
+
+        $data = $request->validate([
+            'role_ids' => ['nullable', 'array'],
+            'role_ids.*' => ['integer', 'exists:roles,id'],
+        ]);
+
+        $plan->roles()->sync($data['role_ids'] ?? []);
+
+        return back()->with('status', "Role entitlements saved for {$plan->name}.");
+    }
+
+    private function syncRoles(Request $request, Plan $plan): void
+    {
+        if (! Schema::hasTable('plan_role') || ! $request->exists('role_ids')) {
+            return;
+        }
+
+        $data = $request->validate([
+            'role_ids' => ['nullable', 'array'],
+            'role_ids.*' => ['integer', 'exists:roles,id'],
+        ]);
+
+        $plan->roles()->sync($data['role_ids'] ?? []);
     }
 }

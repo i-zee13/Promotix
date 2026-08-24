@@ -40,6 +40,7 @@ class PermissionCatalog
         return in_array(strtolower(trim($menuLabel)), [
             'dashboard',
             'advanced view',
+            'traffic control',
             'overview',
         ], true);
     }
@@ -48,7 +49,8 @@ class PermissionCatalog
     {
         return match (strtoupper(trim($groupLabel))) {
             'PAID ADVERTISING' => 'Paid Ads',
-            'BOT PROTECTION' => 'Bot Protection',
+            'BOT PROTECTION' => 'Analytics',
+            'ANALYTICS' => 'Analytics',
             'SITE MANAGEMENT' => 'Site',
             'HOME' => 'Home',
             'PRODUCT' => 'Product',

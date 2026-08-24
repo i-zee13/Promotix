@@ -198,11 +198,13 @@
                 </div>
             </div>
         @else
-            {{-- Teams board (Figma second screen) --}}
+            {{-- Teams board — real team columns only (admin-assigned members) --}}
             <div class="figma-sa-teams-tabs">
-                @foreach (range(1, 6) as $i)
-                    <button type="button" @class(['figma-sa-teams-tab', 'figma-sa-teams-tab--active' => $i === 1])>Team {{ $i }}</button>
-                @endforeach
+                @forelse (($teamColumns ?? array_keys($teamsBoard->all())) as $i => $col)
+                    <button type="button" @class(['figma-sa-teams-tab', 'figma-sa-teams-tab--active' => $i === 0])>{{ $col }}</button>
+                @empty
+                    <span class="text-[12px] text-white/50">No teams yet — run AdminPanelBootstrapSeeder.</span>
+                @endforelse
             </div>
 
             <div class="figma-sa-teams-board">
@@ -233,7 +235,7 @@
                                     </form>
                                 </div>
                             @empty
-                                <p class="figma-sa-teams-empty">No members</p>
+                                <p class="figma-sa-teams-empty">Unassigned — assign members from a user profile. Teams ≠ portal users.</p>
                             @endforelse
                         </div>
                     </article>

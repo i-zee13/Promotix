@@ -515,26 +515,37 @@
                                 <input type="date" class="pmx-settings__input" x-model="reportCustomTo" @change="reportRange = 'custom'">
                             </label>
                             <label class="pmx-settings__field">
-                                <span class="pmx-settings__label">Download</span>
+                                <span class="pmx-settings__label">Report</span>
                                 <select class="pmx-settings__select" x-model="reportGroup">
                                     <option value="dashboard_ips">Main dashboard IP stats</option>
                                     <option value="advanced">Advanced View stats</option>
-                                    <option value="bot">Bot protection</option>
-                                    <option value="bot_advanced">Advanced bot protection</option>
+                                    <option value="bot">Analytics Dashboard</option>
+                                    <option value="bot_advanced">Analytics Traffic Control</option>
                                 </select>
+                            </label>
+                            <label class="pmx-settings__field">
+                                <span class="pmx-settings__label">Format</span>
+                                <select class="pmx-settings__select" x-model="reportFormat">
+                                    <option value="csv">CSV</option>
+                                    <option value="xlsx">XLSX</option>
+                                </select>
+                            </label>
+                            <label class="pmx-settings__check" style="align-self:end;margin-bottom:2px">
+                                <input type="checkbox" x-model="monthlyEmailToggle" @change="persistMonthlyEmailToggle()">
+                                <span>Email me a monthly report</span>
                             </label>
                             <button
                                 type="button"
                                 class="pmx-settings__cta pmx-settings__report-download"
                                 @click="downloadReport()"
                                 :disabled="reportBusy"
-                                x-text="reportBusy ? 'Preparing…' : 'Download CSV'"
+                                x-text="reportBusy ? 'Preparing…' : ('Download ' + (reportFormat === 'xlsx' ? 'XLSX' : 'CSV'))"
                             ></button>
                         </div>
                     </div>
 
                     <p class="pmx-settings__hint" x-show="reportStatus" x-text="reportStatus" style="margin-top:0;margin-bottom:8px"></p>
-                    <p class="pmx-settings__hint" style="margin-top:4px">Pick a date range, then download stats for the dashboard, Advanced View, or Bot Protection.</p>
+                    <p class="pmx-settings__hint" style="margin-top:4px">Pick a date range, then download stats for the dashboard, Advanced View, Analytics Dashboard, or Analytics Traffic Control.</p>
 
                 </div>
 
@@ -1806,10 +1817,14 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         team: Object.assign({ owner: { name: 'Workspace owner', email: '', role: 'Owner', initial: '?' }, members: [] }, seed.team || {}),
         reportRange: '7d',
         reportGroup: 'dashboard_ips',
+        reportFormat: 'csv',
         reportCustomFrom: '',
         reportCustomTo: '',
         reportBusy: false,
         reportStatus: '',
+        monthlyEmailToggle: (() => {
+            try { return localStorage.getItem('promotix-monthly-report-email') === '1'; } catch (_) { return false; }
+        })(),
         generalStatus: '',
         generalBusy: false,
         notifyStatus: '',
@@ -1948,8 +1963,18 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             } else if (group === 'bot_advanced') {
                 url.searchParams.set('source', 'advanced');
             }
+            url.searchParams.set('format', this.reportFormat === 'xlsx' ? 'xlsx' : 'csv');
+            // Analytics exports are CSV-only today; avoid a mismatched .xlsx download name.
+            if ((group === 'bot' || group === 'bot_advanced') && this.reportFormat === 'xlsx') {
+                url.searchParams.set('format', 'csv');
+            }
 
             return url.toString();
+        },
+        persistMonthlyEmailToggle() {
+            try {
+                localStorage.setItem('promotix-monthly-report-email', this.monthlyEmailToggle ? '1' : '0');
+            } catch (_) {}
         },
         filenameFromDisposition(header, fallback) {
             const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(header || '');
@@ -1975,7 +2000,7 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
                 if (!blob || blob.size < 8 || (blob.type || '').includes('text/html')) {
                     throw new Error('The report did not finish. Try a shorter date range.');
                 }
-                const fallback = (this.reportGroup || 'report') + '.csv';
+                const fallback = (this.reportGroup || 'report') + '.' + (this.reportFormat === 'xlsx' ? 'xlsx' : 'csv');
                 const filename = this.filenameFromDisposition(res.headers.get('content-disposition'), fallback);
                 const href = URL.createObjectURL(blob);
                 const link = document.createElement('a');

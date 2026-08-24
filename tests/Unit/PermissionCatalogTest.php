@@ -14,7 +14,7 @@ class PermissionCatalogTest extends TestCase
             PermissionCatalog::displayName('paid-marketing-dashboard', 'Dashboard'),
         );
         $this->assertSame(
-            'Bot Protection Dashboard',
+            'Analytics Dashboard',
             PermissionCatalog::displayName('bot-protection', 'Dashboard'),
         );
     }

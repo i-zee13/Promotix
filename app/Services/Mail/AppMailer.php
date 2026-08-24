@@ -2,10 +2,12 @@
 
 namespace App\Services\Mail;
 
+use App\Models\EmailLog;
 use App\Models\EmailTemplate;
 use App\Support\EmailTemplateDefaults;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class AppMailer
@@ -79,6 +81,7 @@ class AppMailer
                 'to' => $to,
                 'subject' => $subject,
             ]);
+            self::logEmail($context, $to, 'sent', null, ['subject' => $subject]);
 
             return true;
         } catch (\Throwable $e) {
@@ -87,8 +90,29 @@ class AppMailer
                 'to' => $to,
                 'error' => $e->getMessage(),
             ]);
+            self::logEmail($context, $to, 'failed', $e->getMessage(), ['subject' => $subject]);
 
             return false;
+        }
+    }
+
+    /** @param  array<string, mixed>  $meta */
+    private static function logEmail(string $templateKey, string $recipient, string $status, ?string $error = null, array $meta = []): void
+    {
+        if (! Schema::hasTable('email_logs')) {
+            return;
+        }
+
+        try {
+            EmailLog::query()->create([
+                'template_key' => $templateKey,
+                'recipient' => $recipient,
+                'status' => $status,
+                'error' => $error,
+                'meta' => $meta,
+            ]);
+        } catch (\Throwable) {
+            // Never break outbound mail on logging failures.
         }
     }
 

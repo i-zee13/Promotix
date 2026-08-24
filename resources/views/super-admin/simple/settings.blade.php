@@ -80,6 +80,16 @@
             <button type="button" class="figma-sa-settings-card-btn" @click="modal = 'email'">Edit Templates</button>
         </article>
 
+        <article class="figma-sa-settings-card" x-show="matches('Email') || matches('Email Logs') || matches('Logs')">
+            <span class="figma-sa-settings-card-icon" aria-hidden="true">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            </span>
+            <h3 class="figma-sa-settings-card-title">Email Logs</h3>
+            <p class="figma-sa-settings-card-desc">Recent outbound mail delivery status</p>
+            <p class="mt-2 text-[12px] text-white/65">{{ ($emailLogs ?? collect())->count() }} recent entries</p>
+            <button type="button" class="figma-sa-settings-card-btn" @click="modal = 'email-logs'">View Logs</button>
+        </article>
+
         <article class="figma-sa-settings-card" x-show="matches('Free Trial')">
             <span class="figma-sa-settings-card-icon" aria-hidden="true">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -157,13 +167,59 @@
                 <div x-show="brandingTab === 'colors'" class="space-y-3">
                     <p class="text-[12px] leading-relaxed text-white/65">
                         These colors apply to the customer portal (dashboard, billing, onboarding payment, profile, etc.).
+                        Paste a hex code (e.g. <code class="text-white/90">#FF6600</code>) or use the color picker, then Save.
                     </p>
                     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         @foreach ($brandingSettings->filter(fn ($s) => str_starts_with((string) $s->key, 'branding.color_'))->sortBy('key') as $setting)
-                            <div>
+                            @php
+                                $rawColor = trim((string) ($setting->value ?? ''));
+                                $safeColor = preg_match('/^#([A-Fa-f0-9]{6})$/', $rawColor)
+                                    ? strtoupper($rawColor)
+                                    : (preg_match('/^#([A-Fa-f0-9]{3})$/', $rawColor)
+                                        ? strtoupper(sprintf('#%s%s%s%s%s%s', $rawColor[1], $rawColor[1], $rawColor[2], $rawColor[2], $rawColor[3], $rawColor[3]))
+                                        : '#6400B2');
+                            @endphp
+                            <div
+                                class="figma-sa-color-field"
+                                x-data="{
+                                    hex: @js($safeColor),
+                                    normalize(value) {
+                                        let v = String(value || '').trim();
+                                        if (!v) return this.hex;
+                                        if (v[0] !== '#') v = '#' + v;
+                                        v = v.replace(/[^#0-9a-fA-F]/g, '').slice(0, 7);
+                                        if (/^#[0-9a-fA-F]{3}$/.test(v)) {
+                                            v = '#' + v[1]+v[1]+v[2]+v[2]+v[3]+v[3];
+                                        }
+                                        if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                                            this.hex = v.toUpperCase();
+                                        }
+                                        return this.hex;
+                                    }
+                                }"
+                            >
                                 <label class="figma-sa-settings-row-label">{{ $setting->label }}</label>
-                                <input type="color" name="settings[{{ $setting->key }}]" value="{{ $setting->value }}" class="mt-2 h-10 w-full cursor-pointer rounded border-0 bg-transparent">
-                                <input type="text" value="{{ $setting->value }}" class="figma-sa-settings-input mt-2" readonly>
+                                {{-- Indexed rows avoid PHP mangling settings[branding.color_*] dots --}}
+                                <input type="hidden" name="setting_rows[{{ $loop->index }}][key]" value="{{ $setting->key }}">
+                                <input type="hidden" name="setting_rows[{{ $loop->index }}][value]" :value="hex">
+                                <input
+                                    type="color"
+                                    class="figma-sa-color-swatch mt-2"
+                                    :value="hex"
+                                    @input="hex = ($event.target.value || '').toUpperCase()"
+                                    aria-label="{{ $setting->label }} picker"
+                                >
+                                <input
+                                    type="text"
+                                    class="figma-sa-settings-input mt-2 font-mono uppercase"
+                                    maxlength="7"
+                                    placeholder="#6400B2"
+                                    x-model="hex"
+                                    @blur="normalize(hex)"
+                                    @keydown.enter.prevent="normalize(hex)"
+                                    aria-label="{{ $setting->label }} hex"
+                                >
+                                <p class="mt-1 text-[10px] text-rose-300" x-show="!/^#[0-9A-F]{6}$/.test(hex)" x-cloak>Use a valid 6-digit hex (e.g. #6400B2).</p>
                             </div>
                         @endforeach
                     </div>
@@ -373,6 +429,45 @@
                         @endforeach
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Email Logs modal --}}
+    <div x-show="modal === 'email-logs'" x-cloak class="figma-sa-settings-modal-backdrop" @keydown.escape.window="modal = null">
+        <div class="figma-sa-settings-modal" style="max-width:860px;" @click.outside="modal = null">
+            <button type="button" class="figma-sa-settings-modal-close" @click="modal = null">&times;</button>
+            <h2 class="figma-sa-settings-modal-title">Email Logs</h2>
+            <div class="figma-sa-settings-panel mt-4 overflow-x-auto">
+                <table class="figma-sa-subs-table w-full">
+                    <thead>
+                        <tr>
+                            <th>When</th>
+                            <th>Template</th>
+                            <th>Recipient</th>
+                            <th>Status</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($emailLogs ?? [] as $log)
+                            <tr>
+                                <td class="text-[12px] text-white/70">{{ $log->created_at?->diffForHumans() }}</td>
+                                <td class="text-[12px] text-white">{{ $log->template_key ?? '—' }}</td>
+                                <td class="text-[12px] text-white/80">{{ $log->recipient }}</td>
+                                <td class="text-[12px]">{{ $log->status }}</td>
+                                <td class="max-w-[220px] truncate text-[11px] text-rose-300" title="{{ $log->error }}">{{ $log->error ?: '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="figma-sa-subs-empty">No email logs yet. Logs appear after outbound mail is sent.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button type="button" class="figma-sa-settings-btn figma-sa-settings-btn--outline" @click="modal = null">Close</button>
             </div>
         </div>
     </div>

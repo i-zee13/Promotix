@@ -112,6 +112,17 @@ class SupportSystemController extends Controller
             'sla_due_at' => isset($data['sla_hours']) ? now()->addHours((int) $data['sla_hours']) : now()->addHours(24),
         ]);
 
+        if (\Illuminate\Support\Facades\Schema::hasColumn('support_tickets', 'ticket_number') && blank($ticket->ticket_number)) {
+            $ticket->ticket_number = 'TKT-'.now()->format('Y').'-'.str_pad((string) $ticket->id, 6, '0', STR_PAD_LEFT);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('support_tickets', 'department')) {
+                $ticket->department = $data['category'] ?? 'support';
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('support_tickets', 'source')) {
+                $ticket->source = 'support_system';
+            }
+            $ticket->save();
+        }
+
         return redirect()
             ->route('support-system.show', $ticket)
             ->with('status', 'Ticket created.');

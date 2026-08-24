@@ -26,8 +26,14 @@ class SessionBehaviorAnalyzer
      *   page_changes: int,
      *   scroll_count: int,
      *   click_count: int,
+     *   form_starts: int,
+     *   form_submits: int,
+     *   add_to_cart: int,
+     *   checkouts: int,
+     *   purchases: int,
      *   first_scroll_ms: ?int,
-     *   last_cta_href: ?string
+     *   last_cta_href: ?string,
+     *   timeline: list<array{t: int, label: string, detail: string, kind: string}>
      * }
      */
     public static function analyze(array $events, int $durationMs, int $minDurationMs = self::DEFAULT_MIN_DURATION_MS): array
@@ -61,6 +67,11 @@ class SessionBehaviorAnalyzer
 
         $ctaClicks = 0;
         $telClicks = 0;
+        $formStarts = 0;
+        $formSubmits = 0;
+        $addToCart = 0;
+        $checkouts = 0;
+        $purchases = 0;
         $pageUrls = [];
         $lastCtaHref = null;
 
@@ -70,7 +81,7 @@ class SessionBehaviorAnalyzer
                 continue;
             }
             $type = strtolower((string) ($raw['type'] ?? ''));
-            if (in_array($type, ['keydown', 'keypress', 'keyup', 'input'], true)) {
+            if (in_array($type, ['keydown', 'keypress', 'keyup', 'input', 'form_start'], true)) {
                 $hasKey = true;
             }
             if ($type === 'click') {
@@ -95,6 +106,21 @@ class SessionBehaviorAnalyzer
                     $pageUrls[$url] = true;
                 }
             }
+            if ($type === 'form_start') {
+                $formStarts++;
+            }
+            if (in_array($type, ['form_submit', 'form_fill'], true)) {
+                $formSubmits++;
+            }
+            if ($type === 'add_to_cart') {
+                $addToCart++;
+            }
+            if ($type === 'checkout') {
+                $checkouts++;
+            }
+            if (in_array($type, ['purchase', 'sale'], true)) {
+                $purchases++;
+            }
         }
 
         $pageChanges = max(0, count($pageUrls) - (count($pageUrls) > 0 ? 1 : 0));
@@ -111,8 +137,14 @@ class SessionBehaviorAnalyzer
             'page_changes' => $pageChanges,
             'scroll_count' => $scrollCount,
             'click_count' => $clickCount,
+            'form_starts' => $formStarts,
+            'form_submits' => $formSubmits,
+            'add_to_cart' => $addToCart,
+            'checkouts' => $checkouts,
+            'purchases' => $purchases,
             'first_scroll_ms' => $firstScrollMs,
             'last_cta_href' => $lastCtaHref,
+            'timeline' => SessionBehaviorTimeline::fromEvents($events),
         ];
     }
 }

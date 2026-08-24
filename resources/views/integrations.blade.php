@@ -1025,6 +1025,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         {{-- Connected Platforms --}}
         <section id="connected-platforms" class="pi-platforms-card">
+            <details class="mb-[14px] rounded-[10px] border border-white/10 bg-black/20 px-[14px] py-[12px]">
+                <summary class="cursor-pointer text-[12px] font-semibold text-white">Pixel Guard &amp; Audience Exclusion guidance</summary>
+                <div class="mt-[10px] grid gap-[10px] text-[11px] leading-relaxed text-white/70 sm:grid-cols-2">
+                    <div>
+                        <p class="font-semibold text-[#B893D8]">Pixel Guard</p>
+                        <ul class="mt-[6px] list-disc space-y-1 pl-[16px]">
+                            <li><strong class="text-white/90">Google Tag ID</strong> — the AW-/GT- ID from Google Ads / Tag Manager for this domain.</li>
+                            <li>Tag must match the hostname on the mapping; mismatch fails Save validation.</li>
+                            <li>Prerequisite: tracking tag installed + Google Ads OAuth connected for Pixel Guard protection type.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-[#B893D8]">Audience Exclusion</p>
+                        <ul class="mt-[6px] list-disc space-y-1 pl-[16px]">
+                            <li>Uses Conversion ID / label from Google Ads conversion actions.</li>
+                            <li>Additional audience excludes high-risk / invalid click clusters from remarketing.</li>
+                            <li>Open from Google platform menu → Detection Panel to configure event rules and push exclusions.</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
             <div class="pi-platforms-head">
                 <div>
                     <h2>Connected Platforms</h2>
