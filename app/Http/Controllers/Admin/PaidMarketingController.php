@@ -255,6 +255,49 @@ class PaidMarketingController extends Controller
                     'path' => $click->path,
                 ];
             }
+
+            // Live visits ledger (gclid) when paid_marketing_clicks is empty for this IP.
+            if ($visit->clicks->isEmpty() && Schema::hasTable('visits') && Schema::hasColumn('visits', 'gclid')) {
+                $liveQuery = DB::table('visits')
+                    ->where('domain_id', $visit->domain_id)
+                    ->where('ip', $visit->ip)
+                    ->orderByDesc('visited_at')
+                    ->limit(25);
+                UserTimezone::applyCalendarDateRangeFilter($liveQuery, 'visited_at', $metricFrom, $metricTo, $user, $reportingTz);
+                GoogleClickAttribution::applyHasClickIdFilter($liveQuery);
+                foreach ($liveQuery->get(['id', 'visited_at', 'url', 'gclid', 'campaign_name', 'utm_campaign', 'threat_group', 'device', 'country']) as $live) {
+                    $at = UserTimezone::parseUtcInstant($live->visited_at ?? null);
+                    $threat = strtolower((string) ($live->threat_group ?: $visit->threat_group));
+                    $risk = filled($threat) ? 'Invalid' : ($visitIntel['status'] ?? 'Valid');
+                    if (($visitIntel['is_allowlisted'] ?? false) === true) {
+                        $risk = 'Allowed Override';
+                    } elseif ($ipLog?->is_blocked) {
+                        $risk = 'Blocked';
+                    }
+                    $events[] = [
+                        'type' => 'click',
+                        'id' => 'live-visit-'.$live->id,
+                        'visit_id' => $visit->id,
+                        'click_id' => null,
+                        'at' => UserTimezone::isoForUser($at, $user),
+                        'ip' => $visit->ip,
+                        'domain' => $visit->domain?->hostname,
+                        'campaign' => $live->campaign_name ?: $live->utm_campaign ?: ($visit->campaign_name ?: $visit->campaign),
+                        'device' => $live->device ?: $visit->platform,
+                        'behavior' => $live->url ?: $visit->last_path,
+                        'risk_decision' => $risk,
+                        'action' => $this->timelineActionLabel($visit, $ipLog, $visitIntel, $live->threat_group),
+                        'threat_group' => $live->threat_group ?: $visit->threat_group,
+                        'threat_type' => $visit->threat_type,
+                        'country' => $live->country ?: $visit->country,
+                        'browser' => null,
+                        'os' => null,
+                        'keyword' => null,
+                        'paid_id' => $live->gclid,
+                        'path' => $live->url,
+                    ];
+                }
+            }
         }
 
         usort($events, function ($a, $b) {
@@ -1765,10 +1808,41 @@ class PaidMarketingController extends Controller
             'google_verified_label' => $googleVerifiedLabel,
             'has_session_recording' => $recording !== null,
             'session_recording_id' => $recording ? (int) $recording->id : null,
-            'clicks' => $clicks->map(function ($c) use ($user, $visit, $ipLog, $deviceLabel, $clickIds) {
+            'clicks' => $this->formatDetailedClicks(
+                $visit,
+                $clicks,
+                $user,
+                $ipLog,
+                $deviceLabel,
+                $clickIds,
+                $intel,
+            ),
+            ...$intel,
+        ];
+    }
+
+    /**
+     * Build modal click rows from paid_marketing_clicks, or fall back to live `visits`
+     * rows (Dashboard source) when the click ledger is empty for this IP.
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $clicks
+     * @param  array<string, mixed>  $clickIds
+     * @param  array<string, mixed>  $intel
+     * @return list<array<string, mixed>>
+     */
+    private function formatDetailedClicks(
+        PaidMarketingVisit $visit,
+        $clicks,
+        ?\App\Models\User $user,
+        ?IpLog $ipLog,
+        string $deviceLabel,
+        array $clickIds,
+        array $intel,
+    ): array {
+        if ($clicks->isNotEmpty()) {
+            return $clicks->map(function ($c) use ($user, $visit, $ipLog, $deviceLabel, $clickIds, $intel) {
                 $clickedAt = UserTimezone::parseUtcInstant($c->getRawOriginal('clicked_at') ?? $c->clicked_at);
                 $lastClick = UserTimezone::parseUtcInstant($c->getRawOriginal('last_click_at') ?? $c->last_click_at);
-                $intel = $this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain);
                 $risk = RiskLabels::fromContext([
                     'is_allowlisted' => $intel['is_allowlisted'] ?? false,
                     'is_blocked' => (bool) ($ipLog?->is_blocked),
@@ -1789,31 +1863,130 @@ class PaidMarketingController extends Controller
                 }
 
                 return [
-                'id' => $c->id,
-                'clicked_at' => UserTimezone::isoForUser($clickedAt, $user),
-                'last_click_at' => UserTimezone::isoForUser($lastClick, $user),
-                'ip' => $c->ip,
-                'country' => $c->country,
-                'threat_group' => $c->threat_group ?: $visit->threat_group,
+                    'id' => $c->id,
+                    'source' => 'paid_click',
+                    'clicked_at' => UserTimezone::isoForUser($clickedAt, $user),
+                    'last_click_at' => UserTimezone::isoForUser($lastClick, $user),
+                    'ip' => $c->ip,
+                    'country' => $c->country,
+                    'threat_group' => $c->threat_group ?: $visit->threat_group,
+                    'threat_type' => $visit->threat_type,
+                    'campaign' => $campaign !== '' ? $campaign : null,
+                    'paid_id' => $c->paid_id,
+                    'gclid' => $typed['gclid'] ?: ($clickIds['gclid'] ?? null),
+                    'gbraid' => $typed['gbraid'] ?: ($clickIds['gbraid'] ?? null),
+                    'wbraid' => $typed['wbraid'] ?: ($clickIds['wbraid'] ?? null),
+                    'path' => $c->path,
+                    'keyword' => $keyword !== '' ? $keyword : null,
+                    'browser_name' => $c->browser_name,
+                    'browser_version' => $c->browser_version,
+                    'os' => $c->os,
+                    'device' => $deviceLabel,
+                    'asn' => $intel['intel_asn'] ?? null,
+                    'risk_decision' => $risk,
+                    'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
+                ];
+            })->values()->all();
+        }
+
+        return $this->syntheticClicksFromVisitsTable($visit, $user, $ipLog, $deviceLabel, $intel);
+    }
+
+    /**
+     * When Advanced rows come from live `visits` (gclid present) but have no
+     * paid_marketing_clicks in-range, still expose click cards in the modal.
+     *
+     * @param  array<string, mixed>  $intel
+     * @return list<array<string, mixed>>
+     */
+    private function syntheticClicksFromVisitsTable(
+        PaidMarketingVisit $visit,
+        ?\App\Models\User $user,
+        ?IpLog $ipLog,
+        string $deviceLabel,
+        array $intel,
+    ): array {
+        if (! Schema::hasTable('visits') || ! Schema::hasColumn('visits', 'gclid')) {
+            return [];
+        }
+
+        $select = ['id', 'visited_at', 'ip', 'country', 'url', 'gclid'];
+        foreach (['gbraid', 'wbraid', 'threat_group', 'threat_score', 'action_taken', 'campaign_name', 'utm_campaign', 'utm_term', 'browser', 'browser_version', 'os', 'device', 'google_click_type'] as $col) {
+            if (Schema::hasColumn('visits', $col)) {
+                $select[] = $col;
+            }
+        }
+
+        $query = DB::table('visits')
+            ->where('domain_id', $visit->domain_id)
+            ->where('ip', $visit->ip)
+            ->orderByDesc('visited_at')
+            ->limit(50);
+        GoogleClickAttribution::applyHasClickIdFilter($query);
+
+        $rows = $query->get($select);
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $risk = RiskLabels::fromContext([
+            'is_allowlisted' => $intel['is_allowlisted'] ?? false,
+            'is_blocked' => (bool) ($ipLog?->is_blocked),
+            'manual_decision' => $visit->manual_decision,
+            'threat_group' => $visit->threat_group,
+            'threat_type' => $visit->threat_type,
+            'action_taken' => $visit->threat_type,
+        ]);
+
+        return $rows->map(function ($row) use ($user, $visit, $ipLog, $deviceLabel, $intel, $risk) {
+            $visitedAt = UserTimezone::parseUtcInstant($row->visited_at ?? null);
+            $path = (string) ($row->url ?? $visit->last_path ?? '');
+            $campaign = trim((string) ($row->campaign_name ?? $row->utm_campaign ?? ''));
+            if ($campaign === '') {
+                $campaign = (string) ($this->campaignFromPath($path) ?? '');
+            }
+            $keyword = trim((string) ($row->utm_term ?? ''));
+            if ($keyword === '') {
+                $keyword = (string) ($this->keywordFromPath($path) ?? '');
+            }
+            $gclid = filled($row->gclid ?? null) ? (string) $row->gclid : null;
+            $gbraid = filled($row->gbraid ?? null) ? (string) $row->gbraid : null;
+            $wbraid = filled($row->wbraid ?? null) ? (string) $row->wbraid : null;
+            $threat = $row->threat_group ?? $visit->threat_group;
+            $rowRisk = RiskLabels::fromContext([
+                'is_allowlisted' => $intel['is_allowlisted'] ?? false,
+                'is_blocked' => (bool) ($ipLog?->is_blocked),
+                'manual_decision' => $visit->manual_decision,
+                'threat_group' => $threat,
+                'threat_type' => $visit->threat_type,
+                'action_taken' => $row->action_taken ?? $visit->threat_type,
+            ]);
+
+            return [
+                'id' => 'visit-'.$row->id,
+                'source' => 'visit',
+                'clicked_at' => UserTimezone::isoForUser($visitedAt, $user),
+                'last_click_at' => UserTimezone::isoForUser($visitedAt, $user),
+                'ip' => $row->ip ?: $visit->ip,
+                'country' => $row->country ?? $visit->country,
+                'threat_group' => $threat,
                 'threat_type' => $visit->threat_type,
                 'campaign' => $campaign !== '' ? $campaign : null,
-                'paid_id' => $c->paid_id,
-                'gclid' => $typed['gclid'] ?: ($clickIds['gclid'] ?? null),
-                'gbraid' => $typed['gbraid'] ?: ($clickIds['gbraid'] ?? null),
-                'wbraid' => $typed['wbraid'] ?: ($clickIds['wbraid'] ?? null),
-                'path' => $c->path,
+                'paid_id' => $gclid ?: $gbraid ?: $wbraid,
+                'gclid' => $gclid,
+                'gbraid' => $gbraid,
+                'wbraid' => $wbraid,
+                'path' => $path !== '' ? $path : null,
                 'keyword' => $keyword !== '' ? $keyword : null,
-                'browser_name' => $c->browser_name,
-                'browser_version' => $c->browser_version,
-                'os' => $c->os,
-                'device' => $deviceLabel,
+                'browser_name' => $row->browser ?? null,
+                'browser_version' => $row->browser_version ?? null,
+                'os' => $row->os ?? null,
+                'device' => $this->normalizeDeviceLabel($row->device ?? $deviceLabel),
                 'asn' => $intel['intel_asn'] ?? null,
-                'risk_decision' => $risk,
-                'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
+                'risk_decision' => $rowRisk ?: $risk,
+                'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $threat),
             ];
-            })->values()->all(),
-            ...$intel,
-        ];
+        })->values()->all();
     }
 
     /**

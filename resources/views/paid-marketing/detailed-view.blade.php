@@ -132,67 +132,6 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
-            .pm-adv-signals-head {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 4px;
-                font-size: 9px;
-                font-weight: 700;
-                letter-spacing: 0.04em;
-                color: #6b6578;
-            }
-            .pm-adv-signals {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 4px;
-                overflow: visible;
-            }
-            /* Rows are light (#d9d9d9) even in dark shell — chips must stay dark-on-light */
-            .pm-adv-signal {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                min-width: 34px;
-                height: 20px;
-                padding: 0 6px;
-                border-radius: 5px;
-                border: 1px solid #b8b0c4;
-                background: #ffffff;
-                color: #2d2a36;
-                font-size: 10px;
-                font-weight: 800;
-                font-variant-numeric: tabular-nums;
-                line-height: 1;
-                box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
-            }
-            .pm-adv-signal--vpn.is-hot {
-                border-color: #7e22ce;
-                background: #7e22ce;
-                color: #ffffff;
-            }
-            .pm-adv-signal--rpt.is-hot {
-                border-color: #0f766e;
-                background: #0f766e;
-                color: #ffffff;
-            }
-            html.light-mode .pm-adv-signals-head { color: #5c5470; }
-            html.light-mode .pm-adv-signal {
-                border-color: #c4bdd4;
-                background: #ffffff;
-                color: #1f1b2d;
-            }
-            html.light-mode .pm-adv-signal--vpn.is-hot {
-                border-color: #6b21a8;
-                background: #6b21a8;
-                color: #ffffff;
-            }
-            html.light-mode .pm-adv-signal--rpt.is-hot {
-                border-color: #0f766e;
-                background: #0f766e;
-                color: #ffffff;
-            }
             .pm-adv-page-head {
                 display: flex;
                 flex-direction: column;
@@ -1024,10 +963,6 @@
                             <label class="flex items-center justify-center">
                                 <input type="checkbox" class="rounded border-white/30" :checked="allVisibleSelected" @change="toggleSelectAll($event.target.checked)">
                             </label>
-                            <div class="pm-adv-signals-head" title="VPN % · Repeated clicks">
-                                <span>VPN</span>
-                                <span>RPT</span>
-                            </div>
                             <template x-for="col in visibleColumns" :key="'head-' + col.key">
                                 <button
                                     type="button"
@@ -1052,18 +987,6 @@
                                     <label class="flex items-center justify-center" @click.stop>
                                         <input type="checkbox" class="rounded border-white/30" :checked="selectedIds.includes(visit.id)" @change="toggleSelect(visit.id, $event.target.checked)">
                                     </label>
-                                    <div class="pm-adv-signals" @click.stop title="VPN % and repeated clicks">
-                                        <span
-                                            class="pm-adv-signal pm-adv-signal--vpn"
-                                            :class="Number(visit.vpn_pct) > 0 && 'is-hot'"
-                                            x-text="(Number(visit.vpn_pct) || 0) + '%'"
-                                        ></span>
-                                        <span
-                                            class="pm-adv-signal pm-adv-signal--rpt"
-                                            :class="Number(visit.repeated_clicks) > 0 && 'is-hot'"
-                                            x-text="'×' + (Number(visit.repeated_clicks) || 0)"
-                                        ></span>
-                                    </div>
                                     <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
                                         <div class="pm-adv-cell">
                                             @include('partials.advanced-view-rich-cell', ['item' => 'visit'])
@@ -2113,7 +2036,7 @@
             },
             get gridStyle() {
                 const cols = this.visibleColumns.map(col => this.columnTrack(col)).join(' ');
-                return `grid-template-columns: 36px 72px ${cols}; width: max-content; min-width: 100%;`;
+                return `grid-template-columns: 36px ${cols}; width: max-content; min-width: 100%;`;
             },
             get syncStyle() {
                 return `width: max-content; min-width: max(100%, ${this.tableMinWidth}px);`;
@@ -2121,8 +2044,8 @@
             get tableMinWidth() {
                 const gap = 8;
                 const pad = 24;
-                const cols = this.visibleColumns.length + 2;
-                const colWidths = this.visibleColumns.reduce((sum, col) => sum + this.columnMinPx(col), 0) + 36 + 72;
+                const cols = this.visibleColumns.length + 1;
+                const colWidths = this.visibleColumns.reduce((sum, col) => sum + this.columnMinPx(col), 0) + 36;
                 return colWidths + Math.max(0, cols - 1) * gap + pad;
             },
             columnMinPx(col) {
