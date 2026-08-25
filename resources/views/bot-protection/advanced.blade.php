@@ -363,9 +363,21 @@
             .tc-widget__body--donut {
                 display: flex;
                 align-items: center;
-                gap: 12px;
+                gap: 10px;
                 flex: 1;
                 min-width: 0;
+            }
+            .tc-widget__body--donut .bp-adv-donut {
+                width: 96px;
+                height: 96px;
+            }
+            .tc-widget__body--donut .bp-adv-donut__inner {
+                width: 64px;
+                height: 64px;
+            }
+            .tc-widget__body--donut .bp-adv-donut__value { font-size: 14px; }
+            .tc-widget__body--donut .bp-adv-legend__name {
+                font-size: 10px;
             }
             .tc-widget__list {
                 display: flex;
@@ -878,6 +890,24 @@
             <template x-for="card in statCards" :key="card.key">
                 <article class="bp-adv-kpi-card">
                     <span class="bp-adv-kpi-card__icon" :class="'is-' + (card.tone || 'purple')" aria-hidden="true">
+                        <template x-if="card.key === 'visitors'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                        </template>
+                        <template x-if="card.key === 'duration'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </template>
+                        <template x-if="card.key === 'pps'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17H7A5 5 0 017 7h2m6 10h2a5 5 0 000-10h-2M8 12h8"/></svg>
+                        </template>
+                        <template x-if="card.key === 'cta_rate'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
+                        </template>
+                        <template x-if="card.key === 'conv'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </template>
+                        <template x-if="card.key === 'revenue'">
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                        </template>
                         <template x-if="card.key === 'blocked'">
                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 3v5c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V6l8-3z"/></svg>
                         </template>
@@ -1459,14 +1489,22 @@ function botProtectionAdvancedFigma(config = {}) {
         chartsUpdatedAt: null,
         hiddenThreatKeys: {},
         hiddenRiskKeys: {},
+        hiddenSourceKeys: {},
+        hiddenEngagementKeys: {},
         legendKey(item) {
-            return String(item?.key || item?.label || '').trim();
+            return String(item?.key || item?.label || item?.name || '').trim();
         },
         isThreatHidden(key) {
             return Boolean(this.hiddenThreatKeys[key]);
         },
         isRiskHidden(key) {
             return Boolean(this.hiddenRiskKeys[key]);
+        },
+        isSourceHidden(key) {
+            return Boolean(this.hiddenSourceKeys[key]);
+        },
+        isEngagementHidden(key) {
+            return Boolean(this.hiddenEngagementKeys[key]);
         },
         toggleThreatLegend(key) {
             if (!key) return;
@@ -1475,6 +1513,18 @@ function botProtectionAdvancedFigma(config = {}) {
         toggleRiskLegend(key) {
             if (!key) return;
             this.hiddenRiskKeys = { ...this.hiddenRiskKeys, [key]: !this.hiddenRiskKeys[key] };
+        },
+        toggleSourceLegend(key) {
+            if (!key) return;
+            const visible = (this.pageAnalytics?.traffic_sources || []).filter((i) => !this.isSourceHidden(this.legendKey(i)));
+            if (!this.isSourceHidden(key) && visible.length <= 1 && this.legendKey(visible[0]) === key) return;
+            this.hiddenSourceKeys = { ...this.hiddenSourceKeys, [key]: !this.hiddenSourceKeys[key] };
+        },
+        toggleEngagementLegend(key) {
+            if (!key) return;
+            const visible = (this.pageAnalytics?.engagement || []).filter((i) => !this.isEngagementHidden(this.legendKey(i)));
+            if (!this.isEngagementHidden(key) && visible.length <= 1 && this.legendKey(visible[0]) === key) return;
+            this.hiddenEngagementKeys = { ...this.hiddenEngagementKeys, [key]: !this.hiddenEngagementKeys[key] };
         },
         buildDonutFromItems(items, hiddenMap) {
             const all = Array.isArray(items) ? items : [];
@@ -1503,7 +1553,7 @@ function botProtectionAdvancedFigma(config = {}) {
         legendItemPct(item, visibleTotal, hiddenMap = {}) {
             const key = this.legendKey(item);
             if (hiddenMap[key]) return 0;
-            const count = Number(item?.count || 0);
+            const count = Number(item?.count ?? item?.value ?? 0);
             const base = Math.max(Number(visibleTotal || 0), 1);
             if (!count) return 0;
             return Math.round((count / base) * 1000) / 10;
@@ -1562,16 +1612,24 @@ function botProtectionAdvancedFigma(config = {}) {
             ];
         },
         get sourceDonut() {
-            return this.buildDonut(this.pageAnalytics?.traffic_sources || [], 'Visitors');
+            return this.buildDonut(this.pageAnalytics?.traffic_sources || [], 'Visitors', this.hiddenSourceKeys);
         },
         get engagementDonut() {
-            return this.buildDonut(this.pageAnalytics?.engagement || [], 'Sessions');
+            return this.buildDonut(this.pageAnalytics?.engagement || [], 'Sessions', this.hiddenEngagementKeys);
         },
-        buildDonut(items, centerLabel = '') {
-            const rows = (items || []).filter(i => Number(i.value || 0) > 0);
+        buildDonut(items, centerLabel = '', hiddenMap = {}) {
+            const rows = (items || []).filter((i) => {
+                if (hiddenMap[this.legendKey(i)]) return false;
+                return Number(i.value || 0) > 0;
+            });
             const total = rows.reduce((a, r) => a + Number(r.value || 0), 0);
             if (!total) {
-                return { gradient: 'conic-gradient(rgba(255,102,0,0.2) 0 100%)', total_label: '0', center_label: centerLabel };
+                return {
+                    gradient: 'conic-gradient(rgba(255,102,0,0.2) 0 100%)',
+                    total_label: '0',
+                    center_label: centerLabel,
+                    visible_total: 0,
+                };
             }
             let deg = 0;
             const stops = rows.map((r) => {
@@ -1584,6 +1642,7 @@ function botProtectionAdvancedFigma(config = {}) {
                 gradient: `conic-gradient(${stops.join(', ')})`,
                 total_label: this.fmt(total),
                 center_label: centerLabel,
+                visible_total: total,
             };
         },
         qualityScore(kind) {

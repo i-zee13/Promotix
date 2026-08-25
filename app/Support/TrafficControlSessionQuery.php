@@ -144,7 +144,7 @@ class TrafficControlSessionQuery
                 'last_seen' => UserTimezone::formatForUser($last, $request->user(), 'M j, Y g:i a'),
                 'entry_time' => UserTimezone::formatForUser($first, $request->user(), 'g:i a'),
                 'exit_time' => UserTimezone::formatForUser($last, $request->user(), 'g:i a'),
-                'timezone' => UserTimezone::reportingTimezone($request->user()),
+                'timezone' => UserTimezone::reportingTimezoneForUser($request->user()),
                 'time_on_site' => sprintf('%d:%02d', intdiv($durationSec, 60), $durationSec % 60),
                 'page_views' => (int) $row->page_views,
                 'scroll_events' => (int) ($rec['scroll_count'] ?? 0),

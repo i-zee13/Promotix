@@ -13,12 +13,20 @@
                 <ul class="bp-adv-legend">
                     <template x-for="item in (pageAnalytics?.traffic_sources || [])" :key="'src-' + (item.key || item.label)">
                         <li>
-                            <span class="bp-adv-legend__swatch" :style="`background:${item.color || '#FF6600'}`"></span>
-                            <span class="bp-adv-legend__name" x-text="item.label"></span>
-                            <span class="bp-adv-legend__meta">
-                                <span x-text="(item.pct != null ? item.pct : 0) + '%'"></span>
-                                <span class="opacity-55" x-text="'(' + fmt(item.value) + ')'"></span>
-                            </span>
+                            <button
+                                type="button"
+                                class="bp-adv-legend__btn"
+                                :class="{ 'is-hidden': isSourceHidden(legendKey(item)) }"
+                                :title="(isSourceHidden(legendKey(item)) ? 'Click to show' : 'Click to hide') + ': ' + (item.label || '')"
+                                @click="toggleSourceLegend(legendKey(item))"
+                            >
+                                <span class="bp-adv-legend__swatch" :style="`background:${item.color || '#FF6600'}`"></span>
+                                <span class="bp-adv-legend__name" x-text="item.label" :title="item.label"></span>
+                                <span class="bp-adv-legend__meta">
+                                    <span x-text="legendItemPct({ count: item.value, key: item.key, label: item.label }, sourceDonut.visible_total, hiddenSourceKeys) + '%'"></span>
+                                    <span class="opacity-55" x-text="'(' + fmt(item.value) + ')'"></span>
+                                </span>
+                            </button>
                         </li>
                     </template>
                     <li x-show="!(pageAnalytics?.traffic_sources || []).length" class="!text-white/40">No source data in range.</li>
@@ -38,12 +46,20 @@
                 <ul class="bp-adv-legend">
                     <template x-for="item in (pageAnalytics?.engagement || [])" :key="'eng-' + (item.key || item.label)">
                         <li>
-                            <span class="bp-adv-legend__swatch" :style="`background:${item.color || '#FF6600'}`"></span>
-                            <span class="bp-adv-legend__name" x-text="item.label"></span>
-                            <span class="bp-adv-legend__meta">
-                                <span x-text="(item.pct != null ? item.pct : 0) + '%'"></span>
-                                <span class="opacity-55" x-text="'(' + fmt(item.value) + ')'"></span>
-                            </span>
+                            <button
+                                type="button"
+                                class="bp-adv-legend__btn"
+                                :class="{ 'is-hidden': isEngagementHidden(legendKey(item)) }"
+                                :title="(isEngagementHidden(legendKey(item)) ? 'Click to show' : 'Click to hide') + ': ' + (item.label || '')"
+                                @click="toggleEngagementLegend(legendKey(item))"
+                            >
+                                <span class="bp-adv-legend__swatch" :style="`background:${item.color || '#FF6600'}`"></span>
+                                <span class="bp-adv-legend__name" x-text="item.label" :title="item.label"></span>
+                                <span class="bp-adv-legend__meta">
+                                    <span x-text="legendItemPct({ count: item.value, key: item.key, label: item.label }, engagementDonut.visible_total, hiddenEngagementKeys) + '%'"></span>
+                                    <span class="opacity-55" x-text="'(' + fmt(item.value) + ')'"></span>
+                                </span>
+                            </button>
                         </li>
                     </template>
                     <li x-show="!(pageAnalytics?.engagement || []).length" class="!text-white/40">No engagement data in range.</li>
