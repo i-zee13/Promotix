@@ -14057,10 +14057,75 @@ html.light-mode .pa-dash .pa-bar-track {
     background: rgba(255, 102, 0, 0.12);
 }
 html.light-mode .pa-dash .pa-inset {
-    background: rgba(255, 102, 0, 0.08);
+    background: rgba(255, 102, 0, 0.1);
     border-color: rgba(255, 102, 0, 0.28);
 }
+html.light-mode .pa-dash .pa-inset__label {
+    color: #9a3412 !important;
+}
 html.light-mode .pa-dash .pa-inset__value {
-    color: #1a1a1a;
+    color: #1a1a1a !important;
+}
+html.light-mode .pa-dash .pa-revenue-stats div {
+    background: rgba(255, 102, 0, 0.1);
+    border-color: rgba(255, 102, 0, 0.25);
+}
+html.light-mode .pa-dash .pa-revenue-stats span {
+    color: #9a3412 !important;
+}
+html.light-mode .pa-dash .pa-revenue-stats strong {
+    color: #1a1a1a !important;
+}
+html.light-mode .pa-dash .pa-quality__badge {
+    background: rgba(255, 102, 0, 0.12);
+    border-color: rgba(255, 102, 0, 0.35);
+}
+html.light-mode .pa-dash .pa-quality__badge strong {
+    color: #1a1a1a !important;
+}
+html.light-mode .pa-dash .pa-quality__badge span {
+    color: #c2410c !important;
+}
+html.light-mode .pa-dash .pa-legend__pct,
+html.light-mode .pa-dash .pa-bar-row__label,
+html.light-mode .pa-dash .pa-bar-row__meta,
+html.light-mode .pa-dash .pa-list-item,
+html.light-mode .pa-dash .pa-list-item span:last-child,
+html.light-mode .pa-dash .pa-split-2 h3,
+html.light-mode .pa-dash .pa-geo__name,
+html.light-mode .pa-dash .pa-geo__meta,
+html.light-mode .pa-dash .pa-geo__legend,
+html.light-mode .pa-dash .pa-donut__hole span {
+    color: #5c5470 !important;
+}
+html.light-mode .pa-dash .pa-geo__map {
+    background:
+        radial-gradient(ellipse at 22% 38%, rgba(255, 102, 0, 0.12), transparent 42%),
+        radial-gradient(ellipse at 72% 48%, rgba(59, 130, 246, 0.08), transparent 45%),
+        linear-gradient(180deg, #f4f4f5 0%, #e8e8ea 100%);
+    border-color: rgba(255, 102, 0, 0.28);
+}
+html.light-mode .pa-dash .pa-geo__land {
+    fill: rgba(0, 0, 0, 0.08);
+    stroke: rgba(0, 0, 0, 0.14);
+}
+html.light-mode .pa-dash .pa-geo__land.is-hot {
+    fill: rgba(255, 102, 0, 0.55);
+    stroke: rgba(194, 65, 12, 0.55);
+}
+html.light-mode .pa-dash .pa-geo__land.is-warm {
+    fill: rgba(255, 102, 0, 0.32);
+    stroke: rgba(255, 102, 0, 0.45);
+}
+html.light-mode .pa-dash .pa-geo__land.is-cool {
+    fill: rgba(255, 102, 0, 0.16);
+    stroke: rgba(255, 102, 0, 0.3);
+}
+html.light-mode .pa-dash .pa-geo__grid line {
+    stroke: rgba(0, 0, 0, 0.06);
+}
+html.light-mode .pa-dash .pa-geo__dot-label {
+    color: #c2410c;
+    text-shadow: none;
 }
 

@@ -356,30 +356,74 @@
         }
         .pa-dash .pa-geo__map {
             position: relative;
-            height: 110px;
+            height: 148px;
             border-radius: 8px;
-            border: 1px solid rgba(255, 102, 0, 0.22);
+            border: 1px solid rgba(255, 102, 0, 0.28);
             background:
-                radial-gradient(ellipse at 30% 40%, rgba(255, 102, 0, 0.18), transparent 50%),
-                radial-gradient(ellipse at 70% 55%, rgba(59, 130, 246, 0.12), transparent 48%),
-                linear-gradient(180deg, #1a1a1a, #101010);
+                radial-gradient(ellipse at 22% 38%, rgba(255, 102, 0, 0.14), transparent 42%),
+                radial-gradient(ellipse at 72% 48%, rgba(59, 130, 246, 0.1), transparent 45%),
+                linear-gradient(180deg, #171717 0%, #101010 100%);
             overflow: hidden;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
-        .pa-dash .pa-geo__map svg {
+        .pa-dash .pa-geo__map svg.pa-geo__world {
             width: 100%;
             height: 100%;
             display: block;
-            opacity: 0.85;
+        }
+        .pa-dash .pa-geo__land {
+            fill: rgba(255, 255, 255, 0.07);
+            stroke: rgba(255, 255, 255, 0.14);
+            stroke-width: 0.6;
+        }
+        .pa-dash .pa-geo__land.is-hot {
+            fill: rgba(255, 102, 0, 0.55);
+            stroke: rgba(255, 179, 128, 0.65);
+        }
+        .pa-dash .pa-geo__land.is-warm {
+            fill: rgba(255, 102, 0, 0.32);
+            stroke: rgba(255, 102, 0, 0.45);
+        }
+        .pa-dash .pa-geo__land.is-cool {
+            fill: rgba(255, 102, 0, 0.16);
+            stroke: rgba(255, 102, 0, 0.3);
+        }
+        .pa-dash .pa-geo__grid line {
+            stroke: rgba(255, 255, 255, 0.05);
+            stroke-width: 0.5;
         }
         .pa-dash .pa-geo__dot {
             position: absolute;
-            width: 8px;
-            height: 8px;
             border-radius: 999px;
             background: #FF6600;
-            box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.25);
+            box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.28);
             transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        .pa-dash .pa-geo__dot-label {
+            position: absolute;
+            transform: translate(-50%, calc(-100% - 8px));
+            font-size: 9px;
+            font-weight: 600;
+            color: #FFB380;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+        .pa-dash .pa-geo__legend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.45);
+            margin-top: 2px;
+        }
+        .pa-dash .pa-geo__legend i {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            background: #FF6600;
         }
         .pa-dash .pa-geo__row {
             display: grid;
@@ -495,6 +539,45 @@
             font-size: 11px;
             color: rgba(255, 255, 255, 0.45);
             text-align: center;
+        }
+
+        /* Light mode: dark text on peach/orange panels (readable contrast) */
+        html.light-mode .pa-dash .pa-inset__label,
+        html.light-mode .pa-dash .pa-revenue-stats span {
+            color: #9a3412 !important;
+        }
+        html.light-mode .pa-dash .pa-inset__value,
+        html.light-mode .pa-dash .pa-revenue-stats strong,
+        html.light-mode .pa-dash .pa-quality__badge strong {
+            color: #1a1a1a !important;
+        }
+        html.light-mode .pa-dash .pa-quality__badge span {
+            color: #c2410c !important;
+        }
+        html.light-mode .pa-dash .pa-legend__pct,
+        html.light-mode .pa-dash .pa-bar-row__label,
+        html.light-mode .pa-dash .pa-bar-row__meta,
+        html.light-mode .pa-dash .pa-list-item,
+        html.light-mode .pa-dash .pa-list-item span:last-child,
+        html.light-mode .pa-dash .pa-split-2 h3,
+        html.light-mode .pa-dash .pa-geo__name,
+        html.light-mode .pa-dash .pa-geo__meta,
+        html.light-mode .pa-dash .pa-geo__legend,
+        html.light-mode .pa-dash .pa-donut__hole span {
+            color: #5c5470 !important;
+        }
+        html.light-mode .pa-dash .pa-geo__map {
+            background:
+                radial-gradient(ellipse at 22% 38%, rgba(255, 102, 0, 0.12), transparent 42%),
+                linear-gradient(180deg, #f4f4f5 0%, #e8e8ea 100%) !important;
+        }
+        html.light-mode .pa-dash .pa-geo__land {
+            fill: rgba(0, 0, 0, 0.08);
+            stroke: rgba(0, 0, 0, 0.14);
+        }
+        html.light-mode .pa-dash .pa-geo__dot-label {
+            color: #c2410c;
+            text-shadow: none;
         }
     </style>
 
@@ -759,16 +842,49 @@
         <section class="pa-card pa-card--compact">
             <h2 class="pa-card__title">Geography</h2>
             <div class="pa-geo">
-                <div class="pa-geo__map" aria-hidden="true">
-                    <svg viewBox="0 0 360 160" preserveAspectRatio="xMidYMid meet">
-                        <ellipse cx="90" cy="70" rx="58" ry="42" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
-                        <ellipse cx="190" cy="68" rx="46" ry="36" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
-                        <ellipse cx="270" cy="95" rx="38" ry="30" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
-                        <ellipse cx="145" cy="115" rx="28" ry="18" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)"/>
+                <div class="pa-geo__map" role="img" aria-label="World map traffic chart">
+                    <svg class="pa-geo__world" viewBox="0 0 360 160" preserveAspectRatio="xMidYMid meet">
+                        <g class="pa-geo__grid" aria-hidden="true">
+                            <line x1="0" y1="40" x2="360" y2="40"/><line x1="0" y1="80" x2="360" y2="80"/><line x1="0" y1="120" x2="360" y2="120"/>
+                            <line x1="60" y1="0" x2="60" y2="160"/><line x1="120" y1="0" x2="120" y2="160"/><line x1="180" y1="0" x2="180" y2="160"/><line x1="240" y1="0" x2="240" y2="160"/><line x1="300" y1="0" x2="300" y2="160"/>
+                        </g>
+                        {{-- Simplified equirectangular landmasses --}}
+                        <path class="pa-geo__land" :class="geoLandClass('NA')" d="M28 38c8-10 22-16 38-14 12 2 22 10 28 20 4 8 2 16-4 22-8 8-20 10-32 8-14-2-24-12-28-24-2-4-2-8-2-12z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('MX')" d="M52 66c6 2 12 8 14 14 1 4-2 8-6 9-6 2-12-2-14-8-2-5 0-12 6-15z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('SA')" d="M78 78c8-2 16 4 20 14 4 12 2 28-4 38-4 6-12 8-18 4-8-6-12-20-12-32 0-10 6-20 14-24z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('EU')" d="M168 34c10-6 22-4 30 2 6 5 8 14 4 20-6 8-18 10-28 6-8-4-12-14-8-22 0-2 1-4 2-6z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('AF')" d="M176 58c10-2 20 4 24 14 4 12 0 28-8 36-6 6-16 6-22 0-8-8-10-22-6-34 2-8 6-14 12-16z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('ME')" d="M206 52c6-2 12 2 14 8 1 4-2 8-6 9-5 1-10-2-12-7-1-4 0-8 4-10z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('IN')" d="M242 62c8 0 14 8 14 16 0 8-6 16-14 18-6 1-12-4-14-10-2-8 4-22 14-24z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('CN')" d="M250 42c14-4 28 2 34 14 4 8 2 16-4 22-8 6-20 6-30 2-10-4-16-14-12-24 2-6 6-12 12-14z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('JP')" d="M308 48c4-2 8 2 8 6 0 4-2 6-6 6-4 0-6-4-4-8 0-2 1-3 2-4z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('AU')" d="M286 108c12-4 24 2 28 14 2 8-2 16-12 18-12 2-24-4-28-14-2-8 2-14 12-18z"/>
+                        <path class="pa-geo__land" :class="geoLandClass('SEA')" d="M268 78c8 0 14 6 14 12s-6 10-12 10c-8 0-14-4-14-10s6-12 12-12z"/>
+                        <template x-for="(dot, idx) in pageGeoDots()" :key="'geo-bubble-' + (dot.code || idx)">
+                            <g>
+                                <circle
+                                    :cx="dot.cx"
+                                    :cy="dot.cy"
+                                    :r="dot.r"
+                                    fill="rgba(255,102,0,0.35)"
+                                    stroke="#FF6600"
+                                    stroke-width="1.2"
+                                />
+                                <circle :cx="dot.cx" :cy="dot.cy" r="2.2" fill="#FFB380"/>
+                            </g>
+                        </template>
                     </svg>
-                    <template x-for="(dot, idx) in pageGeoDots()" :key="'geo-dot-' + (dot.code || idx)">
-                        <span class="pa-geo__dot" :style="`left:${dot.x}%;top:${dot.y}%;opacity:${dot.opacity}`" :title="dot.label"></span>
+                    <template x-for="(dot, idx) in pageGeoDots().slice(0, 4)" :key="'geo-lbl-' + (dot.code || idx)">
+                        <span
+                            class="pa-geo__dot-label"
+                            :style="`left:${dot.x}%;top:${dot.y}%`"
+                            x-text="dot.code"
+                        ></span>
                     </template>
+                </div>
+                <div class="pa-geo__legend" x-show="(pageGeo() || []).length">
+                    <i></i>
+                    <span>Visit intensity by country</span>
                 </div>
                 <template x-for="row in pageGeo()" :key="row.key || row.code || row.country || row.name">
                     <div class="pa-geo__row">
@@ -792,7 +908,7 @@
                         </div>
                     </div>
                 </template>
-                <p x-show="!(pageGeo() || []).length" class="pa-empty">No geography data.</p>
+                <p x-show="!(pageGeo() || []).length" class="pa-empty">No geography data in this window.</p>
             </div>
         </section>
         @endif

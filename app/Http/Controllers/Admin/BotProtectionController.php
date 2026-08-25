@@ -1551,7 +1551,7 @@ class BotProtectionController extends Controller
     }
 
     /**
-     * @return array{traffic_source: string, campaign: string, path: string, device: string}
+     * @return array{traffic_source: string, campaign: string, path: string, device: string, q: string}
      */
     private function pageAnalyticsFilters(Request $request): array
     {
@@ -1565,6 +1565,7 @@ class BotProtectionController extends Controller
             'campaign' => trim((string) $request->query('campaign', '')),
             'path' => trim((string) $request->query('path', '')),
             'device' => strtolower(trim((string) $request->query('device', ''))),
+            'q' => trim((string) $request->query('q', '')),
         ];
     }
 

@@ -436,6 +436,24 @@ class PageAnalyticsAggregator
         if ($path !== '' && Schema::hasColumn('visits', 'url')) {
             $query->where('url', 'like', '%'.$path.'%');
         }
+
+        $q = trim((string) ($filters['q'] ?? ''));
+        if ($q !== '') {
+            $query->where(function ($inner) use ($q): void {
+                if (Schema::hasColumn('visits', 'url')) {
+                    $inner->orWhere('url', 'like', '%'.$q.'%');
+                }
+                if (Schema::hasColumn('visits', 'utm_term')) {
+                    $inner->orWhere('utm_term', 'like', '%'.$q.'%');
+                }
+                if (Schema::hasColumn('visits', 'utm_campaign')) {
+                    $inner->orWhere('utm_campaign', 'like', '%'.$q.'%');
+                }
+                if (Schema::hasColumn('visits', 'referrer')) {
+                    $inner->orWhere('referrer', 'like', '%'.$q.'%');
+                }
+            });
+        }
     }
 
     /**

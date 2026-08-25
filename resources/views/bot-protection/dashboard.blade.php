@@ -18,83 +18,157 @@
 <div class="brand-page-bg analytics-skin min-h-[calc(100vh-49px)]" x-data="botProtectionFigma(@js(['useDemo' => $useDemo]))" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[24px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         {{-- Header --}}
-        <div class="mb-[18px] flex flex-col gap-[14px] lg:flex-row lg:items-center lg:justify-between">
-            <div class="flex flex-wrap items-center gap-[12px] shrink-0">
-                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Page Analytics</h1>
-                <span class="hidden h-[34px] w-[2px] bg-[#a9a9a9] sm:block sm:h-[44px]"></span>
-                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">{{ $analyticsFocusTitle }}</span>
+        <div class="mb-[14px] flex flex-col gap-[10px]">
+            <div class="flex flex-wrap items-center gap-[8px]">
+                <h1 class="text-[20px] font-semibold leading-none text-[#a9a9a9] sm:text-[26px]">Page Analytics</h1>
+                <span class="hidden h-[28px] w-[2px] bg-[#a9a9a9] sm:block sm:h-[34px]"></span>
+                <span class="text-[20px] font-semibold leading-none text-[#a9a9a9] sm:text-[26px]">{{ $analyticsFocusTitle }}</span>
                 <span x-show="useDemo" x-cloak class="figma-bp-demo-badge">Sample data</span>
-                <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[10px] py-[4px] text-[10px] font-medium text-[#FFB380]">Visitor intelligence · no IP blocking</span>
-                <a :href="`/bot-protection/page-analytics/export?${qs()}&format=html`" target="_blank" class="rounded-[6px] border border-[#FF6600]/50 bg-[#FF6600]/15 px-[10px] py-[5px] text-[11px] font-medium text-[#FFB380] hover:bg-[#FF6600]/25">Export report</a>
-                <a :href="`/bot-protection/page-analytics/export?${qs()}&format=csv`" class="rounded-[6px] border border-white/20 bg-white/5 px-[10px] py-[5px] text-[11px] font-medium text-white/70 hover:bg-white/10">CSV</a>
+                <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[8px] py-[3px] text-[9px] font-medium text-[#FFB380]">Visitor intelligence · no IP blocking</span>
                 @if ($analyticsFocus === 'journeys')
-                    <a href="{{ route('analytics.traffic-control') }}" class="rounded-[6px] border border-white/20 bg-white/5 px-[10px] py-[5px] text-[11px] font-medium text-white/70 hover:bg-white/10">Open session journeys →</a>
+                    <a href="{{ route('analytics.traffic-control') }}" class="rounded-[6px] border border-white/20 bg-white/5 px-[8px] py-[4px] text-[10px] font-medium text-white/70 hover:bg-white/10">Open session journeys →</a>
                 @endif
             </div>
 
             <style>
                 .figma-filter-bar--bp-dash.ov-filter-bar,
                 .figma-filter-bar--bp-dash {
-                    width: fit-content !important;
+                    width: 100% !important;
                     max-width: 100% !important;
                     min-width: 0 !important;
-                    margin-left: auto !important;
-                    align-self: flex-end;
+                    margin-left: 0 !important;
+                    align-self: stretch !important;
                     flex: 0 0 auto !important;
-                    display: inline-flex !important;
-                    flex-wrap: nowrap !important;
+                    display: flex !important;
+                    flex-wrap: wrap !important;
                     align-items: stretch;
                     gap: 0 !important;
-                    overflow: visible;
+                    overflow: visible !important;
                     box-sizing: border-box;
+                    min-height: 48px !important;
                 }
                 .figma-filter-bar--bp-dash > label {
-                    flex: 0 0 auto !important;
+                    flex: 1 1 120px !important;
+                    width: auto !important;
+                    min-width: 110px !important;
+                    max-width: 180px !important;
                     margin: 0 !important;
-                    padding-left: 6px !important;
-                    padding-right: 6px !important;
+                    padding-left: 7px !important;
+                    padding-right: 7px !important;
+                    padding-top: 5px !important;
+                    padding-bottom: 5px !important;
+                    box-sizing: border-box;
                 }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-domain { width: 128px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-traffic { width: 108px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-account { width: 128px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-campaign { width: 118px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-path { width: 112px !important; }
+                .figma-filter-bar--bp-dash > label > span:first-child,
+                .figma-filter-bar--bp-dash .figma-filter-label {
+                    color: rgba(0, 0, 0, 0.55) !important;
+                    font-weight: 600 !important;
+                    font-size: 7px !important;
+                    letter-spacing: 0.04em;
+                    margin-bottom: 2px !important;
+                }
+                .figma-filter-bar--bp-dash .figma-filter-control {
+                    font-size: 10px !important;
+                    height: 22px !important;
+                }
+                .figma-filter-bar--bp-dash .figma-filter-select-wrap,
+                .figma-filter-bar--bp-dash .figma-filter-path-wrap {
+                    width: 100%;
+                    min-width: 0;
+                    max-width: 100%;
+                }
+                .figma-filter-bar--bp-dash .bp-dash-f-search {
+                    flex: 1 1 160px !important;
+                    min-width: 140px !important;
+                    max-width: 220px !important;
+                }
                 .figma-filter-bar--bp-dash .figma-filter-calendar-host {
+                    display: flex !important;
+                    flex: 0 0 auto !important;
+                    min-width: 140px !important;
+                    max-width: 200px !important;
+                    align-items: center;
+                    justify-content: center;
+                    align-self: stretch;
+                    border-left: 1px solid rgba(0, 0, 0, 0.2);
+                    padding: 5px 8px !important;
+                    margin: 0 !important;
+                    box-sizing: border-box;
+                }
+                .figma-filter-bar--bp-dash .bp-dash-f-export {
                     display: flex !important;
                     flex: 0 0 auto !important;
                     align-items: center;
                     justify-content: center;
                     align-self: stretch;
                     border-left: 1px solid rgba(0, 0, 0, 0.2);
-                    padding: 6px 8px !important;
+                    padding: 5px 8px !important;
                     margin: 0 !important;
                 }
-                @media (max-width: 900px) {
-                    .figma-filter-bar--bp-dash {
-                        width: 100% !important;
-                        align-self: stretch;
-                        margin-left: 0 !important;
-                        flex-wrap: wrap !important;
-                        display: flex !important;
-                    }
+                .figma-filter-bar--bp-dash .bp-dash-export-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 6px;
+                    background: #FF6600;
+                    color: #fff;
+                    border: 0;
+                    text-decoration: none;
+                    box-shadow: 0 1px 3px rgba(255, 102, 0, 0.35);
+                }
+                .figma-filter-bar--bp-dash .bp-dash-export-btn:hover {
+                    background: #FF8533;
+                    color: #fff;
+                }
+                .figma-filter-bar--bp-dash .bp-dash-export-btn svg {
+                    width: 16px;
+                    height: 16px;
+                }
+                @media (max-width: 1100px) {
                     .figma-filter-bar--bp-dash > label {
-                        flex: 1 1 130px !important;
-                        width: auto !important;
+                        flex: 1 1 calc(33.333% - 1px) !important;
+                        max-width: none !important;
+                    }
+                    .figma-filter-bar--bp-dash .figma-filter-calendar-host,
+                    .figma-filter-bar--bp-dash .bp-dash-f-export {
+                        flex: 0 0 auto !important;
+                        max-width: none !important;
+                    }
+                }
+                @media (max-width: 640px) {
+                    .figma-filter-bar--bp-dash > label {
+                        flex: 1 1 100% !important;
+                        border-right: 0 !important;
+                        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+                        max-width: none !important;
                     }
                     .figma-filter-bar--bp-dash .figma-filter-calendar-host {
-                        flex: 1 1 100% !important;
+                        flex: 1 1 auto !important;
+                        border-left: 0;
+                        border-top: 1px solid rgba(0, 0, 0, 0.12);
                         justify-content: flex-start;
+                    }
+                    .figma-filter-bar--bp-dash .bp-dash-f-export {
                         border-left: 0;
                         border-top: 1px solid rgba(0, 0, 0, 0.12);
                     }
                 }
             </style>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                <label class="bp-dash-f-domain flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar flex min-h-[48px] w-full max-w-full flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                <label class="bp-dash-f-search flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
+                    <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Search</span>
+                    <div class="figma-filter-path-wrap">
+                        <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input x-model="filters.q" @input="scheduleReload()" placeholder="Search pages, keywords…" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    </div>
+                </label>
+                <label class="bp-dash-f-domain flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
+                    <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Domain</span>
                     <div class="figma-filter-select-wrap">
-                        <select x-model="filters.domain_id" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                        <select x-model="filters.domain_id" @change="reload()" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0">
                             <option value="">All Domains</option>
                             @foreach ($domains as $d)
                                 <option value="{{ $d->id }}">{{ $d->hostname }}</option>
@@ -102,10 +176,10 @@
                         </select>
                     </div>
                 </label>
-                <label class="bp-dash-f-traffic flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Source</span>
+                <label class="bp-dash-f-traffic flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
+                    <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Source</span>
                     <div class="figma-filter-select-wrap">
-                        <select x-model="filters.traffic_source" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                        <select x-model="filters.traffic_source" @change="reload()" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0">
                             <option value="">All Sources</option>
                             <option value="organic">Organic</option>
                             <option value="direct">Direct</option>
@@ -115,18 +189,18 @@
                         </select>
                     </div>
                 </label>
-                <label class="bp-dash-f-account flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
+                <label class="bp-dash-f-account flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
+                    <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Campaign</span>
                     <div class="figma-filter-select-wrap">
-                        <select x-model="filters.campaign" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                        <select x-model="filters.campaign" @change="reload()" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0">
                             <option value="">All Campaigns</option>
                         </select>
                     </div>
                 </label>
-                <label class="bp-dash-f-traffic flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Device</span>
+                <label class="bp-dash-f-device flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
+                    <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Device</span>
                     <div class="figma-filter-select-wrap">
-                        <select x-model="filters.device" @change="reload()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
+                        <select x-model="filters.device" @change="reload()" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0">
                             <option value="">All Devices</option>
                             <option value="mobile">Mobile</option>
                             <option value="desktop">Desktop</option>
@@ -134,14 +208,28 @@
                         </select>
                     </div>
                 </label>
-                <label class="bp-dash-f-path flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
+                <label class="bp-dash-f-path flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
+                    <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input x-model="filters.path" @input="scheduleReload()" placeholder="All Pages" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                        <input x-model="filters.path" @input="scheduleReload()" placeholder="All Pages" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                     </div>
                 </label>
                 @include('partials.figma-filter-date-fields')
+                <div class="bp-dash-f-export">
+                    <a
+                        :href="`/bot-protection/page-analytics/export?${qs()}&format=csv`"
+                        class="bp-dash-export-btn"
+                        title="Download CSV"
+                        aria-label="Download CSV"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 3v12"/>
+                            <path d="M7 10l5 5 5-5"/>
+                            <path d="M5 21h14"/>
+                        </svg>
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -1131,6 +1219,7 @@ function botProtectionFigma(config = {}) {
             campaign: '',
             device: '',
             path: '',
+            q: '',
             from: '',
             to: '',
         },
@@ -1396,24 +1485,61 @@ function botProtectionFigma(config = {}) {
                 name: this.countryLabel(r.code || r.country || r.name) || r.name || r.label,
             }));
         },
+        geoRegionForCode(code) {
+            const c = String(code || '').toUpperCase();
+            if (['US', 'USA', 'CA', 'MX'].includes(c)) return c === 'MX' ? 'MX' : 'NA';
+            if (['BR', 'AR', 'CL', 'CO', 'PE'].includes(c)) return 'SA';
+            if (['GB', 'UK', 'DE', 'FR', 'NL', 'ES', 'IT', 'SE', 'NO', 'PL'].includes(c)) return 'EU';
+            if (['EG', 'NG', 'ZA', 'KE', 'MA'].includes(c)) return 'AF';
+            if (['AE', 'SA', 'TR', 'IL', 'QA'].includes(c)) return 'ME';
+            if (['IN', 'PK', 'BD', 'LK'].includes(c)) return 'IN';
+            if (['CN', 'HK', 'TW', 'KR', 'MN'].includes(c)) return 'CN';
+            if (['JP'].includes(c)) return 'JP';
+            if (['AU', 'NZ'].includes(c)) return 'AU';
+            if (['SG', 'MY', 'TH', 'ID', 'VN', 'PH'].includes(c)) return 'SEA';
+            return null;
+        },
+        geoLandClass(region) {
+            const rows = this.pageGeo();
+            if (!rows.length) return '';
+            const max = Math.max(1, ...rows.map(r => Number(r.value || 0)));
+            let value = 0;
+            rows.forEach((r) => {
+                if (this.geoRegionForCode(r.code || r.country || r.name) === region) {
+                    value += Number(r.value || 0);
+                }
+            });
+            if (value <= 0) return '';
+            const ratio = value / max;
+            if (ratio >= 0.7) return 'is-hot';
+            if (ratio >= 0.3) return 'is-warm';
+            return 'is-cool';
+        },
         pageGeoDots() {
+            // Equirectangular-ish percent coords inside the 360x160 map.
             const coords = {
-                US: [26, 42], USA: [26, 42], CA: [24, 32], GB: [48, 34], UK: [48, 34],
-                IN: [68, 52], PK: [66, 48], AE: [60, 48], AU: [82, 78], DE: [50, 36],
-                FR: [48, 40], BR: [34, 70], MX: [22, 52], JP: [84, 42], CN: [76, 44],
-                NL: [49, 35], ES: [47, 44], IT: [51, 42], TR: [56, 42], SA: [58, 50],
+                US: [22, 42], USA: [22, 42], CA: [20, 30], MX: [18, 52],
+                BR: [30, 72], AR: [28, 86], GB: [48, 34], UK: [48, 34],
+                DE: [51, 36], FR: [49, 40], NL: [50, 34], ES: [47, 44], IT: [52, 42],
+                AE: [58, 50], SA: [56, 52], TR: [56, 42], IN: [68, 52], PK: [64, 48],
+                CN: [74, 44], JP: [86, 42], KR: [82, 44], AU: [82, 78], NZ: [90, 88],
+                SG: [76, 64], MY: [74, 62], TH: [74, 58], ID: [78, 70],
             };
-            const rows = this.pageGeo().slice(0, 6);
+            const rows = this.pageGeo().slice(0, 8);
             const max = Math.max(1, ...rows.map(r => Number(r.value || 0)));
             return rows.map((r) => {
                 const code = String(r.code || r.country || r.name || '').toUpperCase();
-                const [x, y] = coords[code] || [42, 48];
+                const [x, y] = coords[code] || [50, 50];
+                const intensity = Math.max(0.2, Number(r.value || 0) / max);
                 return {
                     code,
                     label: r.name || r.label || code,
                     x,
                     y,
-                    opacity: Math.max(0.45, Number(r.value || 0) / max),
+                    cx: (x / 100) * 360,
+                    cy: (y / 100) * 160,
+                    r: 4 + intensity * 10,
+                    opacity: Math.max(0.45, intensity),
                 };
             });
         },
@@ -1586,6 +1712,7 @@ function botProtectionFigma(config = {}) {
             if (this.filters.campaign) p.set('campaign', this.filters.campaign);
             if (this.filters.device) p.set('device', this.filters.device);
             if (this.filters.path) p.set('path', this.filters.path);
+            if (this.filters.q) p.set('q', this.filters.q);
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);
             return p.toString();
