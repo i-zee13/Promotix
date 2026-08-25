@@ -21,7 +21,7 @@
                                 @click="toggleSourceLegend(legendKey(item))"
                             >
                                 <span class="bp-adv-legend__swatch" :style="`background:${item.color || '#FF6600'}`"></span>
-                                <span class="bp-adv-legend__name" x-text="item.label" :title="item.label"></span>
+                                <span class="bp-adv-legend__name" x-text="item.label || item.name || item.key" :title="item.label || item.name || item.key"></span>
                                 <span class="bp-adv-legend__meta">
                                     <span x-text="legendItemPct({ count: item.value, key: item.key, label: item.label }, sourceDonut.visible_total, hiddenSourceKeys) + '%'"></span>
                                     <span class="opacity-55" x-text="'(' + fmt(item.value) + ')'"></span>
@@ -54,7 +54,7 @@
                                 @click="toggleEngagementLegend(legendKey(item))"
                             >
                                 <span class="bp-adv-legend__swatch" :style="`background:${item.color || '#FF6600'}`"></span>
-                                <span class="bp-adv-legend__name" x-text="item.label" :title="item.label"></span>
+                                <span class="bp-adv-legend__name" x-text="item.label || item.name || item.key" :title="item.label || item.name || item.key"></span>
                                 <span class="bp-adv-legend__meta">
                                     <span x-text="legendItemPct({ count: item.value, key: item.key, label: item.label }, engagementDonut.visible_total, hiddenEngagementKeys) + '%'"></span>
                                     <span class="opacity-55" x-text="'(' + fmt(item.value) + ')'"></span>

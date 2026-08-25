@@ -68,6 +68,28 @@ class BillingController extends Controller
         ]);
     }
 
+    public function showInvoice(Request $request, Payment $payment): View
+    {
+        abort_unless($payment->user_id === $request->user()->id, 403);
+
+        $payment->loadMissing(['plan', 'user', 'subscription.plan']);
+
+        $companyName = trim((string) app_setting('branding.company_name', 'Clickronix')) ?: 'Clickronix';
+        $supportEmail = trim((string) app_setting('branding.support_email', '')) ?: 'support@clickronix.com';
+        $planName = $payment->plan?->name
+            ?? $payment->subscription?->plan?->name
+            ?? 'Subscription';
+
+        return view('billing.invoice', [
+            'payment' => $payment,
+            'company_name' => $companyName,
+            'support_email' => $supportEmail,
+            'plan_name' => $planName,
+            'logo_url' => asset('images/logo-dark.png'),
+            'amount_label' => format_money_cents((int) $payment->amount_cents, $payment->currency ?: 'USD'),
+        ]);
+    }
+
     public function downloadReceipt(Request $request, Payment $payment): StreamedResponse
     {
         abort_unless($payment->user_id === $request->user()->id, 403);

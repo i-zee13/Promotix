@@ -316,13 +316,14 @@
                                 <td class="py-[10px]"><span class="rounded-full bg-[#e8d4f8] px-[8px] py-[2px] text-[11px] text-[#4a0088]">{{ ucfirst($inv->status) }}</span></td>
                                 <td class="py-[10px] text-[#a9a9a9]">{{ $inv->created_at->format('M j, Y') }}</td>
                                 <td class="py-[10px]">
-                                    @if ($inv->status === 'pending')
-                                        <span class="text-[#a9a9a9]">Awaiting verification</span>
-                                    @elseif ($inv->receipt_path)
-                                        <a href="{{ route('billing.receipt.download', $inv) }}" class="text-[#9a1aff] hover:underline">Download receipt</a>
-                                    @else
-                                        —
-                                    @endif
+                                    <div class="flex flex-wrap gap-2">
+                                        <a href="{{ route('billing.invoices.show', $inv) }}" class="text-[#9a1aff] hover:underline">View invoice</a>
+                                        @if ($inv->receipt_path)
+                                            <a href="{{ route('billing.receipt.download', $inv) }}" class="text-[#a9a9a9] hover:underline">Receipt</a>
+                                        @elseif ($inv->status === 'pending')
+                                            <span class="text-[#a9a9a9]">Awaiting verification</span>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

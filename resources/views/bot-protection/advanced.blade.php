@@ -298,6 +298,94 @@
             html.light-mode .analytics-skin .pm-adv-table-grid--row:hover {
                 background: #ffedd5 !important;
             }
+            /* Traffic Control table body — mock density / multi-line cells */
+            .analytics-skin .pm-adv-table-grid--row {
+                align-items: start;
+                padding-top: 10px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            }
+            .analytics-skin .pm-adv-table-grid--row > * {
+                white-space: normal;
+                overflow: visible;
+                text-overflow: unset;
+            }
+            .analytics-skin .pm-adv-table-grid--head > * {
+                white-space: nowrap;
+            }
+            .tc-source-cell {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                min-width: 0;
+                max-width: 100%;
+            }
+            .tc-source-cell__icon {
+                flex-shrink: 0;
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                color: rgba(255, 255, 255, 0.75);
+                background: rgba(255, 255, 255, 0.06);
+            }
+            .tc-source-cell__icon.is-direct,
+            .tc-source-cell__icon.is-link,
+            .tc-source-cell__icon.is-organic,
+            .tc-source-cell__icon.is-paid,
+            .tc-source-cell__icon.is-social { color: #FF6600; }
+            .tc-source-cell__label {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .tc-flow-cell {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 2px 0;
+                line-height: 1.35;
+                color: rgba(255, 255, 255, 0.88);
+            }
+            .tc-flow-cell__seg {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .tc-flow-cell__path { word-break: break-all; }
+            .tc-flow-cell__arrow {
+                color: rgba(255, 255, 255, 0.35);
+                margin: 0 4px;
+                flex-shrink: 0;
+            }
+            .tc-events-cell {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                line-height: 1.35;
+                color: rgba(255, 255, 255, 0.82);
+                font-variant-numeric: tabular-nums;
+            }
+            .tc-events-cell__row { white-space: nowrap; }
+            .tc-datetime-cell {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                line-height: 1.3;
+            }
+            .tc-datetime-cell__date { color: rgba(255, 255, 255, 0.92); }
+            .tc-datetime-cell__time { color: rgba(255, 255, 255, 0.45); font-size: 10px; }
+            html.light-mode .tc-flow-cell,
+            html.light-mode .tc-events-cell,
+            html.light-mode .tc-source-cell__label,
+            html.light-mode .tc-datetime-cell__date { color: #1a1a1a; }
+            html.light-mode .tc-flow-cell__arrow,
+            html.light-mode .tc-datetime-cell__time { color: #8a8178; }
+            html.light-mode .tc-source-cell__icon {
+                background: rgba(255, 102, 0, 0.1);
+            }
             html.light-mode .analytics-skin .paid-advanced-columns-menu {
                 background: #fff !important;
                 border-color: rgba(255, 102, 0, 0.4) !important;
@@ -574,16 +662,19 @@
                 max-height: 190px;
                 overflow-y: auto;
             }
-            .bp-adv-legend li,
-            .bp-adv-legend__btn {
-                display: grid;
-                grid-template-columns: 10px minmax(0, 1fr) auto;
-                align-items: center;
-                gap: 8px;
+            /* Grid only on the button — nesting grid on both li + btn clipped legend names to 0 width */
+            .bp-adv-legend > li {
+                display: block;
+                margin: 0;
+                padding: 0;
                 font-size: 11px;
                 color: rgba(255, 255, 255, 0.82);
             }
             .bp-adv-legend__btn {
+                display: grid;
+                grid-template-columns: 10px minmax(52px, 1fr) auto;
+                align-items: center;
+                gap: 8px;
                 width: 100%;
                 margin: 0;
                 padding: 2px 0;
@@ -592,6 +683,8 @@
                 text-align: left;
                 cursor: pointer;
                 border-radius: 4px;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.82);
                 transition: opacity 0.15s ease;
             }
             .bp-adv-legend__btn:hover { background: rgba(255, 255, 255, 0.04); }
@@ -795,6 +888,7 @@
             html.light-mode .bp-adv-hip__title,
             html.light-mode .bp-adv-hip-card__ip,
             html.light-mode .bp-adv-legend li,
+            html.light-mode .bp-adv-legend__btn,
             html.light-mode .bp-adv-country-row__name { color: #1a1a1a; }
             html.light-mode .bp-adv-donut__label,
             html.light-mode .bp-adv-chart-card__updated,
@@ -1357,29 +1451,30 @@ function botProtectionAdvancedFigma(config = {}) {
     ];
 
     const analyticsColumnCatalog = [
-        // Required — always visible by default
-        { key: 'ip', label: 'Visitor IP', primary: true, min: 110 },
-        { key: 'session_id', label: 'Session ID', primary: true, min: 110 },
-        { key: 'source_platform', label: 'Source / Platform', primary: true, min: 96 },
-        { key: 'keyword', label: 'Keyword / Headline', primary: true, min: 110 },
-        { key: 'landing_page', label: 'Landing Page', primary: true, min: 100 },
-        { key: 'page_flow', label: 'Page Flow', primary: true, min: 120 },
-        { key: 'entry_time', label: 'Entry Time', primary: true, min: 80 },
-        { key: 'exit_time', label: 'Exit Time', primary: true, min: 80 },
-        { key: 'time_on_site', label: 'Time on Site', primary: true, min: 72 },
-        { key: 'page_views', label: 'Page Views', primary: true, min: 64 },
-        { key: 'cta_clicks', label: 'CTA Clicks', primary: true, min: 64 },
-        { key: 'add_to_cart', label: 'Add to Cart', primary: true, min: 72 },
-        { key: 'checkout', label: 'Checkout', primary: true, min: 64 },
-        { key: 'purchase', label: 'Purchase / Sale', primary: true, min: 72 },
-        { key: 'revenue', label: 'Revenue', primary: true, min: 72 },
-        { key: 'device', label: 'Device', primary: true, min: 64 },
+        // Required — always visible by default (mock Traffic Control body)
+        { key: 'ip', label: 'Visitor IP', primary: true, min: 118 },
+        { key: 'session_id', label: 'Session ID', primary: true, min: 118 },
+        { key: 'source_platform', label: 'Source / Platform', primary: true, min: 140 },
+        { key: 'keyword', label: 'Keyword / Headline', primary: true, min: 130 },
+        { key: 'landing_page', label: 'Landing Page', primary: true, min: 140 },
+        { key: 'page_flow', label: 'Page Flow / Pages Visited', primary: true, min: 220 },
+        { key: 'entry_time', label: 'Entry Time', primary: true, min: 88 },
+        { key: 'exit_time', label: 'Exit Time', primary: true, min: 88 },
+        { key: 'time_on_site', label: 'Time on Site', primary: true, min: 88 },
+        { key: 'event_actions', label: 'Events / Actions', primary: true, min: 120 },
+        { key: 'cta_clicks', label: 'CTA Clicks', primary: true, min: 72 },
+        { key: 'add_to_cart', label: 'Add to Cart', primary: true, min: 80 },
+        { key: 'checkout', label: 'Checkout', primary: true, min: 72 },
+        { key: 'purchase', label: 'Purchase / Sale', primary: true, min: 88 },
+        { key: 'revenue', label: 'Revenue', primary: true, min: 80 },
+        { key: 'device', label: 'Device', primary: true, min: 72 },
         { key: 'browser', label: 'Browser', primary: true, min: 80 },
         { key: 'os', label: 'OS', primary: true, min: 72 },
-        { key: 'crawler_score', label: 'Crawler Score', primary: true, min: 72 },
-        { key: 'automation_score', label: 'Automation Score', primary: true, min: 88 },
-        { key: 'malicious_score', label: 'Malicious Score', primary: true, min: 88 },
+        { key: 'crawler_score', label: 'Crawler Score', primary: true, min: 88 },
+        { key: 'automation_score', label: 'Automation Score', primary: true, min: 100 },
+        { key: 'malicious_score', label: 'Malicious Activity Score', primary: true, min: 120 },
         // Optional — Advanced Filter only
+        { key: 'page_views', label: 'Page Views', primary: false, min: 72 },
         { key: 'fingerprint_id', label: 'Device ID', primary: false, min: 100 },
         { key: 'campaign', label: 'Campaign', primary: false, min: 100 },
         { key: 'headline', label: 'Headline', primary: false, min: 100 },
@@ -1399,7 +1494,7 @@ function botProtectionAdvancedFigma(config = {}) {
 
     const analyticsMode = Boolean(config.analyticsMode);
     const columnCatalog = analyticsMode ? analyticsColumnCatalog : fraudColumnCatalog;
-    const storageKey = analyticsMode ? 'bp-adv-analytics-columns-v3' : 'bp-adv-optional-columns-v2';
+    const storageKey = analyticsMode ? 'bp-adv-analytics-columns-v4' : 'bp-adv-optional-columns-v2';
 
     let savedOptional = [];
     try {
@@ -1449,10 +1544,12 @@ function botProtectionAdvancedFigma(config = {}) {
             const min = this.columnMinPx(col);
             const key = col.key;
             if (key === 'session_recording') return `${min}px`;
-            if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
+            if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes', 'add_to_cart', 'checkout', 'crawler_score', 'automation_score', 'malicious_score'].includes(key)) {
                 return `${min}px`;
             }
-            if (key === 'ip') return `minmax(${min}px, 1.6fr)`;
+            if (key === 'ip') return `minmax(${min}px, 1.15fr)`;
+            if (key === 'page_flow' || key === 'event_actions') return `minmax(${min}px, 1.8fr)`;
+            if (key === 'source_platform' || key === 'landing_page' || key === 'keyword') return `minmax(${min}px, 1.35fr)`;
             if (key === 'domain' || key === 'campaign' || key === 'path') return `minmax(${min}px, 1.15fr)`;
             if (key === 'country' || key === 'last_click_label' || key === 'last_seen_label') {
                 return `minmax(${min}px, 0.95fr)`;
@@ -1914,7 +2011,7 @@ function botProtectionAdvancedFigma(config = {}) {
             if (!flow || flow === '—') {
                 return [row.landing_page, row.exit_page].filter((p, i, a) => p && p !== '—' && a.indexOf(p) === i);
             }
-            return flow.split('→').map(s => s.trim()).filter(Boolean);
+            return flow.split(/\s*(?:->|→)\s*/).map(s => s.trim()).filter(Boolean);
         },
         journeyTimeline() {
             const timeline = this.journeyDrawer?.row?.event_detail?.timeline || [];
@@ -1932,6 +2029,18 @@ function botProtectionAdvancedFigma(config = {}) {
                 const hl = String(row.headline || '').trim();
                 if (kw && hl && kw !== hl) return `${kw} · ${hl}`;
                 return kw || hl || '—';
+            }
+            if (key === 'event_actions') {
+                const rows = this.eventActionRows(row);
+                return rows.length ? rows.map((ev) => `${ev.key} (${ev.count})`).join(', ') : '—';
+            }
+            if (key === 'page_flow') {
+                const parts = this.pageFlowParts(row);
+                return parts.length ? parts.join(' -> ') : '—';
+            }
+            if (key === 'entry_clock' || key === 'exit_clock') {
+                const value = row[key];
+                return value ? String(value) : '';
             }
             if (key === 'fingerprint_id') {
                 const v = String(row.fingerprint_id || '');

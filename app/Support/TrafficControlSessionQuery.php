@@ -101,12 +101,18 @@ class TrafficControlSessionQuery
             $last = Carbon::parse($row->last_seen);
             $durationSec = max(0, $last->diffInSeconds($first));
 
+            $isPaid = (bool) ($row->is_paid_traffic ?? false);
             $platform = TrafficSourceClassifier::platformLabel(
-                false,
+                $isPaid,
                 $row->utm_medium,
                 $row->utm_source,
                 $row->referrer,
             );
+            if ($platform === 'Google' && ! $isPaid) {
+                $platform = 'Google Organic';
+            } elseif ($platform === 'Backlinks') {
+                $platform = 'Backlink';
+            }
 
             $crawlerScore = (bool) ($row->is_crawler ?? false) ? min(100, 40 + (int) ($row->threat_score ?? 0)) : max(0, 10 - (int) ($row->threat_score ?? 0));
             $automationScore = (bool) ($row->is_invalid ?? false) ? min(100, (int) ($row->threat_score ?? 50)) : max(0, (int) ($row->threat_score ?? 0) / 2);
@@ -124,6 +130,49 @@ class TrafficControlSessionQuery
             }
 
             $formFills = (int) ($rec['form_submits'] ?? 0);
+            $pageViews = max((int) $row->page_views, count($rec['pages'] ?? []));
+            $ctaClicks = (int) ($rec['cta_clicks'] ?? 0);
+            $addToCart = (int) ($rec['add_to_cart'] ?? 0);
+            $checkouts = (int) ($rec['checkouts'] ?? 0);
+            $purchases = (int) ($rec['purchases'] ?? 0);
+            $scrollEvents = (int) ($rec['scroll_count'] ?? 0);
+            $telClicks = (int) ($rec['tel_clicks'] ?? 0);
+            $formStarts = (int) ($rec['form_starts'] ?? 0);
+            $revenueRaw = (float) ($rec['revenue_raw'] ?? 0);
+
+            $eventActions = [];
+            if ($pageViews > 0) {
+                $eventActions[] = ['key' => 'page_view', 'count' => $pageViews];
+            }
+            if ($ctaClicks > 0) {
+                $eventActions[] = ['key' => 'cta_click', 'count' => $ctaClicks];
+            }
+            if ($addToCart > 0) {
+                $eventActions[] = ['key' => 'add_to_cart', 'count' => $addToCart];
+            }
+            if ($checkouts > 0) {
+                $eventActions[] = ['key' => 'checkout', 'count' => $checkouts];
+            }
+            if ($purchases > 0) {
+                $eventActions[] = ['key' => 'purchase', 'count' => $purchases];
+            }
+            if ($scrollEvents > 0) {
+                $eventActions[] = ['key' => 'scroll', 'count' => $scrollEvents];
+            }
+            if ($formStarts > 0) {
+                $eventActions[] = ['key' => 'form_start', 'count' => $formStarts];
+            }
+            if ($formFills > 0) {
+                $eventActions[] = ['key' => 'form_submit', 'count' => $formFills];
+            }
+            if ($telClicks > 0) {
+                $eventActions[] = ['key' => 'tel_click', 'count' => $telClicks];
+            }
+
+            $hours = intdiv($durationSec, 3600);
+            $mins = intdiv($durationSec % 3600, 60);
+            $secs = $durationSec % 60;
+            $deviceBucket = TrafficSourceClassifier::deviceBucket($row->device, $row->os);
 
             return [
                 'id' => (int) sprintf('%u', crc32($row->domain_id.'|'.$key)),
@@ -142,22 +191,25 @@ class TrafficControlSessionQuery
                 'pages' => $rec['pages'] ?? [],
                 'first_seen' => UserTimezone::formatForUser($first, $request->user(), 'M j, Y g:i a'),
                 'last_seen' => UserTimezone::formatForUser($last, $request->user(), 'M j, Y g:i a'),
-                'entry_time' => UserTimezone::formatForUser($first, $request->user(), 'g:i a'),
-                'exit_time' => UserTimezone::formatForUser($last, $request->user(), 'g:i a'),
+                'entry_time' => UserTimezone::formatForUser($first, $request->user(), 'm/d/y'),
+                'entry_clock' => UserTimezone::formatForUser($first, $request->user(), 'H:i'),
+                'exit_time' => UserTimezone::formatForUser($last, $request->user(), 'm/d/y'),
+                'exit_clock' => UserTimezone::formatForUser($last, $request->user(), 'H:i'),
                 'timezone' => UserTimezone::reportingTimezoneForUser($request->user()),
-                'time_on_site' => sprintf('%d:%02d', intdiv($durationSec, 60), $durationSec % 60),
-                'page_views' => (int) $row->page_views,
-                'scroll_events' => (int) ($rec['scroll_count'] ?? 0),
-                'cta_clicks' => (int) ($rec['cta_clicks'] ?? 0),
-                'tel_clicks' => (int) ($rec['tel_clicks'] ?? 0),
-                'form_starts' => (int) ($rec['form_starts'] ?? 0),
+                'time_on_site' => sprintf('%02d:%02d:%02d', $hours, $mins, $secs),
+                'page_views' => $pageViews,
+                'event_actions' => $eventActions,
+                'scroll_events' => $scrollEvents,
+                'cta_clicks' => $ctaClicks,
+                'tel_clicks' => $telClicks,
+                'form_starts' => $formStarts,
                 'form_submits' => $formFills,
                 'form_fills' => $formFills,
-                'add_to_cart' => (int) ($rec['add_to_cart'] ?? 0),
-                'checkout' => (int) ($rec['checkouts'] ?? 0),
-                'purchase' => ((int) ($rec['purchases'] ?? 0)) > 0 ? 'Yes' : 'No',
-                'revenue' => $rec['revenue'] ?? '—',
-                'device' => TrafficSourceClassifier::deviceBucket($row->device, $row->os),
+                'add_to_cart' => $addToCart,
+                'checkout' => $checkouts,
+                'purchase' => $purchases > 0 ? 'Yes' : 'No',
+                'revenue' => '$'.number_format($revenueRaw, 2),
+                'device' => ucfirst($deviceBucket),
                 'browser' => $row->browser,
                 'os' => $row->os,
                 'country' => $row->country,
@@ -271,8 +323,6 @@ class TrafficControlSessionQuery
                     ];
                 }
             }
-            $pageFlow = $pages !== [] ? implode(' → ', array_slice(array_unique($pages), 0, 6)) : '—';
-
             $revenue = 0.0;
             foreach ($events as $ev) {
                 if (is_array($ev) && in_array(strtolower((string) ($ev['type'] ?? '')), ['purchase', 'sale'], true)) {
@@ -281,6 +331,8 @@ class TrafficControlSessionQuery
             }
 
             $timeline = $analysis['timeline'] ?? [];
+            $uniquePages = array_values(array_unique($pages));
+            $pageFlow = $uniquePages !== [] ? implode(' -> ', array_slice($uniquePages, 0, 8)) : '—';
 
             return [
                 'id' => (int) $rec->id,
@@ -292,9 +344,10 @@ class TrafficControlSessionQuery
                 'add_to_cart' => (int) ($analysis['add_to_cart'] ?? 0),
                 'checkouts' => (int) ($analysis['checkouts'] ?? 0),
                 'purchases' => (int) ($analysis['purchases'] ?? 0),
-                'revenue' => $revenue > 0 ? '$'.number_format($revenue, 2) : '—',
+                'revenue_raw' => $revenue,
+                'revenue' => '$'.number_format($revenue, 2),
                 'page_flow' => $pageFlow,
-                'pages' => array_values(array_unique($pages)),
+                'pages' => $uniquePages,
                 'event_detail' => [
                     'cta' => $timeline,
                     'timeline' => $timeline,

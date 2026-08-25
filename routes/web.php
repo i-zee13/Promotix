@@ -244,6 +244,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         });
 
         Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
+        Route::get('/billing/invoices/{payment}', [BillingController::class, 'showInvoice'])->name('billing.invoices.show');
         Route::get('/billing/receipts/{payment}', [BillingController::class, 'downloadReceipt'])->name('billing.receipt.download');
         Route::post('/billing', [BillingController::class, 'submit'])->name('billing.submit');
         Route::post('/billing/pay-card', [BillingController::class, 'payWithCard'])->name('billing.pay-card');

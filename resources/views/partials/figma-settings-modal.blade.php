@@ -164,6 +164,49 @@
             ? route('bot-protection.export')
             : $comprehensiveReportUrl,
     ];
+
+    $reportColumnGroups = collect(\App\Support\ClickronixTrafficReport::COLUMN_GROUPS)
+        ->map(fn ($group, $key) => ['id' => $key, 'label' => $group['label'] ?? $key])
+        ->values()
+        ->all();
+
+    $reportAdGroups = [];
+    try {
+        if ($settingsUser && Schema::hasTable('paid_marketing_clicks') && Schema::hasTable('domains')) {
+            $domainIds = $settingsUser->domains()->pluck('id');
+            if ($domainIds->isNotEmpty()) {
+                $clickQuery = \Illuminate\Support\Facades\DB::table('paid_marketing_clicks')
+                    ->whereIn('domain_id', $domainIds);
+                if (Schema::hasColumn('paid_marketing_clicks', 'campaignr')) {
+                    $reportAdGroups = $clickQuery
+                        ->whereNotNull('campaignr')
+                        ->where('campaignr', '!=', '')
+                        ->distinct()
+                        ->orderBy('campaignr')
+                        ->limit(120)
+                        ->pluck('campaignr')
+                        ->filter()
+                        ->values()
+                        ->all();
+                }
+                if ($reportAdGroups === [] && Schema::hasColumn('paid_marketing_clicks', 'campaign')) {
+                    $reportAdGroups = \Illuminate\Support\Facades\DB::table('paid_marketing_clicks')
+                        ->whereIn('domain_id', $domainIds)
+                        ->whereNotNull('campaign')
+                        ->where('campaign', '!=', '')
+                        ->distinct()
+                        ->orderBy('campaign')
+                        ->limit(120)
+                        ->pluck('campaign')
+                        ->filter()
+                        ->values()
+                        ->all();
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        $reportAdGroups = [];
+    }
     $billingUrl = \Illuminate\Support\Facades\Route::has('billing.index') ? route('billing.index') : '#';
     $domainsUrl = \Illuminate\Support\Facades\Route::has('domains.index') ? route('domains.index') : '#';
     $domainsCreateUrl = \Illuminate\Support\Facades\Route::has('domains.create')
@@ -192,6 +235,7 @@
             ->get();
     }
     $receiptRouteExists = \Illuminate\Support\Facades\Route::has('billing.receipt.download');
+    $invoiceShowRouteExists = \Illuminate\Support\Facades\Route::has('billing.invoices.show');
 
     $settingsTabs = [
         ['id' => 'general', 'label' => 'General', 'icon' => 'settings-general'],
@@ -237,6 +281,8 @@
         ],
         'reportDownloadUrl' => $comprehensiveReportUrl,
         'reportUrls' => $reportDownloadUrls,
+        'reportColumnGroups' => $reportColumnGroups,
+        'reportAdGroups' => $reportAdGroups,
         'avatar' => [
             'url' => $settingsUser?->avatarUrl(),
             'initial' => $settingsUser?->avatarInitial() ?? '?',
@@ -505,23 +551,71 @@
                         </button>
                     </div>
 
-                    <div class="pmx-settings__card" style="margin-bottom:12px">
+                    <div class="pmx-settings__card pmx-settings__calendar" x-show="reportRange === 'custom' || reportCalendarOpen" x-cloak style="margin-bottom:12px">
+                        <p class="pmx-settings__section-title" style="margin-bottom:10px">Custom date range</p>
                         <div class="pmx-settings__report-controls">
                             <label class="pmx-settings__field">
                                 <span class="pmx-settings__label">From</span>
-                                <input type="date" class="pmx-settings__input" x-model="reportCustomFrom" @change="reportRange = 'custom'">
+                                <div class="pmx-settings__date-wrap">
+                                    <input
+                                        type="date"
+                                        class="pmx-settings__input"
+                                        x-ref="reportFromDate"
+                                        x-model="reportCustomFrom"
+                                        @change="reportRange = 'custom'"
+                                        @click="openReportDatePicker('from')"
+                                    >
+                                    <button type="button" class="pmx-settings__date-btn" @click="openReportDatePicker('from')" aria-label="Open from calendar">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14H3V6a2 2 0 012-2z"/></svg>
+                                    </button>
+                                </div>
                             </label>
                             <label class="pmx-settings__field">
                                 <span class="pmx-settings__label">To</span>
-                                <input type="date" class="pmx-settings__input" x-model="reportCustomTo" @change="reportRange = 'custom'">
+                                <div class="pmx-settings__date-wrap">
+                                    <input
+                                        type="date"
+                                        class="pmx-settings__input"
+                                        x-ref="reportToDate"
+                                        x-model="reportCustomTo"
+                                        @change="reportRange = 'custom'"
+                                        @click="openReportDatePicker('to')"
+                                    >
+                                    <button type="button" class="pmx-settings__date-btn" @click="openReportDatePicker('to')" aria-label="Open to calendar">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14H3V6a2 2 0 012-2z"/></svg>
+                                    </button>
+                                </div>
                             </label>
+                        </div>
+                    </div>
+
+                    <div class="pmx-settings__card" style="margin-bottom:12px">
+                        <div class="pmx-settings__report-controls">
                             <label class="pmx-settings__field">
-                                <span class="pmx-settings__label">Report</span>
+                                <span class="pmx-settings__label">Group</span>
                                 <select class="pmx-settings__select" x-model="reportGroup">
                                     <option value="dashboard_ips">Main dashboard IP stats</option>
                                     <option value="advanced">Advanced View stats</option>
                                     <option value="bot">Analytics Dashboard</option>
                                     <option value="bot_advanced">Analytics Traffic Control</option>
+                                </select>
+                            </label>
+                            <label class="pmx-settings__field" x-show="reportGroup === 'advanced'" x-cloak>
+                                <span class="pmx-settings__label">Column group</span>
+                                <select class="pmx-settings__select" x-model="reportColumnGroup">
+                                    <option value="">All columns</option>
+                                    <template x-for="g in reportColumnGroups" :key="g.id">
+                                        <option :value="g.id" x-text="g.label"></option>
+                                    </template>
+                                </select>
+                            </label>
+                            <label class="pmx-settings__field">
+                                <span class="pmx-settings__label">Page advertisement group</span>
+                                <select class="pmx-settings__select" x-model="reportAdGroup">
+                                    <option value="">All ad groups</option>
+                                    <template x-for="ag in reportAdGroups" :key="ag">
+                                        <option :value="ag" x-text="ag"></option>
+                                    </template>
                                 </select>
                             </label>
                             <label class="pmx-settings__field">
@@ -530,10 +624,6 @@
                                     <option value="csv">CSV</option>
                                     <option value="xlsx">XLSX</option>
                                 </select>
-                            </label>
-                            <label class="pmx-settings__check" style="align-self:end;margin-bottom:2px">
-                                <input type="checkbox" x-model="monthlyEmailToggle" @change="persistMonthlyEmailToggle()">
-                                <span>Email me a monthly report</span>
                             </label>
                             <button
                                 type="button"
@@ -545,8 +635,29 @@
                         </div>
                     </div>
 
+                    <div class="pmx-settings__card pmx-settings__switch-card" style="margin-bottom:12px">
+                        <div class="pmx-settings__switch-row">
+                            <div>
+                                <p class="pmx-settings__label">Monthly report email</p>
+                                <p class="pmx-settings__hint" style="margin:4px 0 0">
+                                    On = after each 30-day period a report email is sent. Off = no monthly email.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                class="pmx-settings__switch"
+                                :class="{ 'is-on': monthlyEmailToggle }"
+                                role="switch"
+                                :aria-checked="monthlyEmailToggle ? 'true' : 'false'"
+                                @click="monthlyEmailToggle = !monthlyEmailToggle; persistMonthlyEmailToggle()"
+                            >
+                                <span class="pmx-settings__switch-thumb"></span>
+                            </button>
+                        </div>
+                    </div>
+
                     <p class="pmx-settings__hint" x-show="reportStatus" x-text="reportStatus" style="margin-top:0;margin-bottom:8px"></p>
-                    <p class="pmx-settings__hint" style="margin-top:4px">Pick a date range, then download stats for the dashboard, Advanced View, Analytics Dashboard, or Analytics Traffic Control.</p>
+                    <p class="pmx-settings__hint" style="margin-top:4px">Pick a date range and group, then download. Use Page advertisement group to narrow Advanced View exports.</p>
 
                 </div>
 
@@ -629,11 +740,16 @@
                                             <td>${{ number_format(((int) ($inv->amount_cents ?? 0)) / 100, 2) }}</td>
                                             <td><span class="pmx-settings__badge is-ok">{{ ucfirst((string) ($inv->status ?: 'paid')) }}</span></td>
                                             <td>
-                                                @if ($receiptRouteExists)
-                                                    <a href="{{ route('billing.receipt.download', $inv) }}" class="pmx-settings__btn">Download</a>
-                                                @else
-                                                    <a href="{{ $billingUrl }}" class="pmx-settings__btn">View</a>
-                                                @endif
+                                                <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+                                                    @if ($invoiceShowRouteExists)
+                                                        <a href="{{ route('billing.invoices.show', $inv) }}" class="pmx-settings__btn">View</a>
+                                                    @endif
+                                                    @if ($receiptRouteExists && $inv->receipt_path)
+                                                        <a href="{{ route('billing.receipt.download', $inv) }}" class="pmx-settings__btn">Receipt</a>
+                                                    @elseif (! $invoiceShowRouteExists)
+                                                        <a href="{{ $billingUrl }}" class="pmx-settings__btn">View</a>
+                                                    @endif
+                                                </div>
                                             </td>
                                         </tr>
                                     @empty
@@ -1442,6 +1558,75 @@
         border-color: #6400B2;
         color: #fff;
     }
+    .pmx-settings__date-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .pmx-settings__date-wrap .pmx-settings__input {
+        flex: 1;
+        min-width: 0;
+    }
+    .pmx-settings__date-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(255, 255, 255, 0.8);
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .pmx-settings__date-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+    .pmx-settings__date-btn:hover {
+        border-color: rgba(255, 102, 0, 0.55);
+        color: #FF6600;
+    }
+    .pmx-settings__switch-card {
+        padding: 14px 16px;
+    }
+    .pmx-settings__switch-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+    .pmx-settings__switch {
+        position: relative;
+        width: 44px;
+        height: 26px;
+        border-radius: 999px;
+        border: 0;
+        background: rgba(255, 255, 255, 0.18);
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.18s ease;
+        padding: 0;
+    }
+    .pmx-settings__switch.is-on {
+        background: #FF6600;
+    }
+    .pmx-settings__switch-thumb {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #fff;
+        transition: transform 0.18s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .pmx-settings__switch.is-on .pmx-settings__switch-thumb {
+        transform: translateX(18px);
+    }
     .pmx-settings__range {
         display: flex;
         flex-wrap: wrap;
@@ -1726,7 +1911,17 @@
         color: #5b5568;
         border-color: #d9d0e6;
     }
-    html.light-mode .pmx-settings__switch span { background: rgba(26, 21, 36, 0.18); }
+    html.light-mode .pmx-settings__date-btn {
+        border-color: #d9d0e6;
+        background: #fff;
+        color: #5b5568;
+    }
+    html.light-mode .pmx-settings__switch {
+        background: rgba(26, 21, 36, 0.18);
+    }
+    html.light-mode .pmx-settings__switch.is-on {
+        background: #FF6600;
+    }
     html.light-mode .pmx-security-tabs__button {
         border-color: #e0d7eb;
         background: #faf8fc;
@@ -1807,6 +2002,11 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         prefsUrl: seed.prefsUrl || '/user/preferences',
         reportDownloadUrl: seed.reportDownloadUrl || '/reports',
         reportUrls: seed.reportUrls || {},
+        reportColumnGroups: Array.isArray(seed.reportColumnGroups) ? seed.reportColumnGroups : [],
+        reportAdGroups: Array.isArray(seed.reportAdGroups) ? seed.reportAdGroups : [],
+        reportCalendarOpen: false,
+        reportColumnGroup: '',
+        reportAdGroup: '',
         avatarUrl: seed.avatar?.url || '',
         avatarInitial: seed.avatar?.initial || '?',
         avatarHasCustom: Boolean(seed.avatar?.has_custom),
@@ -1943,10 +2143,27 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         },
         setReportRange(range) {
             this.reportRange = range;
-            if (range === 'custom') return;
+            if (range === 'custom') {
+                this.reportCalendarOpen = true;
+                this.$nextTick(() => this.openReportDatePicker('from'));
+                return;
+            }
+            this.reportCalendarOpen = false;
             const next = this.computedReportRange(range);
             this.reportCustomFrom = next.from;
             this.reportCustomTo = next.to;
+        },
+        openReportDatePicker(which = 'from') {
+            this.reportRange = 'custom';
+            this.reportCalendarOpen = true;
+            this.$nextTick(() => {
+                const el = which === 'to' ? this.$refs.reportToDate : this.$refs.reportFromDate;
+                if (!el) return;
+                try { el.focus(); } catch (_) {}
+                if (typeof el.showPicker === 'function') {
+                    try { el.showPicker(); } catch (_) {}
+                }
+            });
         },
         computedReportRange(range) {
             if (range === 'yesterday') {
@@ -1967,6 +2184,12 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
                 url.searchParams.set('source', 'dashboard');
             } else if (group === 'bot_advanced') {
                 url.searchParams.set('source', 'advanced');
+            }
+            if (group === 'advanced' && this.reportColumnGroup) {
+                url.searchParams.set('column_group', this.reportColumnGroup);
+            }
+            if (this.reportAdGroup) {
+                url.searchParams.set('ad_group', this.reportAdGroup);
             }
             url.searchParams.set('format', this.reportFormat === 'xlsx' ? 'xlsx' : 'csv');
             // Analytics exports are CSV-only today; avoid a mismatched .xlsx download name.

@@ -959,6 +959,7 @@ class BotProtectionController extends Controller
             'Exit Time',
             'Timezone',
             'Time on Site',
+            'Events / Actions',
             'Page Views',
             'Scroll Events',
             'CTA Clicks',
@@ -976,7 +977,7 @@ class BotProtectionController extends Controller
             'Region',
             'Crawler Score',
             'Automation Score',
-            'Malicious Score',
+            'Malicious Activity Score',
             'Referrer',
             'Exit Page',
         ]);
@@ -988,6 +989,10 @@ class BotProtectionController extends Controller
 
         $result = app(TrafficControlSessionQuery::class)->paginate($ids, $from, $to, $request, 1, 5000);
         foreach ($result['data'] as $row) {
+            $eventActions = collect($row['event_actions'] ?? [])
+                ->map(fn ($ev) => trim((string) ($ev['key'] ?? '')).' ('.(int) ($ev['count'] ?? 0).')')
+                ->filter()
+                ->implode('; ');
             fputcsv($handle, [
                 $row['ip'] ?? '',
                 $row['session_id'] ?? '',
@@ -1000,10 +1005,11 @@ class BotProtectionController extends Controller
                 $row['page_flow'] ?? '',
                 $row['first_seen'] ?? '',
                 $row['last_seen'] ?? '',
-                $row['entry_time'] ?? '',
-                $row['exit_time'] ?? '',
+                trim(($row['entry_time'] ?? '').' '.($row['entry_clock'] ?? '')),
+                trim(($row['exit_time'] ?? '').' '.($row['exit_clock'] ?? '')),
                 $row['timezone'] ?? '',
                 $row['time_on_site'] ?? '',
+                $eventActions,
                 $row['page_views'] ?? 0,
                 $row['scroll_events'] ?? 0,
                 $row['cta_clicks'] ?? 0,

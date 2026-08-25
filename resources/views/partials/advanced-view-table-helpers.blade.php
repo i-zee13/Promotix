@@ -1,7 +1,60 @@
 <script>
 window.promotixAdvTableHelpers = {
     isRichCol(key) {
-        return ['country', 'intel_risk_score', 'intel_risk_level', 'action_taken', 'status', 'session_recording', 'cta_clicks', 'tel_clicks', 'form_starts', 'form_submits', 'form_fills', 'add_to_cart', 'checkout', 'purchase', 'session_id'].includes(key);
+        return [
+            'country', 'intel_risk_score', 'intel_risk_level', 'action_taken', 'status', 'session_recording',
+            'cta_clicks', 'tel_clicks', 'form_starts', 'form_submits', 'form_fills', 'add_to_cart', 'checkout', 'purchase',
+            'session_id', 'source_platform', 'page_flow', 'event_actions', 'entry_time', 'exit_time',
+        ].includes(key);
+    },
+    sourcePlatformKind(label) {
+        const s = String(label || '').toLowerCase();
+        if (s.includes('google')) return 'google';
+        if (s.includes('facebook') || s.includes('meta')) return 'facebook';
+        if (s.includes('instagram')) return 'instagram';
+        if (s.includes('yahoo')) return 'yahoo';
+        if (s.includes('bing') || s.includes('microsoft')) return 'bing';
+        if (s.includes('linkedin')) return 'linkedin';
+        if (s.includes('twitter') || s.includes('x.com')) return 'twitter';
+        if (s.includes('direct')) return 'direct';
+        if (s.includes('paid')) return 'paid';
+        if (s.includes('backlink') || s.includes('referral')) return 'link';
+        if (s.includes('social')) return 'social';
+        if (s.includes('organic')) return 'organic';
+        return 'link';
+    },
+    pageFlowParts(row) {
+        if (Array.isArray(row?.pages) && row.pages.length) {
+            return row.pages.slice(0, 8).map((p) => String(p || '/'));
+        }
+        const flow = String(row?.page_flow || '').trim();
+        if (!flow || flow === '—') {
+            const landing = String(row?.landing_page || '').trim();
+            return landing && landing !== '—' ? [landing] : [];
+        }
+        return flow.split(/\s*(?:->|→)\s*/).map((s) => s.trim()).filter(Boolean);
+    },
+    eventActionRows(row) {
+        if (Array.isArray(row?.event_actions) && row.event_actions.length) {
+            return row.event_actions.map((ev) => ({
+                key: String(ev.key || ev.label || 'event'),
+                count: Number(ev.count || 0),
+            })).filter((ev) => ev.count > 0);
+        }
+        const fallback = [];
+        const push = (key, count) => {
+            const n = Number(count || 0);
+            if (n > 0) fallback.push({ key, count: n });
+        };
+        push('page_view', row?.page_views);
+        push('cta_click', row?.cta_clicks);
+        push('add_to_cart', row?.add_to_cart);
+        push('checkout', row?.checkout);
+        if (String(row?.purchase || '').toLowerCase() === 'yes') push('purchase', 1);
+        push('scroll', row?.scroll_events);
+        push('tel_click', row?.tel_clicks);
+        push('form_submit', row?.form_fills ?? row?.form_submits);
+        return fallback;
     },
     countryCode(rowOrCode) {
         const raw = (rowOrCode && typeof rowOrCode === 'object')
