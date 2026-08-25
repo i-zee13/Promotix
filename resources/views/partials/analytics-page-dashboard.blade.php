@@ -107,13 +107,26 @@
             grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: var(--pa-gutter);
             margin-bottom: 14px;
+            align-items: stretch;
+        }
+        .pa-dash .pa-row-4 > .pa-card {
+            min-height: 320px;
+            max-height: 320px;
+            overflow: hidden;
         }
         @media (max-width: 1100px) {
             .pa-dash .pa-row-3 { grid-template-columns: 1fr; }
             .pa-dash .pa-row-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .pa-dash .pa-row-4 > .pa-card {
+                max-height: 360px;
+            }
         }
         @media (max-width: 720px) {
             .pa-dash .pa-row-4 { grid-template-columns: 1fr; }
+            .pa-dash .pa-row-4 > .pa-card {
+                max-height: none;
+                min-height: 280px;
+            }
         }
 
         .pa-dash .pa-card {
@@ -374,10 +387,35 @@
             flex-direction: column;
             gap: 10px;
             flex: 1;
+            min-height: 0;
+        }
+        .pa-dash .pa-geo__list {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 102, 0, 0.45) rgba(255, 255, 255, 0.06);
+        }
+        .pa-dash .pa-geo__list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .pa-dash .pa-geo__list::-webkit-scrollbar-thumb {
+            background: rgba(255, 102, 0, 0.45);
+            border-radius: 999px;
+        }
+        .pa-dash .pa-geo__list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 999px;
         }
         .pa-dash .pa-geo__map {
             position: relative;
-            height: 148px;
+            height: 112px;
+            flex: 0 0 auto;
             border-radius: 8px;
             border: 1px solid rgba(255, 102, 0, 0.28);
             background:
@@ -527,32 +565,46 @@
             flex-direction: column;
             gap: 14px;
             flex: 1;
+            min-height: 0;
         }
         .pa-dash .pa-quality__badge {
-            width: 64px;
-            height: 64px;
-            border-radius: 14px;
+            flex: 0 0 auto;
+            min-width: 92px;
+            max-width: 110px;
+            padding: 8px 10px;
+            height: auto;
+            border-radius: 10px;
             border: 1px solid rgba(255, 102, 0, 0.4);
             background: rgba(255, 102, 0, 0.12);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 4px;
+            text-align: center;
+            margin: 0;
+            box-sizing: border-box;
         }
         .pa-dash .pa-quality__badge strong {
-            font-size: 16px;
+            display: block;
+            width: 100%;
+            font-size: 15px;
             font-weight: 700;
             color: #fff;
-            line-height: 1;
+            line-height: 1.15;
+            text-align: center;
         }
         .pa-dash .pa-quality__badge span {
+            display: block;
+            width: 100%;
             font-size: 7px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.04em;
             color: var(--pa-accent-soft);
-            margin-top: 3px;
+            margin-top: 4px;
+            line-height: 1.25;
+            text-align: center;
+            white-space: normal;
         }
         .pa-dash .pa-empty {
             margin: 0;
@@ -907,28 +959,30 @@
                     <i></i>
                     <span>Visit intensity by country</span>
                 </div>
-                <template x-for="row in pageGeo()" :key="row.key || row.code || row.country || row.name">
-                    <div class="pa-geo__row">
-                        <img
-                            class="pa-geo__flag"
-                            x-show="typeof countryFlagUrl === 'function' && countryFlagUrl(row.code || row.country || row.name)"
-                            :src="typeof countryFlagUrl === 'function' ? countryFlagUrl(row.code || row.country || row.name) : ''"
-                            :alt="row.name || row.country || ''"
-                        >
-                        <span
-                            class="pa-geo__flag-fallback"
-                            x-show="!(typeof countryFlagUrl === 'function' && countryFlagUrl(row.code || row.country || row.name))"
-                        ></span>
-                        <span class="pa-geo__name" x-text="row.name || row.country || row.label || row.code"></span>
-                        <span class="pa-geo__meta" x-text="`${fmt(row.value)} · ${row.pct != null ? row.pct : 0}%`"></span>
-                        <div class="pa-bar-track">
-                            <div
-                                class="pa-bar-fill is-soft"
-                                :style="`width:${row.bar != null ? row.bar : Math.max(4, Number(row.pct || 0))}%`"
-                            ></div>
+                <div class="pa-geo__list" x-show="(pageGeo() || []).length">
+                    <template x-for="row in pageGeo()" :key="row.key || row.code || row.country || row.name">
+                        <div class="pa-geo__row">
+                            <img
+                                class="pa-geo__flag"
+                                x-show="typeof countryFlagUrl === 'function' && countryFlagUrl(row.code || row.country || row.name)"
+                                :src="typeof countryFlagUrl === 'function' ? countryFlagUrl(row.code || row.country || row.name) : ''"
+                                :alt="row.name || row.country || ''"
+                            >
+                            <span
+                                class="pa-geo__flag-fallback"
+                                x-show="!(typeof countryFlagUrl === 'function' && countryFlagUrl(row.code || row.country || row.name))"
+                            ></span>
+                            <span class="pa-geo__name" x-text="row.name || row.country || row.label || row.code"></span>
+                            <span class="pa-geo__meta" x-text="`${fmt(row.value)} · ${row.pct != null ? row.pct : 0}%`"></span>
+                            <div class="pa-bar-track">
+                                <div
+                                    class="pa-bar-fill is-soft"
+                                    :style="`width:${row.bar != null ? row.bar : Math.max(4, Number(row.pct || 0))}%`"
+                                ></div>
+                            </div>
                         </div>
-                    </div>
-                </template>
+                    </template>
+                </div>
                 <p x-show="!(pageGeo() || []).length" class="pa-empty">No geography data in this window.</p>
             </div>
         </section>
@@ -1000,12 +1054,14 @@
 
         @if ($showQualityBlock)
         <section class="pa-card pa-card--compact">
-            <h2 class="pa-card__title">Quality Signals</h2>
-            <div class="pa-quality" x-show="pageQuality()">
-                <div class="pa-quality__badge">
+            <div class="pa-card__head">
+                <h2 class="pa-card__title">Quality Signals</h2>
+                <div class="pa-quality__badge" x-show="pageQuality()">
                     <strong x-text="(pageQuality()?.score ?? '—') + '/100'"></strong>
                     <span x-text="pageQuality()?.label || 'Score'"></span>
                 </div>
+            </div>
+            <div class="pa-quality" x-show="pageQuality()">
                 <div class="pa-bars">
                     <div class="pa-bar-row">
                         <span class="pa-bar-row__label">Human Visitors</span>
