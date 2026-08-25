@@ -13954,3 +13954,113 @@ a.figma-sa-users-filter-option {
     border-color: color-mix(in srgb, #FF6600 50%, transparent);
     color: #FFB380;
 }
+
+/* Light mode: keep light surfaces, swap purple accents → orange */
+html.light-mode .analytics-skin .bp-adv-page-head h1,
+html.light-mode .analytics-skin .bp-adv-page-head > div > span.text-\[24px\],
+html.light-mode .analytics-skin .bp-adv-page-head [class*="text-[#a9a9a9]"] {
+    color: #ea580c !important;
+}
+html.light-mode .analytics-skin .bp-adv-page-head .bg-\[\#a9a9a9\],
+html.light-mode .analytics-skin .bp-adv-page-head span.h-\[34px\].w-\[2px\],
+html.light-mode .analytics-skin .bp-adv-page-head span.h-\[44px\].w-\[2px\] {
+    background-color: #FF6600 !important;
+}
+html.light-mode .figma-main.analytics-skin [class*='text-[#a9a9a9]']:not(.is-active *),
+html.light-mode .analytics-skin .figma-main [class*='text-[#a9a9a9]']:not(.is-active *),
+html.light-mode .analytics-skin h1.text-\[\#a9a9a9\],
+html.light-mode .analytics-skin span.text-\[\#a9a9a9\],
+html.light-mode .figma-main .analytics-skin h1[class*='text-[#a9a9a9]'],
+html.light-mode .figma-main .analytics-skin h2[class*='text-[#a9a9a9]'] {
+    color: #ea580c !important;
+}
+.analytics-skin .analytics-adv-filter-btn {
+    background: #FF6600 !important;
+    border-color: #ea580c !important;
+    color: #fff !important;
+}
+.analytics-skin .analytics-adv-filter-btn span {
+    background: rgba(255, 255, 255, 0.22) !important;
+}
+.analytics-skin .adv-pager__btn.is-active,
+.analytics-skin .adv-pager__btn.is-active:hover {
+    background: #FF6600 !important;
+    border-color: #FF6600 !important;
+    color: #fff !important;
+}
+html.light-mode .analytics-skin .rounded-full.border-\[\#FF6600\]\/40 {
+    border-color: rgba(255, 102, 0, 0.45) !important;
+    background: rgba(255, 102, 0, 0.1) !important;
+    color: #c2410c !important;
+}
+html.light-mode .analytics-skin .bp-adv-kpi-card {
+    background: #fff !important;
+    border-color: rgba(255, 102, 0, 0.35) !important;
+}
+html.light-mode .analytics-skin .bp-adv-kpi-card__value {
+    color: #1a1a1a !important;
+}
+html.light-mode .analytics-skin .bp-adv-kpi-card__label,
+html.light-mode .analytics-skin .bp-adv-kpi-card__sub {
+    color: #6b6280 !important;
+}
+html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-purple,
+html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-green,
+html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-amber {
+    background: rgba(255, 102, 0, 0.14) !important;
+    color: #ea580c !important;
+}
+html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-rose {
+    background: rgba(244, 63, 94, 0.12) !important;
+    color: #be123c !important;
+}
+html.light-mode .analytics-skin .paid-advanced-columns-menu,
+html.light-mode .analytics-skin .bp-adv-filters-menu {
+    border-color: rgba(255, 102, 0, 0.35) !important;
+}
+html.light-mode .analytics-skin [class*="border-[#6400B2]"],
+html.light-mode .analytics-skin [class*="border-[#6706B3]"] {
+    border-color: rgba(255, 102, 0, 0.45) !important;
+}
+html.light-mode .analytics-skin .text-\[\#FFB380\] {
+    color: #c2410c !important;
+}
+
+/* Analytics dashboard light mode — light cards, orange accents */
+html.light-mode .pa-dash .pa-card,
+html.light-mode .pa-dash .pa-kpi {
+    background: #fff;
+    border-color: rgba(255, 102, 0, 0.22);
+    color: #1a1a1a;
+}
+html.light-mode .pa-dash .pa-card__title,
+html.light-mode .pa-dash .pa-kpi__value {
+    color: #1a1a1a;
+}
+html.light-mode .pa-dash .pa-kpi__title,
+html.light-mode .pa-dash .pa-empty,
+html.light-mode .pa-dash .pa-table th,
+html.light-mode .pa-dash .muted {
+    color: #6b6280;
+}
+html.light-mode .pa-dash .pa-table td {
+    color: #3f3a4a;
+    border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+html.light-mode .pa-dash .pa-donut__hole {
+    background: #fff;
+}
+html.light-mode .pa-dash .pa-donut__hole strong {
+    color: #1a1a1a;
+}
+html.light-mode .pa-dash .pa-bar-track {
+    background: rgba(255, 102, 0, 0.12);
+}
+html.light-mode .pa-dash .pa-inset {
+    background: rgba(255, 102, 0, 0.08);
+    border-color: rgba(255, 102, 0, 0.28);
+}
+html.light-mode .pa-dash .pa-inset__value {
+    color: #1a1a1a;
+}
+

@@ -226,16 +226,29 @@
                 border-color: #d4c4e8;
                 box-shadow: 0 1px 0 rgba(100, 0, 178, 0.06);
             }
+            html.light-mode .analytics-skin .bp-adv-kpi-card {
+                border-color: rgba(255, 102, 0, 0.35);
+                box-shadow: 0 1px 0 rgba(255, 102, 0, 0.08);
+            }
             html.light-mode .bp-adv-kpi-card__label,
             html.light-mode .bp-adv-kpi-card__sub { color: #6b6280; }
             html.light-mode .bp-adv-kpi-card__value { color: #1a1a1a; }
             html.light-mode .bp-adv-kpi-card__icon.is-purple { background: rgba(100, 0, 178, 0.12); color: #6400B2; }
+            html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-purple,
+            html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-green,
+            html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-amber {
+                background: rgba(255, 102, 0, 0.14);
+                color: #ea580c;
+            }
             html.light-mode .bp-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.14); color: #15803d; }
             html.light-mode .bp-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.12); color: #be123c; }
             html.light-mode .bp-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.14); color: #b45309; }
             html.light-mode .bp-adv-filters-menu {
                 background: #fff;
                 border-color: #d4c4e8;
+            }
+            html.light-mode .analytics-skin .bp-adv-filters-menu {
+                border-color: rgba(255, 102, 0, 0.35);
             }
             html.light-mode .bp-adv-filters-menu .text-white,
             html.light-mode .bp-adv-filters-menu label { color: #2d2d3a !important; }
@@ -672,7 +685,7 @@
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Traffic Control</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
                     <div class="relative" @click.outside="filterMenuOpen = false">
-                        <button type="button" @click="filterMenuOpen = !filterMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
+                        <button type="button" @click="filterMenuOpen = !filterMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white analytics-adv-filter-btn">
                             Advanced Filter
                             <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
                         </button>
@@ -886,6 +899,7 @@
         <section x-show="!analyticsMode" class="bp-adv-charts">
             <article class="bp-adv-chart-card">
                 <h3 class="bp-adv-chart-card__title">Threat Distribution</h3>
+                <p class="mb-2 -mt-1 text-[11px] text-white/45">Valid Paid · Suspicious · Repeat · Automated · VPN/Proxy · Datacenter · Out-of-Geo</p>
                 <div class="bp-adv-chart-card__body">
                     <div class="bp-adv-donut" :style="`--bp-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">
@@ -920,6 +934,7 @@
 
             <article class="bp-adv-chart-card">
                 <h3 class="bp-adv-chart-card__title">Risk Level Distribution</h3>
+                <p class="mb-2 -mt-1 text-[11px] text-white/45">Low = clean · Medium = some signals · High = strong suspicion · Critical = likely fraud</p>
                 <div class="bp-adv-chart-card__body">
                     <div class="bp-adv-donut" :style="`--bp-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">

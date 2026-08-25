@@ -1931,15 +1931,24 @@ class BotProtectionController extends Controller
                 'total' => 0,
                 'total_label' => '0',
                 'center_label' => 'Invalid Clicks',
-                'gradient' => 'conic-gradient(rgba(100,0,178,0.25) 0 100%)',
-                'items' => [],
+                'gradient' => 'conic-gradient(rgba(255,102,0,0.25) 0 100%)',
+                'items' => [
+                    ['label' => 'Valid Paid Clicks', 'color' => '#22C55E', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
+                    ['label' => 'Suspicious Clicks', 'color' => '#F59E0B', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
+                    ['label' => 'Repeat Clicks', 'color' => '#14B8A6', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
+                    ['label' => 'Automated Traffic', 'color' => '#22D3EE', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
+                    ['label' => 'VPN / Proxy Traffic', 'color' => '#A855F7', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
+                    ['label' => 'Datacenter Traffic', 'color' => '#3B82F6', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
+                    ['label' => 'Out-of-Geo Clicks', 'color' => '#D6B27C', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
+                ],
             ],
             'risk' => [
                 'total' => 0,
                 'total_label' => '0',
                 'center_label' => 'Unique IPs',
-                'gradient' => 'conic-gradient(rgba(100,0,178,0.25) 0 100%)',
+                'gradient' => 'conic-gradient(rgba(255,102,0,0.25) 0 100%)',
                 'items' => [
+                    ['label' => 'Critical Risk', 'color' => '#BE123C', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
                     ['label' => 'High Risk', 'color' => '#F43F5E', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
                     ['label' => 'Medium Risk', 'color' => '#F59E0B', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
                     ['label' => 'Low Risk', 'color' => '#22C55E', 'pct' => 0, 'count' => 0, 'count_label' => '0'],
@@ -1962,15 +1971,17 @@ class BotProtectionController extends Controller
         }
 
         $threatBuckets = [
-            'vpn' => ['label' => 'VPN / Proxy', 'color' => '#A855F7', 'count' => 0],
-            'datacenter' => ['label' => 'Data Center', 'color' => '#3B82F6', 'count' => 0],
-            'geo' => ['label' => 'Geo Mismatch', 'color' => '#D6B27C', 'count' => 0],
-            'device' => ['label' => 'Invalid Device', 'color' => '#C084FC', 'count' => 0],
-            'bot' => ['label' => 'Bot Behavior', 'color' => '#22D3EE', 'count' => 0],
-            'repeat' => ['label' => 'Repeated Clicks', 'color' => '#14B8A6', 'count' => 0],
+            'valid' => ['label' => 'Valid Paid Clicks', 'color' => '#22C55E', 'count' => 0],
+            'suspicious' => ['label' => 'Suspicious Clicks', 'color' => '#F59E0B', 'count' => 0],
+            'repeat' => ['label' => 'Repeat Clicks', 'color' => '#14B8A6', 'count' => 0],
+            'bot' => ['label' => 'Automated Traffic', 'color' => '#22D3EE', 'count' => 0],
+            'vpn' => ['label' => 'VPN / Proxy Traffic', 'color' => '#A855F7', 'count' => 0],
+            'datacenter' => ['label' => 'Datacenter Traffic', 'color' => '#3B82F6', 'count' => 0],
+            'geo' => ['label' => 'Out-of-Geo Clicks', 'color' => '#D6B27C', 'count' => 0],
         ];
 
         $riskBuckets = [
+            'critical' => ['label' => 'Critical Risk', 'color' => '#BE123C', 'count' => 0],
             'high' => ['label' => 'High Risk', 'color' => '#F43F5E', 'count' => 0],
             'medium' => ['label' => 'Medium Risk', 'color' => '#F59E0B', 'count' => 0],
             'low' => ['label' => 'Low Risk', 'color' => '#22C55E', 'count' => 0],
@@ -1992,24 +2003,31 @@ class BotProtectionController extends Controller
             $weight = $aggInvalid !== null ? $aggInvalid : ($isInvalid ? 1 : 0);
 
             if ($weight > 0) {
-                if (in_array($group, ['vpn', 'proxy'], true)) {
+                if ($group === 'abnormal_rate_limit' || str_contains($group, 'repeat') || ($aggTotal !== null && $aggTotal > 1)) {
+                    $threatBuckets['repeat']['count'] += $weight;
+                } elseif (in_array($group, ['vpn', 'proxy'], true)) {
                     $threatBuckets['vpn']['count'] += $weight;
                 } elseif (in_array($group, ['data_center', 'datacenter'], true)) {
                     $threatBuckets['datacenter']['count'] += $weight;
                 } elseif (in_array($group, ['out_of_geo', 'geo', 'geo_mismatch'], true)) {
                     $threatBuckets['geo']['count'] += $weight;
-                } elseif (str_contains($group, 'device') || $group === 'malicious') {
-                    $threatBuckets['device']['count'] += $weight;
-                } elseif ($group === 'abnormal_rate_limit' || str_contains($group, 'repeat') || ($aggTotal !== null && $aggTotal > 1)) {
-                    $threatBuckets['repeat']['count'] += $weight;
-                } else {
+                } elseif (in_array($group, ['automation', 'bot'], true) || str_contains($group, 'bot')) {
                     $threatBuckets['bot']['count'] += $weight;
+                } else {
+                    $threatBuckets['suspicious']['count'] += $weight;
                 }
 
                 $countryCode = strtoupper(trim((string) ($visit->country ?? '')));
                 if ($countryCode !== '') {
                     $name = $this->countryLabel($countryCode);
                     $countryInvalid[$name] = ($countryInvalid[$name] ?? 0) + $weight;
+                }
+            } else {
+                $validWeight = $aggTotal !== null
+                    ? max(0, $aggTotal - (int) ($aggInvalid ?? 0))
+                    : 1;
+                if ($validWeight > 0 && ! $isInvalid) {
+                    $threatBuckets['valid']['count'] += $validWeight;
                 }
             }
 
@@ -2038,24 +2056,24 @@ class BotProtectionController extends Controller
                         $score = 20;
                     }
                 } else {
-                    $level = $score >= 70 ? 'high' : ($score >= 40 ? 'medium' : 'low');
+                    $level = $score >= 85 ? 'critical' : ($score >= 70 ? 'high' : ($score >= 40 ? 'medium' : 'low'));
                 }
                 $riskBuckets[$level]['count'] += 1;
 
-                if ($score >= 55 || $level === 'high') {
+                if ($score >= 55 || in_array($level, ['high', 'critical'], true)) {
                     $category = 'High Risk';
                     $dot = '#F43F5E';
                     if (in_array($group, ['data_center', 'datacenter'], true)) {
-                        $category = 'Datacenter';
+                        $category = 'Datacenter Traffic';
                     } elseif (in_array($group, ['vpn', 'proxy'], true)) {
-                        $category = 'VPN / Proxy';
+                        $category = 'VPN / Proxy Traffic';
                     } elseif ($group === 'abnormal_rate_limit') {
-                        $category = 'Repeated Clicks';
+                        $category = 'Repeat Clicks';
                     } elseif (in_array($group, ['out_of_geo', 'geo'], true)) {
-                        $category = 'Geo Mismatch';
+                        $category = 'Out-of-Geo Clicks';
                         $dot = '#D6B27C';
                     } elseif ($group !== '') {
-                        $category = 'Bot Behavior';
+                        $category = 'Automated Traffic';
                         $dot = '#F59E0B';
                     }
 

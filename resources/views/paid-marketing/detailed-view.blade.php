@@ -995,7 +995,7 @@
         <section class="pm-adv-charts mt-[18px]">
             <article class="pm-adv-chart-card">
                 <h3 class="pm-adv-chart-card__title">Threat Distribution</h3>
-                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Invalid clicks by named category · center = Invalid Clicks total</p>
+                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Valid Paid · Suspicious · Repeat · Automated · VPN/Proxy · Datacenter · Out-of-Geo · center = Invalid Clicks total</p>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
@@ -1030,7 +1030,7 @@
 
             <article class="pm-adv-chart-card">
                 <h3 class="pm-adv-chart-card__title">Risk Level Distribution</h3>
-                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Unique IPs by Critical / High / Medium / Low · legend shows count + %</p>
+                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Low = clean · Medium = some suspicious signals · High = strong suspicion · Critical = likely fraud · legend shows count + %</p>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
