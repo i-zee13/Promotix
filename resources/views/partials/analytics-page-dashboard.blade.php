@@ -529,9 +529,9 @@
             flex: 1;
         }
         .pa-dash .pa-quality__badge {
-            width: 72px;
-            height: 72px;
-            border-radius: 16px;
+            width: 64px;
+            height: 64px;
+            border-radius: 14px;
             border: 1px solid rgba(255, 102, 0, 0.4);
             background: rgba(255, 102, 0, 0.12);
             display: flex;
@@ -541,18 +541,18 @@
             margin: 0 auto 4px;
         }
         .pa-dash .pa-quality__badge strong {
-            font-size: 22px;
+            font-size: 16px;
             font-weight: 700;
             color: #fff;
             line-height: 1;
         }
         .pa-dash .pa-quality__badge span {
-            font-size: 8px;
+            font-size: 7px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.06em;
             color: var(--pa-accent-soft);
-            margin-top: 4px;
+            margin-top: 3px;
         }
         .pa-dash .pa-empty {
             margin: 0;
