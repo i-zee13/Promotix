@@ -927,6 +927,7 @@ class PaidMarketingController extends Controller
             $visit->setAttribute('range_threat_group', $row['top_threat'] ?? $visit->threat_group);
             $visit->setAttribute('range_vpn_hits', (int) ($row['vpn_hits'] ?? 0));
             $visit->setAttribute('range_data_center_hits', (int) ($row['data_center_hits'] ?? 0));
+            $visit->setAttribute('range_repeat_hits', (int) ($row['repeat_hits'] ?? 0));
 
             return $visit;
         })->values();
@@ -1005,6 +1006,7 @@ class PaidMarketingController extends Controller
             $visit->setAttribute('range_threat_group', $agg->threat_group ?? null);
             $visit->setAttribute('range_vpn_hits', (int) ($agg->vpn_hits ?? 0));
             $visit->setAttribute('range_data_center_hits', (int) ($agg->data_center_hits ?? 0));
+            $visit->setAttribute('range_repeat_hits', (int) ($agg->repeat_hits ?? 0));
 
             return $visit;
         })->values();
@@ -1120,17 +1122,20 @@ class PaidMarketingController extends Controller
             ? 'SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END)'
             : '0';
         $vpnExpr = Schema::hasColumn('visits', 'threat_group')
-            ? "SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END)"
+            ? "SUM(CASE WHEN threat_group IN ('vpn','proxy') THEN 1 ELSE 0 END)"
             : '0';
         $dcExpr = Schema::hasColumn('visits', 'threat_group')
             ? "SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END)"
+            : '0';
+        $repeatExpr = Schema::hasColumn('visits', 'threat_group')
+            ? "SUM(CASE WHEN threat_group = 'abnormal_rate_limit' OR threat_group LIKE '%repeat%' THEN 1 ELSE 0 END)"
             : '0';
         $countryExpr = Schema::hasColumn('visits', 'country')
             ? 'MAX(country)'
             : 'NULL';
 
         return $query
-            ->selectRaw("domain_id, ip, COUNT(*) as total, {$invalidExpr} as invalid, MAX(visited_at) as last_seen, {$campaignExpr} as campaign, {$threatExpr} as threat_group, {$vpnExpr} as vpn_hits, {$dcExpr} as data_center_hits, {$countryExpr} as country")
+            ->selectRaw("domain_id, ip, COUNT(*) as total, {$invalidExpr} as invalid, MAX(visited_at) as last_seen, {$campaignExpr} as campaign, {$threatExpr} as threat_group, {$vpnExpr} as vpn_hits, {$dcExpr} as data_center_hits, {$repeatExpr} as repeat_hits, {$countryExpr} as country")
             ->groupBy('domain_id', 'ip')
             ->orderByDesc('total')
             ->limit(max(1, min($limit, 5000)))
@@ -1216,14 +1221,17 @@ class PaidMarketingController extends Controller
             ? 'SUM(CASE WHEN is_invalid_traffic = 1 THEN 1 ELSE 0 END)'
             : '0';
         $vpnExpr = Schema::hasColumn('visits', 'threat_group')
-            ? "SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END)"
+            ? "SUM(CASE WHEN threat_group IN ('vpn','proxy') THEN 1 ELSE 0 END)"
             : '0';
         $dcExpr = Schema::hasColumn('visits', 'threat_group')
             ? "SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END)"
             : '0';
+        $repeatExpr = Schema::hasColumn('visits', 'threat_group')
+            ? "SUM(CASE WHEN threat_group = 'abnormal_rate_limit' OR threat_group LIKE '%repeat%' THEN 1 ELSE 0 END)"
+            : '0';
 
         $stats = $query
-            ->selectRaw("domain_id, ip, COUNT(*) as total, {$invalidExpr} as invalid, MAX(visited_at) as last_seen, {$campaignExpr} as campaign, {$threatExpr} as threat_group, {$vpnExpr} as vpn_hits, {$dcExpr} as data_center_hits")
+            ->selectRaw("domain_id, ip, COUNT(*) as total, {$invalidExpr} as invalid, MAX(visited_at) as last_seen, {$campaignExpr} as campaign, {$threatExpr} as threat_group, {$vpnExpr} as vpn_hits, {$dcExpr} as data_center_hits, {$repeatExpr} as repeat_hits")
             ->groupBy('domain_id', 'ip')
             ->get()
             ->keyBy(fn ($row) => (int) $row->domain_id.'|'.(string) $row->ip);
@@ -1247,6 +1255,7 @@ class PaidMarketingController extends Controller
             $visit->setAttribute('range_threat_group', $row->threat_group ?? null);
             $visit->setAttribute('range_vpn_hits', (int) ($row->vpn_hits ?? 0));
             $visit->setAttribute('range_data_center_hits', (int) ($row->data_center_hits ?? 0));
+            $visit->setAttribute('range_repeat_hits', (int) ($row->repeat_hits ?? 0));
         }
     }
 
@@ -1515,10 +1524,10 @@ class PaidMarketingController extends Controller
         $vpnHits = (int) ($visit->getAttribute('range_vpn_hits') ?? 0);
         if ($vpnHits === 0) {
             $vpnHits = $clicks->filter(
-                fn ($c) => strtolower((string) $c->threat_group) === 'vpn'
+                fn ($c) => in_array(strtolower((string) $c->threat_group), ['vpn', 'proxy'], true)
             )->count();
         }
-        if ($vpnHits === 0 && strtolower((string) ($visit->threat_group ?: $visit->getAttribute('range_threat_group'))) === 'vpn') {
+        if ($vpnHits === 0 && in_array(strtolower((string) ($visit->threat_group ?: $visit->getAttribute('range_threat_group'))), ['vpn', 'proxy'], true)) {
             $vpnHits = max($vpnHits, $invalidClicks > 0 ? $invalidClicks : 0);
         }
 
@@ -1531,6 +1540,23 @@ class PaidMarketingController extends Controller
         if ($dataCenterHits === 0 && in_array(strtolower((string) ($visit->threat_group ?: $visit->getAttribute('range_threat_group'))), ['data_center', 'datacenter'], true)) {
             $dataCenterHits = max($dataCenterHits, $invalidClicks > 0 ? $invalidClicks : 0);
         }
+
+        $repeatHits = (int) ($visit->getAttribute('range_repeat_hits') ?? 0);
+        if ($repeatHits === 0) {
+            $repeatHits = $clicks->filter(function ($c) {
+                $g = strtolower((string) $c->threat_group);
+
+                return $g === 'abnormal_rate_limit' || str_contains($g, 'repeat');
+            })->count();
+        }
+        $threatGroupBlob = strtolower((string) ($visit->threat_group ?: $visit->getAttribute('range_threat_group') ?: ''));
+        if ($repeatHits === 0 && ($threatGroupBlob === 'abnormal_rate_limit' || str_contains($threatGroupBlob, 'repeat'))) {
+            $repeatHits = max($repeatHits, $invalidClicks > 0 ? $invalidClicks : max($clickCount - 1, 0));
+        }
+        // Repeated clicks: flagged repeats, otherwise total visits when IP clicked more than once.
+        $repeatedClicks = $repeatHits > 0
+            ? $repeatHits
+            : ($clickCount > 1 ? $clickCount : 0);
 
         $validClicks = max($clickCount - $invalidClicks, 0);
         $rangeLastSeen = $visit->getAttribute('range_last_seen');
@@ -1593,6 +1619,13 @@ class PaidMarketingController extends Controller
         if ($visit->threat_group) {
             $riskReasons[] = str_replace('_', ' ', (string) $visit->threat_group);
         }
+
+        if (($intel['intel_vpn'] ?? 'No') === 'Yes' || ($intel['intel_proxy'] ?? 'No') === 'Yes') {
+            $vpnHits = max($vpnHits, max($clickCount, 1));
+        }
+        $vpnPct = $clickCount > 0
+            ? (int) min(100, round(($vpnHits / $clickCount) * 100))
+            : 0;
 
         return [
             'id' => $visit->id,
@@ -1688,6 +1721,8 @@ class PaidMarketingController extends Controller
                 ? false
                 : (bool) $visit->ip_is_blocked,
             'vpn_hits' => $vpnHits,
+            'vpn_pct' => $vpnPct,
+            'repeated_clicks' => $repeatedClicks,
             'data_center_hits' => $dataCenterHits,
             'invalid_clicks' => $invalidClicks,
             'valid_clicks' => $validClicks,
