@@ -27,6 +27,26 @@ class BotProtectionController extends Controller
 {
     public function dashboard(Request $request): View
     {
+        return $this->analyticsPage($request, 'dashboard');
+    }
+
+    public function journeys(Request $request): View
+    {
+        return $this->analyticsPage($request, 'journeys');
+    }
+
+    public function sources(Request $request): View
+    {
+        return $this->analyticsPage($request, 'sources');
+    }
+
+    public function sales(Request $request): View
+    {
+        return $this->analyticsPage($request, 'sales');
+    }
+
+    private function analyticsPage(Request $request, string $focus): View
+    {
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
             ->forBotProtection()
@@ -39,10 +59,19 @@ class BotProtectionController extends Controller
             ->orderBy('account_name')
             ->get();
 
+        $titles = [
+            'dashboard' => 'Dashboard',
+            'journeys' => 'Journeys',
+            'sources' => 'Sources',
+            'sales' => 'Sales & Conversions',
+        ];
+
         return view('bot-protection.dashboard', [
             'domains' => $domains,
             'googleAdsAccounts' => $googleAdsAccounts,
             'useDemo' => false,
+            'analyticsFocus' => $focus,
+            'analyticsFocusTitle' => $titles[$focus] ?? 'Dashboard',
         ]);
     }
 
@@ -51,54 +80,42 @@ class BotProtectionController extends Controller
         try {
             $domainIds = $this->scopedDomainIds($request);
             [$from, $to] = $this->dateRange($request);
+            $filters = $this->pageAnalyticsFilters($request);
             $days = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
             $prevTo = $from->copy()->subSecond();
             $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
 
             $aggregator = app(PageAnalyticsAggregator::class);
-            $current = DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->whereBetween('visited_at', [$from, $to])
-                ->count();
-            $payload = $aggregator->build($domainIds, $from, $to, (object) [
-                'total' => $current,
-            ]);
+            $payload = $aggregator->build($domainIds, $from, $to, null, $filters);
 
             if ($domainIds !== [] && Schema::hasTable('visits')) {
-                $prevRows = DB::table('visits')
-                    ->whereIn('domain_id', $domainIds)
-                    ->whereBetween('visited_at', [$prevFrom, $prevTo])
-                    ->get(['is_paid_traffic', 'utm_medium', 'utm_source', 'referrer', 'utm_term', 'gclid']);
-                $prevOrganic = 0;
-                $prevDirect = 0;
-                $prevReferral = 0;
-                $prevKeywords = 0;
-                foreach ($prevRows as $row) {
-                    $bucket = TrafficSourceClassifier::bucket(
-                        (bool) $row->is_paid_traffic,
-                        $row->utm_medium,
-                        $row->utm_source,
-                        $row->referrer,
-                        $row->gclid ?? null,
-                    );
-                    if ($bucket === 'organic') {
-                        $prevOrganic++;
-                    } elseif ($bucket === 'direct') {
-                        $prevDirect++;
-                    } elseif (in_array($bucket, ['referral', 'social'], true)) {
-                        $prevReferral++;
-                    }
-                    if (filled($row->utm_term)) {
-                        $prevKeywords++;
-                    }
-                }
+                $prevPayload = $aggregator->build($domainIds, $prevFrom, $prevTo, null, $filters);
+                $prevKpis = $prevPayload['kpis'] ?? [];
                 $payload['kpis']['deltas'] = [
-                    'total_visitors' => $this->pctDelta($current, $prevRows->count()),
-                    'organic_traffic' => $this->pctDelta($payload['kpis']['organic_traffic'], $prevOrganic),
-                    'direct_traffic' => $this->pctDelta($payload['kpis']['direct_traffic'], $prevDirect),
-                    'referral_traffic' => $this->pctDelta($payload['kpis']['referral_traffic'], $prevReferral),
-                    'keyword_visits' => $this->pctDelta($payload['kpis']['keyword_visits'], $prevKeywords),
-                    'conversion_rate' => 0,
+                    'total_visitors' => $this->pctDelta(
+                        (int) ($payload['kpis']['total_visitors'] ?? 0),
+                        (int) ($prevKpis['total_visitors'] ?? 0)
+                    ),
+                    'organic_traffic' => $this->pctDelta(
+                        (int) ($payload['kpis']['organic_traffic'] ?? 0),
+                        (int) ($prevKpis['organic_traffic'] ?? 0)
+                    ),
+                    'direct_traffic' => $this->pctDelta(
+                        (int) ($payload['kpis']['direct_traffic'] ?? 0),
+                        (int) ($prevKpis['direct_traffic'] ?? 0)
+                    ),
+                    'referral_traffic' => $this->pctDelta(
+                        (int) ($payload['kpis']['referral_traffic'] ?? 0),
+                        (int) ($prevKpis['referral_traffic'] ?? 0)
+                    ),
+                    'keyword_visits' => $this->pctDelta(
+                        (int) ($payload['kpis']['keyword_visits'] ?? 0),
+                        (int) ($prevKpis['keyword_visits'] ?? 0)
+                    ),
+                    'conversion_rate' => $this->pctDelta(
+                        (float) ($payload['kpis']['conversion_rate'] ?? 0),
+                        (float) ($prevKpis['conversion_rate'] ?? 0)
+                    ),
                 ];
             }
 
@@ -115,7 +132,8 @@ class BotProtectionController extends Controller
         try {
             $domainIds = $this->scopedDomainIds($request);
             [$from, $to] = $this->dateRange($request);
-            $payload = app(PageAnalyticsAggregator::class)->build($domainIds, $from, $to);
+            $filters = $this->pageAnalyticsFilters($request);
+            $payload = app(PageAnalyticsAggregator::class)->build($domainIds, $from, $to, null, $filters);
             $format = strtolower((string) $request->query('format', 'html'));
 
             if ($format === 'csv') {
@@ -1530,6 +1548,24 @@ class BotProtectionController extends Controller
         }
 
         return $query->pluck('id');
+    }
+
+    /**
+     * @return array{traffic_source: string, campaign: string, path: string, device: string}
+     */
+    private function pageAnalyticsFilters(Request $request): array
+    {
+        $source = strtolower(trim((string) $request->query('traffic_source', '')));
+        if ($source === 'google_ads' || $source === 'paid_search') {
+            $source = 'paid';
+        }
+
+        return [
+            'traffic_source' => $source,
+            'campaign' => trim((string) $request->query('campaign', '')),
+            'path' => trim((string) $request->query('path', '')),
+            'device' => strtolower(trim((string) $request->query('device', ''))),
+        ];
     }
 
     private function dateRange(Request $request): array

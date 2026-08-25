@@ -1,6 +1,11 @@
 @extends('layouts.admin')
 
-@section('title', 'Page Analytics | Dashboard')
+@php
+    $analyticsFocus = $analyticsFocus ?? 'dashboard';
+    $analyticsFocusTitle = $analyticsFocusTitle ?? 'Dashboard';
+@endphp
+
+@section('title', 'Page Analytics | '.$analyticsFocusTitle)
 
 @section('rightbar')
 <div class="figma-rightbar-default paid-rightbar">
@@ -17,11 +22,14 @@
             <div class="flex flex-wrap items-center gap-[12px] shrink-0">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Page Analytics</h1>
                 <span class="hidden h-[34px] w-[2px] bg-[#a9a9a9] sm:block sm:h-[44px]"></span>
-                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
+                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">{{ $analyticsFocusTitle }}</span>
                 <span x-show="useDemo" x-cloak class="figma-bp-demo-badge">Sample data</span>
                 <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[10px] py-[4px] text-[10px] font-medium text-[#FFB380]">Visitor intelligence · no IP blocking</span>
                 <a :href="`/bot-protection/page-analytics/export?${qs()}&format=html`" target="_blank" class="rounded-[6px] border border-[#FF6600]/50 bg-[#FF6600]/15 px-[10px] py-[5px] text-[11px] font-medium text-[#FFB380] hover:bg-[#FF6600]/25">Export report</a>
                 <a :href="`/bot-protection/page-analytics/export?${qs()}&format=csv`" class="rounded-[6px] border border-white/20 bg-white/5 px-[10px] py-[5px] text-[11px] font-medium text-white/70 hover:bg-white/10">CSV</a>
+                @if ($analyticsFocus === 'journeys')
+                    <a href="{{ route('analytics.traffic-control') }}" class="rounded-[6px] border border-white/20 bg-white/5 px-[10px] py-[5px] text-[11px] font-medium text-white/70 hover:bg-white/10">Open session journeys →</a>
+                @endif
             </div>
 
             <style>
@@ -1356,6 +1364,9 @@ function botProtectionFigma(config = {}) {
         pageJourney() {
             return this.pageAnalytics?.journey || [];
         },
+        pageJourneySummary() {
+            return this.pageAnalytics?.journey_summary || null;
+        },
         pageTopPages() {
             return this.pageAnalytics?.top_pages || [];
         },
@@ -1384,6 +1395,27 @@ function botProtectionFigma(config = {}) {
                 ...r,
                 name: this.countryLabel(r.code || r.country || r.name) || r.name || r.label,
             }));
+        },
+        pageGeoDots() {
+            const coords = {
+                US: [26, 42], USA: [26, 42], CA: [24, 32], GB: [48, 34], UK: [48, 34],
+                IN: [68, 52], PK: [66, 48], AE: [60, 48], AU: [82, 78], DE: [50, 36],
+                FR: [48, 40], BR: [34, 70], MX: [22, 52], JP: [84, 42], CN: [76, 44],
+                NL: [49, 35], ES: [47, 44], IT: [51, 42], TR: [56, 42], SA: [58, 50],
+            };
+            const rows = this.pageGeo().slice(0, 6);
+            const max = Math.max(1, ...rows.map(r => Number(r.value || 0)));
+            return rows.map((r) => {
+                const code = String(r.code || r.country || r.name || '').toUpperCase();
+                const [x, y] = coords[code] || [42, 48];
+                return {
+                    code,
+                    label: r.name || r.label || code,
+                    x,
+                    y,
+                    opacity: Math.max(0.45, Number(r.value || 0) / max),
+                };
+            });
         },
         pageDevices() {
             return this.pageAnalytics?.devices || [];
@@ -1552,6 +1584,7 @@ function botProtectionFigma(config = {}) {
             if (this.filters.traffic_source) p.set('traffic_source', this.filters.traffic_source);
             if (this.filters.google_ads_account_id) p.set('google_ads_account_id', this.filters.google_ads_account_id);
             if (this.filters.campaign) p.set('campaign', this.filters.campaign);
+            if (this.filters.device) p.set('device', this.filters.device);
             if (this.filters.path) p.set('path', this.filters.path);
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);

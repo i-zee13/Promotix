@@ -1,5 +1,20 @@
 {{-- Page Analytics Dashboard (included inside botProtectionFigma() — no nested x-data) --}}
-<div class="pa-dash">
+@php
+    $analyticsFocus = $analyticsFocus ?? 'dashboard';
+    $showAll = $analyticsFocus === 'dashboard';
+    $showKpis = $showAll || in_array($analyticsFocus, ['sources', 'sales'], true);
+    $showSourcesBlock = $showAll || $analyticsFocus === 'sources';
+    $showJourneyBlock = $showAll || $analyticsFocus === 'journeys';
+    $showTopPagesBlock = $showAll || $analyticsFocus === 'journeys';
+    $showFunnelBlock = $showAll || $analyticsFocus === 'sales';
+    $showReferrersBlock = $showAll || $analyticsFocus === 'sources';
+    $showKeywordsBlock = $showAll || $analyticsFocus === 'sources';
+    $showGeoBlock = $showAll || $analyticsFocus === 'sources';
+    $showDeviceBlock = $showAll || $analyticsFocus === 'sources';
+    $showSalesBlock = $showAll || $analyticsFocus === 'sales';
+    $showQualityBlock = $showAll || $analyticsFocus === 'sales';
+@endphp
+<div class="pa-dash" data-analytics-focus="{{ $analyticsFocus }}">
     <style>
         .pa-dash {
             --pa-accent: #FF6600;
@@ -340,18 +355,31 @@
             flex: 1;
         }
         .pa-dash .pa-geo__map {
-            height: 88px;
+            position: relative;
+            height: 110px;
             border-radius: 8px;
-            border: 1px dashed rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 102, 0, 0.22);
             background:
-                radial-gradient(ellipse at 40% 45%, rgba(255, 102, 0, 0.12), transparent 55%),
-                linear-gradient(180deg, #1a1a1a, #121212);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.35);
-            margin-bottom: 4px;
+                radial-gradient(ellipse at 30% 40%, rgba(255, 102, 0, 0.18), transparent 50%),
+                radial-gradient(ellipse at 70% 55%, rgba(59, 130, 246, 0.12), transparent 48%),
+                linear-gradient(180deg, #1a1a1a, #101010);
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        .pa-dash .pa-geo__map svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            opacity: 0.85;
+        }
+        .pa-dash .pa-geo__dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #FF6600;
+            box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.25);
+            transform: translate(-50%, -50%);
         }
         .pa-dash .pa-geo__row {
             display: grid;
@@ -390,10 +418,35 @@
             grid-column: 1 / -1;
             height: 6px;
         }
-
+        .pa-dash .pa-revenue-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .pa-dash .pa-revenue-stats div {
+            background: rgba(255, 102, 0, 0.08);
+            border: 1px solid rgba(255, 102, 0, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+        }
+        .pa-dash .pa-revenue-stats span {
+            display: block;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: rgba(255, 255, 255, 0.45);
+        }
+        .pa-dash .pa-revenue-stats strong {
+            display: block;
+            margin-top: 4px;
+            font-size: 13px;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
         .pa-dash .pa-revenue-spark {
             flex: 1;
-            min-height: 120px;
+            min-height: 88px;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
@@ -446,6 +499,7 @@
     </style>
 
     {{-- Row 1: KPI cards --}}
+    @if ($showKpis)
     <div class="pa-kpi-grid">
         <template x-for="card in pageAnalyticsKpis()" :key="card.key || card.title">
             <article class="pa-kpi">
@@ -463,9 +517,12 @@
             </article>
         </template>
     </div>
+    @endif
 
     {{-- Row 2: Traffic / Journey / Top Pages --}}
+    @if ($showSourcesBlock || $showJourneyBlock || $showTopPagesBlock)
     <div class="pa-row-3">
+        @if ($showSourcesBlock)
         <section class="pa-card" id="sources">
             <h2 class="pa-card__title">Traffic Source Overview</h2>
             <div class="pa-donut-wrap">
@@ -506,9 +563,11 @@
                 </div>
             </div>
         </section>
+        @endif
 
+        @if ($showJourneyBlock)
         <section class="pa-card">
-            <h2 class="pa-card__title">Visitor Journey Summary</h2>
+            <h2 class="pa-card__title" id="journey">Visitor Journey Summary</h2>
             <div class="overflow-x-auto">
                 <table class="pa-table">
                     <thead>
@@ -531,9 +590,18 @@
                     </tbody>
                 </table>
                 <p x-show="!(pageJourney() || []).length" class="pa-empty">No journey data in this window.</p>
+                <p
+                    x-show="(pageJourney() || []).length"
+                    class="mt-[10px] text-[11px] text-white/55"
+                >
+                    Avg. Session Duration:
+                    <strong class="text-[#FFB380]" x-text="pageJourneySummary()?.avg_session_duration || '00:00:00'"></strong>
+                </p>
             </div>
         </section>
+        @endif
 
+        @if ($showTopPagesBlock)
         <section class="pa-card">
             <h2 class="pa-card__title">Top Pages</h2>
             <div class="overflow-x-auto">
@@ -562,10 +630,14 @@
                 <p x-show="!(pageTopPages() || []).length" class="pa-empty">No page data in this window.</p>
             </div>
         </section>
+        @endif
     </div>
+    @endif
 
     {{-- Row 3: Funnel / Referrers / Keywords --}}
+    @if ($showFunnelBlock || $showReferrersBlock || $showKeywordsBlock)
     <div class="pa-row-3">
+        @if ($showFunnelBlock)
         <section class="pa-card">
             <h2 class="pa-card__title">Conversion Funnel</h2>
             <div class="pa-bars">
@@ -602,7 +674,9 @@
                 </div>
             </div>
         </section>
+        @endif
 
+        @if ($showReferrersBlock)
         <section class="pa-card">
             <h2 class="pa-card__title">Referrer / Platform Breakdown</h2>
             <div class="pa-bars">
@@ -621,7 +695,9 @@
                 <p x-show="!(pageReferrers() || []).length" class="pa-empty">No referrer data in this window.</p>
             </div>
         </section>
+        @endif
 
+        @if ($showKeywordsBlock)
         <section class="pa-card">
             <h2 class="pa-card__title">Keyword &amp; Headline</h2>
             <div class="pa-split-2">
@@ -672,14 +748,28 @@
                 </div>
             </div>
         </section>
+        @endif
     </div>
+    @endif
 
     {{-- Row 4: Geo / Device / Revenue / Quality --}}
+    @if ($showGeoBlock || $showDeviceBlock || $showSalesBlock || $showQualityBlock)
     <div class="pa-row-4">
+        @if ($showGeoBlock)
         <section class="pa-card pa-card--compact">
             <h2 class="pa-card__title">Geography</h2>
             <div class="pa-geo">
-                <div class="pa-geo__map" aria-hidden="true">Map overview</div>
+                <div class="pa-geo__map" aria-hidden="true">
+                    <svg viewBox="0 0 360 160" preserveAspectRatio="xMidYMid meet">
+                        <ellipse cx="90" cy="70" rx="58" ry="42" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
+                        <ellipse cx="190" cy="68" rx="46" ry="36" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
+                        <ellipse cx="270" cy="95" rx="38" ry="30" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
+                        <ellipse cx="145" cy="115" rx="28" ry="18" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)"/>
+                    </svg>
+                    <template x-for="(dot, idx) in pageGeoDots()" :key="'geo-dot-' + (dot.code || idx)">
+                        <span class="pa-geo__dot" :style="`left:${dot.x}%;top:${dot.y}%;opacity:${dot.opacity}`" :title="dot.label"></span>
+                    </template>
+                </div>
                 <template x-for="row in pageGeo()" :key="row.key || row.code || row.country || row.name">
                     <div class="pa-geo__row">
                         <img
@@ -705,7 +795,9 @@
                 <p x-show="!(pageGeo() || []).length" class="pa-empty">No geography data.</p>
             </div>
         </section>
+        @endif
 
+        @if ($showDeviceBlock)
         <section class="pa-card pa-card--compact">
             <h2 class="pa-card__title">Device Breakdown</h2>
             <div class="pa-donut-wrap" style="grid-template-columns: 112px minmax(0, 1fr);">
@@ -746,44 +838,62 @@
                 </div>
             </div>
         </section>
+        @endif
 
+        @if ($showSalesBlock)
         <section class="pa-card pa-card--compact" id="sales">
             <h2 class="pa-card__title">Sales &amp; Revenue</h2>
+            <div class="pa-revenue-stats" x-show="pageConversionSummary()">
+                <div>
+                    <span>Revenue</span>
+                    <strong x-text="pageConversionSummary()?.revenue || '$0.00'"></strong>
+                </div>
+                <div>
+                    <span>Transactions</span>
+                    <strong x-text="pageConversionSummary()?.transactions || '0'"></strong>
+                </div>
+                <div>
+                    <span>AOV</span>
+                    <strong x-text="pageConversionSummary()?.aov || '$0.00'"></strong>
+                </div>
+            </div>
             <div class="pa-revenue-spark" aria-hidden="true" x-html="sparkSvg(pageRevenueSpark(), '#FF6600')"></div>
         </section>
+        @endif
 
+        @if ($showQualityBlock)
         <section class="pa-card pa-card--compact">
             <h2 class="pa-card__title">Quality Signals</h2>
             <div class="pa-quality" x-show="pageQuality()">
                 <div class="pa-quality__badge">
-                    <strong x-text="pageQuality()?.score ?? '—'"></strong>
-                    <span>Score</span>
+                    <strong x-text="(pageQuality()?.score ?? '—') + '/100'"></strong>
+                    <span x-text="pageQuality()?.label || 'Score'"></span>
                 </div>
                 <div class="pa-bars">
                     <div class="pa-bar-row">
-                        <span class="pa-bar-row__label">Human</span>
-                        <span class="pa-bar-row__meta" x-text="(pageQuality()?.human != null ? pageQuality().human : 0) + '%'"></span>
+                        <span class="pa-bar-row__label">Human Visitors</span>
+                        <span class="pa-bar-row__meta" x-text="`${fmt(pageQuality()?.human_count || 0)} · ${pageQuality()?.human ?? 0}%`"></span>
                         <div class="pa-bar-track">
                             <div class="pa-bar-fill is-green" :style="`width:${Math.max(4, Number(pageQuality()?.human || 0))}%`"></div>
                         </div>
                     </div>
                     <div class="pa-bar-row">
                         <span class="pa-bar-row__label">Crawlers</span>
-                        <span class="pa-bar-row__meta" x-text="(pageQuality()?.crawlers != null ? pageQuality().crawlers : 0) + '%'"></span>
+                        <span class="pa-bar-row__meta" x-text="`${fmt(pageQuality()?.crawlers_count || 0)} · ${pageQuality()?.crawlers ?? 0}%`"></span>
                         <div class="pa-bar-track">
                             <div class="pa-bar-fill is-soft" :style="`width:${Math.max(4, Number(pageQuality()?.crawlers || 0))}%`"></div>
                         </div>
                     </div>
                     <div class="pa-bar-row">
                         <span class="pa-bar-row__label">Automation</span>
-                        <span class="pa-bar-row__meta" x-text="(pageQuality()?.automation != null ? pageQuality().automation : 0) + '%'"></span>
+                        <span class="pa-bar-row__meta" x-text="`${fmt(pageQuality()?.automation_count || 0)} · ${pageQuality()?.automation ?? 0}%`"></span>
                         <div class="pa-bar-track">
                             <div class="pa-bar-fill is-amber" :style="`width:${Math.max(4, Number(pageQuality()?.automation || 0))}%`"></div>
                         </div>
                     </div>
                     <div class="pa-bar-row">
-                        <span class="pa-bar-row__label">Malicious</span>
-                        <span class="pa-bar-row__meta" x-text="(pageQuality()?.malicious != null ? pageQuality().malicious : 0) + '%'"></span>
+                        <span class="pa-bar-row__label">Malicious Activity</span>
+                        <span class="pa-bar-row__meta" x-text="`${fmt(pageQuality()?.malicious_count || 0)} · ${pageQuality()?.malicious ?? 0}%`"></span>
                         <div class="pa-bar-track">
                             <div class="pa-bar-fill is-rose" :style="`width:${Math.max(4, Number(pageQuality()?.malicious || 0))}%`"></div>
                         </div>
@@ -792,5 +902,7 @@
             </div>
             <p x-show="!pageQuality()" class="pa-empty">No quality signals.</p>
         </section>
+        @endif
     </div>
+    @endif
 </div>
