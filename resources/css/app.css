@@ -14040,22 +14040,25 @@ html.light-mode .figma-main .analytics-skin .figma-filter-control {
 }
 html.light-mode .analytics-skin .pm-adv-table-grid--head,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-grid--head {
-    background: #fff4eb !important;
-    color: #9a3412 !important;
+    background: #141414 !important;
+    color: rgba(255, 255, 255, 0.72) !important;
 }
 html.light-mode .analytics-skin .pm-adv-table-grid--row,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-grid--row {
-    background: #fff7f0 !important;
-    color: #1a1a1a !important;
-    border: 1px solid rgba(255, 102, 0, 0.18);
+    background: transparent !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
 }
 html.light-mode .analytics-skin .pm-adv-table-grid--row:hover,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-grid--row:hover {
-    background: #ffedd5 !important;
+    background: rgba(255, 102, 0, 0.08) !important;
 }
 html.light-mode .analytics-skin .pm-adv-table-body-scroll,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-body-scroll {
-    background: #ffffff !important;
+    background: #0b0b0b !important;
     scrollbar-color: #FF6600 transparent;
 }
 html.light-mode .analytics-skin .pm-adv-table-x-scroll,
