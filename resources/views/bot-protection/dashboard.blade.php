@@ -20,6 +20,8 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
                 <span x-show="useDemo" x-cloak class="figma-bp-demo-badge">Sample data</span>
                 <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[10px] py-[4px] text-[10px] font-medium text-[#FFB380]">Visitor intelligence · no IP blocking</span>
+                <a :href="`/bot-protection/page-analytics/export?${qs()}&format=html`" target="_blank" class="rounded-[6px] border border-[#FF6600]/50 bg-[#FF6600]/15 px-[10px] py-[5px] text-[11px] font-medium text-[#FFB380] hover:bg-[#FF6600]/25">Export report</a>
+                <a :href="`/bot-protection/page-analytics/export?${qs()}&format=csv`" class="rounded-[6px] border border-white/20 bg-white/5 px-[10px] py-[5px] text-[11px] font-medium text-white/70 hover:bg-white/10">CSV</a>
             </div>
 
             <style>
@@ -1017,7 +1019,7 @@
             </div>{{-- /.bp-legacy-dashboard --}}
 
             <p class="mt-[12px] text-right">
-                <a href="{{ route('bot-protection.advanced') }}" class="text-[11px] text-[#FFB380] hover:text-white hover:underline">Open Traffic Control →</a>
+                <a href="{{ route('analytics.traffic-control') }}" class="text-[11px] text-[#FFB380] hover:text-white hover:underline">Open Traffic Control →</a>
             </p>
         </div>
 
@@ -1371,6 +1373,9 @@ function botProtectionFigma(config = {}) {
         },
         pageHeadlines() {
             return this.pageAnalytics?.headlines || [];
+        },
+        pageKeywordHeadlines() {
+            return this.pageAnalytics?.keyword_headlines || [];
         },
         pageGeo() {
             const list = this.pageAnalytics?.geo || [];

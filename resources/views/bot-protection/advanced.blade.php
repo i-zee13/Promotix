@@ -110,6 +110,70 @@
             .analytics-skin .bp-adv-kpi-card {
                 border-color: rgba(255, 102, 0, 0.55);
             }
+            .analytics-skin .bp-adv-kpi-card__icon.is-purple {
+                background: rgba(255, 102, 0, 0.22);
+                color: #FFB380;
+            }
+            .analytics-skin .bp-adv-country-row__bar {
+                background: #FF6600;
+            }
+            .tc-journey-drawer {
+                position: fixed;
+                inset: 0;
+                z-index: 80;
+                display: flex;
+                justify-content: flex-end;
+                background: rgba(0,0,0,0.55);
+            }
+            .tc-journey-drawer__panel {
+                width: min(440px, 100%);
+                height: 100%;
+                background: #141414;
+                border-left: 1px solid rgba(255,102,0,0.45);
+                padding: 18px 16px;
+                overflow-y: auto;
+            }
+            .tc-journey-drawer__meta {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                margin: 12px 0 16px;
+            }
+            .tc-journey-drawer__meta div {
+                background: #1a1a1a;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 8px;
+                padding: 8px 10px;
+            }
+            .tc-journey-drawer__meta span {
+                display: block;
+                font-size: 10px;
+                color: rgba(255,255,255,0.45);
+                margin-bottom: 2px;
+            }
+            .tc-journey-drawer__meta strong {
+                font-size: 12px;
+                color: #fff;
+                word-break: break-all;
+            }
+            .tc-journey-step {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 10px;
+            }
+            .tc-journey-step__dot {
+                width: 10px;
+                height: 10px;
+                margin-top: 4px;
+                border-radius: 999px;
+                background: #FF6600;
+                flex-shrink: 0;
+            }
+            .tc-journey-step__body {
+                flex: 1;
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+                padding-bottom: 8px;
+            }
             .bp-adv-kpi-card__icon {
                 display: inline-flex;
                 align-items: center;
@@ -518,6 +582,7 @@
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Analytics</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Traffic Control</span>
+                <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[10px] py-[4px] text-[10px] font-medium text-[#FFB380]">Visitor intelligence · no IP blocking</span>
             </div>
 
             <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-adv ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
@@ -695,7 +760,7 @@
 
                         <div class="pm-adv-table-body-scroll">
                             <template x-for="row in rows" :key="(row.domain_id || '') + '|' + (row.session_key || row.ip || row.id)">
-                                <div class="pm-adv-table-grid pm-adv-table-grid--row text-[10px] sm:text-[11px]" :style="gridStyle">
+                                <div class="pm-adv-table-grid pm-adv-table-grid--row text-[10px] sm:text-[11px] cursor-pointer" :style="gridStyle" @click="analyticsMode && openJourneyDrawer(row)">
                                     <label class="flex items-center justify-center">
                                         <input type="checkbox" class="rounded border-white/30">
                                     </label>
@@ -751,6 +816,52 @@
                         </div>
                     </template>
                     <p x-show="!(eventModal.events || []).length" class="py-6 text-center text-[12px] text-white/40">No event timeline for this session.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="tc-journey-drawer" x-show="journeyDrawer.open" x-cloak x-transition
+             @keydown.escape.window="closeJourneyDrawer()" @click.self="closeJourneyDrawer()">
+            <div class="tc-journey-drawer__panel" @click.stop>
+                <header class="mb-2 flex items-center justify-between gap-3">
+                    <h3 class="text-[16px] font-semibold text-white">Visitor Journey</h3>
+                    <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeJourneyDrawer()" aria-label="Close">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </header>
+                <p class="text-[11px] text-white/50" x-text="journeyDrawer.row?.timezone ? ('Timezone: ' + journeyDrawer.row.timezone) : ''"></p>
+                <div class="tc-journey-drawer__meta">
+                    <div><span>Session</span><strong x-text="journeyDrawer.row?.session_id || '—'"></strong></div>
+                    <div><span>Source</span><strong x-text="journeyDrawer.row?.source_platform || '—'"></strong></div>
+                    <div><span>Landing</span><strong x-text="journeyDrawer.row?.landing_page || '—'"></strong></div>
+                    <div><span>Exit</span><strong x-text="journeyDrawer.row?.exit_page || '—'"></strong></div>
+                    <div><span>Time on site</span><strong x-text="journeyDrawer.row?.time_on_site || '—'"></strong></div>
+                    <div><span>Device</span><strong x-text="(journeyDrawer.row?.device || '—') + ' · ' + (journeyDrawer.row?.country || '—')"></strong></div>
+                    <div><span>CTA / Tel</span><strong x-text="(journeyDrawer.row?.cta_clicks || 0) + ' / ' + (journeyDrawer.row?.tel_clicks || 0)"></strong></div>
+                    <div><span>Forms / Purchase</span><strong x-text="(journeyDrawer.row?.form_submits || 0) + ' / ' + (journeyDrawer.row?.purchase || 'No')"></strong></div>
+                </div>
+                <h4 class="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#FFB380]">Page flow</h4>
+                <template x-for="(step, idx) in journeySteps()" :key="'js-' + idx">
+                    <div class="tc-journey-step">
+                        <span class="tc-journey-step__dot"></span>
+                        <div class="tc-journey-step__body">
+                            <p class="text-[12px] text-white" x-text="step"></p>
+                        </div>
+                    </div>
+                </template>
+                <p x-show="!journeySteps().length" class="py-4 text-center text-[12px] text-white/40">No page flow recorded.</p>
+                <h4 class="mb-2 mt-4 text-[12px] font-semibold uppercase tracking-wide text-[#FFB380]">Behaviour timeline</h4>
+                <div class="max-h-[240px] overflow-y-auto promotix-slim-scroll">
+                    <template x-for="(ev, idx) in journeyTimeline()" :key="'jt-' + idx">
+                        <div class="mb-2 flex justify-between gap-3 border-b border-white/5 pb-2 text-[11px]">
+                            <span class="text-white/85" x-text="ev.label"></span>
+                            <span class="shrink-0 text-white/45" x-text="ev.time"></span>
+                        </div>
+                    </template>
+                    <p x-show="!journeyTimeline().length" class="py-4 text-center text-[12px] text-white/40">No timeline events.</p>
+                </div>
+                <div class="mt-4 flex gap-2" x-show="journeyDrawer.row?.has_session_recording">
+                    <button type="button" class="rounded-[6px] bg-[#FF6600] px-3 py-2 text-[12px] font-medium text-white" @click="openRecording(journeyDrawer.row)">Watch recording</button>
                 </div>
             </div>
         </div>
@@ -902,7 +1013,7 @@
         </section>
 
         <p class="mt-[12px] text-right">
-            <a href="{{ ($analyticsMode ?? false) ? route('analytics.dashboard') : route('bot-protection.dashboard') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">&larr; Back to Dashboard</a>
+            <a href="{{ route('analytics.dashboard') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">&larr; Back to Dashboard</a>
         </p>
     </section>
 
@@ -1020,6 +1131,7 @@ function botProtectionAdvancedFigma(config = {}) {
         optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
         recordingModal: { open: false, ip: '', page_url: '', events: [] },
         eventModal: { open: false, title: '', subtitle: '', events: [] },
+        journeyDrawer: { open: false, row: null },
         sessionKpis: {},
         recordingStop: null,
         filterMenuOpen: false,
@@ -1173,10 +1285,10 @@ function botProtectionAdvancedFigma(config = {}) {
             if (this.analyticsMode) {
                 const k = this.sessionKpis || {};
                 return [
-                    { key: 'sessions', label: 'Sessions', value: this.fmt(k.total_sessions ?? this.meta.total ?? 0), tone: 'purple', sub: 'Unique visitor sessions', asPercent: false },
+                    { key: 'sessions', label: 'Sessions', value: this.fmt(k.total_sessions ?? this.meta.total ?? 0), tone: 'green', sub: 'Unique visitor sessions', asPercent: false },
                     { key: 'cta', label: 'CTA Clicks', value: this.fmt(k.cta_clicks ?? 0), tone: 'green', sub: 'Tracked CTA interactions', asPercent: false },
                     { key: 'tel', label: 'Tel Clicks', value: this.fmt(k.tel_clicks ?? 0), tone: 'amber', sub: 'Phone link taps', asPercent: false },
-                    { key: 'forms', label: 'Form Submits', value: this.fmt(k.form_submits ?? 0), tone: 'purple', sub: 'Completed forms', asPercent: false },
+                    { key: 'forms', label: 'Form Submits', value: this.fmt(k.form_submits ?? 0), tone: 'amber', sub: 'Completed forms', asPercent: false },
                     { key: 'purchase', label: 'Purchases', value: this.fmt(k.purchases ?? 0), tone: 'green', sub: 'Recorded purchase events', asPercent: false },
                     { key: 'conv', label: 'Conversion Rate', value: Number(k.conversion_rate ?? 0).toFixed(2), tone: 'amber', sub: 'Purchase / session rate', asPercent: true },
                 ];
@@ -1384,28 +1496,71 @@ function botProtectionAdvancedFigma(config = {}) {
             } catch (e) {}
         },
         openEventDrilldown(row, kind) {
-            const count = Number(row?.[kind] || 0);
+            const key = String(kind || '');
+            const countRaw = row?.[key];
+            const count = key === 'purchase'
+                ? (String(countRaw).toLowerCase() === 'yes' ? 1 : Number(countRaw || 0))
+                : Number(countRaw || 0);
             if (!count) return;
             const timeline = row?.event_detail?.timeline || row?.event_detail?.cta || [];
-            const filterType = kind === 'tel_clicks' ? 'tel' : 'cta';
+            const matchers = {
+                cta_clicks: (t) => t.includes('cta') || t.includes('click'),
+                tel_clicks: (t) => t.includes('tel') || t.includes('phone'),
+                form_starts: (t) => t.includes('form') && t.includes('start'),
+                form_submits: (t) => t.includes('form') && (t.includes('submit') || t.includes('fill')),
+                add_to_cart: (t) => t.includes('cart'),
+                checkout: (t) => t.includes('checkout'),
+                purchase: (t) => t.includes('purchase') || t.includes('sale'),
+            };
+            const match = matchers[key] || (() => true);
+            const titles = {
+                cta_clicks: 'CTA Click Timeline',
+                tel_clicks: 'Tel Click Timeline',
+                form_starts: 'Form Start Timeline',
+                form_submits: 'Form Submit Timeline',
+                add_to_cart: 'Add to Cart Timeline',
+                checkout: 'Checkout Timeline',
+                purchase: 'Purchase Timeline',
+            };
             const events = (Array.isArray(timeline) ? timeline : [])
-                .filter(ev => {
-                    const t = String(ev?.type || ev?.label || '').toLowerCase();
-                    return kind === 'tel_clicks' ? t.includes('tel') : (t.includes('cta') || t.includes('click'));
-                })
+                .filter(ev => match(String(ev?.type || ev?.label || ev?.kind || '').toLowerCase()))
                 .map(ev => ({
                     label: ev.label || ev.detail || ev.kind || ev.type || 'Event',
                     time: ev.t != null ? `${Math.max(0, Math.round(Number(ev.t) / 1000))}s` : (ev.time || ev.at || '—'),
                 }));
             this.eventModal = {
                 open: true,
-                title: kind === 'tel_clicks' ? 'Tel Click Timeline' : 'CTA Click Timeline',
+                title: titles[key] || 'Event Timeline',
                 subtitle: `${count} event(s) · Session ${row.session_id || row.session_key || row.ip || ''}`,
-                events: events.length ? events : [{ label: `${count} ${kind === 'tel_clicks' ? 'tel' : 'CTA'} interaction(s) recorded`, time: row.last_seen || '—' }],
+                events: events.length ? events : [{ label: `${count} ${key.replace(/_/g, ' ')} event(s) recorded`, time: row.last_seen || '—' }],
             };
         },
         closeEventModal() {
             this.eventModal = { open: false, title: '', subtitle: '', events: [] };
+        },
+        openJourneyDrawer(row) {
+            if (!row) return;
+            this.journeyDrawer = { open: true, row };
+        },
+        closeJourneyDrawer() {
+            this.journeyDrawer = { open: false, row: null };
+        },
+        journeySteps() {
+            const row = this.journeyDrawer?.row;
+            if (!row) return [];
+            if (Array.isArray(row.pages) && row.pages.length) return row.pages;
+            const flow = String(row.page_flow || '');
+            if (!flow || flow === '—') {
+                return [row.landing_page, row.exit_page].filter((p, i, a) => p && p !== '—' && a.indexOf(p) === i);
+            }
+            return flow.split('→').map(s => s.trim()).filter(Boolean);
+        },
+        journeyTimeline() {
+            const timeline = this.journeyDrawer?.row?.event_detail?.timeline || [];
+            return (Array.isArray(timeline) ? timeline : []).map(ev => ({
+                label: ev.label || ev.detail || ev.kind || ev.type || 'Event',
+                time: ev.t != null ? `${Math.max(0, Math.round(Number(ev.t) / 1000))}s` : (ev.time || '—'),
+            }));
         },
         cellValue(row, key) {
             if (key === 'ip') return this.ipLabel(row);

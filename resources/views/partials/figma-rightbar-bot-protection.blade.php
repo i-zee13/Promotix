@@ -1,28 +1,30 @@
-{{-- Bot Protection rightbar Quick Actions (Dashboard + Advanced) --}}
+{{-- Analytics rightbar Quick Actions (legacy include → analytics routes) --}}
 @php
-    $isAdvanced = request()->routeIs('bot-protection.advanced');
+    $isTrafficControl = request()->routeIs('analytics.traffic-control', 'bot-protection.advanced');
+    $dashRoute = Route::has('analytics.dashboard') ? route('analytics.dashboard') : route('bot-protection.dashboard');
+    $trafficRoute = Route::has('analytics.traffic-control') ? route('analytics.traffic-control') : route('bot-protection.advanced');
 @endphp
-<div class="figma-rightbar-center mt-[8px] border-t-2 border-[#5a2a99] pt-[14px]">
+<div class="figma-rightbar-center mt-[8px] border-t-2 border-[#FF6600]/50 pt-[14px]">
     <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
     <div class="mx-auto grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
-        @if ($isAdvanced)
-            <a href="{{ route('bot-protection.dashboard') }}" class="paid-quick-action" title="Dashboard">
+        @if ($isTrafficControl)
+            <a href="{{ $dashRoute }}" class="paid-quick-action" title="Dashboard">
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[16px] w-[16px]'])
                 <span>Dashboard</span>
             </a>
         @else
-            <a href="{{ route('bot-protection.advanced') }}" class="paid-quick-action" title="Advanced View">
+            <a href="{{ $trafficRoute }}" class="paid-quick-action" title="Traffic Control">
                 @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
-                <span>Advanced</span>
+                <span>Traffic Control</span>
             </a>
         @endif
-        <a href="{{ route('paid-marketing.detection-settings') }}" class="paid-quick-action" title="Detection">
+        <a href="{{ route('paid-marketing.detection-settings') }}" class="paid-quick-action" title="Detection (Paid Adv)">
             @include('partials.sidebar-icon', ['name' => 'shield', 'class' => 'h-[16px] w-[16px]'])
             <span>Detection</span>
         </a>
-        <a href="{{ route('ip-logs') }}" class="paid-quick-action" title="IP Logs">
-            @include('partials.sidebar-icon', ['name' => 'globe', 'class' => 'h-[16px] w-[16px]'])
-            <span>IP Logs</span>
+        <a href="{{ route('paid-marketing.detailed') }}" class="paid-quick-action" title="Paid Advanced View">
+            @include('partials.sidebar-icon', ['name' => 'repeat', 'class' => 'h-[16px] w-[16px]'])
+            <span>Paid Advanced</span>
         </a>
         <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Domains">
             @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[16px] w-[16px]'])
@@ -37,4 +39,7 @@
             <span>Reports</span>
         </button>
     </div>
+    <p class="mx-auto mt-[10px] w-full max-w-[168px] text-[9px] leading-snug text-white/40">
+        Analytics shows visitor intelligence only. IP blocking stays in Paid Advertising / Detection.
+    </p>
 </div>

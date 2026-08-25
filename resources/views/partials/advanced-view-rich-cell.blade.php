@@ -33,7 +33,7 @@
         <span x-show="!{{ $item }}.has_session_recording" class="text-[#8c8787]">—</span>
     </span>
 </template>
-<template x-if="col.key === 'cta_clicks' || col.key === 'tel_clicks'">
+<template x-if="col.key === 'cta_clicks' || col.key === 'tel_clicks' || col.key === 'form_starts' || col.key === 'form_submits' || col.key === 'add_to_cart' || col.key === 'checkout'">
     <span>
         <button
             type="button"
@@ -44,6 +44,21 @@
         ></button>
         <span x-show="Number({{ $item }}[col.key] || 0) === 0" class="text-[#8c8787]">0</span>
     </span>
+</template>
+<template x-if="col.key === 'purchase'">
+    <span>
+        <button
+            type="button"
+            x-show="String({{ $item }}.purchase || '').toLowerCase() === 'yes' || Number({{ $item }}.purchase || 0) > 0"
+            @click.stop="openEventDrilldown({{ $item }}, 'purchase')"
+            class="font-medium text-[#FF6600] hover:underline"
+            x-text="cellValue({{ $item }}, 'purchase')"
+        ></button>
+        <span x-show="!(String({{ $item }}.purchase || '').toLowerCase() === 'yes' || Number({{ $item }}.purchase || 0) > 0)" class="text-[#8c8787]" x-text="cellValue({{ $item }}, 'purchase')"></span>
+    </span>
+</template>
+<template x-if="col.key === 'session_id'">
+    <button type="button" class="truncate text-left font-medium text-[#FF6600] hover:underline" @click.stop="openJourneyDrawer({{ $item }})" :title="cellValue({{ $item }}, 'session_id')" x-text="cellValue({{ $item }}, 'session_id')"></button>
 </template>
 <template x-if="!isRichCol(col.key)">
     <span class="block truncate" :class="col.key === 'ip' && 'font-medium'" :title="cellValue({{ $item }}, col.key)" x-text="cellValue({{ $item }}, col.key)"></span>

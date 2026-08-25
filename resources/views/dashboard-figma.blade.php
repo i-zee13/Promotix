@@ -189,7 +189,7 @@
                         <p class="ov-suite-stat__vs">vs previous period</p>
                     </div>
                 </div>
-                <a href="{{ route('bot-protection.dashboard') }}" class="ov-suite-card__cta">View Bot Report →</a>
+                <a href="{{ route('analytics.dashboard') }}" class="ov-suite-card__cta">View Analytics →</a>
             </article>
             </div>
 

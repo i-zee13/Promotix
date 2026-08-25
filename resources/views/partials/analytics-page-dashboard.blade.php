@@ -276,8 +276,11 @@
             border: 1px solid rgba(255, 102, 0, 0.28);
             background: rgba(255, 102, 0, 0.08);
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 10px;
+        }
+        @media (max-width: 720px) {
+            .pa-dash .pa-inset { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 520px) {
             .pa-dash .pa-inset { grid-template-columns: 1fr; }
@@ -593,6 +596,10 @@
                     <span class="pa-inset__label">Transactions</span>
                     <span class="pa-inset__value" x-text="pageConversionSummary()?.transactions ?? '—'"></span>
                 </div>
+                <div>
+                    <span class="pa-inset__label">AOV</span>
+                    <span class="pa-inset__value" x-text="pageConversionSummary()?.aov ?? '—'"></span>
+                </div>
             </div>
         </section>
 
@@ -637,6 +644,31 @@
                         </div>
                     </template>
                     <p x-show="!(pageHeadlines() || []).length" class="pa-empty">No headlines.</p>
+                </div>
+            </div>
+            <div class="mt-[14px]" x-show="(pageKeywordHeadlines() || []).length">
+                <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.06em">Keyword × Headline</h3>
+                <div class="overflow-x-auto">
+                    <table class="pa-table">
+                        <thead>
+                            <tr>
+                                <th>Keyword</th>
+                                <th>Headline / Campaign</th>
+                                <th class="num">Visits</th>
+                                <th class="num">Share</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="row in pageKeywordHeadlines()" :key="row.key || row.label">
+                                <tr>
+                                    <td x-text="row.keyword"></td>
+                                    <td class="muted" x-text="row.headline"></td>
+                                    <td class="num" x-text="fmt(row.value)"></td>
+                                    <td class="num muted" x-text="(row.pct != null ? row.pct : 0) + '%'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>

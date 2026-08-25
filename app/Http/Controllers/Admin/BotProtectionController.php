@@ -110,6 +110,63 @@ class BotProtectionController extends Controller
         }
     }
 
+    public function pageAnalyticsExport(Request $request)
+    {
+        try {
+            $domainIds = $this->scopedDomainIds($request);
+            [$from, $to] = $this->dateRange($request);
+            $payload = app(PageAnalyticsAggregator::class)->build($domainIds, $from, $to);
+            $format = strtolower((string) $request->query('format', 'html'));
+
+            if ($format === 'csv') {
+                $filename = 'analytics-summary-'.$from->toDateString().'-'.$to->toDateString().'.csv';
+
+                return response()->streamDownload(function () use ($payload): void {
+                    $out = fopen('php://output', 'w');
+                    fputcsv($out, ['Metric', 'Value']);
+                    foreach (($payload['kpis'] ?? []) as $key => $value) {
+                        if (is_array($value)) {
+                            continue;
+                        }
+                        fputcsv($out, [$key, $value]);
+                    }
+                    $conv = $payload['conversion_summary'] ?? [];
+                    foreach ($conv as $key => $value) {
+                        fputcsv($out, ['conversion_'.$key, $value]);
+                    }
+                    fputcsv($out, []);
+                    fputcsv($out, ['Source', 'Visits', 'Share %']);
+                    foreach (($payload['traffic_sources'] ?? []) as $row) {
+                        fputcsv($out, [$row['label'] ?? '', $row['value'] ?? 0, $row['pct'] ?? 0]);
+                    }
+                    fputcsv($out, []);
+                    fputcsv($out, ['Keyword', 'Headline', 'Visits', 'Share %']);
+                    foreach (($payload['keyword_headlines'] ?? []) as $row) {
+                        fputcsv($out, [$row['keyword'] ?? '', $row['headline'] ?? '', $row['value'] ?? 0, $row['pct'] ?? 0]);
+                    }
+                    fclose($out);
+                }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+            }
+
+            $html = view('emails.monthly-analytics-report', [
+                'user' => $request->user(),
+                'from' => $from,
+                'to' => $to,
+                'payload' => $payload,
+                'exportMode' => true,
+            ])->render();
+
+            return response($html, 200, [
+                'Content-Type' => 'text/html; charset=UTF-8',
+                'Content-Disposition' => 'inline; filename="analytics-report-'.$from->toDateString().'.html"',
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response('Could not export analytics report.', 500);
+        }
+    }
+
     public function trafficControlSessions(Request $request): JsonResponse
     {
         try {
@@ -674,7 +731,9 @@ class BotProtectionController extends Controller
         return view('bot-protection.advanced', [
             'domains' => $domains,
             'googleAdsAccounts' => $googleAdsAccounts,
-            'analyticsMode' => $request->routeIs('analytics.traffic-control'),
+            // PDF §1: this page is Analytics → Traffic Control (visitor intelligence).
+            // Fraud/IP blocking lives only under Paid Advertising → Advanced View.
+            'analyticsMode' => true,
         ]);
     }
 

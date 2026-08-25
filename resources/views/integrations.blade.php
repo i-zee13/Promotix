@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
                                         <span>Paid Marketing</span>
                                     </a>
-                                    <a href="{{ route('bot-protection.dashboard') }}" class="pi-ghost-btn">
+                                    <a href="{{ route('analytics.dashboard') }}" class="pi-ghost-btn">
                                         @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
                                         <span>Bot Protection</span>
                                     </a>
@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
                                             <span>Paid Marketing</span>
                                         </a>
-                                        <a href="{{ route('bot-protection.dashboard') }}" class="pi-ghost-btn">
+                                        <a href="{{ route('analytics.dashboard') }}" class="pi-ghost-btn">
                                             @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
                                             <span>Bot Protection</span>
                                         </a>
@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
                                             <span>Paid Marketing</span>
                                         </a>
-                                        <a href="{{ route('bot-protection.dashboard') }}" class="pi-ghost-btn">
+                                        <a href="{{ route('analytics.dashboard') }}" class="pi-ghost-btn">
                                             @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
                                             <span>Bot Protection</span>
                                         </a>

@@ -13,7 +13,7 @@ return [
         'paid-marketing-detailed' => ['route' => 'paid-marketing.detailed', 'label' => 'Advanced View',       'icon' => 'eye'],
         'paid-marketing-platform-connections' => ['route' => 'integrations', 'label' => 'Platform Integrate', 'icon' => 'plug'],
         'paid-marketing-detection-settings' => ['route' => 'paid-marketing.detection-settings', 'label' => 'Detection Panel', 'icon' => 'shield-check'],
-        'bot-protection' => ['route' => 'bot-protection.dashboard', 'label' => 'Analytics Dashboard',  'icon' => 'shield'],
+        'bot-protection' => ['route' => 'analytics.dashboard', 'label' => 'Analytics Dashboard',  'icon' => 'shield'],
         'domain-management' => ['route' => 'domains.index', 'label' => 'Domains',           'icon' => 'globe'],
         'upgrade-plan'      => ['route' => 'billing.index', 'label' => 'Billing',           'icon' => 'card'],
     ],
@@ -45,10 +45,10 @@ return [
         [
             'label' => 'ANALYTICS',
             'items' => [
-                'bot-protection' => ['route' => 'bot-protection.dashboard', 'label' => 'Analytics Dashboard',     'icon' => 'shield'],
+                'bot-protection' => ['route' => 'analytics.dashboard', 'label' => 'Dashboard', 'icon' => 'home'],
                 // Traffic Control shares the bot-protection permission slug — duplicate is OK because
                 // canAccess() checks the slug, not the route.
-                'bot-protection-advanced-alias' => ['route' => 'bot-protection.advanced', 'label' => 'Traffic Control', 'icon' => 'eye', 'permission' => 'bot-protection'],
+                'bot-protection-advanced-alias' => ['route' => 'analytics.traffic-control', 'label' => 'Traffic Control', 'icon' => 'eye', 'permission' => 'bot-protection'],
             ],
         ],
         [

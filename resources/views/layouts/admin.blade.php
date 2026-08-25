@@ -61,8 +61,8 @@
             ['label' => 'Detection Panel', 'route' => 'paid-marketing.detection-settings', 'icon' => 'shield-check', 'permission' => 'paid-marketing-detection-settings'],
         ],
         'ANALYTICS' => [
-            ['label' => 'Dashboard', 'route' => 'bot-protection.dashboard', 'icon' => 'home', 'permission' => 'bot-protection'],
-            ['label' => 'Traffic Control', 'route' => 'bot-protection.advanced', 'icon' => 'eye', 'permission' => 'bot-protection'],
+            ['label' => 'Dashboard', 'route' => 'analytics.dashboard', 'icon' => 'home', 'permission' => 'bot-protection'],
+            ['label' => 'Traffic Control', 'route' => 'analytics.traffic-control', 'icon' => 'eye', 'permission' => 'bot-protection'],
         ],
         'SITE MANAGEMENT' => [
             ['label' => 'Domains', 'route' => 'domains.index', 'icon' => 'globe', 'permission' => 'domain-management'],
@@ -74,7 +74,7 @@
         ['route' => 'domains.index', 'icon' => 'tag', 'label' => 'Domains'],
         ['route' => 'integrations', 'icon' => 'plug', 'label' => 'Integrations'],
         ['route' => 'paid-marketing.dashboard', 'icon' => 'chart', 'label' => 'Paid Ads'],
-        ['route' => 'bot-protection.dashboard', 'icon' => 'chart', 'label' => 'Analytics'],
+        ['route' => 'analytics.dashboard', 'icon' => 'chart', 'label' => 'Analytics'],
         ['route' => 'domains.index', 'icon' => 'globe', 'label' => 'Sites'],
         ['route' => 'billing.index', 'icon' => 'card', 'label' => 'Billing'],
         ['route' => 'profile.edit', 'icon' => 'settings', 'label' => 'Settings'],

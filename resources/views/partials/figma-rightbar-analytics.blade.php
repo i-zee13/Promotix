@@ -14,9 +14,9 @@
             @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[16px] w-[16px]'])
             <span>Dashboard</span>
         </a>
-        <a href="{{ $analyticsAdvancedRoute }}" class="paid-quick-action pa-quick-action" title="Advanced">
+        <a href="{{ $analyticsAdvancedRoute }}" class="paid-quick-action pa-quick-action" title="Traffic Control">
             @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
-            <span>Advanced</span>
+            <span>Traffic Control</span>
         </a>
         <a href="{{ $analyticsAdvancedRoute }}#journey" class="paid-quick-action pa-quick-action" title="Journeys">
             @include('partials.sidebar-icon', ['name' => 'repeat', 'class' => 'h-[16px] w-[16px]'])

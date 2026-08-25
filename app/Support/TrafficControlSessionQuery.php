@@ -117,6 +117,7 @@ class TrafficControlSessionQuery
                 'keyword' => $row->utm_term,
                 'landing_page' => $landing ?? '/',
                 'page_flow' => $rec['page_flow'] ?? '—',
+                'pages' => $rec['pages'] ?? [],
                 'first_seen' => UserTimezone::formatForUser($first, $request->user(), 'M j, Y g:i a'),
                 'last_seen' => UserTimezone::formatForUser($last, $request->user(), 'M j, Y g:i a'),
                 'entry_time' => UserTimezone::formatForUser($first, $request->user(), 'g:i a'),
@@ -230,12 +231,23 @@ class TrafficControlSessionQuery
                 : SessionBehaviorAnalyzer::analyze([], 0);
 
             $pages = [];
+            $pageEvents = [];
             foreach ($events as $ev) {
-                if (is_array($ev) && ($ev['type'] ?? '') === 'page' && ! empty($ev['url'])) {
-                    $pages[] = TrafficSourceClassifier::pathFromUrl((string) $ev['url']);
+                if (! is_array($ev)) {
+                    continue;
+                }
+                if (($ev['type'] ?? '') === 'page' && ! empty($ev['url'])) {
+                    $path = TrafficSourceClassifier::pathFromUrl((string) $ev['url']);
+                    $pages[] = $path;
+                    $pageEvents[] = [
+                        'label' => 'Page: '.$path,
+                        'detail' => $path,
+                        'kind' => 'page',
+                        't' => (int) ($ev['t'] ?? 0),
+                    ];
                 }
             }
-            $pageFlow = $pages !== [] ? implode(' → ', array_slice(array_unique($pages), 0, 4)) : '—';
+            $pageFlow = $pages !== [] ? implode(' → ', array_slice(array_unique($pages), 0, 6)) : '—';
 
             $revenue = 0.0;
             foreach ($events as $ev) {
@@ -243,6 +255,8 @@ class TrafficControlSessionQuery
                     $revenue += (float) ($ev['revenue'] ?? $ev['value'] ?? 0);
                 }
             }
+
+            $timeline = $analysis['timeline'] ?? [];
 
             return [
                 'id' => (int) $rec->id,
@@ -256,9 +270,11 @@ class TrafficControlSessionQuery
                 'purchases' => (int) ($analysis['purchases'] ?? 0),
                 'revenue' => $revenue > 0 ? '$'.number_format($revenue, 2) : '—',
                 'page_flow' => $pageFlow,
+                'pages' => array_values(array_unique($pages)),
                 'event_detail' => [
-                    'cta' => $analysis['timeline'] ?? [],
-                    'timeline' => $analysis['timeline'] ?? [],
+                    'cta' => $timeline,
+                    'timeline' => $timeline,
+                    'pages' => $pageEvents,
                 ],
             ];
         });

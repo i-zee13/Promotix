@@ -57,8 +57,14 @@
                 @php($conv = $payload['conversion_summary'] ?? [])
                 <p style="margin:0;font-size:13px;color:#ccc;">
                     Revenue: <strong style="color:#fff;">{{ $conv['revenue'] ?? '$0.00' }}</strong> ·
-                    Transactions: <strong style="color:#fff;">{{ $conv['transactions'] ?? '0' }}</strong>
+                    Transactions: <strong style="color:#fff;">{{ $conv['transactions'] ?? '0' }}</strong> ·
+                    AOV: <strong style="color:#fff;">{{ $conv['aov'] ?? '$0.00' }}</strong>
                 </p>
+
+                @if (!empty($exportMode))
+                    <p style="margin:18px 0 0;font-size:12px;color:#888;">Tip: use your browser Print → Save as PDF for a designed PDF copy.</p>
+                    <script>/* print-friendly */</script>
+                @endif
             </td>
         </tr>
     </table>

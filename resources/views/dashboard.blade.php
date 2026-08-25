@@ -122,11 +122,11 @@
                         </span>
                         <span class="text-sm font-medium text-night-100">Integrations</span>
                     </a>
-                    <a href="{{ route('bot-protection.dashboard') }}" class="brand-card-flat flex items-center gap-3 hover:border-brand-400">
+                    <a href="{{ route('analytics.dashboard') }}" class="brand-card-flat flex items-center gap-3 hover:border-brand-400">
                         <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500/15 text-brand-200">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6l8-3z"/></svg>
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>
                         </span>
-                        <span class="text-sm font-medium text-night-100">Bot Protection</span>
+                        <span class="text-sm font-medium text-night-100">Analytics</span>
                     </a>
                 </div>
             </x-ui.card>
