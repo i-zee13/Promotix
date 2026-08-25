@@ -910,7 +910,8 @@ class BotProtectionController extends Controller
         $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
         $isDashboard = $request->query('source') === 'dashboard';
-        $filename = ($isDashboard ? 'bot-protection-dashboard-' : 'bot-protection-advanced-')
+        $isSessions = $request->query('mode') === 'sessions' || $request->query('source') === 'traffic-control';
+        $filename = ($isDashboard ? 'analytics-dashboard-' : ($isSessions ? 'traffic-control-sessions-' : 'bot-protection-advanced-'))
             .now()->format('YmdHis').'.csv';
 
         return response()->streamDownload(function () use ($request, $domainIds, $from, $to, $isDashboard): void {
@@ -920,8 +921,11 @@ class BotProtectionController extends Controller
 
             $handle = fopen('php://output', 'w');
 
+            $mode = (string) $request->query('mode', '');
             if ($isDashboard) {
                 $this->writeDashboardCsv($handle, $request, $domainIds, $from, $to);
+            } elseif ($mode === 'sessions' || $request->query('source') === 'traffic-control') {
+                $this->writeTrafficControlSessionsCsv($handle, $request, $domainIds, $from, $to);
             } else {
                 $this->writeAdvancedCsv($handle, $request, $domainIds, $from, $to);
             }
@@ -931,6 +935,97 @@ class BotProtectionController extends Controller
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
         ]);
+    }
+
+    /**
+     * @param  resource  $handle
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     */
+    private function writeTrafficControlSessionsCsv($handle, Request $request, $domainIds, Carbon $from, Carbon $to): void
+    {
+        fputcsv($handle, [
+            'Visitor IP',
+            'Session ID',
+            'Device ID',
+            'Source / Platform',
+            'Campaign',
+            'Keyword',
+            'Headline',
+            'Landing Page',
+            'Page Flow',
+            'First Seen',
+            'Last Seen',
+            'Entry Time',
+            'Exit Time',
+            'Timezone',
+            'Time on Site',
+            'Page Views',
+            'Scroll Events',
+            'CTA Clicks',
+            'Tel Clicks',
+            'Form Starts',
+            'Form Fills',
+            'Add to Cart',
+            'Checkout',
+            'Purchase',
+            'Revenue',
+            'Device',
+            'Browser',
+            'OS',
+            'Country',
+            'Region',
+            'Crawler Score',
+            'Automation Score',
+            'Malicious Score',
+            'Referrer',
+            'Exit Page',
+        ]);
+
+        $ids = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values()->all();
+        if ($ids === []) {
+            return;
+        }
+
+        $result = app(TrafficControlSessionQuery::class)->paginate($ids, $from, $to, $request, 1, 5000);
+        foreach ($result['data'] as $row) {
+            fputcsv($handle, [
+                $row['ip'] ?? '',
+                $row['session_id'] ?? '',
+                $row['fingerprint_id'] ?? '',
+                $row['source_platform'] ?? '',
+                $row['campaign'] ?? '',
+                $row['keyword'] ?? '',
+                $row['headline'] ?? '',
+                $row['landing_page'] ?? '',
+                $row['page_flow'] ?? '',
+                $row['first_seen'] ?? '',
+                $row['last_seen'] ?? '',
+                $row['entry_time'] ?? '',
+                $row['exit_time'] ?? '',
+                $row['timezone'] ?? '',
+                $row['time_on_site'] ?? '',
+                $row['page_views'] ?? 0,
+                $row['scroll_events'] ?? 0,
+                $row['cta_clicks'] ?? 0,
+                $row['tel_clicks'] ?? 0,
+                $row['form_starts'] ?? 0,
+                $row['form_fills'] ?? ($row['form_submits'] ?? 0),
+                $row['add_to_cart'] ?? 0,
+                $row['checkout'] ?? 0,
+                $row['purchase'] ?? '',
+                $row['revenue'] ?? '',
+                $row['device'] ?? '',
+                $row['browser'] ?? '',
+                $row['os'] ?? '',
+                $row['country'] ?? '',
+                $row['region'] ?? '',
+                $row['crawler_score'] ?? '',
+                $row['automation_score'] ?? '',
+                $row['malicious_score'] ?? '',
+                $row['referrer'] ?? '',
+                $row['exit_page'] ?? '',
+            ]);
+        }
     }
 
     /**

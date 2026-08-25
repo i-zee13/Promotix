@@ -173,6 +173,13 @@ class PageAnalyticsAggregator
                     'pages' => [],
                     'first_at' => $row->visited_at,
                     'last_at' => $row->visited_at,
+                    'platform' => $platform,
+                    'bucket' => $bucket,
+                    'ip' => $row->ip,
+                    'device' => $deviceKey,
+                    'browser' => $row->browser ?? null,
+                    'os' => $row->os ?? null,
+                    'country' => $country !== '' ? $country : null,
                 ];
             }
             $sessions[$sessionKey]['events'][] = [
@@ -362,7 +369,18 @@ class PageAnalyticsAggregator
                 'crawlers_count' => $crawlers,
                 'automation_count' => $automation,
                 'malicious_count' => $malicious,
+                // Gauge-friendly aliases for Traffic Control mock
+                'crawler_score' => $this->pct($crawlers, $total),
+                'automation_score' => $this->pct($automation, $total),
+                'malicious_score' => $this->pct($malicious, $total),
             ],
+            'engagement' => $this->buildEngagementDistribution($sessions),
+            'top_landing_pages' => $this->buildTopLandingPages($paths, $sessionCount),
+            'journey_paths' => $this->buildJourneyPaths($sessions),
+            'top_exit_pages' => $this->buildTopExitPages($sessions, $sessionCount),
+            'conversion_by_source' => $this->buildConversionBySource($sessions, $convertingSessions, $recordingStats),
+            'high_value_sessions' => $recordingStats['high_value_sessions'] ?? [],
+            'pages_per_session' => round($total / max(1, $sessionCount), 2),
         ];
     }
 
@@ -419,7 +437,17 @@ class PageAnalyticsAggregator
                 'crawlers_count' => 0,
                 'automation_count' => 0,
                 'malicious_count' => 0,
+                'crawler_score' => 0,
+                'automation_score' => 0,
+                'malicious_score' => 0,
             ],
+            'engagement' => [],
+            'top_landing_pages' => [],
+            'journey_paths' => [],
+            'top_exit_pages' => [],
+            'conversion_by_source' => [],
+            'high_value_sessions' => [],
+            'pages_per_session' => 0,
         ];
     }
 
@@ -476,6 +504,7 @@ class PageAnalyticsAggregator
             'carts' => 0,
             'checkouts' => 0,
             'product_views' => 0,
+            'high_value_sessions' => [],
         ];
 
         if (! Schema::hasTable('visit_session_recordings')) {
@@ -501,6 +530,12 @@ class PageAnalyticsAggregator
         if (Schema::hasColumn('visit_session_recordings', 'ip')) {
             $cols[] = 'ip';
         }
+        if (Schema::hasColumn('visit_session_recordings', 'session_id')) {
+            $cols[] = 'session_id';
+        }
+        if (Schema::hasColumn('visit_session_recordings', 'device')) {
+            $cols[] = 'device';
+        }
 
         $recordings = (clone $query)
             ->orderByDesc('id')
@@ -513,6 +548,7 @@ class PageAnalyticsAggregator
         $carts = 0;
         $checkouts = 0;
         $trendBuckets = [];
+        $highValue = [];
 
         foreach ($recordings as $rec) {
             $events = json_decode((string) ($rec->events ?? '[]'), true);
@@ -527,6 +563,7 @@ class PageAnalyticsAggregator
             $purchases += $dayPurchases;
 
             $dayRevenue = 0.0;
+            $product = null;
             foreach ($events as $ev) {
                 if (! is_array($ev)) {
                     continue;
@@ -538,12 +575,28 @@ class PageAnalyticsAggregator
                         $dayRevenue += $val;
                         $revenue += $val;
                     }
+                    $product = $product ?: ($ev['product'] ?? $ev['name'] ?? $ev['item'] ?? null);
                 }
+            }
+
+            if ($dayRevenue > 0 || $dayPurchases > 0) {
+                $highValue[] = [
+                    'session_id' => $rec->session_id ?? null,
+                    'ip' => $rec->ip ?? null,
+                    'revenue' => round($dayRevenue, 2),
+                    'revenue_label' => '$'.number_format($dayRevenue, 2),
+                    'product' => $product ? (string) $product : 'Purchase',
+                    'device' => $rec->device ?? '—',
+                    'at' => (string) ($rec->created_at ?? ''),
+                ];
             }
 
             $day = Carbon::parse($rec->created_at)->toDateString();
             $trendBuckets[$day] = ($trendBuckets[$day] ?? 0) + ($dayRevenue > 0 ? $dayRevenue : $dayPurchases);
         }
+
+        usort($highValue, fn ($a, $b) => ($b['revenue'] <=> $a['revenue']));
+        $defaults['high_value_sessions'] = array_slice($highValue, 0, 5);
 
         ksort($trendBuckets);
         $defaults['forms'] = $forms;
@@ -555,6 +608,166 @@ class PageAnalyticsAggregator
         $defaults['trend'] = array_values($trendBuckets);
 
         return $defaults;
+    }
+
+    /** @param  array<string, array{pages?:list<string>,first_at?:mixed,last_at?:mixed}>  $sessions */
+    private function buildEngagementDistribution(array $sessions): array
+    {
+        $bounced = 0;
+        $engaged = 0;
+        $high = 0;
+        foreach ($sessions as $session) {
+            $pages = array_values(array_unique($session['pages'] ?? []));
+            $pageCount = count($pages);
+            $start = $this->parseInstant($session['first_at'] ?? null);
+            $end = $this->parseInstant($session['last_at'] ?? null);
+            $secs = ($start && $end) ? max(0, $end->diffInSeconds($start)) : 0;
+
+            if ($pageCount <= 1 && $secs < 30) {
+                $bounced++;
+            } elseif ($pageCount >= 4 || $secs >= 180) {
+                $high++;
+            } else {
+                $engaged++;
+            }
+        }
+        $total = max(1, $bounced + $engaged + $high);
+
+        return $this->chartRows([
+            ['key' => 'bounced', 'label' => 'Bounced', 'value' => $bounced, 'color' => '#94A3B8'],
+            ['key' => 'engaged', 'label' => 'Engaged', 'value' => $engaged, 'color' => '#3B82F6'],
+            ['key' => 'highly_engaged', 'label' => 'Highly Engaged', 'value' => $high, 'color' => '#FF6600'],
+        ], $total);
+    }
+
+    /**
+     * @param  array<string, array{entry_sessions?:array<string,bool>}>  $paths
+     */
+    private function buildTopLandingPages(array $paths, int $sessionCount): array
+    {
+        return collect($paths)
+            ->map(fn ($row, $path) => [
+                'path' => $path,
+                'value' => count($row['entry_sessions'] ?? []),
+            ])
+            ->filter(fn ($r) => $r['value'] > 0)
+            ->sortByDesc('value')
+            ->take(8)
+            ->values()
+            ->map(fn ($r) => [
+                'key' => $r['path'],
+                'path' => $r['path'],
+                'label' => $r['path'],
+                'value' => $r['value'],
+                'pct' => $this->pct($r['value'], max(1, $sessionCount)),
+            ])
+            ->all();
+    }
+
+    /** @param  array<string, array{pages?:list<string>}>  $sessions */
+    private function buildJourneyPaths(array $sessions): array
+    {
+        $counts = [];
+        foreach ($sessions as $session) {
+            $pages = array_values(array_unique($session['pages'] ?? []));
+            if (count($pages) < 2) {
+                continue;
+            }
+            $flow = implode(' → ', array_slice($pages, 0, 5));
+            $counts[$flow] = ($counts[$flow] ?? 0) + 1;
+        }
+
+        return collect($counts)
+            ->sortByDesc(fn ($v) => $v)
+            ->take(8)
+            ->map(fn ($value, $path) => [
+                'key' => md5((string) $path),
+                'path' => (string) $path,
+                'label' => (string) $path,
+                'value' => (int) $value,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** @param  array<string, array{pages?:list<string>,events?:list<array{path:string,at:mixed}>}>  $sessions */
+    private function buildTopExitPages(array $sessions, int $sessionCount): array
+    {
+        $exits = [];
+        foreach ($sessions as $session) {
+            $events = $session['events'] ?? [];
+            usort($events, fn ($a, $b) => strcmp((string) ($a['at'] ?? ''), (string) ($b['at'] ?? '')));
+            $exit = $events !== []
+                ? (string) ($events[count($events) - 1]['path'] ?? '')
+                : (string) (array_values(array_unique($session['pages'] ?? []))[count(array_unique($session['pages'] ?? [])) - 1] ?? '');
+            if ($exit === '') {
+                continue;
+            }
+            $exits[$exit] = ($exits[$exit] ?? 0) + 1;
+        }
+
+        return collect($exits)
+            ->sortByDesc(fn ($v) => $v)
+            ->take(8)
+            ->map(fn ($value, $path) => [
+                'key' => (string) $path,
+                'path' => (string) $path,
+                'label' => (string) $path,
+                'value' => (int) $value,
+                'pct' => $this->pct((int) $value, max(1, $sessionCount)),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, array{bucket?:string,platform?:string}>  $sessions
+     * @param  array<string, bool>  $convertingSessions
+     * @param  array<string, mixed>  $recordingStats
+     */
+    private function buildConversionBySource(array $sessions, array $convertingSessions, array $recordingStats): array
+    {
+        $bySource = [];
+        foreach ($sessions as $sid => $session) {
+            $label = (string) ($session['platform'] ?? $session['bucket'] ?? 'Direct');
+            if ($label === '') {
+                $label = 'Direct';
+            }
+            if (! isset($bySource[$label])) {
+                $bySource[$label] = ['visits' => 0, 'conversions' => 0];
+            }
+            $bySource[$label]['visits']++;
+            if (isset($convertingSessions[$sid])) {
+                $bySource[$label]['conversions']++;
+            }
+        }
+
+        $totalRevenue = (float) ($recordingStats['revenue'] ?? 0);
+        $totalConv = max(1, (int) array_sum(array_map(fn ($r) => (int) ($r['conversions'] ?? 0), $bySource)));
+
+        return collect($bySource)
+            ->sortByDesc('visits')
+            ->take(8)
+            ->map(function ($row, $label) use ($totalRevenue, $totalConv) {
+                $visits = (int) $row['visits'];
+                $conv = (int) $row['conversions'];
+                $rate = $visits > 0 ? round(($conv / $visits) * 100, 2) : 0.0;
+                $share = $conv / $totalConv;
+                $revenue = round($totalRevenue * $share, 2);
+
+                return [
+                    'key' => md5((string) $label),
+                    'source' => (string) $label,
+                    'label' => (string) $label,
+                    'visits' => $visits,
+                    'conversions' => $conv,
+                    'conversion_rate' => $rate,
+                    'revenue' => $revenue,
+                    'revenue_label' => '$'.number_format($revenue, 2),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /** @param  array<string, array{events:list<array{path:string,at:mixed}>,pages:list<string>,first_at:mixed,last_at:mixed}>  $sessions */

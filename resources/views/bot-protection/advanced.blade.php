@@ -270,6 +270,171 @@
             @media (min-width: 900px) {
                 .bp-adv-charts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
             }
+
+            .tc-widgets { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+            .tc-widgets__row {
+                display: grid;
+                gap: 14px;
+                grid-template-columns: 1fr;
+            }
+            @media (min-width: 900px) {
+                .tc-widgets__row--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                .tc-widgets__row--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            }
+            @media (min-width: 1280px) {
+                .tc-widgets__row--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+                .tc-widgets__row--3 { grid-template-columns: 1.2fr 1fr 1fr; }
+            }
+            .tc-widget {
+                border-radius: 10px;
+                border: 1px solid rgba(255, 102, 0, 0.35);
+                background: #111111;
+                padding: 14px 14px 12px;
+                min-height: 240px;
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+            }
+            .tc-widget__title {
+                margin: 0 0 12px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #fff;
+            }
+            .tc-widget__body--donut {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                flex: 1;
+                min-width: 0;
+            }
+            .tc-widget__list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+            }
+            .tc-widget__row {
+                display: flex;
+                justify-content: space-between;
+                gap: 8px;
+                font-size: 11px;
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+                padding-bottom: 6px;
+            }
+            .tc-widget__path {
+                color: rgba(255,255,255,0.8);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                min-width: 0;
+            }
+            .tc-widget__meta {
+                color: rgba(255,255,255,0.5);
+                white-space: nowrap;
+                font-variant-numeric: tabular-nums;
+            }
+            .tc-widget__empty {
+                margin: auto 0;
+                text-align: center;
+                font-size: 11px;
+                color: rgba(255,255,255,0.4);
+                padding: 18px 0;
+            }
+            .tc-widget__hint {
+                margin: 10px 0 0;
+                font-size: 10px;
+                color: rgba(255,255,255,0.45);
+                text-align: center;
+            }
+            .tc-widget__table-wrap { overflow-x: auto; flex: 1; }
+            .tc-widget__table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 11px;
+            }
+            .tc-widget__table th {
+                text-align: left;
+                color: rgba(255,255,255,0.45);
+                font-weight: 600;
+                padding: 4px 6px 8px 0;
+                border-bottom: 1px solid rgba(255,255,255,0.08);
+            }
+            .tc-widget__table td {
+                padding: 7px 6px 7px 0;
+                color: rgba(255,255,255,0.85);
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+                font-variant-numeric: tabular-nums;
+            }
+            .tc-widget__cards {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                flex: 1;
+                overflow-y: auto;
+            }
+            .tc-hv-card {
+                border: 1px solid rgba(255, 102, 0, 0.28);
+                border-radius: 8px;
+                padding: 8px 10px;
+                background: rgba(255, 102, 0, 0.06);
+            }
+            .tc-hv-card__rev { margin: 0; font-size: 14px; font-weight: 700; color: #fff; }
+            .tc-hv-card__product { margin: 2px 0 0; font-size: 11px; color: #FFB380; }
+            .tc-hv-card__meta, .tc-hv-card__ago { margin: 2px 0 0; font-size: 10px; color: rgba(255,255,255,0.45); }
+            .tc-quality {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+                flex: 1;
+                align-items: center;
+            }
+            .tc-quality__gauge {
+                position: relative;
+                width: 100%;
+                aspect-ratio: 1;
+                max-width: 96px;
+                margin: 0 auto;
+            }
+            .tc-quality__ring {
+                width: 100%;
+                height: 100%;
+                border-radius: 999px;
+                background: conic-gradient(var(--qc, #FF6600) calc(var(--qp, 0) * 1%), rgba(255,255,255,0.08) 0);
+            }
+            .tc-quality__center {
+                position: absolute;
+                inset: 18%;
+                border-radius: 999px;
+                background: #111;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+            }
+            .tc-quality__center strong { font-size: 12px; color: #fff; line-height: 1.1; }
+            .tc-quality__center span { font-size: 8px; color: rgba(255,255,255,0.45); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
+            html.light-mode .tc-widget {
+                background: #fff;
+                border-color: rgba(255, 102, 0, 0.35);
+            }
+            html.light-mode .tc-widget__title { color: #1a1a1a; }
+            html.light-mode .tc-widget__path,
+            html.light-mode .tc-widget__table td { color: #2d2d3a; }
+            html.light-mode .tc-widget__meta,
+            html.light-mode .tc-widget__empty,
+            html.light-mode .tc-widget__hint,
+            html.light-mode .tc-widget__table th,
+            html.light-mode .tc-hv-card__meta,
+            html.light-mode .tc-hv-card__ago { color: #6b6578; }
+            html.light-mode .tc-hv-card { background: rgba(255, 102, 0, 0.08); }
+            html.light-mode .tc-hv-card__rev { color: #1a1a1a; }
+            html.light-mode .tc-quality__center { background: #fff; }
+            html.light-mode .tc-quality__center strong { color: #1a1a1a; }
+
             .bp-adv-chart-card {
                 display: flex;
                 flex-direction: column;
@@ -690,14 +855,14 @@
                             <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
                         </button>
                         <div x-show="filterMenuOpen" x-cloak class="paid-advanced-columns-menu promotix-slim-scroll">
-                            <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Primary columns</p>
+                            <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Required columns</p>
                             <template x-for="col in columnCatalog.filter(c => c.primary)" :key="col.key">
                                 <label class="paid-advanced-column-option is-locked">
                                     <input type="checkbox" checked disabled>
                                     <span x-text="col.label"></span>
                                 </label>
                             </template>
-                            <p class="mb-[8px] mt-[10px] text-[10px] font-semibold uppercase text-white/55">Optional columns</p>
+                            <p class="mb-[8px] mt-[10px] text-[10px] font-semibold uppercase text-white/55">Additional columns</p>
                             <template x-for="col in columnCatalog.filter(c => !c.primary)" :key="col.key">
                                 <label class="paid-advanced-column-option">
                                     <input type="checkbox" :value="col.key" :checked="optionalColumnKeys.includes(col.key)" @change="toggleOptionalColumn(col.key)">
@@ -810,6 +975,8 @@
             </div>
         </section>
 
+        @include('partials.traffic-control-widgets')
+
         <div class="figma-modal-overlay"
              x-show="eventModal.open" x-cloak x-transition
              @keydown.escape.window="closeEventModal()" @click.self="closeEventModal()">
@@ -844,14 +1011,18 @@
                 </header>
                 <p class="text-[11px] text-white/50" x-text="journeyDrawer.row?.timezone ? ('Timezone: ' + journeyDrawer.row.timezone) : ''"></p>
                 <div class="tc-journey-drawer__meta">
+                    <div><span>Visitor IP</span><strong x-text="journeyDrawer.row?.ip || '—'"></strong></div>
                     <div><span>Session</span><strong x-text="journeyDrawer.row?.session_id || '—'"></strong></div>
+                    <div><span>Device ID</span><strong x-text="journeyDrawer.row?.fingerprint_id || '—'"></strong></div>
                     <div><span>Source</span><strong x-text="journeyDrawer.row?.source_platform || '—'"></strong></div>
                     <div><span>Landing</span><strong x-text="journeyDrawer.row?.landing_page || '—'"></strong></div>
                     <div><span>Exit</span><strong x-text="journeyDrawer.row?.exit_page || '—'"></strong></div>
+                    <div><span>Entry / Exit</span><strong x-text="(journeyDrawer.row?.entry_time || '—') + ' → ' + (journeyDrawer.row?.exit_time || '—')"></strong></div>
                     <div><span>Time on site</span><strong x-text="journeyDrawer.row?.time_on_site || '—'"></strong></div>
                     <div><span>Device</span><strong x-text="(journeyDrawer.row?.device || '—') + ' · ' + (journeyDrawer.row?.country || '—')"></strong></div>
+                    <div><span>Region</span><strong x-text="journeyDrawer.row?.region || '—'"></strong></div>
                     <div><span>CTA / Tel</span><strong x-text="(journeyDrawer.row?.cta_clicks || 0) + ' / ' + (journeyDrawer.row?.tel_clicks || 0)"></strong></div>
-                    <div><span>Forms / Purchase</span><strong x-text="(journeyDrawer.row?.form_submits || 0) + ' / ' + (journeyDrawer.row?.purchase || 'No')"></strong></div>
+                    <div><span>Forms / Purchase</span><strong x-text="((journeyDrawer.row?.form_fills ?? journeyDrawer.row?.form_submits) ?? 0) + ' / ' + (journeyDrawer.row?.purchase || 'No')"></strong></div>
                 </div>
                 <h4 class="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#FFB380]">Page flow</h4>
                 <template x-for="(step, idx) in journeySteps()" :key="'js-' + idx">
@@ -1097,40 +1268,49 @@ function botProtectionAdvancedFigma(config = {}) {
     ];
 
     const analyticsColumnCatalog = [
+        // Required — always visible by default
+        { key: 'ip', label: 'Visitor IP', primary: true, min: 110 },
         { key: 'session_id', label: 'Session ID', primary: true, min: 110 },
-        { key: 'source_platform', label: 'Source', primary: true, min: 88 },
+        { key: 'source_platform', label: 'Source / Platform', primary: true, min: 96 },
+        { key: 'keyword', label: 'Keyword / Headline', primary: true, min: 110 },
         { key: 'landing_page', label: 'Landing Page', primary: true, min: 100 },
         { key: 'page_flow', label: 'Page Flow', primary: true, min: 120 },
+        { key: 'entry_time', label: 'Entry Time', primary: true, min: 80 },
+        { key: 'exit_time', label: 'Exit Time', primary: true, min: 80 },
         { key: 'time_on_site', label: 'Time on Site', primary: true, min: 72 },
         { key: 'page_views', label: 'Page Views', primary: true, min: 64 },
-        { key: 'scroll_events', label: 'Scroll Events', primary: true, min: 72 },
         { key: 'cta_clicks', label: 'CTA Clicks', primary: true, min: 64 },
-        { key: 'tel_clicks', label: 'Tel Clicks', primary: true, min: 64 },
-        { key: 'form_starts', label: 'Form Starts', primary: true, min: 72 },
-        { key: 'form_submits', label: 'Form Submits', primary: true, min: 72 },
         { key: 'add_to_cart', label: 'Add to Cart', primary: true, min: 72 },
         { key: 'checkout', label: 'Checkout', primary: true, min: 64 },
-        { key: 'purchase', label: 'Purchase', primary: true, min: 64 },
+        { key: 'purchase', label: 'Purchase / Sale', primary: true, min: 72 },
         { key: 'revenue', label: 'Revenue', primary: true, min: 72 },
         { key: 'device', label: 'Device', primary: true, min: 64 },
-        { key: 'country', label: 'Country', primary: true, min: 72 },
+        { key: 'browser', label: 'Browser', primary: true, min: 80 },
+        { key: 'os', label: 'OS', primary: true, min: 72 },
+        { key: 'crawler_score', label: 'Crawler Score', primary: true, min: 72 },
+        { key: 'automation_score', label: 'Automation Score', primary: true, min: 88 },
+        { key: 'malicious_score', label: 'Malicious Score', primary: true, min: 88 },
+        // Optional — Advanced Filter only
+        { key: 'fingerprint_id', label: 'Device ID', primary: false, min: 100 },
+        { key: 'campaign', label: 'Campaign', primary: false, min: 100 },
+        { key: 'headline', label: 'Headline', primary: false, min: 100 },
         { key: 'first_seen', label: 'First Seen', primary: false, min: 96 },
         { key: 'last_seen', label: 'Last Seen', primary: false, min: 96 },
-        { key: 'campaign', label: 'Campaign', primary: false, min: 100 },
-        { key: 'keyword', label: 'Keyword', primary: false, min: 100 },
-        { key: 'browser', label: 'Browser', primary: false, min: 80 },
-        { key: 'os', label: 'OS', primary: false, min: 72 },
-        { key: 'crawler_score', label: 'Crawler Score', primary: false, min: 72 },
-        { key: 'automation_score', label: 'Automation Score', primary: false, min: 88 },
-        { key: 'malicious_score', label: 'Malicious Score', primary: false, min: 88 },
-        { key: 'referrer', label: 'Referrer', primary: false, min: 100 },
+        { key: 'timezone', label: 'Timezone', primary: false, min: 88 },
+        { key: 'scroll_events', label: 'Scroll Events', primary: false, min: 72 },
+        { key: 'tel_clicks', label: 'Tel Clicks', primary: false, min: 64 },
+        { key: 'form_starts', label: 'Form Starts', primary: false, min: 72 },
+        { key: 'form_fills', label: 'Form Fills', primary: false, min: 72 },
+        { key: 'country', label: 'Country', primary: false, min: 72 },
+        { key: 'region', label: 'Region', primary: false, min: 80 },
+        { key: 'referrer', label: 'Referrer URL', primary: false, min: 100 },
         { key: 'exit_page', label: 'Exit Page', primary: false, min: 100 },
         { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
     ];
 
     const analyticsMode = Boolean(config.analyticsMode);
     const columnCatalog = analyticsMode ? analyticsColumnCatalog : fraudColumnCatalog;
-    const storageKey = analyticsMode ? 'bp-adv-analytics-columns-v1' : 'bp-adv-optional-columns-v2';
+    const storageKey = analyticsMode ? 'bp-adv-analytics-columns-v3' : 'bp-adv-optional-columns-v2';
 
     let savedOptional = [];
     try {
@@ -1148,6 +1328,7 @@ function botProtectionAdvancedFigma(config = {}) {
         eventModal: { open: false, title: '', subtitle: '', events: [] },
         journeyDrawer: { open: false, row: null },
         sessionKpis: {},
+        pageAnalytics: null,
         recordingStop: null,
         filterMenuOpen: false,
         get visibleColumns() {
@@ -1299,13 +1480,17 @@ function botProtectionAdvancedFigma(config = {}) {
         get statCards() {
             if (this.analyticsMode) {
                 const k = this.sessionKpis || {};
+                const pa = this.pageAnalytics || {};
+                const cta = Number(k.cta_clicks ?? pa?.kpis?.cta_clicks ?? 0);
+                const sessions = Math.max(1, Number(k.total_sessions ?? this.meta.total ?? 0));
+                const ctaRate = ((cta / sessions) * 100).toFixed(2);
                 return [
-                    { key: 'sessions', label: 'Sessions', value: this.fmt(k.total_sessions ?? this.meta.total ?? 0), tone: 'green', sub: 'Unique visitor sessions', asPercent: false },
-                    { key: 'cta', label: 'CTA Clicks', value: this.fmt(k.cta_clicks ?? 0), tone: 'green', sub: 'Tracked CTA interactions', asPercent: false },
-                    { key: 'tel', label: 'Tel Clicks', value: this.fmt(k.tel_clicks ?? 0), tone: 'amber', sub: 'Phone link taps', asPercent: false },
-                    { key: 'forms', label: 'Form Submits', value: this.fmt(k.form_submits ?? 0), tone: 'amber', sub: 'Completed forms', asPercent: false },
-                    { key: 'purchase', label: 'Purchases', value: this.fmt(k.purchases ?? 0), tone: 'green', sub: 'Recorded purchase events', asPercent: false },
-                    { key: 'conv', label: 'Conversion Rate', value: Number(k.conversion_rate ?? 0).toFixed(2), tone: 'amber', sub: 'Purchase / session rate', asPercent: true },
+                    { key: 'visitors', label: 'Unique Visitors', value: this.fmt(pa?.kpis?.total_visitors ?? k.total_sessions ?? this.meta.total ?? 0), tone: 'green', sub: 'Visits in selected range', asPercent: false },
+                    { key: 'duration', label: 'Avg. Session Duration', value: pa?.journey_summary?.avg_session_duration || '00:00:00', tone: 'green', sub: 'Entry → exit average', asPercent: false },
+                    { key: 'pps', label: 'Pages per Session', value: Number(pa?.pages_per_session ?? 0).toFixed(2), tone: 'amber', sub: 'Average depth', asPercent: false },
+                    { key: 'cta_rate', label: 'CTA Click Rate', value: ctaRate, tone: 'amber', sub: 'CTA clicks / sessions', asPercent: true },
+                    { key: 'conv', label: 'Conversion Rate', value: Number(k.conversion_rate ?? pa?.kpis?.conversion_rate ?? 0).toFixed(2), tone: 'green', sub: 'Purchase / session rate', asPercent: true },
+                    { key: 'revenue', label: 'Sales / Revenue', value: pa?.conversion_summary?.revenue || '$0.00', tone: 'green', sub: 'Attributed purchase revenue', asPercent: false },
                 ];
             }
             return [
@@ -1316,6 +1501,45 @@ function botProtectionAdvancedFigma(config = {}) {
                 { key: 'country', label: 'Country', value: this.stats.country ?? 0, tone: 'amber', sub: 'Visits with country data', asPercent: true },
                 { key: 'overall', label: 'Overall', value: this.stats.overall ?? 0, tone: 'green', sub: 'Valid traffic share', asPercent: true },
             ];
+        },
+        get sourceDonut() {
+            return this.buildDonut(this.pageAnalytics?.traffic_sources || [], 'Visitors');
+        },
+        get engagementDonut() {
+            return this.buildDonut(this.pageAnalytics?.engagement || [], 'Sessions');
+        },
+        buildDonut(items, centerLabel = '') {
+            const rows = (items || []).filter(i => Number(i.value || 0) > 0);
+            const total = rows.reduce((a, r) => a + Number(r.value || 0), 0);
+            if (!total) {
+                return { gradient: 'conic-gradient(rgba(255,102,0,0.2) 0 100%)', total_label: '0', center_label: centerLabel };
+            }
+            let deg = 0;
+            const stops = rows.map((r) => {
+                const span = (Number(r.value || 0) / total) * 360;
+                const start = deg;
+                deg += span;
+                return `${r.color || '#FF6600'} ${start}deg ${deg}deg`;
+            });
+            return {
+                gradient: `conic-gradient(${stops.join(', ')})`,
+                total_label: this.fmt(total),
+                center_label: centerLabel,
+            };
+        },
+        qualityScore(kind) {
+            const q = this.pageAnalytics?.quality || {};
+            const map = {
+                crawler: q.crawler_score ?? q.crawlers ?? 0,
+                automation: q.automation_score ?? q.automation ?? 0,
+                malicious: q.malicious_score ?? q.malicious ?? 0,
+            };
+            return Number(map[kind] || 0).toFixed(1);
+        },
+        qualityRingStyle(kind) {
+            const score = Math.max(0, Math.min(100, Number(this.qualityScore(kind))));
+            const colors = { crawler: '#22C55E', automation: '#FF6600', malicious: '#F59E0B' };
+            return `--qp:${score};--qc:${colors[kind] || '#FF6600'}`;
         },
         trafficSourceOptions() {
             if (this.analyticsMode) {
@@ -1343,7 +1567,10 @@ function botProtectionAdvancedFigma(config = {}) {
             });
             return p.toString();
         },
-        csvHref() { return `/bot-protection/export.csv?${this.qs()}`; },
+        csvHref() {
+            const extra = this.analyticsMode ? { mode: 'sessions', source: 'traffic-control' } : {};
+            return `/bot-protection/export.csv?${this.qs(extra)}`;
+        },
         reloadTimer: null,
         debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
         scheduleReload(resetPage = false) {
@@ -1427,6 +1654,7 @@ function botProtectionAdvancedFigma(config = {}) {
                         this.rows = [];
                     }
                     const k = analytics?.kpis || {};
+                    this.pageAnalytics = analytics?.kpis ? analytics : null;
                     this.sessionKpis = {
                         total_sessions: this.meta.total || 0,
                         cta_clicks: k.cta_clicks || 0,
@@ -1580,6 +1808,18 @@ function botProtectionAdvancedFigma(config = {}) {
         cellValue(row, key) {
             if (key === 'ip') return this.ipLabel(row);
             if (key === 'session_id') return row.session_id || row.session_key || '—';
+            if (key === 'form_fills') return row.form_fills ?? row.form_submits ?? 0;
+            if (key === 'keyword') {
+                const kw = String(row.keyword || '').trim();
+                const hl = String(row.headline || '').trim();
+                if (kw && hl && kw !== hl) return `${kw} · ${hl}`;
+                return kw || hl || '—';
+            }
+            if (key === 'fingerprint_id') {
+                const v = String(row.fingerprint_id || '');
+                if (!v) return '—';
+                return v.length > 18 ? v.slice(0, 16) + '…' : v;
+            }
             if (key === 'threat_group') return row.threat_group_label || row.threat_group || '—';
             if (key === 'threat_type') return row.threat_type || row.threat_type_label || '—';
             if (key === 'country') return row.country_label || row.country || '—';

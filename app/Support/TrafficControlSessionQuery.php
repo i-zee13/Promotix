@@ -71,6 +71,14 @@ class TrafficControlSessionQuery
         if (Schema::hasColumn('visits', 'fingerprint_id')) {
             $select[] = DB::raw('MAX(visits.fingerprint_id) as fingerprint_id');
         }
+        if (Schema::hasColumn('visits', 'utm_content')) {
+            $select[] = DB::raw('MAX(visits.utm_content) as utm_content');
+        }
+        if (Schema::hasColumn('visits', 'region')) {
+            $select[] = DB::raw('MAX(visits.region) as region');
+        } elseif (Schema::hasColumn('visits', 'city')) {
+            $select[] = DB::raw('MAX(visits.city) as city');
+        }
 
         $rows = (clone $base)
             ->select($select)
@@ -104,6 +112,19 @@ class TrafficControlSessionQuery
             $automationScore = (bool) ($row->is_invalid ?? false) ? min(100, (int) ($row->threat_score ?? 50)) : max(0, (int) ($row->threat_score ?? 0) / 2);
             $maliciousScore = (bool) ($row->is_invalid ?? false) ? min(100, (int) ($row->threat_score ?? 0)) : 0;
 
+            $headline = trim((string) ($row->utm_content ?? ''));
+            if ($headline === '') {
+                $headline = trim((string) ($row->utm_campaign ?? ''));
+            }
+            $region = null;
+            if (isset($row->region) && trim((string) $row->region) !== '') {
+                $region = trim((string) $row->region);
+            } elseif (isset($row->city) && trim((string) $row->city) !== '') {
+                $region = trim((string) $row->city);
+            }
+
+            $formFills = (int) ($rec['form_submits'] ?? 0);
+
             return [
                 'id' => (int) sprintf('%u', crc32($row->domain_id.'|'.$key)),
                 'session_id' => $row->session_id ?? $key,
@@ -115,6 +136,7 @@ class TrafficControlSessionQuery
                 'source_platform' => $platform,
                 'campaign' => $row->utm_campaign,
                 'keyword' => $row->utm_term,
+                'headline' => $headline !== '' ? $headline : null,
                 'landing_page' => $landing ?? '/',
                 'page_flow' => $rec['page_flow'] ?? '—',
                 'pages' => $rec['pages'] ?? [],
@@ -129,7 +151,8 @@ class TrafficControlSessionQuery
                 'cta_clicks' => (int) ($rec['cta_clicks'] ?? 0),
                 'tel_clicks' => (int) ($rec['tel_clicks'] ?? 0),
                 'form_starts' => (int) ($rec['form_starts'] ?? 0),
-                'form_submits' => (int) ($rec['form_submits'] ?? 0),
+                'form_submits' => $formFills,
+                'form_fills' => $formFills,
                 'add_to_cart' => (int) ($rec['add_to_cart'] ?? 0),
                 'checkout' => (int) ($rec['checkouts'] ?? 0),
                 'purchase' => ((int) ($rec['purchases'] ?? 0)) > 0 ? 'Yes' : 'No',
@@ -138,6 +161,7 @@ class TrafficControlSessionQuery
                 'browser' => $row->browser,
                 'os' => $row->os,
                 'country' => $row->country,
+                'region' => $region,
                 'crawler_score' => $crawlerScore,
                 'automation_score' => $automationScore,
                 'malicious_score' => $maliciousScore,

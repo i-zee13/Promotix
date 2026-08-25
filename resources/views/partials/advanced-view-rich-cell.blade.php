@@ -33,16 +33,16 @@
         <span x-show="!{{ $item }}.has_session_recording" class="text-[#8c8787]">—</span>
     </span>
 </template>
-<template x-if="col.key === 'cta_clicks' || col.key === 'tel_clicks' || col.key === 'form_starts' || col.key === 'form_submits' || col.key === 'add_to_cart' || col.key === 'checkout'">
+<template x-if="col.key === 'cta_clicks' || col.key === 'tel_clicks' || col.key === 'form_starts' || col.key === 'form_submits' || col.key === 'form_fills' || col.key === 'add_to_cart' || col.key === 'checkout'">
     <span>
         <button
             type="button"
-            x-show="Number({{ $item }}[col.key] || 0) > 0"
-            @click.stop="openEventDrilldown({{ $item }}, col.key)"
+            x-show="Number(col.key === 'form_fills' ? ({{ $item }}.form_fills ?? {{ $item }}.form_submits || 0) : ({{ $item }}[col.key] || 0)) > 0"
+            @click.stop="openEventDrilldown({{ $item }}, col.key === 'form_fills' ? 'form_submits' : col.key)"
             class="font-medium text-[#FF6600] hover:underline"
             x-text="cellValue({{ $item }}, col.key)"
         ></button>
-        <span x-show="Number({{ $item }}[col.key] || 0) === 0" class="text-[#8c8787]">0</span>
+        <span x-show="Number(col.key === 'form_fills' ? ({{ $item }}.form_fills ?? {{ $item }}.form_submits || 0) : ({{ $item }}[col.key] || 0)) === 0" class="text-[#8c8787]">0</span>
     </span>
 </template>
 <template x-if="col.key === 'purchase'">
