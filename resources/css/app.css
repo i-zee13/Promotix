@@ -14030,8 +14030,35 @@ html.light-mode .analytics-skin .text-\[\#FFB380\] {
 html.light-mode .pa-dash .pa-card,
 html.light-mode .pa-dash .pa-kpi {
     background: #fff;
-    border-color: rgba(255, 102, 0, 0.22);
+    border-color: rgba(255, 102, 0, 0.4) !important;
     color: #1a1a1a;
+}
+
+/* Analytics pages: shell chrome purple → orange (sidebar / header / ADD DOMAIN) */
+html.light-mode .figma-shell:has(.analytics-skin) .figma-sidebar,
+html.light-mode .figma-shell:has(.analytics-skin) .figma-header,
+html.light-mode .figma-shell:has(.analytics-skin) .figma-rightbar {
+    border-color: rgba(255, 102, 0, 0.35) !important;
+}
+html.light-mode .figma-shell:has(.analytics-skin) .figma-sidebar-footer {
+    border-color: rgba(255, 102, 0, 0.28) !important;
+}
+html.light-mode .figma-shell:has(.analytics-skin) .figma-add-domain-btn {
+    border-color: #FF6600 !important;
+    color: #FF6600 !important;
+}
+html.light-mode .figma-shell:has(.analytics-skin) .figma-add-domain-btn:hover {
+    background: #FF6600 !important;
+    color: #ffffff !important;
+    border-color: #FF6600 !important;
+}
+html.light-mode .figma-shell:has(.analytics-skin) .figma-sidebar-search {
+    border-color: rgba(255, 102, 0, 0.35) !important;
+    background: #fff7f0 !important;
+}
+html.light-mode .figma-shell:has(.analytics-skin) .figma-nav-link.is-active {
+    background: #FF6600 !important;
+    box-shadow: 0 0 0 1px rgba(255, 102, 0, 0.55) !important;
 }
 html.light-mode .pa-dash .pa-card__title,
 html.light-mode .pa-dash .pa-kpi__value {
@@ -14101,25 +14128,34 @@ html.light-mode .pa-dash .pa-donut__hole span {
 html.light-mode .pa-dash .pa-geo__map {
     background:
         radial-gradient(ellipse at 22% 38%, rgba(255, 102, 0, 0.12), transparent 42%),
-        radial-gradient(ellipse at 72% 48%, rgba(59, 130, 246, 0.08), transparent 45%),
         linear-gradient(180deg, #f4f4f5 0%, #e8e8ea 100%);
-    border-color: rgba(255, 102, 0, 0.28);
+    border: none !important;
 }
-html.light-mode .pa-dash .pa-geo__land {
-    fill: rgba(0, 0, 0, 0.08);
-    stroke: rgba(0, 0, 0, 0.14);
+html.light-mode .pa-dash .pa-geo__land,
+html.light-mode .pa-dash .pa-geo__world path {
+    fill: rgba(0, 0, 0, 0.1);
+    stroke: rgba(0, 0, 0, 0.16);
 }
-html.light-mode .pa-dash .pa-geo__land.is-hot {
-    fill: rgba(255, 102, 0, 0.55);
-    stroke: rgba(194, 65, 12, 0.55);
+html.light-mode .pa-dash .pa-geo__world .is-cool .pa-geo__land,
+html.light-mode .pa-dash .pa-geo__world .is-cool.pa-geo__land,
+html.light-mode .pa-dash .pa-geo__land.is-cool,
+html.light-mode .pa-dash .pa-geo__world path.is-cool {
+    fill: rgba(255, 102, 0, 0.35) !important;
+    stroke: rgba(255, 102, 0, 0.5) !important;
 }
-html.light-mode .pa-dash .pa-geo__land.is-warm {
-    fill: rgba(255, 102, 0, 0.32);
-    stroke: rgba(255, 102, 0, 0.45);
+html.light-mode .pa-dash .pa-geo__world .is-warm .pa-geo__land,
+html.light-mode .pa-dash .pa-geo__world .is-warm.pa-geo__land,
+html.light-mode .pa-dash .pa-geo__land.is-warm,
+html.light-mode .pa-dash .pa-geo__world path.is-warm {
+    fill: rgba(255, 102, 0, 0.58) !important;
+    stroke: rgba(194, 65, 12, 0.55) !important;
 }
-html.light-mode .pa-dash .pa-geo__land.is-cool {
-    fill: rgba(255, 102, 0, 0.16);
-    stroke: rgba(255, 102, 0, 0.3);
+html.light-mode .pa-dash .pa-geo__world .is-hot .pa-geo__land,
+html.light-mode .pa-dash .pa-geo__world .is-hot.pa-geo__land,
+html.light-mode .pa-dash .pa-geo__land.is-hot,
+html.light-mode .pa-dash .pa-geo__world path.is-hot {
+    fill: rgba(255, 102, 0, 0.88) !important;
+    stroke: rgba(194, 65, 12, 0.7) !important;
 }
 html.light-mode .pa-dash .pa-geo__grid line {
     stroke: rgba(0, 0, 0, 0.06);

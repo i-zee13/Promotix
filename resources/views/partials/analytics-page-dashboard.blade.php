@@ -318,6 +318,162 @@
         .pa-dash .pa-bar-fill.is-amber { background: #F59E0B; }
         .pa-dash .pa-bar-fill.is-rose { background: #F43F5E; }
 
+        .pa-dash .pa-funnel {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(180px, 0.9fr);
+            gap: 14px;
+            flex: 1;
+            min-height: 0;
+            align-items: stretch;
+        }
+        @media (max-width: 900px) {
+            .pa-dash .pa-funnel { grid-template-columns: 1fr; }
+        }
+        .pa-dash .pa-funnel__steps {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .pa-dash .pa-funnel__row {
+            display: grid;
+            grid-template-columns: 28px minmax(0, 1fr) auto auto;
+            gap: 10px;
+            align-items: center;
+            padding: 9px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .pa-dash .pa-funnel__row:last-child { border-bottom: 0; }
+        .pa-dash .pa-funnel__icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: #FF6600;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .pa-dash .pa-funnel__icon svg {
+            width: 14px;
+            height: 14px;
+        }
+        .pa-dash .pa-funnel__label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.82);
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .pa-dash .pa-funnel__count,
+        .pa-dash .pa-funnel__pct {
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.88);
+            text-align: right;
+        }
+        .pa-dash .pa-funnel__count { min-width: 5.5ch; }
+        .pa-dash .pa-funnel__pct {
+            min-width: 5.2ch;
+            color: rgba(255, 255, 255, 0.55);
+            font-weight: 500;
+        }
+        .pa-dash .pa-funnel__side {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 0;
+        }
+        .pa-dash .pa-funnel__box {
+            border: 1px solid rgba(255, 102, 0, 0.35);
+            border-radius: 10px;
+            background: rgba(255, 102, 0, 0.06);
+            padding: 12px;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .pa-dash .pa-funnel__box-label {
+            display: block;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: rgba(255, 255, 255, 0.45);
+            margin-bottom: 6px;
+        }
+        .pa-dash .pa-funnel__box-value {
+            display: block;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.15;
+            font-variant-numeric: tabular-nums;
+        }
+        .pa-dash .pa-funnel__box-delta {
+            display: block;
+            margin-top: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .pa-dash .pa-funnel__box-delta.is-up { color: #34d399; }
+        .pa-dash .pa-funnel__box-delta.is-down { color: #f87171; }
+        .pa-dash .pa-funnel__box-spark {
+            margin-top: auto;
+            padding-top: 10px;
+            min-height: 42px;
+        }
+        .pa-dash .pa-funnel__box-spark svg {
+            width: 100%;
+            height: 42px;
+            display: block;
+        }
+        .pa-dash .pa-funnel__metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .pa-dash .pa-funnel__metric-label {
+            display: block;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: rgba(255, 255, 255, 0.45);
+            margin-bottom: 4px;
+        }
+        .pa-dash .pa-funnel__metric-value {
+            display: block;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+        html.light-mode .pa-dash .pa-funnel__row {
+            border-bottom-color: rgba(0, 0, 0, 0.08);
+        }
+        html.light-mode .pa-dash .pa-funnel__label,
+        html.light-mode .pa-dash .pa-funnel__count {
+            color: #1a1a1a;
+        }
+        html.light-mode .pa-dash .pa-funnel__pct,
+        html.light-mode .pa-dash .pa-funnel__box-label,
+        html.light-mode .pa-dash .pa-funnel__metric-label {
+            color: #6b6280 !important;
+        }
+        html.light-mode .pa-dash .pa-funnel__box {
+            background: rgba(255, 102, 0, 0.08);
+            border-color: rgba(255, 102, 0, 0.3);
+        }
+        html.light-mode .pa-dash .pa-funnel__box-value,
+        html.light-mode .pa-dash .pa-funnel__metric-value {
+            color: #1a1a1a !important;
+        }
+
         .pa-dash .pa-inset {
             margin-top: 14px;
             padding: 12px;
@@ -417,7 +573,7 @@
             height: 140px;
             flex: 0 0 auto;
             border-radius: 8px;
-            border: 1px solid rgba(255, 102, 0, 0.28);
+            border: none;
             background:
                 radial-gradient(ellipse at 22% 38%, rgba(255, 102, 0, 0.1), transparent 42%),
                 linear-gradient(180deg, #171717 0%, #101010 100%);
@@ -455,14 +611,34 @@
             stroke: rgba(255, 179, 128, 0.75);
         }
         html.light-mode .pa-dash .pa-geo__map {
+            border: none !important;
             background:
                 radial-gradient(ellipse at 22% 38%, rgba(255, 102, 0, 0.1), transparent 42%),
                 linear-gradient(180deg, #f4f4f5 0%, #e8e8ea 100%) !important;
         }
         html.light-mode .pa-dash .pa-geo__world .pa-geo__land,
         html.light-mode .pa-dash .pa-geo__world path {
-            fill: rgba(0, 0, 0, 0.08);
-            stroke: rgba(0, 0, 0, 0.14);
+            fill: rgba(0, 0, 0, 0.1);
+            stroke: rgba(0, 0, 0, 0.16);
+        }
+        /* Must beat base light-mode path fill (selected countries) */
+        html.light-mode .pa-dash .pa-geo__world .is-cool .pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world .is-cool.pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world path.is-cool {
+            fill: rgba(255, 102, 0, 0.35) !important;
+            stroke: rgba(255, 102, 0, 0.5) !important;
+        }
+        html.light-mode .pa-dash .pa-geo__world .is-warm .pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world .is-warm.pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world path.is-warm {
+            fill: rgba(255, 102, 0, 0.58) !important;
+            stroke: rgba(194, 65, 12, 0.55) !important;
+        }
+        html.light-mode .pa-dash .pa-geo__world .is-hot .pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world .is-hot.pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world path.is-hot {
+            fill: rgba(255, 102, 0, 0.88) !important;
+            stroke: rgba(194, 65, 12, 0.7) !important;
         }
         .pa-dash .pa-geo__legend {
             display: flex;
@@ -635,14 +811,33 @@
             color: #5c5470 !important;
         }
         html.light-mode .pa-dash .pa-geo__map {
+            border: none !important;
             background:
                 radial-gradient(ellipse at 22% 38%, rgba(255, 102, 0, 0.12), transparent 42%),
                 linear-gradient(180deg, #f4f4f5 0%, #e8e8ea 100%) !important;
         }
         html.light-mode .pa-dash .pa-geo__world .pa-geo__land,
         html.light-mode .pa-dash .pa-geo__world path {
-            fill: rgba(0, 0, 0, 0.08);
-            stroke: rgba(0, 0, 0, 0.14);
+            fill: rgba(0, 0, 0, 0.1);
+            stroke: rgba(0, 0, 0, 0.16);
+        }
+        html.light-mode .pa-dash .pa-geo__world .is-cool .pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world .is-cool.pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world path.is-cool {
+            fill: rgba(255, 102, 0, 0.35) !important;
+            stroke: rgba(255, 102, 0, 0.5) !important;
+        }
+        html.light-mode .pa-dash .pa-geo__world .is-warm .pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world .is-warm.pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world path.is-warm {
+            fill: rgba(255, 102, 0, 0.58) !important;
+            stroke: rgba(194, 65, 12, 0.55) !important;
+        }
+        html.light-mode .pa-dash .pa-geo__world .is-hot .pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world .is-hot.pa-geo__land,
+        html.light-mode .pa-dash .pa-geo__world path.is-hot {
+            fill: rgba(255, 102, 0, 0.88) !important;
+            stroke: rgba(194, 65, 12, 0.7) !important;
         }
     </style>
 
@@ -787,40 +982,46 @@
     <div class="pa-row-3">
         @if ($showFunnelBlock)
         <section class="pa-card">
-            <h2 class="pa-card__title">Conversion Funnel</h2>
-            <div class="pa-bars">
-                <template x-for="row in pageFunnel()" :key="row.key || row.label">
-                    <div class="pa-bar-row">
-                        <span class="pa-bar-row__label" x-text="row.label"></span>
-                        <span class="pa-bar-row__meta" x-text="`${fmt(row.value)} · ${row.pct != null ? row.pct : 0}%`"></span>
-                        <div class="pa-bar-track">
-                            <div
-                                class="pa-bar-fill"
-                                :style="`width:${row.bar != null ? row.bar : Math.max(4, Number(row.pct || 0))}%`"
-                            ></div>
+            <div class="pa-card__head">
+                <h2 class="pa-card__title">Conversion Funnel</h2>
+            </div>
+            <div class="pa-funnel" x-show="(pageFunnel() || []).length">
+                <div class="pa-funnel__steps">
+                    <template x-for="row in pageFunnel()" :key="row.key || row.label">
+                        <div class="pa-funnel__row">
+                            <span class="pa-funnel__icon" x-html="funnelStepIcon(row.key || row.label)"></span>
+                            <span class="pa-funnel__label" x-text="row.label"></span>
+                            <span class="pa-funnel__count" x-text="fmt(row.value)"></span>
+                            <span class="pa-funnel__pct" x-text="Number(row.pct != null ? row.pct : 0).toFixed(1) + '%'"></span>
+                        </div>
+                    </template>
+                </div>
+                <div class="pa-funnel__side" x-show="pageConversionSummary()">
+                    <div class="pa-funnel__box">
+                        <span class="pa-funnel__box-label">Overall Conversion Rate</span>
+                        <span class="pa-funnel__box-value" x-text="pageConversionSummary()?.rate || '0.00%'"></span>
+                        <span
+                            class="pa-funnel__box-delta"
+                            :class="Number(pageAnalytics?.kpis?.deltas?.conversion_rate || 0) >= 0 ? 'is-up' : 'is-down'"
+                            x-text="formatDelta(pageAnalytics?.kpis?.deltas?.conversion_rate || 0)"
+                        ></span>
+                        <div class="pa-funnel__box-spark" aria-hidden="true" x-html="sparkSvg(pageRevenueSpark(), '#FF6600')"></div>
+                    </div>
+                    <div class="pa-funnel__box">
+                        <div class="pa-funnel__metrics">
+                            <div>
+                                <span class="pa-funnel__metric-label">Revenue</span>
+                                <span class="pa-funnel__metric-value" x-text="pageConversionSummary()?.revenue || '$0.00'"></span>
+                            </div>
+                            <div>
+                                <span class="pa-funnel__metric-label">Transactions</span>
+                                <span class="pa-funnel__metric-value" x-text="pageConversionSummary()?.transactions || '0'"></span>
+                            </div>
                         </div>
                     </div>
-                </template>
-                <p x-show="!(pageFunnel() || []).length" class="pa-empty">No funnel steps in this window.</p>
-            </div>
-            <div class="pa-inset" x-show="pageConversionSummary()">
-                <div>
-                    <span class="pa-inset__label">Conversion Rate</span>
-                    <span class="pa-inset__value" x-text="pageConversionSummary()?.rate ?? pageConversionSummary()?.conversion_rate ?? '—'"></span>
-                </div>
-                <div>
-                    <span class="pa-inset__label">Revenue</span>
-                    <span class="pa-inset__value" x-text="pageConversionSummary()?.revenue ?? '—'"></span>
-                </div>
-                <div>
-                    <span class="pa-inset__label">Transactions</span>
-                    <span class="pa-inset__value" x-text="pageConversionSummary()?.transactions ?? '—'"></span>
-                </div>
-                <div>
-                    <span class="pa-inset__label">AOV</span>
-                    <span class="pa-inset__value" x-text="pageConversionSummary()?.aov ?? '—'"></span>
                 </div>
             </div>
+            <p x-show="!(pageFunnel() || []).length" class="pa-empty">No funnel steps in this window.</p>
         </section>
         @endif
 

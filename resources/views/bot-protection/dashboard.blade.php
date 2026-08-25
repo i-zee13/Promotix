@@ -1462,6 +1462,26 @@ function botProtectionFigma(config = {}) {
         pageFunnel() {
             return this.pageAnalytics?.funnel || [];
         },
+        funnelStepIcon(key) {
+            const k = String(key || '').toLowerCase();
+            const wrap = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+            if (k.includes('view') || k === 'views') {
+                return wrap('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>');
+            }
+            if (k.includes('cart')) {
+                return wrap('<circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M3 4h2l2.4 11.2a2 2 0 002 1.6h7.4a2 2 0 001.9-1.5L21 8H7"/>');
+            }
+            if (k.includes('checkout')) {
+                return wrap('<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M8 6V5a2 2 0 012-2h4a2 2 0 012 2v1"/>');
+            }
+            if (k.includes('purchase')) {
+                return wrap('<path d="M12 2l3 7h7l-5.5 4.2L18.5 21 12 16.8 5.5 21l1.9-7.8L2 9h7z"/>');
+            }
+            if (k.includes('form')) {
+                return wrap('<path d="M8 6h8M8 10h8M8 14h5"/><rect x="4" y="3" width="16" height="18" rx="2"/>');
+            }
+            return wrap('<path d="M5 12h14M13 6l6 6-6 6"/>');
+        },
         pageConversionSummary() {
             return this.pageAnalytics?.conversion_summary || null;
         },
@@ -1520,6 +1540,8 @@ function botProtectionFigma(config = {}) {
                     const ratio = Number(r.value || 0) / max;
                     const cls = ratio >= 0.7 ? 'is-hot' : (ratio >= 0.3 ? 'is-warm' : 'is-cool');
                     el.classList.add(cls);
+                    // Country groups (<g id="fr">) need child paths painted too
+                    el.querySelectorAll('.pa-geo__land, path').forEach((path) => path.classList.add(cls));
                 });
             });
         },
