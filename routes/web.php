@@ -319,6 +319,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/detection/{domain}/exclusions', [PaidMarketingController::class, 'updateExclusionsApi']);
     Route::put('/detection/{domain}/marketing-rules', [PaidMarketingController::class, 'updateMarketingRulesApi']);
 
+    Route::get('/bot-protection/page-analytics', [BotProtectionController::class, 'pageAnalytics']);
+    Route::get('/bot-protection/traffic-control/sessions', [BotProtectionController::class, 'trafficControlSessions']);
     Route::get('/bot-protection/summary', [BotProtectionController::class, 'summary']);
     Route::get('/bot-protection/traffic-breakdown', [BotProtectionController::class, 'trafficBreakdown']);
     Route::get('/bot-protection/invalid-traffic-trends', [BotProtectionController::class, 'invalidTrafficTrends']);

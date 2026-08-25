@@ -1,7 +1,7 @@
 <script>
 window.promotixAdvTableHelpers = {
     isRichCol(key) {
-        return ['country', 'intel_risk_score', 'intel_risk_level', 'action_taken', 'status', 'session_recording'].includes(key);
+        return ['country', 'intel_risk_score', 'intel_risk_level', 'action_taken', 'status', 'session_recording', 'cta_clicks', 'tel_clicks'].includes(key);
     },
     countryCode(rowOrCode) {
         const raw = (rowOrCode && typeof rowOrCode === 'object')

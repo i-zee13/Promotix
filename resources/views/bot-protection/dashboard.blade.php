@@ -1134,6 +1134,7 @@ function botProtectionFigma(config = {}) {
             sparklines: { valid: [], automated: [], crawlers: [], invalid: [], bot_impact: [] },
         },
         countries: [],
+        pageAnalytics: null,
         countryModal: { open: false, country: '', rows: [], loading: false },
         domainsList: [],
         invalidTrends: { labels: [], datasets: [], stats: { pageloads: 0, interactions: 0 } },
@@ -1332,172 +1333,63 @@ function botProtectionFigma(config = {}) {
                 },
             ];
         },
-        // —— Page Analytics mockup panels (PDF + design image) ——
+        // —— Page Analytics panels (real data from /bot-protection/page-analytics) ——
         pageAnalyticsKpis() {
-            const s = this.summary || {};
-            const total = Number(s.total_visits || 0);
-            const deltas = s.deltas || {};
-            const sparks = s.sparklines || {};
-            const organic = Math.round(total * 0.42);
-            const direct = Math.round(total * 0.28);
-            const referral = Math.round(total * 0.15);
-            const keyword = Math.round(total * 0.19);
-            const convRate = total > 0
-                ? (Math.min(12, Math.max(0.5, (Number(s.valid_visits || 0) / total) * 4))).toFixed(2)
-                : '0.00';
-            const icon = (d) => `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${d}</svg>`;
+            const k = this.pageAnalytics?.kpis || {};
+            const d = k.deltas || {};
+            const sparks = this.summary?.sparklines || {};
+            const icon = (path) => `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${path}</svg>`;
             return [
-                { key: 'total', title: 'Total Visitors', value: this.fmt(total), delta: Number(deltas.valid_visits || 0), deltaLabel: this.formatDelta(deltas.valid_visits), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m6-4a4 4 0 11-8 0 4 4 0 018 0z"/>') },
-                { key: 'organic', title: 'Organic Traffic', value: this.fmt(organic), delta: Number(deltas.valid_visits || 0) * 0.8, deltaLabel: this.formatDelta((deltas.valid_visits || 0) * 0.8), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>') },
-                { key: 'direct', title: 'Direct Traffic', value: this.fmt(direct), delta: Number(deltas.valid_visits || 0) * 0.5, deltaLabel: this.formatDelta((deltas.valid_visits || 0) * 0.5), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/>') },
-                { key: 'referral', title: 'Referral/Backlink Traffic', value: this.fmt(referral), delta: Number(deltas.known_crawlers || 0), deltaLabel: this.formatDelta(deltas.known_crawlers), spark: sparks.crawlers || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757"/>') },
-                { key: 'keyword', title: 'Keyword Visits', value: this.fmt(keyword), delta: Number(deltas.valid_visits || 0) * 0.6, deltaLabel: this.formatDelta((deltas.valid_visits || 0) * 0.6), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 8h10M7 12h6m-6 4h8"/>') },
-                { key: 'conv', title: 'Conversion Rate', value: `${convRate}%`, delta: Number(deltas.bot_impact || 0) * -1, deltaLabel: this.formatDelta(-(deltas.bot_impact || 0)), spark: sparks.bot_impact || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 3v18h18M7 14l4-4 3 3 5-6"/>') },
+                { key: 'total', title: 'Total Visitors', value: this.fmt(k.total_visitors || 0), delta: Number(d.total_visitors || 0), deltaLabel: this.formatDelta(d.total_visitors), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m6-4a4 4 0 11-8 0 4 4 0 018 0z"/>') },
+                { key: 'organic', title: 'Organic Traffic', value: this.fmt(k.organic_traffic || 0), delta: Number(d.organic_traffic || 0), deltaLabel: this.formatDelta(d.organic_traffic), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>') },
+                { key: 'direct', title: 'Direct Traffic', value: this.fmt(k.direct_traffic || 0), delta: Number(d.direct_traffic || 0), deltaLabel: this.formatDelta(d.direct_traffic), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/>') },
+                { key: 'referral', title: 'Referral/Backlink Traffic', value: this.fmt(k.referral_traffic || 0), delta: Number(d.referral_traffic || 0), deltaLabel: this.formatDelta(d.referral_traffic), spark: sparks.crawlers || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757"/>') },
+                { key: 'keyword', title: 'Keyword Visits', value: this.fmt(k.keyword_visits || 0), delta: Number(d.keyword_visits || 0), deltaLabel: this.formatDelta(d.keyword_visits), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 8h10M7 12h6m-6 4h8"/>') },
+                { key: 'conv', title: 'Conversion Rate', value: `${Number(k.conversion_rate || 0).toFixed(2)}%`, delta: Number(d.conversion_rate || 0), deltaLabel: this.formatDelta(d.conversion_rate), spark: sparks.bot_impact || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 3v18h18M7 14l4-4 3 3 5-6"/>') },
             ];
         },
         pageTrafficSources() {
-            const total = Number(this.summary?.total_visits || 0) || 1;
-            const rows = [
-                { key: 'organic', label: 'Organic Search', value: Math.round(total * 0.38), color: '#22C55E' },
-                { key: 'direct', label: 'Direct', value: Math.round(total * 0.24), color: '#3B82F6' },
-                { key: 'social', label: 'Social Media', value: Math.round(total * 0.14), color: '#A855F7' },
-                { key: 'referral', label: 'Referral/Backlinks', value: Math.round(total * 0.12), color: '#FF6600' },
-                { key: 'paid', label: 'Paid Search', value: Math.round(total * 0.12), color: '#F43F5E' },
-            ];
-            return rows.map(r => ({ ...r, pct: this.sharePct(r.value, total) }));
+            return this.pageAnalytics?.traffic_sources || [];
         },
         pageJourney() {
-            const total = Number(this.summary?.total_visits || 0) || 1;
-            const steps = [
-                { key: 'land', label: 'Landing Page', share: 1 },
-                { key: 'next', label: 'Next Page', share: 0.62 },
-                { key: 'product', label: 'Product / Content', share: 0.41 },
-                { key: 'cta', label: 'CTA / Form', share: 0.18 },
-                { key: 'exit', label: 'Exit Page', share: 1 },
-            ];
-            return steps.map(s => ({
-                ...s,
-                visitors: Math.round(total * s.share),
-                pct: Math.round(s.share * 1000) / 10,
-            }));
+            return this.pageAnalytics?.journey || [];
         },
         pageTopPages() {
-            const total = Number(this.summary?.total_visits || 0) || 1;
-            const paths = ['/', '/shop', '/pricing', '/blog', '/contact'];
-            const shares = [0.28, 0.18, 0.14, 0.11, 0.08];
-            return paths.map((path, i) => ({
-                key: path,
-                path,
-                views: Math.round(total * shares[i]),
-                pct: Math.round(shares[i] * 1000) / 10,
-            }));
+            return this.pageAnalytics?.top_pages || [];
         },
         pageFunnel() {
-            const total = Number(this.summary?.total_visits || 0) || 1;
-            const steps = [
-                { key: 'views', label: 'Product Views', share: 0.55 },
-                { key: 'cart', label: 'Add to Cart', share: 0.22 },
-                { key: 'checkout', label: 'Initiated Checkout', share: 0.12 },
-                { key: 'purchase', label: 'Purchases', share: 0.05 },
-                { key: 'form', label: 'Form Fills', share: 0.08 },
-                { key: 'cta', label: 'CTA Clicks', share: 0.15 },
-            ];
-            const max = steps[0].share;
-            return steps.map(s => ({
-                ...s,
-                value: Math.round(total * s.share),
-                pct: Math.round(s.share * 1000) / 10,
-                bar: Math.max(6, Math.round((s.share / max) * 100)),
-            }));
+            return this.pageAnalytics?.funnel || [];
         },
         pageConversionSummary() {
-            const total = Number(this.summary?.total_visits || 0);
-            const valid = Number(this.summary?.valid_visits || 0);
-            const rate = total > 0 ? ((valid / total) * 3.5).toFixed(2) + '%' : '0%';
-            const tx = Math.max(0, Math.round(valid * 0.04));
-            const revenue = '$' + this.fmt(Math.round(tx * 43.5));
-            return { rate, revenue, transactions: this.fmt(tx) };
+            return this.pageAnalytics?.conversion_summary || null;
         },
         pageReferrers() {
-            const total = Number(this.summary?.total_visits || 0) || 1;
-            const rows = [
-                { label: 'Google', share: 0.41 },
-                { label: 'Facebook', share: 0.16 },
-                { label: 'Instagram', share: 0.11 },
-                { label: 'Yahoo', share: 0.06 },
-                { label: 'Bing', share: 0.07 },
-                { label: 'Direct', share: 0.12 },
-                { label: 'Backlinks', share: 0.05 },
-                { label: 'Others', share: 0.02 },
-            ];
-            return rows.map(r => ({
-                key: r.label,
-                label: r.label,
-                value: Math.round(total * r.share),
-                pct: Math.round(r.share * 1000) / 10,
-                bar: Math.max(6, Math.round(r.share / 0.41 * 100)),
-            }));
+            return this.pageAnalytics?.referrers || [];
         },
         pageKeywords() {
-            return [
-                { key: 'k1', keyword: 'wireless headphones', value: 1240, pct: 18 },
-                { key: 'k2', keyword: 'best running shoes', value: 980, pct: 14 },
-                { key: 'k3', keyword: 'saas analytics', value: 760, pct: 11 },
-                { key: 'k4', keyword: 'click fraud protection', value: 540, pct: 8 },
-            ];
+            return this.pageAnalytics?.keywords || [];
         },
         pageHeadlines() {
-            return [
-                { key: 'h1', headline: 'Ultimate Guide to Wireless Audio', value: 890, pct: 16 },
-                { key: 'h2', headline: 'Spring Sale — Shop Now', value: 720, pct: 13 },
-                { key: 'h3', headline: 'How to Cut Ad Waste', value: 510, pct: 9 },
-                { key: 'h4', headline: 'Pricing that Scales', value: 430, pct: 8 },
-            ];
+            return this.pageAnalytics?.headlines || [];
         },
         pageGeo() {
-            const list = (this.countries || []).slice(0, 6);
-            if (list.length) {
-                const max = Math.max(...list.map(r => Number(r.total || 0)), 1);
-                return list.map(r => ({
-                    key: r.country,
-                    code: r.country,
-                    name: this.countryLabel(r.country),
-                    value: Number(r.total || 0),
-                    pct: Number(r.percent || this.sharePct(r.total, this.summary?.total_visits)),
-                    bar: Math.max(6, Math.round((Number(r.total || 0) / max) * 100)),
-                }));
-            }
-            return [
-                { key: 'US', code: 'US', name: 'United States', value: 12400, pct: 34, bar: 100 },
-                { key: 'IN', code: 'IN', name: 'India', value: 6800, pct: 17, bar: 55 },
-                { key: 'GB', code: 'GB', name: 'United Kingdom', value: 5200, pct: 15, bar: 42 },
-                { key: 'DE', code: 'DE', name: 'Germany', value: 4100, pct: 10, bar: 33 },
-            ];
+            const list = this.pageAnalytics?.geo || [];
+            if (!list.length) return [];
+            return list.map(r => ({
+                ...r,
+                name: this.countryLabel(r.code || r.country || r.name) || r.name || r.label,
+            }));
         },
         pageDevices() {
-            const total = Number(this.summary?.total_visits || 0) || 1;
-            const rows = [
-                { key: 'mobile', label: 'Mobile', value: Math.round(total * 0.521), color: '#FF6600' },
-                { key: 'desktop', label: 'Desktop', value: Math.round(total * 0.346), color: '#3B82F6' },
-                { key: 'tablet', label: 'Tablet', value: Math.round(total * 0.087), color: '#A855F7' },
-                { key: 'other', label: 'Other', value: Math.round(total * 0.046), color: '#94A3B8' },
-            ];
-            return rows.map(r => ({ ...r, pct: this.sharePct(r.value, total) }));
+            return this.pageAnalytics?.devices || [];
         },
         pageRevenueSpark() {
-            const base = this.summary?.sparklines?.valid || [];
-            if (base.length) return base.map(v => Math.round(Number(v || 0) * 1.4));
-            return [40, 55, 48, 70, 62, 88, 75, 92, 80, 95];
+            const trend = this.pageAnalytics?.revenue_trend || [];
+            if (trend.length) return trend;
+            return this.summary?.sparklines?.valid || [];
         },
         pageQuality() {
-            const s = this.summary || {};
-            const total = Number(s.total_visits || 0) || 1;
-            const human = this.sharePct(s.valid_visits, total);
-            const crawlers = this.sharePct(s.known_crawlers, total);
-            const automation = this.sharePct(s.invalid_bot_visits, total);
-            const malicious = this.sharePct(s.invalid_malicious_visits || Math.max(0, Number(s.invalid_traffic || 0) - Number(s.invalid_bot_visits || 0)), total);
-            const score = Math.max(0, Math.min(100, Math.round(human * 0.9 + (100 - automation - malicious) * 0.1)));
-            return { score, human, crawlers, automation, malicious };
+            return this.pageAnalytics?.quality || null;
         },
         classificationRows() {
             const s = this.summary || {};
@@ -1833,17 +1725,17 @@ function botProtectionFigma(config = {}) {
                     return;
                 }
                 this.summary = summary;
-                await this.$nextTick();
-                window.promotixPageLoader?.hide();
 
-                const [traffic, trends, th, ib, c, ds] = await Promise.all([
+                const [traffic, trends, th, ib, c, ds, pageAnalytics] = await Promise.all([
                     fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => this.parseJson(r)),
                     fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => this.parseJson(r)),
                     fetch(`/bot-protection/threat-groups?${qs}`).then(r => this.parseJson(r)),
                     fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => this.parseJson(r)),
                     fetch(`/bot-protection/countries?${qs}`).then(r => this.parseJson(r)),
                     fetch(`/bot-protection/domains-summary?${qs}`).then(r => this.parseJson(r)),
+                    fetch(`/bot-protection/page-analytics?${qs}`).then(r => this.parseJson(r)),
                 ]);
+                this.pageAnalytics = pageAnalytics?.kpis ? pageAnalytics : null;
                 this.invalidTrends = trends;
                 this.countries = c;
                 this.domainsList = Array.isArray(ds) ? ds : [];

@@ -10,7 +10,7 @@
 @endsection
 
 @section('content')
-<div class="brand-page-bg analytics-skin min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma()" x-init="init()">
+<div class="brand-page-bg analytics-skin min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma({ analyticsMode: @json($analyticsMode ?? false) })" x-init="init()">
     <section class="mx-auto w-full min-w-0 px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         @include('partials.advanced-view-pager-styles')
         <style>
@@ -106,6 +106,9 @@
                 border: 1px solid rgba(103, 6, 179, 0.55);
                 background: #111111;
                 padding: 14px 14px 12px;
+            }
+            .analytics-skin .bp-adv-kpi-card {
+                border-color: rgba(255, 102, 0, 0.55);
             }
             .bp-adv-kpi-card__icon {
                 display: inline-flex;
@@ -533,13 +536,13 @@
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.traffic_source" @change="reload(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="google_ads">Google Ads</option>
-                            <option value="meta_ads" disabled>Meta Ads</option>
-                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                            <template x-for="opt in trafficSourceOptions()" :key="'ts-' + opt.value">
+                                <option :value="opt.value" :disabled="opt.disabled || false" x-text="opt.label"></option>
+                            </template>
                         </select>
                     </div>
                 </label>
-                <label class="bp-adv-f-account flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                <label x-show="!analyticsMode" class="bp-adv-f-account flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.google_ads_account_id" @change="reload(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
@@ -593,7 +596,7 @@
                         </template>
                     </span>
                     <p class="bp-adv-kpi-card__label" x-text="card.label"></p>
-                    <p class="bp-adv-kpi-card__value" x-text="card.value + '%'"></p>
+                    <p class="bp-adv-kpi-card__value" x-text="card.asPercent ? (card.value + '%') : card.value"></p>
                     <p class="bp-adv-kpi-card__sub" x-text="card.sub"></p>
                 </article>
             </template>
@@ -625,12 +628,12 @@
                             </template>
                         </div>
                     </div>
-                    <div class="relative" @click.outside="moreFiltersOpen = false">
+                    <div class="relative" x-show="!analyticsMode" @click.outside="moreFiltersOpen = false">
                         <button type="button" @click="moreFiltersOpen = !moreFiltersOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white">
                             More filters
                             <svg class="h-[12px] w-[12px] transition-transform" :class="moreFiltersOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
-                        <div x-show="moreFiltersOpen" x-cloak x-transition class="bp-adv-filters-menu promotix-slim-scroll">
+                        <div x-show="moreFiltersOpen && !analyticsMode" x-cloak x-transition class="bp-adv-filters-menu promotix-slim-scroll">
                             <div class="grid grid-cols-1 gap-[10px] sm:grid-cols-2">
                                 <label class="block">
                                     <span class="mb-[4px] block text-[10px] uppercase text-white/70">Country</span>
@@ -669,7 +672,7 @@
                     </div>
                     <label class="relative flex h-[28px] min-w-[200px] max-w-[280px] flex-1 items-center rounded-[6px] bg-white px-[10px]">
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input type="search" placeholder="Search for IP Address" x-model="filters.ip" @input="scheduleReload(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
+                        <input type="search" :placeholder="analyticsMode ? 'Search session / IP' : 'Search for IP Address'" x-model="filters.ip" @input="scheduleReload(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
                     </label>
                     <a :href="csvHref()" class="inline-flex items-center gap-[6px] text-[12px] font-medium text-white hover:underline">
                         <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v-1a4 4 0 014-4h0a4 4 0 014 4v1"/></svg>
@@ -691,7 +694,7 @@
                         </div>
 
                         <div class="pm-adv-table-body-scroll">
-                            <template x-for="row in rows" :key="(row.domain_id || '') + '|' + row.ip + '|' + row.id">
+                            <template x-for="row in rows" :key="(row.domain_id || '') + '|' + (row.session_key || row.ip || row.id)">
                                 <div class="pm-adv-table-grid pm-adv-table-grid--row text-[10px] sm:text-[11px]" :style="gridStyle">
                                     <label class="flex items-center justify-center">
                                         <input type="checkbox" class="rounded border-white/30">
@@ -730,6 +733,29 @@
         </section>
 
         <div class="figma-modal-overlay"
+             x-show="eventModal.open" x-cloak x-transition
+             @keydown.escape.window="closeEventModal()" @click.self="closeEventModal()">
+            <div class="figma-modal max-w-[520px]">
+                <header class="mb-4 flex items-center justify-between gap-3">
+                    <h3 class="figma-modal-title" x-text="eventModal.title"></h3>
+                    <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeEventModal()" aria-label="Close">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </header>
+                <p class="mb-3 text-[12px] text-white/60" x-text="eventModal.subtitle"></p>
+                <div class="max-h-[320px] overflow-y-auto rounded-[8px] border border-white/15 bg-[#101010] p-3 promotix-slim-scroll">
+                    <template x-for="(ev, idx) in eventModal.events" :key="'ev-' + idx">
+                        <div class="mb-2 flex items-start justify-between gap-3 border-b border-white/5 pb-2 text-[11px] last:mb-0 last:border-0 last:pb-0">
+                            <span class="text-white/85" x-text="ev.label || ev.type || 'Event'"></span>
+                            <span class="shrink-0 text-white/45" x-text="ev.time || ev.at || '—'"></span>
+                        </div>
+                    </template>
+                    <p x-show="!(eventModal.events || []).length" class="py-6 text-center text-[12px] text-white/40">No event timeline for this session.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="figma-modal-overlay"
              x-show="recordingModal.open" x-cloak x-transition
              @keydown.escape.window="closeRecording()" @click.self="closeRecording()">
             <div class="figma-modal max-w-[640px]">
@@ -746,7 +772,7 @@
             </div>
         </div>
 
-        <section class="bp-adv-charts">
+        <section x-show="!analyticsMode" class="bp-adv-charts">
             <article class="bp-adv-chart-card">
                 <h3 class="bp-adv-chart-card__title">Threat Distribution</h3>
                 <div class="bp-adv-chart-card__body">
@@ -844,7 +870,7 @@
             </article>
         </section>
 
-        <section class="bp-adv-hip">
+        <section x-show="!analyticsMode" class="bp-adv-hip">
             <div class="bp-adv-hip__head">
                 <h2 class="bp-adv-hip__title">Recent High Risk IPs</h2>
                 <div class="bp-adv-hip__nav">
@@ -876,7 +902,7 @@
         </section>
 
         <p class="mt-[12px] text-right">
-            <a href="{{ route('bot-protection.dashboard') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">&larr; Back to Dashboard</a>
+            <a href="{{ ($analyticsMode ?? false) ? route('analytics.dashboard') : route('bot-protection.dashboard') }}" class="text-[11px] text-[#a9a9a9] hover:text-white hover:underline">&larr; Back to Dashboard</a>
         </p>
     </section>
 
@@ -884,8 +910,8 @@
 @include('partials.advanced-view-table-helpers')
 
 <script>
-function botProtectionAdvancedFigma() {
-    const columnCatalog = [
+function botProtectionAdvancedFigma(config = {}) {
+    const fraudColumnCatalog = [
         { key: 'ip', label: 'IP Address', primary: true, min: 120 },
         { key: 'click_id', label: 'Click ID', primary: true, min: 88 },
         { key: 'gclid', label: 'GCLID', primary: true, min: 110 },
@@ -944,18 +970,57 @@ function botProtectionAdvancedFigma() {
         { key: 'intel_cloud_provider', label: 'Cloud Provider', primary: false, min: 100 },
     ];
 
+    const analyticsColumnCatalog = [
+        { key: 'session_id', label: 'Session ID', primary: true, min: 110 },
+        { key: 'source_platform', label: 'Source', primary: true, min: 88 },
+        { key: 'landing_page', label: 'Landing Page', primary: true, min: 100 },
+        { key: 'page_flow', label: 'Page Flow', primary: true, min: 120 },
+        { key: 'time_on_site', label: 'Time on Site', primary: true, min: 72 },
+        { key: 'page_views', label: 'Page Views', primary: true, min: 64 },
+        { key: 'scroll_events', label: 'Scroll Events', primary: true, min: 72 },
+        { key: 'cta_clicks', label: 'CTA Clicks', primary: true, min: 64 },
+        { key: 'tel_clicks', label: 'Tel Clicks', primary: true, min: 64 },
+        { key: 'form_starts', label: 'Form Starts', primary: true, min: 72 },
+        { key: 'form_submits', label: 'Form Submits', primary: true, min: 72 },
+        { key: 'add_to_cart', label: 'Add to Cart', primary: true, min: 72 },
+        { key: 'checkout', label: 'Checkout', primary: true, min: 64 },
+        { key: 'purchase', label: 'Purchase', primary: true, min: 64 },
+        { key: 'revenue', label: 'Revenue', primary: true, min: 72 },
+        { key: 'device', label: 'Device', primary: true, min: 64 },
+        { key: 'country', label: 'Country', primary: true, min: 72 },
+        { key: 'first_seen', label: 'First Seen', primary: false, min: 96 },
+        { key: 'last_seen', label: 'Last Seen', primary: false, min: 96 },
+        { key: 'campaign', label: 'Campaign', primary: false, min: 100 },
+        { key: 'keyword', label: 'Keyword', primary: false, min: 100 },
+        { key: 'browser', label: 'Browser', primary: false, min: 80 },
+        { key: 'os', label: 'OS', primary: false, min: 72 },
+        { key: 'crawler_score', label: 'Crawler Score', primary: false, min: 72 },
+        { key: 'automation_score', label: 'Automation Score', primary: false, min: 88 },
+        { key: 'malicious_score', label: 'Malicious Score', primary: false, min: 88 },
+        { key: 'referrer', label: 'Referrer', primary: false, min: 100 },
+        { key: 'exit_page', label: 'Exit Page', primary: false, min: 100 },
+        { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
+    ];
+
+    const analyticsMode = Boolean(config.analyticsMode);
+    const columnCatalog = analyticsMode ? analyticsColumnCatalog : fraudColumnCatalog;
+    const storageKey = analyticsMode ? 'bp-adv-analytics-columns-v1' : 'bp-adv-optional-columns-v2';
+
     let savedOptional = [];
     try {
-        savedOptional = JSON.parse(localStorage.getItem('bp-adv-optional-columns-v2') || '[]');
+        savedOptional = JSON.parse(localStorage.getItem(storageKey) || '[]');
     } catch (e) {}
 
     return {
         ...window.promotixAdvTableHelpers || {},
+        analyticsMode,
         hasDomains: @json($domains->isNotEmpty()),
         loadError: '',
         columnCatalog,
         optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
         recordingModal: { open: false, ip: '', page_url: '', events: [] },
+        eventModal: { open: false, title: '', subtitle: '', events: [] },
+        sessionKpis: {},
         recordingStop: null,
         filterMenuOpen: false,
         get visibleColumns() {
@@ -1002,12 +1067,13 @@ function botProtectionAdvancedFigma() {
         },
         filters: {
             domain_id: '',
-            traffic_source: 'google_ads',
+            traffic_source: analyticsMode ? '' : 'google_ads',
             google_ads_account_id: '',
             campaign: '',
             path: '',
             ip: '',
             country: '',
+            device: '',
             action: '',
             threat_group: '',
             only_invalid: false,
@@ -1104,15 +1170,44 @@ function botProtectionAdvancedFigma() {
             }
         },
         get statCards() {
+            if (this.analyticsMode) {
+                const k = this.sessionKpis || {};
+                return [
+                    { key: 'sessions', label: 'Sessions', value: this.fmt(k.total_sessions ?? this.meta.total ?? 0), tone: 'purple', sub: 'Unique visitor sessions', asPercent: false },
+                    { key: 'cta', label: 'CTA Clicks', value: this.fmt(k.cta_clicks ?? 0), tone: 'green', sub: 'Tracked CTA interactions', asPercent: false },
+                    { key: 'tel', label: 'Tel Clicks', value: this.fmt(k.tel_clicks ?? 0), tone: 'amber', sub: 'Phone link taps', asPercent: false },
+                    { key: 'forms', label: 'Form Submits', value: this.fmt(k.form_submits ?? 0), tone: 'purple', sub: 'Completed forms', asPercent: false },
+                    { key: 'purchase', label: 'Purchases', value: this.fmt(k.purchases ?? 0), tone: 'green', sub: 'Recorded purchase events', asPercent: false },
+                    { key: 'conv', label: 'Conversion Rate', value: Number(k.conversion_rate ?? 0).toFixed(2), tone: 'amber', sub: 'Purchase / session rate', asPercent: true },
+                ];
+            }
             return [
-                { key: 'blocked', label: 'Blocked', value: this.stats.blocked ?? 0, tone: 'rose', sub: 'Blocked actions in range' },
-                { key: 'invalid_traffic', label: 'Invalid Traffic', value: this.stats.invalid_traffic ?? 0, tone: 'amber', sub: 'Flagged as invalid' },
-                { key: 'paid_traffic', label: 'Paid Traffic', value: this.stats.paid_traffic ?? 0, tone: 'purple', sub: 'Attributed paid share' },
-                { key: 'bot_detection', label: 'Bot Detection', value: this.stats.bot_detection ?? 0, tone: 'purple', sub: 'VPN / DC / rate threats' },
-                { key: 'country', label: 'Country', value: this.stats.country ?? 0, tone: 'amber', sub: 'Visits with country data' },
-                { key: 'overall', label: 'Overall', value: this.stats.overall ?? 0, tone: 'green', sub: 'Valid traffic share' },
+                { key: 'blocked', label: 'Blocked', value: this.stats.blocked ?? 0, tone: 'rose', sub: 'Blocked actions in range', asPercent: true },
+                { key: 'invalid_traffic', label: 'Invalid Traffic', value: this.stats.invalid_traffic ?? 0, tone: 'amber', sub: 'Flagged as invalid', asPercent: true },
+                { key: 'paid_traffic', label: 'Paid Traffic', value: this.stats.paid_traffic ?? 0, tone: 'purple', sub: 'Attributed paid share', asPercent: true },
+                { key: 'bot_detection', label: 'Bot Detection', value: this.stats.bot_detection ?? 0, tone: 'purple', sub: 'VPN / DC / rate threats', asPercent: true },
+                { key: 'country', label: 'Country', value: this.stats.country ?? 0, tone: 'amber', sub: 'Visits with country data', asPercent: true },
+                { key: 'overall', label: 'Overall', value: this.stats.overall ?? 0, tone: 'green', sub: 'Valid traffic share', asPercent: true },
             ];
         },
+        trafficSourceOptions() {
+            if (this.analyticsMode) {
+                return [
+                    { value: '', label: 'All Sources' },
+                    { value: 'organic', label: 'Organic' },
+                    { value: 'direct', label: 'Direct' },
+                    { value: 'social', label: 'Social' },
+                    { value: 'referral', label: 'Referral' },
+                    { value: 'paid', label: 'Paid' },
+                ];
+            }
+            return [
+                { value: 'google_ads', label: 'Google Ads' },
+                { value: 'meta_ads', label: 'Meta Ads', disabled: true },
+                { value: 'microsoft_ads', label: 'Microsoft Ads', disabled: true },
+            ];
+        },
+        fmt(n) { return new Intl.NumberFormat().format(Number(n || 0)); },
         qs(extra = {}) {
             const p = new URLSearchParams();
             Object.entries({ ...this.filters, ...extra }).forEach(([k, v]) => {
@@ -1165,7 +1260,12 @@ function botProtectionAdvancedFigma() {
         emptyMessage() {
             if (this.loadError) return this.loadError;
             if (!this.hasDomains) {
-                return 'Add a domain and install the tracking tag to see IPs here.';
+                return this.analyticsMode
+                    ? 'Add a domain and install the tracking tag to see session intelligence.'
+                    : 'Add a domain and install the tracking tag to see IPs here.';
+            }
+            if (this.analyticsMode) {
+                return 'No matching sessions in this window.';
             }
             const hidden = Number(this.meta.paid_hidden || 0);
             if (hidden > 0) {
@@ -1183,8 +1283,34 @@ function botProtectionAdvancedFigma() {
         async reload(resetPage = false) {
             if (resetPage) this.meta.page = 1;
             this.loadError = '';
-            window.promotixPageLoader?.show('Loading Traffic Control…');
+            window.promotixPageLoader?.show(this.analyticsMode ? 'Loading Traffic Control…' : 'Loading Traffic Control…');
             try {
+                if (this.analyticsMode) {
+                    const qs = this.qs({ page: this.meta.page, per_page: this.meta.per_page });
+                    const [sessionsRes, analyticsRes] = await Promise.all([
+                        fetch(`/bot-protection/traffic-control/sessions?${qs}`),
+                        fetch(`/bot-protection/page-analytics?${this.qs()}`),
+                    ]);
+                    const sessions = await this.parseJson(sessionsRes);
+                    const analytics = await this.parseJson(analyticsRes);
+                    this.rows = sessions.data || [];
+                    this.meta = { ...this.meta, ...(sessions.meta || {}) };
+                    if (!sessionsRes.ok) {
+                        this.loadError = sessions.error || sessions.message || `Could not load sessions (${sessionsRes.status}).`;
+                        this.rows = [];
+                    }
+                    const k = analytics?.kpis || {};
+                    this.sessionKpis = {
+                        total_sessions: this.meta.total || 0,
+                        cta_clicks: k.cta_clicks || 0,
+                        tel_clicks: k.tel_clicks || 0,
+                        form_submits: k.form_submits || 0,
+                        purchases: k.purchases || 0,
+                        conversion_rate: k.conversion_rate || 0,
+                    };
+                    return;
+                }
+
                 const statsRes = await fetch(`/bot-protection/bot-stats?${this.qs()}`);
                 const stats = await this.parseJson(statsRes);
                 if (!statsRes.ok) {
@@ -1254,11 +1380,36 @@ function botProtectionAdvancedFigma() {
                 this.optionalColumnKeys = [...this.optionalColumnKeys, key];
             }
             try {
-                localStorage.setItem('bp-adv-optional-columns-v2', JSON.stringify(this.optionalColumnKeys));
+                localStorage.setItem(storageKey, JSON.stringify(this.optionalColumnKeys));
             } catch (e) {}
+        },
+        openEventDrilldown(row, kind) {
+            const count = Number(row?.[kind] || 0);
+            if (!count) return;
+            const timeline = row?.event_detail?.timeline || row?.event_detail?.cta || [];
+            const filterType = kind === 'tel_clicks' ? 'tel' : 'cta';
+            const events = (Array.isArray(timeline) ? timeline : [])
+                .filter(ev => {
+                    const t = String(ev?.type || ev?.label || '').toLowerCase();
+                    return kind === 'tel_clicks' ? t.includes('tel') : (t.includes('cta') || t.includes('click'));
+                })
+                .map(ev => ({
+                    label: ev.label || ev.detail || ev.kind || ev.type || 'Event',
+                    time: ev.t != null ? `${Math.max(0, Math.round(Number(ev.t) / 1000))}s` : (ev.time || ev.at || '—'),
+                }));
+            this.eventModal = {
+                open: true,
+                title: kind === 'tel_clicks' ? 'Tel Click Timeline' : 'CTA Click Timeline',
+                subtitle: `${count} event(s) · Session ${row.session_id || row.session_key || row.ip || ''}`,
+                events: events.length ? events : [{ label: `${count} ${kind === 'tel_clicks' ? 'tel' : 'CTA'} interaction(s) recorded`, time: row.last_seen || '—' }],
+            };
+        },
+        closeEventModal() {
+            this.eventModal = { open: false, title: '', subtitle: '', events: [] };
         },
         cellValue(row, key) {
             if (key === 'ip') return this.ipLabel(row);
+            if (key === 'session_id') return row.session_id || row.session_key || '—';
             if (key === 'threat_group') return row.threat_group_label || row.threat_group || '—';
             if (key === 'threat_type') return row.threat_type || row.threat_type_label || '—';
             if (key === 'country') return row.country_label || row.country || '—';

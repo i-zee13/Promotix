@@ -11,6 +11,9 @@ use App\Services\IpIntel\IpIntelService;
 use App\Support\GlobalIpAllowlist;
 use App\Support\CountryFlag;
 use App\Support\GoogleClickAttribution;
+use App\Support\PageAnalyticsAggregator;
+use App\Support\TrafficControlSessionQuery;
+use App\Support\TrafficSourceClassifier;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -39,8 +42,109 @@ class BotProtectionController extends Controller
         return view('bot-protection.dashboard', [
             'domains' => $domains,
             'googleAdsAccounts' => $googleAdsAccounts,
-            'useDemo' => app()->environment('local'),
+            'useDemo' => false,
         ]);
+    }
+
+    public function pageAnalytics(Request $request): JsonResponse
+    {
+        try {
+            $domainIds = $this->scopedDomainIds($request);
+            [$from, $to] = $this->dateRange($request);
+            $days = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
+            $prevTo = $from->copy()->subSecond();
+            $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
+
+            $aggregator = app(PageAnalyticsAggregator::class);
+            $current = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('visited_at', [$from, $to])
+                ->count();
+            $payload = $aggregator->build($domainIds, $from, $to, (object) [
+                'total' => $current,
+            ]);
+
+            if ($domainIds !== [] && Schema::hasTable('visits')) {
+                $prevRows = DB::table('visits')
+                    ->whereIn('domain_id', $domainIds)
+                    ->whereBetween('visited_at', [$prevFrom, $prevTo])
+                    ->get(['is_paid_traffic', 'utm_medium', 'utm_source', 'referrer', 'utm_term', 'gclid']);
+                $prevOrganic = 0;
+                $prevDirect = 0;
+                $prevReferral = 0;
+                $prevKeywords = 0;
+                foreach ($prevRows as $row) {
+                    $bucket = TrafficSourceClassifier::bucket(
+                        (bool) $row->is_paid_traffic,
+                        $row->utm_medium,
+                        $row->utm_source,
+                        $row->referrer,
+                        $row->gclid ?? null,
+                    );
+                    if ($bucket === 'organic') {
+                        $prevOrganic++;
+                    } elseif ($bucket === 'direct') {
+                        $prevDirect++;
+                    } elseif (in_array($bucket, ['referral', 'social'], true)) {
+                        $prevReferral++;
+                    }
+                    if (filled($row->utm_term)) {
+                        $prevKeywords++;
+                    }
+                }
+                $payload['kpis']['deltas'] = [
+                    'total_visitors' => $this->pctDelta($current, $prevRows->count()),
+                    'organic_traffic' => $this->pctDelta($payload['kpis']['organic_traffic'], $prevOrganic),
+                    'direct_traffic' => $this->pctDelta($payload['kpis']['direct_traffic'], $prevDirect),
+                    'referral_traffic' => $this->pctDelta($payload['kpis']['referral_traffic'], $prevReferral),
+                    'keyword_visits' => $this->pctDelta($payload['kpis']['keyword_visits'], $prevKeywords),
+                    'conversion_rate' => 0,
+                ];
+            }
+
+            return response()->json($payload);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(app(PageAnalyticsAggregator::class)->build([], now(), now()), 500);
+        }
+    }
+
+    public function trafficControlSessions(Request $request): JsonResponse
+    {
+        try {
+            $domainIds = $this->scopedDomainIds($request);
+            [$from, $to] = $this->dateRange($request);
+            $page = max(1, (int) $request->query('page', 1));
+            $perPage = min(100, max(10, (int) $request->query('per_page', 20)));
+
+            $result = app(TrafficControlSessionQuery::class)->paginate($domainIds, $from, $to, $request, $page, $perPage);
+
+            return response()->json([
+                'data' => $result['data'],
+                'meta' => [
+                    'total' => $result['total'],
+                    'page' => $page,
+                    'per_page' => $perPage,
+                    'domain_count' => count($domainIds),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['data' => [], 'meta' => ['total' => 0], 'error' => 'Could not load sessions.'], 500);
+        }
+    }
+
+    private function pctDelta(int|float $cur, int|float $prev): float
+    {
+        $cur = (float) $cur;
+        $prev = (float) $prev;
+        if ($prev == 0.0) {
+            return $cur > 0 ? 100.0 : 0.0;
+        }
+
+        return round((($cur - $prev) / $prev) * 100, 1);
     }
 
     public function summary(Request $request): JsonResponse
@@ -570,6 +674,7 @@ class BotProtectionController extends Controller
         return view('bot-protection.advanced', [
             'domains' => $domains,
             'googleAdsAccounts' => $googleAdsAccounts,
+            'analyticsMode' => $request->routeIs('analytics.traffic-control'),
         ]);
     }
 

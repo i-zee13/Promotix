@@ -265,6 +265,7 @@
             'email_alerts' => (bool) ($settingsNotify['email_alerts'] ?? $settingsNotify['email'] ?? true),
             'product_updates' => (bool) ($settingsNotify['product_updates'] ?? true),
             'weekly_digest' => (bool) ($settingsNotify['weekly_digest'] ?? false),
+            'monthly_report_email' => (bool) ($settingsNotify['monthly_report_email'] ?? false),
             'invalid_clicks_threshold' => (int) ($settingsNotify['invalid_clicks_threshold'] ?? 50),
             'risk_score_threshold' => (int) ($settingsNotify['risk_score_threshold'] ?? 80),
             'detection' => [
@@ -1823,7 +1824,11 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         reportBusy: false,
         reportStatus: '',
         monthlyEmailToggle: (() => {
-            try { return localStorage.getItem('promotix-monthly-report-email') === '1'; } catch (_) { return false; }
+            try {
+                const seed = @json((bool) ($settingsNotify['monthly_report_email'] ?? false));
+                if (seed) return true;
+                return localStorage.getItem('promotix-monthly-report-email') === '1';
+            } catch (_) { return false; }
         })(),
         generalStatus: '',
         generalBusy: false,
@@ -1971,9 +1976,12 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
 
             return url.toString();
         },
-        persistMonthlyEmailToggle() {
+        async persistMonthlyEmailToggle() {
             try {
                 localStorage.setItem('promotix-monthly-report-email', this.monthlyEmailToggle ? '1' : '0');
+            } catch (_) {}
+            try {
+                await this.savePrefs({ notifications: { monthly_report_email: Boolean(this.monthlyEmailToggle) } });
             } catch (_) {}
         },
         filenameFromDisposition(header, fallback) {
