@@ -26,6 +26,7 @@ use App\Support\GoogleIpBlockFormatter;
 use App\Support\GoogleVerifiedCampaignLookup;
 use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\IpListParser;
+use App\Support\PaidAdvertising\IpRowRiskScorer;
 use App\Support\RiskLabels;
 use App\Support\SessionBehaviorTimeline;
 use App\Support\SessionRecordingNormalizer;
@@ -1623,9 +1624,36 @@ class PaidMarketingController extends Controller
         if (($intel['intel_vpn'] ?? 'No') === 'Yes' || ($intel['intel_proxy'] ?? 'No') === 'Yes') {
             $vpnHits = max($vpnHits, max($clickCount, 1));
         }
+        if (($intel['intel_datacenter'] ?? 'No') === 'Yes') {
+            $dataCenterHits = max($dataCenterHits, max($clickCount, 1));
+        }
         $vpnPct = $clickCount > 0
             ? (int) min(100, round(($vpnHits / $clickCount) * 100))
             : 0;
+
+        $topThreat = strtolower(trim((string) (
+            $visit->threat_group
+            ?: $visit->getAttribute('range_threat_group')
+            ?: ''
+        )));
+        $maliciousHits = in_array($topThreat, ['malicious', 'blocked'], true) ? max($invalidClicks, 1) : 0;
+        $scoredRisk = IpRowRiskScorer::score([
+            'invalid' => $invalidClicks,
+            'total' => $clickCount,
+            'threat_score' => $sessionMeta['paid_risk_score'] ?? $visit->getAttribute('threat_score') ?? null,
+            'intel_score' => $intel['intel_risk_score'] ?? null,
+            'top_threat' => $topThreat !== '' ? $topThreat : null,
+            'vpn_hits' => $vpnHits,
+            'data_center_hits' => $dataCenterHits,
+            'malicious_hits' => $maliciousHits,
+        ]);
+        if ($scoredRisk['risk_score'] !== null) {
+            $intel['intel_risk_score'] = $scoredRisk['risk_score'];
+            $intel['intel_risk_level'] = $scoredRisk['risk_level'];
+        } elseif (empty($intel['intel_risk_level'])) {
+            $intel['intel_risk_level'] = 'Low';
+            $intel['intel_risk_score'] = $intel['intel_risk_score'] ?? 0;
+        }
 
         return [
             'id' => $visit->id,
@@ -1784,7 +1812,7 @@ class PaidMarketingController extends Controller
                 'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
             ];
             })->values()->all(),
-            ...$this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain),
+            ...$intel,
         ];
     }
 
@@ -1951,9 +1979,14 @@ class PaidMarketingController extends Controller
 
         if (is_numeric($abuser)) {
             $score = (float) $abuser;
-            $riskLevel = $score >= 0.7 ? 'High' : ($score >= 0.2 ? 'Medium' : 'Low');
-        } elseif (is_int($ipLog?->abuse_confidence_score)) {
-            $riskLevel = $ipLog->abuse_confidence_score >= 50 ? 'High' : 'Low';
+            // Vendor scores may be 0–1 or 0–100; normalize level thresholds.
+            $scorePct = $score <= 1.0 ? $score * 100 : $score;
+            $riskLevel = $scorePct >= 70 ? 'High' : ($scorePct >= 40 ? 'Medium' : 'Low');
+            $abuser = (int) round($scorePct);
+        } elseif (is_numeric($ipLog?->abuse_confidence_score)) {
+            $scorePct = (float) $ipLog->abuse_confidence_score;
+            $scorePct = $scorePct <= 1.0 ? $scorePct * 100 : $scorePct;
+            $riskLevel = $scorePct >= 70 ? 'High' : ($scorePct >= 40 ? 'Medium' : 'Low');
         }
 
         $threatGroup = strtolower((string) $visit->threat_group);
