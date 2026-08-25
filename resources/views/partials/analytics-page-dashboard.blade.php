@@ -264,6 +264,27 @@
             font-size: 11px;
             color: rgba(255, 255, 255, 0.55);
             white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+            display: inline-grid;
+            grid-template-columns: minmax(3.2ch, auto) auto minmax(5.2ch, auto);
+            column-gap: 4px;
+            align-items: baseline;
+            justify-items: end;
+            text-align: right;
+        }
+        .pa-dash .pa-bar-row__meta-count {
+            justify-self: end;
+            min-width: 3.2ch;
+            text-align: right;
+        }
+        .pa-dash .pa-bar-row__meta-sep {
+            opacity: 0.55;
+            justify-self: center;
+        }
+        .pa-dash .pa-bar-row__meta-pct {
+            justify-self: end;
+            min-width: 5.2ch;
+            text-align: right;
         }
         .pa-dash .pa-bar-track {
             grid-column: 1 / -1;
@@ -275,14 +296,14 @@
         .pa-dash .pa-bar-fill {
             height: 100%;
             border-radius: 999px;
-            background: linear-gradient(90deg, #FF6600, #FFB380);
+            background: #FF6600;
         }
         .pa-dash .pa-bar-fill.is-soft {
-            background: linear-gradient(90deg, rgba(255, 102, 0, 0.55), rgba(255, 179, 128, 0.75));
+            background: #FF8533;
         }
-        .pa-dash .pa-bar-fill.is-green { background: linear-gradient(90deg, #059669, #34d399); }
-        .pa-dash .pa-bar-fill.is-amber { background: linear-gradient(90deg, #d97706, #fbbf24); }
-        .pa-dash .pa-bar-fill.is-rose { background: linear-gradient(90deg, #e11d48, #fb7185); }
+        .pa-dash .pa-bar-fill.is-green { background: #22C55E; }
+        .pa-dash .pa-bar-fill.is-amber { background: #F59E0B; }
+        .pa-dash .pa-bar-fill.is-rose { background: #F43F5E; }
 
         .pa-dash .pa-inset {
             margin-top: 14px;
@@ -988,28 +1009,44 @@
                 <div class="pa-bars">
                     <div class="pa-bar-row">
                         <span class="pa-bar-row__label">Human Visitors</span>
-                        <span class="pa-bar-row__meta" x-text="`${fmt(pageQuality()?.human_count || 0)} · ${pageQuality()?.human ?? 0}%`"></span>
+                        <span class="pa-bar-row__meta">
+                            <span class="pa-bar-row__meta-count" x-text="fmt(pageQuality()?.human_count || 0)"></span>
+                            <span class="pa-bar-row__meta-sep">·</span>
+                            <span class="pa-bar-row__meta-pct" x-text="Number(pageQuality()?.human || 0).toFixed(1) + '%'"></span>
+                        </span>
                         <div class="pa-bar-track">
                             <div class="pa-bar-fill is-green" :style="`width:${Math.max(4, Number(pageQuality()?.human || 0))}%`"></div>
                         </div>
                     </div>
                     <div class="pa-bar-row">
                         <span class="pa-bar-row__label">Crawlers</span>
-                        <span class="pa-bar-row__meta" x-text="`${fmt(pageQuality()?.crawlers_count || 0)} · ${pageQuality()?.crawlers ?? 0}%`"></span>
+                        <span class="pa-bar-row__meta">
+                            <span class="pa-bar-row__meta-count" x-text="fmt(pageQuality()?.crawlers_count || 0)"></span>
+                            <span class="pa-bar-row__meta-sep">·</span>
+                            <span class="pa-bar-row__meta-pct" x-text="Number(pageQuality()?.crawlers || 0).toFixed(1) + '%'"></span>
+                        </span>
                         <div class="pa-bar-track">
                             <div class="pa-bar-fill is-soft" :style="`width:${Math.max(4, Number(pageQuality()?.crawlers || 0))}%`"></div>
                         </div>
                     </div>
                     <div class="pa-bar-row">
                         <span class="pa-bar-row__label">Automation</span>
-                        <span class="pa-bar-row__meta" x-text="`${fmt(pageQuality()?.automation_count || 0)} · ${pageQuality()?.automation ?? 0}%`"></span>
+                        <span class="pa-bar-row__meta">
+                            <span class="pa-bar-row__meta-count" x-text="fmt(pageQuality()?.automation_count || 0)"></span>
+                            <span class="pa-bar-row__meta-sep">·</span>
+                            <span class="pa-bar-row__meta-pct" x-text="Number(pageQuality()?.automation || 0).toFixed(1) + '%'"></span>
+                        </span>
                         <div class="pa-bar-track">
                             <div class="pa-bar-fill is-amber" :style="`width:${Math.max(4, Number(pageQuality()?.automation || 0))}%`"></div>
                         </div>
                     </div>
                     <div class="pa-bar-row">
                         <span class="pa-bar-row__label">Malicious Activity</span>
-                        <span class="pa-bar-row__meta" x-text="`${fmt(pageQuality()?.malicious_count || 0)} · ${pageQuality()?.malicious ?? 0}%`"></span>
+                        <span class="pa-bar-row__meta">
+                            <span class="pa-bar-row__meta-count" x-text="fmt(pageQuality()?.malicious_count || 0)"></span>
+                            <span class="pa-bar-row__meta-sep">·</span>
+                            <span class="pa-bar-row__meta-pct" x-text="Number(pageQuality()?.malicious || 0).toFixed(1) + '%'"></span>
+                        </span>
                         <div class="pa-bar-track">
                             <div class="pa-bar-fill is-rose" :style="`width:${Math.max(4, Number(pageQuality()?.malicious || 0))}%`"></div>
                         </div>
