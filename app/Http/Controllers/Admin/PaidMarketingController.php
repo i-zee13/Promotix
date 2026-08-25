@@ -2604,10 +2604,30 @@ class PaidMarketingController extends Controller
         ];
 
         $riskBuckets = [
-            'critical' => ['label' => 'Critical Risk', 'color' => '#BE123C', 'count' => 0],
-            'high' => ['label' => 'High Risk', 'color' => '#F43F5E', 'count' => 0],
-            'medium' => ['label' => 'Medium Risk', 'color' => '#F59E0B', 'count' => 0],
-            'low' => ['label' => 'Low Risk', 'color' => '#22C55E', 'count' => 0],
+            'critical' => [
+                'label' => 'Critical Risk',
+                'hint' => 'highly likely invalid/fraudulent traffic',
+                'color' => '#BE123C',
+                'count' => 0,
+            ],
+            'high' => [
+                'label' => 'High Risk',
+                'hint' => 'strong suspicious behavior',
+                'color' => '#F43F5E',
+                'count' => 0,
+            ],
+            'medium' => [
+                'label' => 'Medium Risk',
+                'hint' => 'some suspicious signals',
+                'color' => '#F59E0B',
+                'count' => 0,
+            ],
+            'low' => [
+                'label' => 'Low Risk',
+                'hint' => 'normal, clean traffic',
+                'color' => '#22C55E',
+                'count' => 0,
+            ],
         ];
 
         $countryInvalid = [];
@@ -2705,6 +2725,7 @@ class PaidMarketingController extends Controller
             $pct = $threatSum > 0 ? round(($bucket['count'] / $threatTotal) * 100, 1) : 0.0;
             $threatItems[] = [
                 'label' => $bucket['label'],
+                'hint' => $bucket['hint'] ?? null,
                 'color' => $bucket['color'],
                 'pct' => $pct,
                 'count' => $bucket['count'],
@@ -2735,6 +2756,7 @@ class PaidMarketingController extends Controller
             $pct = round(($bucket['count'] / $riskTotal) * 100, 1);
             $riskItems[] = [
                 'label' => $bucket['label'],
+                'hint' => $bucket['hint'] ?? null,
                 'color' => $bucket['color'],
                 'pct' => $pct,
                 'count' => $bucket['count'],

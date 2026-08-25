@@ -138,9 +138,9 @@
                 justify-content: space-between;
                 gap: 4px;
                 font-size: 9px;
-                font-weight: 600;
+                font-weight: 700;
                 letter-spacing: 0.04em;
-                color: rgba(255, 255, 255, 0.45);
+                color: #6b6578;
             }
             .pm-adv-signals {
                 display: flex;
@@ -149,47 +149,49 @@
                 gap: 4px;
                 overflow: visible;
             }
+            /* Rows are light (#d9d9d9) even in dark shell — chips must stay dark-on-light */
             .pm-adv-signal {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                min-width: 32px;
-                height: 18px;
-                padding: 0 5px;
-                border-radius: 4px;
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                background: rgba(255, 255, 255, 0.04);
-                color: rgba(255, 255, 255, 0.45);
-                font-size: 9px;
-                font-weight: 700;
+                min-width: 34px;
+                height: 20px;
+                padding: 0 6px;
+                border-radius: 5px;
+                border: 1px solid #b8b0c4;
+                background: #ffffff;
+                color: #2d2a36;
+                font-size: 10px;
+                font-weight: 800;
                 font-variant-numeric: tabular-nums;
                 line-height: 1;
+                box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
             }
             .pm-adv-signal--vpn.is-hot {
-                border-color: rgba(168, 85, 247, 0.55);
-                background: rgba(168, 85, 247, 0.18);
-                color: #e9d5ff;
+                border-color: #7e22ce;
+                background: #7e22ce;
+                color: #ffffff;
             }
             .pm-adv-signal--rpt.is-hot {
-                border-color: rgba(20, 184, 166, 0.55);
-                background: rgba(20, 184, 166, 0.16);
-                color: #99f6e4;
+                border-color: #0f766e;
+                background: #0f766e;
+                color: #ffffff;
             }
-            html.light-mode .pm-adv-signals-head { color: #8b8499; }
+            html.light-mode .pm-adv-signals-head { color: #5c5470; }
             html.light-mode .pm-adv-signal {
-                border-color: #ddd6e8;
-                background: #f7f5fa;
-                color: #8b8499;
+                border-color: #c4bdd4;
+                background: #ffffff;
+                color: #1f1b2d;
             }
             html.light-mode .pm-adv-signal--vpn.is-hot {
-                border-color: rgba(168, 85, 247, 0.45);
-                background: rgba(168, 85, 247, 0.12);
-                color: #7e22ce;
+                border-color: #6b21a8;
+                background: #6b21a8;
+                color: #ffffff;
             }
             html.light-mode .pm-adv-signal--rpt.is-hot {
-                border-color: rgba(13, 148, 136, 0.4);
-                background: rgba(20, 184, 166, 0.12);
-                color: #0f766e;
+                border-color: #0f766e;
+                background: #0f766e;
+                color: #ffffff;
             }
             .pm-adv-page-head {
                 display: flex;
@@ -299,24 +301,25 @@
             }
             .pm-adv-chart-card__body {
                 display: flex;
-                align-items: center;
+                align-items: flex-start;
                 gap: 14px;
                 flex: 1;
                 min-width: 0;
             }
             .pm-adv-donut {
                 --pm-donut: conic-gradient(rgba(100,0,178,0.25) 0 100%);
-                width: 118px;
-                height: 118px;
+                width: 108px;
+                height: 108px;
                 border-radius: 999px;
                 background: var(--pm-donut);
                 display: grid;
                 place-items: center;
                 flex-shrink: 0;
+                margin-top: 4px;
             }
             .pm-adv-donut__inner {
-                width: 78px;
-                height: 78px;
+                width: 72px;
+                height: 72px;
                 border-radius: 999px;
                 background: #111111;
                 display: flex;
@@ -343,32 +346,35 @@
                 margin: 0;
                 padding: 0;
                 min-width: 0;
-                flex: 1;
+                flex: 1 1 auto;
+                width: 100%;
                 display: flex;
                 flex-direction: column;
-                gap: 7px;
-                max-height: 190px;
+                gap: 6px;
+                max-height: 220px;
                 overflow-y: auto;
             }
-            .pm-adv-legend li,
-            .pm-adv-legend__btn {
-                display: grid;
-                grid-template-columns: 10px minmax(0, 1fr) auto;
-                align-items: center;
-                gap: 8px;
-                font-size: 11px;
-                color: rgba(255, 255, 255, 0.82);
+            .pm-adv-legend li {
+                display: block;
+                margin: 0;
+                padding: 0;
             }
             .pm-adv-legend__btn {
+                display: grid;
+                grid-template-columns: 10px minmax(72px, 1fr) auto;
+                align-items: start;
+                gap: 8px;
                 width: 100%;
                 margin: 0;
-                padding: 2px 0;
+                padding: 3px 4px;
                 border: 0;
+                border-radius: 4px;
                 background: transparent;
                 text-align: left;
                 cursor: pointer;
-                border-radius: 4px;
-                transition: opacity 0.15s ease;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.9);
+                transition: opacity 0.15s ease, background 0.15s ease;
             }
             .pm-adv-legend__btn:hover { background: rgba(255, 255, 255, 0.04); }
             .pm-adv-legend__btn.is-hidden {
@@ -383,18 +389,40 @@
             .pm-adv-legend__swatch {
                 width: 10px;
                 height: 10px;
+                margin-top: 3px;
                 border-radius: 2px;
+                flex-shrink: 0;
+            }
+            .pm-adv-legend__copy {
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
             }
             .pm-adv-legend__name {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
+                color: #fff;
+                font-weight: 600;
+                line-height: 1.25;
+                white-space: normal;
+                overflow: visible;
+                word-break: break-word;
+            }
+            .pm-adv-legend__hint {
+                color: rgba(255, 255, 255, 0.45);
+                font-size: 10px;
+                font-weight: 400;
+                line-height: 1.25;
             }
             .pm-adv-legend__meta {
                 white-space: nowrap;
                 font-variant-numeric: tabular-nums;
-                color: rgba(255, 255, 255, 0.7);
+                color: rgba(255, 255, 255, 0.75);
+                padding-top: 1px;
             }
+            html.light-mode .pm-adv-legend__btn { color: #2d2a36; }
+            html.light-mode .pm-adv-legend__name { color: #1a1a1a; }
+            html.light-mode .pm-adv-legend__hint { color: #6b6578; }
+            html.light-mode .pm-adv-legend__meta { color: #5c5470; }
             .pm-adv-countries {
                 display: flex;
                 flex-direction: column;
@@ -1070,7 +1098,7 @@
         <section class="pm-adv-charts mt-[18px]">
             <article class="pm-adv-chart-card">
                 <h3 class="pm-adv-chart-card__title">Threat Distribution</h3>
-                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Valid Paid · Suspicious · Repeat · Automated · VPN/Proxy · Datacenter · Out-of-Geo · center = Invalid Clicks total</p>
+                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Invalid clicks by named category · center = Invalid Clicks total</p>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
@@ -1089,7 +1117,9 @@
                                     @click="toggleThreatLegend(legendKey(item))"
                                 >
                                     <span class="pm-adv-legend__swatch" :style="`background:${item.color}`"></span>
-                                    <span class="pm-adv-legend__name" x-text="item.label"></span>
+                                    <span class="pm-adv-legend__copy">
+                                        <span class="pm-adv-legend__name" x-text="item.label"></span>
+                                    </span>
                                     <span class="pm-adv-legend__meta">
                                         <span x-text="legendItemPct(item, threatDonut.visible_total, hiddenThreatKeys) + '%'"></span>
                                         <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
@@ -1105,7 +1135,7 @@
 
             <article class="pm-adv-chart-card">
                 <h3 class="pm-adv-chart-card__title">Risk Level Distribution</h3>
-                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Low = clean · Medium = some suspicious signals · High = strong suspicion · Critical = likely fraud · legend shows count + %</p>
+                <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Unique IPs by Critical / High / Medium / Low · legend shows count + %</p>
                 <div class="pm-adv-chart-card__body">
                     <div class="pm-adv-donut" :style="`--pm-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
@@ -1124,7 +1154,10 @@
                                     @click="toggleRiskLegend(legendKey(item))"
                                 >
                                     <span class="pm-adv-legend__swatch" :style="`background:${item.color}`"></span>
-                                    <span class="pm-adv-legend__name" x-text="item.label"></span>
+                                    <span class="pm-adv-legend__copy">
+                                        <span class="pm-adv-legend__name" x-text="item.label"></span>
+                                        <span class="pm-adv-legend__hint" x-show="item.hint" x-text="item.hint"></span>
+                                    </span>
                                     <span class="pm-adv-legend__meta">
                                         <span x-text="legendItemPct(item, riskDonut.visible_total, hiddenRiskKeys) + '%'"></span>
                                         <span class="opacity-55" x-text="'(' + item.count_label + ')'"></span>
