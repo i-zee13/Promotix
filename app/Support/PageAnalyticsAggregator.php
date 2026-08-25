@@ -20,8 +20,10 @@ class PageAnalyticsAggregator
      * }  $filters
      * @return array<string, mixed>
      */
-    public function build(array $domainIds, Carbon $from, Carbon $to, ?object $previous = null, array $filters = []): array
+    public function build(array|\Illuminate\Support\Collection $domainIds, Carbon $from, Carbon $to, ?object $previous = null, array $filters = []): array
     {
+        $domainIds = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values()->all();
+
         if (! Schema::hasTable('visits') || $domainIds === []) {
             return $this->emptyPayload();
         }

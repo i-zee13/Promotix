@@ -1533,7 +1533,7 @@ class BotProtectionController extends Controller
             ->value('aggregate_count');
     }
 
-    private function scopedDomainIds(Request $request)
+    private function scopedDomainIds(Request $request): array
     {
         $query = Domain::query()
             ->where('user_id', $request->user()->id)
@@ -1547,7 +1547,7 @@ class BotProtectionController extends Controller
             $query->where('google_ads_account_id', $accountId);
         }
 
-        return $query->pluck('id');
+        return $query->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
     }
 
     /**
