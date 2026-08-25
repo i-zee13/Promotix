@@ -117,6 +117,30 @@
             .analytics-skin .bp-adv-country-row__bar {
                 background: #FF6600;
             }
+            /* Orange scrollbars on Traffic Control table */
+            .analytics-skin .pm-adv-table-x-scroll,
+            .analytics-skin .pm-adv-table-body-scroll,
+            .analytics-skin .promotix-slim-scroll {
+                scrollbar-width: thin;
+                scrollbar-color: #FF6600 transparent;
+            }
+            .analytics-skin .pm-adv-table-x-scroll::-webkit-scrollbar,
+            .analytics-skin .pm-adv-table-body-scroll::-webkit-scrollbar,
+            .analytics-skin .promotix-slim-scroll::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            .analytics-skin .pm-adv-table-x-scroll::-webkit-scrollbar-thumb,
+            .analytics-skin .pm-adv-table-body-scroll::-webkit-scrollbar-thumb,
+            .analytics-skin .promotix-slim-scroll::-webkit-scrollbar-thumb {
+                background: #FF6600 !important;
+                border-radius: 4px;
+            }
+            .analytics-skin .pm-adv-table-x-scroll::-webkit-scrollbar-track,
+            .analytics-skin .pm-adv-table-body-scroll::-webkit-scrollbar-track,
+            .analytics-skin .promotix-slim-scroll::-webkit-scrollbar-track {
+                background: transparent;
+            }
             .tc-journey-drawer {
                 position: fixed;
                 inset: 0;
@@ -249,6 +273,41 @@
             }
             html.light-mode .analytics-skin .bp-adv-filters-menu {
                 border-color: rgba(255, 102, 0, 0.35);
+            }
+            /* Light mode: Advanced Filter + table chrome stay orange (beat global purple remaps) */
+            html.light-mode .analytics-skin .analytics-adv-filter-btn,
+            html.light-mode .analytics-skin .analytics-adv-filter-btn[class*='bg-[#0f0e0e]'] {
+                background: #FF6600 !important;
+                background-color: #FF6600 !important;
+                border-color: #ea580c !important;
+                color: #fff !important;
+            }
+            html.light-mode .analytics-skin .figma-filter-bar--bp-adv {
+                background: #fff4eb !important;
+                border-color: rgba(255, 102, 0, 0.4) !important;
+            }
+            html.light-mode .analytics-skin .pm-adv-table-grid--head {
+                background: #fff4eb !important;
+                color: #9a3412 !important;
+            }
+            html.light-mode .analytics-skin .pm-adv-table-grid--row {
+                background: #fff7f0 !important;
+                color: #1a1a1a !important;
+                border: 1px solid rgba(255, 102, 0, 0.18);
+            }
+            html.light-mode .analytics-skin .pm-adv-table-grid--row:hover {
+                background: #ffedd5 !important;
+            }
+            html.light-mode .analytics-skin .paid-advanced-columns-menu {
+                background: #fff !important;
+                border-color: rgba(255, 102, 0, 0.4) !important;
+            }
+            html.light-mode .analytics-skin .paid-advanced-column-option input {
+                accent-color: #FF6600 !important;
+            }
+            html.light-mode .analytics-skin section.border-\[\#FF6600\]\/60,
+            html.light-mode .analytics-skin section[class*='border-[#FF6600]'] {
+                border-color: rgba(255, 102, 0, 0.55) !important;
             }
             html.light-mode .bp-adv-filters-menu .text-white,
             html.light-mode .bp-adv-filters-menu label { color: #2d2d3a !important; }
@@ -850,9 +909,9 @@
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Traffic Control</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
                     <div class="relative" @click.outside="filterMenuOpen = false">
-                        <button type="button" @click="filterMenuOpen = !filterMenuOpen" class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white analytics-adv-filter-btn">
+                        <button type="button" @click="filterMenuOpen = !filterMenuOpen" class="analytics-adv-filter-btn inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-[#ea580c] bg-[#FF6600] px-[10px] text-[11px] text-white">
                             Advanced Filter
-                            <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
+                            <span class="rounded-[3px] bg-white/20 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
                         </button>
                         <div x-show="filterMenuOpen" x-cloak class="paid-advanced-columns-menu promotix-slim-scroll">
                             <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Required columns</p>
