@@ -1485,62 +1485,42 @@ function botProtectionFigma(config = {}) {
                 name: this.countryLabel(r.code || r.country || r.name) || r.name || r.label,
             }));
         },
-        geoRegionForCode(code) {
-            const c = String(code || '').toUpperCase();
-            if (['US', 'USA', 'CA', 'MX'].includes(c)) return c === 'MX' ? 'MX' : 'NA';
-            if (['BR', 'AR', 'CL', 'CO', 'PE'].includes(c)) return 'SA';
-            if (['GB', 'UK', 'DE', 'FR', 'NL', 'ES', 'IT', 'SE', 'NO', 'PL'].includes(c)) return 'EU';
-            if (['EG', 'NG', 'ZA', 'KE', 'MA'].includes(c)) return 'AF';
-            if (['AE', 'SA', 'TR', 'IL', 'QA'].includes(c)) return 'ME';
-            if (['IN', 'PK', 'BD', 'LK'].includes(c)) return 'IN';
-            if (['CN', 'HK', 'TW', 'KR', 'MN'].includes(c)) return 'CN';
-            if (['JP'].includes(c)) return 'JP';
-            if (['AU', 'NZ'].includes(c)) return 'AU';
-            if (['SG', 'MY', 'TH', 'ID', 'VN', 'PH'].includes(c)) return 'SEA';
-            return null;
-        },
-        geoLandClass(region) {
+        geoCountryClass(code) {
             const rows = this.pageGeo();
             if (!rows.length) return '';
             const max = Math.max(1, ...rows.map(r => Number(r.value || 0)));
-            let value = 0;
-            rows.forEach((r) => {
-                if (this.geoRegionForCode(r.code || r.country || r.name) === region) {
-                    value += Number(r.value || 0);
-                }
+            const needle = String(code || '').toUpperCase();
+            const row = rows.find((r) => {
+                const c = String(r.code || r.country || r.name || '').toUpperCase();
+                return c === needle || c === (needle === 'GB' ? 'UK' : needle) || (c === 'USA' && needle === 'US');
             });
-            if (value <= 0) return '';
-            const ratio = value / max;
+            if (!row) return '';
+            const ratio = Number(row.value || 0) / max;
             if (ratio >= 0.7) return 'is-hot';
             if (ratio >= 0.3) return 'is-warm';
             return 'is-cool';
         },
-        pageGeoDots() {
-            // Equirectangular-ish percent coords inside the 360x160 map.
-            const coords = {
-                US: [22, 42], USA: [22, 42], CA: [20, 30], MX: [18, 52],
-                BR: [30, 72], AR: [28, 86], GB: [48, 34], UK: [48, 34],
-                DE: [51, 36], FR: [49, 40], NL: [50, 34], ES: [47, 44], IT: [52, 42],
-                AE: [58, 50], SA: [56, 52], TR: [56, 42], IN: [68, 52], PK: [64, 48],
-                CN: [74, 44], JP: [86, 42], KR: [82, 44], AU: [82, 78], NZ: [90, 88],
-                SG: [76, 64], MY: [74, 62], TH: [74, 58], ID: [78, 70],
-            };
-            const rows = this.pageGeo().slice(0, 8);
-            const max = Math.max(1, ...rows.map(r => Number(r.value || 0)));
-            return rows.map((r) => {
-                const code = String(r.code || r.country || r.name || '').toUpperCase();
-                const [x, y] = coords[code] || [50, 50];
-                const intensity = Math.max(0.2, Number(r.value || 0) / max);
-                return {
-                    code,
-                    label: r.name || r.label || code,
-                    x,
-                    y,
-                    cx: (x / 100) * 360,
-                    cy: (y / 100) * 160,
-                    r: 4 + intensity * 10,
-                    opacity: Math.max(0.45, intensity),
-                };
+        paintGeoMap() {
+            this.$nextTick(() => {
+                const svg = this.$refs.geoWorldMap;
+                if (!svg) return;
+                svg.querySelectorAll('.is-hot, .is-warm, .is-cool').forEach((el) => {
+                    el.classList.remove('is-hot', 'is-warm', 'is-cool');
+                });
+                const rows = this.pageGeo();
+                if (!rows.length) return;
+                const max = Math.max(1, ...rows.map(r => Number(r.value || 0)));
+                rows.forEach((r) => {
+                    let code = String(r.code || r.country || '').toLowerCase();
+                    if (code === 'uk') code = 'gb';
+                    if (code === 'usa') code = 'us';
+                    if (!code || code.length !== 2) return;
+                    const el = svg.querySelector(`#${CSS.escape(code)}`);
+                    if (!el) return;
+                    const ratio = Number(r.value || 0) / max;
+                    const cls = ratio >= 0.7 ? 'is-hot' : (ratio >= 0.3 ? 'is-warm' : 'is-cool');
+                    el.classList.add(cls);
+                });
             });
         },
         pageDevices() {
@@ -1901,6 +1881,7 @@ function botProtectionFigma(config = {}) {
                     fetch(`/bot-protection/page-analytics?${qs}`).then(r => this.parseJson(r)),
                 ]);
                 this.pageAnalytics = pageAnalytics?.kpis ? pageAnalytics : null;
+                this.paintGeoMap();
                 this.invalidTrends = trends;
                 this.countries = c;
                 this.domainsList = Array.isArray(ds) ? ds : [];
