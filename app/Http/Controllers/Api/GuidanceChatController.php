@@ -15,6 +15,13 @@ class GuidanceChatController extends Controller
 {
     public function ask(Request $request): JsonResponse
     {
+        if (! \App\Support\AdminIntegrationCatalog::guidanceChatbotEnabled()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Guidance chatbot is disabled in Super Admin → Integrations.',
+            ], 503);
+        }
+
         $data = $request->validate([
             'message' => ['required', 'string', 'max:2000'],
             'department' => ['nullable', 'string', 'max:64'],

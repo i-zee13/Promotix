@@ -36,29 +36,9 @@
             </x-super-admin.dashboard-dropdown>
         </div>
 
-        @if (! empty($guidanceSync))
-            <article class="rounded-[10px] border border-[#FF6600]/35 bg-[#1a1a1a] p-4">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <h3 class="text-[16px] font-semibold text-white">Guidance chatbot / KB sync</h3>
-                        <p class="mt-1 text-[12px] text-white/55">Dashboard + website chat both read published Guidance articles from Super Admin.</p>
-                    </div>
-                    <span class="rounded-full px-3 py-1 text-[11px] font-medium {{ ($guidanceSync['status'] ?? '') === 'synced' ? 'bg-emerald-500/15 text-emerald-200' : 'bg-amber-500/15 text-amber-200' }}">
-                        {{ ($guidanceSync['status'] ?? '') === 'synced' ? 'Synced' : 'Pending' }}
-                    </span>
-                </div>
-                <dl class="mt-3 grid gap-2 sm:grid-cols-3 text-[12px] text-white/70">
-                    <div><dt class="text-white/40">Published articles</dt><dd class="text-white">{{ number_format($guidanceSync['published_articles'] ?? 0) }}</dd></div>
-                    <div><dt class="text-white/40">Open chat sessions</dt><dd class="text-white">{{ number_format($guidanceSync['open_chat_sessions'] ?? 0) }}</dd></div>
-                    <div><dt class="text-white/40">Ask endpoint</dt><dd class="truncate text-[#FFB380]">{{ $guidanceSync['dashboard_endpoint'] ?? '—' }}</dd></div>
-                </dl>
-                <a href="{{ route('super-admin.guidance.index') }}" class="mt-3 inline-block text-[12px] text-[#FFB380] hover:underline">Manage Guidance KB →</a>
-            </article>
-        @endif
-
         <div class="grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-3">
             <template x-for="integration in filteredIntegrations" :key="integration.id">
-                <article class="figma-sa-integration-card">
+                <article class="figma-sa-integration-card" :class="integration.name === 'guidance-chatbot' ? 'ring-1 ring-[#FF6600]/35' : ''">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex min-w-0 items-center gap-3">
                             <span class="figma-sa-integration-icon" :class="'is-' + integration.name" aria-hidden="true">
@@ -68,14 +48,21 @@
                                 <svg x-show="integration.name === 'oauth'" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 2l7 3v6c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V5l7-3z"/></svg>
                                 <svg x-show="integration.name === 'meta-ads'" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.52 1.49-3.91 3.78-3.91 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.45 2.9h-2.33v7c4.78-.75 8.44-4.9 8.44-9.9 0-5.53-4.5-10.02-10-10.02z"/></svg>
                                 <svg x-show="integration.name === 'microsoft-ads'" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8.5v8.5H3V3zm9.5 0H21v8.5h-8.5V3zM3 12.5H11.5V21H3v-8.5zm9.5 0H21V21h-8.5v-8.5z"/></svg>
-                                <template x-if="!['stripe','google-cloud','smtp','oauth','meta-ads','microsoft-ads'].includes(integration.name)"><span x-text="integration.icon"></span></template>
+                                <svg x-show="integration.name === 'guidance-chatbot'" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                                <template x-if="!['stripe','google-cloud','smtp','oauth','meta-ads','microsoft-ads','guidance-chatbot'].includes(integration.name)"><span x-text="integration.icon"></span></template>
                             </span>
                             <div class="min-w-0">
                                 <h3 class="text-[20px] font-medium text-white" x-text="integration.display_name"></h3>
+                                <p class="mt-1 text-[12px] text-white/55" x-show="integration.subtitle" x-text="integration.subtitle"></p>
                             </div>
                         </div>
-                        <label class="inline-flex shrink-0 items-center gap-2 text-xs text-white/90">
-                            <input type="checkbox" class="sr-only" :checked="integration.enabled" @change="integration.enabled = $event.target.checked">
+                        <label class="inline-flex shrink-0 items-center gap-2 text-xs text-white/90" title="Enable / disable">
+                            <input
+                                type="checkbox"
+                                class="sr-only"
+                                :checked="integration.enabled"
+                                @change="integration.enabled = $event.target.checked; saveIntegration(integration, true)"
+                            >
                             <span class="relative inline-flex h-6 w-11 rounded-full transition"
                                 :class="integration.enabled ? 'bg-white/30' : 'bg-black/30'">
                                 <span class="inline-block h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition"
@@ -90,7 +77,7 @@
                             x-text="integration.enabled ? integration.connected_label : 'Disabled'"></span>
                     </div>
 
-                    <p class="figma-sa-integration-meta">
+                    <p class="figma-sa-integration-meta" x-show="integration.name !== 'guidance-chatbot'">
                         <template x-if="integration.last_rotated_at">
                             <span>API keys last updated: <span x-text="integration.last_rotated_at"></span></span>
                         </template>
@@ -112,7 +99,12 @@
                                         :placeholder="integration.secrets_masked[field.name] ? ('Current: ' + integration.secrets_masked[field.name]) : 'Not set'"
                                         x-model="integration._secrets[field.name]">
                                 </template>
-                                <template x-if="!field.secret">
+                                <template x-if="!field.secret && field.readonly">
+                                    <input type="text" readonly
+                                        class="figma-sa-integration-field opacity-90"
+                                        :value="integration.settings[field.name] || '—'">
+                                </template>
+                                <template x-if="!field.secret && !field.readonly">
                                     <input :type="field.type === 'textarea' ? 'text' : (field.type || 'text')"
                                         class="figma-sa-integration-field"
                                         x-model="integration.settings[field.name]">
@@ -125,15 +117,20 @@
                     </div>
 
                     <div class="figma-sa-integration-actions">
-                        <button type="button" class="figma-sa-integration-btn" @click="testIntegration(integration)">
+                        <a
+                            x-show="integration.name === 'guidance-chatbot'"
+                            :href="integration.manage_url || '#'"
+                            class="figma-sa-integration-btn figma-sa-integration-btn--solid no-underline"
+                        >Manage Guidance KB →</a>
+                        <button type="button" class="figma-sa-integration-btn" x-show="integration.name !== 'guidance-chatbot'" @click="testIntegration(integration)">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             Test
                         </button>
-                        <button type="button" class="figma-sa-integration-btn" @click="rotateIntegration(integration)">
+                        <button type="button" class="figma-sa-integration-btn" x-show="integration.name !== 'guidance-chatbot'" @click="rotateIntegration(integration)">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0114-5M20 15a8 8 0 01-14 5"/></svg>
                             Rotate Keys
                         </button>
-                        <button type="button" class="figma-sa-integration-btn figma-sa-integration-btn--solid" @click="saveIntegration(integration)">
+                        <button type="button" class="figma-sa-integration-btn figma-sa-integration-btn--solid" x-show="integration.name !== 'guidance-chatbot'" @click="saveIntegration(integration)">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 13l4 4L19 7"/></svg>
                             Save
                         </button>
@@ -188,15 +185,17 @@ function superAdminIntegrations(initial) {
             return data;
         },
         copyField(integration, field) {
-            const value = field.secret ? (integration._secrets[field.name] || '') : (integration.settings[field.name] || '');
+            const value = field.secret
+                ? (integration._secrets[field.name] || '')
+                : (integration.settings[field.name] || '');
             if (!value) {
                 this.notify('Nothing to copy yet.', 'error');
                 return;
             }
-            navigator.clipboard.writeText(value);
+            navigator.clipboard.writeText(String(value));
             this.notify('Copied to clipboard.');
         },
-        async saveIntegration(integration) {
+        async saveIntegration(integration, quiet = false) {
             try {
                 const secrets = Object.fromEntries(
                     Object.entries(integration._secrets || {}).filter(([, v]) => v && String(v).trim().length > 0)
@@ -204,8 +203,19 @@ function superAdminIntegrations(initial) {
                 const payload = { enabled: integration.enabled, settings: integration.settings || {} };
                 if (Object.keys(secrets).length > 0) payload.secrets = secrets;
                 const data = await this.request(`${this.urls.integrations}/${integration.name}`, 'PUT', payload);
-                Object.assign(integration, data.integration, { _secrets: {}, fields: integration.fields });
-                this.notify('Integration saved.');
+                Object.assign(integration, data.integration, {
+                    _secrets: {},
+                    fields: integration.fields,
+                    subtitle: integration.subtitle,
+                    connected_label: integration.connected_label,
+                    manage_url: integration.manage_url,
+                    settings: {
+                        ...(integration.settings || {}),
+                        ...((data.integration && data.integration.settings) || {}),
+                    },
+                });
+                if (!quiet) this.notify('Integration saved.');
+                else this.notify(integration.enabled ? 'Enabled.' : 'Disabled.');
             } catch (e) {
                 this.notify(e.message, 'error');
             }

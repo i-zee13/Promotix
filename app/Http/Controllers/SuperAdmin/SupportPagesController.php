@@ -668,22 +668,29 @@ class SupportPagesController extends Controller
     public function integrations(Request $request): View
     {
         $integrations = AdminIntegrationCatalog::listForUser($request->user()->id);
-        $cards = collect($integrations)->map(function (array $row) {
-            return array_merge($row, AdminIntegrationCatalog::cardMeta($row['name']));
+        $guidanceStats = [
+            'published_articles' => Schema::hasTable('guidance_articles')
+                ? (string) \App\Models\GuidanceArticle::query()->where('is_published', true)->count()
+                : '0',
+            'open_chat_sessions' => Schema::hasTable('chat_sessions')
+                ? (string) \App\Models\ChatSession::query()->where('status', 'open')->count()
+                : '0',
+            'dashboard_endpoint' => url('/api/admin/guidance/ask'),
+        ];
+
+        $cards = collect($integrations)->map(function (array $row) use ($guidanceStats) {
+            $meta = AdminIntegrationCatalog::cardMeta($row['name']);
+            if ($row['name'] === 'guidance-chatbot') {
+                $row['settings'] = array_merge($row['settings'] ?? [], $guidanceStats);
+                $row['manage_url'] = route('super-admin.guidance.index');
+                $meta['connected_label'] = Schema::hasTable('guidance_articles') ? 'Synced' : 'Pending';
+            }
+
+            return array_merge($row, $meta);
         })->values()->all();
 
         return view('super-admin.integrations.index', [
             'integrations' => $cards,
-            'guidanceSync' => [
-                'published_articles' => Schema::hasTable('guidance_articles')
-                    ? \App\Models\GuidanceArticle::query()->where('is_published', true)->count()
-                    : 0,
-                'open_chat_sessions' => Schema::hasTable('chat_sessions')
-                    ? \App\Models\ChatSession::query()->where('status', 'open')->count()
-                    : 0,
-                'dashboard_endpoint' => url('/api/admin/guidance/ask'),
-                'status' => Schema::hasTable('guidance_articles') ? 'synced' : 'pending_migration',
-            ],
         ]);
     }
 

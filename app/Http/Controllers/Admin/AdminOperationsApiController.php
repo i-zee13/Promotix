@@ -525,17 +525,7 @@ class AdminOperationsApiController extends Controller
 
     private function ensureDefaultIntegrations(int $userId): void
     {
-        foreach ([
-            ['name' => 'stripe', 'display_name' => 'Stripe Settings', 'provider' => 'stripe'],
-            ['name' => 'google-cloud', 'display_name' => 'Google Cloud Settings', 'provider' => 'google'],
-            ['name' => 'smtp', 'display_name' => 'SMTP Settings', 'provider' => 'mail'],
-            ['name' => 'oauth', 'display_name' => 'OAuth Providers', 'provider' => 'oauth'],
-        ] as $row) {
-            AdminIntegrationSetting::query()->firstOrCreate(
-                ['user_id' => $userId, 'name' => $row['name']],
-                array_merge($row, ['user_id' => $userId, 'status' => 'not_configured'])
-            );
-        }
+        \App\Support\AdminIntegrationCatalog::ensureForUser($userId);
     }
 
     private function integrationResource(AdminIntegrationSetting $integration): array

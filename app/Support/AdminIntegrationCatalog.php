@@ -20,16 +20,38 @@ class AdminIntegrationCatalog
             ['name' => 'oauth', 'display_name' => 'OAuth', 'provider' => 'oauth'],
             ['name' => 'meta-ads', 'display_name' => 'Meta Ads', 'provider' => 'meta'],
             ['name' => 'microsoft-ads', 'display_name' => 'Microsoft Ads', 'provider' => 'microsoft'],
+            ['name' => 'guidance-chatbot', 'display_name' => 'Guidance chatbot / KB sync', 'provider' => 'guidance'],
         ] as $row) {
+            $defaults = [
+                'user_id' => $userId,
+                'status' => 'not_configured',
+                'enabled' => $row['name'] === 'guidance-chatbot',
+            ];
             AdminIntegrationSetting::query()->firstOrCreate(
                 ['user_id' => $userId, 'name' => $row['name']],
-                array_merge($row, [
-                    'user_id' => $userId,
-                    'status' => 'not_configured',
-                    'enabled' => false,
-                ])
+                array_merge($row, $defaults)
             );
         }
+    }
+
+    /** Platform-wide: Guidance chatbot enabled from any Super Admin Integrations toggle. */
+    public static function guidanceChatbotEnabled(): bool
+    {
+        if (! Schema::hasTable('admin_integration_settings')) {
+            return true;
+        }
+
+        $query = AdminIntegrationSetting::query()->where('name', 'guidance-chatbot');
+        if (Schema::hasColumn('users', 'is_super_admin')) {
+            $query->whereHas('user', fn ($q) => $q->where('is_super_admin', true));
+        }
+
+        $row = $query->orderByDesc('enabled')->first();
+        if ($row === null) {
+            return true;
+        }
+
+        return (bool) $row->enabled;
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -44,6 +66,7 @@ class AdminIntegrationCatalog
             'oauth' => 3,
             'meta-ads' => 4,
             'microsoft-ads' => 5,
+            'guidance-chatbot' => 6,
         ];
 
         return AdminIntegrationSetting::query()
@@ -130,6 +153,11 @@ class AdminIntegrationCatalog
                 'subtitle' => 'Microsoft Advertising (Bing)',
                 'connected_label' => 'Enabled for tenants',
             ],
+            'guidance-chatbot' => [
+                'icon' => 'C',
+                'subtitle' => 'Dashboard + website chat both read published Guidance articles from Super Admin.',
+                'connected_label' => 'Synced',
+            ],
             default => [
                 'icon' => '•',
                 'subtitle' => 'Platform integration',
@@ -195,6 +223,11 @@ class AdminIntegrationCatalog
                 ['name' => 'client_id', 'label' => 'Microsoft Client ID', 'type' => 'text', 'secret' => false],
                 ['name' => 'client_secret', 'label' => 'Microsoft Client Secret', 'type' => 'password', 'secret' => true],
                 ['name' => 'developer_token', 'label' => 'Developer token', 'type' => 'password', 'secret' => true],
+            ],
+            'guidance-chatbot' => [
+                ['name' => 'published_articles', 'label' => 'Published articles', 'type' => 'text', 'secret' => false, 'readonly' => true],
+                ['name' => 'open_chat_sessions', 'label' => 'Open chat sessions', 'type' => 'text', 'secret' => false, 'readonly' => true],
+                ['name' => 'dashboard_endpoint', 'label' => 'Ask endpoint', 'type' => 'text', 'secret' => false, 'readonly' => true],
             ],
             default => [],
         };

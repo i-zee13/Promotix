@@ -386,7 +386,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 @include('partials.timezone-sync')
-@include('partials.live-agent-chat')
+@if (\App\Support\AdminIntegrationCatalog::guidanceChatbotEnabled())
+    @include('partials.live-agent-chat')
+@endif
 @include('partials.promotix-global-ip-modal')
 <script>
 (() => {
