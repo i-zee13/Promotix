@@ -7,7 +7,10 @@ use App\Models\DomainDetectionSetting;
 class SessionRecordingGate
 {
     /**
-     * Whether the tracking tag should start a session recording for this visit.
+     * Whether the tracking tag should start a detailed session timeline recording.
+     *
+     * Session Recording toggle is authoritative: when OFF, no detailed timeline
+     * is captured (aggregates may still come from other signals elsewhere).
      *
      * @param  array{action_taken?: string, threat_group?: ?string}  $detection
      */
@@ -22,35 +25,25 @@ class SessionRecordingGate
             return false;
         }
 
-        $thresholds = DetectionProfiles::thresholdsFor(
-            $settings->detection_profile,
-            is_array($settings->detection_thresholds) ? $settings->detection_thresholds : null,
-        );
-
-        if (
-            $isPaidTraffic
-            && (bool) ($thresholds['behavior_control_enabled'] ?? false)
-            && $planBehaviorControl
-        ) {
-            return true;
-        }
-
         if (! $settings->session_recordings || ! $planSessionRecordings) {
             return false;
         }
 
-        // CTA/tel metrics need recordings for normal paid visits too.
-        if ($isPaidTraffic) {
-            return true;
-        }
+        // Toggle ON → capture detailed timeline for paid and organic visits.
+        return true;
+    }
 
-        if (($detection['action_taken'] ?? 'allow') === 'allow') {
+    /**
+     * Whether ingest may store a full event timeline for this domain.
+     */
+    public static function allowsIngest(
+        ?DomainDetectionSetting $settings,
+        bool $planSessionRecordings = true,
+    ): bool {
+        if ($settings === null) {
             return false;
         }
 
-        $group = strtolower((string) ($detection['threat_group'] ?? ''));
-
-        return $group === 'malicious'
-            || in_array($group, ['vpn', 'proxy', 'data_center', 'datacenter', 'abnormal_rate_limit'], true);
+        return (bool) $settings->session_recordings && $planSessionRecordings;
     }
 }

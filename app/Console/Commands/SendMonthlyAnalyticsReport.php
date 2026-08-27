@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use App\Models\Domain;
 use App\Models\User;
 use App\Services\Mail\AppMailer;
+use App\Support\DetectionPlanFeatures;
+use App\Support\MonthlyReportSnapshot;
 use App\Support\PageAnalyticsAggregator;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
@@ -62,12 +64,17 @@ class SendMonthlyAnalyticsReport extends Command
                 $from = $to->copy()->startOfMonth();
 
                 $payload = $aggregator->build($domainIds, $from, $to);
+                $paid = MonthlyReportSnapshot::paid($domainIds, $from, $to);
+                $crossDomainEnabled = DetectionPlanFeatures::enabled($user, DetectionPlanFeatures::SESSION_RECORDINGS)
+                    || DetectionPlanFeatures::enabled($user, DetectionPlanFeatures::BEHAVIOR_CONTROL);
                 $subject = sprintf('Clickronix Analytics Report — %s', $from->format('F Y'));
                 $html = view('emails.monthly-analytics-report', [
                     'user' => $user,
                     'from' => $from,
                     'to' => $to,
                     'payload' => $payload,
+                    'paid' => $paid,
+                    'crossDomainEnabled' => $crossDomainEnabled,
                 ])->render();
 
                 if ($dryRun) {

@@ -226,7 +226,7 @@ class VisitProtectionService
         bool $recordSession = false,
         ?int $visitId = null,
         ?Domain $domain = null,
-        int $recordingMs = 10000,
+        int $recordingMs = 60000,
     ): array {
         $settings = $domain
             ? DomainDetectionSetting::query()->where('domain_id', $domain->id)->first()
@@ -276,7 +276,7 @@ class VisitProtectionService
 
         if ($recordSession) {
             $payload['record_session'] = true;
-            $payload['recording_ms'] = max(5000, min(60000, $recordingMs));
+            $payload['recording_ms'] = max(5000, min(120000, $recordingMs));
             if ($visitId !== null) {
                 $payload['visit_id'] = $visitId;
             }

@@ -252,11 +252,19 @@ class TagController extends Controller
     var events = [];
     var started = Date.now();
     var lastMove = 0;
-    var duration = Number(meta.recording_ms || 10000);
+    var duration = Number(meta.recording_ms || 60000);
+    if (!isFinite(duration) || duration < 5000) duration = 60000;
+    if (duration > 120000) duration = 120000;
 
     function push(type, payload){
-      if (events.length >= 500) return;
-      var row = { t: Date.now() - started, type: type };
+      if (events.length >= 800) return;
+      var row = {
+        t: Date.now() - started,
+        ts: Date.now(),
+        type: type,
+        session_id: sessionId(),
+        visitor_id: visitorId()
+      };
       if (payload && typeof payload === 'object') {
         for (var k in payload) {
           if (Object.prototype.hasOwnProperty.call(payload, k)) row[k] = payload[k];
@@ -267,7 +275,10 @@ class TagController extends Controller
 
     push('meta', {
       vw: window.innerWidth || 0,
-      vh: window.innerHeight || 0
+      vh: window.innerHeight || 0,
+      url: String(location.href || ''),
+      title: String(document.title || ''),
+      referrer: String(document.referrer || '')
     });
 
     function onMove(e){
@@ -294,7 +305,11 @@ class TagController extends Controller
       [25, 50, 75, 90, 100].forEach(function(mark){
         if (depth >= mark && !scrollMarks[mark]) {
           scrollMarks[mark] = true;
-          push('scroll', { depth: mark, page_url: String(location.href || '').slice(0, 500) });
+          push('scroll', {
+            depth: mark,
+            page_url: String(location.href || '').slice(0, 500),
+            path: String(location.pathname || '').slice(0, 500)
+          });
         }
       });
     }
@@ -304,7 +319,7 @@ class TagController extends Controller
       while (node && node !== document && node !== document.documentElement) {
         if (!node.tagName) { node = node.parentElement; continue; }
         var tag = String(node.tagName).toUpperCase();
-        if (tag === 'A' || tag === 'BUTTON' || (node.getAttribute && node.getAttribute('role') === 'button')) {
+        if (tag === 'A' || tag === 'BUTTON' || tag === 'INPUT' || (node.getAttribute && node.getAttribute('role') === 'button')) {
           return node;
         }
         node = node.parentElement;
@@ -315,6 +330,10 @@ class TagController extends Controller
     function isTelHref(href){
       var h = String(href || '').trim().toLowerCase();
       return h.indexOf('tel:') === 0 || h.indexOf('callto:') === 0 || h.indexOf('sms:') === 0;
+    }
+
+    function telNumberFromHref(href){
+      return String(href || '').replace(/^(tel|callto|sms):/i, '').trim().slice(0, 64);
     }
 
     function isCtaEl(el){
@@ -336,8 +355,26 @@ class TagController extends Controller
       return false;
     }
 
-    function onClick(e){
-      var target = closestActionEl(e.target);
+    function commerceKind(el){
+      if (!el || !el.tagName) return '';
+      var attrs = '';
+      try {
+        attrs = [
+          el.getAttribute && el.getAttribute('data-action'),
+          el.getAttribute && el.getAttribute('data-event'),
+          el.getAttribute && el.getAttribute('name'),
+          el.id,
+          el.className,
+          el.innerText || el.textContent || ''
+        ].join(' ').toLowerCase();
+      } catch (err) { attrs = ''; }
+      if (/add[_\\s-]?to[_\\s-]?cart|addtocart|data-add-to-cart/.test(attrs)) return 'add_to_cart';
+      if (/\\b(checkout|begin[_\\s-]?checkout|proceed[_\\s-]?to[_\\s-]?checkout)\\b/.test(attrs)) return 'checkout';
+      if (/\\b(purchase|place[_\\s-]?order|buy[_\\s-]?now|complete[_\\s-]?order)\\b/.test(attrs)) return 'purchase';
+      return '';
+    }
+
+    function elementMeta(target){
       var href = '';
       var text = '';
       try {
@@ -346,21 +383,56 @@ class TagController extends Controller
       try {
         text = String((target && (target.innerText || target.textContent || target.value || '')) || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
       } catch (err2) { text = ''; }
-      var tel = isTelHref(href);
-      var cta = !tel && isCtaEl(target);
-      push('click', {
-        x: e.clientX,
-        y: e.clientY,
-        tag: (target && target.tagName) ? String(target.tagName) : '',
+      var tag = (target && target.tagName) ? String(target.tagName).toUpperCase() : '';
+      var linkType = tag === 'A' ? 'anchor' : (tag === 'BUTTON' ? 'button' : (tag === 'INPUT' ? 'input' : 'element'));
+      return {
         href: href.slice(0, 500),
+        element_text: text,
         text: text,
-        class: String((target && target.className) || '').slice(0, 200),
+        element_id: String((target && target.id) || '').slice(0, 120),
+        element_class: String((target && target.className) || '').slice(0, 200),
         id: String((target && target.id) || '').slice(0, 120),
-        cta: cta ? 1 : 0,
-        tel: tel ? 1 : 0,
-        page_url: String(location.href || '').slice(0, 500)
-      });
-      if (target && String(target.tagName).toUpperCase() === 'A' && href && !tel) {
+        class: String((target && target.className) || '').slice(0, 200),
+        tag: tag,
+        link_type: linkType,
+        page_url: String(location.href || '').slice(0, 500),
+        path: String(location.pathname || '').slice(0, 500),
+        title: String(document.title || '').slice(0, 255)
+      };
+    }
+
+    function onClick(e){
+      var target = closestActionEl(e.target);
+      var meta = elementMeta(target);
+      var tel = isTelHref(meta.href);
+      var commerce = commerceKind(target);
+      var cta = !tel && !commerce && isCtaEl(target);
+
+      if (tel) {
+        push('phone_click', Object.assign({}, meta, {
+          tel_number: telNumberFromHref(meta.href),
+          link_type: 'tel'
+        }));
+      } else if (commerce) {
+        push(commerce, Object.assign({}, meta, {
+          product_name: meta.element_text || undefined
+        }));
+      } else if (cta) {
+        push('cta_click', meta);
+      } else {
+        push('click', {
+          x: e.clientX,
+          y: e.clientY,
+          tag: meta.tag,
+          href: meta.href,
+          text: meta.element_text,
+          class: meta.element_class,
+          id: meta.element_id,
+          page_url: meta.page_url
+        });
+      }
+
+      if (target && meta.tag === 'A' && meta.href && !tel) {
         markPageSoon();
       }
     }
@@ -369,6 +441,10 @@ class TagController extends Controller
     function formKey(el){
       if (!el) return 'form';
       return String(el.id || el.getAttribute('name') || el.getAttribute('action') || 'form').slice(0, 120);
+    }
+    function formName(el){
+      if (!el) return '';
+      return String(el.getAttribute('name') || el.getAttribute('aria-label') || el.id || '').slice(0, 120);
     }
     function onFormFocus(e){
       var el = e.target;
@@ -383,25 +459,54 @@ class TagController extends Controller
       formStarted[key] = true;
       push('form_start', {
         form_id: key,
-        page_url: String(location.href || '').slice(0, 500)
+        form_name: formName(form),
+        page_url: String(location.href || '').slice(0, 500),
+        path: String(location.pathname || '').slice(0, 500),
+        title: String(document.title || '').slice(0, 255)
       });
+    }
+    function onFormInvalid(e){
+      var el = e.target;
+      if (!el) return;
+      var form = el.form || (el.closest && el.closest('form'));
+      if (!form) return;
+      form.__pmInvalid = true;
     }
     function onFormSubmit(e){
       var form = e.target;
       if (!form || String(form.tagName || '').toUpperCase() !== 'FORM') return;
+      var valid = true;
+      try {
+        if (typeof form.checkValidity === 'function') valid = !!form.checkValidity();
+      } catch (err) { valid = true; }
+      if (form.__pmInvalid) valid = false;
+      form.__pmInvalid = false;
       push('form_submit', {
         form_id: formKey(form),
+        form_name: formName(form),
         page_url: String(location.href || '').slice(0, 500),
-        success: 1
+        path: String(location.pathname || '').slice(0, 500),
+        title: String(document.title || '').slice(0, 255),
+        success: valid ? 1 : 0,
+        status: valid ? 'success' : 'failed'
       });
     }
 
     function pushCommerce(type, detail){
-      var row = { page_url: String(location.href || '').slice(0, 500) };
+      var row = {
+        page_url: String(location.href || '').slice(0, 500),
+        path: String(location.pathname || '').slice(0, 500),
+        title: String(document.title || '').slice(0, 255)
+      };
       if (detail && typeof detail === 'object') {
         ['product_id', 'product_name', 'sku', 'order_id', 'value', 'revenue', 'currency'].forEach(function(k){
           if (detail[k] != null) row[k] = String(detail[k]).slice(0, 120);
         });
+        if (detail.items && detail.items[0]) {
+          var item = detail.items[0];
+          if (!row.product_id && item.item_id) row.product_id = String(item.item_id).slice(0, 120);
+          if (!row.product_name && item.item_name) row.product_name = String(item.item_name).slice(0, 120);
+        }
       }
       push(type, row);
     }
@@ -430,11 +535,25 @@ class TagController extends Controller
     }
 
     var seenPages = {};
+    var firstPageMarked = false;
     function markPage(){
       var u = String(location.href || '').slice(0, 500);
       if (!u || seenPages[u]) return;
       seenPages[u] = true;
-      push('page', { url: u });
+      var pagePayload = {
+        url: u,
+        page_url: u,
+        path: String(location.pathname || '').slice(0, 500),
+        title: String(document.title || '').slice(0, 255),
+        headline: String(document.title || '').slice(0, 255),
+        referrer: String(document.referrer || '').slice(0, 500)
+      };
+      if (!firstPageMarked) {
+        firstPageMarked = true;
+        push('page_view', pagePayload);
+      } else {
+        push('page_change', pagePayload);
+      }
     }
     var pageTimer = null;
     function markPageSoon(){
@@ -442,6 +561,21 @@ class TagController extends Controller
       pageTimer = setTimeout(markPage, 400);
     }
     markPage();
+
+    var _pushState = history.pushState;
+    var _replaceState = history.replaceState;
+    try {
+      history.pushState = function(){
+        var r = _pushState.apply(history, arguments);
+        markPageSoon();
+        return r;
+      };
+      history.replaceState = function(){
+        var r = _replaceState.apply(history, arguments);
+        markPageSoon();
+        return r;
+      };
+    } catch (histErr) {}
 
     function isSensitiveInput(el){
       if (!el || !el.tagName) return false;
@@ -468,6 +602,7 @@ class TagController extends Controller
     document.addEventListener('click', onClick, true);
     document.addEventListener('input', onInput, true);
     document.addEventListener('focusin', onFormFocus, true);
+    document.addEventListener('invalid', onFormInvalid, true);
     document.addEventListener('submit', onFormSubmit, true);
     window.addEventListener('popstate', markPageSoon);
     window.addEventListener('hashchange', markPageSoon);
@@ -481,16 +616,27 @@ class TagController extends Controller
       if (sent) return;
       sent = true;
       if (recordingTimer) clearTimeout(recordingTimer);
+      push('session_exit', {
+        page_url: String(location.href || '').slice(0, 500),
+        path: String(location.pathname || '').slice(0, 500),
+        title: String(document.title || '').slice(0, 255),
+        url: String(location.href || '').slice(0, 500)
+      });
       document.removeEventListener('mousemove', onMove);
       window.removeEventListener('scroll', onScroll);
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('input', onInput, true);
       document.removeEventListener('focusin', onFormFocus, true);
+      document.removeEventListener('invalid', onFormInvalid, true);
       document.removeEventListener('submit', onFormSubmit, true);
       window.removeEventListener('popstate', markPageSoon);
       window.removeEventListener('hashchange', markPageSoon);
       window.removeEventListener('pagehide', finishRecording);
       document.removeEventListener('visibilitychange', finishRecordingOnHide);
+      try {
+        history.pushState = _pushState;
+        history.replaceState = _replaceState;
+      } catch (histRestoreErr) {}
       window.__pmRecording = false;
       try {
         fetch(sessionRecordingUrl, {
@@ -499,6 +645,7 @@ class TagController extends Controller
           body: JSON.stringify({
             domainKey: domainKey,
             session_id: sessionId(),
+            visitor_id: visitorId(),
             visit_id: meta.visit_id || null,
             page_url: String(location.href || ''),
             duration_ms: Date.now() - started,
@@ -549,6 +696,19 @@ class TagController extends Controller
       return id;
     } catch (e) {
       return 's_' + Date.now();
+    }
+  }
+
+  function visitorId(){
+    var key = 'pm_vid_' + domainKey;
+    try {
+      var existing = localStorage.getItem(key);
+      if (existing) return existing;
+      var id = 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem(key, id);
+      return id;
+    } catch (e) {
+      return 'v_' + Date.now();
     }
   }
 

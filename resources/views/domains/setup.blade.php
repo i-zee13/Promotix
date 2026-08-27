@@ -50,13 +50,25 @@
             </p>
             <p class="mt-[14px] text-[13px] text-white/90">
                 Select setup method for <span class="font-semibold text-white">({{ $domain->hostname }})</span>
+                <span class="text-white/60">if not leave it for domain</span>
             </p>
+            <div class="mt-[12px] mx-auto max-w-[420px]">
+                <label class="sr-only" for="setup-method-search">Search setup methods</label>
+                <input
+                    id="setup-method-search"
+                    type="search"
+                    x-model="methodQuery"
+                    placeholder="Search: GTM, WordPress, Direct, Email…"
+                    class="figma-domain-setup__input w-full"
+                >
+            </div>
         </div>
 
         <div class="figma-domain-setup__method-grid mb-[22px]">
             @foreach ($methods as $m)
                 <button
                     type="button"
+                    x-show="methodMatches('{{ $m['key'] }}', @js($m['title']))"
                     @click="tab='{{ $m['key'] }}'"
                     class="figma-domain-setup__method-card"
                     :class="tab === '{{ $m['key'] }}' ? 'figma-domain-setup__method-card--active' : 'figma-domain-setup__method-card--idle'"
@@ -88,10 +100,10 @@
                     <div>
                         <p class="text-[11px] uppercase tracking-wide text-white/55">Option 1 (recommended)</p>
                         <div class="mt-[6px] flex flex-wrap items-center gap-[10px]">
-                            <h2 class="text-[18px] font-semibold text-white">Direct Installation</h2>
-                            @if ($domain->tag_connected)
-                                <span class="figma-domain-setup__badge">Tag Installed</span>
-                            @endif
+                            <h2 class="text-[18px] font-semibold text-white">Google Tag Manager</h2>
+                            @php($tagStatus = \App\Support\DomainTagStatus::forDomain($domain))
+                            <span class="figma-domain-setup__badge">{{ $tagStatus['label'] }}</span>
+                            <span class="text-[11px] text-white/60">Last seen: {{ $tagStatus['last_seen_human'] }}</span>
                         </div>
                         <button type="button" class="figma-domain-setup__btn-gtm mt-[18px]" disabled title="GTM auto-connect coming soon">
                             Connect with Google Tag Manager
@@ -137,26 +149,12 @@
             </p>
             <div class="mt-[16px] flex flex-wrap items-center justify-between gap-[10px]">
                 <p class="figma-domain-setup__instruction-step mb-0">2. &gt; Paste these Keys in the Clickpromo Wordpress plugin:</p>
-                <button type="button" class="figma-domain-setup__copy-all" @click="copyAllKeys()">
-                    <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    Copy all
-                </button>
             </div>
-            @foreach ([
-                ['Domain Key', $domain->domain_key],
-                ['Secret key', $domain->secret_key],
-                ['Authentication Key', $domain->authentication_key],
-            ] as [$label, $value])
-                <div class="figma-domain-setup__key-row">
-                    <span class="figma-domain-setup__key-label">{{ $label }}</span>
-                    <div class="figma-domain-setup__dotted-box min-h-[44px]">{{ $value }}</div>
-                    <button type="button" class="figma-domain-setup__copy-link shrink-0" @click="copyText(@js($value))">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                        Copy
-                    </button>
-                </div>
-            @endforeach
-            <div class="mt-[20px]">
+            @include('partials.domain-installation-keys', ['domain' => $domain, 'showHeading' => true])
+            <div class="mt-[20px] flex flex-wrap items-center gap-[12px]">
+                @php($tagStatus = \App\Support\DomainTagStatus::forDomain($domain))
+                <span class="figma-domain-setup__badge">{{ $tagStatus['label'] }}</span>
+                <span class="text-[11px] text-white/60">Last seen: {{ $tagStatus['last_seen_human'] }}</span>
                 <button type="button" class="figma-domain-setup__btn-primary" @click="verifyInstallation('{{ $domain->id }}')">Verify installation</button>
             </div>
         </div>
@@ -277,8 +275,15 @@
 function domainSetup(keys = {}) {
     return {
         tab: 'gtm',
+        methodQuery: '',
         keys,
         toast: { open: false, message: '' },
+        methodMatches(key, title) {
+            const q = String(this.methodQuery || '').trim().toLowerCase();
+            if (!q) return true;
+            const hay = `${key} ${title} wordpress plugin gtm google tag manager direct installation email developer`.toLowerCase();
+            return hay.includes(q) || String(title).toLowerCase().includes(q) || String(key).toLowerCase().includes(q);
+        },
         showToast(message) {
             this.toast.message = message;
             this.toast.open = true;

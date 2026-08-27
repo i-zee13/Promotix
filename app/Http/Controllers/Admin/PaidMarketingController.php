@@ -4165,6 +4165,9 @@ class PaidMarketingController extends Controller
             $domainIds,
         );
         $reportingTz = UserTimezone::reportingTimezoneForUser($user, $googleTz);
+        if ($request->boolean('use_utc') || strtolower((string) $request->query('timezone', '')) === 'utc') {
+            $reportingTz = 'UTC';
+        }
         [$metricFrom, $metricTo] = UserTimezone::calendarDateRangeFromRequest($request, $user, 6, $reportingTz);
 
         return [$metricFrom, $metricTo, $googleTz, $reportingTz];

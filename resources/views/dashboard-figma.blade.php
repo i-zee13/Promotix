@@ -161,7 +161,7 @@
                     <span class="ov-suite-card__brand ov-suite-card__brand--bot" aria-hidden="true">
                         @include('partials.overview-suite-icon', ['name' => 'globe-users', 'size' => 22])
                     </span>
-                    <h2 class="ov-suite-card__title">Bot Protection</h2>
+                    <h2 class="ov-suite-card__title">Analytics</h2>
                 </div>
                 <div class="ov-suite-card__metrics">
                     <div class="ov-suite-stat">

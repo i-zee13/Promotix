@@ -380,6 +380,9 @@ class UserTimezone
     public static function dateRangeFromRequest(Request $request, ?User $user = null, int $defaultDays = 6, ?string $timezone = null): array
     {
         $tz = $timezone && self::isValid($timezone) ? $timezone : self::reportingTimezoneForUser($user);
+        if ($request->boolean('use_utc') || strtolower((string) $request->query('timezone', '')) === 'utc') {
+            $tz = 'UTC';
+        }
 
         $from = $request->query('from')
             ? Carbon::parse((string) $request->query('from'), $tz)->startOfDay()->utc()
@@ -407,6 +410,9 @@ class UserTimezone
     public static function calendarDateRangeFromRequest(Request $request, ?User $user = null, int $defaultDays = 6, ?string $timezone = null): array
     {
         $tz = $timezone && self::isValid($timezone) ? $timezone : self::reportingTimezoneForUser($user);
+        if ($request->boolean('use_utc') || strtolower((string) $request->query('timezone', '')) === 'utc') {
+            $tz = 'UTC';
+        }
 
         $fromDate = $request->query('from')
             ? Carbon::parse((string) $request->query('from'), $tz)->toDateString()

@@ -167,6 +167,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::middleware(['permission', 'redirect-super-admin'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/reports', [\App\Http\Controllers\Admin\ReportsController::class, 'index'])->name('reports.index');
+        Route::get('/settings/data-reports/download', [\App\Http\Controllers\Admin\SettingsDataReportController::class, 'download'])->name('settings.data-reports.download');
         Route::get('/paid-marketing/detailed-view', [PaidMarketingController::class, 'detailedView'])->name('paid-marketing.detailed');
         Route::get('/paid-marketing/detailed-visits', [PaidMarketingController::class, 'detailedVisits'])->name('paid-marketing.detailed-visits');
         Route::get('/paid-marketing/detailed-ip-timeline', [PaidMarketingController::class, 'detailedIpTimeline'])->name('paid-marketing.detailed-ip-timeline');
@@ -359,6 +360,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/integrations/google/oauth-url', [IntegrationsController::class, 'googleOauthUrl']);
     Route::get('/integrations/google/pixel-guard', [IntegrationsController::class, 'pixelGuardGet']);
     Route::put('/integrations/google/pixel-guard', [IntegrationsController::class, 'pixelGuardSave']);
+    Route::get('/integrations/google/audience-exclusion', [IntegrationsController::class, 'audienceExclusionGet']);
     Route::post('/integrations/google/audience-exclusion', [IntegrationsController::class, 'audienceExclusionSave']);
     Route::get('/integrations/direct-ads', [IntegrationsController::class, 'directAdsList']);
     Route::post('/integrations/direct-ads', [IntegrationsController::class, 'directAdsStore']);

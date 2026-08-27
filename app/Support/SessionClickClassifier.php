@@ -52,7 +52,15 @@ class SessionClickClassifier
      */
     public static function classifyClickEvent(array $event): array
     {
-        if (strtolower((string) ($event['type'] ?? '')) !== 'click') {
+        $type = strtolower((string) ($event['type'] ?? ''));
+
+        if (in_array($type, ['cta_click'], true)) {
+            return ['cta' => true, 'tel' => false];
+        }
+        if (in_array($type, ['phone_click', 'tel_click'], true)) {
+            return ['cta' => false, 'tel' => true];
+        }
+        if ($type !== 'click') {
             return ['cta' => false, 'tel' => false];
         }
 
@@ -66,8 +74,8 @@ class SessionClickClassifier
             || ! empty($event['is_cta'])
             || self::isCtaElement(
                 (string) ($event['tag'] ?? ''),
-                (string) ($event['class'] ?? $event['className'] ?? ''),
-                (string) ($event['id'] ?? ''),
+                (string) ($event['class'] ?? $event['element_class'] ?? $event['className'] ?? ''),
+                (string) ($event['id'] ?? $event['element_id'] ?? ''),
                 is_array($event['attrs'] ?? null) ? $event['attrs'] : [],
             )
         );

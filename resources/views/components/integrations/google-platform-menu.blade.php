@@ -7,7 +7,6 @@
 
 @php
     $canDisconnect = (bool) $primaryConnection;
-    $detectionUrl = route('paid-marketing.detection-settings', $menuDomain ? ['domain_id' => $menuDomain->id] : []);
     $editConnectionUrl = $googleOAuthConnected
         ? route('integrations.google.redirect')
         : route('domains.index', ['add' => 1]);
@@ -26,7 +25,7 @@
     <a href="#connected-platforms" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'open-pixel-guard' })" title="Scroll to connected platforms">
         Open Pixel Guard
     </a>
-    <a href="{{ $detectionUrl }}" class="figma-platform-menu-item" title="Paid Marketing → Detection → Audience Exclusion settings">
+    <a href="#connected-platforms" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'open-audience-exclusion' })" title="Set Up Audience Exclusion (Conversion ID / Label)">
         Open Audience Exclusion
     </a>
     <a href="#connected-platforms" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'manage-ad-account' })" title="Scroll to connected platforms">

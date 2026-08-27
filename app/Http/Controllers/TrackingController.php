@@ -12,6 +12,7 @@ use App\Services\IpIntel\VisitProtectionService;
 use App\Models\IpLog;
 use App\Support\CampaignAttributionResolver;
 use App\Support\CountryValue;
+use App\Support\BehaviorEventPersister;
 use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
 use App\Support\GoogleAdsClickRedirect;
@@ -780,7 +781,7 @@ class TrackingController extends Controller
             $this->shouldRecordSession($domain, $detection, $isPaidTraffic),
             $visitId,
             $domain,
-            $isPaidTraffic ? 30000 : 10000,
+            60000,
         );
 
         if ($request->isMethod('get')) {
@@ -805,11 +806,12 @@ class TrackingController extends Controller
         $data = Validator::make($request->all(), [
             'domainKey' => ['required', 'string'],
             'session_id' => ['nullable', 'string', 'max:128'],
+            'visitor_id' => ['nullable', 'string', 'max:128'],
             'visit_id' => ['nullable', 'integer'],
             'page_url' => ['nullable', 'string', 'max:2048'],
-            'duration_ms' => ['nullable', 'integer', 'max:15000'],
+            'duration_ms' => ['nullable', 'integer', 'max:120000'],
             'threat_group' => ['nullable', 'string', 'max:40'],
-            'events' => ['required', 'array', 'max:500'],
+            'events' => ['required', 'array', 'max:800'],
         ])->validate();
 
         if (! Schema::hasTable('visit_session_recordings')) {
@@ -818,19 +820,24 @@ class TrackingController extends Controller
 
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
         $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        $domain->loadMissing('user');
+        $planSessionRecordings = DetectionPlanFeatures::enabled($domain->user, DetectionPlanFeatures::SESSION_RECORDINGS);
+        if (! SessionRecordingGate::allowsIngest($settings, $planSessionRecordings)) {
+            return $this->cors($request, response()->json(['ok' => true, 'skipped' => true, 'reason' => 'session_recording_off']));
+        }
+
         $thresholds = DetectionProfiles::thresholdsFor(
             $settings?->detection_profile,
             is_array($settings?->detection_thresholds) ? $settings->detection_thresholds : null,
         );
         $behaviorOn = (bool) ($thresholds['behavior_control_enabled'] ?? false);
-        $domain->loadMissing('user');
         if (! DetectionPlanFeatures::enabled($domain->user, DetectionPlanFeatures::BEHAVIOR_CONTROL)) {
             $behaviorOn = false;
         }
 
         $ip = $this->clientIp($request);
-        $events = array_slice((array) $data['events'], 0, 500);
-        $durationMs = min((int) ($data['duration_ms'] ?? 0), 15000);
+        $events = array_slice((array) $data['events'], 0, 800);
+        $durationMs = min((int) ($data['duration_ms'] ?? 0), 120000);
         $analysis = SessionBehaviorAnalyzer::analyze($events, $durationMs);
         $signals = $analysis['signals'];
         $fingerprint = SessionBehaviorFingerprint::fromEvents($events, $durationMs);
@@ -916,7 +923,20 @@ class TrackingController extends Controller
             $payload['last_cta_href'] = (string) $analysis['last_cta_href'];
         }
 
-        DB::table('visit_session_recordings')->insert($payload);
+        $recordingId = DB::table('visit_session_recordings')->insertGetId($payload);
+
+        $startedAt = UserTimezone::nowUtc()->subMilliseconds(max(0, $durationMs));
+        BehaviorEventPersister::insert(
+            BehaviorEventPersister::extractRows(
+                $events,
+                (int) $domain->id,
+                (int) $recordingId,
+                isset($data['visit_id']) ? (int) $data['visit_id'] : null,
+                isset($data['session_id']) ? (string) $data['session_id'] : null,
+                isset($data['visitor_id']) ? (string) $data['visitor_id'] : null,
+                $startedAt,
+            )
+        );
 
         // Attach behavior signals / actions to the visit record when present.
         if (

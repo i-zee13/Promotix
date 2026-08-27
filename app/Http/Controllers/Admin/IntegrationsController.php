@@ -16,6 +16,7 @@ use App\Models\IntegrationSyncLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\AdminIntegrationCatalog;
+use App\Support\AudienceExclusionAudiences;
 use App\Support\UserTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -70,7 +71,7 @@ class IntegrationsController extends Controller
             'steps' => [
                 ['label' => 'Tag Manager', 'done' => (bool) $d->tag_connected],
                 ['label' => 'Paid Marketing', 'done' => (bool) $d->paid_marketing_connected || $d->google_ads_account_id !== null],
-                ['label' => 'Bot Protection', 'done' => (bool) $d->bot_mitigation_connected],
+                ['label' => 'Analytics', 'done' => (bool) $d->bot_mitigation_connected],
                 ['label' => 'Google Ads', 'done' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0],
             ],
         ])->values()->all();
@@ -103,7 +104,7 @@ class IntegrationsController extends Controller
         $requirementSteps = [
             ['label' => 'Tag Manager', 'done' => $tagReady],
             ['label' => 'Paid Marketing', 'done' => $paidReady],
-            ['label' => 'Bot Protection', 'done' => $botReady],
+            ['label' => 'Analytics', 'done' => $botReady],
             ['label' => 'Google Ads', 'done' => $connections->isNotEmpty() && $accounts->isNotEmpty()],
         ];
 
@@ -1876,20 +1877,142 @@ class IntegrationsController extends Controller
         ]);
     }
 
+    public function audienceExclusionGet(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        $mappings = DomainGoogleAdsMapping::query()
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
+            ->with(['domain:id,hostname,domain_key,tag_connected', 'account:id,customer_id,display_customer_id,account_name,google_tag_id'])
+            ->orderByDesc('id')
+            ->get();
+
+        $tags = Domain::query()
+            ->where('user_id', $userId)
+            ->orderBy('hostname')
+            ->get(['id', 'hostname', 'domain_key', 'tag_connected'])
+            ->map(fn (Domain $d) => [
+                'id' => $d->id,
+                'hostname' => $d->hostname,
+                'domain_key' => $d->domain_key,
+                'tag_connected' => (bool) $d->tag_connected,
+                'label' => $d->hostname.($d->tag_connected ? ' (Installed)' : ' (Not detected)'),
+            ])
+            ->values();
+
+        $primary = $mappings->first();
+        $settings = (array) ($primary?->settings ?? []);
+        $audiences = AudienceExclusionAudiences::normalize((array) ($settings['conversion_audiences'] ?? []));
+
+        return response()->json([
+            'ok' => true,
+            'mapping_id' => $primary?->id,
+            'enabled' => (bool) ($primary?->audience_exclusion_enabled ?? true),
+            'audiences' => $audiences !== [] ? $audiences : [[
+                'conversion_id' => '',
+                'conversion_label' => '',
+                'tag' => '',
+                'domain_id' => null,
+            ]],
+            'tags' => $tags,
+            'mappings' => $mappings->map(fn (DomainGoogleAdsMapping $m) => [
+                'id' => $m->id,
+                'domain_id' => $m->domain_id,
+                'hostname' => $m->domain?->hostname,
+                'account' => $m->account?->displayLabel() ?? $m->account?->customer_id,
+                'enabled' => (bool) $m->audience_exclusion_enabled,
+            ])->values(),
+            'guidelines' => [
+                'Create a Google Ads conversion named “promo for ppc - invalid Users”.',
+                'Paste Conversion ID and Conversion Label below and match them to the relevant domain tag.',
+                'After Clickpromo setup, create the audience in Google Ads using the same conversion.',
+            ],
+        ]);
+    }
+
     public function audienceExclusionSave(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'mapping_id' => ['required', 'integer'],
-            'enabled' => ['required', 'boolean'],
+            'mapping_id' => ['nullable', 'integer'],
+            'domain_id' => ['nullable', 'integer'],
+            'enabled' => ['sometimes', 'boolean'],
+            'audiences' => ['sometimes', 'array', 'max:20'],
+            'audiences.*.conversion_id' => ['nullable', 'string', 'max:120'],
+            'audiences.*.conversion_label' => ['nullable', 'string', 'max:255'],
+            'audiences.*.tag' => ['nullable', 'string', 'max:120'],
+            'audiences.*.domain_id' => ['nullable', 'integer'],
         ]);
 
-        $mapping = DomainGoogleAdsMapping::query()
-            ->where('id', $data['mapping_id'])
-            ->whereHas('domain', fn ($q) => $q->where('user_id', $request->user()->id))
-            ->firstOrFail();
+        $userId = $request->user()->id;
+        $mapping = null;
 
-        $mapping->audience_exclusion_enabled = (bool) $data['enabled'];
+        if (! empty($data['mapping_id'])) {
+            $mapping = DomainGoogleAdsMapping::query()
+                ->where('id', $data['mapping_id'])
+                ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
+                ->first();
+        }
+
+        if ($mapping === null && ! empty($data['domain_id'])) {
+            $mapping = DomainGoogleAdsMapping::query()
+                ->where('domain_id', $data['domain_id'])
+                ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        if ($mapping === null) {
+            $mapping = DomainGoogleAdsMapping::query()
+                ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        if ($mapping === null) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Link a domain to Google Ads first, then configure Audience Exclusion.',
+            ], 422);
+        }
+
+        $audiences = AudienceExclusionAudiences::normalize((array) ($data['audiences'] ?? []));
+        if (array_key_exists('audiences', $data)) {
+            $errors = AudienceExclusionAudiences::validationErrors($audiences);
+            if ($errors !== []) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $errors[0],
+                    'errors' => $errors,
+                ], 422);
+            }
+
+            // Ensure selected tags belong to this workspace.
+            $allowedDomainIds = Domain::query()->where('user_id', $userId)->pluck('id')->all();
+            $allowedKeys = Domain::query()->where('user_id', $userId)->pluck('domain_key', 'id')->all();
+            foreach ($audiences as &$row) {
+                if ($row['domain_id'] && ! in_array($row['domain_id'], $allowedDomainIds, true)) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'Selected tag/domain is not in your workspace.',
+                    ], 422);
+                }
+                if ($row['domain_id'] && empty($row['tag'])) {
+                    $row['tag'] = (string) ($allowedKeys[$row['domain_id']] ?? '');
+                }
+            }
+            unset($row);
+        }
+
+        if (array_key_exists('enabled', $data)) {
+            $mapping->audience_exclusion_enabled = (bool) $data['enabled'];
+        } else {
+            $mapping->audience_exclusion_enabled = true;
+        }
+
         $settings = (array) ($mapping->settings ?? []);
+        if (array_key_exists('audiences', $data)) {
+            $settings['conversion_audiences'] = $audiences;
+        }
         $settings['audience_exclusion_updated_at'] = now()->toIso8601String();
         $mapping->settings = $settings;
         $mapping->save();
@@ -1898,6 +2021,8 @@ class IntegrationsController extends Controller
             'ok' => true,
             'mapping_id' => $mapping->id,
             'enabled' => (bool) $mapping->audience_exclusion_enabled,
+            'audiences' => (array) ($settings['conversion_audiences'] ?? []),
+            'message' => 'Audience Exclusion saved.',
         ]);
     }
 

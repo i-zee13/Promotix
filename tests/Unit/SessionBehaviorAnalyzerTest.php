@@ -72,6 +72,20 @@ class SessionBehaviorAnalyzerTest extends TestCase
         $this->assertSame(0, $analysis['tel_clicks']);
     }
 
+    public function test_analyze_counts_typed_cta_and_phone_events(): void
+    {
+        $analysis = SessionBehaviorAnalyzer::analyze([
+            ['type' => 'page_view', 't' => 0, 'url' => 'https://example.com/', 'title' => 'Home'],
+            ['type' => 'cta_click', 't' => 100, 'href' => '/signup', 'element_text' => 'Sign up', 'page_url' => 'https://example.com/'],
+            ['type' => 'phone_click', 't' => 200, 'href' => 'tel:+15551212', 'tel_number' => '+15551212'],
+            ['type' => 'click', 't' => 250, 'cta' => 1, 'href' => '/ignored-legacy'],
+        ], 5000);
+
+        $this->assertSame(1, $analysis['cta_clicks']);
+        $this->assertSame(1, $analysis['tel_clicks']);
+        $this->assertSame('tel:+15551212', $analysis['last_cta_href']);
+    }
+
     public function test_analyze_counts_forms_and_commerce(): void
     {
         $analysis = SessionBehaviorAnalyzer::analyze([

@@ -90,15 +90,22 @@
                                     </div>
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
-                                    @if ($d->tag_connected)
-                                        <span class="inline-flex items-center gap-[6px] rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">
-                                            Connected
-                                            <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="text-[#6400B2] hover:text-[#4a0088]" aria-label="Edit tag setup">
-                                                <svg class="h-[12px] w-[12px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 16"/></svg>
-                                            </a>
-                                        </span>
+                                    @php($tagStatus = \App\Support\DomainTagStatus::forDomain($d))
+                                    @if ($tagStatus['installed'])
+                                        <div class="flex flex-col items-start gap-[4px]">
+                                            <span class="inline-flex items-center gap-[6px] rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">
+                                                {{ $tagStatus['label'] }}
+                                                <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="text-[#6400B2] hover:text-[#4a0088]" aria-label="Edit tag setup">
+                                                    <svg class="h-[12px] w-[12px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 16"/></svg>
+                                                </a>
+                                            </span>
+                                            <span class="text-[10px] text-[#d9d9d9]">Last seen: {{ $tagStatus['last_seen_human'] }}</span>
+                                        </div>
                                     @else
-                                        <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">Setup</a>
+                                        <div class="flex flex-col items-start gap-[4px]">
+                                            <a href="{{ route('domains.setup', ['domain' => $d->id]) }}" class="inline-block rounded-[4px] bg-[#0d0d0d] px-[14px] py-[5px] text-[11px] font-medium text-white ring-1 ring-white/30 hover:bg-black">{{ $tagStatus['label'] }}</a>
+                                            <span class="text-[10px] text-[#d9d9d9]">Last seen: {{ $tagStatus['last_seen_human'] }}</span>
+                                        </div>
                                     @endif
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
@@ -302,7 +309,7 @@
                 </button>
             </header>
             <div class="space-y-[14px] px-[24px] py-[20px]">
-                <p class="text-[12px] text-white/85" x-text="'Installation keys for ' + (keysForm.hostname || 'domain')"></p>
+                <p class="text-[12px] text-white/85" x-text="'Installation Keys for (' + (keysForm.hostname || 'domain') + ')'"></p>
                 <template x-for="row in keyRows" :key="row.label">
                     <div class="flex flex-col gap-[6px] sm:flex-row sm:items-center sm:gap-[12px]">
                         <span class="w-[130px] shrink-0 text-[12px] font-medium" x-text="row.label"></span>

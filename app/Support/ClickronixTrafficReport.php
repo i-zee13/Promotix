@@ -223,6 +223,15 @@ class ClickronixTrafficReport
         }
 
         $groupId = trim((string) $columnGroup);
+        if ($groupId !== '' && isset(SettingsDataReportCatalog::COLUMN_GROUPS[$groupId])) {
+            $keys = SettingsDataReportCatalog::COLUMN_GROUPS[$groupId]['keys'];
+
+            return array_values(array_unique(array_merge(['ip'], array_values(array_filter(
+                $keys,
+                static fn (string $k): bool => $k !== 'ip'
+            )))));
+        }
+
         if ($groupId !== '' && isset(self::COLUMN_GROUPS[$groupId])) {
             $keys = self::COLUMN_GROUPS[$groupId]['keys'];
 
@@ -395,6 +404,9 @@ class ClickronixTrafficReport
     public static function groupLabel(?string $columnGroup): ?string
     {
         $groupId = trim((string) $columnGroup);
+        if ($groupId !== '' && isset(SettingsDataReportCatalog::COLUMN_GROUPS[$groupId])) {
+            return SettingsDataReportCatalog::COLUMN_GROUPS[$groupId]['label'];
+        }
         if ($groupId === '' || ! isset(self::COLUMN_GROUPS[$groupId])) {
             return null;
         }
@@ -406,6 +418,9 @@ class ClickronixTrafficReport
     {
         $stamp = now()->format('YmdHis');
         $groupId = trim((string) $columnGroup);
+        if ($groupId !== '' && isset(SettingsDataReportCatalog::COLUMN_GROUPS[$groupId])) {
+            return 'clickronix-'.str_replace('_', '-', $groupId).'-'.$stamp.'.'.$extension;
+        }
         if ($groupId !== '' && isset(self::COLUMN_GROUPS[$groupId])) {
             return 'clickronix-'.str_replace('_', '-', $groupId).'-'.$stamp.'.'.$extension;
         }

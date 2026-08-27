@@ -37,21 +37,31 @@ class SessionRecordingGateTest extends TestCase
         ));
     }
 
-    public function test_paid_allow_records_with_behavior_control_even_without_session_recordings(): void
+    public function test_behavior_control_does_not_bypass_session_recording_toggle(): void
     {
-        $this->assertTrue(SessionRecordingGate::shouldRecord(
+        $this->assertFalse(SessionRecordingGate::shouldRecord(
             $this->settings(sessionRecordings: false, behaviorControl: true),
             ['action_taken' => 'allow', 'threat_group' => null],
             isPaidTraffic: true,
+            planBehaviorControl: true,
+            planSessionRecordings: true,
         ));
     }
 
-    public function test_organic_allow_does_not_record_without_threat(): void
+    public function test_organic_allow_records_when_toggle_on(): void
     {
-        $this->assertFalse(SessionRecordingGate::shouldRecord(
+        $this->assertTrue(SessionRecordingGate::shouldRecord(
             $this->settings(sessionRecordings: true),
             ['action_taken' => 'allow', 'threat_group' => null],
             isPaidTraffic: false,
         ));
+    }
+
+    public function test_allows_ingest_requires_toggle_and_plan(): void
+    {
+        $this->assertTrue(SessionRecordingGate::allowsIngest($this->settings(true), true));
+        $this->assertFalse(SessionRecordingGate::allowsIngest($this->settings(false), true));
+        $this->assertFalse(SessionRecordingGate::allowsIngest($this->settings(true), false));
+        $this->assertFalse(SessionRecordingGate::allowsIngest(null, true));
     }
 }

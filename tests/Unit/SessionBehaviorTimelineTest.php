@@ -11,14 +11,16 @@ class SessionBehaviorTimelineTest extends TestCase
     {
         $timeline = SessionBehaviorTimeline::fromEvents([
             ['type' => 'meta', 't' => 0, 'url' => '/'],
-            ['type' => 'page', 't' => 100, 'url' => 'https://example.com/shop'],
+            ['type' => 'page_view', 't' => 100, 'url' => 'https://example.com/shop', 'title' => 'Shop', 'ts' => 1700000000100],
             ['type' => 'scroll', 't' => 200, 'depth' => 75, 'page_url' => '/shop'],
-            ['type' => 'click', 't' => 300, 'cta' => 1, 'text' => 'Shop Now', 'href' => '/product'],
-            ['type' => 'click', 't' => 400, 'tel' => 1, 'href' => 'tel:+1555'],
-            ['type' => 'form_start', 't' => 500, 'form_id' => 'lead'],
+            ['type' => 'cta_click', 't' => 300, 'element_text' => 'Shop Now', 'href' => '/product', 'link_type' => 'anchor', 'page_url' => 'https://example.com/shop'],
+            ['type' => 'phone_click', 't' => 400, 'href' => 'tel:+1555', 'tel_number' => '+1555', 'page_url' => 'https://example.com/shop'],
+            ['type' => 'form_start', 't' => 500, 'form_id' => 'lead', 'form_name' => 'Lead'],
             ['type' => 'form_submit', 't' => 600, 'form_id' => 'lead', 'success' => true],
             ['type' => 'add_to_cart', 't' => 700, 'sku' => 'WH-101'],
             ['type' => 'purchase', 't' => 800, 'order_id' => 'ORD-1', 'revenue' => '119.99'],
+            ['type' => 'page_change', 't' => 850, 'url' => 'https://example.com/product/wireless-headphones', 'path' => '/product/wireless-headphones'],
+            ['type' => 'session_exit', 't' => 900, 'page_url' => 'https://example.com/thank-you', 'path' => '/thank-you'],
         ]);
 
         $labels = array_column($timeline, 'label');
@@ -31,6 +33,20 @@ class SessionBehaviorTimelineTest extends TestCase
         $this->assertContains('Form Submit', $labels);
         $this->assertContains('Add to Cart', $labels);
         $this->assertContains('Purchase', $labels);
+        $this->assertContains('Page Change', $labels);
+        $this->assertContains('Session Exit', $labels);
+
+        $cta = null;
+        foreach ($timeline as $row) {
+            if (($row['label'] ?? '') === 'CTA Click') {
+                $cta = $row;
+                break;
+            }
+        }
+        $this->assertNotNull($cta);
+        $this->assertSame('cta', $cta['kind']);
+        $this->assertSame('anchor', $cta['link_type']);
+        $this->assertSame('https://example.com/shop', $cta['page_url']);
     }
 
     public function test_ignores_raw_scroll_without_depth_marks(): void

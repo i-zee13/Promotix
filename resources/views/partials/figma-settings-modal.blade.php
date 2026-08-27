@@ -149,26 +149,11 @@
     }
 
     $reportsUrl = \Illuminate\Support\Facades\Route::has('reports.index') ? route('reports.index') : '#';
-    $comprehensiveReportUrl = \Illuminate\Support\Facades\Route::has('paid-marketing.detailed-export')
-        ? route('paid-marketing.detailed-export')
+    $settingsDataReportUrl = \Illuminate\Support\Facades\Route::has('settings.data-reports.download')
+        ? route('settings.data-reports.download')
         : $reportsUrl;
-    $reportDownloadUrls = [
-        'dashboard_ips' => \Illuminate\Support\Facades\Route::has('paid-marketing.ips.export')
-            ? route('paid-marketing.ips.export')
-            : $comprehensiveReportUrl,
-        'advanced' => $comprehensiveReportUrl,
-        'bot' => \Illuminate\Support\Facades\Route::has('bot-protection.export')
-            ? route('bot-protection.export')
-            : $comprehensiveReportUrl,
-        'bot_advanced' => \Illuminate\Support\Facades\Route::has('bot-protection.export')
-            ? route('bot-protection.export')
-            : $comprehensiveReportUrl,
-    ];
-
-    $reportColumnGroups = collect(\App\Support\ClickronixTrafficReport::COLUMN_GROUPS)
-        ->map(fn ($group, $key) => ['id' => $key, 'label' => $group['label'] ?? $key])
-        ->values()
-        ->all();
+    $reportTypeOptions = \App\Support\SettingsDataReportCatalog::reportTypeOptions();
+    $reportColumnGroups = \App\Support\SettingsDataReportCatalog::columnGroupOptions();
 
     $reportAdGroups = [];
     try {
@@ -279,8 +264,8 @@
             'dashboard_tips' => (bool) ($settingsOther['dashboard_tips'] ?? true),
             'alert_sound' => (bool) ($settingsOther['alert_sound'] ?? false),
         ],
-        'reportDownloadUrl' => $comprehensiveReportUrl,
-        'reportUrls' => $reportDownloadUrls,
+        'reportDownloadUrl' => $settingsDataReportUrl,
+        'reportTypeOptions' => $reportTypeOptions,
         'reportColumnGroups' => $reportColumnGroups,
         'reportAdGroups' => $reportAdGroups,
         'avatar' => [
@@ -592,16 +577,15 @@
                     <div class="pmx-settings__card" style="margin-bottom:12px">
                         <div class="pmx-settings__report-controls">
                             <label class="pmx-settings__field">
-                                <span class="pmx-settings__label">Group</span>
+                                <span class="pmx-settings__label">Report type</span>
                                 <select class="pmx-settings__select" x-model="reportGroup">
-                                    <option value="dashboard_ips">Main dashboard IP stats</option>
-                                    <option value="advanced">Advanced View stats</option>
-                                    <option value="bot">Analytics Dashboard</option>
-                                    <option value="bot_advanced">Analytics Traffic Control</option>
+                                    <template x-for="t in reportTypeOptions" :key="t.id">
+                                        <option :value="t.id" x-text="t.label"></option>
+                                    </template>
                                 </select>
                             </label>
-                            <label class="pmx-settings__field" x-show="reportGroup === 'advanced'" x-cloak>
-                                <span class="pmx-settings__label">Column group</span>
+                            <label class="pmx-settings__field" x-show="reportSupportsColumnGroups()" x-cloak>
+                                <span class="pmx-settings__label">Group columns</span>
                                 <select class="pmx-settings__select" x-model="reportColumnGroup">
                                     <option value="">All columns</option>
                                     <template x-for="g in reportColumnGroups" :key="g.id">
@@ -621,18 +605,26 @@
                             <label class="pmx-settings__field">
                                 <span class="pmx-settings__label">Format</span>
                                 <select class="pmx-settings__select" x-model="reportFormat">
-                                    <option value="csv">CSV</option>
                                     <option value="xlsx">XLSX</option>
+                                    <option value="csv">CSV</option>
+                                    <option value="pdf">Designed PDF summary</option>
                                 </select>
+                            </label>
+                            <label class="pmx-settings__check" style="align-self:end;margin-bottom:2px">
+                                <input type="checkbox" x-model="reportUseUtc">
+                                <span>Export timestamps in UTC</span>
                             </label>
                             <button
                                 type="button"
                                 class="pmx-settings__cta pmx-settings__report-download"
                                 @click="downloadReport()"
                                 :disabled="reportBusy"
-                                x-text="reportBusy ? 'Preparing…' : ('Download ' + (reportFormat === 'xlsx' ? 'XLSX' : 'CSV'))"
+                                x-text="reportBusy ? 'Preparing…' : reportDownloadLabel()"
                             ></button>
                         </div>
+                        <p class="pmx-settings__hint" style="margin:10px 0 0">
+                            Dates use your profile timezone by default. Enable UTC to export in coordinated universal time.
+                        </p>
                     </div>
 
                     <div class="pmx-settings__card pmx-settings__switch-card" style="margin-bottom:12px">
@@ -640,7 +632,7 @@
                             <div>
                                 <p class="pmx-settings__label">Monthly report email</p>
                                 <p class="pmx-settings__hint" style="margin:4px 0 0">
-                                    On = after each 30-day period a report email is sent. Off = no monthly email.
+                                    On = email a designed HTML/PDF summary of the previous calendar month. Off = no monthly email.
                                 </p>
                             </div>
                             <button
@@ -657,7 +649,7 @@
                     </div>
 
                     <p class="pmx-settings__hint" x-show="reportStatus" x-text="reportStatus" style="margin-top:0;margin-bottom:8px"></p>
-                    <p class="pmx-settings__hint" style="margin-top:4px">Pick a date range and group, then download. Use Page advertisement group to narrow Advanced View exports.</p>
+                    <p class="pmx-settings__hint" style="margin-top:4px">Pick a date range, report type, and format, then download. Designed PDF summary opens a print-ready HTML you can Save as PDF.</p>
 
                 </div>
 
@@ -2000,13 +1992,19 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             : [emptyContact()],
         csrf: seed.csrf || '',
         prefsUrl: seed.prefsUrl || '/user/preferences',
-        reportDownloadUrl: seed.reportDownloadUrl || '/reports',
-        reportUrls: seed.reportUrls || {},
+        reportDownloadUrl: seed.reportDownloadUrl || '/settings/data-reports/download',
+        reportTypeOptions: Array.isArray(seed.reportTypeOptions) ? seed.reportTypeOptions : [
+            { id: 'paid_advertising', label: 'Paid Advertising', supports_column_groups: true },
+            { id: 'analytics_dashboard', label: 'Analytics Dashboard', supports_column_groups: false },
+            { id: 'traffic_control', label: 'Traffic Control', supports_column_groups: false },
+            { id: 'detection_session', label: 'Detection / Session Report', supports_column_groups: true },
+        ],
         reportColumnGroups: Array.isArray(seed.reportColumnGroups) ? seed.reportColumnGroups : [],
         reportAdGroups: Array.isArray(seed.reportAdGroups) ? seed.reportAdGroups : [],
         reportCalendarOpen: false,
         reportColumnGroup: '',
         reportAdGroup: '',
+        reportUseUtc: false,
         avatarUrl: seed.avatar?.url || '',
         avatarInitial: seed.avatar?.initial || '?',
         avatarHasCustom: Boolean(seed.avatar?.has_custom),
@@ -2017,8 +2015,8 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         teamOpen: false,
         team: Object.assign({ owner: { name: 'Workspace owner', email: '', role: 'Owner', initial: '?' }, members: [] }, seed.team || {}),
         reportRange: '7d',
-        reportGroup: 'dashboard_ips',
-        reportFormat: 'csv',
+        reportGroup: 'paid_advertising',
+        reportFormat: 'xlsx',
         reportCustomFrom: '',
         reportCustomTo: '',
         reportBusy: false,
@@ -2173,28 +2171,31 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             const fromOffset = range === '30d' ? -29 : (range === '7d' ? -6 : 0);
             return { from: this.reportDate(fromOffset), to: this.reportDate(0) };
         },
+        reportSupportsColumnGroups() {
+            const match = (this.reportTypeOptions || []).find((t) => t.id === this.reportGroup);
+            return Boolean(match?.supports_column_groups);
+        },
+        reportDownloadLabel() {
+            if (this.reportFormat === 'pdf') return 'Download PDF summary';
+            if (this.reportFormat === 'xlsx') return 'Download XLSX';
+            return 'Download CSV';
+        },
         buildReportDownloadUrl() {
-            const group = this.reportGroup || 'dashboard_ips';
-            const base = this.reportUrls[group] || this.reportDownloadUrl;
-            const url = new URL(base, window.location.origin);
+            const url = new URL(this.reportDownloadUrl, window.location.origin);
             const range = this.reportDateRange();
+            url.searchParams.set('report_type', this.reportGroup || 'paid_advertising');
             url.searchParams.set('from', range.from);
             url.searchParams.set('to', range.to);
-            if (group === 'bot') {
-                url.searchParams.set('source', 'dashboard');
-            } else if (group === 'bot_advanced') {
-                url.searchParams.set('source', 'advanced');
-            }
-            if (group === 'advanced' && this.reportColumnGroup) {
+            url.searchParams.set('format', this.reportFormat === 'xlsx' ? 'xlsx' : (this.reportFormat === 'pdf' ? 'pdf' : 'csv'));
+            if (this.reportSupportsColumnGroups() && this.reportColumnGroup) {
                 url.searchParams.set('column_group', this.reportColumnGroup);
             }
             if (this.reportAdGroup) {
                 url.searchParams.set('ad_group', this.reportAdGroup);
             }
-            url.searchParams.set('format', this.reportFormat === 'xlsx' ? 'xlsx' : 'csv');
-            // Analytics exports are CSV-only today; avoid a mismatched .xlsx download name.
-            if ((group === 'bot' || group === 'bot_advanced') && this.reportFormat === 'xlsx') {
-                url.searchParams.set('format', 'csv');
+            if (this.reportUseUtc) {
+                url.searchParams.set('use_utc', '1');
+                url.searchParams.set('timezone', 'UTC');
             }
 
             return url.toString();
@@ -2220,7 +2221,7 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
                 const url = this.buildReportDownloadUrl();
                 const res = await fetch(url, {
                     headers: {
-                        'Accept': 'text/csv,application/octet-stream,*/*',
+                        'Accept': 'text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/html,application/octet-stream,*/*',
                         'X-Requested-With': 'XMLHttpRequest',
                     },
                 });
@@ -2228,10 +2229,11 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
                     throw new Error('Download failed (' + res.status + '). Try a shorter date range.');
                 }
                 const blob = await res.blob();
-                if (!blob || blob.size < 8 || (blob.type || '').includes('text/html')) {
+                if (!blob || blob.size < 8 || ((blob.type || '').includes('text/html') && this.reportFormat !== 'pdf')) {
                     throw new Error('The report did not finish. Try a shorter date range.');
                 }
-                const fallback = (this.reportGroup || 'report') + '.' + (this.reportFormat === 'xlsx' ? 'xlsx' : 'csv');
+                const ext = this.reportFormat === 'pdf' ? 'html' : (this.reportFormat === 'xlsx' ? 'xlsx' : 'csv');
+                const fallback = (this.reportGroup || 'report') + '.' + ext;
                 const filename = this.filenameFromDisposition(res.headers.get('content-disposition'), fallback);
                 const href = URL.createObjectURL(blob);
                 const link = document.createElement('a');

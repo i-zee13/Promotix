@@ -1039,9 +1039,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div>
                         <p class="font-semibold text-[#B893D8]">Audience Exclusion</p>
                         <ul class="mt-[6px] list-disc space-y-1 pl-[16px]">
-                            <li>Uses Conversion ID / label from Google Ads conversion actions.</li>
-                            <li>Additional audience excludes high-risk / invalid click clusters from remarketing.</li>
-                            <li>Open from Google platform menu → Detection Panel to configure event rules and push exclusions.</li>
+                            <li>Create Google Ads conversion <strong class="text-white/90">promo for ppc - invalid Users</strong>, then paste Conversion ID + Label.</li>
+                            <li>Match each row to the domain tag (Installed / Not detected).</li>
+                            <li>Use <strong class="text-white/90">Connect Additional audience</strong> for more conversion mappings. Save validates required fields.</li>
+                            <li>Open from Google platform menu → Set Up Audience Exclusion. IP push rules remain in Detection Panel.</li>
                         </ul>
                     </div>
                 </div>
@@ -1253,7 +1254,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             </header>
             <div class="space-y-[14px] px-[24px] py-[20px]">
-                <p class="text-[12px] text-white/85" x-text="'Installation keys for ' + (keysModal.hostname || 'domain')"></p>
+                <p class="text-[12px] text-white/85" x-text="'Installation Keys for (' + (keysModal.hostname || 'domain') + ')'"></p>
                 <template x-for="row in keysModal.rows" :key="row.label">
                     <div class="flex flex-col gap-[6px] sm:flex-row sm:items-center sm:gap-[12px]">
                         <span class="w-[130px] shrink-0 text-[12px] font-medium" x-text="row.label"></span>
@@ -1273,6 +1274,68 @@ document.addEventListener('DOMContentLoaded', () => {
             <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[24px] py-[14px]">
                 <button type="button" @click="verifyKeysInstallation()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Verify installation</button>
                 <button type="button" @click="closeKeysModal()" class="rounded-[6px] bg-white px-[22px] py-[8px] text-[13px] font-semibold text-[#6400B2]">Done</button>
+            </footer>
+        </div>
+    </div>
+
+    {{-- Set Up Audience Exclusion --}}
+    <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-[16px]" x-show="audienceModal.open" x-cloak x-transition @click.self="closeAudienceModal()" @keydown.escape.window="closeAudienceModal()">
+        <div class="w-full max-w-[760px] overflow-hidden rounded-[12px] bg-[#6400B2] text-white shadow-2xl" @click.stop>
+            <header class="border-b border-white/25 px-[24px] py-[18px]">
+                <h2 class="text-[18px] font-semibold">Set Up Audience Exclusion</h2>
+            </header>
+            <div class="max-h-[min(70vh,560px)] space-y-[14px] overflow-y-auto px-[24px] py-[18px]">
+                <ol class="list-decimal space-y-[8px] pl-[18px] text-[12px] leading-relaxed text-white/90">
+                    <li>Create a conversion on google ads named ‘promo for ppc - invalid Users’ and follow the guidelines</li>
+                    <li>Paste the Conversion ID and Conversion label below, and match it to the relevant domain.</li>
+                    <li>After the set up is completed on Clickpromo, create an audience on the Google Ads platform using the following guidelines</li>
+                </ol>
+
+                <p class="text-[11px] text-white/70" x-show="audienceModal.error" x-text="audienceModal.error" x-cloak></p>
+
+                <div class="space-y-[10px]">
+                    <template x-for="(row, idx) in audienceModal.rows" :key="idx">
+                        <div class="grid grid-cols-1 gap-[10px] rounded-[8px] border border-white/20 bg-[#4a0088]/35 p-[12px] sm:grid-cols-[1fr_1fr_1fr_auto]">
+                            <label class="block">
+                                <span class="mb-[4px] block text-[11px] font-semibold text-white">Conversion ID</span>
+                                <input type="text" x-model="row.conversion_id" placeholder="AW-17783207578" class="w-full rounded-[6px] border border-white/25 bg-[#2a0050] px-[10px] py-[8px] text-[12px] text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/40">
+                            </label>
+                            <label class="block">
+                                <span class="mb-[4px] block text-[11px] font-semibold text-white">Conversion Label</span>
+                                <input type="text" x-model="row.conversion_label" placeholder="getpropanereill.online" class="w-full rounded-[6px] border border-white/25 bg-[#2a0050] px-[10px] py-[8px] text-[12px] text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/40">
+                            </label>
+                            <label class="block">
+                                <span class="mb-[4px] block text-[11px] font-semibold text-white">Tag</span>
+                                <select
+                                    class="w-full rounded-[6px] border border-white/25 bg-[#2a0050] px-[10px] py-[8px] text-[12px] text-white focus:outline-none focus:ring-1 focus:ring-white/40"
+                                    :value="row.domain_id || ''"
+                                    @change="onAudienceTagChange(idx, $event.target.value)"
+                                >
+                                    <option value="">Select tag</option>
+                                    <template x-for="tag in audienceModal.tags" :key="tag.id">
+                                        <option :value="tag.id" x-text="tag.label"></option>
+                                    </template>
+                                </select>
+                            </label>
+                            <div class="flex items-end justify-end pb-[2px]">
+                                <button type="button" class="rounded-[6px] border border-white/30 p-[8px] text-white/85 hover:bg-white/10" @click="removeAudienceRow(idx)" title="Remove row" :disabled="audienceModal.rows.length <= 1">
+                                    <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m5 0H4"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <button type="button" class="inline-flex items-center gap-[6px] text-[12px] font-semibold text-white hover:underline" @click="addAudienceRow()">
+                    <span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full border border-white/60 text-[12px]">+</span>
+                    Connect Additional audience
+                </button>
+            </div>
+            <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[24px] py-[14px]">
+                <button type="button" @click="closeAudienceModal()" class="rounded-[6px] border border-white px-[18px] py-[8px] text-[13px] text-white">Cancel</button>
+                <button type="button" @click="saveAudienceExclusion()" :disabled="audienceModal.saving" class="rounded-[6px] bg-white px-[22px] py-[8px] text-[13px] font-semibold text-[#6400B2] disabled:opacity-50">
+                    <span x-text="audienceModal.saving ? 'Saving…' : 'Save'"></span>
+                </button>
             </footer>
         </div>
     </div>
@@ -1379,6 +1442,18 @@ function platformIntegrations(config) {
             wpAdminUrl: '#',
             wpPluginSettingsUrl: '#',
         },
+        audienceModal: {
+            open: false,
+            loading: false,
+            saving: false,
+            error: '',
+            mapping_id: null,
+            rows: [{ conversion_id: '', conversion_label: '', tag: '', domain_id: null }],
+            tags: [],
+        },
+        audienceGetUrl: '/integrations/google/audience-exclusion',
+        audienceSaveUrl: '/integrations/google/audience-exclusion',
+        csrf: config.csrf || '',
         directForm: {
             platform: 'custom',
             account_label: 'Direct Ads',
@@ -1439,8 +1514,8 @@ function platformIntegrations(config) {
             const tagOk = this.tagManagerConnected;
             const trackOk = this.trackingScriptOk;
             const botOk = this.activeDomainStatus
-                ? Boolean((this.activeDomainStatus.steps || []).find((s) => s.label === 'Bot Protection')?.done)
-                : Boolean(this.botReady || this.domainConnections.some((d) => (d.steps || []).find((s) => s.label === 'Bot Protection')?.done));
+                ? Boolean((this.activeDomainStatus.steps || []).find((s) => s.label === 'Analytics' || s.label === 'Bot Protection')?.done)
+                : Boolean(this.botReady || this.domainConnections.some((d) => (d.steps || []).find((s) => s.label === 'Analytics' || s.label === 'Bot Protection')?.done));
             return [
                 {
                     key: 'api',
@@ -1452,7 +1527,7 @@ function platformIntegrations(config) {
                 },
                 { key: 'gtm', label: 'Tag Manager', ok: tagOk, stateLabel: tagOk ? 'Healthy' : 'Pending', ago: eventAgo },
                 { key: 'script', label: 'Tracking Script', ok: trackOk, stateLabel: trackOk ? 'Healthy' : 'Pending', ago: eventAgo },
-                { key: 'bot', label: 'Bot Protection', ok: botOk, stateLabel: botOk ? 'Healthy' : 'Pending', ago: eventAgo },
+                    { key: 'bot', label: 'Analytics', ok: botOk, stateLabel: botOk ? 'Healthy' : 'Pending', ago: eventAgo },
             ];
         },
         get setupProgressFill() {
@@ -1727,6 +1802,88 @@ function platformIntegrations(config) {
         closeAllMenus() {
             Alpine.store('platformCardMenu').open = null;
         },
+        emptyAudienceRow() {
+            return { conversion_id: '', conversion_label: '', tag: '', domain_id: null };
+        },
+        closeAudienceModal() {
+            this.audienceModal.open = false;
+            this.audienceModal.error = '';
+            this.audienceModal.saving = false;
+        },
+        addAudienceRow() {
+            this.audienceModal.rows.push(this.emptyAudienceRow());
+        },
+        removeAudienceRow(idx) {
+            if (this.audienceModal.rows.length <= 1) return;
+            this.audienceModal.rows.splice(idx, 1);
+        },
+        onAudienceTagChange(idx, value) {
+            const id = value ? Number(value) : null;
+            const tag = (this.audienceModal.tags || []).find((t) => Number(t.id) === id);
+            if (!this.audienceModal.rows[idx]) return;
+            this.audienceModal.rows[idx].domain_id = id;
+            this.audienceModal.rows[idx].tag = tag ? (tag.domain_key || tag.hostname || '') : '';
+        },
+        async openAudienceModal() {
+            this.audienceModal.open = true;
+            this.audienceModal.loading = true;
+            this.audienceModal.error = '';
+            try {
+                const res = await fetch(this.audienceGetUrl, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const payload = await res.json().catch(() => ({}));
+                if (!res.ok || payload.ok === false) {
+                    throw new Error(payload.message || 'Could not load Audience Exclusion.');
+                }
+                this.audienceModal.mapping_id = payload.mapping_id || null;
+                this.audienceModal.tags = Array.isArray(payload.tags) ? payload.tags : [];
+                this.audienceModal.rows = Array.isArray(payload.audiences) && payload.audiences.length
+                    ? payload.audiences.map((r) => ({
+                        conversion_id: r.conversion_id || '',
+                        conversion_label: r.conversion_label || '',
+                        tag: r.tag || '',
+                        domain_id: r.domain_id || null,
+                    }))
+                    : [this.emptyAudienceRow()];
+            } catch (error) {
+                this.audienceModal.error = error?.message || 'Could not load Audience Exclusion.';
+                this.audienceModal.rows = [this.emptyAudienceRow()];
+            } finally {
+                this.audienceModal.loading = false;
+            }
+        },
+        async saveAudienceExclusion() {
+            if (this.audienceModal.saving) return;
+            this.audienceModal.saving = true;
+            this.audienceModal.error = '';
+            try {
+                const res = await fetch(this.audienceSaveUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        mapping_id: this.audienceModal.mapping_id,
+                        enabled: true,
+                        audiences: this.audienceModal.rows,
+                    }),
+                });
+                const payload = await res.json().catch(() => ({}));
+                if (!res.ok || payload.ok === false) {
+                    throw new Error(payload.message || (payload.errors && payload.errors[0]) || 'Save failed.');
+                }
+                this.showMenuToast(payload.message || 'Audience Exclusion saved.', 'success');
+                this.closeAudienceModal();
+            } catch (error) {
+                this.audienceModal.error = error?.message || 'Save failed.';
+            } finally {
+                this.audienceModal.saving = false;
+            }
+        },
         handlePlatformMenu(detail) {
             const action = detail?.action;
             if (!action) return;
@@ -1742,6 +1899,9 @@ function platformIntegrations(config) {
                 case 'open-pixel-guard':
                     this.scrollToEl('connected-platforms');
                     this.showMenuToast('Connected platforms below.');
+                    break;
+                case 'open-audience-exclusion':
+                    this.openAudienceModal();
                     break;
                 case 'manage-ad-account':
                     this.scrollToEl('connected-platforms');

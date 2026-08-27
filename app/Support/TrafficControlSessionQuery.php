@@ -312,14 +312,24 @@ class TrafficControlSessionQuery
                 if (! is_array($ev)) {
                     continue;
                 }
-                if (($ev['type'] ?? '') === 'page' && ! empty($ev['url'])) {
-                    $path = TrafficSourceClassifier::pathFromUrl((string) $ev['url']);
+                $type = strtolower((string) ($ev['type'] ?? ''));
+                if (in_array($type, ['page', 'page_view'], true)) {
+                    $url = (string) ($ev['url'] ?? $ev['page_url'] ?? '');
+                    if ($url === '') {
+                        continue;
+                    }
+                    $path = TrafficSourceClassifier::pathFromUrl($url);
                     $pages[] = $path;
                     $pageEvents[] = [
                         'label' => 'Page: '.$path,
-                        'detail' => $path,
+                        'detail' => trim(($ev['title'] ?? '').' '.$path),
                         'kind' => 'page',
+                        'type' => 'page_view',
+                        'page_url' => $url,
+                        'path' => $path,
+                        'title' => $ev['title'] ?? null,
                         't' => (int) ($ev['t'] ?? 0),
+                        'at' => isset($ev['ts']) ? date('c', (int) floor(((int) $ev['ts']) / 1000)) : null,
                     ];
                 }
             }
@@ -333,6 +343,29 @@ class TrafficControlSessionQuery
             $timeline = $analysis['timeline'] ?? [];
             $uniquePages = array_values(array_unique($pages));
             $pageFlow = $uniquePages !== [] ? implode(' -> ', array_slice($uniquePages, 0, 8)) : '—';
+
+            $byKind = [
+                'cta' => [],
+                'phone' => [],
+                'form' => [],
+                'commerce' => [],
+                'page' => $pageEvents,
+                'scroll' => [],
+            ];
+            foreach ($timeline as $item) {
+                $kind = (string) ($item['kind'] ?? '');
+                if ($kind === 'cta') {
+                    $byKind['cta'][] = $item;
+                } elseif ($kind === 'phone') {
+                    $byKind['phone'][] = $item;
+                } elseif ($kind === 'form') {
+                    $byKind['form'][] = $item;
+                } elseif ($kind === 'commerce') {
+                    $byKind['commerce'][] = $item;
+                } elseif ($kind === 'scroll') {
+                    $byKind['scroll'][] = $item;
+                }
+            }
 
             return [
                 'id' => (int) $rec->id,
@@ -349,9 +382,14 @@ class TrafficControlSessionQuery
                 'page_flow' => $pageFlow,
                 'pages' => $uniquePages,
                 'event_detail' => [
-                    'cta' => $timeline,
-                    'timeline' => $timeline,
+                    'cta' => $byKind['cta'],
+                    'tel' => $byKind['phone'],
+                    'phone' => $byKind['phone'],
+                    'form' => $byKind['form'],
+                    'commerce' => $byKind['commerce'],
                     'pages' => $pageEvents,
+                    'scroll' => $byKind['scroll'],
+                    'timeline' => $timeline,
                 ],
             ];
         });

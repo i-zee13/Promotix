@@ -74,6 +74,7 @@ class SessionBehaviorAnalyzer
         $purchases = 0;
         $pageUrls = [];
         $lastCtaHref = null;
+        $hasTypedCtaOrTel = false;
 
         // Scan raw events for CTA / tel / page markers the normalizer may trim.
         foreach ($events as $raw) {
@@ -84,7 +85,23 @@ class SessionBehaviorAnalyzer
             if (in_array($type, ['keydown', 'keypress', 'keyup', 'input', 'form_start'], true)) {
                 $hasKey = true;
             }
-            if ($type === 'click') {
+            if ($type === 'cta_click') {
+                $hasTypedCtaOrTel = true;
+                $hasClick = true;
+                $ctaClicks++;
+                $href = trim((string) ($raw['href'] ?? ''));
+                if ($href !== '') {
+                    $lastCtaHref = mb_substr($href, 0, 500);
+                }
+            } elseif (in_array($type, ['phone_click', 'tel_click'], true)) {
+                $hasTypedCtaOrTel = true;
+                $hasClick = true;
+                $telClicks++;
+                $href = trim((string) ($raw['href'] ?? ''));
+                if ($href !== '') {
+                    $lastCtaHref = mb_substr($href, 0, 500);
+                }
+            } elseif ($type === 'click' && ! $hasTypedCtaOrTel) {
                 $classified = SessionClickClassifier::classifyClickEvent($raw);
                 $href = trim((string) ($raw['href'] ?? ''));
                 if ($classified['tel']) {
@@ -100,8 +117,8 @@ class SessionBehaviorAnalyzer
                     }
                 }
             }
-            if ($type === 'page') {
-                $url = trim((string) ($raw['url'] ?? ''));
+            if (in_array($type, ['page', 'page_view', 'page_change'], true)) {
+                $url = trim((string) ($raw['url'] ?? $raw['page_url'] ?? ''));
                 if ($url !== '') {
                     $pageUrls[$url] = true;
                 }
@@ -120,6 +137,23 @@ class SessionBehaviorAnalyzer
             }
             if (in_array($type, ['purchase', 'sale'], true)) {
                 $purchases++;
+            }
+        }
+
+        // Second pass: if typed events exist, recount clicks only from typed to avoid double counts with legacy click flags.
+        if ($hasTypedCtaOrTel) {
+            $ctaClicks = 0;
+            $telClicks = 0;
+            foreach ($events as $raw) {
+                if (! is_array($raw)) {
+                    continue;
+                }
+                $type = strtolower((string) ($raw['type'] ?? ''));
+                if ($type === 'cta_click') {
+                    $ctaClicks++;
+                } elseif (in_array($type, ['phone_click', 'tel_click'], true)) {
+                    $telClicks++;
+                }
             }
         }
 

@@ -1225,7 +1225,7 @@
         <div class="figma-modal-overlay"
              x-show="eventModal.open" x-cloak x-transition
              @keydown.escape.window="closeEventModal()" @click.self="closeEventModal()">
-            <div class="figma-modal max-w-[520px]">
+            <div class="figma-modal max-w-[560px]">
                 <header class="mb-4 flex items-center justify-between gap-3">
                     <h3 class="figma-modal-title" x-text="eventModal.title"></h3>
                     <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeEventModal()" aria-label="Close">
@@ -1233,11 +1233,18 @@
                     </button>
                 </header>
                 <p class="mb-3 text-[12px] text-white/60" x-text="eventModal.subtitle"></p>
-                <div class="max-h-[320px] overflow-y-auto rounded-[8px] border border-white/15 bg-[#101010] p-3 promotix-slim-scroll">
+                <div class="max-h-[360px] overflow-y-auto rounded-[8px] border border-white/15 bg-[#101010] p-3 promotix-slim-scroll">
                     <template x-for="(ev, idx) in eventModal.events" :key="'ev-' + idx">
-                        <div class="mb-2 flex items-start justify-between gap-3 border-b border-white/5 pb-2 text-[11px] last:mb-0 last:border-0 last:pb-0">
-                            <span class="text-white/85" x-text="ev.label || ev.type || 'Event'"></span>
-                            <span class="shrink-0 text-white/45" x-text="ev.time || ev.at || '—'"></span>
+                        <div class="mb-3 border-b border-white/5 pb-3 text-[11px] last:mb-0 last:border-0 last:pb-0">
+                            <div class="mb-1 flex items-start justify-between gap-3">
+                                <span class="font-medium text-white/90" x-text="ev.label || ev.type || 'Event'"></span>
+                                <span class="shrink-0 text-white/45" x-text="ev.clock || ev.time || ev.at || '—'"></span>
+                            </div>
+                            <p class="text-white/70" x-show="ev.page_url || ev.path" x-text="'Page: ' + (ev.path || ev.page_url)"></p>
+                            <p class="text-white/70" x-show="ev.link_type" x-text="'Link type: ' + ev.link_type"></p>
+                            <p class="text-white/70" x-show="ev.element_text" x-text="'CTA / text: ' + ev.element_text"></p>
+                            <p class="text-white/55 break-all" x-show="ev.href || ev.tel_number" x-text="ev.tel_number ? ('Tel: ' + ev.tel_number) : ('Href: ' + ev.href)"></p>
+                            <p class="text-white/55" x-show="ev.detail && !ev.page_url" x-text="ev.detail"></p>
                         </div>
                     </template>
                     <p x-show="!(eventModal.events || []).length" class="py-6 text-center text-[12px] text-white/40">No event timeline for this session.</p>
@@ -2022,37 +2029,101 @@ function botProtectionAdvancedFigma(config = {}) {
                 ? (String(countRaw).toLowerCase() === 'yes' ? 1 : Number(countRaw || 0))
                 : Number(countRaw || 0);
             if (!count) return;
-            const timeline = row?.event_detail?.timeline || row?.event_detail?.cta || [];
-            const matchers = {
-                cta_clicks: (t) => t.includes('cta') || t.includes('click'),
-                tel_clicks: (t) => t.includes('tel') || t.includes('phone'),
-                form_starts: (t) => t.includes('form') && t.includes('start'),
-                form_submits: (t) => t.includes('form') && (t.includes('submit') || t.includes('fill')),
-                add_to_cart: (t) => t.includes('cart'),
-                checkout: (t) => t.includes('checkout'),
-                purchase: (t) => t.includes('purchase') || t.includes('sale'),
+            const detail = row?.event_detail || {};
+            const timeline = Array.isArray(detail.timeline) ? detail.timeline : [];
+            const bucketMap = {
+                cta_clicks: detail.cta || [],
+                tel_clicks: detail.tel || detail.phone || [],
+                form_starts: (detail.form || []).filter((ev) => String(ev.type || ev.label || '').toLowerCase().includes('start')),
+                form_submits: (detail.form || []).filter((ev) => {
+                    const t = String(ev.type || ev.label || '').toLowerCase();
+                    return t.includes('submit') || t.includes('fill');
+                }),
+                add_to_cart: (detail.commerce || []).filter((ev) => String(ev.type || ev.label || '').toLowerCase().includes('cart')),
+                checkout: (detail.commerce || []).filter((ev) => String(ev.type || ev.label || '').toLowerCase().includes('checkout')),
+                purchase: (detail.commerce || []).filter((ev) => {
+                    const t = String(ev.type || ev.label || '').toLowerCase();
+                    return t.includes('purchase') || t.includes('sale');
+                }),
             };
-            const match = matchers[key] || (() => true);
+            const matchers = {
+                cta_clicks: (ev) => {
+                    const t = String(ev?.type || '').toLowerCase();
+                    const k = String(ev?.kind || '').toLowerCase();
+                    const label = String(ev?.label || '').toLowerCase();
+                    return t === 'cta_click' || k === 'cta' || label === 'cta click';
+                },
+                tel_clicks: (ev) => {
+                    const t = String(ev?.type || '').toLowerCase();
+                    const k = String(ev?.kind || '').toLowerCase();
+                    const label = String(ev?.label || '').toLowerCase();
+                    return t === 'phone_click' || t === 'tel_click' || k === 'phone' || label.includes('phone');
+                },
+                form_starts: (ev) => String(ev?.type || ev?.label || '').toLowerCase().includes('start'),
+                form_submits: (ev) => {
+                    const t = String(ev?.type || ev?.label || '').toLowerCase();
+                    return t.includes('submit') || t.includes('fill');
+                },
+                add_to_cart: (ev) => String(ev?.type || ev?.label || '').toLowerCase().includes('cart'),
+                checkout: (ev) => String(ev?.type || ev?.label || '').toLowerCase().includes('checkout'),
+                purchase: (ev) => {
+                    const t = String(ev?.type || ev?.label || '').toLowerCase();
+                    return t.includes('purchase') || t.includes('sale');
+                },
+            };
             const titles = {
                 cta_clicks: 'CTA Click Timeline',
-                tel_clicks: 'Tel Click Timeline',
+                tel_clicks: 'Phone Click Timeline',
                 form_starts: 'Form Start Timeline',
                 form_submits: 'Form Submit Timeline',
                 add_to_cart: 'Add to Cart Timeline',
                 checkout: 'Checkout Timeline',
                 purchase: 'Purchase Timeline',
             };
-            const events = (Array.isArray(timeline) ? timeline : [])
-                .filter(ev => match(String(ev?.type || ev?.label || ev?.kind || '').toLowerCase()))
-                .map(ev => ({
-                    label: ev.label || ev.detail || ev.kind || ev.type || 'Event',
-                    time: ev.t != null ? `${Math.max(0, Math.round(Number(ev.t) / 1000))}s` : (ev.time || ev.at || '—'),
-                }));
+            let events = Array.isArray(bucketMap[key]) ? bucketMap[key] : [];
+            if (!events.length) {
+                const match = matchers[key] || (() => true);
+                events = timeline.filter((ev) => match(ev));
+            }
+            const mapped = events.map((ev) => {
+                const relative = ev.t != null ? `${Math.max(0, Math.round(Number(ev.t) / 1000))}s` : null;
+                let clock = ev.at || ev.time || null;
+                if (clock && String(clock).includes('T')) {
+                    try {
+                        clock = new Date(clock).toLocaleString();
+                    } catch (e) {}
+                }
+                return {
+                    label: ev.label || ev.type || 'Event',
+                    detail: ev.detail || '',
+                    page_url: ev.page_url || '',
+                    path: ev.path || '',
+                    link_type: ev.link_type || '',
+                    element_text: ev.element_text || ev.text || '',
+                    href: ev.href || '',
+                    tel_number: ev.tel_number || '',
+                    time: relative || '—',
+                    clock: clock || relative || '—',
+                    type: ev.type || '',
+                };
+            });
             this.eventModal = {
                 open: true,
                 title: titles[key] || 'Event Timeline',
                 subtitle: `${count} event(s) · Session ${row.session_id || row.session_key || row.ip || ''}`,
-                events: events.length ? events : [{ label: `${count} ${key.replace(/_/g, ' ')} event(s) recorded`, time: row.last_seen || '—' }],
+                events: mapped.length ? mapped : [{
+                    label: `${count} ${key.replace(/_/g, ' ')} event(s) recorded`,
+                    detail: '',
+                    page_url: '',
+                    path: '',
+                    link_type: '',
+                    element_text: '',
+                    href: '',
+                    tel_number: '',
+                    time: row.last_seen || '—',
+                    clock: row.last_seen || '—',
+                    type: key,
+                }],
             };
         },
         closeEventModal() {
