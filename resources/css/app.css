@@ -2754,7 +2754,8 @@ html.figma-gads-calendar-open body {
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
 }
 
-.figma-sa-dash-dot--purple {
+.figma-sa-dash-dot--purple,
+.figma-sa-dash-dot--brand {
     background: var(--brand-primary, #FF6600);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary, #FF6600) 50%, transparent);
 }
@@ -2909,8 +2910,9 @@ html.figma-gads-calendar-open body {
 /* Analytics (Figma v2616) */
 .figma-sa-analytics-card {
     border-radius: 10px;
-    background: #6706b3;
+    background: var(--brand-primary, #FF6600);
     padding: 20px 22px;
+    box-shadow: 0 0 18px color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
 }
 
 .figma-sa-analytics-card-footer {
@@ -3700,16 +3702,25 @@ select.figma-sa-subs-status-pill {
 
 .light-mode .figma-sa-dash-chart--growth {
     background: #ffffff;
-    border-color: #6400b2;
+    border-color: var(--brand-primary, #FF6600);
 }
 
 .light-mode .figma-sa-dash-chart--growth .figma-sa-dash-chart-head {
-    background: #000000;
-    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: #ffffff;
+    border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 
 .light-mode .figma-sa-dash-chart--growth .figma-sa-dash-chart-title {
-    color: #ffffff;
+    color: #121212;
+}
+
+.light-mode .figma-sa-dash-chart--growth .figma-sa-dash-chart-menu-btn--dark {
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 12%, #ffffff);
+    color: #121212;
+}
+
+.light-mode .figma-sa-dash-chart--growth .figma-sa-dash-chart-menu-btn--dark:hover {
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 20%, #ffffff);
 }
 
 .light-mode .figma-sa-dash-chart-title {

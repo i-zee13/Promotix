@@ -176,6 +176,13 @@
     <script>
         function superDashboard() {
             const isLight = () => document.documentElement.classList.contains('light-mode');
+            const cssVar = (name, fallback) => {
+                const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+                return value || fallback;
+            };
+            const brandPrimary = () => cssVar('--brand-primary', '#FF6600');
+            const brandSecondary = () => cssVar('--brand-secondary', '#CC5200');
+            const brandPrimaryRgb = () => cssVar('--brand-primary-rgb', '255, 102, 0');
 
             const setupCanvas = (canvas) => {
                 const dpr = window.devicePixelRatio || 1;
@@ -276,7 +283,9 @@
                 }
 
                 ctx.setLineDash([4, 4]);
-                ctx.strokeStyle = isLight() ? 'rgba(100,0,178,0.15)' : 'rgba(255,255,255,0.12)';
+                ctx.strokeStyle = isLight()
+                    ? `rgba(${brandPrimaryRgb()}, 0.15)`
+                    : 'rgba(255,255,255,0.12)';
                 for (let i = 0; i <= 4; i++) {
                     const y = pad.t + (plotH * i) / 4;
                     ctx.beginPath();
@@ -291,7 +300,7 @@
                     const w = Math.max(20, slot * 0.55);
                     const x = pad.l + i * slot + (slot - w) / 2;
                     const y = pad.t + plotH - h;
-                    ctx.fillStyle = i % 2 === 0 ? '#9a1aff' : '#6400b2';
+                    ctx.fillStyle = i % 2 === 0 ? brandSecondary() : brandPrimary();
                     const r = 4;
                     ctx.beginPath();
                     ctx.moveTo(x + r, y);

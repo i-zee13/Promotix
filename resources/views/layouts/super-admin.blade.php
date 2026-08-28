@@ -10,6 +10,7 @@
     @endauth
     <title>@yield('title', 'Super Admin') — {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>{!! \App\Support\Branding::rootStyleBlock() !!}</style>
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
 @php
