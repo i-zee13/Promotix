@@ -29,7 +29,7 @@
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[18px] w-[18px]'])
             </a>
         </div>
-        <a href="{{ route('billing.index') }}" class="figma-rightbar-extra figma-rightbar-billing mt-[16px] block w-full max-w-[168px] rounded-[5px] bg-[#6603B3] p-[8px] text-white">
+        <a href="{{ route('billing.index') }}" class="figma-rightbar-extra figma-rightbar-billing mt-[16px] block w-full max-w-[168px] rounded-[5px] p-[8px] text-white">
             <div class="figma-rightbar-billing__cols">
                 <div class="figma-rightbar-billing__col">
                     <span class="figma-rightbar-billing__label">Invalid / Blocked</span>

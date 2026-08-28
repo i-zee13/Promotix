@@ -61,7 +61,7 @@
             <article class="figma-sa-dash-chart figma-sa-dash-chart--growth">
                 <div class="figma-sa-dash-chart-head">
                     <h2 class="figma-sa-dash-chart-title">
-                        <span class="figma-sa-dash-dot figma-sa-dash-dot--purple" aria-hidden="true"></span>
+                        <span class="figma-sa-dash-dot figma-sa-dash-dot--brand" aria-hidden="true"></span>
                         User Growth
                     </h2>
                     <x-super-admin.dashboard-dropdown>

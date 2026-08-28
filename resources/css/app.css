@@ -2608,9 +2608,10 @@ html.figma-gads-calendar-open body {
 
 .figma-sa-dash-feed {
     border-radius: 10px;
-    background: #6706b3;
+    background: var(--brand-primary, #FF6600);
     padding: 20px 18px 16px;
     overflow: hidden;
+    box-shadow: 0 0 18px color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
 }
 
 .figma-sa-dash-feed-head {
@@ -5204,6 +5205,10 @@ html.light-mode {
     border-color: #e5ddf0 !important;
 }
 
+.figma-rightbar-billing {
+    background: var(--brand-primary, #FF6600) !important;
+}
+
 .figma-rightbar-billing__cols {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -5574,7 +5579,7 @@ html.light-mode .pm-ip-invest__close {
 }
 
 html.light-mode .figma-rightbar-billing {
-    background: #6400B2 !important;
+    background: var(--brand-primary, #FF6600) !important;
     color: #ffffff !important;
 }
 
@@ -14770,6 +14775,7 @@ a.figma-sa-users-filter-option {
     --analytics-accent: #FF6600;
     --analytics-accent-soft: #FF8533;
     --analytics-bg: #0F0F10;
+    overflow-x: clip;
 }
 .analytics-skin .bg-\[\#6400B2\],
 .analytics-skin .rounded-t-\[12px\].bg-\[\#6400B2\] {
@@ -14835,8 +14841,10 @@ a.figma-sa-users-filter-option {
 /* Light mode: keep light surfaces, swap purple accents → orange */
 html.light-mode .analytics-skin .bp-adv-page-head h1,
 html.light-mode .analytics-skin .bp-adv-page-head > div > span.text-\[24px\],
-html.light-mode .analytics-skin .bp-adv-page-head [class*="text-[#a9a9a9]"] {
-    color: #ea580c !important;
+html.light-mode .analytics-skin .bp-adv-page-head [class*="text-[#a9a9a9]"],
+html.light-mode .figma-main .analytics-skin .bp-adv-page-head h1[class*='text-[#a9a9a9]'],
+html.light-mode .figma-main .analytics-skin .bp-adv-page-head > div > span[class*='text-[#a9a9a9]'] {
+    color: #FF6600 !important;
 }
 html.light-mode .analytics-skin .bp-adv-page-head .bg-\[\#a9a9a9\],
 html.light-mode .analytics-skin .bp-adv-page-head span.h-\[34px\].w-\[2px\],
