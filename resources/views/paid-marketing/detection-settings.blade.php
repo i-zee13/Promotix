@@ -19,13 +19,13 @@
     <div class="figma-rightbar-center mt-[14px] pt-[4px]">
         <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
         <div class="mx-auto grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
-            <a href="{{ route('paid-marketing.detection-settings') }}" title="Detection" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+            <a href="{{ route('paid-marketing.detection-settings') }}" title="Detection" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[var(--brand-primary)] text-white hover:bg-[var(--figma-chrome-accent-hover)]">
                 @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[18px] w-[18px]'])
             </a>
-            <a href="{{ route('paid-marketing.detailed') }}" title="Advanced View" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+            <a href="{{ route('paid-marketing.detailed') }}" title="Advanced View" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[var(--brand-primary)] text-white hover:bg-[var(--figma-chrome-accent-hover)]">
                 @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[18px] w-[18px]'])
             </a>
-            <a href="{{ route('paid-marketing.dashboard') }}" title="Dashboard" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+            <a href="{{ route('paid-marketing.dashboard') }}" title="Dashboard" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[var(--brand-primary)] text-white hover:bg-[var(--figma-chrome-accent-hover)]">
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[18px] w-[18px]'])
             </a>
         </div>
@@ -170,7 +170,7 @@
             .figma-pac-card--allow-ip { border-color: rgba(64, 156, 255, 0.4); }
             .figma-pac-card--block-ip { border-color: rgba(255, 80, 80, 0.4); }
             .figma-pac-card--cross-domain { border-color: rgba(255, 102, 0, 0.45); }
-            .figma-pac-card--chatbot { border-color: rgba(100, 0, 178, 0.45); }
+            .figma-pac-card--chatbot { border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent); }
             .figma-pac-card-top { display: flex; gap: 10px; margin-bottom: 12px; }
             .figma-pac-card-icon {
                 display: flex;
@@ -187,7 +187,7 @@
             .figma-pac-card--allow-ip .figma-pac-card-icon { background: rgba(64, 156, 255, 0.15); color: #409cff; }
             .figma-pac-card--block-ip .figma-pac-card-icon { background: rgba(255, 80, 80, 0.15); color: #ff5050; }
             .figma-pac-card--cross-domain .figma-pac-card-icon { background: rgba(255, 102, 0, 0.15); color: #FF6600; }
-            .figma-pac-card--chatbot .figma-pac-card-icon { background: rgba(100, 0, 178, 0.15); color: #c4b5fd; }
+            .figma-pac-card--chatbot .figma-pac-card-icon { background: color-mix(in srgb, var(--brand-primary) 15%, transparent); color: color-mix(in srgb, var(--brand-primary) 65%, white); }
             .figma-pac-card-heading {
                 flex: 1;
                 min-width: 0;
@@ -318,10 +318,10 @@
             html.light-mode .figma-pac-purpose { color: #6b6578; }
             html.light-mode .figma-pac-purpose span { color: #4a4458; }
             html.light-mode .figma-pac-badge.is-off {
-                background: #f0ecf5;
+                background: var(--brand-tint-soft);
                 color: #7a7388;
             }
-            html.light-mode .figma-pac-card-btn:hover { background: rgba(100, 0, 178, 0.06); }
+            html.light-mode .figma-pac-card-btn:hover { background: color-mix(in srgb, var(--brand-primary) 6%, transparent); }
 
             .detection-editing-line { color: rgba(255, 255, 255, 0.45); }
             .detection-editing-line span { color: rgba(255, 255, 255, 0.85); }
@@ -352,7 +352,7 @@
                 min-width: 0;
                 border-radius: 12px;
                 border: 1px solid rgba(255, 255, 255, 0.18);
-                background: #6400B2;
+                background: var(--brand-primary);
                 padding: 14px;
                 color: #fff;
             }
@@ -380,10 +380,10 @@
             .figma-dem-meta-row strong { color: #fff; font-weight: 600; font-size: 12px; }
             .figma-dem-action-select {
                 max-width: 110px; height: 26px; border-radius: 6px;
-                border: 1px solid rgba(255,255,255,.35); background: #6400B2;
+                border: 1px solid rgba(255,255,255,.35); background: var(--brand-primary);
                 color: #fff; font-size: 11px; padding: 0 6px;
             }
-            .figma-dem-action-select option { background: #6400B2; color: #fff; }
+            .figma-dem-action-select option { background: var(--brand-primary); color: #fff; }
             .figma-dem-card .figma-toggle-label { color: #fff; }
             .figma-dem-risk--high { color: #ffd0d0 !important; }
             .figma-dem-risk--medium { color: #ffe4a8 !important; }
@@ -435,13 +435,13 @@
             .figma-bip-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
             .figma-bip-field span { font-size: 10px; color: #6b6578; }
             .figma-bip-field input, .figma-bip-field select {
-                height: 34px; border-radius: 8px; border: 1px solid rgba(154, 26, 255, 0.55);
-                background: #6400B2; color: #fff; padding: 0 10px; font-size: 11px;
+                height: 34px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--brand-primary) 55%, transparent);
+                background: var(--brand-primary); color: #fff; padding: 0 10px; font-size: 11px;
             }
             .figma-bip-field input::placeholder { color: rgba(255,255,255,.65); }
-            .figma-bip-field select option { background: #6400B2; color: #fff; }
+            .figma-bip-field select option { background: var(--brand-primary); color: #fff; }
             .figma-bip-add-btn, .figma-gaem-push-btn {
-                height: 34px; border-radius: 8px; border: 0; background: #6400B2;
+                height: 34px; border-radius: 8px; border: 0; background: var(--brand-primary);
                 color: #fff; font-size: 11px; font-weight: 600; padding: 0 14px; cursor: pointer;
             }
             .figma-gaem-ghost-btn {
@@ -464,13 +464,13 @@
                 background: rgba(255,176,32,.15); color: #b45309; font-size: 10px; font-weight: 600;
             }
             .figma-bip-view-all {
-                margin-top: 10px; background: none; border: 0; color: #6400B2;
+                margin-top: 10px; background: none; border: 0; color: var(--brand-primary);
                 font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
             }
             .figma-gaem-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
             .figma-gaem-ip-input {
                 flex: 1 1 160px; height: 34px; border-radius: 8px;
-                border: 1px solid rgba(154, 26, 255, 0.55); background: #6400B2;
+                border: 1px solid color-mix(in srgb, var(--brand-primary) 55%, transparent); background: var(--brand-primary);
                 color: #fff; padding: 0 10px; font-size: 11px;
             }
             .figma-gaem-ip-input::placeholder { color: rgba(255,255,255,.65); }
@@ -483,13 +483,13 @@
             .figma-gaem-status.is-pending { background: rgba(255,176,32,.18); color: #b45309; }
             .figma-gaem-status.is-sent, .figma-gaem-status.is-applied { background: rgba(52,199,89,.18); color: #15803d; }
             .figma-gaem-status.is-failed { background: rgba(255,80,80,.18); color: #be123c; }
-            .figma-gaem-status.is-off { background: #f0ecf5; color: #6b6578; }
+            .figma-gaem-status.is-off { background: var(--brand-tint-soft); color: #6b6578; }
             .figma-gaem-actions-cell { display: flex; align-items: center; gap: 8px; }
             .figma-gaem-row-btn {
                 border-radius: 6px; border: 1px solid #c9bdd9;
                 background: #fff; color: #2d2d3a; font-size: 10px; padding: 5px 10px; cursor: pointer;
             }
-            .figma-gaem-row-btn--primary { background: #6400B2; border-color: #6400B2; color: #fff; }
+            .figma-gaem-row-btn--primary { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
 
             html.light-mode .figma-dem-title,
             html.light-mode .figma-bip-title,
@@ -501,19 +501,19 @@
             html.light-mode .figma-gaem-lead { color: #6b6578; }
             html.light-mode .figma-dem-meta-row { color: rgba(255,255,255,.75); }
             html.light-mode .figma-dem-card {
-                background: #6400B2;
-                border-color: rgba(100, 0, 178, 0.35);
+                background: var(--brand-primary);
+                border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
             }
             html.light-mode .figma-bip {
                 background: #f7f5fa;
-                border-color: #d4c4e8;
+                border-color: var(--brand-tint-border);
             }
             html.light-mode .figma-gaem { background: #fff; border-color: #e4dceb; }
             html.light-mode .figma-bip-field input,
             html.light-mode .figma-bip-field select,
             html.light-mode .figma-gaem-ip-input,
             html.light-mode .figma-dem-action-select {
-                background: #6400B2; color: #fff; border-color: rgba(154, 26, 255, 0.55);
+                background: var(--brand-primary); color: #fff; border-color: color-mix(in srgb, var(--brand-primary) 55%, transparent);
             }
             html.light-mode .figma-bip-table th,
             html.light-mode .figma-gaem-table th { background: #f7f5fa; color: #6b6578; }
@@ -528,14 +528,14 @@
                 color: rgba(255,255,255,.7);
             }
             html.light-mode .figma-bip-empty { color: #8a8399 !important; }
-            html.light-mode .figma-bip-view-all { color: #6400B2; }
+            html.light-mode .figma-bip-view-all { color: var(--brand-primary); }
             html.light-mode .figma-bip-table-wrap,
             html.light-mode .figma-gaem-table-wrap { border-color: #e4dceb; }
             html.light-mode .figma-detection-advanced-input,
             html.light-mode .figma-textarea {
                 background: #f7f5fa !important;
                 color: #2d2d3a !important;
-                border-color: #d4c4e8 !important;
+                border-color: var(--brand-tint-border) !important;
             }
             html.light-mode .figma-detection-geo-rule-row {
                 color: #2d2d3a;
@@ -584,10 +584,10 @@
             .figma-bip .figma-bip-empty,
             .figma-gaem .figma-bip-empty { color: #8a8399 !important; }
             .figma-bip .figma-bip-view-all,
-            .figma-gaem .figma-bip-view-all { color: #6400B2 !important; }
+            .figma-gaem .figma-bip-view-all { color: var(--brand-primary) !important; }
             .figma-gaem .figma-gaem-row-btn--primary {
-                background: #6400B2 !important;
-                border-color: #6400B2 !important;
+                background: var(--brand-primary) !important;
+                border-color: var(--brand-primary) !important;
                 color: #fff !important;
             }
             .figma-gaem .figma-gaem-status.is-pending {
@@ -604,13 +604,13 @@
                 color: #be123c !important;
             }
             .figma-gaem .figma-gaem-status.is-off {
-                background: #f0ecf5 !important;
+                background: var(--brand-tint-soft) !important;
                 color: #6b6578 !important;
             }
             .figma-gaem .figma-textarea {
                 background: #f7f5fa !important;
                 color: #2d2d3a !important;
-                border-color: #d4c4e8 !important;
+                border-color: var(--brand-tint-border) !important;
             }
 
             .figma-rule-editors-geo {
@@ -626,20 +626,20 @@
             .figma-rule-editors .figma-geo-combobox-trigger,
             .figma-ads-limits select,
             .figma-ads-pill:not(.is-active) {
-                background: #6400B2 !important;
+                background: var(--brand-primary) !important;
                 color: #fff !important;
-                border-color: rgba(154, 26, 255, 0.65) !important;
+                border-color: color-mix(in srgb, var(--brand-primary) 65%, transparent) !important;
             }
             .figma-rule-editors .figma-geo-combobox-trigger:hover:not(:disabled) {
-                border-color: #9a1aff !important;
+                border-color: var(--brand-primary) !important;
             }
             .figma-rule-editors .figma-geo-combobox-label { color: rgba(255,255,255,.75); }
             html.light-mode .figma-rule-editors .figma-geo-combobox-label { color: #6b6578; }
             html.light-mode .figma-rule-editors .figma-geo-combobox-trigger {
-                background: #6400B2 !important;
+                background: var(--brand-primary) !important;
                 color: #fff !important;
             }
-            .figma-ads-limits select option { background: #6400B2; color: #fff; }
+            .figma-ads-limits select option { background: var(--brand-primary); color: #fff; }
 
             /* Advanced Detection Settings */
             .figma-ads { margin-top: 18px; margin-bottom: 18px; }
@@ -683,8 +683,8 @@
                 cursor: pointer;
             }
             .figma-ads-pill.is-active {
-                background: #6400B2;
-                border-color: #6400B2;
+                background: var(--brand-primary);
+                border-color: var(--brand-primary);
             }
             .figma-ads-limits {
                 display: grid;
@@ -770,11 +770,11 @@
             html.light-mode .figma-ads-pill.is-active { color: #fff; }
             html.light-mode .figma-ads-limits select,
             html.light-mode .figma-ads-custom input {
-                background: #f7f5fa; color: #2d2d3a; border-color: #d4c4e8;
+                background: #f7f5fa; color: #2d2d3a; border-color: var(--brand-tint-border);
             }
             html.light-mode .figma-ads-limit-input {
                 background: #f7f5fa;
-                border-color: #d4c4e8;
+                border-color: var(--brand-tint-border);
             }
             html.light-mode .figma-ads-limit-input input { color: #2d2d3a; }
             html.light-mode .figma-ads-limit-suffix { color: #8a8298; }
@@ -954,7 +954,7 @@
             .ds-checkboxes input[type="checkbox"] {
                 width: 15px;
                 height: 15px;
-                accent-color: #6400B2;
+                accent-color: var(--brand-primary);
                 border-radius: 3px;
             }
             .ds-consent-btn {
@@ -962,14 +962,14 @@
                 width: 100%;
                 min-height: 36px;
                 border-radius: 8px;
-                border: 1px solid #6400B2;
+                border: 1px solid var(--brand-primary);
                 background: transparent;
                 color: #c4b5fd;
                 font-size: 12px;
                 font-weight: 600;
                 cursor: pointer;
             }
-            .ds-consent-btn:hover { background: rgba(100,0,178,.15); }
+            .ds-consent-btn:hover { background: color-mix(in srgb, var(--brand-primary) 15%, transparent); }
             .ds-audit-table-wrap { overflow-x: auto; }
             .ds-audit-table {
                 width: 100%;
@@ -1051,8 +1051,8 @@
             .ds-profile-card.is-blue .ds-profile-card__icon { background: rgba(64,156,255,.18); color: #60a5fa; }
             .ds-profile-card.is-orange { border-color: rgba(245,158,11,.55); }
             .ds-profile-card.is-orange .ds-profile-card__icon { background: rgba(245,158,11,.18); color: #fbbf24; }
-            .ds-profile-card.is-purple { border-color: rgba(100,0,178,.65); }
-            .ds-profile-card.is-purple .ds-profile-card__icon { background: rgba(100,0,178,.22); color: #c4b5fd; }
+            .ds-profile-card.is-purple { border-color: color-mix(in srgb, var(--brand-primary) 65%, transparent); }
+            .ds-profile-card.is-purple .ds-profile-card__icon { background: color-mix(in srgb, var(--brand-primary) 22%, transparent); color: color-mix(in srgb, var(--brand-primary) 65%, white); }
             .ds-profile-card.is-selected {
                 box-shadow: 0 0 0 1px currentColor inset;
                 background: #181818;
@@ -1060,7 +1060,7 @@
             .ds-profile-card.is-selected.is-green { color: #34c759; }
             .ds-profile-card.is-selected.is-blue { color: #409cff; }
             .ds-profile-card.is-selected.is-orange { color: #f59e0b; }
-            .ds-profile-card.is-selected.is-purple { color: #a78bfa; }
+            .ds-profile-card.is-selected.is-purple { color: color-mix(in srgb, var(--brand-primary) 75%, white); }
             .ds-geo-scope {
                 display: grid;
                 grid-template-columns: 1fr;
@@ -1084,8 +1084,8 @@
                 cursor: pointer;
             }
             .ds-geo-btn.is-active {
-                background: #6400B2;
-                border-color: #6400B2;
+                background: var(--brand-primary);
+                border-color: var(--brand-primary);
                 color: #fff;
             }
             .ds-geo-btn:disabled {
@@ -1114,20 +1114,20 @@
             html.light-mode .ds-select {
                 background: #f7f5fa;
                 color: #2d2d3a;
-                border-color: #d4c4e8;
+                border-color: var(--brand-tint-border);
             }
             html.light-mode .ds-geo-btn {
                 background: #f7f5fa;
                 color: #3d3a48;
-                border-color: #d4c4e8;
+                border-color: var(--brand-tint-border);
             }
             html.light-mode .ds-geo-btn.is-active {
-                background: #6400B2;
-                border-color: #6400B2;
+                background: var(--brand-primary);
+                border-color: var(--brand-primary);
                 color: #fff;
             }
             html.light-mode .ds-audit-table th { color: #6b6578; border-bottom-color: #ece7f2; }
-            html.light-mode .ds-audit-table td { border-bottom-color: #f0ecf5; }
+            html.light-mode .ds-audit-table td { border-bottom-color: var(--brand-tint-soft); }
 
             .figma-rule-editor {
                 border-radius: 12px;
@@ -1210,11 +1210,11 @@
         </div>
 
         @if (session('status'))
-            <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[#6400B2]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
+            <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[var(--brand-primary)]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
         @endif
 
         @if ($domains->isEmpty())
-            <div class="rounded-[10px] border border-[#6400B2] p-[28px] text-center text-[#a9a9a9]">No domain found. Add a domain first.</div>
+            <div class="rounded-[10px] border border-[var(--brand-primary)] p-[28px] text-center text-[#a9a9a9]">No domain found. Add a domain first.</div>
         @else
             @if ($domain)
                 <p class="detection-editing-line mb-[14px] text-[12px] font-semibold">
@@ -2183,7 +2183,7 @@
                         </div>
 
                         <div class="figma-detection-save-row flex justify-end pt-[16px]">
-                            <button type="submit" class="rounded-[6px] bg-white px-[22px] py-[9px] text-[13px] font-semibold text-[#6400B2] shadow-[0_8px_20px_rgba(0,0,0,.25)]">Save changes</button>
+                            <button type="submit" class="rounded-[6px] bg-white px-[22px] py-[9px] text-[13px] font-semibold text-[var(--brand-primary)] shadow-[0_8px_20px_rgba(0,0,0,.25)]">Save changes</button>
                         </div>
                     </section>
                 </form>

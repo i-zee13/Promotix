@@ -590,13 +590,13 @@
     html.light-mode .paid-panel-card,
     html.light-mode .paid-engine-card {
         background: #ffffff;
-        border-color: #d4c4e8;
-        box-shadow: 0 1px 10px rgba(100, 0, 178, 0.08);
+        border-color: var(--brand-tint-border);
+        box-shadow: 0 1px 10px color-mix(in srgb, var(--brand-primary) 8%, transparent);
     }
     html.light-mode .paid-window-select {
         background-color: #ffffff;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b6578'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
-        border-color: #d4c4e8;
+        border-color: var(--brand-tint-border);
         color: #2d2d3a;
     }
     html.light-mode .paid-heatmap-legend,
@@ -626,8 +626,8 @@
         border-color: #d4c4e8;
         color: #6b6578;
     }
-    html.light-mode .paid-engine-link { color: #6400B2; }
-    html.light-mode .paid-engine-link:hover { color: #7B13C8; }
+    html.light-mode .paid-engine-link { color: var(--brand-primary); }
+    html.light-mode .paid-engine-link:hover { color: var(--figma-chrome-accent-hover); }
     html.light-mode .paid-hrisk-table { color: #5c5470; }
     html.light-mode .paid-hrisk-table th {
         color: #6b6578;
@@ -655,11 +655,11 @@
         color: #6b6578 !important;
     }
     html.light-mode .paid-panel-card [class*="bg-white/5"] {
-        background: #efeaf6 !important;
-        border-color: #d4c4e8 !important;
+        background: var(--brand-tint-selected) !important;
+        border-color: var(--brand-tint-border) !important;
     }
     html.light-mode .paid-panel-card a[class*="hover:text-white"]:hover {
-        color: #4D008E !important;
+        color: var(--brand-secondary) !important;
     }
     html.light-mode .paid-engine-card [class*="bg-[#6400B2]"],
     html.light-mode .paid-engine-card [class*="bg-[#6400B2]"] [class*="text-white"],
@@ -668,8 +668,8 @@
         color: #ffffff !important;
     }
     html.light-mode .figma-main .paid-view-tabs {
-        background: #efeaf6 !important;
-        border-color: #d4c4e8 !important;
+        background: var(--brand-tint-selected) !important;
+        border-color: var(--brand-tint-border) !important;
         color: #6b6578 !important;
     }
     html.light-mode .paid-view-tabs button:not([class*="bg-[#6400B2]"]) {
@@ -677,11 +677,11 @@
     }
     html.light-mode .paid-export-btn {
         background: #ffffff !important;
-        color: #6400B2 !important;
-        border-color: #d4c4e8 !important;
+        color: var(--brand-primary) !important;
+        border-color: var(--brand-tint-border) !important;
     }
     html.light-mode .paid-export-btn:hover {
-        background: rgba(100, 0, 178, 0.08) !important;
+        background: color-mix(in srgb, var(--brand-primary) 8%, transparent) !important;
         color: #4D008E !important;
     }
     html.light-mode #keyword-list [class*="text-white"] { color: #5c5470 !important; }

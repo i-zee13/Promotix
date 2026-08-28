@@ -82,7 +82,7 @@
         min-height: 64px;
         padding: 8px 6px;
         border-radius: 6px;
-        background: #6400B2;
+        background: var(--brand-primary);
         color: #fff;
         text-align: center;
         font-size: 9px;
@@ -94,7 +94,7 @@
         width: 100%;
     }
     .pi-rightbar .paid-quick-action:hover {
-        background: #7B13C8;
+        background: var(--figma-chrome-accent-hover);
         color: #fff;
     }
 </style>
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
 
         @if (session('status'))
-            <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[#6400B2]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
+            <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[var(--brand-primary)]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
         @endif
 
         {{-- First row: Connect Platforms | Status + Health --}}
@@ -558,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .pi-connect-card,
             .pi-side-card {
                 border-radius: 10px;
-                border: 1px solid rgba(90, 42, 153, 0.65);
+                border: 1px solid color-mix(in srgb, var(--brand-primary) 65%, transparent);
                 background: #111111;
                 padding: 16px 18px;
             }
@@ -581,7 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .pi-panel {
                 border-radius: 10px;
                 border: 1px solid rgba(255, 255, 255, 0.18);
-                background: #6400B2;
+                background: var(--brand-primary);
                 padding: 14px;
                 min-height: 230px;
             }
@@ -619,9 +619,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 padding: 0 10px;
                 font-size: 11px;
                 font-weight: 600;
-                color: #6400B2;
+                color: var(--brand-primary);
             }
-            .pi-primary-btn:hover { background: #f3e8ff; color: #4a0088; }
+            .pi-primary-btn:hover { background: var(--brand-tint-hover); color: var(--brand-secondary); }
             .pi-primary-btn--wide { max-width: none; height: 34px; margin-top: 4px; }
             .pi-text-link {
                 display: inline-flex;
@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 width: 92px;
                 height: 92px;
                 border-radius: 999px;
-                background: conic-gradient(#22c55e calc(var(--pi-health) * 1%), rgba(100, 0, 178, 0.55) 0);
+                background: conic-gradient(#22c55e calc(var(--pi-health) * 1%), color-mix(in srgb, var(--brand-primary) 55%, transparent) 0);
                 display: grid;
                 place-items: center;
             }
@@ -708,13 +708,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 margin-top: 20px;
                 scroll-margin-top: 80px;
                 border-radius: 10px;
-                border: 1px solid #6706B3;
+                border: 1px solid var(--brand-secondary);
                 background: #0d0d0d;
                 padding: 18px 18px 16px;
             }
             .pi-platforms-card {
                 background: #ffffff;
-                border-color: rgba(100, 0, 178, 0.35);
+                border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
             }
             .pi-setup-title {
                 margin: 0 0 22px;
@@ -735,7 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 height: 2px;
                 width: calc((100% - (100% / 6)) * (var(--pi-setup-fill, 0) / 100));
                 max-width: calc(100% - (100% / 6));
-                background: #6400B2;
+                background: var(--brand-primary);
                 opacity: 0.95;
                 z-index: 0;
                 border-radius: 999px;
@@ -758,12 +758,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 border-radius: 999px;
                 display: grid;
                 place-items: center;
-                background: #6400B2;
+                background: var(--brand-primary);
                 color: #fff;
                 box-shadow: 0 0 0 4px #0d0d0d;
             }
             .pi-setup-icon.is-pending {
-                background: rgba(100, 0, 178, 0.35);
+                background: color-mix(in srgb, var(--brand-primary) 35%, transparent);
                 color: rgba(255, 255, 255, 0.55);
             }
             .pi-setup-label {
@@ -850,9 +850,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 height: 36px;
                 padding: 0 14px;
                 border-radius: 8px;
-                border: 1px solid rgba(100, 0, 178, 0.25);
+                border: 1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent);
                 background: #ffffff;
-                color: #6400B2;
+                color: var(--brand-primary);
                 font-size: 12px;
                 font-weight: 600;
             }
@@ -874,9 +874,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 font-size: 12px;
                 font-weight: 600;
                 color: #ffffff;
-                border-bottom: 1px solid rgba(100, 0, 178, 0.35);
+                border-bottom: 1px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
                 white-space: nowrap;
-                background: #6400B2;
+                background: var(--brand-primary);
             }
             .pi-table tbody td {
                 padding: 14px;
@@ -916,7 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 white-space: nowrap;
             }
             .pi-prot svg { flex-shrink: 0; }
-            .pi-prot.is-audience svg { color: #6400B2; }
+            .pi-prot.is-audience svg { color: var(--brand-primary); }
             .pi-prot.is-track svg { color: #2563eb; }
             .pi-status-connected {
                 display: inline-flex;
@@ -964,11 +964,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 white-space: nowrap;
             }
             .pi-row-link {
-                color: #6400B2;
+                color: var(--brand-primary);
                 font-size: 12px;
                 font-weight: 600;
             }
-            .pi-row-link:hover { color: #4a0088; }
+            .pi-row-link:hover { color: var(--brand-secondary); }
             .pi-platforms-card .integration-row-menu button,
             .pi-platforms-card .text-white\/45 {
                 color: rgba(18, 18, 18, 0.45) !important;
@@ -1006,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             .pi-pager button.is-active {
                 border-color: transparent;
-                background: #6400B2;
+                background: var(--brand-primary);
                 color: #fff;
             }
             .pi-pager button:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -1028,11 +1028,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 background: transparent;
             }
             .pi-scroll-box::-webkit-scrollbar-thumb {
-                background: rgba(100, 0, 178, 0.55);
+                background: color-mix(in srgb, var(--brand-primary) 55%, transparent);
                 border-radius: 999px;
             }
             .pi-scroll-box::-webkit-scrollbar-thumb:hover {
-                background: rgba(100, 0, 178, 0.8);
+                background: color-mix(in srgb, var(--brand-primary) 80%, transparent);
             }
             @media (max-width: 900px) {
                 .pi-setup-track {
@@ -1152,7 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             @if (($row['kind'] ?? '') === 'gtm')
                                                 <img src="{{ url('/images/google-tag-manager.svg') }}" alt="" width="18" height="18">
                                             @elseif (($row['kind'] ?? '') === 'direct')
-                                                <svg class="h-[14px] w-[14px] text-[#6400B2]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
+                                                <svg class="h-[14px] w-[14px] text-[var(--brand-primary)]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
                                             @else
                                                 @include('partials.icons.google', ['class' => 'h-[16px] w-[16px]'])
                                             @endif
@@ -1240,7 +1240,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </section>
 
         <div class="mt-[16px] grid gap-[12px] xl:grid-cols-2 xl:items-stretch">
-            <section class="flex min-h-0 flex-col rounded-[10px] border border-[#6706B3] bg-[#121212] p-[16px]">
+            <section class="flex min-h-0 flex-col rounded-[10px] border border-[var(--brand-secondary)] bg-[#121212] p-[16px]">
                 <div class="mb-[12px] flex shrink-0 items-center justify-between gap-3">
                     <div>
                         <h2 class="text-[18px] font-medium text-white">Tracking ID management</h2>
@@ -1249,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="pi-scroll-box space-y-[8px]">
                     @forelse (($trackingIds ?? []) as $row)
-                        <div class="flex flex-wrap items-center justify-between gap-[8px] rounded-[8px] border border-white/15 bg-[#6400B2]/25 px-[12px] py-[10px]">
+                        <div class="flex flex-wrap items-center justify-between gap-[8px] rounded-[8px] border border-white/15 bg-[var(--brand-primary)]/25 px-[12px] py-[10px]">
                             <div class="min-w-0">
                                 <p class="truncate text-[13px] font-medium text-white">{{ $row['label'] }}</p>
                                 <p class="truncate text-[11px] text-white/55">Customer: {{ $row['customer_id'] }}</p>
@@ -1257,7 +1257,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="flex items-center gap-[8px]">
                                 <code class="rounded bg-black/40 px-[8px] py-[4px] font-mono text-[11px] text-white/90">{{ $row['google_tag_id'] ?: '—' }}</code>
                                 @if (! empty($row['google_tag_id']))
-                                    <button type="button" class="rounded border border-white/25 bg-white px-[8px] py-[4px] text-[10px] font-semibold text-[#6400B2] hover:bg-white/90"
+                                    <button type="button" class="rounded border border-white/25 bg-white px-[8px] py-[4px] text-[10px] font-semibold text-[var(--brand-primary)] hover:bg-white/90"
                                             @click="copyKeyText(@js($row['google_tag_id']))">Copy</button>
                                 @endif
                             </div>
@@ -1268,13 +1268,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </section>
 
-            <section class="flex min-h-0 flex-col rounded-[10px] border border-[#6706B3] bg-[#121212] p-[16px]">
+            <section class="flex min-h-0 flex-col rounded-[10px] border border-[var(--brand-secondary)] bg-[#121212] p-[16px]">
                 <div class="mb-[12px] flex shrink-0 items-center justify-between gap-3">
                     <div>
                         <h2 class="text-[18px] font-medium text-white">Sync history &amp; logs</h2>
                         <p class="mt-[3px] text-[12px] text-white/60">OAuth, account sync, domain link, and health checks</p>
                     </div>
-                    <button type="button" class="rounded border border-white/25 bg-white px-[8px] py-[4px] text-[10px] font-semibold text-[#6400B2] hover:bg-white/90" @click="refreshSyncLogs()">Refresh</button>
+                    <button type="button" class="rounded border border-white/25 bg-white px-[8px] py-[4px] text-[10px] font-semibold text-[var(--brand-primary)] hover:bg-white/90" @click="refreshSyncLogs()">Refresh</button>
                 </div>
                 <div class="pi-scroll-box space-y-[6px]">
                     <template x-for="log in syncLogs" :key="log.id">
@@ -1305,7 +1305,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     {{-- Domain keys modal (Tag Manager + Bot Protection) --}}
     <div class="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-[16px]" x-show="keysModal.open" x-cloak x-transition @click.self="closeKeysModal()" @keydown.escape.window="closeKeysModal()">
-        <div class="w-full max-w-[560px] overflow-hidden rounded-[12px] bg-[#6400B2] text-white shadow-2xl" @click.stop>
+        <div class="w-full max-w-[560px] overflow-hidden rounded-[12px] bg-[var(--brand-primary)] text-white shadow-2xl" @click.stop>
             <header class="flex items-center justify-between border-b border-white/25 px-[24px] py-[18px]">
                 <h2 class="text-[18px] font-semibold">Finish Setup <span class="text-[13px] font-normal text-white/80">(Required For WordPress Domains)</span></h2>
                 <button type="button" @click="copyAllKeys()" class="flex items-center gap-[6px] text-[12px] text-white/90 hover:text-white">
@@ -1318,7 +1318,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <template x-for="row in keysModal.rows" :key="row.label">
                     <div class="flex flex-col gap-[6px] sm:flex-row sm:items-center sm:gap-[12px]">
                         <span class="w-[130px] shrink-0 text-[12px] font-medium" x-text="row.label"></span>
-                        <div class="min-w-0 flex-1 rounded-[4px] border border-dashed border-white/70 bg-[#4a0088]/50 px-[12px] py-[8px] font-mono text-[11px] break-all" x-text="row.value || '…'"></div>
+                        <div class="min-w-0 flex-1 rounded-[4px] border border-dashed border-white/70 bg-[color-mix(in_srgb,var(--brand-secondary)_50%,transparent)] px-[12px] py-[8px] font-mono text-[11px] break-all" x-text="row.value || '…'"></div>
                         <button type="button" @click="copyKeyText(row.value)" class="flex shrink-0 items-center gap-[4px] text-[11px] text-white/90 hover:text-white">
                             <svg class="h-[13px] w-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M8 8h8v8H8zM4 4h8v2H6v6H4z"/></svg>
                             Copy
@@ -1333,14 +1333,14 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[24px] py-[14px]">
                 <button type="button" @click="verifyKeysInstallation()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Verify installation</button>
-                <button type="button" @click="closeKeysModal()" class="rounded-[6px] bg-white px-[22px] py-[8px] text-[13px] font-semibold text-[#6400B2]">Done</button>
+                <button type="button" @click="closeKeysModal()" class="rounded-[6px] bg-white px-[22px] py-[8px] text-[13px] font-semibold text-[var(--brand-primary)]">Done</button>
             </footer>
         </div>
     </div>
 
     {{-- Set Up Audience Exclusion --}}
     <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-[16px]" x-show="audienceModal.open" x-cloak x-transition @click.self="closeAudienceModal()" @keydown.escape.window="closeAudienceModal()">
-        <div class="w-full max-w-[760px] overflow-hidden rounded-[12px] bg-[#6400B2] text-white shadow-2xl" @click.stop>
+        <div class="w-full max-w-[760px] overflow-hidden rounded-[12px] bg-[var(--brand-primary)] text-white shadow-2xl" @click.stop>
             <header class="border-b border-white/25 px-[24px] py-[18px]">
                 <h2 class="text-[18px] font-semibold">Set Up Audience Exclusion</h2>
             </header>
@@ -1355,7 +1355,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 <div class="space-y-[10px]">
                     <template x-for="(row, idx) in audienceModal.rows" :key="idx">
-                        <div class="grid grid-cols-1 gap-[10px] rounded-[8px] border border-white/20 bg-[#4a0088]/35 p-[12px] sm:grid-cols-[1fr_1fr_1fr_auto]">
+                        <div class="grid grid-cols-1 gap-[10px] rounded-[8px] border border-white/20 bg-[color-mix(in_srgb,var(--brand-secondary)_35%,transparent)] p-[12px] sm:grid-cols-[1fr_1fr_1fr_auto]">
                             <label class="block">
                                 <span class="mb-[4px] block text-[11px] font-semibold text-white">Conversion ID</span>
                                 <input type="text" x-model="row.conversion_id" placeholder="AW-17783207578" class="w-full rounded-[6px] border border-white/25 bg-[#2a0050] px-[10px] py-[8px] text-[12px] text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/40">
@@ -1393,7 +1393,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[24px] py-[14px]">
                 <button type="button" @click="closeAudienceModal()" class="rounded-[6px] border border-white px-[18px] py-[8px] text-[13px] text-white">Cancel</button>
-                <button type="button" @click="saveAudienceExclusion()" :disabled="audienceModal.saving" class="rounded-[6px] bg-white px-[22px] py-[8px] text-[13px] font-semibold text-[#6400B2] disabled:opacity-50">
+                <button type="button" @click="saveAudienceExclusion()" :disabled="audienceModal.saving" class="rounded-[6px] bg-white px-[22px] py-[8px] text-[13px] font-semibold text-[var(--brand-primary)] disabled:opacity-50">
                     <span x-text="audienceModal.saving ? 'Saving…' : 'Save'"></span>
                 </button>
             </footer>
@@ -1408,7 +1408,7 @@ document.addEventListener('DOMContentLoaded', () => {
         :class="{
             'border border-red-400/45 bg-red-500/20 text-red-50': menuToastType === 'error',
             'border border-emerald-400/35 bg-emerald-500/15 text-emerald-50': menuToastType === 'success',
-            'border border-[#6400B2]/40 bg-[#6400B2]/30 text-white': menuToastType === 'info',
+            'border border-[var(--brand-primary)]/40 bg-[var(--brand-primary)]/30 text-white': menuToastType === 'info',
         }"
         x-text="menuToast"
     ></div>
