@@ -291,28 +291,30 @@
                 color: rgba(255, 255, 255, 0.72) !important;
             }
             html.light-mode .analytics-skin .pm-adv-table-grid--row {
-                background: transparent !important;
-                color: rgba(255, 255, 255, 0.92) !important;
-                border: 0 !important;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-                border-radius: 0 !important;
-                margin: 0 !important;
+                background: #fff7f0 !important;
+                color: #1a1a1a !important;
+                border: 1px solid rgba(255, 102, 0, 0.18) !important;
+                border-radius: 10px !important;
+                margin: 0 0 8px !important;
             }
             html.light-mode .analytics-skin .pm-adv-table-grid--row:hover {
-                background: rgba(255, 102, 0, 0.08) !important;
+                background: #ffedd5 !important;
             }
             html.light-mode .analytics-skin .pm-adv-table-body-scroll {
-                background: #0b0b0b !important;
+                background: #ffffff !important;
             }
-            /* Traffic Control table body — reference: dark flat rows, not grey pills */
+            html.light-mode .analytics-skin .pm-adv-table-shell {
+                background: #ffffff !important;
+            }
+            /* Traffic Control table body — white scroll area + grey row pills */
             .analytics-skin .pm-adv-table-shell {
-                background: #0b0b0b;
-                border: 1px solid rgba(255, 255, 255, 0.08);
+                background: #ffffff;
+                border: 1px solid rgba(255, 102, 0, 0.25);
                 border-radius: 0 0 10px 10px;
                 overflow: hidden;
             }
             .analytics-skin .pm-adv-table-body-scroll {
-                background: #0b0b0b;
+                background: #ffffff;
             }
             .analytics-skin .pm-adv-table-grid--head {
                 background: #141414;
@@ -323,17 +325,16 @@
             }
             .analytics-skin .pm-adv-table-grid--row {
                 align-items: start;
-                margin: 0 !important;
-                padding: 12px;
-                border-radius: 0 !important;
-                background: transparent !important;
-                color: rgba(255, 255, 255, 0.92) !important;
+                margin: 0 0 8px !important;
+                padding: 10px 12px;
+                border-radius: 10px !important;
+                background: #d9d9d9 !important;
+                color: #121212 !important;
                 border: 0 !important;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
                 box-shadow: none !important;
             }
             .analytics-skin .pm-adv-table-grid--row:hover {
-                background: rgba(255, 102, 0, 0.08) !important;
+                background: #ececec !important;
             }
             .analytics-skin .pm-adv-table-grid--row > * {
                 white-space: normal;
@@ -345,20 +346,20 @@
                 white-space: nowrap;
             }
             .analytics-skin .pm-adv-cell {
-                color: rgba(255, 255, 255, 0.9);
+                color: #121212;
             }
             .analytics-skin .pm-adv-cell .text-\[\#8c8787\] {
-                color: rgba(255, 255, 255, 0.45) !important;
+                color: #8c8787 !important;
             }
             .analytics-skin .tc-flow-cell,
             .analytics-skin .tc-events-cell,
             .analytics-skin .tc-source-cell__label,
             .analytics-skin .tc-datetime-cell__date {
-                color: rgba(255, 255, 255, 0.9);
+                color: #1a1a1a;
             }
             .analytics-skin .tc-flow-cell__arrow,
             .analytics-skin .tc-datetime-cell__time {
-                color: rgba(255, 255, 255, 0.45);
+                color: #8a8178;
             }
             .tc-source-cell {
                 display: inline-flex;
@@ -375,8 +376,12 @@
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                color: rgba(255, 255, 255, 0.75);
-                background: rgba(255, 255, 255, 0.06);
+                color: rgba(0, 0, 0, 0.55);
+                background: rgba(255, 102, 0, 0.1);
+            }
+            .analytics-skin .tc-source-cell__icon {
+                color: rgba(0, 0, 0, 0.55);
+                background: rgba(255, 102, 0, 0.1);
             }
             .tc-source-cell__icon.is-direct,
             .tc-source-cell__icon.is-link,
@@ -394,7 +399,7 @@
                 align-items: center;
                 gap: 2px 0;
                 line-height: 1.35;
-                color: rgba(255, 255, 255, 0.88);
+                color: #1a1a1a;
             }
             .tc-flow-cell__seg {
                 display: inline-flex;
@@ -403,7 +408,7 @@
             }
             .tc-flow-cell__path { word-break: break-all; }
             .tc-flow-cell__arrow {
-                color: rgba(255, 255, 255, 0.35);
+                color: #8a8178;
                 margin: 0 4px;
                 flex-shrink: 0;
             }
@@ -412,7 +417,7 @@
                 flex-direction: column;
                 gap: 2px;
                 line-height: 1.35;
-                color: rgba(255, 255, 255, 0.82);
+                color: #1a1a1a;
                 font-variant-numeric: tabular-nums;
             }
             .tc-events-cell__row { white-space: nowrap; }
@@ -422,22 +427,22 @@
                 gap: 2px;
                 line-height: 1.3;
             }
-            .tc-datetime-cell__date { color: rgba(255, 255, 255, 0.92); }
-            .tc-datetime-cell__time { color: rgba(255, 255, 255, 0.45); font-size: 10px; }
+            .tc-datetime-cell__date { color: #1a1a1a; }
+            .tc-datetime-cell__time { color: #8a8178; font-size: 10px; }
             html.light-mode .analytics-skin .tc-flow-cell,
             html.light-mode .analytics-skin .tc-events-cell,
             html.light-mode .analytics-skin .tc-source-cell__label,
             html.light-mode .analytics-skin .tc-datetime-cell__date,
             html.light-mode .analytics-skin .pm-adv-cell {
-                color: rgba(255, 255, 255, 0.9) !important;
+                color: #1a1a1a !important;
             }
             html.light-mode .analytics-skin .tc-flow-cell__arrow,
             html.light-mode .analytics-skin .tc-datetime-cell__time {
-                color: rgba(255, 255, 255, 0.45) !important;
+                color: #8a8178 !important;
             }
             html.light-mode .analytics-skin .tc-source-cell__icon {
-                background: rgba(255, 255, 255, 0.08);
-                color: rgba(255, 255, 255, 0.8);
+                background: rgba(255, 102, 0, 0.1);
+                color: rgba(0, 0, 0, 0.55);
             }
             html.light-mode .tc-flow-cell,
             html.light-mode .tc-events-cell,
@@ -1174,7 +1179,7 @@
                     <div class="pm-adv-table-sync" :style="syncStyle">
                         <div class="pm-adv-table-grid pm-adv-table-grid--head text-[10px] font-medium uppercase tracking-wide text-[#a9a9a9] sm:text-[11px]" :style="gridStyle">
                             <label class="flex items-center justify-center">
-                                <input type="checkbox" class="rounded border-white/30" disabled>
+                                <input type="checkbox" class="rounded border-black/20" disabled>
                             </label>
                             <template x-for="col in visibleColumns" :key="'head-' + col.key">
                                 <span class="truncate" x-text="col.label"></span>
@@ -1185,7 +1190,7 @@
                             <template x-for="row in rows" :key="(row.domain_id || '') + '|' + (row.session_key || row.ip || row.id)">
                                 <div class="pm-adv-table-grid pm-adv-table-grid--row text-[10px] sm:text-[11px] cursor-pointer" :style="gridStyle" @click="analyticsMode && openJourneyDrawer(row)">
                                     <label class="flex items-center justify-center">
-                                        <input type="checkbox" class="rounded border-white/30">
+                                        <input type="checkbox" class="rounded border-black/20">
                                     </label>
                                     <template x-for="col in visibleColumns" :key="(row.domain_id || '') + '|' + row.ip + '-' + col.key">
                                         <div class="pm-adv-cell">

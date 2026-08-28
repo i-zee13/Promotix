@@ -14045,20 +14045,19 @@ html.light-mode .figma-main .analytics-skin .pm-adv-table-grid--head {
 }
 html.light-mode .analytics-skin .pm-adv-table-grid--row,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-grid--row {
-    background: transparent !important;
-    color: rgba(255, 255, 255, 0.92) !important;
-    border: 0 !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
+    background: #fff7f0 !important;
+    color: #1a1a1a !important;
+    border: 1px solid rgba(255, 102, 0, 0.18) !important;
+    border-radius: 10px !important;
+    margin: 0 0 8px !important;
 }
 html.light-mode .analytics-skin .pm-adv-table-grid--row:hover,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-grid--row:hover {
-    background: rgba(255, 102, 0, 0.08) !important;
+    background: #ffedd5 !important;
 }
 html.light-mode .analytics-skin .pm-adv-table-body-scroll,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-body-scroll {
-    background: #0b0b0b !important;
+    background: #ffffff !important;
     scrollbar-color: #FF6600 transparent;
 }
 html.light-mode .analytics-skin .pm-adv-table-x-scroll,
