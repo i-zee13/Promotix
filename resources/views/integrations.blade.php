@@ -48,22 +48,22 @@
 
     <div class="mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
         <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">System Overview</h2>
-        <div class="space-y-[8px] text-[10px] text-white/75">
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+        <div class="figma-rightbar-sys space-y-[8px] text-[10px] text-white/75">
+            <div class="paid-sys-row">
                 <span>Server status</span>
                 <span id="pi-sys-server-status" class="text-emerald-200">Online</span>
             </div>
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="paid-sys-row">
                 <span>Events today</span>
                 <span id="pi-sys-events-today" class="text-white/90">{{ number_format((int) ($connectionHealth['events_today'] ?? 0)) }}</span>
             </div>
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="paid-sys-row">
                 <span>Tracking</span>
                 <span id="pi-sys-tracking" class="{{ ($tagReady ?? false) ? 'text-emerald-200' : 'text-white/55' }}">
                     {{ ($tagReady ?? false) ? 'Active' : 'Pending' }}
                 </span>
             </div>
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="paid-sys-row">
                 <span>Google Ads API</span>
                 <span id="pi-sys-google-api" class="{{ $googleOAuthConnected ? 'text-emerald-200' : 'text-white/55' }}">
                     {{ $googleOAuthConnected ? 'Connected' : 'Not connected' }}

@@ -50,7 +50,7 @@
 
     <div class="mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
         <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">System Overview</h2>
-        <div class="space-y-[8px] text-[10px] text-white/75">
+        <div class="figma-rightbar-sys space-y-[8px] text-[10px] text-white/75">
             <div class="ov-conn-row">
                 <span>Server status</span><span id="sys-server-status" class="text-emerald-200">Online</span>
             </div>

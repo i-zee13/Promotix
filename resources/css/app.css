@@ -5851,6 +5851,37 @@ html.light-mode .paid-sys-row .text-emerald-200 {
     color: #15803d !important;
 }
 
+/* Rightbar System Overview — readable in light mode */
+html.light-mode .figma-rightbar-sys {
+    color: #2d2d3a;
+}
+
+html.light-mode .figma-rightbar-sys .ov-conn-row,
+html.light-mode .figma-rightbar-sys .paid-sys-row {
+    background: color-mix(in srgb, var(--brand-primary) 10%, #ffffff) !important;
+    border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, #e8e4ef) !important;
+    color: #2d2d3a !important;
+}
+
+html.light-mode .figma-rightbar-sys .ov-conn-row > span,
+html.light-mode .figma-rightbar-sys .paid-sys-row > span,
+html.light-mode .figma-rightbar-sys [class*='text-white'] {
+    color: #2d2d3a !important;
+}
+
+html.light-mode .figma-rightbar-sys .text-emerald-200,
+html.light-mode .figma-rightbar-sys .text-emerald-300 {
+    color: #15803d !important;
+}
+
+html.light-mode .figma-rightbar-sys .text-rose-300 {
+    color: #be123c !important;
+}
+
+html.light-mode .figma-rightbar-sys .text-white\/55 {
+    color: #6b6578 !important;
+}
+
 .figma-geo-select {
     min-height: 34px;
     font-size: 12px;
@@ -7307,7 +7338,7 @@ html.light-mode .figma-geo-combobox-label {
     gap: 8px;
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(77, 0, 142, 0.35);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 24%, rgba(11, 11, 11, 0.52));
     padding: 8px 10px;
 }
 
@@ -8350,9 +8381,10 @@ html.ov-boot-lock body {
 }
 
 .ov-page {
-    --ov-scene-head: #4D008E;
-    --ov-scene-body: rgba(77, 0, 142, 0.45);
-    --ov-scene-body-alt: rgba(77, 0, 142, 0.32);
+    /* Inner scene follows tenant brand — not hardcoded purple */
+    --ov-scene-head: color-mix(in srgb, var(--brand-primary, #FF6600) 78%, #0b0b0b);
+    --ov-scene-body: color-mix(in srgb, var(--brand-primary, #FF6600) 24%, rgba(11, 11, 11, 0.52));
+    --ov-scene-body-alt: color-mix(in srgb, var(--brand-primary, #FF6600) 16%, rgba(11, 11, 11, 0.4));
     --ov-scene-border: rgba(255, 255, 255, 0.18);
     width: 100%;
     max-width: 100%;
@@ -9118,6 +9150,16 @@ html.light-mode .ov-page .ov-quick-stat,
 html.light-mode .ov-page .ov-suite-stat,
 html.light-mode .ov-page .ov-feed-item {
     color: rgba(255, 255, 255, 0.88);
+}
+
+html.light-mode .ov-page .ov-card .ov-conn-row,
+html.light-mode .ov-page .ov-card .ov-conn-row span,
+html.light-mode .ov-page .ov-card .ov-conn-row [class*='text-white'] {
+    color: rgba(255, 255, 255, 0.92) !important;
+}
+
+html.light-mode .ov-page .ov-card .ov-conn-row .text-emerald-200 {
+    color: #86efac !important;
 }
 
 html.light-mode .ov-page .ov-card__title,

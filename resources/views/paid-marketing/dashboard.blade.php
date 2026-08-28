@@ -42,7 +42,7 @@
 
     <div class="figma-rightbar-center mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
         <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">System Overview</h2>
-        <div id="paid-system-overview" class="w-full max-w-[168px] space-y-[8px] text-[10px] text-white/75">
+        <div id="paid-system-overview" class="figma-rightbar-sys w-full max-w-[168px] space-y-[8px] text-[10px] text-white/75">
             <div class="paid-sys-row">
                 <span>Total Clicks</span><span data-sys="clicks" class="text-white/90">—</span>
             </div>
