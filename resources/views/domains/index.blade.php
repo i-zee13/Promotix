@@ -90,7 +90,9 @@
                                     </div>
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
-                                    @php($tagStatus = \App\Support\DomainTagStatus::forDomain($d))
+                                    @php
+                                        $tagStatus = \App\Support\DomainTagStatus::forDomain($d);
+                                    @endphp
                                     @if ($tagStatus['installed'])
                                         <div class="flex flex-col items-start gap-[4px]">
                                             <span class="inline-flex items-center gap-[6px] rounded-full bg-[#e8d4f8] px-[12px] py-[4px] text-[11px] font-medium text-[#4a0088]">
