@@ -11434,7 +11434,7 @@ a.figma-sa-users-filter-option {
     background: #ffffff;
 }
 
-/* Billing Automation — white card, purple inner rows, white toggle */
+/* Billing Automation — white card, solid brand rows, white toggle */
 .figma-sa-billing-auto-card {
     overflow: hidden;
     border-radius: 14px;
@@ -11473,12 +11473,7 @@ a.figma-sa-users-filter-option {
     padding: 14px 16px;
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
-    background: linear-gradient(
-        135deg,
-        var(--brand-primary, #FF6600) 0%,
-        color-mix(in srgb, var(--brand-secondary, #CC5200) 88%, #6400B2) 100%
-    ) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    background: var(--brand-primary, #FF6600) !important;
 }
 
 .figma-sa-billing-auto-row__title {
