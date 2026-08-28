@@ -165,9 +165,14 @@ export function figmaDateRangePicker(options = {}) {
         buildMonths(anchorIso) {
             const anchor = parseIso(anchorIso || this.draftFrom || todayStr) || today;
             const list = [];
-            for (let i = -6; i <= 6; i++) {
-                const m = new Date(anchor.getFullYear(), anchor.getMonth() + i, 1, 12, 0, 0);
+            if (this.embedded) {
+                const m = new Date(anchor.getFullYear(), anchor.getMonth(), 1, 12, 0, 0);
                 list.push(this.monthBlock(m));
+            } else {
+                for (let i = -6; i <= 6; i++) {
+                    const m = new Date(anchor.getFullYear(), anchor.getMonth() + i, 1, 12, 0, 0);
+                    list.push(this.monthBlock(m));
+                }
             }
             this.months = list;
             this.scrollMonthKey = fmt(new Date(anchor.getFullYear(), anchor.getMonth(), 1));

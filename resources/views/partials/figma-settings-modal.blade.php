@@ -715,10 +715,8 @@
                                                     @if ($invoiceShowRouteExists)
                                                         <a href="{{ route('billing.invoices.show', $inv) }}" class="pmx-settings__btn">View</a>
                                                     @endif
-                                                    @if ($receiptRouteExists && $inv->receipt_path)
-                                                        <a href="{{ route('billing.receipt.download', $inv) }}" class="pmx-settings__btn">Receipt</a>
-                                                    @elseif (! $invoiceShowRouteExists)
-                                                        <a href="{{ $billingUrl }}" class="pmx-settings__btn">View</a>
+                                                    @if ($receiptRouteExists)
+                                                        <a href="{{ route('billing.receipt.download', $inv) }}" class="pmx-settings__btn" download>Receipt</a>
                                                     @endif
                                                 </div>
                                             </td>
@@ -934,7 +932,7 @@
                     <p class="pmx-settings__p">Business profile, verification, and team access.</p>
 
                     <div class="pmx-settings__card" style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-                        <div style="width:48px;height:48px;border-radius:999px;overflow:hidden;border:1px solid rgba(100,0,178,.55);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <div style="width:48px;height:48px;border-radius:999px;overflow:hidden;border:1px solid rgba(255,102,0,.55);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                             <template x-if="avatarUrl">
                                 <img :src="avatarUrl" alt="" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer">
                             </template>
@@ -1090,7 +1088,7 @@
         max-height: min(80vh, calc(100vh - 32px));
         overflow: hidden;
         border-radius: 14px;
-        border: 1px solid rgba(100, 0, 178, 0.45);
+        border: 1px solid rgba(255, 102, 0, 0.45);
         background: #121212;
         box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
     }
@@ -1176,7 +1174,7 @@
         display: block;
     }
     .pmx-settings__tab.is-active {
-        background: #6400B2;
+        background: var(--brand-primary, #FF6600);
         color: #fff;
         outline: 1px solid rgba(255, 255, 255, 0.25);
     }
@@ -1201,14 +1199,14 @@
         cursor: pointer;
     }
     .pmx-security-tabs__button:hover {
-        border-color: rgba(100, 0, 178, 0.65);
+        border-color: rgba(255, 102, 0, 0.65);
         color: #fff;
     }
     .pmx-security-tabs__button.is-active {
-        border-color: #7900d8;
-        background: #6400B2;
+        border-color: var(--brand-primary, #FF6600);
+        background: var(--brand-primary, #FF6600);
         color: #fff;
-        box-shadow: 0 0 10px rgba(100, 0, 178, 0.25);
+        box-shadow: 0 0 10px rgba(255, 102, 0, 0.25);
     }
     .pmx-security-panel { padding: 14px; }
     .pmx-security-panel__head {
@@ -1255,7 +1253,7 @@
     .pmx-security-secret {
         margin-top: 5px;
         overflow-wrap: anywhere;
-        color: #c4a0e8;
+        color: #FFB380;
         font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
     }
     .pmx-security-codes {
@@ -1390,8 +1388,8 @@
         align-items: center;
         justify-content: center;
         border-radius: 999px;
-        background: rgba(100, 0, 178, 0.28);
-        color: #e4d4f4;
+        background: rgba(255, 102, 0, 0.28);
+        color: #FFD9B8;
         font-size: 12px;
         font-weight: 700;
     }
@@ -1442,7 +1440,7 @@
         font-size: 11px;
         color: rgba(255, 255, 255, 0.45);
     }
-    .pmx-settings__link { color: #C4A0E8; text-decoration: underline; }
+    .pmx-settings__link { color: #FFB380; text-decoration: underline; }
     .pmx-settings__field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .pmx-settings__field:last-child { margin-bottom: 0; }
     .pmx-settings__field-row {
@@ -1474,9 +1472,9 @@
         text-align: left;
     }
     .pmx-settings__appear.is-active {
-        border-color: #6400B2;
-        box-shadow: inset 0 0 0 1px rgba(100, 0, 178, 0.55);
-        background: rgba(100, 0, 178, 0.16);
+        border-color: var(--brand-primary, #FF6600);
+        box-shadow: inset 0 0 0 1px rgba(255, 102, 0, 0.55);
+        background: rgba(255, 102, 0, 0.16);
     }
     .pmx-settings__appear-preview {
         display: block;
@@ -1486,13 +1484,13 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
     }
     .pmx-settings__appear-preview--dark {
-        background: linear-gradient(135deg, #0d0d0d 40%, #2a1040 100%);
+        background: linear-gradient(135deg, #0d0d0d 40%, #4a2200 100%);
     }
     .pmx-settings__appear-preview--light {
-        background: linear-gradient(135deg, #f7f4fb 40%, #e8dff5 100%);
+        background: linear-gradient(135deg, #fff5ef 40%, #ffe8d6 100%);
     }
     .pmx-settings__appear-preview--system {
-        background: linear-gradient(90deg, #0d0d0d 50%, #f7f4fb 50%);
+        background: linear-gradient(90deg, #0d0d0d 50%, #fff5ef 50%);
     }
     .pmx-settings__badge {
         display: inline-flex;
@@ -1502,8 +1500,8 @@
         border-radius: 999px;
         font-size: 10px;
         font-weight: 700;
-        color: #C4A0E8;
-        background: rgba(100, 0, 178, 0.22);
+        color: #FFB380;
+        background: rgba(255, 102, 0, 0.22);
         white-space: nowrap;
     }
     .pmx-settings__badge.is-ok {
@@ -1525,24 +1523,25 @@
         cursor: pointer;
     }
     .pmx-settings__chip-btn.is-active {
-        background: #6400B2;
-        border-color: #6400B2;
+        background: var(--brand-primary, #FF6600);
+        border-color: var(--brand-primary, #FF6600);
         color: #fff;
     }
     .pmx-settings__report-calendar {
-        width: fit-content;
-        max-width: 100%;
-        overflow: hidden;
+        width: 100%;
+        max-width: min(560px, 100%);
+        overflow: visible;
         border-radius: 12px;
     }
     .pmx-settings__report-calendar .figma-gads-calendar--embedded {
         position: static;
-        width: auto;
-        max-width: min(520px, 100%);
+        width: 100%;
+        max-width: 100%;
         box-shadow: none;
     }
     .pmx-settings__report-calendar .figma-gads-calendar__body {
-        max-height: min(380px, 50vh);
+        max-height: none;
+        overflow: visible;
     }
     @media (max-width: 640px) {
         .pmx-settings__report-calendar .figma-gads-calendar__body {
@@ -1696,7 +1695,7 @@
         min-width: 108px;
         padding: 0 14px;
         border-radius: 8px;
-        background: #6400B2;
+        background: var(--brand-primary, #FF6600);
         color: #fff !important;
         font-size: 12px;
         font-weight: 600;
@@ -1704,7 +1703,7 @@
         border: 0;
         cursor: pointer;
     }
-    .pmx-settings__cta:hover { background: #7B13C8; }
+    .pmx-settings__cta:hover { background: color-mix(in srgb, var(--brand-primary, #FF6600) 85%, white); }
     .pmx-settings__cta:disabled { opacity: 0.6; cursor: wait; }
     .pmx-settings__btn {
         display: inline-flex;
@@ -1714,8 +1713,8 @@
         min-width: 96px;
         padding: 0 12px;
         border-radius: 8px;
-        border: 1px solid rgba(100, 0, 178, 0.45);
-        background: rgba(100, 0, 178, 0.2);
+        border: 1px solid rgba(255, 102, 0, 0.45);
+        background: rgba(255, 102, 0, 0.2);
         color: #fff;
         font-size: 11px;
         font-weight: 600;
@@ -1723,7 +1722,7 @@
         text-decoration: none;
         text-align: center;
     }
-    .pmx-settings__btn:hover { background: rgba(100, 0, 178, 0.35); }
+    .pmx-settings__btn:hover { background: rgba(255, 102, 0, 0.35); }
     .pmx-settings__btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .pmx-settings__btn--muted {
         border-color: rgba(255, 255, 255, 0.14);
@@ -1770,7 +1769,7 @@
         background: #fff;
         transition: 0.15s ease;
     }
-    .pmx-settings__switch input:checked + span { background: #6400B2; }
+    .pmx-settings__switch input:checked + span { background: var(--brand-primary, #FF6600); }
     .pmx-settings__switch input:checked + span::after { transform: translateX(18px); }
     .pmx-settings__check {
         display: flex;
@@ -1784,7 +1783,7 @@
     .pmx-settings__check input {
         width: 15px;
         height: 15px;
-        accent-color: #6400B2;
+        accent-color: var(--brand-primary, #FF6600);
     }
     .pmx-settings__contact { padding: 8px 0; }
     .pmx-settings__contact + .pmx-settings__contact { border-top: 1px solid rgba(255, 255, 255, 0.06); }
@@ -1833,17 +1832,17 @@
     .pmx-settings__select:focus,
     .pmx-settings__textarea:focus {
         outline: none;
-        border-color: rgba(100, 0, 178, 0.7);
+        border-color: rgba(255, 102, 0, 0.7);
     }
 
-    html.light-mode .pmx-settings__panel { background: #fff; border-color: #d4c4e8; }
-    html.light-mode .pmx-settings__nav { background: #f7f4fb; border-color: #e7e1ef; }
+    html.light-mode .pmx-settings__panel { background: #fff; border-color: #ffd4b8; }
+    html.light-mode .pmx-settings__nav { background: #fff5ef; border-color: #ffe8d6; }
     html.light-mode .pmx-settings__head,
     html.light-mode .pmx-settings__row + .pmx-settings__row,
     html.light-mode .pmx-settings__contact + .pmx-settings__contact,
     html.light-mode .pmx-settings__field-row + .pmx-settings__field-row,
     html.light-mode .pmx-settings__table th,
-    html.light-mode .pmx-settings__table td { border-color: #e7e1ef; }
+    html.light-mode .pmx-settings__table td { border-color: #ffe8d6; }
     html.light-mode .pmx-settings__head h2,
     html.light-mode .pmx-settings__h,
     html.light-mode .pmx-settings__label,
@@ -1860,8 +1859,8 @@
     html.light-mode .pmx-settings__card,
     html.light-mode .pmx-settings__report-card,
     html.light-mode .pmx-settings__stat,
-    html.light-mode .pmx-settings__appear { background: #faf8fc; border-color: #e7e1ef; }
-    html.light-mode .pmx-settings__table th { background: #f3eef8; }
+    html.light-mode .pmx-settings__appear { background: #fffaf5; border-color: #ffe8d6; }
+    html.light-mode .pmx-settings__table th { background: #fff0e6; }
     html.light-mode .pmx-settings__close { color: #5b5568; }
     html.light-mode .pmx-settings__input,
     html.light-mode .pmx-settings__select,
@@ -1881,19 +1880,19 @@
         background: #FF6600;
     }
     html.light-mode .pmx-security-tabs__button {
-        border-color: #e0d7eb;
-        background: #faf8fc;
+        border-color: #ffd4b8;
+        background: #fffaf5;
         color: #5b5568;
     }
     html.light-mode .pmx-security-tabs__button.is-active {
-        border-color: #6400B2;
-        background: #6400B2;
+        border-color: var(--brand-primary, #FF6600);
+        background: var(--brand-primary, #FF6600);
         color: #fff;
     }
     html.light-mode .pmx-security-panel__title { color: #1a1524; }
     html.light-mode .pmx-security-session-list > li {
-        border-color: #e7e1ef;
-        background: #faf8fc;
+        border-color: #ffe8d6;
+        background: #fffaf5;
     }
     html.light-mode .pmx-security-user-agent { color: #766e83; }
 </style>

@@ -93,14 +93,38 @@ class BillingController extends Controller
     public function downloadReceipt(Request $request, Payment $payment): StreamedResponse
     {
         abort_unless($payment->user_id === $request->user()->id, 403);
-        abort_unless($payment->receipt_path, 404);
 
         $disk = Storage::disk('public');
-        abort_unless($disk->exists($payment->receipt_path), 404, 'Receipt file is missing from storage. Please re-upload.');
+        if ($payment->receipt_path && $disk->exists($payment->receipt_path)) {
+            $filename = $payment->receipt_original_name ?: basename($payment->receipt_path);
 
-        $filename = $payment->receipt_original_name ?: basename($payment->receipt_path);
+            return $disk->download($payment->receipt_path, $filename);
+        }
 
-        return $disk->download($payment->receipt_path, $filename);
+        $payment->loadMissing(['plan', 'user', 'subscription.plan']);
+
+        $companyName = trim((string) app_setting('branding.company_name', 'Clickronix')) ?: 'Clickronix';
+        $supportEmail = trim((string) app_setting('branding.support_email', '')) ?: 'support@clickronix.com';
+        $planName = $payment->plan?->name
+            ?? $payment->subscription?->plan?->name
+            ?? 'Subscription';
+
+        $html = view('billing.invoice', [
+            'payment' => $payment,
+            'company_name' => $companyName,
+            'support_email' => $supportEmail,
+            'plan_name' => $planName,
+            'logo_url' => \App\Support\Branding::logoAsset('light'),
+            'amount_label' => format_money_cents((int) $payment->amount_cents, $payment->currency ?: 'USD'),
+        ])->render();
+
+        $filename = ($payment->invoice_number ?: ('invoice-'.$payment->id)).'.html';
+
+        return response()->streamDownload(
+            static fn () => print($html),
+            $filename,
+            ['Content-Type' => 'text/html; charset=UTF-8']
+        );
     }
 
     public function submit(Request $request): RedirectResponse

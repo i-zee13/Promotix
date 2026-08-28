@@ -39,7 +39,4 @@
             <span>Reports</span>
         </button>
     </div>
-    <p class="mx-auto mt-[10px] w-full max-w-[168px] text-[9px] leading-snug text-white/40">
-        Analytics shows visitor intelligence only. IP blocking stays in Paid Advertising / Detection.
-    </p>
 </div>

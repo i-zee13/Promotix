@@ -82,7 +82,7 @@
         ['route' => 'profile.edit', 'icon' => 'settings', 'label' => 'Settings'],
     ];
     $guidanceChatActive = $user
-        ? AdminIntegrationCatalog::guidanceChatbotEnabledForUser($user->id)
+        ? \App\Support\AdminIntegrationCatalog::guidanceChatbotEnabledForUser($user->id)
         : false;
 @endphp
 
