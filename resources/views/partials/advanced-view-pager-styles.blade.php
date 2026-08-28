@@ -6,7 +6,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 8px 16px;
-        border-top: 1px solid rgba(103, 6, 179, 0.4);
+        border-top: 1px solid color-mix(in srgb, var(--brand-primary) 40%, transparent);
         padding: 10px 14px;
         font-size: 11px;
         color: #a9a9a9;
@@ -49,8 +49,8 @@
         cursor: pointer;
     }
     .adv-pager__btn.is-active {
-        background: #6400B2;
-        border-color: #6400B2;
+        background: var(--brand-primary);
+        border-color: var(--brand-primary);
         color: #fff;
     }
     .adv-pager__btn:disabled {

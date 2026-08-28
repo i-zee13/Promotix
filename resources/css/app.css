@@ -5,8 +5,8 @@
 @tailwind utilities;
 
 :root {
-    --brand-primary: #6400B2;
-    --brand-secondary: #4D008E;
+    --brand-primary: #FF6600;
+    --brand-secondary: #CC5200;
     --brand-background: #0d0d0d;
     --brand-surface: #212121;
     --brand-text: #FFFFFF;
@@ -14,7 +14,7 @@
     --brand-outline: #3D3D3D;
     --brand-cta: #FFFFFF;
     --brand-cta-text: #111111;
-    --brand-primary-rgb: 100, 0, 178;
+    --brand-primary-rgb: 255, 102, 0;
     --brand-input-bg: color-mix(in srgb, var(--brand-surface) 62%, var(--brand-background));
     --brand-glow: color-mix(in srgb, var(--brand-primary) 45%, transparent);
     --brand-shadow: color-mix(in srgb, var(--brand-primary) 28%, transparent);
@@ -144,29 +144,29 @@
 .figma-shell .hover\:bg-\[\#6400B2\]:hover,
 .figma-shell .hover\:bg-\[\#7B13C8\]:hover,
 .figma-shell .hover\:bg-\[\#7a1acc\]:hover {
-    background-color: var(--brand-primary, #6400B2) !important;
+    background-color: var(--brand-primary, #FF6600) !important;
 }
 
 .figma-shell .bg-\[\#6400B2\]\/20,
-.figma-shell .hover\:bg-\[\#6400B2\]\/20:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 20%, transparent) !important; }
+.figma-shell .hover\:bg-\[\#6400B2\]\/20:hover { background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 20%, transparent) !important; }
 .figma-shell .bg-\[\#6400B2\]\/25,
-.figma-shell .hover\:bg-\[\#6400B2\]\/25:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 25%, transparent) !important; }
+.figma-shell .hover\:bg-\[\#6400B2\]\/25:hover { background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 25%, transparent) !important; }
 .figma-shell .bg-\[\#6400B2\]\/30,
-.figma-shell .hover\:bg-\[\#6400B2\]\/30:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent) !important; }
+.figma-shell .hover\:bg-\[\#6400B2\]\/30:hover { background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 30%, transparent) !important; }
 .figma-shell .bg-\[\#6400B2\]\/35,
-.figma-shell .hover\:bg-\[\#6400B2\]\/35:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent) !important; }
-.figma-shell .bg-\[\#6400B2\]\/40 { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 40%, transparent) !important; }
+.figma-shell .hover\:bg-\[\#6400B2\]\/35:hover { background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/40 { background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 40%, transparent) !important; }
 .figma-shell .bg-\[\#6400B2\]\/55,
-.figma-shell .hover\:bg-\[\#6400B2\]\/55:hover { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 55%, transparent) !important; }
-.figma-shell .bg-\[\#6400B2\]\/60 { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 60%, transparent) !important; }
-.figma-shell .bg-\[\#6400B2\]\/70 { background-color: color-mix(in srgb, var(--brand-primary, #6400B2) 70%, transparent) !important; }
+.figma-shell .hover\:bg-\[\#6400B2\]\/55:hover { background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 55%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/60 { background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 60%, transparent) !important; }
+.figma-shell .bg-\[\#6400B2\]\/70 { background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 70%, transparent) !important; }
 
 .figma-shell .bg-\[\#4D008E\],
 .figma-shell .bg-\[\#4D008E\]\/70 {
-    background-color: var(--brand-secondary, #4D008E) !important;
+    background-color: var(--brand-secondary, #CC5200) !important;
 }
 .figma-shell .bg-\[\#4D008E\]\/70 {
-    background-color: color-mix(in srgb, var(--brand-secondary, #4D008E) 70%, transparent) !important;
+    background-color: color-mix(in srgb, var(--brand-secondary, #CC5200) 70%, transparent) !important;
 }
 
 .figma-shell .border-\[\#6400B2\],
@@ -176,23 +176,58 @@
 .figma-shell .focus\:border-\[\#6400B2\]:focus,
 .figma-shell .hover\:border-\[\#6400B2\]:hover,
 .figma-shell .hover\:border-\[\#7B13C8\]:hover {
-    border-color: var(--brand-primary, #6400B2) !important;
+    border-color: var(--brand-primary, #FF6600) !important;
 }
-.figma-shell .border-\[\#6400B2\]\/40 { border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 40%, transparent) !important; }
-.figma-shell .border-\[\#6400B2\]\/50 { border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 50%, transparent) !important; }
-.figma-shell .border-\[\#6400B2\]\/60 { border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 60%, transparent) !important; }
+.figma-shell .border-\[\#6400B2\]\/40 { border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 40%, transparent) !important; }
+.figma-shell .border-\[\#6400B2\]\/50 { border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 50%, transparent) !important; }
+.figma-shell .border-\[\#6400B2\]\/60 { border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 60%, transparent) !important; }
 
 .figma-shell .text-\[\#6400B2\],
 .figma-shell .text-\[\#6400b2\],
 .figma-shell .text-\[\#6400B3\],
 .figma-shell .hover\:text-\[\#6400B2\]:hover,
 .figma-shell .hover\:text-\[\#4a0088\]:hover {
-    color: var(--brand-primary, #6400B2) !important;
+    color: var(--brand-primary, #FF6600) !important;
 }
 
 .figma-shell .ring-\[\#6400B2\]\/30,
 .figma-shell .focus\:ring-\[\#6400B2\]\/30:focus {
-    --tw-ring-color: color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent) !important;
+    --tw-ring-color: color-mix(in srgb, var(--brand-primary, #FF6600) 30%, transparent) !important;
+}
+
+.figma-shell .bg-\[\#7B13C8\],
+.figma-shell .bg-\[\#7b13c8\],
+.figma-shell .hover\:bg-\[\#7B13C8\]:hover,
+.figma-shell .hover\:bg-\[\#7b13c8\]:hover {
+    background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 82%, white) !important;
+}
+
+.figma-shell .border-\[\#9A1AFF\],
+.figma-shell .border-\[\#9a1aff\],
+.figma-shell .focus\:border-\[\#9A1AFF\]:focus,
+.figma-shell .focus\:border-\[\#9a1aff\]:focus,
+.figma-shell .hover\:border-\[\#9A1AFF\]:hover,
+.figma-shell .hover\:border-\[\#9a1aff\]:hover {
+    border-color: var(--brand-primary, #FF6600) !important;
+}
+
+.figma-shell .text-\[\#9A1AFF\],
+.figma-shell .text-\[\#9a1aff\],
+.figma-shell .hover\:text-\[\#9A1AFF\]:hover,
+.figma-shell .hover\:text-\[\#9a1aff\]:hover {
+    color: var(--brand-primary, #FF6600) !important;
+}
+
+.figma-shell .ring-\[\#9A1AFF\]\/30,
+.figma-shell .ring-\[\#9a1aff\]\/30,
+.figma-shell .focus\:ring-\[\#9A1AFF\]\/30:focus,
+.figma-shell .focus\:ring-\[\#9a1aff\]\/30:focus {
+    --tw-ring-color: color-mix(in srgb, var(--brand-primary, #FF6600) 30%, transparent) !important;
+}
+
+.figma-shell .border-\[\#5a2a99\],
+.figma-shell .border-\[\#5A2A99\] {
+    border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 55%, #141414) !important;
 }
 
 .figma-shell [class*='bg-[#0d0d0d]'],
@@ -264,14 +299,14 @@ body.figma-body::-webkit-scrollbar-thumb,
 .figma-rightbar::-webkit-scrollbar-thumb,
 .figma-nav-scrollless::-webkit-scrollbar-thumb,
 .promotix-slim-scroll::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #7b13c8, #6400b2);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--brand-primary) 82%, white), var(--brand-primary));
     border-radius: 999px;
 }
 
 html::-webkit-scrollbar-thumb:hover,
 body.figma-body::-webkit-scrollbar-thumb:hover,
 .promotix-slim-scroll::-webkit-scrollbar-thumb:hover {
-    background: #9a1aff;
+    background: color-mix(in srgb, var(--brand-primary) 75%, white);
 }
 
 /* Figma dark modal (paid marketing IP popup) */
@@ -299,11 +334,11 @@ body.figma-body::-webkit-scrollbar-thumb:hover,
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 55%, transparent);
     border-radius: 12px;
     background: #111111;
     padding: 20px;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 32px color-mix(in srgb, var(--brand-primary, #6400B2) 25%, transparent);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 32px color-mix(in srgb, var(--brand-primary, #FF6600) 25%, transparent);
     color: #ffffff;
 }
 
@@ -1330,19 +1365,19 @@ html.light-mode .pm-adv-table-grid--row:hover {
 .figma-date-range-popover,
 .figma-gads-calendar {
     --gads-cal-bg: var(--brand-surface, #111111);
-    --gads-cal-panel: color-mix(in srgb, var(--brand-primary, #6400B2) 8%, #0d0d0d);
-    --gads-cal-border: color-mix(in srgb, var(--brand-primary, #6400B2) 40%, transparent);
+    --gads-cal-panel: color-mix(in srgb, var(--brand-primary, #FF6600) 8%, #0d0d0d);
+    --gads-cal-border: color-mix(in srgb, var(--brand-primary, #FF6600) 40%, transparent);
     --gads-cal-text: var(--brand-text, #ffffff);
     --gads-cal-muted: color-mix(in srgb, var(--brand-text, #ffffff) 55%, transparent);
-    --gads-cal-accent: var(--brand-primary, #6400B2);
-    --gads-cal-range: color-mix(in srgb, var(--brand-primary, #6400B2) 28%, transparent);
+    --gads-cal-accent: var(--brand-primary, #FF6600);
+    --gads-cal-range: color-mix(in srgb, var(--brand-primary, #FF6600) 28%, transparent);
     --gads-cal-input-bg: #0b0b0b;
     width: min(540px, calc(100vw - 20px));
     padding: 0;
     border: 1px solid var(--gads-cal-border);
     border-radius: 12px;
     background-color: var(--gads-cal-bg);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px color-mix(in srgb, var(--brand-primary, #6400B2) 22%, transparent);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px color-mix(in srgb, var(--brand-primary, #FF6600) 22%, transparent);
     color: var(--gads-cal-text);
     overflow: hidden;
 }
@@ -1441,7 +1476,7 @@ html.light-mode .pm-adv-table-grid--row:hover {
 
 .figma-gads-calendar__preset:hover,
 .figma-gads-calendar__preset.is-active {
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 18%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 18%, transparent);
 }
 
 .figma-gads-calendar__custom-days {
@@ -1571,7 +1606,7 @@ html.light-mode .pm-adv-table-grid--row:hover {
 }
 
 .figma-gads-calendar__month-arrows button:hover {
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 30%, transparent);
 }
 
 .figma-gads-calendar__scroller {
@@ -1624,7 +1659,7 @@ html.light-mode .pm-adv-table-grid--row:hover {
 }
 
 .figma-gads-calendar__day:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 28%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 28%, transparent);
 }
 
 .figma-gads-calendar__day.is-outside {
@@ -1633,7 +1668,7 @@ html.light-mode .pm-adv-table-grid--row:hover {
 }
 
 .figma-gads-calendar__day.is-today:not(.is-start):not(.is-end) {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 70%, white);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-primary, #FF6600) 70%, white);
 }
 
 .figma-gads-calendar__day.is-range {
@@ -1681,7 +1716,7 @@ html.light-mode .pm-adv-table-grid--row:hover {
 }
 
 .figma-gads-calendar__btn:hover {
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 14%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 14%, transparent);
 }
 
 .figma-gads-calendar__btn--primary {
@@ -1701,7 +1736,7 @@ html.light-mode .pm-adv-table-grid--row:hover {
     --gads-cal-text: #2d2d3a;
     --gads-cal-muted: #6b6280;
     --gads-cal-input-bg: #ffffff;
-    --gads-cal-range: color-mix(in srgb, var(--brand-primary, #6400B2) 16%, #ffffff);
+    --gads-cal-range: color-mix(in srgb, var(--brand-primary, #FF6600) 16%, #ffffff);
 }
 
 @media (max-width: 767px) {
@@ -1737,7 +1772,7 @@ html.light-mode .pm-adv-table-grid--row:hover {
         gap: 8px;
         min-height: 52px;
         padding: 8px 12px;
-        border-bottom: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 28%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 28%, transparent);
         flex-shrink: 0;
     }
 
@@ -1878,7 +1913,7 @@ html.figma-gads-calendar-open body {
 
 .light-mode .figma-gads-calendar-mobile__row.is-active,
 .light-mode .figma-gads-calendar-mobile__check {
-    color: var(--brand-primary, #6400B2);
+    color: var(--brand-primary, #FF6600);
 }
 
 .light-mode .figma-gads-calendar-mobile__close,
@@ -2016,8 +2051,8 @@ html.figma-gads-calendar-open body {
 
 .figma-sa-page-wrap {
     background:
-        radial-gradient(ellipse 80% 45% at 8% -5%, color-mix(in srgb, var(--brand-primary, #6400B2) 22%, transparent), transparent 55%),
-        radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in srgb, var(--brand-secondary, #4D008E) 18%, transparent), transparent 50%),
+        radial-gradient(ellipse 80% 45% at 8% -5%, color-mix(in srgb, var(--brand-primary, #FF6600) 22%, transparent), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in srgb, var(--brand-secondary, #CC5200) 18%, transparent), transparent 50%),
         #0d0d0d;
 }
 
@@ -2053,16 +2088,16 @@ html.figma-gads-calendar-open body {
 
 .figma-sa-row {
     border-radius: 8px;
-    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 28%, transparent);
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 10%, #101010);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 28%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 10%, #101010);
 }
 
 .figma-sa-card {
     border-radius: 10px;
-    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 14%, #151515);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 14%, #151515);
     padding: 18px;
-    box-shadow: 0 0 24px color-mix(in srgb, var(--brand-primary, #6400B2) 12%, transparent);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--brand-primary, #FF6600) 12%, transparent);
 }
 
 .figma-sa-card__title {
@@ -2134,7 +2169,7 @@ html.figma-gads-calendar-open body {
 
 .light-mode .figma-sa-page-wrap {
     background:
-        radial-gradient(ellipse 80% 45% at 8% -5%, color-mix(in srgb, var(--brand-primary, #6400B2) 10%, transparent), transparent 55%),
+        radial-gradient(ellipse 80% 45% at 8% -5%, color-mix(in srgb, var(--brand-primary, #FF6600) 10%, transparent), transparent 55%),
         #f0ecf5;
 }
 
@@ -4162,6 +4197,8 @@ select.figma-sa-subs-status-pill {
 .figma-shell {
     --figma-left: 261px;
     --figma-right: 220px;
+    --figma-chrome-border: color-mix(in srgb, var(--brand-primary) 55%, #141414);
+    --figma-chrome-accent-hover: color-mix(in srgb, var(--brand-primary) 82%, white);
     min-height: 100vh;
     padding-left: var(--figma-left);
     padding-right: var(--figma-right);
@@ -4205,7 +4242,7 @@ select.figma-sa-subs-status-pill {
     z-index: 40;
     width: var(--figma-left);
     overflow: hidden;
-    border-right: 2px solid #5a2a99;
+    border-right: 2px solid var(--figma-chrome-border);
     background: #0e0e0e;
     display: flex;
     flex-direction: column;
@@ -4228,7 +4265,7 @@ select.figma-sa-subs-status-pill {
     right: var(--figma-right);
     z-index: 30;
     height: 49px;
-    border-bottom: 2px solid #5a2a99;
+    border-bottom: 2px solid var(--figma-chrome-border);
     background: #0e0e0e;
 }
 
@@ -4332,9 +4369,9 @@ select.figma-sa-subs-status-pill {
 .figma-customer-canvas input.border-dark-border:focus,
 .figma-customer-canvas select.border-dark-border:focus,
 .figma-customer-canvas textarea.border-dark-border:focus {
-    border-color: #8b4ddb;
+    border-color: var(--brand-primary);
     outline: none;
-    box-shadow: 0 0 0 2px rgba(100, 0, 178, 0.3);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 30%, transparent);
 }
 
 /* Super Admin tokens inside shared canvas */
@@ -4384,7 +4421,7 @@ select.figma-sa-subs-status-pill {
     width: var(--figma-right);
     overflow-x: hidden;
     overflow-y: auto;
-    border-left: 2px solid #5a2a99;
+    border-left: 2px solid var(--figma-chrome-border);
     background: #0e0e0e;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -4432,8 +4469,8 @@ select.figma-sa-subs-status-pill {
     justify-content: center;
     border: 0;
     border-radius: 6px 0 0 6px;
-    border-left: 2px solid #5a2a99;
-    background: #6400b2;
+    border-left: 2px solid var(--figma-chrome-border);
+    background: var(--brand-primary);
     color: #ffffff;
     cursor: pointer;
     transform: translateY(-50%);
@@ -4450,7 +4487,7 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-rightbar-edge-toggle:hover {
-    background: #7b13c8;
+    background: var(--figma-chrome-accent-hover);
 }
 
 .figma-rightbar-toggle {
@@ -4472,7 +4509,7 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-rightbar-toggle:hover {
-    background: rgba(100, 0, 178, 0.35);
+    background: color-mix(in srgb, var(--brand-primary) 35%, transparent);
     color: #ffffff;
 }
 
@@ -4488,8 +4525,8 @@ select.figma-sa-subs-status-pill {
     justify-content: center;
     border: 0;
     border-radius: 6px 0 0 6px;
-    border-left: 2px solid #5a2a99;
-    background: #6400b2;
+    border-left: 2px solid var(--figma-chrome-border);
+    background: var(--brand-primary);
     color: #ffffff;
     cursor: pointer;
     transform: translateY(-50%);
@@ -4498,7 +4535,7 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-rightbar-reopen:hover {
-    background: #7b13c8;
+    background: var(--figma-chrome-accent-hover);
 }
 
 .figma-sidebar-collapsed .figma-sidebar {
@@ -4626,14 +4663,14 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-nav-link:not(.is-active):hover {
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 55%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 55%, transparent);
     color: #ffffff;
 }
 
 .figma-nav-link.is-active {
-    background: var(--brand-primary, #6400B2);
+    background: var(--brand-primary, #FF6600);
     color: #ffffff;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 55%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #FF6600) 55%, transparent);
 }
 
 .figma-sidebar-brand-text,
@@ -4693,7 +4730,7 @@ select.figma-sa-subs-status-pill {
     min-width: 168px;
     padding: 6px;
     border-radius: 8px;
-    border: 1px solid rgba(90, 42, 153, 0.55);
+    border: 1px solid color-mix(in srgb, var(--brand-primary) 55%, transparent);
     background: #121212;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
 }
@@ -4705,7 +4742,7 @@ select.figma-sa-subs-status-pill {
 
 .figma-sidebar-settings-wrap:hover .figma-sidebar-settings,
 .figma-sidebar-settings-wrap:focus-within .figma-sidebar-settings {
-    background: rgba(100, 0, 178, 0.25);
+    background: color-mix(in srgb, var(--brand-primary) 25%, transparent);
     color: #fff;
 }
 
@@ -4771,7 +4808,7 @@ html.light-mode {
 .light-mode .figma-header,
 .light-mode .figma-rightbar {
     background: #ffffff !important;
-    border-color: #d4c4e8 !important;
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, #e8e4ef) !important;
     color: #1a1a1a !important;
 }
 
@@ -4791,8 +4828,8 @@ html.light-mode {
 }
 
 .light-mode .figma-sidebar-search {
-    background: #f0ecf5 !important;
-    border-color: #c9b8dc !important;
+    background: color-mix(in srgb, var(--brand-primary) 6%, #ffffff) !important;
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, #e8e4ef) !important;
     color: #2d2d2d !important;
     box-shadow: none !important;
 }
@@ -4810,26 +4847,28 @@ html.light-mode {
 }
 
 .light-mode .figma-add-domain-btn {
-    border-color: #6400b2 !important;
-    color: #6400b2 !important;
+    border-color: var(--brand-primary) !important;
+    color: var(--brand-primary) !important;
     background: #ffffff !important;
     box-shadow: none !important;
 }
 
 .light-mode .figma-add-domain-btn:hover {
-    background: #6400b2 !important;
+    background: var(--brand-primary) !important;
     color: #ffffff !important;
     box-shadow: none !important;
 }
 
 /* Sidebar brand logo (Clickronix) */
 .figma-sidebar-brand {
-    min-height: 52px;
+    min-height: 44px;
     width: 100%;
+    align-items: flex-start;
+    padding-top: 0;
 }
 
 .figma-sidebar-brand .figma-sidebar-logo {
-    height: 52px;
+    height: 44px;
     width: auto;
     max-width: 220px;
     object-fit: contain;
@@ -4868,14 +4907,14 @@ html.light-mode {
 }
 
 .light-mode .figma-sidebar-settings:hover {
-    color: #6400b2 !important;
-    background: rgba(100, 0, 178, 0.1) !important;
+    color: var(--brand-primary) !important;
+    background: color-mix(in srgb, var(--brand-primary) 10%, transparent) !important;
 }
 
 .light-mode .figma-sidebar-settings-menu {
     background: #ffffff;
-    border-color: #d4c4e8;
-    box-shadow: 0 10px 24px rgba(60, 40, 90, 0.14);
+    border-color: color-mix(in srgb, var(--brand-primary) 30%, #e8e4ef);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
 }
 
 .light-mode .figma-sidebar-settings-item {
@@ -4883,12 +4922,12 @@ html.light-mode {
 }
 
 .light-mode .figma-sidebar-settings-item:hover {
-    background: rgba(100, 0, 178, 0.1);
-    color: #6400b2;
+    background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+    color: var(--brand-primary);
 }
 
 .light-mode .figma-sidebar-footer {
-    border-color: #e5ddf0 !important;
+    border-color: color-mix(in srgb, var(--brand-primary) 22%, #e8e4ef) !important;
 }
 
 .light-mode .figma-header .text-white\/85,
@@ -4899,7 +4938,7 @@ html.light-mode {
 
 .light-mode .figma-header button:hover,
 .light-mode .figma-header a:hover {
-    background: rgba(100, 0, 178, 0.08) !important;
+    background: color-mix(in srgb, var(--brand-primary) 8%, transparent) !important;
 }
 
 .light-mode .figma-header .bg-\[\#0D0D0D\],
@@ -5389,7 +5428,7 @@ html.light-mode .figma-body {
 }
 
 .auth-card-panel {
-    --promotix-autofill-bg: color-mix(in srgb, var(--brand-secondary, #4D008E) 60%, transparent);
+    --promotix-autofill-bg: color-mix(in srgb, var(--brand-secondary, #CC5200) 60%, transparent);
     --promotix-autofill-text: #ffffff;
     background: var(--brand-primary, #6400B3);
 }
@@ -5482,9 +5521,9 @@ select:autofill {
 .figma-input:focus,
 .figma-select:focus,
 .figma-textarea:focus {
-    border-color: var(--brand-primary, #6400B2);
+    border-color: var(--brand-primary, #FF6600);
     outline: none;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 40%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #FF6600) 40%, transparent);
 }
 
 .light-mode .figma-input,
@@ -5539,9 +5578,9 @@ select:autofill {
 
 .figma-panel-select:focus,
 .figma-matrix-select:focus {
-    border-color: #9a1aff;
+    border-color: var(--brand-primary);
     outline: none;
-    box-shadow: 0 0 0 1px rgba(154, 26, 255, 0.45);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 45%, transparent);
 }
 
 .figma-panel-select option,
@@ -6679,7 +6718,7 @@ html.light-mode .figma-geo-combobox-label {
     flex-direction: column;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.4);
-    background: var(--brand-primary, #6400B2);
+    background: var(--brand-primary, #FF6600);
     padding: 12px 14px;
     box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
     overflow: hidden;
@@ -7018,7 +7057,7 @@ html.light-mode .figma-geo-combobox-label {
     padding: 4px 12px;
     font-size: 9px;
     font-weight: 600;
-    color: var(--brand-primary, #6400B2);
+    color: var(--brand-primary, #FF6600);
     transition: background 0.15s;
 }
 
@@ -7248,7 +7287,7 @@ html.light-mode .adv-pager select {
     min-height: 158px;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.4);
-    background: var(--brand-primary, #6400B2);
+    background: var(--brand-primary, #FF6600);
     padding: 14px;
 }
 
@@ -7285,7 +7324,7 @@ html.light-mode .adv-pager select {
     background: #fff;
     padding: 4px 12px;
     font-size: 10px;
-    color: var(--brand-primary, #6400B2);
+    color: var(--brand-primary, #FF6600);
 }
 
 .paid-invalid-card {
@@ -8044,7 +8083,7 @@ html.ov-boot-lock body {
 .ov-card {
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.4);
-    background: var(--brand-primary, #6400B2);
+    background: var(--brand-primary, #FF6600);
     padding: 12px 14px;
     box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
     min-width: 0;
@@ -8110,7 +8149,7 @@ html.ov-boot-lock body {
     min-width: 0;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.4);
-    background: var(--brand-primary, #6400B2);
+    background: var(--brand-primary, #FF6600);
     padding: 12px 12px 10px;
     box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
     container-type: inline-size;
@@ -8177,9 +8216,9 @@ html.ov-boot-lock body {
     justify-content: center;
     border-radius: 10px;
     color: #d8b4fe;
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
-    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 65%, #fff 10%);
-    box-shadow: 0 0 14px color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 65%, #fff 10%);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
 }
 
 .ov-suite-card__metrics {
@@ -8270,8 +8309,8 @@ html.ov-boot-lock body {
 .ov-suite-stat__icon--clicks,
 .ov-suite-stat__icon--invalid {
     color: #c4b5fd;
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 40%, transparent);
-    box-shadow: 0 0 10px color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 40%, transparent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--brand-primary, #FF6600) 30%, transparent);
 }
 
 .ov-suite-stat__icon--valid,
@@ -9899,7 +9938,7 @@ html.ov-boot-lock body {
     }
     .brand-btn-primary {
         @apply brand-btn text-white focus:ring-offset-night-950;
-        background: var(--brand-primary, #6400B2);
+        background: var(--brand-primary, #FF6600);
         color: var(--brand-text, #ffffff);
     }
     .brand-btn-primary:hover { background: color-mix(in srgb, var(--brand-primary) 82%, white); }
@@ -11119,13 +11158,13 @@ a.figma-sa-users-filter-option {
     width: 100%;
     max-width: 480px;
     border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 35%, #ffffff);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 35%, #ffffff);
     background:
-        linear-gradient(180deg, color-mix(in srgb, var(--brand-primary, #6400B2) 10%, #ffffff) 0%, #ffffff 42%);
+        linear-gradient(180deg, color-mix(in srgb, var(--brand-primary, #FF6600) 10%, #ffffff) 0%, #ffffff 42%);
     padding: 28px 24px 24px;
     box-shadow:
         0 24px 60px rgba(0, 0, 0, 0.35),
-        0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 12%, transparent);
+        0 0 0 1px color-mix(in srgb, var(--brand-primary, #FF6600) 12%, transparent);
     color: #2d2d3a;
 }
 
@@ -11144,7 +11183,7 @@ a.figma-sa-users-filter-option {
 .figma-sa-users-modal-title {
     font-size: 22px;
     font-weight: 700;
-    color: var(--brand-primary, #6400B2);
+    color: var(--brand-primary, #FF6600);
 }
 
 .figma-sa-users-modal-sub {
@@ -11175,16 +11214,16 @@ a.figma-sa-users-filter-option {
 .figma-sa-billing-auto-card {
     overflow: hidden;
     border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 22%, #ffffff);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 22%, #ffffff);
     background: #ffffff !important;
-    box-shadow: 0 10px 28px color-mix(in srgb, var(--brand-primary, #6400B2) 14%, transparent);
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--brand-primary, #FF6600) 14%, transparent);
 }
 
 .figma-sa-billing-auto-card__head {
     padding: 14px 18px;
     background: #ffffff;
     border-bottom: 1px solid #eadff7;
-    color: var(--brand-primary, #6400B2);
+    color: var(--brand-primary, #FF6600);
 }
 
 .figma-sa-billing-auto-card__head h2 {
@@ -11192,7 +11231,7 @@ a.figma-sa-users-filter-option {
     font-size: 16px;
     font-weight: 700;
     letter-spacing: 0.02em;
-    color: var(--brand-primary, #6400B2);
+    color: var(--brand-primary, #FF6600);
 }
 
 .figma-sa-billing-auto-card__body {
@@ -11209,11 +11248,11 @@ a.figma-sa-users-filter-option {
     margin: 8px 0;
     padding: 14px 16px;
     border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
     background: linear-gradient(
         135deg,
-        var(--brand-primary, #6400B2) 0%,
-        color-mix(in srgb, var(--brand-secondary, #4D008E) 88%, #6400B2) 100%
+        var(--brand-primary, #FF6600) 0%,
+        color-mix(in srgb, var(--brand-secondary, #CC5200) 88%, #6400B2) 100%
     ) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
@@ -11366,8 +11405,8 @@ a.figma-sa-users-filter-option {
 .figma-sa-page .figma-sa-card .figma-input,
 .figma-sa-page .figma-sa-card .figma-select,
 .figma-sa-page .figma-sa-card .figma-textarea {
-    border-color: color-mix(in srgb, var(--brand-primary, #6400B2) 30%, transparent);
-    background: color-mix(in srgb, var(--brand-primary, #6400B2) 8%, #101010);
+    border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 30%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 8%, #101010);
 }
 
 @media (max-width: 900px) {
@@ -13849,8 +13888,8 @@ a.figma-sa-users-filter-option {
 }
 
 .onboarding-checkout__stripe-field:focus-within {
-    border-color: var(--brand-primary, #6400B2);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
+    border-color: var(--brand-primary, #FF6600);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
 }
 
 .onboarding-checkout__stripe-field .StripeElement {
@@ -13883,8 +13922,8 @@ a.figma-sa-users-filter-option {
 }
 
 .onboarding-checkout__input:focus {
-    border-color: var(--brand-primary, #6400B2);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #6400B2) 35%, transparent);
+    border-color: var(--brand-primary, #FF6600);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
 }
 
 .onboarding-checkout__row {
@@ -13957,7 +13996,7 @@ a.figma-sa-users-filter-option {
 .onboarding-checkout__feature-icon {
     flex-shrink: 0;
     margin-top: 2px;
-    color: var(--brand-primary, #6400B2);
+    color: var(--brand-primary, #FF6600);
 }
 
 .onboarding-checkout__divider {
@@ -13999,7 +14038,7 @@ a.figma-sa-users-filter-option {
 }
 
 .onboarding-checkout__submit:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--brand-cta, #ffffff) 88%, var(--brand-primary, #6400B2));
+    background: color-mix(in srgb, var(--brand-cta, #ffffff) 88%, var(--brand-primary, #FF6600));
 }
 
 .onboarding-checkout__submit:disabled {
@@ -14227,31 +14266,31 @@ html.light-mode .pa-dash .pa-kpi {
     color: #1a1a1a;
 }
 
-/* Analytics pages: shell chrome purple → orange (sidebar / header / ADD DOMAIN) */
+/* Analytics pages: shell chrome follows Super Admin branding */
 html.light-mode .figma-shell:has(.analytics-skin) .figma-sidebar,
 html.light-mode .figma-shell:has(.analytics-skin) .figma-header,
 html.light-mode .figma-shell:has(.analytics-skin) .figma-rightbar {
-    border-color: rgba(255, 102, 0, 0.35) !important;
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, #e8e4ef) !important;
 }
 html.light-mode .figma-shell:has(.analytics-skin) .figma-sidebar-footer {
-    border-color: rgba(255, 102, 0, 0.28) !important;
+    border-color: color-mix(in srgb, var(--brand-primary) 28%, #e8e4ef) !important;
 }
 html.light-mode .figma-shell:has(.analytics-skin) .figma-add-domain-btn {
-    border-color: #FF6600 !important;
-    color: #FF6600 !important;
+    border-color: var(--brand-primary) !important;
+    color: var(--brand-primary) !important;
 }
 html.light-mode .figma-shell:has(.analytics-skin) .figma-add-domain-btn:hover {
-    background: #FF6600 !important;
+    background: var(--brand-primary) !important;
     color: #ffffff !important;
-    border-color: #FF6600 !important;
+    border-color: var(--brand-primary) !important;
 }
 html.light-mode .figma-shell:has(.analytics-skin) .figma-sidebar-search {
-    border-color: rgba(255, 102, 0, 0.35) !important;
-    background: #fff7f0 !important;
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, #e8e4ef) !important;
+    background: color-mix(in srgb, var(--brand-primary) 6%, #ffffff) !important;
 }
 html.light-mode .figma-shell:has(.analytics-skin) .figma-nav-link.is-active {
-    background: #FF6600 !important;
-    box-shadow: 0 0 0 1px rgba(255, 102, 0, 0.55) !important;
+    background: var(--brand-primary) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 55%, transparent) !important;
 }
 html.light-mode .pa-dash .pa-card__title,
 html.light-mode .pa-dash .pa-kpi__value {

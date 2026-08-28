@@ -7,8 +7,8 @@ class Branding
     /** @return array<string, string|null> */
     public static function cssVars(): array
     {
-        $primary = self::sanitizeColor(app_setting('branding.color_primary', '#6400B2'), '#6400B2');
-        $secondary = self::sanitizeColor(app_setting('branding.color_secondary', '#4D008E'), '#4D008E');
+        $primary = self::sanitizeColor(app_setting('branding.color_primary', '#FF6600'), '#FF6600');
+        $secondary = self::sanitizeColor(app_setting('branding.color_secondary', '#CC5200'), '#CC5200');
         $background = self::sanitizeColor(app_setting('branding.color_background', '#0d0d0d'), '#0d0d0d');
         $surface = self::sanitizeColor(app_setting('branding.color_surface', '#212121'), '#212121');
         $text = self::sanitizeColor(app_setting('branding.color_text', '#FFFFFF'), '#FFFFFF');
@@ -38,7 +38,7 @@ class Branding
     public static function rootStyleBlock(): string
     {
         $b = self::cssVars();
-        $primaryRgb = self::hexToRgb($b['primary']) ?? '100, 0, 178';
+        $primaryRgb = self::hexToRgb($b['primary']) ?? '255, 102, 0';
         $fontSize = is_numeric($b['font_size_base']) ? ((int) $b['font_size_base']).'px' : '16px';
 
         return ':root{'

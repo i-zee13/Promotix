@@ -16,7 +16,7 @@
     <style>
         .figma-sidebar-settings.is-active,
         .figma-sidebar-settings:hover {
-            background: rgba(100, 0, 178, 0.25);
+            background: color-mix(in srgb, var(--brand-primary) 25%, transparent);
             color: #fff;
         }
         .figma-shell { --figma-right: 220px; }
@@ -94,9 +94,9 @@
         </div>
     @endif
 
-    <aside class="figma-sidebar px-[16px] pt-[12px] pb-[6px] xl:px-[20px] xl:pt-[14px] xl:pb-[8px]">
+    <aside class="figma-sidebar px-[16px] pt-[2px] pb-[6px] xl:px-[20px] xl:pt-[3px] xl:pb-[8px]">
         <div class="figma-sidebar-inner flex min-h-[100dvh] flex-col">
-            <a href="{{ route('dashboard') }}" class="figma-sidebar-brand mb-[10px] mt-[4px] flex shrink-0 items-center">
+            <a href="{{ route('dashboard') }}" class="figma-sidebar-brand mb-[6px] mt-0 flex shrink-0 items-center">
                 @include('partials.sidebar-logo')
             </a>
 

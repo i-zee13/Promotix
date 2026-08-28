@@ -18,8 +18,8 @@ return new class extends Migration
             ['group' => 'branding', 'key' => 'branding.favicon_url', 'label' => 'Favicon URL', 'type' => 'string', 'value' => '/favicon.ico', 'is_public' => true],
             ['group' => 'branding', 'key' => 'branding.font_family', 'label' => 'Font family', 'type' => 'string', 'value' => 'Inter', 'is_public' => true],
             ['group' => 'branding', 'key' => 'branding.font_size_base', 'label' => 'Base font size (px)', 'type' => 'integer', 'value' => '16', 'is_public' => true],
-            ['group' => 'branding', 'key' => 'branding.color_primary', 'label' => 'Primary color', 'type' => 'string', 'value' => '#6400B2', 'is_public' => true],
-            ['group' => 'branding', 'key' => 'branding.color_secondary', 'label' => 'Secondary color', 'type' => 'string', 'value' => '#6706B3', 'is_public' => true],
+            ['group' => 'branding', 'key' => 'branding.color_primary', 'label' => 'Primary color', 'type' => 'string', 'value' => '#FF6600', 'is_public' => true],
+            ['group' => 'branding', 'key' => 'branding.color_secondary', 'label' => 'Secondary color', 'type' => 'string', 'value' => '#CC5200', 'is_public' => true],
             ['group' => 'branding', 'key' => 'branding.color_background', 'label' => 'Background color', 'type' => 'string', 'value' => '#0D0D0D', 'is_public' => true],
         ];
 
