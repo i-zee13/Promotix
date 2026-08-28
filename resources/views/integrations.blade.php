@@ -1045,6 +1045,85 @@ document.addEventListener('DOMContentLoaded', () => {
             @media (max-width: 640px) {
                 .pi-setup-track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             }
+
+            html.light-mode .pi-connect-card,
+            html.light-mode .pi-side-card {
+                background: #ffffff;
+                border-color: var(--brand-tint-border);
+                box-shadow: 0 1px 10px color-mix(in srgb, var(--brand-primary) 8%, transparent);
+            }
+            html.light-mode .pi-section-title {
+                color: #2d2d3a;
+            }
+            html.light-mode .pi-setup-card {
+                background: #ffffff;
+                border-color: var(--brand-tint-border);
+                box-shadow: 0 1px 10px color-mix(in srgb, var(--brand-primary) 8%, transparent);
+            }
+            html.light-mode .pi-setup-title,
+            html.light-mode .pi-setup-label {
+                color: #2d2d3a;
+            }
+            html.light-mode .pi-setup-detail {
+                color: #6b6578;
+            }
+            html.light-mode .pi-setup-icon {
+                box-shadow: 0 0 0 4px #ffffff;
+            }
+            html.light-mode .pi-health-ring__inner {
+                background: #ffffff;
+            }
+            html.light-mode .pi-health-ring__inner [class*="text-white"] {
+                color: #2d2d3a !important;
+            }
+            html.light-mode .pi-status-row {
+                background: var(--brand-tint-soft);
+                border-color: var(--brand-tint-border);
+            }
+            html.light-mode .pi-side-card [class*="text-white"] {
+                color: #2d2d3a !important;
+            }
+            html.light-mode .pi-side-card .text-white\/80 {
+                color: #4a4458 !important;
+            }
+            html.light-mode .pi-side-card .text-white\/40,
+            html.light-mode .pi-side-card .text-white\/55,
+            html.light-mode .pi-side-card .text-white\/65,
+            html.light-mode .pi-side-card .text-white\/70 {
+                color: #6b6578 !important;
+            }
+            html.light-mode .pi-side-card a[class*="text-[#B893D8]"] {
+                color: var(--brand-primary) !important;
+            }
+            html.light-mode .pi-side-card a[class*="text-[#B893D8]"]:hover {
+                color: var(--brand-secondary) !important;
+            }
+            html.light-mode .pi-status-pill.is-off {
+                background: #f3f4f6;
+                color: #6b7280;
+            }
+            html.light-mode .pi-platforms-card details[class*="bg-black"] {
+                background: var(--brand-tint-soft) !important;
+                border-color: var(--brand-tint-border) !important;
+            }
+            html.light-mode .pi-platforms-card details summary[class*="text-white"] {
+                color: #2d2d3a !important;
+            }
+            html.light-mode .pi-platforms-card details [class*="text-white"] {
+                color: #5c5470 !important;
+            }
+            html.light-mode .pi-platforms-card details .text-white\/90 {
+                color: #2d2d3a !important;
+            }
+            html.light-mode .pi-platforms-card details [class*="text-[#B893D8]"] {
+                color: var(--brand-primary) !important;
+            }
+            html.light-mode .pi-add-btn:hover {
+                background: var(--brand-tint-hover);
+            }
+            html.light-mode .pi-table tbody tr:hover td {
+                background: var(--brand-tint-hover);
+            }
         </style>
 
         {{-- Setup Progress --}}
