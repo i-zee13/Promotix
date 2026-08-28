@@ -66,9 +66,12 @@
             border-bottom: 1px solid var(--line);
         }
         .brand img {
-            height: 36px;
+            height: 48px;
             width: auto;
+            max-width: 240px;
             display: block;
+            object-fit: contain;
+            object-position: left center;
         }
         .brand .fallback {
             font-size: 22px;

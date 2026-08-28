@@ -1,19 +1,28 @@
 @php
-    $iconPath = public_path('images/clickronix-icon.png');
-    $iconUrl = url('/images/clickronix-icon.png') . (is_file($iconPath) ? '?v=' . filemtime($iconPath) : '');
+    $darkLogoPath = public_path('images/clickronix-logo-dark.png');
+    $lightLogoPath = public_path('images/clickronix-logo-light.png');
+    $darkLogoUrl = url('/images/clickronix-logo-dark.png') . (is_file($darkLogoPath) ? '?v=' . filemtime($darkLogoPath) : '');
+    $lightLogoUrl = is_file($lightLogoPath)
+        ? url('/images/clickronix-logo-light.png') . '?v=' . filemtime($lightLogoPath)
+        : $darkLogoUrl;
 @endphp
-<span class="figma-sidebar-logo-lockup" aria-label="Clickronix">
-    <img
-        src="{{ $iconUrl }}"
-        alt=""
-        width="52"
-        height="52"
-        class="figma-sidebar-logo-mark"
-        loading="eager"
-        decoding="async"
-        referrerpolicy="no-referrer"
-    >
-    <span class="figma-sidebar-logo-word">
-        <span class="figma-sidebar-logo-word__click">CLICK</span><span class="figma-sidebar-logo-word__ronix">RONIX</span>
-    </span>
-</span>
+<img
+    src="{{ $darkLogoUrl }}"
+    alt="Clickronix"
+    width="490"
+    height="175"
+    class="figma-sidebar-logo figma-sidebar-logo--dark h-[52px] w-auto max-w-[220px] object-contain object-left"
+    loading="eager"
+    decoding="async"
+    referrerpolicy="no-referrer"
+>
+<img
+    src="{{ $lightLogoUrl }}"
+    alt="Clickronix"
+    width="490"
+    height="175"
+    class="figma-sidebar-logo figma-sidebar-logo--light h-[52px] w-auto max-w-[220px] object-contain object-left"
+    loading="eager"
+    decoding="async"
+    referrerpolicy="no-referrer"
+>

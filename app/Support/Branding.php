@@ -27,8 +27,8 @@ class Branding
             'outline' => $outline,
             'cta' => $cta,
             'cta_text' => $ctaText,
-            'company_name' => (string) (app_setting('branding.company_name', config('app.name', 'Promotix')) ?: config('app.name', 'Promotix')),
-            'logo_url' => self::nullableString(app_setting('branding.logo_url')),
+            'company_name' => (string) (app_setting('branding.company_name', config('app.name', 'Clickronix')) ?: config('app.name', 'Clickronix')),
+            'logo_url' => self::nullableString(app_setting('branding.logo_url')) ?: self::logoAsset('light'),
             'support_email' => self::nullableString(app_setting('branding.support_email')),
             'font_family' => self::nullableString(app_setting('branding.font_family')) ?: 'Inter',
             'font_size_base' => (string) (app_setting('branding.font_size_base', 16) ?: 16),
@@ -62,6 +62,14 @@ class Branding
             ."--auth-brand-glow:rgba({$primaryRgb},0.45);"
             ."--auth-brand-ring:rgba({$primaryRgb},0.82);"
             .'}';
+    }
+
+    public static function logoAsset(string $variant = 'dark'): string
+    {
+        $file = $variant === 'light' ? 'clickronix-logo-light.png' : 'clickronix-logo-dark.png';
+        $path = public_path('images/'.$file);
+
+        return url('/images/'.$file).(is_file($path) ? '?v='.filemtime($path) : '');
     }
 
     private static function sanitizeColor(mixed $value, string $fallback): string

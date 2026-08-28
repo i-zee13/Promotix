@@ -1529,18 +1529,19 @@
         color: #fff;
     }
     .pmx-settings__report-calendar {
-        width: 100%;
+        width: fit-content;
+        max-width: 100%;
         overflow: hidden;
         border-radius: 12px;
     }
     .pmx-settings__report-calendar .figma-gads-calendar--embedded {
         position: static;
-        width: 100%;
-        max-width: none;
+        width: auto;
+        max-width: min(520px, 100%);
         box-shadow: none;
     }
     .pmx-settings__report-calendar .figma-gads-calendar__body {
-        max-height: min(420px, 55vh);
+        max-height: min(380px, 50vh);
     }
     @media (max-width: 640px) {
         .pmx-settings__report-calendar .figma-gads-calendar__body {

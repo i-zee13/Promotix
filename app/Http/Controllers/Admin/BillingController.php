@@ -85,7 +85,7 @@ class BillingController extends Controller
             'company_name' => $companyName,
             'support_email' => $supportEmail,
             'plan_name' => $planName,
-            'logo_url' => asset('images/logo-dark.png'),
+            'logo_url' => \App\Support\Branding::logoAsset('light'),
             'amount_label' => format_money_cents((int) $payment->amount_cents, $payment->currency ?: 'USD'),
         ]);
     }
