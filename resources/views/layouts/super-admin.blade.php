@@ -77,11 +77,7 @@
 
     <header class="figma-header flex items-center justify-between px-[10px] sm:px-[14px]">
         <div class="flex min-w-0 items-center gap-[13px] text-white/85">
-            <button id="figma-sidebar-toggle" type="button" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10" aria-label="Toggle sidebar">
-                <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg>
-            </button>
-            <span class="hidden h-[18px] w-px bg-[#5a2a99] sm:block"></span>
-            <a href="{{ route('integrations') }}" class="hidden h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
+            <a href="{{ route('integrations') }}" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L11 4.93"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 11a5 5 0 00-7.07 0L4.8 13.12a5 5 0 007.07 7.07L13 19.07"/></svg>
             </a>
         </div>
@@ -112,29 +108,12 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const shell = document.getElementById('figma-shell');
-    const sidebarToggle = document.getElementById('figma-sidebar-toggle');
-    const overlay = document.getElementById('figma-sidebar-overlay');
     const sidebarKey = 'promotix-super-sidebar-collapsed';
     const themeKey = 'promotix-theme';
-    const isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
 
-    function syncSidebar() {
-        const collapsed = localStorage.getItem(sidebarKey) === '1';
-        shell?.classList.toggle('figma-sidebar-collapsed', isDesktop() && collapsed);
-        if (!isDesktop()) shell?.classList.remove('figma-sidebar-open');
-    }
-    sidebarToggle?.addEventListener('click', () => {
-        if (isDesktop()) {
-            const next = !(localStorage.getItem(sidebarKey) === '1');
-            localStorage.setItem(sidebarKey, next ? '1' : '0');
-            syncSidebar();
-        } else {
-            shell?.classList.toggle('figma-sidebar-open');
-        }
-    });
-    overlay?.addEventListener('click', () => shell?.classList.remove('figma-sidebar-open'));
-    window.matchMedia('(min-width: 1024px)').addEventListener('change', syncSidebar);
-    syncSidebar();
+    // Super Admin: sidebar always expanded — clear any stuck collapsed state
+    localStorage.setItem(sidebarKey, '0');
+    shell?.classList.remove('figma-sidebar-collapsed', 'figma-sidebar-open');
 
     function setTheme(theme) {
         document.documentElement.classList.toggle('light-mode', theme === 'light');

@@ -2285,9 +2285,9 @@ html.figma-gads-calendar-open body {
     min-height: 170px;
     border-radius: 10px;
     border: 2px solid rgba(255, 255, 255, 0.2);
-    background: #6706b3;
+    background: var(--brand-primary, #FF6600);
     padding: 22px 20px 18px;
-    box-shadow: 0 0 18px rgba(100, 0, 179, 0.2);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
 }
 
 .figma-sa-dash-kpi-label {
@@ -2560,13 +2560,13 @@ html.figma-gads-calendar-open body {
 }
 
 .figma-sa-dash-chart--revenue {
-    background: #6400b2;
-    border: 2px solid #6400b2;
+    background: var(--brand-primary, #FF6600);
+    border: 2px solid var(--brand-primary, #FF6600);
 }
 
 .figma-sa-dash-chart--growth {
     background: transparent;
-    border: 3px solid #6706b3;
+    border: 3px solid var(--brand-primary, #FF6600);
     padding-top: 0;
 }
 
@@ -2750,8 +2750,8 @@ html.figma-gads-calendar-open body {
 }
 
 .figma-sa-dash-dot--purple {
-    background: #6706b3;
-    box-shadow: 0 0 0 2px rgba(103, 6, 179, 0.5);
+    background: var(--brand-primary, #FF6600);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary, #FF6600) 50%, transparent);
 }
 
 .figma-sa-dash-chart-menu-btn {
@@ -4441,10 +4441,21 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-shell.figma-shell-super.figma-sidebar-collapsed {
-    --figma-left: 0px;
+    --figma-left: 261px !important;
+    padding-left: var(--figma-left) !important;
 }
 
-/* Super Admin: no theme toggle in sidebar */
+.figma-shell-super.figma-sidebar-collapsed .figma-sidebar,
+.figma-shell.figma-shell-super .figma-sidebar {
+    transform: none !important;
+    width: 261px !important;
+}
+
+/* Super Admin: no theme toggle / no sidebar collapse control */
+.figma-shell-super #figma-sidebar-toggle {
+    display: none !important;
+}
+
 .figma-shell-super .figma-sidebar-footer,
 .figma-shell-super .figma-theme-toggle,
 .figma-shell-super #theme-toggle,
@@ -5804,6 +5815,40 @@ select:autofill {
 .figma-matrix-select option {
     background-color: #101010;
     color: #ffffff;
+}
+
+html.light-mode .figma-panel-select,
+html.light-mode .figma-matrix-select,
+html.light-mode .paid-traffic-head__domain .figma-panel-select {
+    background-color: #ffffff !important;
+    color: #2d2d3a !important;
+    border-color: color-mix(in srgb, var(--brand-primary) 28%, #d4c4e8) !important;
+    color-scheme: light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%232d2d3a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+}
+
+html.light-mode .figma-panel-select option,
+html.light-mode .figma-matrix-select option {
+    background-color: #ffffff;
+    color: #2d2d3a;
+}
+
+html.light-mode .paid-sys-row {
+    background: color-mix(in srgb, var(--brand-primary) 10%, #ffffff);
+    border-color: color-mix(in srgb, var(--brand-primary) 22%, #e8e4ef);
+    color: #2d2d3a;
+}
+
+html.light-mode .paid-sys-row [class*='text-white'] {
+    color: #2d2d3a !important;
+}
+
+html.light-mode .paid-sys-row .text-rose-300 {
+    color: #be123c !important;
+}
+
+html.light-mode .paid-sys-row .text-emerald-200 {
+    color: #15803d !important;
 }
 
 .figma-geo-select {
@@ -7216,7 +7261,7 @@ html.light-mode .figma-geo-combobox-label {
     justify-content: center;
     gap: 6px;
     border-radius: 6px;
-    background: #6400B2;
+    background: var(--brand-primary, #FF6600);
     padding: 8px 6px;
     text-align: center;
     font-size: 8px;
@@ -7226,7 +7271,44 @@ html.light-mode .figma-geo-combobox-label {
 }
 
 .paid-quick-action:hover {
-    background: #7B13C8;
+    background: #0b0b0b;
+}
+
+.figma-rightbar-icon-btn {
+    display: flex;
+    height: 31px;
+    width: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    background: var(--brand-primary, #FF6600);
+    color: #fff;
+    transition: background 0.15s ease;
+}
+
+.figma-rightbar-icon-btn:hover {
+    background: #0b0b0b;
+}
+
+.figma-rightbar-icon-btn--muted {
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 50%, transparent);
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.figma-rightbar-icon-btn--muted:hover {
+    background: var(--brand-primary, #FF6600);
+    color: #fff;
+}
+
+.paid-sys-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(77, 0, 142, 0.35);
+    padding: 8px 10px;
 }
 
 @media (max-width: 767px) {
@@ -8269,8 +8351,8 @@ html.ov-boot-lock body {
 
 .ov-page {
     --ov-scene-head: #4D008E;
-    --ov-scene-body: rgba(77, 0, 142, 0.38);
-    --ov-scene-body-alt: rgba(100, 0, 178, 0.32);
+    --ov-scene-body: rgba(77, 0, 142, 0.45);
+    --ov-scene-body-alt: rgba(77, 0, 142, 0.32);
     --ov-scene-border: rgba(255, 255, 255, 0.18);
     width: 100%;
     max-width: 100%;
@@ -8998,10 +9080,58 @@ html.ov-boot-lock body {
 .ov-domain-search {
     border-color: rgba(255, 255, 255, 0.2) !important;
     background: var(--ov-scene-head) !important;
+    color: #fff !important;
 }
 
 html.light-mode .ov-page h1.text-white {
     color: var(--brand-text, #1a1a1a) !important;
+}
+
+/* Overview purple scene — keep white text on purple inners (light mode global flip breaks this) */
+html.light-mode .ov-page .ov-table th,
+html.light-mode .ov-page .ov-table td,
+html.light-mode .ov-page .ov-table .text-white,
+html.light-mode .ov-page .ov-table .text-white\/75,
+html.light-mode .ov-page .ov-table .text-white\/60 {
+    color: rgba(255, 255, 255, 0.92) !important;
+}
+
+html.light-mode .ov-page .ov-metric-label {
+    color: rgba(255, 255, 255, 0.72) !important;
+}
+
+html.light-mode .ov-page .ov-metric-value {
+    color: #ffffff !important;
+}
+
+html.light-mode .ov-page .ov-domain-search {
+    background: var(--ov-scene-head) !important;
+    color: #ffffff !important;
+}
+
+html.light-mode .ov-page .ov-domain-search::placeholder {
+    color: rgba(255, 255, 255, 0.55) !important;
+}
+
+html.light-mode .ov-page .ov-conn-row,
+html.light-mode .ov-page .ov-quick-stat,
+html.light-mode .ov-page .ov-suite-stat,
+html.light-mode .ov-page .ov-feed-item {
+    color: rgba(255, 255, 255, 0.88);
+}
+
+html.light-mode .ov-page .ov-card__title,
+html.light-mode .ov-page .ov-card__link,
+html.light-mode .ov-page .ov-suite-stat__label,
+html.light-mode .ov-page .ov-suite-stat__value,
+html.light-mode .ov-page .ov-suite-stat__delta,
+html.light-mode .ov-page .ov-suite-stat__vs {
+    color: #ffffff !important;
+}
+
+html.light-mode .ov-page .ov-suite-stat__label,
+html.light-mode .ov-page .ov-suite-stat__vs {
+    color: rgba(255, 255, 255, 0.72) !important;
 }
 
 .ov-rightbar .figma-rightbar-notify {

@@ -43,16 +43,16 @@
     <div class="figma-rightbar-center mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
         <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">System Overview</h2>
         <div id="paid-system-overview" class="w-full max-w-[168px] space-y-[8px] text-[10px] text-white/75">
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="paid-sys-row">
                 <span>Total Clicks</span><span data-sys="clicks" class="text-white/90">—</span>
             </div>
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="paid-sys-row">
                 <span>Invalid Clicks</span><span data-sys="invalid" class="text-rose-300">—</span>
             </div>
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="paid-sys-row">
                 <span>Blocked</span><span data-sys="blocked" class="text-white/90">—</span>
             </div>
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="paid-sys-row">
                 <span>Protection Rate</span><span data-sys="rate" class="text-emerald-200">—</span>
             </div>
         </div>
@@ -723,6 +723,12 @@
         .paid-traffic-head__title { font-size: 22px; }
     }
     html.light-mode .paid-traffic-head__title { color: #2d2d3a; }
+    html.light-mode .paid-traffic-head__domain .figma-panel-select {
+        background-color: #ffffff !important;
+        color: #2d2d3a !important;
+        border: 1px solid rgba(255, 255, 255, 0.65) !important;
+        color-scheme: light;
+    }
     .paid-view-tabs {
         display: inline-flex;
         align-items: center;

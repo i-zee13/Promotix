@@ -7,7 +7,7 @@
         <button
             type="button"
             id="rightbar-notify-toggle"
-            class="relative flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]"
+            class="figma-rightbar-icon-btn relative"
             title="Notifications"
             aria-label="Toggle notifications"
             aria-expanded="false"
@@ -22,7 +22,7 @@
         <button
             type="button"
             @click="$dispatch('open-live-agent')"
-            class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]"
+            class="figma-rightbar-icon-btn"
             title="Messages"
             aria-label="Live agent chat"
         >
@@ -34,7 +34,7 @@
         @if ($canInviteTeam)
             <button
                 type="button"
-                class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]"
+                class="figma-rightbar-icon-btn"
                 title="Invite teammate"
                 aria-label="Invite teammate"
                 onclick="window.dispatchEvent(new CustomEvent('open-portal-team-invite'))"
@@ -46,7 +46,7 @@
         @else
             <a
                 href="{{ route('billing.index') }}"
-                class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2]/50 text-white/70 hover:bg-[#6400B2]"
+                class="figma-rightbar-icon-btn figma-rightbar-icon-btn--muted"
                 title="Invite teammates — Enterprise, Advanced, or Custom plan"
                 aria-label="Upgrade to invite teammates"
             >
@@ -58,7 +58,7 @@
 
         <a
             href="{{ route('profile.edit') }}"
-            class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]"
+            class="figma-rightbar-icon-btn"
             title="More"
             aria-label="More options"
         >
