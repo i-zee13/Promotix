@@ -4684,6 +4684,15 @@ select.figma-sa-subs-status-pill {
         font-size: 0.94rem;
     }
 
+    .figma-sidebar-logo-mark {
+        width: 40px;
+        height: 40px;
+    }
+
+    .figma-sidebar-logo-word {
+        font-size: 20px;
+    }
+
     .figma-sidebar-logo {
         height: 42px;
         width: 104px;
@@ -4768,12 +4777,57 @@ html.light-mode {
 }
 
 /* Sidebar brand logo (Clickronix) */
+.figma-sidebar-brand {
+    min-height: 52px;
+    width: 100%;
+}
+
+.figma-sidebar-logo-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+}
+
+.figma-sidebar-logo-mark {
+    display: block;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    object-position: center;
+}
+
+.figma-sidebar-logo-word {
+    display: inline-flex;
+    align-items: baseline;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.figma-sidebar-logo-word__click {
+    color: #ffffff;
+}
+
+.figma-sidebar-logo-word__ronix {
+    color: #ff6600;
+}
+
+.light-mode .figma-sidebar-logo-word__click {
+    color: #1a1a1a;
+}
+
+.light-mode .figma-sidebar-logo-word__ronix {
+    color: #ff6600;
+}
+
 .figma-sidebar-brand .figma-sidebar-logo {
     display: block;
     max-width: 100%;
-    height: 40px;
-    width: auto;
-    max-height: 40px;
+    height: auto;
     opacity: 1;
     filter: none;
     margin-left: 0;

@@ -1,14 +1,19 @@
 @php
-    $logoPath = public_path('images/clickronix-logo.png');
-    $logoUrl = url('/images/clickronix-logo.png') . (is_file($logoPath) ? '?v=' . filemtime($logoPath) : '');
+    $iconPath = public_path('images/clickronix-icon.png');
+    $iconUrl = url('/images/clickronix-icon.png') . (is_file($iconPath) ? '?v=' . filemtime($iconPath) : '');
 @endphp
-<img
-    src="{{ $logoUrl }}"
-    alt="Clickronix"
-    width="180"
-    height="48"
-    class="figma-sidebar-logo mx-auto h-[40px] w-auto max-w-[180px] object-contain object-left"
-    loading="eager"
-    decoding="async"
-    referrerpolicy="no-referrer"
->
+<span class="figma-sidebar-logo-lockup" aria-label="Clickronix">
+    <img
+        src="{{ $iconUrl }}"
+        alt=""
+        width="52"
+        height="52"
+        class="figma-sidebar-logo-mark"
+        loading="eager"
+        decoding="async"
+        referrerpolicy="no-referrer"
+    >
+    <span class="figma-sidebar-logo-word">
+        <span class="figma-sidebar-logo-word__click">CLICK</span><span class="figma-sidebar-logo-word__ronix">RONIX</span>
+    </span>
+</span>

@@ -32,7 +32,7 @@
 <div id="figma-shell" class="figma-shell figma-shell-super">
     <aside class="figma-sidebar px-[16px] pt-[12px] pb-[6px] xl:px-[20px] xl:pt-[14px] xl:pb-[8px]">
         <div class="figma-sidebar-inner flex min-h-[100dvh] flex-col">
-            <a href="{{ route('super-admin.dashboard') }}" class="figma-sidebar-brand mb-[8px] mt-[2px] flex shrink-0 items-center">
+            <a href="{{ route('super-admin.dashboard') }}" class="figma-sidebar-brand mb-[10px] mt-[4px] flex shrink-0 items-center">
                 @include('partials.sidebar-logo')
             </a>
 
