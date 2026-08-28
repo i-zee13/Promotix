@@ -18,12 +18,12 @@
     <style>
         .pa-dash {
             --pa-accent: #FF6600;
-            --pa-accent-soft: #FFB380;
-            --pa-bg: #0F0F10;
-            --pa-card: #141414;
-            --pa-border: rgba(255, 255, 255, 0.1);
+            --pa-accent-soft: #c2410c;
+            --pa-bg: #f4f2f7;
+            --pa-card: #ffffff;
+            --pa-border: rgba(255, 102, 0, 0.35);
             --pa-gutter: 12px;
-            color: rgba(255, 255, 255, 0.88);
+            color: #1a1a1a;
         }
         .pa-dash .pa-kpi-grid {
             display: grid;
@@ -41,12 +41,12 @@
             border-radius: 10px;
             border: 1px solid var(--pa-border);
             background:
-                linear-gradient(180deg, rgba(255, 102, 0, 0.22) 0%, rgba(255, 102, 0, 0.06) 42%, #141414 78%);
+                linear-gradient(180deg, rgba(255, 102, 0, 0.12) 0%, rgba(255, 102, 0, 0.04) 42%, #ffffff 78%);
             padding: 14px 14px 10px;
             min-height: 148px;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+            box-shadow: 0 6px 18px rgba(255, 102, 0, 0.08);
         }
         .pa-dash .pa-kpi__top {
             display: flex;
@@ -69,13 +69,13 @@
         .pa-dash .pa-kpi__title {
             font-size: 12px;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.72);
+            color: #5c5470;
         }
         .pa-dash .pa-kpi__value {
             font-size: 28px;
             font-weight: 700;
             line-height: 1;
-            color: #fff;
+            color: #1a1a1a;
             letter-spacing: -0.02em;
         }
         .pa-dash .pa-kpi__delta {
@@ -137,13 +137,14 @@
             min-height: 280px;
             display: flex;
             flex-direction: column;
+            box-shadow: 0 4px 14px rgba(255, 102, 0, 0.06);
         }
         .pa-dash .pa-card--compact { min-height: 240px; }
         .pa-dash .pa-card__title {
             margin: 0 0 12px;
             font-size: 15px;
             font-weight: 700;
-            color: rgba(255, 255, 255, 0.88);
+            color: #1a1a1a;
         }
         .pa-dash .pa-card__head {
             display: flex;
@@ -154,6 +155,49 @@
             margin-bottom: 12px;
         }
         .pa-dash .pa-card__head .pa-card__title { margin: 0; }
+
+        .pa-dash .pa-kh-toggle {
+            display: inline-flex;
+            align-items: stretch;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 102, 0, 0.35);
+            background: rgba(255, 102, 0, 0.06);
+            overflow: hidden;
+        }
+        .pa-dash .pa-kh-toggle__btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border: 0;
+            background: transparent;
+            color: #6b6280;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 5px 10px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .pa-dash .pa-kh-toggle__btn svg {
+            width: 13px;
+            height: 13px;
+        }
+        .pa-dash .pa-kh-toggle__btn.is-active {
+            background: #FF6600;
+            color: #fff;
+        }
+        .pa-dash .pa-kh-toggle__hint {
+            margin: -4px 0 10px;
+            font-size: 10px;
+            color: #6b6280;
+        }
+        .pa-dash .pa-kh-combo-title {
+            margin: 0 0 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b6280;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
 
         .pa-dash .pa-donut-wrap {
             display: grid;
@@ -1048,7 +1092,32 @@
 
         @if ($showKeywordsBlock)
         <section class="pa-card">
-            <h2 class="pa-card__title">Keyword &amp; Headline</h2>
+            <div class="pa-card__head">
+                <h2 class="pa-card__title">Keyword &amp; Headline</h2>
+                <div class="pa-kh-toggle" role="group" aria-label="Keyword source">
+                    <button
+                        type="button"
+                        class="pa-kh-toggle__btn"
+                        :class="keywordHeadlineSource === 'ads' ? 'is-active' : ''"
+                        @click="keywordHeadlineSource = 'ads'"
+                        title="Keywords and campaigns captured from ads"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+                        Ads
+                    </button>
+                    <button
+                        type="button"
+                        class="pa-kh-toggle__btn"
+                        :class="keywordHeadlineSource === 'site' ? 'is-active' : ''"
+                        @click="keywordHeadlineSource = 'site'"
+                        title="Page titles and meta keywords from the website"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+                        Website
+                    </button>
+                </div>
+            </div>
+            <p class="pa-kh-toggle__hint" x-text="keywordHeadlineSource === 'ads' ? 'UTM terms and ad campaigns captured on click.' : 'Page titles and meta keywords seen on-site.'"></p>
             <div class="pa-split-2">
                 <div>
                     <h3>Keywords</h3>
@@ -1058,7 +1127,7 @@
                             <span x-text="row.pct != null ? (row.pct + '%') : fmt(row.value)"></span>
                         </div>
                     </template>
-                    <p x-show="!(pageKeywords() || []).length" class="pa-empty">No keywords.</p>
+                    <p x-show="!(pageKeywords() || []).length" class="pa-empty" x-text="keywordHeadlineSource === 'ads' ? 'No ad keywords.' : 'No on-site keywords.'"></p>
                 </div>
                 <div>
                     <h3>Headlines</h3>
@@ -1068,17 +1137,17 @@
                             <span x-text="row.pct != null ? (row.pct + '%') : fmt(row.value)"></span>
                         </div>
                     </template>
-                    <p x-show="!(pageHeadlines() || []).length" class="pa-empty">No headlines.</p>
+                    <p x-show="!(pageHeadlines() || []).length" class="pa-empty" x-text="keywordHeadlineSource === 'ads' ? 'No ad headlines.' : 'No page titles.'"></p>
                 </div>
             </div>
             <div class="mt-[14px]" x-show="(pageKeywordHeadlines() || []).length">
-                <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.06em">Keyword × Headline</h3>
+                <h3 class="pa-kh-combo-title">Keyword × Headline</h3>
                 <div class="overflow-x-auto">
                     <table class="pa-table">
                         <thead>
                             <tr>
                                 <th>Keyword</th>
-                                <th>Headline / Campaign</th>
+                                <th x-text="keywordHeadlineSource === 'ads' ? 'Headline / Campaign' : 'Page title'"></th>
                                 <th class="num">Visits</th>
                                 <th class="num">Share</th>
                             </tr>

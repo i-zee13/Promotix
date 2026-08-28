@@ -20,6 +20,7 @@ use App\Services\GoogleAudienceExclusionService;
 use App\Support\DetectionProfiles;
 use App\Support\DetectionReasonLabels;
 use App\Support\ClickronixTrafficReport;
+use App\Support\AdminIntegrationCatalog;
 use App\Support\CountryFlag;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleIpBlockFormatter;
@@ -3470,6 +3471,7 @@ class PaidMarketingController extends Controller
             'detectionProfiles' => \App\Support\DetectionProfiles::catalog(),
             'googleAdsAccounts' => $googleAdsAccounts,
             'planDetectionFeatures' => \App\Support\DetectionPlanFeatures::forUser($request->user()),
+            'enabledTenantIntegrations' => AdminIntegrationCatalog::enabledTenantIntegrations(),
         ]);
     }
 

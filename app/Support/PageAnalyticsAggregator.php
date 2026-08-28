@@ -343,6 +343,7 @@ class PageAnalyticsAggregator
             'keywords' => $this->rankList($keywords, $total, 'keyword'),
             'headlines' => $this->rankList($headlines, $total, 'headline'),
             'keyword_headlines' => $this->rankComboList($keywordHeadlines, $total),
+            ...$this->buildSiteKeywordHeadlineStats($domainIds, $from, $to, $filters),
             'geo' => $this->chartRows(collect($countries)->map(fn ($v, $k) => [
                 'key' => $k,
                 'code' => $k,
@@ -423,6 +424,9 @@ class PageAnalyticsAggregator
             'keywords' => [],
             'headlines' => [],
             'keyword_headlines' => [],
+            'site_keywords' => [],
+            'site_headlines' => [],
+            'site_keyword_headlines' => [],
             'geo' => [],
             'devices' => [],
             'revenue_trend' => [],
@@ -931,6 +935,118 @@ class PageAnalyticsAggregator
             'pct' => $this->pct($s['value'], max(1, $total)),
             'bar' => max(6, (int) round(($s['value'] / $max) * 100)),
         ], $steps);
+    }
+
+    /**
+     * On-site titles (document.title) and meta keywords from behavior events.
+     *
+     * @param  list<int>  $domainIds
+     * @param  array<string, string>  $filters
+     * @return array{site_keywords: list<array<string, mixed>>, site_headlines: list<array<string, mixed>>, site_keyword_headlines: list<array<string, mixed>>}
+     */
+    private function buildSiteKeywordHeadlineStats(array $domainIds, Carbon $from, Carbon $to, array $filters): array
+    {
+        $empty = [
+            'site_keywords' => [],
+            'site_headlines' => [],
+            'site_keyword_headlines' => [],
+        ];
+
+        if (! Schema::hasTable('visit_behavior_events') || $domainIds === []) {
+            return $empty;
+        }
+
+        $query = DB::table('visit_behavior_events')
+            ->whereIn('domain_id', $domainIds)
+            ->whereIn('event_type', ['page_view', 'page_change'])
+            ->whereBetween('occurred_at', [$from, $to]);
+
+        $path = trim((string) ($filters['path'] ?? ''));
+        if ($path !== '') {
+            $query->where(function ($inner) use ($path): void {
+                $inner->where('page_path', 'like', '%'.$path.'%')
+                    ->orWhere('page_url', 'like', '%'.$path.'%');
+            });
+        }
+
+        $q = trim((string) ($filters['q'] ?? ''));
+        if ($q !== '') {
+            $query->where(function ($inner) use ($q): void {
+                $inner->where('title', 'like', '%'.$q.'%')
+                    ->orWhere('page_path', 'like', '%'.$q.'%')
+                    ->orWhere('payload', 'like', '%'.$q.'%');
+            });
+        }
+
+        $rows = $query->get(['title', 'page_path', 'payload']);
+        if ($rows->isEmpty()) {
+            return $empty;
+        }
+
+        $keywords = [];
+        $headlines = [];
+        $keywordHeadlines = [];
+
+        foreach ($rows as $row) {
+            $title = trim((string) ($row->title ?? ''));
+            if ($title !== '') {
+                $headlines[$title] = ($headlines[$title] ?? 0) + 1;
+            }
+
+            $pageKeywords = $this->extractSiteKeywords($row);
+            foreach ($pageKeywords as $keyword) {
+                $keywords[$keyword] = ($keywords[$keyword] ?? 0) + 1;
+            }
+
+            if ($title !== '' || $pageKeywords !== []) {
+                $primaryKeyword = $pageKeywords[0] ?? '(no keyword)';
+                $comboKey = $primaryKeyword.' · '.($title !== '' ? $title : '(no title)');
+                $keywordHeadlines[$comboKey] = ($keywordHeadlines[$comboKey] ?? 0) + 1;
+            }
+        }
+
+        $total = max(1, $rows->count());
+
+        return [
+            'site_keywords' => $this->rankList($keywords, $total, 'keyword'),
+            'site_headlines' => $this->rankList($headlines, $total, 'headline'),
+            'site_keyword_headlines' => $this->rankComboList($keywordHeadlines, $total),
+        ];
+    }
+
+    /** @return list<string> */
+    private function extractSiteKeywords(object $row): array
+    {
+        $keywords = [];
+
+        if (filled($row->payload ?? null)) {
+            $payload = json_decode((string) $row->payload, true);
+            if (is_array($payload)) {
+                $raw = trim((string) ($payload['meta_keywords'] ?? $payload['keywords'] ?? ''));
+                if ($raw !== '') {
+                    foreach (preg_split('/[,;|]/', $raw) ?: [] as $part) {
+                        $part = trim((string) $part);
+                        if ($part !== '') {
+                            $keywords[] = $part;
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($keywords === []) {
+            $path = trim((string) ($row->page_path ?? ''), '/');
+            if ($path !== '') {
+                foreach (preg_split('/[-_\/]+/', $path) ?: [] as $token) {
+                    $token = trim((string) $token);
+                    if (strlen($token) >= 3 && ! is_numeric($token)) {
+                        $keywords[] = $token;
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($keywords));
     }
 
     /** @param  array<string, int>  $map */

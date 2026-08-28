@@ -677,13 +677,22 @@ class SupportPagesController extends Controller
                 : '0',
             'dashboard_endpoint' => url('/api/admin/guidance/ask'),
         ];
+        $crossDomainRows = $this->buildCrossDomainIntel(500);
+        $crossDomainStats = [
+            'linked_domains' => (string) collect($crossDomainRows)->max('domain_count') ?: '0',
+            'cross_sessions_30d' => (string) collect($crossDomainRows)->sum('hits'),
+        ];
 
-        $cards = collect($integrations)->map(function (array $row) use ($guidanceStats) {
+        $cards = collect($integrations)->map(function (array $row) use ($guidanceStats, $crossDomainStats) {
             $meta = AdminIntegrationCatalog::cardMeta($row['name']);
             if ($row['name'] === 'guidance-chatbot') {
                 $row['settings'] = array_merge($row['settings'] ?? [], $guidanceStats);
                 $row['manage_url'] = route('super-admin.guidance.index');
                 $meta['connected_label'] = Schema::hasTable('guidance_articles') ? 'Synced' : 'Pending';
+            }
+            if ($row['name'] === 'cross-domain') {
+                $row['settings'] = array_merge($row['settings'] ?? [], $crossDomainStats);
+                $row['manage_url'] = route('super-admin.traffic.cross-domain');
             }
 
             return array_merge($row, $meta);

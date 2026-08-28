@@ -169,6 +169,8 @@
             .figma-pac-card--block-geo { border-color: rgba(255, 120, 70, 0.4); }
             .figma-pac-card--allow-ip { border-color: rgba(64, 156, 255, 0.4); }
             .figma-pac-card--block-ip { border-color: rgba(255, 80, 80, 0.4); }
+            .figma-pac-card--cross-domain { border-color: rgba(255, 102, 0, 0.45); }
+            .figma-pac-card--chatbot { border-color: rgba(100, 0, 178, 0.45); }
             .figma-pac-card-top { display: flex; gap: 10px; margin-bottom: 12px; }
             .figma-pac-card-icon {
                 display: flex;
@@ -184,6 +186,8 @@
             .figma-pac-card--block-geo .figma-pac-card-icon { background: rgba(255, 120, 70, 0.15); color: #ff7846; }
             .figma-pac-card--allow-ip .figma-pac-card-icon { background: rgba(64, 156, 255, 0.15); color: #409cff; }
             .figma-pac-card--block-ip .figma-pac-card-icon { background: rgba(255, 80, 80, 0.15); color: #ff5050; }
+            .figma-pac-card--cross-domain .figma-pac-card-icon { background: rgba(255, 102, 0, 0.15); color: #FF6600; }
+            .figma-pac-card--chatbot .figma-pac-card-icon { background: rgba(100, 0, 178, 0.15); color: #c4b5fd; }
             .figma-pac-card-heading {
                 flex: 1;
                 min-width: 0;
@@ -1539,6 +1543,44 @@
                                     <p class="figma-pac-purpose"><span>Reason</span> Repeated invalid activity, suspicious behavior detected.</p>
                                 </div>
                                 <button type="button" class="figma-pac-card-btn" onclick="document.getElementById('detection-panel-ip-block')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Manage Blacklist IPs</button>
+                            </article>
+                            @endif
+
+                            @if (! empty($enabledTenantIntegrations['cross_domain']))
+                            <article class="figma-pac-card figma-pac-card--cross-domain">
+                                <div class="figma-pac-card-top">
+                                    <div class="figma-pac-card-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M8 12h8M12 8v8"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/></svg>
+                                    </div>
+                                    <div class="figma-pac-card-heading">
+                                        <h3 class="figma-pac-card-title">Cross-domain intelligence</h3>
+                                        <span class="figma-dem-enabled is-on">Active</span>
+                                    </div>
+                                </div>
+                                <div class="figma-pac-card-body">
+                                    <p class="figma-pac-list-label">Visitor linking across domains</p>
+                                    <p class="figma-pac-purpose"><span>Purpose</span> See when the same visitor hits multiple domains in your workspace.</p>
+                                </div>
+                                <a href="{{ route('analytics.journeys') }}" class="figma-pac-card-btn">View cross-domain journeys →</a>
+                            </article>
+                            @endif
+
+                            @if (! empty($enabledTenantIntegrations['chatbot']))
+                            <article class="figma-pac-card figma-pac-card--chatbot">
+                                <div class="figma-pac-card-top">
+                                    <div class="figma-pac-card-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                                    </div>
+                                    <div class="figma-pac-card-heading">
+                                        <h3 class="figma-pac-card-title">Guidance chatbot</h3>
+                                        <span class="figma-dem-enabled is-on">Active</span>
+                                    </div>
+                                </div>
+                                <div class="figma-pac-card-body">
+                                    <p class="figma-pac-list-label">Dashboard + on-site chat</p>
+                                    <p class="figma-pac-purpose"><span>Purpose</span> Product guidance chat powered by your published Knowledge Base articles.</p>
+                                </div>
+                                <a href="{{ route('analytics.dashboard') }}" class="figma-pac-card-btn">Open Analytics dashboard →</a>
                             </article>
                             @endif
                         </div>

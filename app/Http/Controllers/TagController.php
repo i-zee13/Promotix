@@ -534,6 +534,13 @@ class TagController extends Controller
       };
     }
 
+    function readMetaKeywords(){
+      try {
+        var el = document.querySelector('meta[name="keywords"], meta[name="keyword"]');
+        return el ? String(el.getAttribute('content') || '').slice(0, 500) : '';
+      } catch (err) { return ''; }
+    }
+
     var seenPages = {};
     var firstPageMarked = false;
     function markPage(){
@@ -546,6 +553,7 @@ class TagController extends Controller
         path: String(location.pathname || '').slice(0, 500),
         title: String(document.title || '').slice(0, 255),
         headline: String(document.title || '').slice(0, 255),
+        meta_keywords: readMetaKeywords(),
         referrer: String(document.referrer || '').slice(0, 500)
       };
       if (!firstPageMarked) {

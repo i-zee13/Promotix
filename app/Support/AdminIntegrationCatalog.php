@@ -11,6 +11,9 @@ class AdminIntegrationCatalog
     /** Ad platforms that can appear on tenant Platform Integrate (not Stripe/SMTP/etc). */
     public const AD_PLATFORM_NAMES = ['meta-ads', 'microsoft-ads'];
 
+    /** Optional tenant-facing integrations toggled from Super Admin → Integrations. */
+    public const TENANT_OPTIONAL_NAMES = ['cross-domain', 'guidance-chatbot'];
+
     public static function ensureForUser(int $userId): void
     {
         foreach ([
@@ -20,6 +23,7 @@ class AdminIntegrationCatalog
             ['name' => 'oauth', 'display_name' => 'OAuth', 'provider' => 'oauth'],
             ['name' => 'meta-ads', 'display_name' => 'Meta Ads', 'provider' => 'meta'],
             ['name' => 'microsoft-ads', 'display_name' => 'Microsoft Ads', 'provider' => 'microsoft'],
+            ['name' => 'cross-domain', 'display_name' => 'Cross-domain intelligence', 'provider' => 'promotix'],
             ['name' => 'guidance-chatbot', 'display_name' => 'Guidance chatbot / KB sync', 'provider' => 'guidance'],
         ] as $row) {
             $defaults = [
@@ -66,7 +70,8 @@ class AdminIntegrationCatalog
             'oauth' => 3,
             'meta-ads' => 4,
             'microsoft-ads' => 5,
-            'guidance-chatbot' => 6,
+            'cross-domain' => 6,
+            'guidance-chatbot' => 7,
         ];
 
         return AdminIntegrationSetting::query()
@@ -120,6 +125,37 @@ class AdminIntegrationCatalog
         ];
     }
 
+    /**
+     * Optional integrations surfaced on tenant Platform Integrate / Detection Panel
+     * when enabled in Super Admin → Integrations.
+     *
+     * @return array{cross_domain: bool, chatbot: bool}
+     */
+    public static function enabledTenantIntegrations(): array
+    {
+        return [
+            'cross_domain' => self::integrationEnabledForTenants('cross-domain'),
+            'chatbot' => self::integrationEnabledForTenants('guidance-chatbot'),
+        ];
+    }
+
+    public static function integrationEnabledForTenants(string $name): bool
+    {
+        if (! Schema::hasTable('admin_integration_settings')) {
+            return false;
+        }
+
+        $query = AdminIntegrationSetting::query()
+            ->where('name', $name)
+            ->where('enabled', true);
+
+        if (Schema::hasColumn('users', 'is_super_admin')) {
+            $query->whereHas('user', fn ($q) => $q->where('is_super_admin', true));
+        }
+
+        return $query->exists();
+    }
+
     public static function cardMeta(string $name): array
     {
         return match ($name) {
@@ -151,6 +187,11 @@ class AdminIntegrationCatalog
             'microsoft-ads' => [
                 'icon' => 'B',
                 'subtitle' => 'Microsoft Advertising (Bing)',
+                'connected_label' => 'Enabled for tenants',
+            ],
+            'cross-domain' => [
+                'icon' => 'X',
+                'subtitle' => 'Link visitor sessions across domains in your workspace for journey intelligence.',
                 'connected_label' => 'Enabled for tenants',
             ],
             'guidance-chatbot' => [
@@ -223,6 +264,10 @@ class AdminIntegrationCatalog
                 ['name' => 'client_id', 'label' => 'Microsoft Client ID', 'type' => 'text', 'secret' => false],
                 ['name' => 'client_secret', 'label' => 'Microsoft Client Secret', 'type' => 'password', 'secret' => true],
                 ['name' => 'developer_token', 'label' => 'Developer token', 'type' => 'password', 'secret' => true],
+            ],
+            'cross-domain' => [
+                ['name' => 'linked_domains', 'label' => 'Linked domains', 'type' => 'text', 'secret' => false, 'readonly' => true],
+                ['name' => 'cross_sessions_30d', 'label' => 'Cross-domain hits (30d)', 'type' => 'text', 'secret' => false, 'readonly' => true],
             ],
             'guidance-chatbot' => [
                 ['name' => 'published_articles', 'label' => 'Published articles', 'type' => 'text', 'secret' => false, 'readonly' => true],

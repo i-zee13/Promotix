@@ -422,6 +422,7 @@ class IntegrationsController extends Controller
             : collect();
 
         $enabledAdPlatforms = AdminIntegrationCatalog::enabledAdPlatforms();
+        $enabledTenantIntegrations = AdminIntegrationCatalog::enabledTenantIntegrations();
 
         return view('integrations', compact(
             'connections',
@@ -445,6 +446,7 @@ class IntegrationsController extends Controller
             'trackingIds',
             'syncLogs',
             'enabledAdPlatforms',
+            'enabledTenantIntegrations',
         ));
     }
 

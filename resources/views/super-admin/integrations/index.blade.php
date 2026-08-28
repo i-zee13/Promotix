@@ -38,7 +38,7 @@
 
         <div class="grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-3">
             <template x-for="integration in filteredIntegrations" :key="integration.id">
-                <article class="figma-sa-integration-card" :class="integration.name === 'guidance-chatbot' ? 'ring-1 ring-[#FF6600]/35' : ''">
+                <article class="figma-sa-integration-card" :class="['guidance-chatbot','cross-domain'].includes(integration.name) ? 'ring-1 ring-[#FF6600]/35' : ''">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex min-w-0 items-center gap-3">
                             <span class="figma-sa-integration-icon" :class="'is-' + integration.name" aria-hidden="true">
@@ -48,8 +48,9 @@
                                 <svg x-show="integration.name === 'oauth'" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 2l7 3v6c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V5l7-3z"/></svg>
                                 <svg x-show="integration.name === 'meta-ads'" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.52 1.49-3.91 3.78-3.91 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.45 2.9h-2.33v7c4.78-.75 8.44-4.9 8.44-9.9 0-5.53-4.5-10.02-10-10.02z"/></svg>
                                 <svg x-show="integration.name === 'microsoft-ads'" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8.5v8.5H3V3zm9.5 0H21v8.5h-8.5V3zM3 12.5H11.5V21H3v-8.5zm9.5 0H21V21h-8.5v-8.5z"/></svg>
+                                <svg x-show="integration.name === 'cross-domain'" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-width="1.8" d="M8 12h8M12 8v8"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/></svg>
                                 <svg x-show="integration.name === 'guidance-chatbot'" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                                <template x-if="!['stripe','google-cloud','smtp','oauth','meta-ads','microsoft-ads','guidance-chatbot'].includes(integration.name)"><span x-text="integration.icon"></span></template>
+                                <template x-if="!['stripe','google-cloud','smtp','oauth','meta-ads','microsoft-ads','guidance-chatbot','cross-domain'].includes(integration.name)"><span x-text="integration.icon"></span></template>
                             </span>
                             <div class="min-w-0">
                                 <h3 class="text-[20px] font-medium text-white" x-text="integration.display_name"></h3>
@@ -77,7 +78,7 @@
                             x-text="integration.enabled ? integration.connected_label : 'Disabled'"></span>
                     </div>
 
-                    <p class="figma-sa-integration-meta" x-show="integration.name !== 'guidance-chatbot'">
+                    <p class="figma-sa-integration-meta" x-show="!['guidance-chatbot','cross-domain'].includes(integration.name)">
                         <template x-if="integration.last_rotated_at">
                             <span>API keys last updated: <span x-text="integration.last_rotated_at"></span></span>
                         </template>
@@ -122,15 +123,20 @@
                             :href="integration.manage_url || '#'"
                             class="figma-sa-integration-btn figma-sa-integration-btn--solid no-underline"
                         >Manage Guidance KB →</a>
-                        <button type="button" class="figma-sa-integration-btn" x-show="integration.name !== 'guidance-chatbot'" @click="testIntegration(integration)">
+                        <a
+                            x-show="integration.name === 'cross-domain'"
+                            :href="integration.manage_url || '#'"
+                            class="figma-sa-integration-btn figma-sa-integration-btn--solid no-underline"
+                        >View cross-domain intel →</a>
+                        <button type="button" class="figma-sa-integration-btn" x-show="!['guidance-chatbot','cross-domain'].includes(integration.name)" @click="testIntegration(integration)">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             Test
                         </button>
-                        <button type="button" class="figma-sa-integration-btn" x-show="integration.name !== 'guidance-chatbot'" @click="rotateIntegration(integration)">
+                        <button type="button" class="figma-sa-integration-btn" x-show="!['guidance-chatbot','cross-domain'].includes(integration.name)" @click="rotateIntegration(integration)">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0114-5M20 15a8 8 0 01-14 5"/></svg>
                             Rotate Keys
                         </button>
-                        <button type="button" class="figma-sa-integration-btn figma-sa-integration-btn--solid" x-show="integration.name !== 'guidance-chatbot'" @click="saveIntegration(integration)">
+                        <button type="button" class="figma-sa-integration-btn figma-sa-integration-btn--solid" x-show="!['guidance-chatbot','cross-domain'].includes(integration.name)" @click="saveIntegration(integration)">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 13l4 4L19 7"/></svg>
                             Save
                         </button>

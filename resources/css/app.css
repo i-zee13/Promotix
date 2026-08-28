@@ -14277,3 +14277,115 @@ html.light-mode .pa-dash .pa-geo__dot-label {
     text-shadow: none;
 }
 
+/* Analytics pages: restore light page background + card chrome (independent of global theme toggle) */
+.analytics-skin.brand-page-bg {
+    background:
+        radial-gradient(ellipse 90% 55% at 8% -8%, rgba(255, 102, 0, 0.08), transparent 58%),
+        #f4f2f7;
+    color: #1a1a1a;
+}
+
+.analytics-skin h1.text-\[\#a9a9a9\],
+.analytics-skin span.text-\[\#a9a9a9\],
+.analytics-skin .bp-adv-page-head h1,
+.analytics-skin .bp-adv-page-head > div > span.text-\[24px\],
+.analytics-skin .bp-adv-page-head > div > span.text-\[20px\] {
+    color: #1a1a1a !important;
+}
+
+.analytics-skin .pa-dash .pa-card,
+.analytics-skin .pa-dash .pa-kpi {
+    background: #fff;
+    border-color: rgba(255, 102, 0, 0.4) !important;
+    color: #1a1a1a;
+}
+
+.analytics-skin .pa-dash .pa-card__title,
+.analytics-skin .pa-dash .pa-kpi__value,
+.analytics-skin .pa-dash .pa-donut__hole strong {
+    color: #1a1a1a;
+}
+
+.analytics-skin .pa-dash .pa-kpi__title,
+.analytics-skin .pa-dash .pa-empty,
+.analytics-skin .pa-dash .pa-table th,
+.analytics-skin .pa-dash .muted,
+.analytics-skin .pa-dash .pa-bar-row__label,
+.analytics-skin .pa-dash .pa-bar-row__meta,
+.analytics-skin .pa-dash .pa-list-item,
+.analytics-skin .pa-dash .pa-split-2 h3,
+.analytics-skin .pa-dash .pa-geo__name,
+.analytics-skin .pa-dash .pa-geo__meta,
+.analytics-skin .pa-dash .pa-geo__legend,
+.analytics-skin .pa-dash .pa-donut__hole span {
+    color: #5c5470 !important;
+}
+
+.analytics-skin .pa-dash .pa-table td {
+    color: #3f3a4a;
+    border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+.analytics-skin .pa-dash .pa-donut__hole {
+    background: #fff;
+}
+
+.analytics-skin .pa-dash .pa-bar-track {
+    background: rgba(255, 102, 0, 0.12);
+}
+
+.analytics-skin .pa-dash .pa-geo__map {
+    background:
+        radial-gradient(ellipse at 22% 38%, rgba(255, 102, 0, 0.12), transparent 42%),
+        linear-gradient(180deg, #f4f4f5 0%, #e8e8ea 100%);
+}
+
+.analytics-skin .bpv2-kpi {
+    background: linear-gradient(180deg, rgba(255, 102, 0, 0.12) 0%, rgba(255, 102, 0, 0.03) 40%, #fff 72%);
+    border-color: rgba(255, 102, 0, 0.28);
+    box-shadow: 0 6px 18px rgba(255, 102, 0, 0.1);
+}
+
+.analytics-skin .bpv2-card {
+    background: #fff;
+    border-color: rgba(255, 102, 0, 0.25);
+}
+
+.analytics-skin .bpv2-kpi__value,
+.analytics-skin .bpv2-mal__count,
+.analytics-skin .bpv2-card__title,
+.analytics-skin .bpv2-donut__hole strong {
+    color: #1a1524;
+}
+
+.analytics-skin .bpv2-kpi__title,
+.analytics-skin .bpv2-kpi__sub,
+.analytics-skin .bpv2-bar-row__label,
+.analytics-skin .bpv2-bar-row__meta,
+.analytics-skin .bpv2-table th,
+.analytics-skin .bpv2-table td {
+    color: #5c5470;
+}
+
+.analytics-skin .bpv2-donut__hole {
+    background: #fff;
+}
+
+.analytics-skin .bp-adv-page-head {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 18px;
+    min-width: 0;
+}
+
+@media (min-width: 1100px) {
+    .analytics-skin .bp-adv-page-head {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+    }
+}
+

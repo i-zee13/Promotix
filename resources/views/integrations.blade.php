@@ -399,6 +399,66 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </article>
                     @endif
+
+                    @if (! empty($enabledTenantIntegrations['cross_domain']))
+                        <article class="pi-panel">
+                            <div class="flex items-start justify-between gap-[8px]">
+                                <div class="flex min-w-0 flex-1 gap-[16px]">
+                                    <div class="w-[88px] shrink-0 text-center">
+                                        <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
+                                            <svg class="h-[40px] w-[40px] text-[#FF6600]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" d="M8 12h8M12 8v8"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/></svg>
+                                        </div>
+                                        <p class="text-[15px] font-semibold leading-none text-white">Cross-domain</p>
+                                        <span class="pi-status-pill is-on mt-[8px]">
+                                            <span class="pi-status-dot"></span>
+                                            <span>Enabled</span>
+                                        </span>
+                                    </div>
+                                    <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
+                                        <p class="text-[11px] leading-relaxed text-white/65">Link visitor sessions across domains in your workspace for journey intelligence.</p>
+                                        <a href="{{ route('analytics.journeys') }}" class="pi-ghost-btn">
+                                            @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                            <span>Cross-domain journeys</span>
+                                        </a>
+                                        <a href="{{ route('paid-marketing.detection-settings') }}" class="pi-ghost-btn">
+                                            @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                            <span>Detection Panel</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    @endif
+
+                    @if (! empty($enabledTenantIntegrations['chatbot']))
+                        <article class="pi-panel">
+                            <div class="flex items-start justify-between gap-[8px]">
+                                <div class="flex min-w-0 flex-1 gap-[16px]">
+                                    <div class="w-[88px] shrink-0 text-center">
+                                        <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
+                                            <svg class="h-[40px] w-[40px] text-[#FF6600]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                                        </div>
+                                        <p class="text-[15px] font-semibold leading-none text-white">Guidance chatbot</p>
+                                        <span class="pi-status-pill is-on mt-[8px]">
+                                            <span class="pi-status-dot"></span>
+                                            <span>Enabled</span>
+                                        </span>
+                                    </div>
+                                    <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
+                                        <p class="text-[11px] leading-relaxed text-white/65">Dashboard and on-site chat read published Guidance articles from Super Admin.</p>
+                                        <a href="{{ route('analytics.dashboard') }}" class="pi-ghost-btn">
+                                            @include('partials.sidebar-icon', ['name' => 'home', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                            <span>Analytics dashboard</span>
+                                        </a>
+                                        <a href="{{ route('domains.index') }}" class="pi-ghost-btn">
+                                            @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[14px] w-[14px] shrink-0'])
+                                            <span>Tag on your domains</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    @endif
                 </div>
             </section>
 

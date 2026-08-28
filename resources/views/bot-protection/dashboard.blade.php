@@ -18,29 +18,29 @@
 <div class="brand-page-bg analytics-skin min-h-[calc(100vh-49px)]" x-data="botProtectionFigma(@js(['useDemo' => $useDemo]))" x-init="init()">
     <section class="mx-auto w-full px-[12px] pb-[24px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         {{-- Header --}}
-        <div class="mb-[14px] flex flex-col gap-[10px]">
-            <div class="flex flex-wrap items-center gap-[8px]">
-                <h1 class="text-[20px] font-semibold leading-none text-[#a9a9a9] sm:text-[26px]">Page Analytics</h1>
+        <div class="bp-adv-page-head mb-[14px]">
+            <div class="flex flex-wrap items-center gap-[8px] shrink-0">
+                <h1 class="text-[20px] font-semibold leading-none text-[#1a1a1a] sm:text-[26px]">Page Analytics</h1>
                 <span class="hidden h-[28px] w-[2px] bg-[#a9a9a9] sm:block sm:h-[34px]"></span>
-                <span class="text-[20px] font-semibold leading-none text-[#a9a9a9] sm:text-[26px]">{{ $analyticsFocusTitle }}</span>
+                <span class="text-[20px] font-semibold leading-none text-[#1a1a1a] sm:text-[26px]">{{ $analyticsFocusTitle }}</span>
                 <span x-show="useDemo" x-cloak class="figma-bp-demo-badge">Sample data</span>
-                <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[8px] py-[3px] text-[9px] font-medium text-[#FFB380]">Visitor intelligence · no IP blocking</span>
+                <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[8px] py-[3px] text-[9px] font-medium text-[#c2410c]">Visitor intelligence · no IP blocking</span>
                 @if ($analyticsFocus === 'journeys')
-                    <a href="{{ route('analytics.traffic-control') }}" class="rounded-[6px] border border-white/20 bg-white/5 px-[8px] py-[4px] text-[10px] font-medium text-white/70 hover:bg-white/10">Open session journeys →</a>
+                    <a href="{{ route('analytics.traffic-control') }}" class="rounded-[6px] border border-[#FF6600]/30 bg-white px-[8px] py-[4px] text-[10px] font-medium text-[#c2410c] hover:bg-[#fff7f0]">Open session journeys →</a>
                 @endif
             </div>
 
             <style>
                 .figma-filter-bar--bp-dash.ov-filter-bar,
                 .figma-filter-bar--bp-dash {
-                    width: 100% !important;
+                    width: fit-content !important;
                     max-width: 100% !important;
                     min-width: 0 !important;
-                    margin-left: 0 !important;
-                    align-self: stretch !important;
+                    margin-left: auto !important;
+                    align-self: flex-end;
                     flex: 0 0 auto !important;
-                    display: flex !important;
-                    flex-wrap: wrap !important;
+                    display: inline-flex !important;
+                    flex-wrap: nowrap !important;
                     align-items: stretch;
                     gap: 0 !important;
                     overflow: visible !important;
@@ -48,10 +48,10 @@
                     min-height: 48px !important;
                 }
                 .figma-filter-bar--bp-dash > label {
-                    flex: 1 1 120px !important;
+                    flex: 0 0 auto !important;
                     width: auto !important;
-                    min-width: 110px !important;
-                    max-width: 180px !important;
+                    min-width: 0 !important;
+                    max-width: none !important;
                     margin: 0 !important;
                     padding-left: 7px !important;
                     padding-right: 7px !important;
@@ -59,6 +59,12 @@
                     padding-bottom: 5px !important;
                     box-sizing: border-box;
                 }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-search { width: 150px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-domain { width: 118px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-traffic { width: 108px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-account { width: 118px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-device { width: 98px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-path { width: 128px !important; }
                 .figma-filter-bar--bp-dash > label > span:first-child,
                 .figma-filter-bar--bp-dash .figma-filter-label {
                     color: rgba(0, 0, 0, 0.55) !important;
@@ -77,20 +83,22 @@
                     min-width: 0;
                     max-width: 100%;
                 }
-                .figma-filter-bar--bp-dash .bp-dash-f-search {
-                    flex: 1 1 160px !important;
-                    min-width: 140px !important;
-                    max-width: 220px !important;
+                .figma-filter-bar--bp-dash .bp-dash-f-actions {
+                    display: inline-flex !important;
+                    flex: 0 0 auto !important;
+                    align-items: stretch;
+                    align-self: stretch;
+                    border-left: 1px solid rgba(0, 0, 0, 0.2);
                 }
                 .figma-filter-bar--bp-dash .figma-filter-calendar-host {
                     display: flex !important;
                     flex: 0 0 auto !important;
-                    min-width: 140px !important;
-                    max-width: 200px !important;
+                    min-width: 0 !important;
+                    max-width: none !important;
                     align-items: center;
                     justify-content: center;
                     align-self: stretch;
-                    border-left: 1px solid rgba(0, 0, 0, 0.2);
+                    border-left: 0 !important;
                     padding: 5px 8px !important;
                     margin: 0 !important;
                     box-sizing: border-box;
@@ -127,37 +135,27 @@
                     height: 16px;
                 }
                 @media (max-width: 1100px) {
+                    .figma-filter-bar--bp-dash {
+                        width: 100% !important;
+                        align-self: stretch;
+                        margin-left: 0 !important;
+                        flex-wrap: wrap !important;
+                        display: flex !important;
+                    }
                     .figma-filter-bar--bp-dash > label {
-                        flex: 1 1 calc(33.333% - 1px) !important;
+                        flex: 1 1 130px !important;
+                        width: auto !important;
                         max-width: none !important;
                     }
-                    .figma-filter-bar--bp-dash .figma-filter-calendar-host,
-                    .figma-filter-bar--bp-dash .bp-dash-f-export {
-                        flex: 0 0 auto !important;
-                        max-width: none !important;
-                    }
-                }
-                @media (max-width: 640px) {
-                    .figma-filter-bar--bp-dash > label {
+                    .figma-filter-bar--bp-dash .bp-dash-f-actions {
                         flex: 1 1 100% !important;
-                        border-right: 0 !important;
-                        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-                        max-width: none !important;
-                    }
-                    .figma-filter-bar--bp-dash .figma-filter-calendar-host {
-                        flex: 1 1 auto !important;
-                        border-left: 0;
-                        border-top: 1px solid rgba(0, 0, 0, 0.12);
-                        justify-content: flex-start;
-                    }
-                    .figma-filter-bar--bp-dash .bp-dash-f-export {
                         border-left: 0;
                         border-top: 1px solid rgba(0, 0, 0, 0.12);
                     }
                 }
             </style>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar flex min-h-[48px] w-full max-w-full flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar ml-auto flex min-h-[48px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
                 <label class="bp-dash-f-search flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
                     <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Search</span>
                     <div class="figma-filter-path-wrap">
@@ -215,20 +213,22 @@
                         <input x-model="filters.path" @input="scheduleReload()" placeholder="All Pages" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                     </div>
                 </label>
-                @include('partials.figma-filter-date-fields')
-                <div class="bp-dash-f-export">
-                    <a
-                        :href="`/bot-protection/page-analytics/export?${qs()}&format=csv`"
-                        class="bp-dash-export-btn"
-                        title="Download CSV"
-                        aria-label="Download CSV"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3v12"/>
-                            <path d="M7 10l5 5 5-5"/>
-                            <path d="M5 21h14"/>
-                        </svg>
-                    </a>
+                <div class="bp-dash-f-actions">
+                    @include('partials.figma-filter-date-fields')
+                    <div class="bp-dash-f-export">
+                        <a
+                            :href="`/bot-protection/page-analytics/export?${qs()}&format=csv`"
+                            class="bp-dash-export-btn"
+                            title="Download CSV"
+                            aria-label="Download CSV"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3v12"/>
+                                <path d="M7 10l5 5 5-5"/>
+                                <path d="M5 21h14"/>
+                            </svg>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1234,6 +1234,7 @@ function botProtectionFigma(config = {}) {
         },
         countries: [],
         pageAnalytics: null,
+        keywordHeadlineSource: 'ads',
         countryModal: { open: false, country: '', rows: [], loading: false },
         domainsList: [],
         invalidTrends: { labels: [], datasets: [], stats: { pageloads: 0, interactions: 0 } },
@@ -1489,13 +1490,16 @@ function botProtectionFigma(config = {}) {
             return this.pageAnalytics?.referrers || [];
         },
         pageKeywords() {
-            return this.pageAnalytics?.keywords || [];
+            const key = this.keywordHeadlineSource === 'site' ? 'site_keywords' : 'keywords';
+            return this.pageAnalytics?.[key] || [];
         },
         pageHeadlines() {
-            return this.pageAnalytics?.headlines || [];
+            const key = this.keywordHeadlineSource === 'site' ? 'site_headlines' : 'headlines';
+            return this.pageAnalytics?.[key] || [];
         },
         pageKeywordHeadlines() {
-            return this.pageAnalytics?.keyword_headlines || [];
+            const key = this.keywordHeadlineSource === 'site' ? 'site_keyword_headlines' : 'keyword_headlines';
+            return this.pageAnalytics?.[key] || [];
         },
         pageGeo() {
             const list = this.pageAnalytics?.geo || [];

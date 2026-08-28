@@ -254,17 +254,18 @@
             padding-bottom: 16px !important;
         }
     }
-    /* Filter bar under title: full width, clean wrap, selects never blow out */
+    /* Filter bar under title: compact fit-width, calendar + actions grouped */
     .figma-filter-bar--paid {
-        width: 100% !important;
+        width: fit-content !important;
         max-width: 100% !important;
-        flex-wrap: wrap !important;
+        margin-left: auto !important;
+        flex-wrap: nowrap !important;
         overflow: visible;
     }
     .figma-filter-bar--paid > label {
-        flex: 1 1 140px;
-        min-width: 120px;
-        max-width: 220px;
+        flex: 0 0 auto;
+        min-width: 0;
+        max-width: none;
     }
     .figma-filter-bar--paid .figma-filter-select-wrap,
     .figma-filter-bar--paid .figma-filter-path-wrap {
@@ -730,14 +731,14 @@
     'profileTimezone' => \App\Support\UserTimezone::forUser(auth()->user()),
 ]))" x-init="init()">
     <section class="paid-dashboard-page mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
-        <div class="mb-[23px] flex flex-col gap-[14px]">
+        <div class="mb-[23px] bp-adv-page-head">
             <div class="flex flex-wrap items-center gap-[12px] shrink-0">
-                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Advertising</h1>
+                <h1 class="text-[24px] font-semibold leading-none text-[#1a1a1a] sm:text-[32px]">Paid Advertising</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
-                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
+                <span class="text-[24px] font-semibold leading-none text-[#1a1a1a] sm:text-[32px]">Dashboard</span>
             </div>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid flex min-h-[54px] w-full max-w-full flex-wrap rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
                 <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <div class="figma-filter-select-wrap">
