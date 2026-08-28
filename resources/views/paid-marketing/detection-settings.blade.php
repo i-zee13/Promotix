@@ -19,13 +19,13 @@
     <div class="figma-rightbar-center mt-[14px] pt-[4px]">
         <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
         <div class="mx-auto grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
-            <a href="{{ route('paid-marketing.detection-settings') }}" title="Detection" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[var(--brand-primary)] text-white hover:bg-[var(--figma-chrome-accent-hover)]">
+            <a href="{{ route('paid-marketing.detection-settings') }}" title="Detection" class="figma-rightbar-tool-btn">
                 @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[18px] w-[18px]'])
             </a>
-            <a href="{{ route('paid-marketing.detailed') }}" title="Advanced View" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[var(--brand-primary)] text-white hover:bg-[var(--figma-chrome-accent-hover)]">
+            <a href="{{ route('paid-marketing.detailed') }}" title="Advanced View" class="figma-rightbar-tool-btn">
                 @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[18px] w-[18px]'])
             </a>
-            <a href="{{ route('paid-marketing.dashboard') }}" title="Dashboard" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[var(--brand-primary)] text-white hover:bg-[var(--figma-chrome-accent-hover)]">
+            <a href="{{ route('paid-marketing.dashboard') }}" title="Dashboard" class="figma-rightbar-tool-btn">
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[18px] w-[18px]'])
             </a>
         </div>
@@ -1162,7 +1162,7 @@
             html.light-mode .figma-rule-editor-title { color: #2d2d3a; }
         </style>
 
-        <div class="mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
+        <div class="bp-adv-page-head mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-[12px] shrink-0">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
@@ -1595,11 +1595,11 @@
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Visitor linking across domains</p>
                                     <p class="figma-pac-purpose"><span>Purpose</span> Queue cross-domain visitor IPs into Google Ads Exclusion Manager.</p>
-                                    <div class="figma-pac-cross-mode" x-show="crossDomainOn" x-cloak>
+                                    <div class="figma-pac-cross-mode">
                                         <span>Exclusion scope</span>
                                         <select name="cross_domain_exclusion_mode" aria-label="Cross-domain exclusion scope">
-                                            <option value="all" @selected($crossDomainMode === 'all')>All — every cross-domain visitor IP</option>
-                                            <option value="domain_similarity" @selected($crossDomainMode === 'domain_similarity')>Domain similarity — medium/high match only</option>
+                                            <option value="all" @selected($crossDomainMode === 'all')>All</option>
+                                            <option value="domain_similarity" @selected($crossDomainMode === 'domain_similarity')>Similarity</option>
                                         </select>
                                     </div>
                                     <p class="figma-pac-cross-count">
@@ -1615,21 +1615,35 @@
                             @endif
 
                             @if (! empty($enabledTenantIntegrations['chatbot']))
-                            <article class="figma-pac-card figma-pac-card--chatbot">
+                            <article class="figma-pac-card figma-pac-card--chatbot" x-data="{ chatbotOn: @js((bool) ($exclusionRules['guidance_chatbot_enabled'] ?? false)) }">
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                                     </div>
                                     <div class="figma-pac-card-heading">
                                         <h3 class="figma-pac-card-title">Guidance chatbot</h3>
-                                        <span class="figma-dem-enabled is-on">Active</span>
+                                        <x-figma-toggle
+                                            name="guidance_chatbot_enabled"
+                                            value="1"
+                                            :checked="(bool) ($exclusionRules['guidance_chatbot_enabled'] ?? false)"
+                                            size="sm"
+                                            label-on="On"
+                                            label-off="Off"
+                                            @change="chatbotOn = $event.target.checked"
+                                        />
                                     </div>
                                 </div>
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Dashboard + on-site chat</p>
                                     <p class="figma-pac-purpose"><span>Purpose</span> Product guidance chat powered by your published Knowledge Base articles.</p>
                                 </div>
-                                <a href="{{ route('analytics.dashboard') }}" class="figma-pac-card-btn">Open Analytics dashboard →</a>
+                                <button
+                                    type="button"
+                                    class="figma-pac-card-btn"
+                                    :class="!chatbotOn ? 'opacity-50 cursor-not-allowed' : ''"
+                                    :disabled="!chatbotOn"
+                                    @click="chatbotOn && window.dispatchEvent(new CustomEvent('open-live-agent'))"
+                                >Open chat →</button>
                             </article>
                             @endif
                         </div>

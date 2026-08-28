@@ -40,7 +40,7 @@
                 flex-direction: column;
                 min-height: 148px;
                 border-radius: 10px;
-                border: 1px solid rgba(103, 6, 179, 0.55);
+                border: 1px solid rgba(255, 102, 0, 0.55);
                 background: #111111;
                 padding: 14px 14px 12px;
             }
@@ -53,7 +53,7 @@
                 border-radius: 7px;
                 margin-bottom: 10px;
             }
-            .pm-adv-kpi-card__icon.is-purple { background: rgba(100, 0, 178, 0.28); color: #c4b5fd; }
+            .pm-adv-kpi-card__icon.is-purple { background: rgba(255, 102, 0, 0.28); color: #FFB380; }
             .pm-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.18); color: #86efac; }
             .pm-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.18); color: #fda4af; }
             .pm-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
@@ -281,7 +281,7 @@
                 flex-direction: column;
                 min-height: 280px;
                 border-radius: 10px;
-                border: 1px solid rgba(103, 6, 179, 0.55);
+                border: 1px solid rgba(255, 102, 0, 0.55);
                 background: #111111;
                 padding: 16px 16px 12px;
             }
@@ -299,7 +299,7 @@
                 min-width: 0;
             }
             .pm-adv-donut {
-                --pm-donut: conic-gradient(rgba(100,0,178,0.25) 0 100%);
+                --pm-donut: conic-gradient(rgba(255,102,0,0.25) 0 100%);
                 width: 108px;
                 height: 108px;
                 border-radius: 999px;
@@ -459,7 +459,7 @@
                 display: block;
                 height: 100%;
                 border-radius: 999px;
-                background: #6400B2;
+                background: #FF6600;
             }
             .pm-adv-country-row__meta {
                 font-size: 11px;
@@ -508,7 +508,7 @@
             .pm-adv-hip__btn:hover {
                 background: #222;
                 color: #fff;
-                border-color: rgba(100, 0, 178, 0.55);
+                border-color: rgba(255, 102, 0, 0.55);
             }
             .pm-adv-hip__btn:disabled {
                 opacity: 0.35;
@@ -545,7 +545,7 @@
                 transition: border-color .15s ease, background .15s ease;
             }
             .pm-adv-hip-card:hover {
-                border-color: rgba(100, 0, 178, 0.55);
+                border-color: rgba(255, 102, 0, 0.55);
                 background: #1a1a1a;
             }
             .pm-adv-hip-card__ip {
@@ -625,7 +625,7 @@
             html.light-mode .pm-adv-hip-card {
                 background: #ffffff;
                 border-color: #d4c4e8;
-                box-shadow: 0 1px 0 rgba(100, 0, 178, 0.06);
+                box-shadow: 0 1px 0 rgba(255, 102, 0, 0.06);
             }
             html.light-mode .pm-adv-kpi-card__label,
             html.light-mode .pm-adv-kpi-card__sub,
@@ -646,7 +646,7 @@
             html.light-mode .pm-adv-country-row__meta {
                 color: #1a1a1a;
             }
-            html.light-mode .pm-adv-kpi-card__icon.is-purple { background: rgba(100, 0, 178, 0.12); color: #6400B2; }
+            html.light-mode .pm-adv-kpi-card__icon.is-purple { background: rgba(255, 102, 0, 0.12); color: #FF6600; }
             html.light-mode .pm-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.14); color: #15803d; }
             html.light-mode .pm-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.12); color: #be123c; }
             html.light-mode .pm-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.14); color: #b45309; }
@@ -654,7 +654,7 @@
                 background: #ffffff;
             }
             html.light-mode .pm-adv-country-row__track {
-                background: rgba(100, 0, 178, 0.1);
+                background: rgba(255, 102, 0, 0.1);
             }
             html.light-mode .pm-adv-hip__btn {
                 background: #ffffff;
@@ -663,11 +663,11 @@
             }
             html.light-mode .pm-adv-hip__btn:hover {
                 background: #f0ecf5;
-                color: #6400B2;
+                color: #FF6600;
                 border-color: #c9b8dc;
             }
             html.light-mode .pm-adv-hip-card:hover {
-                border-color: #6400B2;
+                border-color: #FF6600;
                 background: #faf8fc;
             }
             html.light-mode .pm-adv-hip-card__badge {
@@ -682,7 +682,7 @@
             html.light-mode .pm-adv-main-card {
                 background: #ffffff;
                 border-color: #c9b8dc;
-                box-shadow: 0 1px 0 rgba(100, 0, 178, 0.05);
+                box-shadow: 0 1px 0 rgba(255, 102, 0, 0.05);
             }
             html.light-mode .pm-adv-main-card .pm-adv-table-grid--head {
                 background: #f0ecf5;
@@ -833,8 +833,8 @@
             </template>
         </div>
 
-        <section class="pm-adv-main-card overflow-visible rounded-[12px] border border-[#6706b3]">
-            <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#6400B2] px-[16px] py-[12px]">
+        <section class="pm-adv-main-card overflow-visible rounded-[12px] border border-[#FF6600]">
+            <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#FF6600] px-[16px] py-[12px]">
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
                     <div class="relative" @click.outside="groupMenuOpen = false">
@@ -856,7 +856,7 @@
                             <template x-for="group in columnGroups" :key="'main-' + group.id">
                                 <button type="button"
                                     class="mb-[2px] block w-full rounded-[6px] px-[8px] py-[6px] text-left text-[11px] text-white/85 hover:bg-white/10"
-                                    :class="{ 'border border-[#9a1aff]/50 bg-[#9a1aff]/15 text-white': activeColumnGroup === group.id }"
+                                    :class="{ 'border border-[#FF6600]/50 bg-[#FF6600]/15 text-white': activeColumnGroup === group.id }"
                                     @click="applyColumnGroup(group.id); groupMenuOpen = false"
                                     x-text="group.label"></button>
                             </template>
@@ -950,7 +950,7 @@
                                 <template x-for="group in columnGroups" :key="group.id">
                                     <button type="button"
                                         class="rounded-[6px] border border-white/15 px-[8px] py-[5px] text-left text-[11px] text-white/85 hover:bg-white/10"
-                                        :class="{ 'border-[#9a1aff]/60 bg-[#9a1aff]/15': activeColumnGroup === group.id }"
+                                        :class="{ 'border-[#FF6600]/60 bg-[#FF6600]/15': activeColumnGroup === group.id }"
                                         @click="applyColumnGroup(group.id)"
                                         x-text="group.label"></button>
                                 </template>
@@ -1076,7 +1076,7 @@
                 <h3 class="pm-adv-chart-card__title">Threat Distribution</h3>
                 <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Invalid clicks by named category · center = Invalid Clicks total</p>
                 <div class="pm-adv-chart-card__body">
-                    <div class="pm-adv-donut" :style="`--pm-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                    <div class="pm-adv-donut" :style="`--pm-donut: ${threatDonut.gradient || 'conic-gradient(rgba(255,102,0,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
                             <p class="pm-adv-donut__value" x-text="threatDonut.total_label || '0'"></p>
                             <p class="pm-adv-donut__label" x-text="chartThreat.center_label || 'Invalid Clicks'"></p>
@@ -1113,7 +1113,7 @@
                 <h3 class="pm-adv-chart-card__title">Risk Level Distribution</h3>
                 <p class="pm-adv-chart-card__sub text-[11px] text-white/45 -mt-1 mb-2">Unique IPs by Critical / High / Medium / Low · legend shows count + %</p>
                 <div class="pm-adv-chart-card__body">
-                    <div class="pm-adv-donut" :style="`--pm-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                    <div class="pm-adv-donut" :style="`--pm-donut: ${riskDonut.gradient || 'conic-gradient(rgba(255,102,0,0.25) 0 100%)'}`">
                         <div class="pm-adv-donut__inner">
                             <p class="pm-adv-donut__value" x-text="riskDonut.total_label || '0'"></p>
                             <p class="pm-adv-donut__label" x-text="chartRisk.center_label || 'Unique IPs'"></p>
@@ -1235,7 +1235,7 @@
                             <div class="rounded-[6px] border border-white/10 bg-white/5 px-[10px] py-[8px]">
                                 <div class="flex flex-wrap items-center justify-between gap-[6px]">
                                     <span class="rounded-[4px] px-[6px] py-[1px] text-[9px] font-semibold uppercase"
-                                          :class="event.type === 'click' ? 'bg-[#6400B2]/40 text-white' : 'bg-white/15 text-white/80'"
+                                          :class="event.type === 'click' ? 'bg-[#FF6600]/40 text-white' : 'bg-white/15 text-white/80'"
                                           x-text="event.type"></span>
                                     <span class="text-[10px] text-white/55" x-text="formatDateTime(event.at)"></span>
                                 </div>
@@ -1524,7 +1524,7 @@
                     <button type="button" class="rounded border border-white/20 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10" @click="toggleRecordingPlayback()" x-text="recordingPlaying ? 'Pause' : 'Play'"></button>
                     <template x-for="spd in [0.5, 1, 2, 4]" :key="'spd-'+spd">
                         <button type="button" class="rounded border px-[8px] py-[4px] text-[10px]"
-                                :class="recordingSpeed === spd ? 'border-[#6400B2] bg-[#6400B2]/30 text-white' : 'border-white/20 text-white/70 hover:bg-white/10'"
+                                :class="recordingSpeed === spd ? 'border-[#FF6600] bg-[#FF6600]/30 text-white' : 'border-white/20 text-white/70 hover:bg-white/10'"
                                 @click="setRecordingSpeed(spd)" x-text="spd + 'x'"></button>
                     </template>
                     <button type="button" class="rounded border border-red-400/40 px-[8px] py-[4px] text-[10px] text-red-200 hover:bg-red-500/20" @click="deleteRecording()" x-show="recordingModal.id">Delete recording</button>
@@ -1544,7 +1544,7 @@
                         <template x-for="(event, idx) in (recordingModal.timeline || [])" :key="'tl-'+idx+'-'+event.t">
                             <div class="rounded-[6px] border border-white/10 bg-white/5 px-[10px] py-[8px]">
                                 <div class="flex flex-wrap items-center justify-between gap-[6px]">
-                                    <span class="rounded-[4px] px-[6px] py-[1px] text-[9px] font-semibold uppercase bg-[#6400B2]/40 text-white" x-text="event.label"></span>
+                                    <span class="rounded-[4px] px-[6px] py-[1px] text-[9px] font-semibold uppercase bg-[#FF6600]/40 text-white" x-text="event.label"></span>
                                     <span class="text-[10px] text-white/55" x-text="formatRecordingMs(event.t)"></span>
                                 </div>
                                 <p class="mt-1 break-all text-[11px] text-white/80" x-text="event.detail || '—'"></p>
@@ -1780,7 +1780,7 @@
                     cursor = next;
                 });
                 if (!stops.length) {
-                    stops.push('rgba(100,0,178,0.25) 0% 100%');
+                    stops.push('rgba(255,102,0,0.25) 0% 100%');
                 }
                 return {
                     visible_total: total,

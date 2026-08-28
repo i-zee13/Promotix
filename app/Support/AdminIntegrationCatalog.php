@@ -38,6 +38,32 @@ class AdminIntegrationCatalog
         }
     }
 
+    /** Tenant portal: chat widget active when Super Admin + Detection Panel toggle are on. */
+    public static function guidanceChatbotEnabledForUser(?int $userId): bool
+    {
+        if (! self::guidanceChatbotEnabled() || ! $userId) {
+            return false;
+        }
+
+        if (! Schema::hasTable('domain_detection_settings')) {
+            return true;
+        }
+
+        $defaults = app(\App\Services\GoogleAudienceExclusionService::class)->defaultRules();
+
+        return \App\Models\DomainDetectionSetting::query()
+            ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
+            ->get()
+            ->contains(function (\App\Models\DomainDetectionSetting $settings) use ($defaults): bool {
+                $rules = array_merge(
+                    $defaults,
+                    is_array($settings->google_exclusion_rules) ? $settings->google_exclusion_rules : []
+                );
+
+                return (bool) ($rules['guidance_chatbot_enabled'] ?? false);
+            });
+    }
+
     /** Platform-wide: Guidance chatbot enabled from any Super Admin Integrations toggle. */
     public static function guidanceChatbotEnabled(): bool
     {

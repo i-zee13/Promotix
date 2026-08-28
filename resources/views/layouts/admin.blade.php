@@ -81,6 +81,9 @@
         ['route' => 'billing.index', 'icon' => 'card', 'label' => 'Billing'],
         ['route' => 'profile.edit', 'icon' => 'settings', 'label' => 'Settings'],
     ];
+    $guidanceChatActive = $user
+        ? AdminIntegrationCatalog::guidanceChatbotEnabledForUser($user->id)
+        : false;
 @endphp
 
 <div id="figma-shell" class="figma-shell">
@@ -266,12 +269,12 @@
             <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
             <div class="mx-auto grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
                 @foreach ($toolLinks as $tool)
-                    <a href="{{ route($tool['route']) }}" title="{{ $tool['label'] }}" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+                    <a href="{{ route($tool['route']) }}" title="{{ $tool['label'] }}" class="figma-rightbar-tool-btn">
                         @include('partials.sidebar-icon', ['name' => $tool['icon'], 'class' => 'h-[18px] w-[18px]'])
                     </a>
                 @endforeach
                 @if (request()->routeIs('paid-marketing.dashboard'))
-                    <button type="button" title="Export IPs CSV" onclick="window.dispatchEvent(new CustomEvent('promotix:export-ips-csv'))" class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]">
+                    <button type="button" title="Export IPs CSV" onclick="window.dispatchEvent(new CustomEvent('promotix:export-ips-csv'))" class="figma-rightbar-tool-btn">
                         @include('partials.sidebar-icon', ['name' => 'download', 'class' => 'h-[18px] w-[18px]'])
                     </button>
                 @endif
@@ -410,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 @include('partials.timezone-sync')
-@if (\App\Support\AdminIntegrationCatalog::guidanceChatbotEnabled())
+@if ($guidanceChatActive ?? false)
     @include('partials.live-agent-chat')
 @endif
 @include('partials.promotix-global-ip-modal')

@@ -24,7 +24,6 @@
                 <span class="hidden h-[28px] w-[2px] bg-[#a9a9a9] sm:block sm:h-[34px]"></span>
                 <span class="text-[20px] font-semibold leading-none text-[#a9a9a9] sm:text-[26px]">{{ $analyticsFocusTitle }}</span>
                 <span x-show="useDemo" x-cloak class="figma-bp-demo-badge">Sample data</span>
-                <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[8px] py-[3px] text-[9px] font-medium text-[#FFB380]">Visitor intelligence · no IP blocking</span>
                 @if ($analyticsFocus === 'journeys')
                     <a href="{{ route('analytics.traffic-control') }}" class="rounded-[6px] border border-white/20 bg-white/5 px-[8px] py-[4px] text-[10px] font-medium text-white/70 hover:bg-white/10">Open session journeys →</a>
                 @endif

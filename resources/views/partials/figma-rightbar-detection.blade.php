@@ -32,8 +32,6 @@
 @endphp
 
 <style>
-    /* Wider panel only while open — must not override collapse (--figma-right: 0). */
-    .figma-shell:has(.detection-rightbar):not(.figma-rightbar-collapsed) { --figma-right: 340px; }
     .detection-rightbar { color: #fff; min-width: 0; }
     .detection-rightbar .ds-rb-stack { display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 120px); overflow-y: auto; padding-right: 2px; }
     .detection-rightbar .ds-panel { margin-top: 0; padding: 10px; border-radius: 10px; }

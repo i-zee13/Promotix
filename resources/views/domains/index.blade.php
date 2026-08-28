@@ -58,7 +58,7 @@
                             <th class="px-[16px] py-[12px]">Domain</th>
                             <th class="px-[12px] py-[12px]">Tag Management</th>
                             <th class="px-[12px] py-[12px]">Paid Advertising</th>
-                            <th class="px-[12px] py-[12px]">Bot Protection</th>
+                            <th class="px-[12px] py-[12px]">Analytics</th>
                             <th class="w-[48px] px-[12px] py-[12px]"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
@@ -129,7 +129,7 @@
                                 </td>
                                 <td class="align-middle px-[12px] py-[14px]">
                                     <div class="flex flex-wrap items-center gap-[8px]">
-                                        <span class="inline-flex items-center gap-[6px] text-[10px] text-[#d9d9d9]" title="Turn Bot Protection on for this domain (tag + detections).">
+                                        <span class="inline-flex items-center gap-[6px] text-[10px] text-[#d9d9d9]" title="Turn Analytics on for this domain (tag + visit tracking).">
                                             <x-figma-toggle
                                                 size="sm"
                                                 :show-labels="false"
@@ -290,7 +290,7 @@
                 </div>
                 <div class="flex items-center gap-[10px] text-[13px]">
                     <x-figma-toggle variant="on-light" x-model="editForm.bot_mitigation_connected" :show-labels="false" />
-                    <span>Bot Protection</span>
+                    <span>Analytics</span>
                 </div>
             </div>
             <footer class="flex justify-end gap-[12px] border-t border-black/10 px-[22px] py-[14px]">
@@ -809,7 +809,7 @@ function siteManagementFigma() {
             if (res.ok) {
                 window.location.reload();
             } else {
-                this.showToast('Could not update Bot Protection.');
+                this.showToast('Could not update Analytics.');
             }
         },
     };

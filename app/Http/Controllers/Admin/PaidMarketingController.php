@@ -21,6 +21,7 @@ use App\Support\DetectionProfiles;
 use App\Support\DetectionReasonLabels;
 use App\Support\ClickronixTrafficReport;
 use App\Support\AdminIntegrationCatalog;
+use App\Support\CrossDomainIntel;
 use App\Support\CountryFlag;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleIpBlockFormatter;
@@ -3523,6 +3524,7 @@ class PaidMarketingController extends Controller
             'google_exclude_out_of_geo' => ['nullable', 'boolean'],
             'cross_domain_exclusion_enabled' => ['nullable', 'boolean'],
             'cross_domain_exclusion_mode' => ['nullable', 'in:all,domain_similarity'],
+            'guidance_chatbot_enabled' => ['nullable', 'boolean'],
             'geo_rule_scope' => ['nullable', 'in:domain,workspace'],
             'consent_required' => ['nullable', 'boolean'],
             'consent_regions' => ['nullable', 'string'],
@@ -3628,6 +3630,10 @@ class PaidMarketingController extends Controller
             $crossDomainMode = 'all';
         }
 
+        $guidanceChatbotEnabled = $request->has('guidance_chatbot_enabled')
+            ? $request->boolean('guidance_chatbot_enabled')
+            : (bool) ($existingExclusionRules['guidance_chatbot_enabled'] ?? false);
+
         $googleExclusionRules = [
             'enabled' => $request->boolean('google_exclusion_enabled'),
             'exclude_invalid' => $request->boolean('google_exclude_invalid'),
@@ -3639,6 +3645,7 @@ class PaidMarketingController extends Controller
             'exclude_out_of_geo' => $request->boolean('google_exclude_out_of_geo'),
             'cross_domain_enabled' => $crossDomainEnabled,
             'cross_domain_mode' => $crossDomainMode,
+            'guidance_chatbot_enabled' => $guidanceChatbotEnabled,
         ];
 
         $settings = DomainDetectionSetting::updateOrCreate(
@@ -4018,6 +4025,25 @@ class PaidMarketingController extends Controller
             return [];
         }
 
+        $settings = DomainDetectionSetting::query()->where('domain_id', $domainId)->first();
+        $exclusionService = app(GoogleAudienceExclusionService::class);
+        $rules = array_merge(
+            $exclusionService->defaultRules(),
+            is_array($settings?->google_exclusion_rules) ? $settings->google_exclusion_rules : []
+        );
+        $crossDomainMode = (string) ($rules['cross_domain_mode'] ?? 'all');
+        $similarityIpLookup = null;
+        if ($crossDomainMode === 'domain_similarity') {
+            $workspaceDomainIds = Domain::query()
+                ->where('user_id', $domain->user_id)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            $crossRows = app(CrossDomainIntel::class)->buildForDomainIds($workspaceDomainIds, 500);
+            $similarityIps = app(CrossDomainIntel::class)->filterIpsByMode($crossRows, 'domain_similarity');
+            $similarityIpLookup = array_fill_keys($similarityIps, true);
+        }
+
         return DB::table('google_ads_ip_exclusions')
             ->where('domain_id', $domainId)
             ->orderByDesc('updated_at')
@@ -4028,6 +4054,16 @@ class PaidMarketingController extends Controller
                 (string) ($row->threat_group ?? ''),
                 (string) ($row->exclusion_mode ?? '')
             ))
+            ->filter(function ($row) use ($similarityIpLookup): bool {
+                if (strtolower(trim((string) ($row->threat_group ?? ''))) !== 'cross_domain') {
+                    return true;
+                }
+                if ($similarityIpLookup === null) {
+                    return true;
+                }
+
+                return isset($similarityIpLookup[(string) $row->ip]);
+            })
             ->take(50)
             ->map(fn ($row) => $this->formatGoogleExclusionRow($row))
             ->values()

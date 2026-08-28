@@ -236,20 +236,20 @@
 
         {{-- Domain Performance --}}
         <section class="ov-card ov-card--table">
-            <div class="mb-[10px] flex flex-col gap-[8px] sm:flex-row sm:items-start sm:justify-between">
+            <div class="ov-table-toolbar mb-[10px] flex flex-col gap-[8px] sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <h2 class="ov-card__title">Overall Domain Performance</h2>
-                    <div class="mt-[6px] flex gap-[14px] border-b border-white/40 pb-[4px] text-[10px] text-white/85">
-                        <button type="button" id="domain-tab-all" class="border-b-2 border-white pb-[2px] text-white">All</button>
-                        <button type="button" id="domain-tab-invalid" class="pb-[2px] text-white/60 hover:text-white">Invalid</button>
-                        <button type="button" id="domain-tab-pending" class="pb-[2px] text-white/60 hover:text-white">Pending</button>
+                    <div class="ov-table-tabs mt-[6px] flex gap-[14px] border-b border-black/15 pb-[4px] text-[10px]">
+                        <button type="button" id="domain-tab-all" class="border-b-2 border-[var(--brand-primary,#FF6600)] pb-[2px] text-[#1a1a1a]">All</button>
+                        <button type="button" id="domain-tab-invalid" class="pb-[2px] text-black/55 hover:text-black">Invalid</button>
+                        <button type="button" id="domain-tab-pending" class="pb-[2px] text-black/55 hover:text-black">Pending</button>
                     </div>
                 </div>
                 <div class="relative w-full sm:w-[150px]">
-                    <span class="absolute left-[7px] top-1/2 -translate-y-1/2 text-white/70">
+                    <span class="absolute left-[7px] top-1/2 -translate-y-1/2 text-black/50">
                         <svg class="h-[9px] w-[9px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </span>
-                    <input id="domain-search" type="search" placeholder="Search domain" autocomplete="off" class="ov-domain-search h-[26px] w-full rounded-[3px] border pl-[22px] pr-[6px] text-[10px] text-white focus:border-white/60 focus:ring-0">
+                    <input id="domain-search" type="search" placeholder="Search domain" autocomplete="off" class="ov-domain-search h-[26px] w-full rounded-[3px] border pl-[22px] pr-[6px] text-[10px] focus:border-black/30 focus:ring-0">
                 </div>
             </div>
             <div class="overflow-x-auto rounded-[4px] border border-white/15">
@@ -276,7 +276,7 @@
         {{-- Bottom: Campaigns + Quick Stats + Connection --}}
         <div class="ov-bottom-grid">
             <section class="ov-card ov-card--table">
-                <div class="ov-card__head">
+                <div class="ov-card__head ov-table-toolbar">
                     <h2 class="ov-card__title">Campaign Performance</h2>
                     <span class="ov-scene-chip rounded-[4px] px-[8px] py-[3px] text-[9px] text-white/70">Top 5</span>
                 </div>
@@ -671,9 +671,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!btn) return;
             const active = name === tab;
             btn.classList.toggle('border-b-2', active);
-            btn.classList.toggle('border-white', active);
-            btn.classList.toggle('text-white', active);
-            btn.classList.toggle('text-white/60', !active);
+            btn.classList.toggle('border-[var(--brand-primary,#FF6600)]', active);
+            btn.classList.toggle('text-[#1a1a1a]', active);
+            btn.classList.toggle('text-black/55', !active);
         });
         renderDomainTable();
     }
