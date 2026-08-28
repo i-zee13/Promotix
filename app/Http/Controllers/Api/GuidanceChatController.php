@@ -22,11 +22,11 @@ class GuidanceChatController extends Controller
             ], 503);
         }
 
-        if (! \App\Support\AdminIntegrationCatalog::guidanceChatbotEnabledForUser($request->user()?->id)) {
+        if (! $request->user()) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Guidance chatbot is off. Enable it in Detection Panel → Guidance chatbot.',
-            ], 503);
+                'message' => 'Sign in to use Guidance chatbot.',
+            ], 401);
         }
 
         $data = $request->validate([

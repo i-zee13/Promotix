@@ -770,7 +770,7 @@ html.light-mode .figma-click-modal-sidebar {
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
-    scrollbar-color: #6400b2 transparent;
+    scrollbar-color: var(--brand-primary, #FF6600) transparent;
 }
 
 .pm-adv-table-x-scroll::-webkit-scrollbar {
@@ -778,24 +778,24 @@ html.light-mode .figma-click-modal-sidebar {
 }
 
 .pm-adv-table-x-scroll::-webkit-scrollbar-thumb {
-    background: #6400b2;
+    background: var(--brand-primary, #FF6600);
     border-radius: 4px;
 }
 
 /* Analytics Traffic Control: orange scrollbars */
 .analytics-skin .pm-adv-table-x-scroll,
 .analytics-skin .pm-adv-table-body-scroll {
-    scrollbar-color: #FF6600 transparent;
+    scrollbar-color: var(--brand-primary, #FF6600) transparent;
 }
 .analytics-skin .pm-adv-table-x-scroll::-webkit-scrollbar-thumb,
 .analytics-skin .pm-adv-table-body-scroll::-webkit-scrollbar-thumb {
-    background: #FF6600 !important;
+    background: var(--brand-primary, #FF6600) !important;
 }
 .analytics-skin .promotix-slim-scroll {
-    scrollbar-color: #FF6600 transparent;
+    scrollbar-color: var(--brand-primary, #FF6600) transparent;
 }
 .analytics-skin .promotix-slim-scroll::-webkit-scrollbar-thumb {
-    background: #FF6600 !important;
+    background: var(--brand-primary, #FF6600) !important;
 }
 
 .pm-adv-table-sync {
@@ -940,7 +940,7 @@ html.light-mode .pm-adv-table-grid--row:hover {
     /* No horizontal padding — head/row already use the same 12px inset. */
     padding: 8px 0;
     scrollbar-width: thin;
-    scrollbar-color: #6400b2 transparent;
+    scrollbar-color: var(--brand-primary, #FF6600) transparent;
 }
 
 .pm-adv-table-body-scroll::-webkit-scrollbar {
@@ -948,15 +948,15 @@ html.light-mode .pm-adv-table-grid--row:hover {
 }
 
 .pm-adv-table-body-scroll::-webkit-scrollbar-thumb {
-    background: #6400b2;
+    background: var(--brand-primary, #FF6600);
     border-radius: 4px;
 }
 
 .analytics-skin .pm-adv-table-body-scroll {
-    scrollbar-color: #FF6600 transparent;
+    scrollbar-color: var(--brand-primary, #FF6600) transparent;
 }
 .analytics-skin .pm-adv-table-body-scroll::-webkit-scrollbar-thumb {
-    background: #FF6600 !important;
+    background: var(--brand-primary, #FF6600) !important;
 }
 
 .pm-adv-table-grid > * {
@@ -14931,15 +14931,14 @@ html.light-mode .figma-main .analytics-skin .pm-adv-table-grid--row:hover {
 html.light-mode .analytics-skin .pm-adv-table-body-scroll,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-body-scroll {
     background: #ffffff !important;
-    scrollbar-color: #FF6600 transparent;
+    scrollbar-color: var(--brand-primary, #FF6600) transparent;
 }
-html.light-mode .analytics-skin .pm-adv-table-x-scroll,
 html.light-mode .analytics-skin .pm-adv-table-body-scroll::-webkit-scrollbar-thumb,
 html.light-mode .analytics-skin .pm-adv-table-x-scroll::-webkit-scrollbar-thumb {
-    background: #FF6600 !important;
+    background: var(--brand-primary, #FF6600) !important;
 }
 html.light-mode .analytics-skin .pm-adv-table-x-scroll {
-    scrollbar-color: #FF6600 transparent;
+    scrollbar-color: var(--brand-primary, #FF6600) transparent;
 }
 html.light-mode .analytics-skin .paid-advanced-columns-menu,
 html.light-mode .figma-main .analytics-skin .paid-advanced-columns-menu {

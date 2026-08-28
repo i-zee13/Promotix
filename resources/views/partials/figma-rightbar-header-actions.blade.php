@@ -27,7 +27,7 @@
             disabled
             @endif
             class="figma-rightbar-icon-btn @unless($guidanceChatActive ?? false) figma-rightbar-icon-btn--muted @endunless"
-            title="{{ ($guidanceChatActive ?? false) ? 'Messages' : 'Enable Guidance chatbot in Detection Panel' }}"
+            title="{{ ($guidanceChatActive ?? false) ? 'Messages' : 'Guidance chatbot disabled by platform admin' }}"
             aria-label="Live agent chat"
         >
             <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

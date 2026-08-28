@@ -3524,7 +3524,6 @@ class PaidMarketingController extends Controller
             'google_exclude_out_of_geo' => ['nullable', 'boolean'],
             'cross_domain_exclusion_enabled' => ['nullable', 'boolean'],
             'cross_domain_exclusion_mode' => ['nullable', 'in:all,domain_similarity'],
-            'guidance_chatbot_enabled' => ['nullable', 'boolean'],
             'geo_rule_scope' => ['nullable', 'in:domain,workspace'],
             'consent_required' => ['nullable', 'boolean'],
             'consent_regions' => ['nullable', 'string'],
@@ -3630,10 +3629,6 @@ class PaidMarketingController extends Controller
             $crossDomainMode = 'all';
         }
 
-        $guidanceChatbotEnabled = $request->has('guidance_chatbot_enabled')
-            ? $request->boolean('guidance_chatbot_enabled')
-            : (bool) ($existingExclusionRules['guidance_chatbot_enabled'] ?? false);
-
         $googleExclusionRules = [
             'enabled' => $request->boolean('google_exclusion_enabled'),
             'exclude_invalid' => $request->boolean('google_exclude_invalid'),
@@ -3645,7 +3640,6 @@ class PaidMarketingController extends Controller
             'exclude_out_of_geo' => $request->boolean('google_exclude_out_of_geo'),
             'cross_domain_enabled' => $crossDomainEnabled,
             'cross_domain_mode' => $crossDomainMode,
-            'guidance_chatbot_enabled' => $guidanceChatbotEnabled,
         ];
 
         $settings = DomainDetectionSetting::updateOrCreate(

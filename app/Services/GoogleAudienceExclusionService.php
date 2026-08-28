@@ -148,7 +148,6 @@ class GoogleAudienceExclusionService
             'exclude_out_of_geo' => true,
             'cross_domain_enabled' => false,
             'cross_domain_mode' => 'all',
-            'guidance_chatbot_enabled' => false,
         ];
     }
 
