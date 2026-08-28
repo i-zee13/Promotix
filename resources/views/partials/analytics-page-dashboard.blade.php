@@ -18,12 +18,12 @@
     <style>
         .pa-dash {
             --pa-accent: #FF6600;
-            --pa-accent-soft: #c2410c;
-            --pa-bg: #f4f2f7;
-            --pa-card: #ffffff;
-            --pa-border: rgba(255, 102, 0, 0.35);
+            --pa-accent-soft: #FFB380;
+            --pa-bg: #0F0F10;
+            --pa-card: #141414;
+            --pa-border: rgba(255, 255, 255, 0.1);
             --pa-gutter: 12px;
-            color: #1a1a1a;
+            color: rgba(255, 255, 255, 0.88);
         }
         .pa-dash .pa-kpi-grid {
             display: grid;
@@ -41,12 +41,12 @@
             border-radius: 10px;
             border: 1px solid var(--pa-border);
             background:
-                linear-gradient(180deg, rgba(255, 102, 0, 0.12) 0%, rgba(255, 102, 0, 0.04) 42%, #ffffff 78%);
+                linear-gradient(180deg, rgba(255, 102, 0, 0.22) 0%, rgba(255, 102, 0, 0.06) 42%, #141414 78%);
             padding: 14px 14px 10px;
             min-height: 148px;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 6px 18px rgba(255, 102, 0, 0.08);
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
         }
         .pa-dash .pa-kpi__top {
             display: flex;
@@ -69,13 +69,13 @@
         .pa-dash .pa-kpi__title {
             font-size: 12px;
             font-weight: 600;
-            color: #5c5470;
+            color: rgba(255, 255, 255, 0.72);
         }
         .pa-dash .pa-kpi__value {
             font-size: 28px;
             font-weight: 700;
             line-height: 1;
-            color: #1a1a1a;
+            color: #fff;
             letter-spacing: -0.02em;
         }
         .pa-dash .pa-kpi__delta {
@@ -137,14 +137,13 @@
             min-height: 280px;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 4px 14px rgba(255, 102, 0, 0.06);
         }
         .pa-dash .pa-card--compact { min-height: 240px; }
         .pa-dash .pa-card__title {
             margin: 0 0 12px;
             font-size: 15px;
             font-weight: 700;
-            color: #1a1a1a;
+            color: rgba(255, 255, 255, 0.88);
         }
         .pa-dash .pa-card__head {
             display: flex;
@@ -170,7 +169,7 @@
             gap: 5px;
             border: 0;
             background: transparent;
-            color: #6b6280;
+            color: rgba(255, 255, 255, 0.55);
             font-size: 10px;
             font-weight: 600;
             padding: 5px 10px;
@@ -188,13 +187,13 @@
         .pa-dash .pa-kh-toggle__hint {
             margin: -4px 0 10px;
             font-size: 10px;
-            color: #6b6280;
+            color: rgba(255, 255, 255, 0.45);
         }
         .pa-dash .pa-kh-combo-title {
             margin: 0 0 8px;
             font-size: 11px;
             font-weight: 600;
-            color: #6b6280;
+            color: rgba(255, 255, 255, 0.45);
             text-transform: uppercase;
             letter-spacing: 0.06em;
         }

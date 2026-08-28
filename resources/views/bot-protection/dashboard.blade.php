@@ -20,17 +20,31 @@
         {{-- Header --}}
         <div class="bp-adv-page-head mb-[14px]">
             <div class="flex flex-wrap items-center gap-[8px] shrink-0">
-                <h1 class="text-[20px] font-semibold leading-none text-[#1a1a1a] sm:text-[26px]">Page Analytics</h1>
+                <h1 class="text-[20px] font-semibold leading-none text-[#a9a9a9] sm:text-[26px]">Page Analytics</h1>
                 <span class="hidden h-[28px] w-[2px] bg-[#a9a9a9] sm:block sm:h-[34px]"></span>
-                <span class="text-[20px] font-semibold leading-none text-[#1a1a1a] sm:text-[26px]">{{ $analyticsFocusTitle }}</span>
+                <span class="text-[20px] font-semibold leading-none text-[#a9a9a9] sm:text-[26px]">{{ $analyticsFocusTitle }}</span>
                 <span x-show="useDemo" x-cloak class="figma-bp-demo-badge">Sample data</span>
-                <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[8px] py-[3px] text-[9px] font-medium text-[#c2410c]">Visitor intelligence · no IP blocking</span>
+                <span class="rounded-full border border-[#FF6600]/40 bg-[#FF6600]/10 px-[8px] py-[3px] text-[9px] font-medium text-[#FFB380]">Visitor intelligence · no IP blocking</span>
                 @if ($analyticsFocus === 'journeys')
-                    <a href="{{ route('analytics.traffic-control') }}" class="rounded-[6px] border border-[#FF6600]/30 bg-white px-[8px] py-[4px] text-[10px] font-medium text-[#c2410c] hover:bg-[#fff7f0]">Open session journeys →</a>
+                    <a href="{{ route('analytics.traffic-control') }}" class="rounded-[6px] border border-white/20 bg-white/5 px-[8px] py-[4px] text-[10px] font-medium text-white/70 hover:bg-white/10">Open session journeys →</a>
                 @endif
             </div>
 
             <style>
+                .bp-adv-page-head {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 12px;
+                }
+                @media (min-width: 1100px) {
+                    .bp-adv-page-head {
+                        flex-direction: row;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 14px;
+                    }
+                }
                 .figma-filter-bar--bp-dash.ov-filter-bar,
                 .figma-filter-bar--bp-dash {
                     width: fit-content !important;

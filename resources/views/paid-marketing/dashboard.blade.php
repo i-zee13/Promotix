@@ -733,9 +733,9 @@
     <section class="paid-dashboard-page mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
         <div class="mb-[23px] bp-adv-page-head">
             <div class="flex flex-wrap items-center gap-[12px] shrink-0">
-                <h1 class="text-[24px] font-semibold leading-none text-[#1a1a1a] sm:text-[32px]">Paid Advertising</h1>
+                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Advertising</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
-                <span class="text-[24px] font-semibold leading-none text-[#1a1a1a] sm:text-[32px]">Dashboard</span>
+                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
             </div>
 
             <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
