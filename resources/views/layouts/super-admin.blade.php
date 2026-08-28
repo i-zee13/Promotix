@@ -72,13 +72,7 @@
             </nav>
 
             <footer class="figma-sidebar-footer mt-auto shrink-0 border-t border-white/10 pt-[10px] pb-[2px]">
-                <div class="figma-sidebar-controls mb-[6px] flex max-w-[188px] items-center justify-between gap-[8px]">
-                    <div>
-                        <span id="theme-toggle-label" class="figma-sidebar-theme-label mb-[3px] block text-[9px] leading-none">Dark Mode</span>
-                        <button id="theme-toggle" type="button" class="figma-theme-toggle" aria-label="Theme toggle">
-                            <span class="figma-toggle-track"><span class="figma-toggle-thumb"></span></span>
-                        </button>
-                    </div>
+                <div class="figma-sidebar-controls flex max-w-[188px] items-center justify-end">
                     <a href="{{ route('super-admin.settings.index') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" aria-label="System settings">
                         @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
                     </a>
@@ -128,8 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const shell = document.getElementById('figma-shell');
     const sidebarToggle = document.getElementById('figma-sidebar-toggle');
     const overlay = document.getElementById('figma-sidebar-overlay');
-    const themeToggle = document.getElementById('theme-toggle');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     const sidebarKey = 'promotix-super-sidebar-collapsed';
     const themeKey = 'promotix-theme';
     const isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
@@ -154,19 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setTheme(theme) {
         document.documentElement.classList.toggle('light-mode', theme === 'light');
-        themeToggle?.classList.toggle('figma-theme-toggle--on', theme === 'dark');
-        const label = document.getElementById('theme-toggle-label');
-        if (label) label.textContent = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
         localStorage.setItem(themeKey, theme);
     }
     setTheme(localStorage.getItem(themeKey) || document.querySelector('meta[name="initial-theme"]')?.content || 'dark');
-    themeToggle?.addEventListener('click', async () => {
-        const nextTheme = document.documentElement.classList.contains('light-mode') ? 'dark' : 'light';
-        setTheme(nextTheme);
-        try {
-            await fetch('/user/preferences', { method: 'PUT', headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'}, body: JSON.stringify({dark_mode: nextTheme === 'dark'}) });
-        } catch (e) {}
-    });
 
     const sidebarSearch = document.getElementById('super-admin-sidebar-search');
     const nav = document.getElementById('super-admin-sidebar-nav');

@@ -8259,6 +8259,10 @@ html.ov-boot-lock body {
 }
 
 .ov-page {
+    --ov-scene-head: #4D008E;
+    --ov-scene-body: rgba(77, 0, 142, 0.38);
+    --ov-scene-body-alt: rgba(100, 0, 178, 0.32);
+    --ov-scene-border: rgba(255, 255, 255, 0.18);
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -8482,8 +8486,8 @@ html.ov-boot-lock body {
     gap: 3px;
     min-width: 0;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(11, 11, 11, 0.35);
+    border: 1px solid var(--ov-scene-border);
+    background: var(--ov-scene-body);
     padding: 12px 8px 10px;
 }
 
@@ -8732,8 +8736,9 @@ html.ov-boot-lock body {
 
 .ov-feed-item {
     border-radius: 8px;
-    background: rgba(13, 13, 13, 0.82);
+    background: var(--ov-scene-body);
     padding: 7px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-left: 3px solid #f59e0b;
     font-size: 10px;
     color: rgba(255, 255, 255, 0.8);
@@ -8743,7 +8748,7 @@ html.ov-boot-lock body {
 }
 
 .ov-feed-item:hover {
-    background: rgba(22, 22, 22, 0.95);
+    background: color-mix(in srgb, var(--ov-scene-head) 72%, transparent);
 }
 
 .ov-feed-sev {
@@ -8892,7 +8897,7 @@ html.ov-boot-lock body {
 }
 
 .ov-table thead {
-    background: #4D008E;
+    background: var(--ov-scene-head);
 }
 
 .ov-table th {
@@ -8909,7 +8914,15 @@ html.ov-boot-lock body {
 }
 
 .ov-table tbody {
-    background: rgba(77, 0, 142, 0.35);
+    background: transparent;
+}
+
+.ov-table tbody tr {
+    background: var(--ov-scene-body-alt);
+}
+
+.ov-table tbody tr:first-child {
+    background: var(--ov-scene-head);
 }
 
 .ov-bottom-grid {
@@ -8937,7 +8950,8 @@ html.ov-boot-lock body {
 
 .ov-quick-stat {
     border-radius: 8px;
-    background: rgba(11, 11, 11, 0.55);
+    border: 1px solid var(--ov-scene-border);
+    background: var(--ov-scene-body);
     padding: 10px;
 }
 
@@ -8947,7 +8961,8 @@ html.ov-boot-lock body {
     justify-content: space-between;
     gap: 8px;
     border-radius: 6px;
-    background: rgba(11, 11, 11, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--ov-scene-body);
     padding: 8px 10px;
 }
 
@@ -8958,12 +8973,26 @@ html.ov-boot-lock body {
     align-items: center;
     justify-content: center;
     border-radius: 3px;
-    background: #6400B2;
+    background: var(--ov-scene-head);
     color: #fff;
 }
 
 .ov-tool-btn:hover {
-    background: #7B13C8;
+    background: color-mix(in srgb, var(--ov-scene-head) 82%, white);
+}
+
+.ov-scene-chip {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--ov-scene-body);
+}
+
+.ov-domain-search {
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    background: var(--ov-scene-head) !important;
+}
+
+html.light-mode .ov-page h1.text-white {
+    color: var(--brand-text, #1a1a1a) !important;
 }
 
 .ov-rightbar .figma-rightbar-notify {
@@ -11437,6 +11466,121 @@ a.figma-sa-users-filter-option {
     border-color: #d4c4e8;
     color: #3d3848;
     background: #ffffff;
+}
+
+/* Portal invite — dropdown multiselect (replaces native listbox) */
+.figma-ms-dropdown {
+    position: relative;
+}
+
+.figma-ms-dropdown__trigger {
+    display: flex;
+    width: 100%;
+    min-height: 38px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 32px 8px 12px;
+    font-size: 13px;
+    line-height: 1.3;
+    color: #2d2d3a;
+    text-align: left;
+    background: #ffffff;
+    border: 1px solid #d4c4e8;
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+}
+
+.figma-ms-dropdown__trigger:hover {
+    border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 45%, #d4c4e8);
+}
+
+.figma-ms-dropdown__trigger:focus {
+    outline: none;
+    border-color: var(--brand-primary, #FF6600);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary, #FF6600) 18%, transparent);
+}
+
+.figma-ms-dropdown__chevron {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: #8a8299;
+    transform: translateY(-50%);
+    transition: transform 0.15s ease;
+    pointer-events: none;
+}
+
+.figma-ms-dropdown__chevron.is-open {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+.figma-ms-dropdown__menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 90;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid #d4c4e8;
+    border-radius: 6px;
+    background: #ffffff;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+.figma-ms-dropdown__search {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.3;
+    color: #2d2d3a;
+    background: #faf8fc;
+    border: 0;
+    border-bottom: 1px solid #ece7f2;
+    outline: none;
+}
+
+.figma-ms-dropdown__search::placeholder {
+    color: #8a8299;
+}
+
+.figma-ms-dropdown__options {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.figma-ms-dropdown__check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #2d2d3a;
+    cursor: pointer;
+}
+
+.figma-ms-dropdown__check:hover {
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 8%, #ffffff);
+}
+
+.figma-ms-dropdown__check input[type='checkbox'] {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    accent-color: var(--brand-primary, #FF6600);
+}
+
+.figma-ms-dropdown__empty {
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #8a8299;
 }
 
 /* Billing Automation — white card, solid brand rows, white toggle */

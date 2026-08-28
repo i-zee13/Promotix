@@ -134,7 +134,7 @@ class GoogleAudienceExclusionService
         return (bool) ($rules[$ruleKey] ?? $rules['exclude_invalid'] ?? true);
     }
 
-    /** @return array<string, bool> */
+    /** @return array<string, bool|string> */
     public function defaultRules(): array
     {
         return [
@@ -146,6 +146,8 @@ class GoogleAudienceExclusionService
             'exclude_proxy' => true,
             'exclude_rate_limit' => true,
             'exclude_out_of_geo' => true,
+            'cross_domain_enabled' => false,
+            'cross_domain_mode' => 'all',
         ];
     }
 
@@ -155,5 +157,40 @@ class GoogleAudienceExclusionService
         $stored = is_array($settings->google_exclusion_rules) ? $settings->google_exclusion_rules : [];
 
         return array_merge($this->defaultRules(), $stored);
+    }
+
+    /**
+     * Exclusion Manager lists only detection blocks and cross-domain IPs — not manual uploads.
+     */
+    public static function isExclusionManagerRow(?string $threatGroup, ?string $exclusionMode = null): bool
+    {
+        $group = strtolower(trim((string) $threatGroup));
+        $mode = strtolower(trim((string) $exclusionMode));
+
+        if (in_array($group, ['manual', 'manual_bulk'], true) || $mode === 'manual_bulk') {
+            return false;
+        }
+
+        if ($group === 'cross_domain') {
+            return true;
+        }
+
+        return $group !== '';
+    }
+
+    public static function threatGroupLabel(?string $threatGroup): string
+    {
+        $group = strtolower(trim((string) $threatGroup));
+
+        return match ($group) {
+            'cross_domain' => 'Cross-domain',
+            'data_center', 'datacenter' => 'Data center',
+            'abnormal_rate_limit' => 'Rate limit',
+            'out_of_geo' => 'Out of geo',
+            'google_invalid' => 'Google invalid',
+            'blocked' => 'Detected block',
+            '' => 'Detected block',
+            default => ucwords(str_replace('_', ' ', $group)),
+        };
     }
 }

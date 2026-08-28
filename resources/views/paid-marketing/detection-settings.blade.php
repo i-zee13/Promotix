@@ -170,6 +170,20 @@
             .figma-pac-card--allow-ip { border-color: rgba(64, 156, 255, 0.4); }
             .figma-pac-card--block-ip { border-color: rgba(255, 80, 80, 0.4); }
             .figma-pac-card--cross-domain { border-color: rgba(255, 102, 0, 0.45); }
+            .figma-pac-card--cross-domain .figma-pac-card-body { display: flex; flex-direction: column; gap: 10px; }
+            .figma-pac-cross-mode { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+            .figma-pac-cross-mode span { font-size: 10px; color: rgba(255,255,255,.65); }
+            .figma-pac-cross-mode select {
+                max-width: 100%; height: 28px; border-radius: 6px;
+                border: 1px solid rgba(255,255,255,.35); background: rgba(0,0,0,.25);
+                color: #fff; font-size: 11px; padding: 0 8px;
+            }
+            .figma-pac-cross-mode select option { background: #1a1a1a; color: #fff; }
+            .figma-pac-cross-count { font-size: 11px; color: rgba(255,255,255,.75); margin: 0; }
+            html.light-mode .figma-pac-cross-mode span { color: rgba(255,255,255,.75); }
+            html.light-mode .figma-pac-cross-mode select {
+                background: rgba(0,0,0,.2); border-color: rgba(255,255,255,.35); color: #fff;
+            }
             .figma-pac-card--chatbot { border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent); }
             .figma-pac-card-top { display: flex; gap: 10px; margin-bottom: 12px; }
             .figma-pac-card-icon {
@@ -1311,6 +1325,19 @@
                 };
                 $blockIpRows = $parseBlockIpRows($settings->block_list_ips ?? '');
 
+                $crossDomainMode = (string) ($exclusionRules['cross_domain_mode'] ?? 'all');
+                if (! in_array($crossDomainMode, ['all', 'domain_similarity'], true)) {
+                    $crossDomainMode = 'all';
+                }
+                $crossDomainIntel = app(\App\Support\CrossDomainIntel::class);
+                $workspaceDomainIds = $domains->pluck('id')->map(fn ($id) => (int) $id)->all();
+                $crossDomainRows = $crossDomainIntel->buildForDomainIds($workspaceDomainIds, 500);
+                $crossDomainAllCount = count($crossDomainIntel->filterIpsByMode($crossDomainRows, 'all'));
+                $crossDomainSimilarityCount = count($crossDomainIntel->filterIpsByMode($crossDomainRows, 'domain_similarity'));
+                $crossDomainMatchCount = $crossDomainMode === 'domain_similarity'
+                    ? $crossDomainSimilarityCount
+                    : $crossDomainAllCount;
+
                 $planDetectionFeatures = $planDetectionFeatures ?? \App\Support\DetectionPlanFeatures::allEnabled();
                 $pdf = static fn (string $key): bool => (bool) ($planDetectionFeatures[$key] ?? true);
 
@@ -1547,21 +1574,43 @@
                             @endif
 
                             @if (! empty($enabledTenantIntegrations['cross_domain']))
-                            <article class="figma-pac-card figma-pac-card--cross-domain">
+                            <article class="figma-pac-card figma-pac-card--cross-domain" x-data="{ crossDomainOn: @js((bool) ($exclusionRules['cross_domain_enabled'] ?? false)) }">
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M8 12h8M12 8v8"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/></svg>
                                     </div>
                                     <div class="figma-pac-card-heading">
                                         <h3 class="figma-pac-card-title">Cross-domain intelligence</h3>
-                                        <span class="figma-dem-enabled is-on">Active</span>
+                                        <x-figma-toggle
+                                            name="cross_domain_exclusion_enabled"
+                                            value="1"
+                                            :checked="(bool) ($exclusionRules['cross_domain_enabled'] ?? false)"
+                                            size="sm"
+                                            label-on="On"
+                                            label-off="Off"
+                                            @change="crossDomainOn = $event.target.checked"
+                                        />
                                     </div>
                                 </div>
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Visitor linking across domains</p>
-                                    <p class="figma-pac-purpose"><span>Purpose</span> See when the same visitor hits multiple domains in your workspace.</p>
+                                    <p class="figma-pac-purpose"><span>Purpose</span> Queue cross-domain visitor IPs into Google Ads Exclusion Manager.</p>
+                                    <div class="figma-pac-cross-mode" x-show="crossDomainOn" x-cloak>
+                                        <span>Exclusion scope</span>
+                                        <select name="cross_domain_exclusion_mode" aria-label="Cross-domain exclusion scope">
+                                            <option value="all" @selected($crossDomainMode === 'all')>All — every cross-domain visitor IP</option>
+                                            <option value="domain_similarity" @selected($crossDomainMode === 'domain_similarity')>Domain similarity — medium/high match only</option>
+                                        </select>
+                                    </div>
+                                    <p class="figma-pac-cross-count">
+                                        {{ $crossDomainAllCount }} cross-domain IP(s) in workspace ·
+                                        {{ $crossDomainSimilarityCount }} with domain similarity
+                                        @if ((bool) ($exclusionRules['cross_domain_enabled'] ?? false))
+                                            · {{ $crossDomainMatchCount }} match current scope
+                                        @endif
+                                    </p>
                                 </div>
-                                <a href="{{ route('analytics.journeys') }}" class="figma-pac-card-btn">View cross-domain journeys →</a>
+                                <button type="button" class="figma-pac-card-btn" onclick="document.getElementById('detection-panel-google-exclusion')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Open Exclusion Manager →</button>
                             </article>
                             @endif
 
@@ -1786,6 +1835,7 @@
                         </section>
 
                         <section
+                            id="detection-panel-google-exclusion"
                             class="figma-gaem"
                             @if (! $pdf(\App\Support\DetectionPlanFeatures::GOOGLE_EXCLUSION))
                                 style="display:none"
@@ -1804,31 +1854,15 @@
                             <div class="figma-gaem-head">
                                 <div>
                                     <h2 class="figma-gaem-title">Google Ads Exclusion Manager</h2>
-                                    <p class="figma-gaem-lead">Recommendations to protect your campaigns.</p>
+                                    <p class="figma-gaem-lead">Detected blocks and cross-domain IPs queued for Google Ads.</p>
                                 </div>
                                 <div class="figma-gaem-head-actions">
-                                    <button type="button" class="figma-gaem-bulk" @click="showBulk = !showBulk" x-text="showBulk ? 'Hide Bulk' : 'Bulk Exclusion'"></button>
                                     <x-figma-toggle name="google_exclusion_enabled" value="1" :checked="($exclusionRules['enabled'] ?? true) && $pdf(\App\Support\DetectionPlanFeatures::GOOGLE_EXCLUSION)" size="sm" label-on="On" label-off="Off" variant="on-light" />
                                 </div>
                             </div>
 
-                            <div class="figma-gaem-quick" x-show="!showBulk">
-                                <input type="text" x-model="ip" placeholder="Add IP / CIDR / wildcard" class="figma-gaem-ip-input" @keydown.enter.prevent="pushIp()">
-                                <button type="button" class="figma-gaem-push-btn" :disabled="loading || !ip.trim()" @click="pushIp()">Add</button>
-                                <button type="button" class="figma-gaem-ghost-btn" :disabled="loading" @click="syncPending()">Push all pending</button>
-                            </div>
-
-                            <div class="figma-gaem-bulk-box" x-show="showBulk" x-cloak>
-                                <p class="figma-gaem-bulk-hint">One per line. Supports IP, CIDR, wildcards. Max 200.</p>
-                                <textarea x-model="bulkIps" rows="4" placeholder="216.67.176.*&#10;54.202.0.0/15" class="figma-textarea w-full text-[11px]"></textarea>
-                                <div class="flex flex-wrap items-center gap-[8px] mt-[8px]">
-                                    <label class="figma-bip-upload">
-                                        <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onBulkFile($event)">
-                                        Choose file
-                                    </label>
-                                    <span class="text-[10px] text-white/50" x-text="bulkFileName || 'No file chosen'"></span>
-                                    <button type="button" class="figma-gaem-push-btn" :disabled="loading || (!bulkIps.trim() && !bulkFileName)" @click="pushBulk()">Upload &amp; add</button>
-                                </div>
+                            <div class="figma-gaem-quick">
+                                <button type="button" class="figma-gaem-push-btn" :disabled="loading || !rows.length" @click="syncPending()">Push all pending</button>
                             </div>
 
                             <p x-show="message" x-text="message" class="text-[11px] mt-[8px]" :class="ok ? 'text-emerald-300' : 'text-rose-300'"></p>
@@ -1845,12 +1879,12 @@
                                     </thead>
                                     <tbody>
                                         <template x-if="!rows.length">
-                                            <tr><td colspan="4" class="figma-bip-empty" x-text="adsConnected ? 'No exclusions queued yet.' : 'Connect Google Ads to queue campaign exclusions.'"></td></tr>
+                                            <tr><td colspan="4" class="figma-bip-empty" x-text="adsConnected ? 'No detected blocks or cross-domain IPs queued yet.' : 'Connect Google Ads to queue campaign exclusions.'"></td></tr>
                                         </template>
                                         <template x-for="row in rows.slice(0, showAllExclusions ? rows.length : 5)" :key="row.ip + row.updated_at">
                                             <tr>
                                                 <td class="font-mono" x-text="row.ip"></td>
-                                                <td class="capitalize" x-text="row.threat_group || 'Manual'"></td>
+                                                <td x-text="row.reason_label || row.threat_group || 'Detected block'"></td>
                                                 <td>
                                                     <span
                                                         class="figma-gaem-status"

@@ -51,16 +51,16 @@
     <div class="mt-[18px] border-t-2 border-[#5a2a99] pt-[14px]">
         <h2 class="mb-[10px] text-[16px] font-bold text-[#a9a9a9]">System Overview</h2>
         <div class="space-y-[8px] text-[10px] text-white/75">
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="ov-conn-row">
                 <span>Server status</span><span id="sys-server-status" class="text-emerald-200">Online</span>
             </div>
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="ov-conn-row">
                 <span>Events today</span><span id="sys-events-today" class="text-white/90">—</span>
             </div>
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="ov-conn-row">
                 <span>Tracking version</span><span id="sys-tracking-version" class="text-white/90">—</span>
             </div>
-            <div class="flex items-center justify-between rounded-[6px] bg-[#0B0B0B]/70 px-[10px] py-[8px]">
+            <div class="ov-conn-row">
                 <span>Google Ads API</span><span id="sys-google-api" class="text-white/90">—</span>
             </div>
         </div>
@@ -249,7 +249,7 @@
                     <span class="absolute left-[7px] top-1/2 -translate-y-1/2 text-white/70">
                         <svg class="h-[9px] w-[9px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </span>
-                    <input id="domain-search" type="search" placeholder="Search domain" autocomplete="off" class="h-[26px] w-full rounded-[3px] border border-black/40 bg-[#0B0B0B] pl-[22px] pr-[6px] text-[10px] text-white focus:border-white/60 focus:ring-0">
+                    <input id="domain-search" type="search" placeholder="Search domain" autocomplete="off" class="ov-domain-search h-[26px] w-full rounded-[3px] border pl-[22px] pr-[6px] text-[10px] text-white focus:border-white/60 focus:ring-0">
                 </div>
             </div>
             <div class="overflow-x-auto rounded-[4px] border border-white/15">
@@ -278,7 +278,7 @@
             <section class="ov-card ov-card--table">
                 <div class="ov-card__head">
                     <h2 class="ov-card__title">Campaign Performance</h2>
-                    <span class="rounded-[4px] bg-black/40 px-[8px] py-[3px] text-[9px] text-white/70">Top 5</span>
+                    <span class="ov-scene-chip rounded-[4px] px-[8px] py-[3px] text-[9px] text-white/70">Top 5</span>
                 </div>
                 <div class="overflow-x-auto rounded-[4px] border border-white/15">
                     <table class="ov-table min-w-[560px] w-full text-left text-[11px] text-white">

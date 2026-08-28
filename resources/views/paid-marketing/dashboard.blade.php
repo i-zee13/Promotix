@@ -647,11 +647,11 @@
     html.light-mode .paid-outline-badge.is-low,
     html.light-mode .paid-outline-badge.is-allow { color: #15803d; border-color: rgba(21, 128, 61, 0.4); }
     html.light-mode .paid-panel-card [class*="text-white"],
-    html.light-mode .paid-engine-card [class*="text-white"] {
+    html.light-mode .paid-engine-card [class*="text-white"]:not(.paid-export-btn) {
         color: #2d2d3a !important;
     }
     html.light-mode .paid-panel-card [class*="text-white/"],
-    html.light-mode .paid-engine-card [class*="text-white/"] {
+    html.light-mode .paid-engine-card [class*="text-white/"]:not(.paid-export-btn) {
         color: #6b6578 !important;
     }
     html.light-mode .paid-panel-card [class*="bg-white/5"] {
@@ -661,6 +661,10 @@
     html.light-mode .paid-panel-card a[class*="hover:text-white"]:hover {
         color: var(--brand-secondary) !important;
     }
+    html.light-mode .paid-engine-card [class*="bg-[var(--brand-primary)]"],
+    html.light-mode .paid-engine-card [class*="bg-[var(--brand-primary)]"] [class*="text-white"],
+    html.light-mode .paid-view-tabs [class*="bg-[var(--brand-primary)]"],
+    html.light-mode .paid-view-tabs [class*="bg-[var(--brand-primary)]"] [class*="text-white"],
     html.light-mode .paid-engine-card [class*="bg-[#6400B2]"],
     html.light-mode .paid-engine-card [class*="bg-[#6400B2]"] [class*="text-white"],
     html.light-mode .paid-view-tabs [class*="bg-[#6400B2]"],
@@ -672,17 +676,112 @@
         border-color: var(--brand-tint-border) !important;
         color: #6b6578 !important;
     }
-    html.light-mode .paid-view-tabs button:not([class*="bg-[#6400B2]"]) {
+    html.light-mode .paid-view-tabs button:not([class*="bg-[var(--brand-primary)"]):not([class*="bg-[#6400B2]"]) {
         color: #6b6578 !important;
     }
     html.light-mode .paid-export-btn {
         background: #ffffff !important;
         color: var(--brand-primary) !important;
-        border-color: var(--brand-tint-border) !important;
+        border-color: color-mix(in srgb, var(--brand-primary) 42%, #ffffff) !important;
+    }
+    html.light-mode .paid-export-btn svg {
+        stroke: var(--brand-primary) !important;
+        color: var(--brand-primary) !important;
     }
     html.light-mode .paid-export-btn:hover {
-        background: color-mix(in srgb, var(--brand-primary) 8%, transparent) !important;
-        color: var(--brand-secondary) !important;
+        background: color-mix(in srgb, var(--brand-primary) 10%, #ffffff) !important;
+        color: var(--brand-secondary, var(--brand-primary)) !important;
+        border-color: var(--brand-primary) !important;
+    }
+    html.light-mode .paid-export-btn:hover svg {
+        stroke: var(--brand-secondary, var(--brand-primary)) !important;
+        color: var(--brand-secondary, var(--brand-primary)) !important;
+    }
+    .paid-traffic-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 6px;
+    }
+    .paid-traffic-head__left {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+    .paid-traffic-head__title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        line-height: 1;
+        color: #a9a9a9;
+    }
+    @media (min-width: 640px) {
+        .paid-traffic-head__title { font-size: 22px; }
+    }
+    html.light-mode .paid-traffic-head__title { color: #2d2d3a; }
+    .paid-view-tabs {
+        display: inline-flex;
+        align-items: center;
+        height: 28px;
+        flex-shrink: 0;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2px;
+        font-size: 10px;
+    }
+    .paid-view-tabs button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 24px;
+        border-radius: 4px;
+        padding: 0 10px;
+        line-height: 1;
+    }
+    .paid-export-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        border: 1px solid color-mix(in srgb, var(--brand-primary) 60%, transparent);
+        background: #1a1a1a;
+        color: color-mix(in srgb, var(--brand-primary) 65%, white);
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    .paid-export-btn:hover {
+        border-color: var(--brand-primary);
+        background: color-mix(in srgb, var(--brand-primary) 18%, #1a1a1a);
+        color: #fff;
+    }
+    .paid-export-btn svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+    }
+    .paid-traffic-head__domain {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 28px;
+        max-width: min(100%, 280px);
+        flex-shrink: 0;
+        border-radius: 3px;
+        background: var(--brand-primary);
+        padding: 0 9px;
+        font-size: 10px;
+        color: #fff;
+    }
+    @media (min-width: 900px) {
+        .paid-traffic-head { flex-wrap: nowrap; }
+        .paid-traffic-head__left { flex-wrap: nowrap; }
     }
     html.light-mode #keyword-list [class*="text-white"] { color: #5c5470 !important; }
     html.light-mode #keyword-list button {
@@ -1137,18 +1236,18 @@
 
         {{-- Recent Paid Traffic (full width) --}}
         <section class="paid-engine-card mt-[15px]">
-            <div class="mb-[6px] flex flex-wrap items-center justify-between gap-[8px]">
-                <div class="flex flex-wrap items-center gap-[8px]">
-                    <h2 class="text-[18px] font-semibold leading-none text-[#a9a9a9] sm:text-[22px]">Recent Paid Traffic</h2>
-                    <div class="paid-view-tabs flex rounded-[6px] border border-white/15 bg-black/30 p-[2px] text-[10px]">
-                        <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'basic' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'basic'">Basic View</button>
-                        <button type="button" class="rounded-[4px] px-[10px] py-[4px]" :class="ipViewMode === 'expert' ? 'bg-[#6400B2] text-white' : 'text-white/60'" @click="ipViewMode = 'expert'">Expert View</button>
+            <div class="paid-traffic-head">
+                <div class="paid-traffic-head__left">
+                    <h2 class="paid-traffic-head__title">Recent Paid Traffic</h2>
+                    <div class="paid-view-tabs">
+                        <button type="button" :class="ipViewMode === 'basic' ? 'bg-[var(--brand-primary)] text-white' : 'text-white/60'" @click="ipViewMode = 'basic'">Basic View</button>
+                        <button type="button" :class="ipViewMode === 'expert' ? 'bg-[var(--brand-primary)] text-white' : 'text-white/60'" @click="ipViewMode = 'expert'">Expert View</button>
                     </div>
-                    <button type="button" @click="exportIpsCsv()" title="Download CSV" class="paid-export-btn flex h-[26px] w-[26px] items-center justify-center rounded-[4px] border border-[#6400B2]/60 bg-[#1a1a1a] text-[#B893D8] transition hover:border-[#6400B2] hover:bg-[#6400B2]/20 hover:text-white">
-                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
+                    <button type="button" @click="exportIpsCsv()" title="Download CSV" aria-label="Download CSV" class="paid-export-btn">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
                     </button>
                 </div>
-                <div class="flex h-[28px] max-w-[min(100%,280px)] items-center gap-[8px] rounded-[3px] bg-[#6400B2] px-[9px] text-[10px] text-white">
+                <div class="paid-traffic-head__domain">
                     <span class="shrink-0">Domain</span>
                     <select
                         x-model="filters.domain_id"

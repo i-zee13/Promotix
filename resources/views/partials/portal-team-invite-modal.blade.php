@@ -61,19 +61,21 @@
                 </div>
                 <div>
                     <label class="figma-sa-label">Pages <span class="text-[#8c8787] font-normal">(optional — leave empty for role defaults)</span></label>
-                    <select name="page_slugs[]" class="figma-select mt-1 w-full" multiple size="5">
-                        @foreach ($pageOptions as $page)
-                            <option value="{{ $page['slug'] }}" @selected(collect(old('page_slugs', []))->contains($page['slug']))>{{ $page['label'] }}</option>
-                        @endforeach
-                    </select>
+                    <x-portal-multiselect-dropdown
+                        name="page_slugs[]"
+                        :options="$pageOptions"
+                        :selected="old('page_slugs', [])"
+                        placeholder="All pages (role defaults)"
+                    />
                 </div>
                 <div>
                     <label class="figma-sa-label">Domain assigning <span class="text-[#8c8787] font-normal">(optional — all domains if empty)</span></label>
-                    <select name="domain_ids[]" class="figma-select mt-1 w-full" multiple size="4">
-                        @foreach ($assignableDomains as $domain)
-                            <option value="{{ $domain->id }}" @selected(collect(old('domain_ids', []))->contains((string) $domain->id))>{{ $domain->hostname }}</option>
-                        @endforeach
-                    </select>
+                    <x-portal-multiselect-dropdown
+                        name="domain_ids[]"
+                        :options="$assignableDomains->map(fn ($d) => ['value' => $d->id, 'label' => $d->hostname])->all()"
+                        :selected="old('domain_ids', [])"
+                        placeholder="All domains"
+                    />
                 </div>
                 <div class="flex flex-wrap justify-end gap-3 pt-2">
                     <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="portalTeamInviteOpen = false">Cancel</button>
@@ -112,20 +114,22 @@
                     </div>
                     <div>
                         <label class="figma-sa-label">Pages</label>
-                        <select name="page_slugs[]" class="figma-select mt-1 w-full" multiple size="4">
-                            @foreach ($pageOptions as $page)
-                                <option value="{{ $page['slug'] }}" @selected(collect(old('page_slugs', []))->contains($page['slug']))>{{ $page['label'] }}</option>
-                            @endforeach
-                        </select>
+                        <x-portal-multiselect-dropdown
+                            name="page_slugs[]"
+                            :options="$pageOptions"
+                            :selected="old('page_slugs', [])"
+                            placeholder="All pages (role defaults)"
+                        />
                     </div>
                 </div>
                 <div>
                     <label class="figma-sa-label">Domain assigning</label>
-                    <select name="domain_ids[]" class="figma-select mt-1 w-full" multiple size="4">
-                        @foreach ($assignableDomains as $domain)
-                            <option value="{{ $domain->id }}" @selected(collect(old('domain_ids', []))->contains((string) $domain->id))>{{ $domain->hostname }}</option>
-                        @endforeach
-                    </select>
+                    <x-portal-multiselect-dropdown
+                        name="domain_ids[]"
+                        :options="$assignableDomains->map(fn ($d) => ['value' => $d->id, 'label' => $d->hostname])->all()"
+                        :selected="old('domain_ids', [])"
+                        placeholder="All domains"
+                    />
                 </div>
                 <div class="flex flex-wrap justify-end gap-3 pt-2">
                     <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="portalTeamInviteOpen = false">Cancel</button>

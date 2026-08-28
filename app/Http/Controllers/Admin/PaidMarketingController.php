@@ -3521,6 +3521,8 @@ class PaidMarketingController extends Controller
             'google_exclude_proxy' => ['nullable', 'boolean'],
             'google_exclude_rate_limit' => ['nullable', 'boolean'],
             'google_exclude_out_of_geo' => ['nullable', 'boolean'],
+            'cross_domain_exclusion_enabled' => ['nullable', 'boolean'],
+            'cross_domain_exclusion_mode' => ['nullable', 'in:all,domain_similarity'],
             'geo_rule_scope' => ['nullable', 'in:domain,workspace'],
             'consent_required' => ['nullable', 'boolean'],
             'consent_regions' => ['nullable', 'string'],
@@ -3611,6 +3613,33 @@ class PaidMarketingController extends Controller
         $data = array_merge($data, $clampedFlags);
 
         $before = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        $existingExclusionRules = array_merge(
+            app(\App\Services\GoogleAudienceExclusionService::class)->defaultRules(),
+            is_array($before?->google_exclusion_rules) ? $before->google_exclusion_rules : []
+        );
+
+        $crossDomainEnabled = $request->has('cross_domain_exclusion_enabled')
+            ? $request->boolean('cross_domain_exclusion_enabled')
+            : (bool) ($existingExclusionRules['cross_domain_enabled'] ?? false);
+        $crossDomainMode = $request->has('cross_domain_exclusion_mode')
+            ? (string) $request->input('cross_domain_exclusion_mode', 'all')
+            : (string) ($existingExclusionRules['cross_domain_mode'] ?? 'all');
+        if (! in_array($crossDomainMode, ['all', 'domain_similarity'], true)) {
+            $crossDomainMode = 'all';
+        }
+
+        $googleExclusionRules = [
+            'enabled' => $request->boolean('google_exclusion_enabled'),
+            'exclude_invalid' => $request->boolean('google_exclude_invalid'),
+            'exclude_malicious' => $request->boolean('google_exclude_malicious'),
+            'exclude_vpn' => $request->boolean('google_exclude_vpn'),
+            'exclude_data_center' => $request->boolean('google_exclude_data_center'),
+            'exclude_proxy' => $request->boolean('google_exclude_proxy'),
+            'exclude_rate_limit' => $request->boolean('google_exclude_rate_limit'),
+            'exclude_out_of_geo' => $request->boolean('google_exclude_out_of_geo'),
+            'cross_domain_enabled' => $crossDomainEnabled,
+            'cross_domain_mode' => $crossDomainMode,
+        ];
 
         $settings = DomainDetectionSetting::updateOrCreate(
             ['domain_id' => $domain->id],
@@ -3664,16 +3693,7 @@ class PaidMarketingController extends Controller
                     ? null
                     : implode("\n", IpListParser::normalizeLines($blockRaw)),
                 'audience_exclusion_event' => $data['audience_exclusion_event'],
-                'google_exclusion_rules' => [
-                    'enabled' => $request->boolean('google_exclusion_enabled'),
-                    'exclude_invalid' => $request->boolean('google_exclude_invalid'),
-                    'exclude_malicious' => $request->boolean('google_exclude_malicious'),
-                    'exclude_vpn' => $request->boolean('google_exclude_vpn'),
-                    'exclude_data_center' => $request->boolean('google_exclude_data_center'),
-                    'exclude_proxy' => $request->boolean('google_exclude_proxy'),
-                    'exclude_rate_limit' => $request->boolean('google_exclude_rate_limit'),
-                    'exclude_out_of_geo' => $request->boolean('google_exclude_out_of_geo'),
-                ],
+                'google_exclusion_rules' => $googleExclusionRules,
             ]
         );
 
@@ -3699,12 +3719,24 @@ class PaidMarketingController extends Controller
         $geoSync = app(GoogleAdsLocationExclusionSyncService::class)
             ->syncSettingsForDomain($domain->fresh(['googleAdsAccount.connection']), $settings, true);
 
+        $crossDomainSync = ['queued' => 0, 'matched' => 0];
+        if ($crossDomainEnabled) {
+            $crossDomainSync = app(\App\Services\CrossDomainExclusionSyncService::class)
+                ->syncForDomain($domain, $settings->fresh(), $googleExclusionRules);
+        }
+
         $status = 'Detection settings saved.';
         if (($geoSync['queued'] ?? 0) > 0 || ($geoSync['synced'] ?? 0) > 0) {
             $status .= sprintf(
                 ' Google Ads location exclusions: %d queued, %d synced.',
                 (int) ($geoSync['queued'] ?? 0),
                 (int) ($geoSync['synced'] ?? 0)
+            );
+        }
+        if (($crossDomainSync['queued'] ?? 0) > 0) {
+            $status .= sprintf(
+                ' Cross-domain exclusions: %d IP(s) queued in Exclusion Manager.',
+                (int) $crossDomainSync['queued']
             );
         }
 
@@ -3989,9 +4021,14 @@ class PaidMarketingController extends Controller
         return DB::table('google_ads_ip_exclusions')
             ->where('domain_id', $domainId)
             ->orderByDesc('updated_at')
-            ->limit(50)
+            ->limit(100)
             ->get()
             ->filter(fn ($row) => ! GlobalIpAllowlist::matches((string) ($row->ip ?? '')))
+            ->filter(fn ($row) => GoogleAudienceExclusionService::isExclusionManagerRow(
+                (string) ($row->threat_group ?? ''),
+                (string) ($row->exclusion_mode ?? '')
+            ))
+            ->take(50)
             ->map(fn ($row) => $this->formatGoogleExclusionRow($row))
             ->values()
             ->all();
@@ -4004,6 +4041,7 @@ class PaidMarketingController extends Controller
             'id' => (int) $row->id,
             'ip' => (string) $row->ip,
             'threat_group' => (string) ($row->threat_group ?? ''),
+            'reason_label' => GoogleAudienceExclusionService::threatGroupLabel((string) ($row->threat_group ?? '')),
             'sync_status' => (string) ($row->sync_status ?? 'pending'),
             'is_active' => Schema::hasColumn('google_ads_ip_exclusions', 'is_active')
                 ? (bool) ($row->is_active ?? true)

@@ -628,11 +628,15 @@
                 width: 100%;
                 height: 100%;
                 border-radius: 999px;
-                background: conic-gradient(var(--qc, #FF6600) calc(var(--qp, 0) * 1%), rgba(255,255,255,0.08) 0);
+                background: conic-gradient(
+                    var(--qc, #FF6600) calc(var(--qp, 0) * 1%),
+                    var(--qt, rgba(255, 255, 255, 0.08)) 0
+                );
+                box-shadow: inset 0 0 0 1px var(--qr, rgba(255, 255, 255, 0.06));
             }
             .tc-quality__center {
                 position: absolute;
-                inset: 18%;
+                inset: 20%;
                 border-radius: 999px;
                 background: #111;
                 display: flex;
@@ -640,6 +644,7 @@
                 align-items: center;
                 justify-content: center;
                 text-align: center;
+                box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
             }
             .tc-quality__center strong { font-size: 12px; color: #fff; line-height: 1.1; }
             .tc-quality__center span { font-size: 8px; color: rgba(255,255,255,0.45); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -658,8 +663,17 @@
             html.light-mode .tc-hv-card__ago { color: #6b6578; }
             html.light-mode .tc-hv-card { background: rgba(255, 102, 0, 0.08); }
             html.light-mode .tc-hv-card__rev { color: #1a1a1a; }
-            html.light-mode .tc-quality__center { background: #fff; }
+            html.light-mode .tc-quality__ring {
+                --qt: color-mix(in srgb, var(--brand-primary) 11%, #e7ebf2);
+                --qr: color-mix(in srgb, var(--brand-primary) 16%, #ffffff);
+            }
+            html.light-mode .tc-quality__center {
+                background: #fff;
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 14%, #ffffff);
+            }
             html.light-mode .tc-quality__center strong { color: #1a1a1a; }
+            html.light-mode .tc-quality__center span { color: #6b6578; }
+            html.light-mode .tc-widget__hint { color: #5c5470; font-weight: 500; }
 
             .bp-adv-chart-card {
                 display: flex;
