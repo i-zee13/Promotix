@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\GuidanceArticle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class GuidanceController extends Controller
@@ -39,9 +41,12 @@ class GuidanceController extends Controller
     {
         $data = $this->validated($request);
         $variants = $this->parseVariants($data['question_variants'] ?? null);
+        unset($data['question_variants'], $data['image'], $data['remove_image']);
+
         GuidanceArticle::query()->create([
             ...$data,
             'question_variants' => $variants,
+            'image_path' => $this->storeUploadedImage($request->file('image')),
             'is_published' => $request->boolean('is_published', true),
             'last_updated_by' => $request->user()->id,
         ]);
@@ -52,9 +57,25 @@ class GuidanceController extends Controller
     public function update(Request $request, GuidanceArticle $guidance): RedirectResponse
     {
         $data = $this->validated($request);
+        $variants = $this->parseVariants($data['question_variants'] ?? null);
+        unset($data['question_variants'], $data['image'], $data['remove_image']);
+
+        $imagePath = $guidance->image_path;
+
+        if ($request->boolean('remove_image')) {
+            $this->deleteStoredImage($imagePath);
+            $imagePath = null;
+        }
+
+        if ($request->hasFile('image')) {
+            $this->deleteStoredImage($imagePath);
+            $imagePath = $this->storeUploadedImage($request->file('image'));
+        }
+
         $guidance->fill([
             ...$data,
-            'question_variants' => $this->parseVariants($data['question_variants'] ?? null),
+            'question_variants' => $variants,
+            'image_path' => $imagePath,
             'is_published' => $request->boolean('is_published'),
             'last_updated_by' => $request->user()->id,
         ])->save();
@@ -64,6 +85,7 @@ class GuidanceController extends Controller
 
     public function destroy(GuidanceArticle $guidance): RedirectResponse
     {
+        $this->deleteStoredImage($guidance->image_path);
         $guidance->delete();
 
         return back()->with('status', 'Guidance article deleted.');
@@ -82,6 +104,8 @@ class GuidanceController extends Controller
             'question_variants' => ['nullable', 'string'],
             'role_visibility' => ['nullable', 'string', 'max:255'],
             'package_visibility' => ['nullable', 'string', 'max:255'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:5120'],
+            'remove_image' => ['nullable', 'boolean'],
         ]);
     }
 
@@ -93,5 +117,25 @@ class GuidanceController extends Controller
         }
 
         return array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n|,/', $raw) ?: [])));
+    }
+
+    private function storeUploadedImage(?UploadedFile $file): ?string
+    {
+        if (! $file) {
+            return null;
+        }
+
+        return $file->store('guidance-articles', 'public');
+    }
+
+    private function deleteStoredImage(?string $path): void
+    {
+        $path = trim((string) ($path ?? ''));
+
+        if ($path === '') {
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
     }
 }

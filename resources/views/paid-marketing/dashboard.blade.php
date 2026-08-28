@@ -141,9 +141,9 @@
     .paid-metric-bar--lg { height: 8px; }
     .paid-panel-card {
         border-radius: 12px;
-        border: 1px solid #5a2a99;
+        border: 1px solid color-mix(in srgb, var(--brand-primary) 55%, #141414);
         background: #111111;
-        box-shadow: 0 0 18px rgba(100, 0, 178, 0.18);
+        box-shadow: 0 0 18px var(--brand-shadow);
     }
     .paid-heatmap-legend {
         display: flex;
@@ -156,7 +156,7 @@
         height: 6px;
         flex: 1;
         border-radius: 999px;
-        background: linear-gradient(90deg, #2a1248 0%, #6625F8 45%, #f59e0b 78%, #ef4444 100%);
+        background: linear-gradient(90deg, color-mix(in srgb, var(--brand-primary) 25%, #141414) 0%, var(--brand-primary) 45%, #f59e0b 78%, #ef4444 100%);
     }
     .paid-window-select {
         -webkit-appearance: none;
@@ -183,8 +183,8 @@
     }
     .paid-window-select:focus {
         outline: none;
-        border-color: #9a1aff;
-        box-shadow: 0 0 0 1px rgba(154, 26, 255, 0.4);
+        border-color: var(--brand-primary);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 40%, transparent);
     }
     .paid-keyword-table {
         width: 100%;
@@ -340,7 +340,7 @@
     }
     .paid-engine-card {
         border-radius: 10px;
-        border: 1px solid #5a2a99;
+        border: 1px solid color-mix(in srgb, var(--brand-primary) 55%, #141414);
         background: #111111;
         padding: 16px 18px;
         min-width: 0;
@@ -399,8 +399,8 @@
         width: 18px;
         height: 18px;
         border-radius: 999px;
-        background: rgba(100, 0, 178, 0.28);
-        color: #c4a0e8;
+        background: color-mix(in srgb, var(--brand-primary) 28%, transparent);
+        color: color-mix(in srgb, var(--brand-primary) 65%, white);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -469,9 +469,9 @@
         margin-top: 10px;
         font-size: 11px;
         font-weight: 600;
-        color: #a78bfa;
+        color: color-mix(in srgb, var(--brand-primary) 70%, white);
     }
-    .paid-engine-link:hover { color: #c4b5fd; }
+    .paid-engine-link:hover { color: color-mix(in srgb, var(--brand-primary) 55%, white); }
     .paid-hrisk-table {
         width: 100%;
         border-collapse: collapse;
@@ -524,7 +524,7 @@
         position: sticky;
         top: 0;
         z-index: 4;
-        background: #6400B2;
+        background: var(--brand-primary);
         color: #fff;
         font-weight: 500;
         line-height: 1.2;
@@ -569,8 +569,8 @@
     }
     .paid-traffic-table th.pt-sticky-ip {
         z-index: 6;
-        background: #6400B2 !important;
-        box-shadow: 2px 0 0 #5a00a0;
+        background: var(--brand-primary) !important;
+        box-shadow: 2px 0 0 var(--brand-secondary);
     }
     .paid-traffic-table td.pt-sticky-ip {
         z-index: 3;
@@ -582,11 +582,11 @@
     }
     html.light-mode .paid-traffic-table td.pt-sticky-ip {
         background: #fff !important;
-        box-shadow: 2px 0 6px rgba(100, 0, 178, 0.08);
+        box-shadow: 2px 0 6px color-mix(in srgb, var(--brand-primary) 8%, transparent);
     }
-    html.light-mode .paid-traffic-table tbody tr:hover td.pt-sticky-ip { background: #f7f5fb !important; }
+    html.light-mode .paid-traffic-table tbody tr:hover td.pt-sticky-ip { background: var(--brand-tint-hover) !important; }
 
-    /* Light mode: dark panel cards → white surfaces + readable text (purple KPIs stay purple) */
+    /* Light mode: dark panel cards → white surfaces + readable text */
     html.light-mode .paid-panel-card,
     html.light-mode .paid-engine-card {
         background: #ffffff;
@@ -607,23 +607,23 @@
     html.light-mode .paid-keyword-table { color: #2d2d3a; }
     html.light-mode .paid-keyword-table th {
         color: #6b6578;
-        border-bottom-color: #e7e1ef;
+        border-bottom-color: var(--brand-tint-border);
     }
-    html.light-mode .paid-keyword-table td { border-bottom-color: #efeaf6; }
+    html.light-mode .paid-keyword-table td { border-bottom-color: var(--brand-tint-soft); }
     html.light-mode .paid-engine-col__title { color: #6b6578; }
     html.light-mode .paid-engine-rule__label,
     html.light-mode .paid-engine-action__name { color: #2d2d3a; }
     html.light-mode .paid-engine-active.is-off {
-        background: #efeaf6;
+        background: var(--brand-tint-soft);
         color: #6b6578;
     }
     html.light-mode .paid-engine-active.is-off .paid-engine-active__dot { background: #9a93a8; }
     html.light-mode .paid-engine-on.is-off {
-        background: #efeaf6;
+        background: var(--brand-tint-soft);
         color: #6b6578;
     }
     html.light-mode .paid-engine-action-badge.is-off {
-        border-color: #d4c4e8;
+        border-color: var(--brand-tint-border);
         color: #6b6578;
     }
     html.light-mode .paid-engine-link { color: var(--brand-primary); }
@@ -631,14 +631,14 @@
     html.light-mode .paid-hrisk-table { color: #5c5470; }
     html.light-mode .paid-hrisk-table th {
         color: #6b6578;
-        border-bottom-color: #e7e1ef;
+        border-bottom-color: var(--brand-tint-border);
     }
-    html.light-mode .paid-hrisk-table td { border-bottom-color: #efeaf6; }
-    html.light-mode .paid-hrisk-table tr:hover td { background: #f7f5fb; }
-    html.light-mode .paid-traffic-wrap { border-color: #e7e1ef; }
+    html.light-mode .paid-hrisk-table td { border-bottom-color: var(--brand-tint-soft); }
+    html.light-mode .paid-hrisk-table tr:hover td { background: var(--brand-tint-hover); }
+    html.light-mode .paid-traffic-wrap { border-color: var(--brand-tint-border); }
     html.light-mode .paid-traffic-table { color: #5c5470; }
     html.light-mode .paid-traffic-table th,
-    html.light-mode .paid-traffic-table td { border-bottom-color: #efeaf6; }
+    html.light-mode .paid-traffic-table td { border-bottom-color: var(--brand-tint-soft); }
     html.light-mode .paid-score-low { color: #15803d; }
     html.light-mode .paid-outline-badge.is-high,
     html.light-mode .paid-outline-badge.is-block { color: #be123c; border-color: rgba(190, 18, 60, 0.45); }
@@ -682,12 +682,12 @@
     }
     html.light-mode .paid-export-btn:hover {
         background: color-mix(in srgb, var(--brand-primary) 8%, transparent) !important;
-        color: #4D008E !important;
+        color: var(--brand-secondary) !important;
     }
     html.light-mode #keyword-list [class*="text-white"] { color: #5c5470 !important; }
     html.light-mode #keyword-list button {
-        color: #6400B2 !important;
-        background: rgba(100, 0, 178, 0.08) !important;
+        color: var(--brand-primary) !important;
+        background: color-mix(in srgb, var(--brand-primary) 8%, transparent) !important;
     }
     .paid-score-high { color: #f87171; font-weight: 600; }
     .paid-score-medium { color: #fb923c; font-weight: 600; }
@@ -2423,8 +2423,30 @@ function paidAdvertisingFigma(config = {}) {
         isLightMode() {
             return document.documentElement.classList.contains('light-mode');
         },
+        brandPrimary() {
+            return getComputedStyle(document.documentElement).getPropertyValue('--brand-primary').trim() || '#FF6600';
+        },
+        brandSecondary() {
+            return getComputedStyle(document.documentElement).getPropertyValue('--brand-secondary').trim() || '#CC5200';
+        },
+        brandPrimaryRgb() {
+            return getComputedStyle(document.documentElement).getPropertyValue('--brand-primary-rgb').trim() || '255, 102, 0';
+        },
+        brandRgba(alpha) {
+            return `rgba(${this.brandPrimaryRgb()}, ${alpha})`;
+        },
+        brandSoft(mixWhite = 0.55) {
+            const parts = this.brandPrimaryRgb().split(',').map((s) => parseInt(s.trim(), 10));
+            const mix = (c) => Math.round(c + (255 - c) * mixWhite);
+            return `rgb(${mix(parts[0])}, ${mix(parts[1])}, ${mix(parts[2])})`;
+        },
+        brandDark(mixBlack = 0.45) {
+            const parts = this.brandPrimaryRgb().split(',').map((s) => parseInt(s.trim(), 10));
+            const mix = (c) => Math.round(c * (1 - mixBlack));
+            return `rgb(${mix(parts[0])}, ${mix(parts[1])}, ${mix(parts[2])})`;
+        },
         compareThisWeekColor() {
-            return this.isLightMode() ? '#6400B2' : '#FFFFFF';
+            return this.isLightMode() ? this.brandPrimary() : '#FFFFFF';
         },
         trendLineColor(ds) {
             const raw = String(ds?.color || '').toUpperCase();
@@ -2449,7 +2471,7 @@ function paidAdvertisingFigma(config = {}) {
                 ];
             }
             return [
-                { key: 'clicks', name: 'Clicks', color: '#B893D8' },
+                { key: 'clicks', name: 'Clicks', color: this.brandSoft(0.35) },
                 { key: 'valid', name: 'Valid', color: '#4ade80' },
                 { key: 'invalid', name: 'Invalid', color: '#f87171' },
                 { key: 'blocked', name: 'Blocked', color: '#f59e0b' },
@@ -2471,7 +2493,7 @@ function paidAdvertisingFigma(config = {}) {
             const blockedSrc = (this.blocking.datasets || []).find((ds) => String(ds.name || '').toLowerCase().includes('block'))?.values || [];
             const blocked = paid.map((_, i) => Number(blockedSrc[i] || 0));
             return [
-                { key: 'clicks', name: 'Clicks', values: paid, color: '#B893D8' },
+                { key: 'clicks', name: 'Clicks', values: paid, color: this.brandSoft(0.35) },
                 {
                     key: 'valid',
                     name: 'Valid',
@@ -2589,7 +2611,7 @@ function paidAdvertisingFigma(config = {}) {
             const yAt = v => h - bottom - (Number(v) / max) * (h - top - bottom);
 
             const light = this.isLightMode();
-            ctx.strokeStyle = light ? 'rgba(100,0,178,0.12)' : 'rgba(255,255,255,.14)';
+            ctx.strokeStyle = light ? this.brandRgba(0.12) : 'rgba(255,255,255,.14)';
             ctx.lineWidth = 1;
             for (let i = 0; i < 6; i++) {
                 const y = top + i * ((h - top - bottom) / 5);
@@ -2608,8 +2630,8 @@ function paidAdvertisingFigma(config = {}) {
             if (primary) {
                 const pts = primary.values.map((v, i) => ({ x: left + i * xStep, y: yAt(v) }));
                 const grad = ctx.createLinearGradient(0, top, 0, h - bottom);
-                grad.addColorStop(0, 'rgba(102,37,248,0.38)');
-                grad.addColorStop(1, 'rgba(102,37,248,0.02)');
+                grad.addColorStop(0, this.brandRgba(0.38));
+                grad.addColorStop(1, this.brandRgba(0.02));
                 ctx.beginPath();
                 pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
                 ctx.lineTo(pts.at(-1)?.x || left, h - bottom);
@@ -2632,7 +2654,7 @@ function paidAdvertisingFigma(config = {}) {
 
             if (hoverIndex != null && labels[hoverIndex] != null) {
                 const x = left + hoverIndex * xStep;
-                ctx.strokeStyle = light ? 'rgba(100,0,178,0.4)' : 'rgba(255,255,255,0.55)';
+                ctx.strokeStyle = light ? this.brandRgba(0.4) : 'rgba(255,255,255,0.55)';
                 ctx.setLineDash([3, 3]);
                 ctx.beginPath();
                 ctx.moveTo(x, top);
@@ -2642,7 +2664,7 @@ function paidAdvertisingFigma(config = {}) {
                 series.forEach(ds => {
                     const v = Number(ds.values[hoverIndex] || 0);
                     ctx.beginPath();
-                    ctx.fillStyle = this.trendLineColor(ds) || (ds.dashed ? '#FF4BC1' : '#6625F8');
+                    ctx.fillStyle = this.trendLineColor(ds) || (ds.dashed ? '#FF4BC1' : this.brandPrimary());
                     ctx.arc(x, yAt(v), 4, 0, Math.PI * 2);
                     ctx.fill();
                 });
@@ -2672,8 +2694,8 @@ function paidAdvertisingFigma(config = {}) {
             const series = datasets.map(d => d.values || []);
             const max = Math.max(...series.flat(), 1);
             const left = 28, right = 10, top = 8, bottom = 22;
-            const colors = ['#6625F8', this.compareThisWeekColor()];
-            ctx.strokeStyle = this.isLightMode() ? 'rgba(100,0,178,0.14)' : 'rgba(255,255,255,.16)';
+            const colors = [this.brandPrimary(), this.compareThisWeekColor()];
+            ctx.strokeStyle = this.isLightMode() ? this.brandRgba(0.14) : 'rgba(255,255,255,.16)';
             ctx.lineWidth = 1;
             for (let i = 0; i < 5; i++) {
                 const y = top + i * ((h - top - bottom) / 4);
@@ -2740,12 +2762,12 @@ function paidAdvertisingFigma(config = {}) {
                     const v = Number(matrix?.[dIdx]?.[h] || 0);
                     const t = max ? v / max : 0;
                     const light = this.isLightMode();
-                    let bg = light ? 'rgba(100,0,178,0.08)' : 'rgba(255,255,255,0.08)';
+                    let bg = light ? this.brandRgba(0.08) : 'rgba(255,255,255,0.08)';
                     if (t > 0.85) bg = '#ef4444';
                     else if (t > 0.65) bg = '#f59e0b';
-                    else if (t > 0.4) bg = '#6625F8';
-                    else if (t > 0.15) bg = light ? '#8b5cf6' : '#4a1d8a';
-                    else if (t > 0) bg = light ? '#c4b5fd' : '#2a1248';
+                    else if (t > 0.4) bg = this.brandPrimary();
+                    else if (t > 0.15) bg = light ? this.brandSoft(0.25) : this.brandDark(0.25);
+                    else if (t > 0) bg = light ? this.brandSoft(0.55) : this.brandDark(0.55);
                     return `<span class="paid-heatmap-cell" title="${day} ${h}:00 — ${v}" style="background:${bg}"></span>`;
                 }).join('');
                 return `<div class="paid-heatmap-day">${day}</div>${cells}`;

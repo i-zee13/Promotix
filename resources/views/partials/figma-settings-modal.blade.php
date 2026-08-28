@@ -269,6 +269,7 @@
         'reportColumnGroups' => $reportColumnGroups,
         'reportAdGroups' => $reportAdGroups,
         'avatar' => [
+            'user_id' => $settingsUser?->getKey(),
             'url' => $settingsUser?->avatarUrl(),
             'initial' => $settingsUser?->avatarInitial() ?? '?',
             'has_custom' => filled($settingsUser?->avatar_path),
@@ -1970,6 +1971,7 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         reportAdGroup: '',
         reportUseUtc: false,
         avatarUrl: seed.avatar?.url || '',
+        avatarUserId: seed.avatar?.user_id || null,
         avatarInitial: seed.avatar?.initial || '?',
         avatarHasCustom: Boolean(seed.avatar?.has_custom),
         avatarUpdateUrl: seed.avatar?.update_url || '/profile/avatar',
@@ -2007,9 +2009,14 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
             return payload?.message || fallback;
         },
         syncAvatarImages() {
-            if (!this.avatarUrl) return;
-            document.querySelectorAll('img[data-promotix-avatar]').forEach((img) => {
+            if (!this.avatarUrl || !this.avatarUserId) return;
+            document.querySelectorAll(`img[data-promotix-avatar][data-avatar-user-id="${this.avatarUserId}"]`).forEach((img) => {
                 img.src = this.avatarUrl;
+                img.classList.remove('!hidden');
+                const fallback = img.nextElementSibling;
+                if (fallback?.classList.contains('promotix-user-avatar-fallback')) {
+                    fallback.classList.add('hidden');
+                }
             });
         },
         async uploadAvatar(event) {

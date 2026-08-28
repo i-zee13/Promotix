@@ -42,10 +42,18 @@
             <template x-for="(msg, idx) in messages" :key="idx">
                 <div :class="msg.from === 'user' ? 'ml-[24px] text-right' : 'mr-[24px]'">
                     <p
-                        class="inline-block max-w-full rounded-[8px] px-[10px] py-[8px] text-left"
+                        x-show="msg.text"
+                        class="inline-block max-w-full rounded-[8px] px-[10px] py-[8px] text-left whitespace-pre-wrap"
                         :class="msg.from === 'user' ? 'bg-[#FF6600] text-white' : 'bg-[#1a1a1a] text-white/90 border border-white/10'"
                         x-text="msg.text"
                     ></p>
+                    <img
+                        x-show="msg.from === 'agent' && msg.image_url"
+                        :src="msg.image_url"
+                        alt=""
+                        class="mt-2 max-h-[180px] max-w-full rounded-[8px] border border-white/10 object-contain"
+                        loading="lazy"
+                    >
                     <template x-if="msg.from === 'agent' && msg.related_page">
                         <p class="mt-1 text-[10px] text-[#FFB380]">
                             Related: <a :href="msg.related_page" class="underline" x-text="msg.related_page"></a>
@@ -181,6 +189,7 @@ function liveAgentChat(config) {
                     from: 'agent',
                     text: payload.answer || 'No answer returned.',
                     related_page: payload.related_page || null,
+                    image_url: payload.image_url || null,
                 });
                 if (payload.offer_ticket || (payload.confidence !== undefined && payload.confidence < 0.35)) {
                     this.offerTicket = true;

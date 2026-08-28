@@ -43,14 +43,33 @@
                             </form>
                         </div>
                         <p class="mt-2 line-clamp-3 text-[12px] text-white/75">{{ $article->answer }}</p>
+                        @if ($article->imageUrl())
+                            <img
+                                src="{{ $article->imageUrl() }}"
+                                alt=""
+                                class="mt-2 max-h-[120px] max-w-full rounded-[6px] border border-white/10 object-contain"
+                                loading="lazy"
+                            >
+                        @endif
                         <details class="mt-2">
                             <summary class="cursor-pointer text-[11px] text-[#FFB380]">Edit</summary>
-                            <form method="POST" action="{{ route('super-admin.guidance.update', $article) }}" class="mt-2 grid gap-2">
+                            <form method="POST" action="{{ route('super-admin.guidance.update', $article) }}" enctype="multipart/form-data" class="mt-2 grid gap-2">
                                 @csrf
                                 @method('PUT')
                                 <input name="title" value="{{ $article->title }}" class="figma-sa-settings-input" required>
                                 <textarea name="answer" rows="4" class="figma-sa-settings-input" required>{{ $article->answer }}</textarea>
                                 <textarea name="steps" rows="3" class="figma-sa-settings-input" placeholder="Steps">{{ $article->steps }}</textarea>
+                                <div class="grid gap-1">
+                                    <label class="text-[11px] text-white/60">Article image (optional)</label>
+                                    @if ($article->imageUrl())
+                                        <img src="{{ $article->imageUrl() }}" alt="" class="max-h-[100px] max-w-full rounded-[6px] border border-white/10 object-contain">
+                                        <label class="flex items-center gap-2 text-[12px] text-white/70">
+                                            <input type="checkbox" name="remove_image" value="1"> Remove current image
+                                        </label>
+                                    @endif
+                                    <input type="file" name="image" accept="image/jpeg,image/png,image/gif,image/webp" class="figma-sa-settings-input !py-2 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-[11px] file:text-white">
+                                    <p class="text-[10px] text-white/45">JPG, PNG, GIF or WebP · max 5 MB</p>
+                                </div>
                                 <input name="related_page" value="{{ $article->related_page }}" class="figma-sa-settings-input" placeholder="/admin/...">
                                 <input name="keywords" value="{{ $article->keywords }}" class="figma-sa-settings-input" placeholder="keywords">
                                 <textarea name="question_variants" rows="2" class="figma-sa-settings-input" placeholder="question variants, one per line">{{ implode("\n", $article->question_variants ?? []) }}</textarea>
@@ -77,11 +96,16 @@
 
         <section class="rounded-[10px] border border-white/12 bg-[#1a1a1a] p-4">
             <h2 class="mb-3 text-[15px] font-semibold text-white">Add guidance article</h2>
-            <form method="POST" action="{{ route('super-admin.guidance.store') }}" class="grid gap-2">
+            <form method="POST" action="{{ route('super-admin.guidance.store') }}" enctype="multipart/form-data" class="grid gap-2">
                 @csrf
                 <input name="title" class="figma-sa-settings-input" placeholder="Title" required>
                 <textarea name="answer" rows="5" class="figma-sa-settings-input" placeholder="Answer" required></textarea>
                 <textarea name="steps" rows="3" class="figma-sa-settings-input" placeholder="Steps (optional)"></textarea>
+                <div class="grid gap-1">
+                    <label class="text-[11px] text-white/60">Article image (optional)</label>
+                    <input type="file" name="image" accept="image/jpeg,image/png,image/gif,image/webp" class="figma-sa-settings-input !py-2 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-[11px] file:text-white">
+                    <p class="text-[10px] text-white/45">JPG, PNG, GIF or WebP · max 5 MB. Shown in guidance chatbot answers.</p>
+                </div>
                 <input name="related_page" class="figma-sa-settings-input" placeholder="Related page path e.g. /admin/domains">
                 <input name="keywords" class="figma-sa-settings-input" placeholder="keywords,comma,separated">
                 <textarea name="question_variants" rows="3" class="figma-sa-settings-input" placeholder="Question variants (one per line)"></textarea>

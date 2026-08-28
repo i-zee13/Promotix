@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class GuidanceArticle extends Model
 {
@@ -12,6 +13,7 @@ class GuidanceArticle extends Model
         'question_variants',
         'answer',
         'steps',
+        'image_path',
         'related_page',
         'department',
         'keywords',
@@ -32,5 +34,16 @@ class GuidanceArticle extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'last_updated_by');
+    }
+
+    public function imageUrl(): ?string
+    {
+        $path = trim((string) ($this->image_path ?? ''));
+
+        if ($path === '' || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }

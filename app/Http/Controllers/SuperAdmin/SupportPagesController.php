@@ -561,7 +561,7 @@ class SupportPagesController extends Controller
         return view('super-admin.traffic.index', [
             'stats' => $stats,
             'domains' => Domain::query()->orderBy('hostname')->get(['id', 'hostname']),
-            'crossDomainIntel' => $this->buildCrossDomainIntel(12),
+            'crossDomainIntel' => $this->buildCrossDomainIntel(50),
         ]);
     }
 
@@ -656,8 +656,74 @@ class SupportPagesController extends Controller
                 'avg_bot_score' => round((float) ($row->avg_bot_score ?? 0), 1),
                 'evidence_score' => $evidence,
                 'auto_block' => false,
+                ...$this->computeDomainSimilarity($domains),
             ];
         })->values()->all();
+    }
+
+    /** @param  list<string>  $domains */
+    private function computeDomainSimilarity(array $domains): array
+    {
+        $normalized = array_values(array_filter(array_map(
+            fn ($d) => strtolower(trim(preg_replace('/^www\./', '', (string) $d))),
+            $domains
+        )));
+
+        if (count($normalized) < 2) {
+            return [
+                'domain_similarity' => 0,
+                'domain_similarity_label' => '—',
+                'domain_similarity_pair' => null,
+            ];
+        }
+
+        $maxSim = 0.0;
+        $bestPair = null;
+        for ($i = 0; $i < count($normalized); $i++) {
+            for ($j = $i + 1; $j < count($normalized); $j++) {
+                $sim = $this->hostnameSimilarity($normalized[$i], $normalized[$j]);
+                if ($sim > $maxSim) {
+                    $maxSim = $sim;
+                    $bestPair = [$normalized[$i], $normalized[$j]];
+                }
+            }
+        }
+
+        $score = (int) round($maxSim * 100);
+        $label = $score >= 85 ? 'High' : ($score >= 55 ? 'Medium' : 'Low');
+
+        return [
+            'domain_similarity' => $score,
+            'domain_similarity_label' => $label,
+            'domain_similarity_pair' => $bestPair,
+        ];
+    }
+
+    private function hostnameSimilarity(string $a, string $b): float
+    {
+        if ($a === $b) {
+            return 1.0;
+        }
+
+        $baseA = $this->registrableDomain($a);
+        $baseB = $this->registrableDomain($b);
+        if ($baseA !== '' && $baseA === $baseB) {
+            return 0.92;
+        }
+
+        similar_text($a, $b, $pct);
+
+        return min(1.0, $pct / 100);
+    }
+
+    private function registrableDomain(string $host): string
+    {
+        $parts = array_values(array_filter(explode('.', $host)));
+        if (count($parts) <= 2) {
+            return $host;
+        }
+
+        return implode('.', array_slice($parts, -2));
     }
 
     public function automation(Request $request): View

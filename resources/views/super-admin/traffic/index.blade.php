@@ -32,48 +32,6 @@
         </a>
     </div>
 
-    @if (! empty($crossDomainIntel))
-        <section class="rounded-[10px] border border-white/12 bg-[#1a1a1a] p-4">
-            <div class="mb-3 flex flex-wrap items-end justify-between gap-2">
-                <div>
-                    <h2 class="text-[15px] font-semibold text-white">Cross-domain intelligence</h2>
-                    <p class="text-[11px] text-white/50">Evidence scores only — never auto-block from this panel.</p>
-                </div>
-                <a href="{{ route('super-admin.traffic.cross-domain') }}" class="text-[11px] text-[#FFB380] hover:underline">View all</a>
-            </div>
-            <div class="figma-sa-subs-table-scroll">
-                <table class="figma-sa-subs-table">
-                    <thead>
-                        <tr>
-                            <th>IP</th>
-                            <th>Domains</th>
-                            <th>Hits</th>
-                            <th>Evidence</th>
-                            <th>Bot max</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (array_slice($crossDomainIntel, 0, 6) as $row)
-                            <tr class="figma-sa-subs-row">
-                                <td><span class="figma-sa-subs-plan-tier">{{ $row['ip'] }}</span></td>
-                                <td>
-                                    <span class="figma-sa-subs-billing">{{ $row['domain_count'] }} domains</span>
-                                    <span class="figma-sa-subs-date">{{ implode(', ', array_slice($row['domains'], 0, 3)) }}</span>
-                                </td>
-                                <td>{{ number_format($row['hits']) }}</td>
-                                <td>
-                                    <span class="figma-sa-subs-plan-tier">{{ $row['evidence_score'] }}</span>
-                                    <span class="figma-sa-subs-plan-detail">no auto-block</span>
-                                </td>
-                                <td>{{ $row['max_bot_score'] }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    @endif
-
     <div class="grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-4">
         <article class="figma-sa-traffic-stat">
             <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
@@ -258,6 +216,14 @@
             </div>
         </div>
     </div>
+
+    @if (! empty($crossDomainIntel))
+        @include('partials.super-admin.cross-domain-intel-table', [
+            'rows' => $crossDomainIntel,
+            'scrollable' => true,
+            'showViewAll' => true,
+        ])
+    @endif
 
     <div x-show="showBlocklist" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" @keydown.escape.window="showBlocklist = false">
         <div class="w-full max-w-3xl rounded-[10px] border border-white/10 bg-[#1a1a1a] p-5 shadow-2xl" @click.outside="showBlocklist = false">

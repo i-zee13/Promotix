@@ -43,6 +43,9 @@ class EnsureOnboardingComplete
         'onboarding.stripe.success',
         'pricing',
         'impersonate.stop',
+        'profile.avatar.show',
+        'profile.avatar.update',
+        'profile.avatar.destroy',
         'google-ads.click',
         'click-tracker.docs',
     ];

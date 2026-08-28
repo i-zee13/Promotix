@@ -255,6 +255,36 @@
     color: var(--brand-secondary, #CC5200) !important;
 }
 
+.figma-shell .bg-\[\#e8d4f8\],
+.figma-shell .bg-\[\#e8d4f8\]\/90 {
+    background-color: var(--brand-tint-selected, color-mix(in srgb, var(--brand-primary, #FF6600) 14%, #ffffff)) !important;
+}
+
+.figma-shell .text-\[\#4a0088\],
+.figma-shell .text-\[\#4A0088\],
+.figma-shell .hover\:text-\[\#4a0088\]:hover {
+    color: var(--brand-secondary, #CC5200) !important;
+}
+
+.figma-shell .text-\[\#c4b5fd\],
+.figma-shell .text-\[\#C4B5FD\],
+.figma-shell .hover\:text-\[\#c4b5fd\]:hover {
+    color: color-mix(in srgb, var(--brand-primary, #FF6600) 70%, white) !important;
+}
+
+.figma-shell .text-\[\#B893D8\],
+.figma-shell .text-\[\#b893d8\],
+.figma-shell .text-\[\#a78bfa\],
+.figma-shell .text-\[\#A78BFA\] {
+    color: color-mix(in srgb, var(--brand-primary, #FF6600) 65%, white) !important;
+}
+
+.figma-shell .bg-\[\#4a0088\],
+.figma-shell .bg-\[\#4a0088\]\/50,
+.figma-shell .bg-\[\#4a0088\]\/60 {
+    background-color: color-mix(in srgb, var(--brand-secondary, #CC5200) 60%, transparent) !important;
+}
+
 .figma-shell [class*='bg-[#0d0d0d]'],
 .figma-shell [class*='bg-[#0D0D0D]'],
 .figma-shell [class*='bg-[#0B0B0B]'],
@@ -3138,6 +3168,119 @@ html.figma-gads-calendar-open body {
     overflow-y: visible;
 }
 
+.figma-sa-cross-domain-panel {
+    margin-top: 2px;
+}
+
+.figma-sa-cross-domain-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 16px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.figma-sa-cross-domain-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.figma-sa-cross-domain-subtitle {
+    margin: 4px 0 0;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.figma-sa-cross-domain-view-all {
+    font-size: 11px;
+    font-weight: 600;
+    color: #ffb380;
+    text-decoration: none;
+}
+
+.figma-sa-cross-domain-view-all:hover {
+    text-decoration: underline;
+}
+
+.figma-sa-cross-domain-scroll {
+    max-height: 320px;
+    overflow-x: auto;
+    overflow-y: auto;
+}
+
+.figma-sa-cross-domain-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #6400b3;
+}
+
+.figma-sa-cross-domain-sim {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.figma-sa-cross-domain-sim--high {
+    background: rgba(251, 146, 60, 0.18);
+    color: #fdba74;
+}
+
+.figma-sa-cross-domain-sim--medium {
+    background: rgba(250, 204, 21, 0.16);
+    color: #fde047;
+}
+
+.figma-sa-cross-domain-sim--low {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.light-mode .figma-sa-cross-domain-head {
+    background: var(--brand-tint-soft, #fff7f0);
+    border-bottom-color: var(--brand-tint-border, #ffd4b3);
+}
+
+.light-mode .figma-sa-cross-domain-title {
+    color: #2d2d3a;
+}
+
+.light-mode .figma-sa-cross-domain-subtitle {
+    color: #6b6578;
+}
+
+.light-mode .figma-sa-cross-domain-view-all {
+    color: var(--brand-primary, #ff6600);
+}
+
+.light-mode .figma-sa-cross-domain-scroll thead th {
+    background: var(--brand-primary, #ff6600);
+}
+
+.light-mode .figma-sa-cross-domain-sim--high {
+    background: color-mix(in srgb, var(--brand-primary, #ff6600) 16%, white);
+    color: var(--brand-secondary, #cc5200);
+}
+
+.light-mode .figma-sa-cross-domain-sim--medium {
+    background: rgba(250, 204, 21, 0.22);
+    color: #a16207;
+}
+
+.light-mode .figma-sa-cross-domain-sim--low {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
 .figma-sa-subs-table {
     width: 100%;
     border-collapse: collapse;
@@ -3186,6 +3329,36 @@ html.figma-gads-calendar-open body {
 .figma-sa-subs-table th:nth-child(6),
 .figma-sa-subs-table td:nth-child(6) {
     width: 16%;
+}
+
+.figma-sa-cross-domain-table.figma-sa-subs-table th:nth-child(1),
+.figma-sa-cross-domain-table.figma-sa-subs-table td:nth-child(1) {
+    width: 14%;
+}
+
+.figma-sa-cross-domain-table.figma-sa-subs-table th:nth-child(2),
+.figma-sa-cross-domain-table.figma-sa-subs-table td:nth-child(2) {
+    width: 28%;
+}
+
+.figma-sa-cross-domain-table.figma-sa-subs-table th:nth-child(3),
+.figma-sa-cross-domain-table.figma-sa-subs-table td:nth-child(3) {
+    width: 18%;
+}
+
+.figma-sa-cross-domain-table.figma-sa-subs-table th:nth-child(4),
+.figma-sa-cross-domain-table.figma-sa-subs-table td:nth-child(4) {
+    width: 10%;
+}
+
+.figma-sa-cross-domain-table.figma-sa-subs-table th:nth-child(5),
+.figma-sa-cross-domain-table.figma-sa-subs-table td:nth-child(5) {
+    width: 16%;
+}
+
+.figma-sa-cross-domain-table.figma-sa-subs-table th:nth-child(6),
+.figma-sa-cross-domain-table.figma-sa-subs-table td:nth-child(6) {
+    width: 10%;
 }
 
 .figma-sa-subs-th-action,
@@ -3251,6 +3424,14 @@ html.figma-gads-calendar-open body {
     object-fit: cover;
     border-radius: 50%;
     display: block;
+}
+
+.figma-sa-subs-avatar .promotix-user-avatar-fallback:not(.hidden) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
 }
 
 .figma-sa-subs-user-text {
@@ -6745,7 +6926,7 @@ html.light-mode .figma-geo-combobox-label {
     border: 1px solid rgba(255, 255, 255, 0.4);
     background: var(--brand-primary, #FF6600);
     padding: 12px 14px;
-    box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 100, 0, 178), 0.35);
+    box-shadow: 0 0 18px rgba(var(--brand-primary-rgb, 255, 102, 0), 0.35);
     overflow: hidden;
 }
 
@@ -6955,7 +7136,7 @@ html.light-mode .figma-geo-combobox-label {
 
 .paid-compare-toggle.is-on,
 .paid-rule-toggle.is-on {
-    background: #6400B2;
+    background: var(--brand-primary, #FF6600);
 }
 
 .paid-rule-toggle.is-block.is-on {
@@ -9695,21 +9876,21 @@ html.ov-boot-lock body {
 
 /* Domains page — light mode readability */
 .light-mode .figma-domains-page .overflow-hidden.rounded-\[10px\].border {
-    border-color: #d4c4e8 !important;
+    border-color: var(--brand-tint-border) !important;
     background-color: #ffffff !important;
 }
 
 .light-mode .figma-domains-page table thead tr {
-    background-color: #f4eefb !important;
-    border-color: #d4c4e8 !important;
+    background-color: var(--brand-tint-soft) !important;
+    border-color: var(--brand-tint-border) !important;
 }
 
 .light-mode .figma-domains-page table thead th {
-    color: #6400b2 !important;
+    color: var(--brand-primary) !important;
 }
 
 .light-mode .figma-domains-page table tbody tr {
-    border-color: #e5ddf0 !important;
+    border-color: var(--brand-tint-border) !important;
     color: #2d2d3a !important;
 }
 
@@ -9726,19 +9907,19 @@ html.ov-boot-lock body {
 }
 
 .light-mode .figma-domains-page .inline-flex.rounded-full.bg-\[\#e8d4f8\] {
-    background-color: #f4eefb !important;
-    color: #6400b2 !important;
-    border: 1px solid #d4c4e8;
+    background-color: var(--brand-tint-selected) !important;
+    color: var(--brand-secondary) !important;
+    border: 1px solid var(--brand-tint-border);
 }
 
 .light-mode .figma-domains-page a.inline-block.rounded-\[4px\].bg-\[\#0d0d0d\] {
-    background-color: #6400b2 !important;
+    background-color: var(--brand-primary) !important;
     color: #ffffff !important;
-    border-color: #6400b2 !important;
+    border-color: var(--brand-primary) !important;
 }
 
 .light-mode .figma-domains-page .rounded-\[10px\].border.border-white\/25.bg-\[\#6400B2\] {
-    border-color: #6400b2 !important;
+    border-color: var(--brand-primary) !important;
 }
 
 .light-mode .figma-domains-page .rounded-\[10px\].border.border-white\/25.bg-\[\#6400B2\] .border-white {
@@ -9746,7 +9927,7 @@ html.ov-boot-lock body {
 }
 
 .light-mode .figma-domains-page .absolute.right-\[8px\].top-\[42px\] {
-    border-color: #d4c4e8 !important;
+    border-color: var(--brand-tint-border) !important;
     background-color: #ffffff !important;
     color: #2d2d3a !important;
     box-shadow: 0 8px 24px rgba(61, 56, 72, 0.12);
@@ -9754,11 +9935,11 @@ html.ov-boot-lock body {
 
 .light-mode .figma-domains-page .absolute.right-\[8px\].top-\[42px\] button:hover,
 .light-mode .figma-domains-page .absolute.right-\[8px\].top-\[42px\] a:hover {
-    background-color: #f4eefb !important;
+    background-color: var(--brand-tint-hover) !important;
 }
 
 .light-mode .figma-domains-page .mt-\[28px\] article.rounded-\[10px\] {
-    border-color: #6400b2 !important;
+    border-color: var(--brand-primary) !important;
 }
 
 .light-mode .figma-domains-page .mt-\[28px\] article .text-white {
@@ -9766,8 +9947,8 @@ html.ov-boot-lock body {
 }
 
 .light-mode .figma-domains-page button.text-\[\#a9a9a9\]:hover {
-    background-color: #f4eefb !important;
-    color: #6400b2 !important;
+    background-color: var(--brand-tint-hover) !important;
+    color: var(--brand-primary) !important;
 }
 
 /* Purple surfaces: inner panels & controls */
@@ -10854,6 +11035,14 @@ a.figma-sa-users-filter-option {
     object-fit: cover;
     border-radius: 50%;
     display: block;
+}
+
+.figma-sa-users-avatar .promotix-user-avatar-fallback:not(.hidden) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
 }
 
 .figma-sa-users-avatar--sm {
