@@ -4829,7 +4829,6 @@ html.light-mode {
 }
 
 .figma-sidebar-brand .figma-sidebar-logo {
-    display: block;
     height: 52px;
     width: auto;
     max-width: 220px;
@@ -4841,23 +4840,26 @@ html.light-mode {
     margin-right: auto;
 }
 
-.figma-sidebar-logo {
+.figma-sidebar-brand .figma-sidebar-logo--dark {
     display: block;
+}
+
+.figma-sidebar-brand .figma-sidebar-logo--light {
+    display: none;
+}
+
+.figma-sidebar-logo {
     max-width: 100%;
     height: auto;
     opacity: 1;
     filter: none;
 }
 
-.figma-sidebar-logo--light {
+.light-mode .figma-sidebar-brand .figma-sidebar-logo--dark {
     display: none;
 }
 
-.light-mode .figma-sidebar-logo--dark {
-    display: none;
-}
-
-.light-mode .figma-sidebar-logo--light {
+.light-mode .figma-sidebar-brand .figma-sidebar-logo--light {
     display: block;
 }
 
