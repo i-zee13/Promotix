@@ -218,10 +218,9 @@
         </div>
 
         {{-- Plan overview --}}
-        @forelse ($planTiers as $tier)
-            @if ($loop->first)
-                <div class="mt-[28px] grid gap-[16px] sm:grid-cols-3">
-            @endif
+        @if ($planTiers->isNotEmpty())
+            <div class="mt-[28px] grid gap-[16px] sm:grid-cols-3">
+                @foreach ($planTiers as $tier)
                     @php
                         $active = $currentPlan && $currentPlan->id === $tier->id;
                         $usedPct = $domainLimitDisplay === '∞' ? 35 : min(100, (int) round(($domainCount / max(1, (int) $domainLimit)) * 100));
@@ -239,11 +238,9 @@
                             <p class="mt-[10px] text-[11px] text-[#a9a9a9]">Current plan</p>
                         @endif
                     </article>
-            @if ($loop->last)
-                </div>
-            @endif
-        @empty
-        @endforelse
+                @endforeach
+            </div>
+        @endif
     </section>
 
     {{-- Add domain modal --}}
