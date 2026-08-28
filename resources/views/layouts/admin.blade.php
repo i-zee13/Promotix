@@ -49,7 +49,6 @@
     // Date range lives on each dashboard page filter bar — not the top header.
     $usesDashboardDateRange = false;
     $user = auth()->user();
-    $brandCompany = $branding['company_name'] ?? 'Digital Promotix';
     $navGroups = [
         'HOME' => [
             ['label' => 'Overview', 'route' => 'dashboard', 'icon' => 'home', 'permission' => 'dashboard'],
@@ -97,9 +96,8 @@
 
     <aside class="figma-sidebar px-[16px] pt-[12px] pb-[6px] xl:px-[20px] xl:pt-[14px] xl:pb-[8px]">
         <div class="figma-sidebar-inner flex min-h-[100dvh] flex-col">
-            <a href="{{ route('dashboard') }}" class="figma-sidebar-brand mb-[8px] mt-[2px] flex shrink-0 items-center gap-[8px]">
-                <span class="h-[26px] w-[26px] shrink-0 rounded-[6px] shadow-[0_0_18px_rgba(var(--brand-primary-rgb),0.7)]" style="background:var(--brand-primary);"></span>
-                <span class="figma-sidebar-brand-text truncate text-[16px] font-bold leading-none">{{ $brandCompany }}</span>
+            <a href="{{ route('dashboard') }}" class="figma-sidebar-brand mb-[8px] mt-[2px] flex shrink-0 items-center">
+                @include('partials.sidebar-logo')
             </a>
 
             <div class="relative mb-[10px] shrink-0">
@@ -165,7 +163,6 @@
                         </button>
                     </div>
                 </div>
-                @include('partials.sidebar-logo')
             </footer>
         </div>
     </aside>

@@ -4760,7 +4760,19 @@ html.light-mode {
     box-shadow: none !important;
 }
 
-/* Logo: dark sidebar = white text PNG; light sidebar = dark text SVG */
+/* Sidebar brand logo (Clickronix) */
+.figma-sidebar-brand .figma-sidebar-logo {
+    display: block;
+    max-width: 100%;
+    height: 40px;
+    width: auto;
+    max-height: 40px;
+    opacity: 1;
+    filter: none;
+    margin-left: 0;
+    margin-right: auto;
+}
+
 .figma-sidebar-logo {
     display: block;
     max-width: 100%;

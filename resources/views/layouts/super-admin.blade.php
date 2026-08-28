@@ -32,9 +32,8 @@
 <div id="figma-shell" class="figma-shell figma-shell-super">
     <aside class="figma-sidebar px-[16px] pt-[12px] pb-[6px] xl:px-[20px] xl:pt-[14px] xl:pb-[8px]">
         <div class="figma-sidebar-inner flex min-h-[100dvh] flex-col">
-            <a href="{{ route('super-admin.dashboard') }}" class="figma-sidebar-brand mb-[8px] mt-[2px] flex shrink-0 items-center gap-[8px]">
-                <span class="h-[26px] w-[26px] shrink-0 rounded-[6px] bg-[#6400B2] shadow-[0_0_18px_rgba(100,0,179,.7)]"></span>
-                <span class="figma-sidebar-brand-text truncate text-[16px] font-bold leading-none">Digital Promotix</span>
+            <a href="{{ route('super-admin.dashboard') }}" class="figma-sidebar-brand mb-[8px] mt-[2px] flex shrink-0 items-center">
+                @include('partials.sidebar-logo')
             </a>
 
             <div class="relative mb-[10px] shrink-0">
@@ -84,7 +83,6 @@
                         @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
                     </a>
                 </div>
-                @include('partials.sidebar-logo')
             </footer>
         </div>
     </aside>
