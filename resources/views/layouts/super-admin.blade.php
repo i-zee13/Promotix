@@ -70,14 +70,6 @@
                     </div>
                 @endforeach
             </nav>
-
-            <footer class="figma-sidebar-footer mt-auto shrink-0 border-t border-white/10 pt-[10px] pb-[2px]">
-                <div class="figma-sidebar-controls flex max-w-[188px] items-center justify-end">
-                    <a href="{{ route('super-admin.settings.index') }}" class="figma-sidebar-settings flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] transition hover:bg-[#6400B2]/25" aria-label="System settings">
-                        @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[17px] w-[17px]'])
-                    </a>
-                </div>
-            </footer>
         </div>
     </aside>
 

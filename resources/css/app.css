@@ -4444,6 +4444,15 @@ select.figma-sa-subs-status-pill {
     --figma-left: 0px;
 }
 
+/* Super Admin: no theme toggle in sidebar */
+.figma-shell-super .figma-sidebar-footer,
+.figma-shell-super .figma-theme-toggle,
+.figma-shell-super #theme-toggle,
+.figma-shell-super #theme-toggle-label,
+.figma-shell-super .figma-sidebar-theme-label {
+    display: none !important;
+}
+
 .figma-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
