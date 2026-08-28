@@ -1,8 +1,10 @@
 /**
  * Google Ads–style date range picker (global).
  * Persists via localStorage['promotix-date-range'] + CustomEvent('promotix:date-range').
+ * Pass { embedded: true } for inline use (e.g. Settings → Data Reports) — no global persistence.
  */
-export function figmaDateRangePicker() {
+export function figmaDateRangePicker(options = {}) {
+    const embedded = !!options.embedded;
     const pad = (n) => String(n).padStart(2, '0');
     const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const parseIso = (iso) => {
@@ -119,7 +121,8 @@ export function figmaDateRangePicker() {
     };
 
     return {
-        calendarOpen: false,
+        embedded,
+        calendarOpen: embedded,
         mobileView: 'list', // list | custom
         pickStart: null,
         from: stored.from || todayStr,
@@ -343,6 +346,14 @@ export function figmaDateRangePicker() {
         },
 
         cancelCalendar() {
+            if (this.embedded) {
+                this.pickStart = null;
+                this.draftFrom = this.from;
+                this.draftTo = this.to;
+                this.activePreset = detectPreset(this.from, this.to);
+                this.refreshMonths();
+                return;
+            }
             this.calendarOpen = false;
             this.mobileView = 'list';
             this.pickStart = null;
@@ -359,9 +370,14 @@ export function figmaDateRangePicker() {
             this.from = from;
             this.to = to;
             this.activePreset = detectPreset(from, to);
+            this.pickStart = null;
+            if (this.embedded) {
+                this.refreshMonths();
+                this.$dispatch('figma-embedded-range-applied', { from, to });
+                return;
+            }
             this.calendarOpen = false;
             this.mobileView = 'list';
-            this.pickStart = null;
             this.lockBody(false);
             this.applyRange(true);
         },
@@ -377,7 +393,35 @@ export function figmaDateRangePicker() {
             }));
         },
 
+        initEmbedded(from, to) {
+            const f = from || todayStr;
+            const t = to || todayStr;
+            this.from = f;
+            this.to = t;
+            this.draftFrom = f;
+            this.draftTo = t;
+            this.activePreset = detectPreset(f, t);
+            this.calendarOpen = true;
+            this.pickStart = null;
+            this.refreshMonths();
+            this.$nextTick?.(() => this.scrollToMonth(this.scrollMonthKey));
+        },
+
+        syncExternalRange(from, to) {
+            if (!from || !to) return;
+            this.from = from;
+            this.to = to;
+            this.draftFrom = from;
+            this.draftTo = to;
+            this.activePreset = detectPreset(from, to);
+            this.pickStart = null;
+            this.refreshMonths();
+        },
+
         init() {
+            if (this.embedded) {
+                return;
+            }
             const migrateKey = 'promotix-date-default-today-v1';
             if (!localStorage.getItem(migrateKey)) {
                 const t = fmt(new Date());

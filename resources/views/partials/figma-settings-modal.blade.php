@@ -536,41 +536,19 @@
                         </button>
                     </div>
 
-                    <div class="pmx-settings__card pmx-settings__calendar" x-show="reportRange === 'custom' || reportCalendarOpen" x-cloak style="margin-bottom:12px">
-                        <p class="pmx-settings__section-title" style="margin-bottom:10px">Custom date range</p>
-                        <div class="pmx-settings__report-controls">
-                            <label class="pmx-settings__field">
-                                <span class="pmx-settings__label">From</span>
-                                <div class="pmx-settings__date-wrap">
-                                    <input
-                                        type="date"
-                                        class="pmx-settings__input"
-                                        x-ref="reportFromDate"
-                                        x-model="reportCustomFrom"
-                                        @change="reportRange = 'custom'"
-                                        @click="openReportDatePicker('from')"
-                                    >
-                                    <button type="button" class="pmx-settings__date-btn" @click="openReportDatePicker('from')" aria-label="Open from calendar">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14H3V6a2 2 0 012-2z"/></svg>
-                                    </button>
-                                </div>
-                            </label>
-                            <label class="pmx-settings__field">
-                                <span class="pmx-settings__label">To</span>
-                                <div class="pmx-settings__date-wrap">
-                                    <input
-                                        type="date"
-                                        class="pmx-settings__input"
-                                        x-ref="reportToDate"
-                                        x-model="reportCustomTo"
-                                        @change="reportRange = 'custom'"
-                                        @click="openReportDatePicker('to')"
-                                    >
-                                    <button type="button" class="pmx-settings__date-btn" @click="openReportDatePicker('to')" aria-label="Open to calendar">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14H3V6a2 2 0 012-2z"/></svg>
-                                    </button>
-                                </div>
-                            </label>
+                    <div
+                        class="pmx-settings__report-calendar"
+                        x-show="reportRange === 'custom'"
+                        x-cloak
+                        style="margin-bottom:12px"
+                    >
+                        <div
+                            x-data="figmaDateRangePicker({ embedded: true })"
+                            x-init="initEmbedded(reportCustomFrom || reportDate(-6), reportCustomTo || reportDate(0))"
+                            @figma-report-range-sync.window="syncExternalRange($event.detail?.from, $event.detail?.to)"
+                            @figma-embedded-range-applied="reportCustomFrom = $event.detail.from; reportCustomTo = $event.detail.to; reportRange = 'custom'"
+                        >
+                            @include('partials.figma-date-range-inline')
                         </div>
                     </div>
 
@@ -1550,36 +1528,27 @@
         border-color: #6400B2;
         color: #fff;
     }
-    .pmx-settings__date-wrap {
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+    .pmx-settings__report-calendar {
+        width: 100%;
+        overflow: hidden;
+        border-radius: 12px;
     }
-    .pmx-settings__date-wrap .pmx-settings__input {
-        flex: 1;
-        min-width: 0;
+    .pmx-settings__report-calendar .figma-gads-calendar--embedded {
+        position: static;
+        width: 100%;
+        max-width: none;
+        box-shadow: none;
     }
-    .pmx-settings__date-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.04);
-        color: rgba(255, 255, 255, 0.8);
-        cursor: pointer;
-        flex-shrink: 0;
+    .pmx-settings__report-calendar .figma-gads-calendar__body {
+        max-height: min(420px, 55vh);
     }
-    .pmx-settings__date-btn svg {
-        width: 14px;
-        height: 14px;
-    }
-    .pmx-settings__date-btn:hover {
-        border-color: rgba(255, 102, 0, 0.55);
-        color: #FF6600;
+    @media (max-width: 640px) {
+        .pmx-settings__report-calendar .figma-gads-calendar__body {
+            grid-template-columns: 1fr;
+        }
+        .pmx-settings__report-calendar .figma-gads-calendar__presets {
+            display: none;
+        }
     }
     .pmx-settings__switch-card {
         padding: 14px 16px;
@@ -1903,11 +1872,6 @@
         color: #5b5568;
         border-color: #d9d0e6;
     }
-    html.light-mode .pmx-settings__date-btn {
-        border-color: #d9d0e6;
-        background: #fff;
-        color: #5b5568;
-    }
     html.light-mode .pmx-settings__switch {
         background: rgba(26, 21, 36, 0.18);
     }
@@ -2001,7 +1965,6 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         ],
         reportColumnGroups: Array.isArray(seed.reportColumnGroups) ? seed.reportColumnGroups : [],
         reportAdGroups: Array.isArray(seed.reportAdGroups) ? seed.reportAdGroups : [],
-        reportCalendarOpen: false,
         reportColumnGroup: '',
         reportAdGroup: '',
         reportUseUtc: false,
@@ -2142,26 +2105,16 @@ window.promotixSettingsModal = function promotixSettingsModal(seed = {}) {
         setReportRange(range) {
             this.reportRange = range;
             if (range === 'custom') {
-                this.reportCalendarOpen = true;
-                this.$nextTick(() => this.openReportDatePicker('from'));
+                const fallback = this.computedReportRange('7d');
+                const from = this.reportCustomFrom || fallback.from;
+                const to = this.reportCustomTo || fallback.to;
+                window.dispatchEvent(new CustomEvent('figma-report-range-sync', { detail: { from, to } }));
                 return;
             }
-            this.reportCalendarOpen = false;
             const next = this.computedReportRange(range);
             this.reportCustomFrom = next.from;
             this.reportCustomTo = next.to;
-        },
-        openReportDatePicker(which = 'from') {
-            this.reportRange = 'custom';
-            this.reportCalendarOpen = true;
-            this.$nextTick(() => {
-                const el = which === 'to' ? this.$refs.reportToDate : this.$refs.reportFromDate;
-                if (!el) return;
-                try { el.focus(); } catch (_) {}
-                if (typeof el.showPicker === 'function') {
-                    try { el.showPicker(); } catch (_) {}
-                }
-            });
+            window.dispatchEvent(new CustomEvent('figma-report-range-sync', { detail: next }));
         },
         computedReportRange(range) {
             if (range === 'yesterday') {

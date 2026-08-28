@@ -1347,6 +1347,13 @@ html.light-mode .pm-adv-table-grid--row:hover {
     overflow: hidden;
 }
 
+.figma-gads-calendar--embedded {
+    position: static;
+    width: 100%;
+    max-width: none;
+    box-shadow: none;
+}
+
 .figma-gads-calendar__body {
     display: grid;
     grid-template-columns: 168px minmax(0, 1fr);
