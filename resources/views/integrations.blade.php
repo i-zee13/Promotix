@@ -1124,6 +1124,50 @@ document.addEventListener('DOMContentLoaded', () => {
             html.light-mode .pi-table tbody tr:hover td {
                 background: var(--brand-tint-hover);
             }
+            html.light-mode .pi-footer-card {
+                background: #ffffff !important;
+                border-color: var(--brand-tint-border) !important;
+                box-shadow: 0 1px 10px color-mix(in srgb, var(--brand-primary) 8%, transparent);
+            }
+            html.light-mode .pi-footer-card h2,
+            html.light-mode .pi-footer-card [class*="text-white"] {
+                color: #2d2d3a !important;
+            }
+            html.light-mode .pi-footer-card .text-white\/60,
+            html.light-mode .pi-footer-card .text-white\/55,
+            html.light-mode .pi-footer-card .text-white\/65,
+            html.light-mode .pi-footer-card .text-white\/45,
+            html.light-mode .pi-footer-card .text-white\/40 {
+                color: #6b6578 !important;
+            }
+            html.light-mode .pi-footer-card .border-white\/15,
+            html.light-mode .pi-footer-card .border-white\/10,
+            html.light-mode .pi-footer-card .border-white\/25 {
+                border-color: var(--brand-tint-border) !important;
+            }
+            html.light-mode .pi-footer-card [class*="bg-[var(--brand-primary)]"] {
+                background: var(--brand-tint-selected) !important;
+            }
+            html.light-mode .pi-footer-card .bg-white\/5 {
+                background: var(--brand-tint-soft) !important;
+            }
+            html.light-mode .pi-footer-card code.bg-black\/40 {
+                background: #ffffff !important;
+                color: var(--brand-secondary) !important;
+                border: 1px solid var(--brand-tint-border);
+            }
+            html.light-mode .pi-footer-card .bg-emerald-500\/20 {
+                background: rgba(34, 197, 94, 0.14) !important;
+            }
+            html.light-mode .pi-footer-card .text-emerald-200 {
+                color: #15803d !important;
+            }
+            html.light-mode .pi-footer-card .bg-rose-500\/20 {
+                background: rgba(244, 63, 94, 0.12) !important;
+            }
+            html.light-mode .pi-footer-card .text-rose-200 {
+                color: #be123c !important;
+            }
         </style>
 
         {{-- Setup Progress --}}
@@ -1319,7 +1363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </section>
 
         <div class="mt-[16px] grid gap-[12px] xl:grid-cols-2 xl:items-stretch">
-            <section class="flex min-h-0 flex-col rounded-[10px] border border-[var(--brand-secondary)] bg-[#121212] p-[16px]">
+            <section class="pi-footer-card flex min-h-0 flex-col rounded-[10px] border border-[var(--brand-secondary)] bg-[#121212] p-[16px]">
                 <div class="mb-[12px] flex shrink-0 items-center justify-between gap-3">
                     <div>
                         <h2 class="text-[18px] font-medium text-white">Tracking ID management</h2>
@@ -1347,7 +1391,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </section>
 
-            <section class="flex min-h-0 flex-col rounded-[10px] border border-[var(--brand-secondary)] bg-[#121212] p-[16px]">
+            <section class="pi-footer-card flex min-h-0 flex-col rounded-[10px] border border-[var(--brand-secondary)] bg-[#121212] p-[16px]">
                 <div class="mb-[12px] flex shrink-0 items-center justify-between gap-3">
                     <div>
                         <h2 class="text-[18px] font-medium text-white">Sync history &amp; logs</h2>
