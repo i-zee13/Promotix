@@ -42,6 +42,8 @@ class User extends Authenticatable
         'last_login_at',
         'stripe_customer_id',
         'team_owner_id',
+        'allowed_page_slugs',
+        'allowed_domain_ids',
     ];
 
     public function role(): BelongsTo
@@ -332,7 +334,16 @@ class User extends Authenticatable
             return false;
         }
 
-        return $role->permissions()->where('permissions.id', $permission->id)->exists();
+        if (! $role->permissions()->where('permissions.id', $permission->id)->exists()) {
+            return false;
+        }
+
+        $allowedPages = array_values(array_filter((array) ($this->allowed_page_slugs ?? [])));
+        if ($this->team_owner_id && $allowedPages !== []) {
+            return in_array($permission->slug, $allowedPages, true);
+        }
+
+        return true;
     }
 
     /**
@@ -363,6 +374,8 @@ class User extends Authenticatable
             'is_super_admin' => 'boolean',
             'ui_preferences' => 'array',
             'workspace_geo_settings' => 'array',
+            'allowed_page_slugs' => 'array',
+            'allowed_domain_ids' => 'array',
             'two_factor_recovery_codes' => 'encrypted:array',
         ];
     }

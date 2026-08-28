@@ -1342,14 +1342,15 @@ html.light-mode .pm-adv-table-grid--row:hover {
     width: 20px;
     height: 20px;
     border-radius: 999px;
-    background: #fff;
-    transition: transform 0.18s ease;
+    background: #0d0d0d;
+    transition: transform 0.18s ease, background-color 0.18s ease;
     transform: translateX(0);
     pointer-events: none;
 }
 
 .billing-card-modal__toggle.is-yearly .billing-card-modal__toggle-knob {
     transform: translateX(20px);
+    background: #ffffff;
 }
 
 .billing-card-modal__pay {
@@ -1592,12 +1593,13 @@ html.light-mode .pm-adv-table-grid--row:hover {
     width: 16px;
     height: 16px;
     border-radius: 999px;
-    background: #fff;
-    transition: transform 0.15s ease;
+    background: #0d0d0d;
+    transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
 .figma-gads-calendar__toggle.is-on .figma-gads-calendar__toggle-thumb {
     transform: translateX(16px);
+    background: #ffffff;
 }
 
 .figma-gads-calendar__main {
@@ -7159,13 +7161,14 @@ html.light-mode .figma-geo-combobox-label {
     width: 14px;
     height: 14px;
     border-radius: 999px;
-    background: #fff;
-    transition: transform 0.15s ease;
+    background: #0d0d0d;
+    transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
 .paid-compare-toggle.is-on .paid-compare-toggle__knob,
 .paid-rule-toggle.is-on .paid-rule-toggle__knob {
     transform: translateX(16px);
+    background: #ffffff;
 }
 
 .paid-heatmap-grid {
@@ -10454,9 +10457,9 @@ select option, .brand-select option { background:#ffffff; color:#111827; }
     width: 18px;
     height: 18px;
     border-radius: 9999px;
-    background: #ffffff;
+    background: #0d0d0d;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
 .figma-toggle-input:checked + .figma-toggle-track {
@@ -10468,6 +10471,7 @@ select option, .brand-select option { background:#ffffff; color:#111827; }
 
 .figma-toggle-input:checked + .figma-toggle-track .figma-toggle-thumb {
     transform: translateX(24px);
+    background: #ffffff;
 }
 
 .figma-toggle-input:focus-visible + .figma-toggle-track {
@@ -10723,6 +10727,7 @@ button.figma-bp-advanced-select-wrap:focus {
 
 .figma-theme-toggle--on .figma-toggle-thumb {
     transform: translateX(24px);
+    background: #ffffff;
 }
 
 /* ─── Super Admin: Users & Teams (Figma) ─── */
@@ -11512,7 +11517,7 @@ a.figma-sa-users-filter-option {
     color: #2d2d3a !important;
 }
 
-/* Keep toggle thumb white on purple rows */
+/* Billing Automation rows — off knob black, on knob white */
 .figma-sa-billing-auto-row .figma-toggle-track {
     background: rgba(255, 255, 255, 0.28);
     border-color: rgba(255, 255, 255, 0.45);
@@ -11523,8 +11528,12 @@ a.figma-sa-users-filter-option {
 }
 
 .figma-sa-billing-auto-row .figma-toggle-thumb {
-    background: #ffffff !important;
+    background: #0d0d0d !important;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.figma-sa-billing-auto-row .figma-toggle-input:checked + .figma-toggle-track .figma-toggle-thumb {
+    background: #ffffff !important;
 }
 
 .figma-sa-billing-auto-row .figma-toggle-label {
@@ -13630,13 +13639,14 @@ a.figma-sa-users-filter-option {
     height: 20px;
     width: 20px;
     border-radius: 50%;
-    background: #ffffff;
+    background: #0d0d0d;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    transition: transform 0.15s ease;
+    transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
 .figma-sa-automation-toggle.is-on .figma-sa-automation-toggle-dot {
     transform: translateX(20px);
+    background: #ffffff;
 }
 
 .figma-sa-automation-stat {

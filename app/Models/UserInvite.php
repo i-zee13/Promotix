@@ -13,6 +13,8 @@ class UserInvite extends Model
         'name',
         'role_id',
         'plan_id',
+        'page_slugs',
+        'domain_ids',
         'token',
         'status',
         'accepted_at',
@@ -24,6 +26,8 @@ class UserInvite extends Model
         return [
             'accepted_at' => 'datetime',
             'expires_at' => 'datetime',
+            'page_slugs' => 'array',
+            'domain_ids' => 'array',
         ];
     }
 

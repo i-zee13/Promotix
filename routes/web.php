@@ -193,6 +193,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::get('/domains/{domain}/wordpress-plugin.zip', [DomainManagementController::class, 'downloadWpPlugin'])->name('domains.wp-plugin');
         Route::get('/users', [UsersController::class, 'index'])->name('users');
         Route::post('/team/invite', [UsersController::class, 'invite'])->name('team.invite');
+        Route::post('/team/create', [UsersController::class, 'store'])->name('team.store');
         Route::patch('/users/{user}/role', [UsersController::class, 'updateRole'])->name('users.update-role');
         Route::get('/saas-products', [SaaSProductsController::class, 'index'])->name('saas-products');
         Route::get('/plans', [PlansController::class, 'index'])->name('plans');

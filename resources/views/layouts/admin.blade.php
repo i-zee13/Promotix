@@ -43,7 +43,7 @@
         }
     </style>
 </head>
-<body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased">
+<body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased" x-data="{ portalTeamInviteOpen: false, portalTeamInviteMode: 'invite' }" @open-portal-team-invite.window="portalTeamInviteOpen = true; if ($event.detail?.mode) portalTeamInviteMode = $event.detail.mode">
 @include('partials.promotix-page-loader')
 @php
     // Date range lives on each dashboard page filter bar — not the top header.
@@ -212,13 +212,28 @@
 
             <div class="relative" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
                 <div class="flex h-[27px] max-w-[60vw] items-center overflow-hidden rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] text-white sm:max-w-none">
-                    <span class="flex h-full w-[30px] shrink-0 items-center justify-center overflow-hidden border-r border-[#6400B2] bg-white/10">
-                        @include('partials.user-avatar', ['avatarUser' => $user])
-                    </span>
+                    @if ($user?->canInviteTeamMembers())
+                        <button
+                            type="button"
+                            @click="window.dispatchEvent(new CustomEvent('open-portal-team-invite'))"
+                            class="flex h-full w-[30px] shrink-0 items-center justify-center overflow-hidden border-r border-[#6400B2] bg-white/10 hover:bg-white/20"
+                            title="Invite teammate"
+                            aria-label="Invite teammate"
+                        >
+                            @include('partials.user-avatar', ['avatarUser' => $user])
+                        </button>
+                    @else
+                        <span class="flex h-full w-[30px] shrink-0 items-center justify-center overflow-hidden border-r border-[#6400B2] bg-white/10">
+                            @include('partials.user-avatar', ['avatarUser' => $user])
+                        </span>
+                    @endif
                     <button type="button" @click="userMenuOpen = ! userMenuOpen" class="truncate px-[9px] text-left sm:px-[14px]">{{ $user?->name ?: ($user?->email ?? 'User') }}</button>
                 </div>
 
                 <div x-show="userMenuOpen" x-cloak class="figma-user-menu absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#6400B2]/60 bg-[#111111] py-1 shadow-card-lg">
+                    @if ($user?->canInviteTeamMembers())
+                        <button type="button" @click="userMenuOpen = false; window.dispatchEvent(new CustomEvent('open-portal-team-invite'))" class="block w-full px-4 py-2 text-left text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Invite teammate</button>
+                    @endif
                     <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Account settings</a>
                     @if ($user?->is_super_admin)
                         <a href="{{ route('super-admin.dashboard') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Super Admin</a>
@@ -289,6 +304,18 @@
 
 @include('partials.figma-notifications-script')
 @include('partials.figma-settings-modal')
+@include('partials.portal-team-invite-modal')
+
+@if ($errors->any() && (old('email') || old('name') || old('password')))
+<script>
+    document.addEventListener('alpine:init', () => {
+        document.body?._x_dataStack?.forEach((state) => {
+            state.portalTeamInviteOpen = true;
+            state.portalTeamInviteMode = @json($errors->has('password') ? 'create' : 'invite');
+        });
+    });
+</script>
+@endif
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {

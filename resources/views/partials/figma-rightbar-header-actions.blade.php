@@ -37,7 +37,7 @@
                 class="flex h-[31px] w-[32px] items-center justify-center rounded-[3px] bg-[#6400B2] text-white hover:bg-[#7B13C8]"
                 title="Invite teammate"
                 aria-label="Invite teammate"
-                onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings', { detail: { tab: 'account', team: true } }))"
+                onclick="window.dispatchEvent(new CustomEvent('open-portal-team-invite'))"
             >
                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M18 9v3m0 0v3m0-3h3m-3 0h-3M8 11a4 4 0 100-8 4 4 0 000 8zM6 14a6 6 0 00-6 6h8"/>

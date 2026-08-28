@@ -140,13 +140,66 @@
                 margin-bottom: 18px;
                 min-width: 0;
             }
+            .pm-adv-page-head__titles {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px;
+                min-width: 0;
+                flex: 0 1 auto;
+            }
+            .pm-adv-page-head__title {
+                font-size: 16px;
+                font-weight: 600;
+                line-height: 1.1;
+                color: #a9a9a9;
+            }
+            .pm-adv-page-head__divider {
+                width: 2px;
+                height: 24px;
+                flex-shrink: 0;
+                background: #a9a9a9;
+            }
+            @media (min-width: 640px) {
+                .pm-adv-page-head__title { font-size: 18px; }
+                .pm-adv-page-head__divider { height: 28px; }
+            }
             @media (min-width: 1100px) {
                 .pm-adv-page-head {
                     flex-direction: row;
                     align-items: center;
                     justify-content: space-between;
-                    gap: 14px;
+                    gap: 10px;
                 }
+            }
+            @media (min-width: 1100px) and (max-width: 1399px) {
+                .pm-adv-page-head__title { font-size: 17px; }
+                .pm-adv-page-head__divider { height: 26px; }
+                .figma-filter-bar--pm-adv {
+                    min-height: 48px !important;
+                    max-width: min(100%, calc(100vw - 300px));
+                    overflow-x: auto;
+                    overscroll-behavior-x: contain;
+                }
+                .figma-filter-bar--pm-adv > label.pm-adv-f-domain { width: 104px !important; }
+                .figma-filter-bar--pm-adv > label.pm-adv-f-traffic { width: 94px !important; }
+                .figma-filter-bar--pm-adv > label.pm-adv-f-account { width: 104px !important; }
+                .figma-filter-bar--pm-adv > label.pm-adv-f-campaign { width: 96px !important; }
+                .figma-filter-bar--pm-adv > label.pm-adv-f-path { width: 92px !important; }
+                .figma-filter-bar--pm-adv > label {
+                    padding-left: 5px !important;
+                    padding-right: 5px !important;
+                }
+            }
+            @media (min-width: 1400px) {
+                .pm-adv-page-head__title { font-size: 22px; }
+                .pm-adv-page-head__divider { height: 32px; }
+            }
+            html.light-mode .pm-adv-page-head__title {
+                color: #2d2d3a;
+            }
+            html.light-mode .pm-adv-page-head__divider {
+                background: #6b6578;
             }
             .figma-filter-bar--pm-adv.ov-filter-bar,
             .figma-filter-bar--pm-adv {
@@ -668,10 +721,10 @@
         </style>
 
         <div class="pm-adv-page-head mb-[18px] flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex flex-wrap items-center gap-[8px] shrink-0">
-                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
-                <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
-                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Advanced View</span>
+            <div class="pm-adv-page-head__titles">
+                <h1 class="pm-adv-page-head__title">Paid Marketing</h1>
+                <span class="pm-adv-page-head__divider" aria-hidden="true"></span>
+                <span class="pm-adv-page-head__title">Advanced View</span>
             </div>
 
             <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--pm-adv ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]" style="width:fit-content;max-width:100%;margin-left:auto;display:inline-flex;gap:0;">
