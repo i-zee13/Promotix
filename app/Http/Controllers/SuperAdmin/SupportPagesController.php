@@ -391,20 +391,32 @@ class SupportPagesController extends Controller
 
     public function sendTestEmailTemplate(Request $request, \App\Models\EmailTemplate $emailTemplate): RedirectResponse
     {
-        $to = (string) $request->user()->email;
+        $data = $request->validate([
+            'test_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $to = (string) $data['test_email'];
+
+        \App\Services\Mail\SmtpConfigResolver::apply(true);
 
         if (! \App\Services\Mail\AppMailer::mailIsConfigured()) {
             $mailer = (string) config('mail.default', 'log');
 
-            return back()->withErrors([
-                'email' => "Mail is not configured for real delivery (MAIL_MAILER={$mailer}). Set SMTP (or another real mailer) and an App Password if using Gmail.",
-            ]);
+            return back()
+                ->withInput(['test_email' => $to])
+                ->with('open_modal', 'email')
+                ->withErrors([
+                    'email' => "Mail is not configured for real delivery (MAIL_MAILER={$mailer}). Set SMTP in Super Admin → Integrations, or configure MAIL_* in .env.",
+                ]);
         }
 
         if ($emailTemplate->is_active === false) {
-            return back()->withErrors([
-                'email' => 'This template is inactive. Activate it before sending a test (production sends also skip inactive templates).',
-            ]);
+            return back()
+                ->withInput(['test_email' => $to])
+                ->with('open_modal', 'email')
+                ->withErrors([
+                    'email' => 'This template is inactive. Activate it before sending a test (production sends also skip inactive templates).',
+                ]);
         }
 
         $sample = [
@@ -434,10 +446,16 @@ class SupportPagesController extends Controller
         );
 
         if (! $ok) {
-            return back()->withErrors(['email' => "Could not send test email to {$to}. Check mail config and laravel.log."]);
+            return back()
+                ->withInput(['test_email' => $to])
+                ->with('open_modal', 'email')
+                ->withErrors(['email' => "Could not send test email to {$to}. Check mail config and laravel.log."]);
         }
 
-        return back()->with('status', "Test email sent to {$to}.");
+        return back()
+            ->withInput(['test_email' => $to])
+            ->with('open_modal', 'email')
+            ->with('status', "Test email sent to {$to}.");
     }
 
     public function saveSettings(Request $request): RedirectResponse

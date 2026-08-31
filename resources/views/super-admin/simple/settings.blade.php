@@ -36,6 +36,7 @@
         modal: @js(session('open_modal')),
         brandingTab: 'logo',
         emailTab: 'welcome_email',
+        testEmailRecipient: @js(old('test_email', auth()->user()?->email ?? '')),
         search: '',
         matches(label) {
             const q = this.search.trim().toLowerCase();
@@ -374,6 +375,22 @@
                 Email Template
             </h2>
 
+            <div class="mt-4 flex flex-wrap items-end gap-3 border-b border-white/10 pb-4">
+                <div class="min-w-[240px] flex-1">
+                    <label for="email-test-recipient" class="figma-sa-settings-row-label" style="font-size:11px;opacity:.8;">Send test to</label>
+                    <input
+                        id="email-test-recipient"
+                        type="email"
+                        x-model="testEmailRecipient"
+                        class="figma-sa-settings-input mt-1"
+                        placeholder="you@company.com"
+                        autocomplete="email"
+                        required
+                    >
+                </div>
+                <p class="max-w-[320px] text-[11px] leading-relaxed text-white/55">Enter any inbox to preview delivery. Uses SMTP from Integrations when .env mail is not set.</p>
+            </div>
+
             <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[200px_minmax(0,1fr)_220px]">
                 <div class="figma-sa-settings-panel figma-sa-settings-template-list">
                     @foreach ($emailTemplates as $tpl)
@@ -382,7 +399,10 @@
                 </div>
 
                 @foreach ($emailTemplates as $tpl)
-                    <form method="POST" action="{{ route('super-admin.email-templates.send-test', $tpl) }}" class="hidden" id="email-test-form-{{ $tpl->key }}">@csrf</form>
+                    <form method="POST" action="{{ route('super-admin.email-templates.send-test', $tpl) }}" class="hidden" id="email-test-form-{{ $tpl->key }}">
+                        @csrf
+                        <input type="hidden" name="test_email" :value="testEmailRecipient">
+                    </form>
                     <form method="POST" action="{{ route('super-admin.email-templates.restore', $tpl) }}" class="hidden" id="email-restore-form-{{ $tpl->key }}">@csrf</form>
 
                     <form x-show="emailTab === '{{ $tpl->key }}'" method="POST" action="{{ route('super-admin.email-templates.update', $tpl) }}" class="figma-sa-settings-panel space-y-3" id="email-form-{{ $tpl->key }}">
@@ -404,7 +424,17 @@
                         <p class="text-[11px] text-white/60">{{ $tpl->description }}</p>
                         <div class="flex flex-wrap justify-end gap-2">
                             <button type="button" class="figma-sa-settings-btn figma-sa-settings-btn--outline" onclick="alert(document.getElementById('email-subject-{{ $tpl->key }}').value + '\n\n' + document.getElementById('email-body-{{ $tpl->key }}').value)">Preview</button>
-                            <button type="submit" form="email-test-form-{{ $tpl->key }}" class="figma-sa-settings-btn figma-sa-settings-btn--outline">Send Test Email</button>
+                            <button
+                                type="button"
+                                class="figma-sa-settings-btn figma-sa-settings-btn--outline"
+                                @click="
+                                    const email = testEmailRecipient.trim();
+                                    if (!email) { alert('Enter an email address to send the test.'); return; }
+                                    const form = document.getElementById('email-test-form-{{ $tpl->key }}');
+                                    form.querySelector('[name=test_email]').value = email;
+                                    form.submit();
+                                "
+                            >Send Test Email</button>
                             <button type="submit" form="email-restore-form-{{ $tpl->key }}" class="figma-sa-settings-btn figma-sa-settings-btn--outline">Restore Default</button>
                             <button type="submit" class="figma-sa-settings-btn figma-sa-settings-btn--primary">Save Template</button>
                         </div>

@@ -14258,6 +14258,8 @@ a.figma-sa-users-filter-option {
     background: #6400b2;
     padding: 24px;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    --promotix-autofill-bg: rgba(0, 0, 0, 0.35);
+    --promotix-autofill-text: #ffffff;
 }
 
 .figma-sa-settings-modal-close {
@@ -14353,7 +14355,8 @@ a.figma-sa-users-filter-option {
     padding: 12px;
     font-size: 12px;
     font-family: ui-monospace, monospace;
-    color: #d9d9d9;
+    color: #ffffff;
+    caret-color: #ffffff;
     resize: vertical;
 }
 
@@ -14445,6 +14448,37 @@ a.figma-sa-users-filter-option {
     padding: 10px 12px;
     font-size: 13px;
     color: #ffffff;
+    caret-color: #ffffff;
+}
+
+.figma-sa-settings-modal .figma-sa-settings-input,
+.figma-sa-settings-modal .figma-sa-settings-textarea {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff;
+    caret-color: #ffffff;
+}
+
+.figma-sa-settings-modal .figma-sa-settings-input::placeholder,
+.figma-sa-settings-modal .figma-sa-settings-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.light-mode .figma-main .figma-sa-settings-modal .figma-sa-settings-input,
+.light-mode .figma-main .figma-sa-settings-modal .figma-sa-settings-textarea {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: #ffffff;
+}
+
+.figma-sa-settings-modal input:-webkit-autofill,
+.figma-sa-settings-modal input:-webkit-autofill:hover,
+.figma-sa-settings-modal input:-webkit-autofill:focus,
+.figma-sa-settings-modal textarea:-webkit-autofill,
+.figma-sa-settings-modal textarea:-webkit-autofill:hover,
+.figma-sa-settings-modal textarea:-webkit-autofill:focus {
+    -webkit-text-fill-color: #ffffff !important;
+    color: #ffffff !important;
+    caret-color: #ffffff;
 }
 
 .figma-sa-settings-input:focus {
