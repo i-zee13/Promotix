@@ -15,6 +15,7 @@ use App\Support\CountryValue;
 use App\Support\BehaviorEventPersister;
 use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
+use App\Support\DomainKeyHostGuard;
 use App\Support\GoogleAdsClickRedirect;
 use App\Support\GoogleClickAttribution;
 use App\Support\TransparentClickTracker;
@@ -319,6 +320,19 @@ class TrackingController extends Controller
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
         if (($domain->status ?? 'pending') === 'disabled') {
             return $this->cors($request, response()->json(['ok' => true, 'skipped' => 'disabled']));
+        }
+
+        $hostMismatch = DomainKeyHostGuard::mismatchReason(
+            $request,
+            $domain,
+            (string) ($data['url'] ?? $data['page_url'] ?? '')
+        );
+        if ($hostMismatch !== null) {
+            return $this->cors($request, response()->json([
+                'ok' => false,
+                'error' => 'hostname_mismatch',
+                'message' => $hostMismatch,
+            ], 403));
         }
 
         $ip = $this->clientIp($request);
@@ -819,6 +833,20 @@ class TrackingController extends Controller
         }
 
         $domain = Domain::where('domain_key', $data['domainKey'])->firstOrFail();
+        $hostMismatch = DomainKeyHostGuard::mismatchReason(
+            $request,
+            $domain,
+            (string) ($data['page_url'] ?? '')
+        );
+        if ($hostMismatch !== null) {
+            return $this->cors($request, response()->json([
+                'ok' => false,
+                'error' => 'hostname_mismatch',
+                'message' => $hostMismatch,
+                'skipped' => true,
+            ], 403));
+        }
+
         $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
         $domain->loadMissing('user');
         $planSessionRecordings = DetectionPlanFeatures::enabled($domain->user, DetectionPlanFeatures::SESSION_RECORDINGS);

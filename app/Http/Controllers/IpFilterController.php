@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\ResolvesClientIp;
 use App\Models\Domain;
 use App\Services\IpIntel\VisitProtectionService;
+use App\Support\DomainKeyHostGuard;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -50,6 +51,16 @@ class IpFilterController extends Controller
                 'allowed' => true,
                 'blocked' => false,
                 'skipped' => 'unknown_domain',
+            ]));
+        }
+
+        $hostMismatch = DomainKeyHostGuard::mismatchReason($request, $domain);
+        if ($hostMismatch !== null) {
+            return $this->cors($request, response()->json([
+                'allowed' => true,
+                'blocked' => false,
+                'skipped' => 'hostname_mismatch',
+                'message' => $hostMismatch,
             ]));
         }
 

@@ -173,6 +173,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::get('/paid-marketing/detailed-ip-timeline', [PaidMarketingController::class, 'detailedIpTimeline'])->name('paid-marketing.detailed-ip-timeline');
         Route::get('/paid-marketing/detailed-export.csv', [PaidMarketingController::class, 'exportDetailedCsv'])->name('paid-marketing.detailed-export');
         Route::get('/paid-marketing/detailed-export.xlsx', [PaidMarketingController::class, 'exportDetailedXlsx'])->name('paid-marketing.detailed-export-xlsx');
+        Route::get('/paid-marketing/devices-export.xlsx', [PaidMarketingController::class, 'exportDevicesXlsx'])->name('paid-marketing.devices-export-xlsx');
         Route::post('/paid-marketing/detailed-override', [PaidMarketingController::class, 'overrideVisitDecision'])->name('paid-marketing.detailed-override');
         Route::post('/paid-marketing/detailed-bulk', [PaidMarketingController::class, 'bulkVisitActions'])->name('paid-marketing.detailed-bulk');
         Route::get('/paid-marketing/session-recording/{recording}', [PaidMarketingController::class, 'showSessionRecording'])->name('paid-marketing.session-recording');

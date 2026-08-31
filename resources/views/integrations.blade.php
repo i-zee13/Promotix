@@ -162,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'tag_id' => $row->tag_id,
         ])->values(),
         'platformRows' => ($platformRows ?? collect())->values(),
+        'trackingIds' => ($trackingIds ?? collect())->values(),
         'setupProgress' => $setupProgress ?? [],
         'setupProgressByDomain' => $setupProgressByDomain ?? [],
     ]))"
@@ -192,8 +193,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="figma-filter-select-wrap">
                         <select x-model="selectedAdsAccountId" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All Accounts</option>
-                            @foreach (($accounts ?? []) as $account)
-                                <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
+                            @php
+                                $linkedFilterAccounts = collect($trackingIds ?? [])
+                                    ->unique('account_id')
+                                    ->values();
+                            @endphp
+                            @foreach ($linkedFilterAccounts as $row)
+                                <option value="{{ $row['account_id'] }}">{{ $row['label'] }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -394,66 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                             <span class="text-[14px] leading-none">+</span>
                                             Connect Microsoft
                                         </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </article>
-                    @endif
-
-                    @if (! empty($enabledTenantIntegrations['cross_domain']))
-                        <article class="pi-panel">
-                            <div class="flex items-start justify-between gap-[8px]">
-                                <div class="flex min-w-0 flex-1 gap-[16px]">
-                                    <div class="w-[88px] shrink-0 text-center">
-                                        <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
-                                            <svg class="h-[40px] w-[40px] text-[#FF6600]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" d="M8 12h8M12 8v8"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/></svg>
-                                        </div>
-                                        <p class="text-[15px] font-semibold leading-none text-white">Cross-domain</p>
-                                        <span class="pi-status-pill is-on mt-[8px]">
-                                            <span class="pi-status-dot"></span>
-                                            <span>Enabled</span>
-                                        </span>
-                                    </div>
-                                    <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
-                                        <p class="text-[11px] leading-relaxed text-white/65">Link visitor sessions across domains in your workspace for journey intelligence.</p>
-                                        <a href="{{ route('analytics.journeys') }}" class="pi-ghost-btn">
-                                            @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                            <span>Cross-domain journeys</span>
-                                        </a>
-                                        <a href="{{ route('paid-marketing.detection-settings') }}" class="pi-ghost-btn">
-                                            @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                            <span>Detection Panel</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </article>
-                    @endif
-
-                    @if (! empty($enabledTenantIntegrations['chatbot']))
-                        <article class="pi-panel">
-                            <div class="flex items-start justify-between gap-[8px]">
-                                <div class="flex min-w-0 flex-1 gap-[16px]">
-                                    <div class="w-[88px] shrink-0 text-center">
-                                        <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
-                                            <svg class="h-[40px] w-[40px] text-[#FF6600]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                                        </div>
-                                        <p class="text-[15px] font-semibold leading-none text-white">Guidance chatbot</p>
-                                        <span class="pi-status-pill is-on mt-[8px]">
-                                            <span class="pi-status-dot"></span>
-                                            <span>Enabled</span>
-                                        </span>
-                                    </div>
-                                    <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
-                                        <p class="text-[11px] leading-relaxed text-white/65">Dashboard and on-site chat read published Guidance articles from Super Admin.</p>
-                                        <a href="{{ route('analytics.dashboard') }}" class="pi-ghost-btn">
-                                            @include('partials.sidebar-icon', ['name' => 'home', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                            <span>Analytics dashboard</span>
-                                        </a>
-                                        <a href="{{ route('domains.index') }}" class="pi-ghost-btn">
-                                            @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                            <span>Tag on your domains</span>
-                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -1367,27 +1313,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="mb-[12px] flex shrink-0 items-center justify-between gap-3">
                     <div>
                         <h2 class="text-[18px] font-medium text-white">Tracking ID management</h2>
-                        <p class="mt-[3px] text-[12px] text-white/60">Google Ads conversion / tag IDs linked to this account</p>
+                        <p class="mt-[3px] text-[12px] text-white/60">Google Ads tag IDs linked to your domains (selected accounts only)</p>
                     </div>
                 </div>
                 <div class="pi-scroll-box space-y-[8px]">
-                    @forelse (($trackingIds ?? []) as $row)
+                    <template x-for="row in filteredTrackingIds" :key="row.id">
                         <div class="flex flex-wrap items-center justify-between gap-[8px] rounded-[8px] border border-white/15 bg-[var(--brand-primary)]/25 px-[12px] py-[10px]">
                             <div class="min-w-0">
-                                <p class="truncate text-[13px] font-medium text-white">{{ $row['label'] }}</p>
-                                <p class="truncate text-[11px] text-white/55">Customer: {{ $row['customer_id'] }}</p>
+                                <p class="truncate text-[13px] font-medium text-white" x-text="row.label"></p>
+                                <p class="truncate text-[11px] text-white/55">
+                                    <span x-text="'Domain: ' + (row.domain || '—')"></span>
+                                    <span x-text="' · Customer: ' + (row.customer_id || '—')"></span>
+                                </p>
                             </div>
                             <div class="flex items-center gap-[8px]">
-                                <code class="rounded bg-black/40 px-[8px] py-[4px] font-mono text-[11px] text-white/90">{{ $row['google_tag_id'] ?: '—' }}</code>
-                                @if (! empty($row['google_tag_id']))
-                                    <button type="button" class="rounded border border-white/25 bg-white px-[8px] py-[4px] text-[10px] font-semibold text-[var(--brand-primary)] hover:bg-white/90"
-                                            @click="copyKeyText(@js($row['google_tag_id']))">Copy</button>
-                                @endif
+                                <code class="rounded bg-black/40 px-[8px] py-[4px] font-mono text-[11px] text-white/90" x-text="row.google_tag_id || '—'"></code>
+                                <button
+                                    type="button"
+                                    class="rounded border border-white/25 bg-white px-[8px] py-[4px] text-[10px] font-semibold text-[var(--brand-primary)] hover:bg-white/90"
+                                    x-show="row.google_tag_id"
+                                    @click="copyKeyText(row.google_tag_id)"
+                                >Copy</button>
                             </div>
                         </div>
-                    @empty
-                        <p class="rounded-[8px] border border-white/10 bg-white/5 px-[12px] py-[14px] text-center text-[12px] text-white/55">Connect Google Ads to manage tracking IDs.</p>
-                    @endforelse
+                    </template>
+                    <p x-show="filteredTrackingIds.length === 0" class="rounded-[8px] border border-white/10 bg-white/5 px-[12px] py-[14px] text-center text-[12px] text-white/55">
+                        No linked Ads account for this domain yet. Connect Paid Advertising and pick the account for the domain.
+                    </p>
                 </div>
             </section>
 
@@ -1608,6 +1560,7 @@ function platformIntegrations(config) {
         googleOAuthConnected: Boolean(config.googleOAuthConnected),
         syncLogs: config.syncLogs || [],
         platformRows: config.platformRows || [],
+        trackingIds: config.trackingIds || [],
         setupProgressAll: config.setupProgress || [],
         setupProgressByDomain: config.setupProgressByDomain || {},
         platformSearch: '',
@@ -1732,10 +1685,33 @@ function platformIntegrations(config) {
         get healthLive() {
             return this.googleAdsApiHealthy && this.healthPct >= 75;
         },
+        get filteredTrackingIds() {
+            let rows = this.trackingIds || [];
+            if (this.selectedDomainId) {
+                rows = rows.filter((row) => String(row.domain_id) === String(this.selectedDomainId));
+            }
+            if (this.selectedAdsAccountId) {
+                rows = rows.filter((row) => String(row.account_id) === String(this.selectedAdsAccountId));
+            }
+            return rows;
+        },
         get filteredPlatformRows() {
+            let rows = this.platformRows || [];
+            if (this.selectedDomainId) {
+                rows = rows.filter((row) => {
+                    if (row.domain_id == null || row.domain_id === '') return row.kind === 'direct';
+                    return String(row.domain_id) === String(this.selectedDomainId);
+                });
+            }
+            if (this.selectedAdsAccountId) {
+                rows = rows.filter((row) => {
+                    if (row.account_id == null || row.account_id === '') return row.kind !== 'google_ads';
+                    return String(row.account_id) === String(this.selectedAdsAccountId);
+                });
+            }
             const q = String(this.platformSearch || '').trim().toLowerCase();
-            if (!q) return this.platformRows;
-            return this.platformRows.filter((row) => String(row.search || '').includes(q)
+            if (!q) return rows;
+            return rows.filter((row) => String(row.search || '').includes(q)
                 || String(row.platform || '').toLowerCase().includes(q)
                 || String(row.account_primary || '').toLowerCase().includes(q)
                 || String(row.entity_id || '').toLowerCase().includes(q));

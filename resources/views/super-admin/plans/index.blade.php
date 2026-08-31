@@ -247,7 +247,7 @@
                                 <label class="inline-flex items-start gap-2 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-[11px] text-[#d9d9d9] cursor-pointer">
                                     <input
                                         type="checkbox"
-                                        class="mt-[2px] accent-[#6400B2]"
+                                        class="mt-[2px] accent-[#FF6600]"
                                         :checked="detectionFlagOn(@js($det['key']))"
                                         @change="setDetectionFlag(@js($det['key']), $event.target.checked)"
                                     >
@@ -268,7 +268,7 @@
                                 <label class="inline-flex items-start gap-2 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-[11px] text-[#d9d9d9] cursor-pointer">
                                     <input
                                         type="checkbox"
-                                        class="mt-[2px] accent-[#6400B2]"
+                                        class="mt-[2px] accent-[#FF6600]"
                                         :checked="workspaceFlagOn(@js($feat['key']))"
                                         @change="setWorkspaceFlag(@js($feat['key']), $event.target.checked)"
                                     >

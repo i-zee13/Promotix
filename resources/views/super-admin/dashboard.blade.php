@@ -43,7 +43,7 @@
                     </h2>
                     <x-super-admin.dashboard-dropdown>
                         <x-slot:trigger>
-                            <button type="button" @click="open = !open" class="figma-sa-dash-chart-menu-btn" aria-label="Chart options">
+                            <button type="button" class="figma-sa-dash-chart-menu-btn" aria-label="Chart options">
                                 <svg class="h-[18px] w-[18px]" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4z"/></svg>
                             </button>
                         </x-slot:trigger>
@@ -66,7 +66,7 @@
                     </h2>
                     <x-super-admin.dashboard-dropdown>
                         <x-slot:trigger>
-                            <button type="button" @click="open = !open" class="figma-sa-dash-chart-menu-btn figma-sa-dash-chart-menu-btn--dark" aria-label="Chart options">
+                            <button type="button" class="figma-sa-dash-chart-menu-btn figma-sa-dash-chart-menu-btn--dark" aria-label="Chart options">
                                 <svg class="h-[18px] w-[18px]" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4zm0 4a2 2 0 110-4 2 2 0 010 4z"/></svg>
                             </button>
                         </x-slot:trigger>
@@ -93,7 +93,7 @@
                     </label>
                     <x-super-admin.dashboard-dropdown>
                         <x-slot:trigger>
-                            <button type="button" @click="open = !open" class="figma-sa-dash-filters">
+                            <button type="button" class="figma-sa-dash-filters">
                                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 12h10M4 17h6"/></svg>
                                 Filters
                             </button>

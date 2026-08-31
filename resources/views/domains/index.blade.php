@@ -193,10 +193,6 @@
                                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 16"/></svg>
                                             Edit domain
                                         </button>
-                                        <button type="button" @click="removeDomain({{ $d->id }}, @js($d->hostname))" class="flex w-full items-center gap-[8px] px-[12px] py-[8px] text-rose-700 hover:bg-white/60">
-                                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v12a2 2 0 01-2 2H8a2 2 0 01-2-2V7h12z"/></svg>
-                                            Remove
-                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -259,7 +255,7 @@
                     </div>
                 @endunless
                 <div>
-                    <textarea x-model="addForm.hostname" rows="3" placeholder="Example: www.yourdomainnamehere.com" class="w-full rounded-[6px] border border-white/30 bg-[#4a0088]/60 px-[14px] py-[12px] text-[13px] text-white placeholder:text-white/50 focus:border-white focus:ring-0" :disabled="!canAdd"></textarea>
+                    <textarea x-model="addForm.hostname" rows="3" placeholder="Example: www.yourdomainnamehere.com" class="w-full rounded-[6px] border border-black/10 bg-white px-[14px] py-[12px] text-[13px] text-[#1a1a1a] placeholder:text-[#888] focus:border-white focus:ring-2 focus:ring-white/40 focus:outline-none" :disabled="!canAdd"></textarea>
                     <p class="mt-[6px] text-[11px] text-white/70">One domain per line for bulk add.</p>
                 </div>
                 <div class="flex justify-end">
@@ -761,25 +757,7 @@ function siteManagementFigma() {
             }
         },
         async removeDomain(id, hostname = '') {
-            const label = hostname || 'this domain';
-            if (!confirm(`Delete ${label}?\n\nThis permanently removes the site and all related data: visits, IP records, paid clicks, Google metrics, and detection logs.`)) {
-                return;
-            }
-            try {
-                const res = await fetch(`/domains/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': this.csrf, Accept: 'application/json' },
-                });
-                const data = await res.json().catch(() => ({}));
-                if (res.ok) {
-                    this.showToast(data.message || 'Domain deleted.');
-                    setTimeout(() => window.location.reload(), 600);
-                } else {
-                    this.showToast(data.message || 'Could not delete domain.');
-                }
-            } catch (_) {
-                this.showToast('Could not delete domain.');
-            }
+            this.showToast('Domains cannot be removed once added. Upgrade your plan for more slots, or contact support to change a hostname.');
         },
         async toggleMode(id, on) {
             await fetch(`/domains/${id}`, {

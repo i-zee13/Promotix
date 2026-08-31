@@ -35,7 +35,7 @@
 
         <div class="figma-sa-user-detail-hero">
             <span class="figma-sa-users-avatar figma-sa-user-detail-avatar" aria-hidden="true">
-                @include('partials.user-avatar', ['avatarUser' => $user, 'avatarTextClass' => 'text-[18px] font-semibold leading-none text-[#6400b2]'])
+                @include('partials.user-avatar', ['avatarUser' => $user, 'avatarTextClass' => 'text-[18px] font-semibold leading-none text-[#FF6600]'])
             </span>
             <div class="figma-sa-user-detail-hero-main">
                 <div class="figma-sa-user-detail-hero-top">

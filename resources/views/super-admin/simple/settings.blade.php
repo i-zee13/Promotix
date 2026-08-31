@@ -206,7 +206,7 @@
                                     ? strtoupper($rawColor)
                                     : (preg_match('/^#([A-Fa-f0-9]{3})$/', $rawColor)
                                         ? strtoupper(sprintf('#%s%s%s%s%s%s', $rawColor[1], $rawColor[1], $rawColor[2], $rawColor[2], $rawColor[3], $rawColor[3]))
-                                        : '#6400B2');
+                                        : '#FF6600');
                             @endphp
                             <div
                                 class="figma-sa-color-field"
@@ -242,13 +242,13 @@
                                     type="text"
                                     class="figma-sa-settings-input mt-2 font-mono uppercase"
                                     maxlength="7"
-                                    placeholder="#6400B2"
+                                    placeholder="#FF6600"
                                     x-model="hex"
                                     @blur="normalize(hex)"
                                     @keydown.enter.prevent="normalize(hex)"
                                     aria-label="{{ $setting->label }} hex"
                                 >
-                                <p class="mt-1 text-[10px] text-rose-300" x-show="!/^#[0-9A-F]{6}$/.test(hex)" x-cloak>Use a valid 6-digit hex (e.g. #6400B2).</p>
+                                <p class="mt-1 text-[10px] text-rose-300" x-show="!/^#[0-9A-F]{6}$/.test(hex)" x-cloak>Use a valid 6-digit hex (e.g. #FF6600).</p>
                             </div>
                         @endforeach
                     </div>
@@ -294,7 +294,7 @@
                         $previewTextMuted = $brandingSettings->get('branding.color_text_muted')?->value ?? '#B8A4D4';
                     @endphp
                     <div class="figma-sa-brand-preview"
-                        style="--preview-bg: {{ $brandingBackground->value ?? '#0D0D0D' }}; --preview-primary: {{ $brandingPrimary->value ?? '#6400B2' }}; --preview-surface: {{ $previewSurface }}; --preview-outline: {{ $previewOutline }}; --preview-cta: {{ $previewCta }}; --preview-cta-text: {{ $previewCtaText }}; --preview-muted: {{ $previewTextMuted }}; --preview-font: {{ $brandingFontFamily->value ?? 'Inter' }}; --preview-size: {{ ($brandingFontSize->value ?? 16).'px' }};">
+                        style="--preview-bg: {{ $brandingBackground->value ?? '#0D0D0D' }}; --preview-primary: {{ $brandingPrimary->value ?? '#FF6600' }}; --preview-surface: {{ $previewSurface }}; --preview-outline: {{ $previewOutline }}; --preview-cta: {{ $previewCta }}; --preview-cta-text: {{ $previewCtaText }}; --preview-muted: {{ $previewTextMuted }}; --preview-font: {{ $brandingFontFamily->value ?? 'Inter' }}; --preview-size: {{ ($brandingFontSize->value ?? 16).'px' }};">
                         <div class="figma-sa-brand-preview-header">
                             @if ($brandingLogo?->value)
                                 <img src="{{ $brandingLogo->value }}" alt="Logo" class="h-8 max-w-[140px] object-contain" onerror="this.style.display='none'">

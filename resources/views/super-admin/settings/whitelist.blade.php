@@ -45,7 +45,7 @@
                 <input type="text" name="label" value="{{ old('label') }}" placeholder="Label (optional)">
             </label>
             <div class="figma-sa-subs-actions">
-                <button type="submit" class="figma-sa-subs-export-btn" style="background:#6400b2;color:#fff;border-color:#6400b2;">+ Add to whitelist</button>
+                <button type="submit" class="figma-sa-subs-export-btn" style="background:#FF6600;color:#fff;border-color:#FF6600;">+ Add to whitelist</button>
             </div>
         </form>
         @error('value')

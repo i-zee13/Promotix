@@ -668,6 +668,115 @@ class PaidMarketingController extends Controller
     }
 
     /**
+     * Devices → IPs block export for the selected Advanced View date range.
+     * Each device starts with a bold detail row, then IP-only rows underneath.
+     */
+    public function exportDevicesXlsx(Request $request): StreamedResponse
+    {
+        $from = trim((string) $request->query('from', ''));
+        $to = trim((string) $request->query('to', ''));
+        $filename = 'devices-export'
+            .($from !== '' ? '-'.$from : '')
+            .($to !== '' && $to !== $from ? '_'.$to : '')
+            .'.xlsx';
+
+        return response()->streamDownload(function () use ($request): void {
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(120);
+            }
+
+            $relationships = $this->deviceIpRelationshipRows($request);
+            $byDevice = $relationships
+                ->groupBy(fn (array $row) => (string) ($row['device_id'] ?? '—'))
+                ->sortKeys();
+
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Devices Export');
+
+            $headers = [
+                'Device ID',
+                'Device',
+                'Browser',
+                'OS',
+                'Screen',
+                'Language',
+                'Timezone',
+                'Fingerprint ID',
+                'Visits',
+                'First Seen',
+                'Last Seen',
+                'IP Address',
+            ];
+            foreach ($headers as $i => $header) {
+                $sheet->setCellValue([$i + 1, 1], $header);
+            }
+            $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+            $titleStyle = $sheet->getStyle('A1:'.$lastCol.'1');
+            $titleStyle->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+            $titleStyle->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setRGB('FF6600');
+            $sheet->freezePane('A2');
+
+            $rowNumber = 2;
+            foreach ($byDevice as $deviceId => $deviceRows) {
+                $sorted = $deviceRows->sortBy('ip')->values();
+                $latest = $sorted->sortByDesc('last_seen')->first() ?? $sorted->first();
+                $deviceVisits = (int) $sorted->sum(fn (array $r) => (int) ($r['visits'] ?? 0));
+                $firstSeen = (string) $sorted->min('first_seen');
+                $lastSeen = (string) $sorted->max('last_seen');
+
+                $sheet->fromArray([[
+                    (string) ($latest['device_id'] ?? $deviceId),
+                    (string) ($latest['device'] ?? ''),
+                    (string) ($latest['browser'] ?? ''),
+                    (string) ($latest['os'] ?? ''),
+                    (string) ($latest['screen_resolution'] ?? ''),
+                    (string) ($latest['language'] ?? ''),
+                    (string) ($latest['timezone'] ?? ''),
+                    (string) ($latest['fingerprint_id'] ?? ''),
+                    $deviceVisits,
+                    $firstSeen,
+                    $lastSeen,
+                    $sorted->count().' IP(s)',
+                ]], null, 'A'.$rowNumber);
+                $deviceStyle = $sheet->getStyle('A'.$rowNumber.':'.$lastCol.$rowNumber);
+                $deviceStyle->getFont()->setBold(true);
+                $deviceStyle->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB('FFF0E6');
+                $rowNumber++;
+
+                foreach ($sorted as $ipRow) {
+                    $sheet->fromArray([[
+                        '', '', '', '', '', '', '', '', '', '', '',
+                        (string) ($ipRow['ip'] ?? ''),
+                    ]], null, 'A'.$rowNumber);
+                    $rowNumber++;
+                }
+
+                $rowNumber++;
+            }
+
+            if ($byDevice->isEmpty()) {
+                $sheet->setCellValue('A2', 'No devices found for the selected date range.');
+            }
+
+            foreach (range(1, count($headers)) as $col) {
+                $sheet->getColumnDimensionByColumn($col)->setAutoSize(true);
+            }
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
+    }
+
+    /**
      * Write a consistently styled export sheet.
      *
      * @param  iterable<int, iterable<int, mixed>>  $rows
@@ -683,7 +792,7 @@ class PaidMarketingController extends Controller
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('6400B2');
+            ->getStartColor()->setRGB('FF6600');
         $headerStyle->getFont()->getColor()->setRGB('FFFFFF');
         $sheet->freezePane('A2');
         $sheet->setAutoFilter('A1:'.$lastCol.'1');

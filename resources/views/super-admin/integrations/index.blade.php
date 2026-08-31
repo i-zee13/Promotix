@@ -48,9 +48,10 @@
             </x-super-admin.dashboard-dropdown>
         </div>
 
-        <div class="grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-3">
+        <div class="figma-sa-integrations-grid grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-3">
             <template x-for="integration in filteredIntegrations" :key="integration.id">
-                <article class="figma-sa-integration-card" :class="['guidance-chatbot','cross-domain','smtp'].includes(integration.name) ? 'ring-1 ring-[color-mix(in_srgb,var(--brand-primary)_50%,transparent)]' : ''">
+                <article class="figma-sa-integration-card" :class="integration.name === 'smtp' ? 'figma-sa-integration-card--fields-scroll' : ''">
+                    <div class="figma-sa-integration-card-head">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex min-w-0 items-center gap-3">
                             <span class="figma-sa-integration-icon" :class="'is-' + integration.name" aria-hidden="true">
@@ -65,8 +66,8 @@
                                 <template x-if="!['stripe','google-cloud','smtp','oauth','meta-ads','microsoft-ads','guidance-chatbot','cross-domain'].includes(integration.name)"><span x-text="integration.icon"></span></template>
                             </span>
                             <div class="min-w-0">
-                                <h3 class="text-[20px] font-medium text-white" x-text="integration.display_name"></h3>
-                                <p class="mt-1 text-[12px] text-white/55" x-show="integration.subtitle" x-text="integration.subtitle"></p>
+                                <h3 class="figma-sa-integration-title" x-text="integration.display_name"></h3>
+                                <p class="figma-sa-integration-subtitle" x-show="integration.subtitle" x-text="integration.subtitle"></p>
                             </div>
                         </div>
                         <label class="inline-flex shrink-0 items-center gap-2 text-xs text-white/90" title="Enable / disable">
@@ -101,18 +102,11 @@
                             <span> · Tested <span x-text="integration.last_tested_at"></span></span>
                         </template>
                     </p>
+                    </div>
 
+                    <div class="figma-sa-integration-card-body">
                     <template x-if="integration.name === 'smtp'">
-                        <div class="figma-sa-integration-smtp-hint">
-                            <p><strong>Recommended (DigitalOcean):</strong> Fill <strong>Mailgun domain</strong> + <strong>Mailgun API key</strong> from your Mailgun dashboard — uses HTTPS, no SMTP ports.</p>
-                            <p class="mt-1"><strong>Do not mix modes:</strong> For API, fill only Mailgun domain + API key + From email — leave SMTP host/username/password empty.</p>
-                            <p class="mt-1"><strong>SMTP fallback only:</strong> <code>smtp.mailgun.org</code> port <strong>2525</strong> with Mailgun <em>SMTP password</em> from Domain → SMTP credentials (not the API key).</p>
-                            <p class="mt-1"><strong>Sandbox:</strong> Add authorized recipients in Mailgun before testing.</p>
-                        </div>
-                    </template>
-
-                    <template x-if="integration.name === 'smtp'">
-                        <div class="figma-sa-integration-key-row mt-2">
+                        <div class="figma-sa-integration-key-row mb-2">
                             <span class="figma-sa-integration-key-label">Send test to</span>
                             <input
                                 type="email"
@@ -125,7 +119,7 @@
                         </div>
                     </template>
 
-                    <div class="mt-3 space-y-2">
+                    <div class="space-y-2">
                         <template x-for="field in integration.fields" :key="field.name">
                             <div class="figma-sa-integration-key-row">
                                 <span class="figma-sa-integration-key-label" x-text="field.label"></span>
@@ -150,6 +144,7 @@
                                 </button>
                             </div>
                         </template>
+                    </div>
                     </div>
 
                     <div class="figma-sa-integration-actions">

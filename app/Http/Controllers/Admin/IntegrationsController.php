@@ -301,6 +301,8 @@ class IntegrationsController extends Controller
                 'key' => 'ads-' . $mapping->id,
                 'kind' => 'google_ads',
                 'platform' => 'Google Ads',
+                'domain_id' => $mapping->domain_id,
+                'account_id' => $mapping->google_ads_account_id,
                 'account_primary' => $mapping->account?->displayLabel() ?: ($mapping->domain?->hostname ?: 'Google Ads'),
                 'account_secondary' => $customerId !== '' ? $customerId : ($mapping->domain?->hostname ?: '—'),
                 'protection' => $protection,
@@ -332,6 +334,63 @@ class IntegrationsController extends Controller
             ]);
         }
 
+        // Domains linked via FK only (no DomainGoogleAdsMapping row yet).
+        foreach ($manualDomains as $domain) {
+            if (! $domain->google_ads_account_id) {
+                continue;
+            }
+            $alreadyMapped = $mappings->contains(
+                fn ($m) => (int) $m->domain_id === (int) $domain->id
+                    && (int) $m->google_ads_account_id === (int) $domain->google_ads_account_id
+            );
+            if ($alreadyMapped) {
+                continue;
+            }
+            $account = $domain->googleAdsAccount;
+            if (! $account) {
+                continue;
+            }
+            $customerId = (string) ($account->display_customer_id ?: $account->customer_id ?: '');
+            $entityId = (string) ($account->google_tag_id ?: ($customerId !== '' ? 'AW-' . preg_replace('/\D+/', '', $customerId) : '—'));
+            $clicks = (int) ($domainVisitCounts[$domain->id] ?? 0);
+            $lastSyncAt = $account->connection?->last_sync_at;
+
+            $platformRows->push([
+                'key' => 'ads-fk-' . $domain->id,
+                'kind' => 'google_ads',
+                'platform' => 'Google Ads',
+                'domain_id' => $domain->id,
+                'account_id' => $account->id,
+                'account_primary' => $account->displayLabel() ?: $domain->hostname,
+                'account_secondary' => $customerId !== '' ? $customerId : $domain->hostname,
+                'protection' => 'Audience Exclusion',
+                'protection_tone' => 'audience',
+                'entity_id' => $entityId,
+                'status' => 'Connected',
+                'last_sync' => $lastSyncAt ? $lastSyncAt->diffForHumans() : '—',
+                'last_sync_at' => optional($lastSyncAt)->toIso8601String(),
+                'clicks' => $clicks,
+                'clicks_label' => number_format($clicks),
+                'clicks_caption' => 'Tracked visits',
+                'action_label' => 'Campaign Settings',
+                'action_url' => route('paid-marketing.detection-settings', ['domain_id' => $domain->id]),
+                'edit_url' => route('integrations.google.redirect', [
+                    'domain_id' => $domain->id,
+                    'context' => 'paid_domain',
+                ]),
+                'edit_label' => 'Edit Connection',
+                'delete_url' => null,
+                'menu_id' => 'ads-fk-' . $domain->id,
+                'search' => strtolower(trim(implode(' ', [
+                    'google ads',
+                    $account->displayLabel(),
+                    $domain->hostname,
+                    $customerId,
+                    $entityId,
+                ]))),
+            ]);
+        }
+
         foreach ($manualDomains as $domain) {
             if (! $domain->tag_connected && blank($domain->gtm_container_id)) {
                 continue;
@@ -345,6 +404,8 @@ class IntegrationsController extends Controller
                 'key' => 'gtm-' . $domain->id,
                 'kind' => 'gtm',
                 'platform' => 'Google Tag Manager',
+                'domain_id' => $domain->id,
+                'account_id' => null,
                 'account_primary' => $domain->hostname,
                 'account_secondary' => $gtmId !== '' ? $gtmId : 'Tracking connected',
                 'protection' => 'Tracking Only',
@@ -377,6 +438,8 @@ class IntegrationsController extends Controller
                 'key' => 'direct-' . $row->id,
                 'kind' => 'direct',
                 'platform' => 'Direct Ads',
+                'domain_id' => null,
+                'account_id' => null,
                 'account_primary' => $row->account_label ?: 'Direct Ads',
                 'account_secondary' => $row->account_id ?: '—',
                 'protection' => 'ID Tracking',
@@ -405,12 +468,28 @@ class IntegrationsController extends Controller
 
         $platformRows = $platformRows->values();
 
-        $trackingIds = $accounts->map(fn (GoogleAdsAccount $account) => [
-            'id' => $account->id,
-            'label' => $account->displayLabel(),
-            'customer_id' => $account->display_customer_id ?: $account->customer_id,
-            'google_tag_id' => $account->google_tag_id,
-        ])->values();
+        // Only accounts explicitly linked to a domain (paid advertising pick) — not every Ads account under the Gmail OAuth.
+        $trackingIds = collect();
+        foreach ($manualDomains as $domain) {
+            $linkedAccounts = collect([$domain->googleAdsAccount])
+                ->merge($domain->googleAdsMappings->pluck('account'))
+                ->filter(fn ($account) => $account instanceof GoogleAdsAccount)
+                ->unique('id')
+                ->values();
+
+            foreach ($linkedAccounts as $account) {
+                $trackingIds->push([
+                    'id' => $account->id.'-'.$domain->id,
+                    'account_id' => $account->id,
+                    'domain_id' => $domain->id,
+                    'domain' => $domain->hostname,
+                    'label' => $account->displayLabel(),
+                    'customer_id' => $account->display_customer_id ?: $account->customer_id,
+                    'google_tag_id' => $account->google_tag_id,
+                ]);
+            }
+        }
+        $trackingIds = $trackingIds->values();
 
         $syncLogs = Schema::hasTable('integration_sync_logs')
             ? IntegrationSyncLog::query()

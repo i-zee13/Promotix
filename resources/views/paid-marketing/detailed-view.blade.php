@@ -862,6 +862,17 @@
                             </template>
                         </div>
                     </div>
+                    <a
+                        :href="devicesExportHref()"
+                        class="inline-flex h-[28px] items-center gap-[6px] rounded-[6px] border border-white/30 bg-[#0f0e0e] px-[10px] text-[11px] text-white hover:bg-white/10"
+                        title="Export all devices + IPs for the selected date range"
+                    >
+                        <svg class="h-[14px] w-[14px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17.25h4.5M8.25 20.25h7.5A2.25 2.25 0 0018 18V7.5A2.25 2.25 0 0015.75 5.25h-7.5A2.25 2.25 0 006 7.5V18a2.25 2.25 0 002.25 2.25z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 9.75h6M9 12.75h6"/>
+                        </svg>
+                        <span>Devices Export</span>
+                    </a>
                     <label class="relative flex h-[28px] min-w-[200px] max-w-[280px] flex-1 items-center rounded-[6px] bg-white px-[10px]">
                         <svg class="mr-[6px] h-[14px] w-[14px] shrink-0 text-[#8c8787]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input type="search" placeholder="Search IP, GCLID, or Device ID" x-model="filters.ip" @input="scheduleFetch(true)" class="w-full border-0 bg-transparent text-[11px] text-[#121212] placeholder:text-[#8c8787] focus:ring-0">
@@ -2370,6 +2381,10 @@
             xlsxHref() {
                 const qs = this.queryString(true);
                 return `{{ route('paid-marketing.detailed-export-xlsx') }}${qs ? '?' + qs + '&' : '?'}include_relationships=1`;
+            },
+            devicesExportHref() {
+                const qs = this.queryString(false);
+                return `{{ route('paid-marketing.devices-export-xlsx') }}${qs ? '?' + qs : ''}`;
             },
             async fetchNow() {
                 const generation = ++this.fetchGeneration;

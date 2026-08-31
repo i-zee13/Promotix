@@ -45,10 +45,10 @@
                                     <div class="figma-sa-products-usercell">
                                         <span class="figma-sa-roles-icon" aria-hidden="true">
                                             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <rect width="40" height="40" rx="8" fill="#f3ecff"/>
-                                                <path d="M12 28c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="#6400B2" stroke-width="2" stroke-linecap="round"/>
-                                                <circle cx="20" cy="14" r="5" stroke="#6400B2" stroke-width="2"/>
-                                                <path d="M26 16l4-2v6l-4-2" stroke="#9A1AFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <rect width="40" height="40" rx="8" fill="#fff4ee"/>
+                                                <path d="M12 28c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="#FF6600" stroke-width="2" stroke-linecap="round"/>
+                                                <circle cx="20" cy="14" r="5" stroke="#FF6600" stroke-width="2"/>
+                                                <path d="M26 16l4-2v6l-4-2" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                                             </svg>
                                         </span>
                                         <span>

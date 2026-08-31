@@ -62,13 +62,13 @@
                     maxlength="1"
                     autocomplete="one-time-code"
                     aria-label="Digit {{ $i + 1 }}"
-                    class="auth-field h-12 w-10 sm:h-14 sm:w-12 rounded-[10px] border border-white/30 bg-[#4D008E]/60 text-center text-xl font-bold text-white outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
+                    class="auth-field h-12 w-10 sm:h-14 sm:w-12 rounded-[10px] border border-white/30 bg-[#CC5200]/60 text-center text-xl font-bold text-white outline-none transition focus:border-white focus:ring-2 focus:ring-white/30">
             @endfor
         </div>
 
         <div class="flex justify-center">
             <button type="submit"
-                class="rounded-[10px] bg-white px-10 py-2.5 text-base font-semibold text-[#6400B3] transition hover:bg-white/90">
+                class="rounded-[10px] bg-white px-10 py-2.5 text-base font-semibold text-[#FF6600] transition hover:bg-white/90">
                 Verify
             </button>
         </div>

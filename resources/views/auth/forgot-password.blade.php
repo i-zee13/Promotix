@@ -45,12 +45,12 @@
                 required
                 autofocus
                 placeholder="E-mail"
-                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#4D008E]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
+                class="auth-field w-full rounded-[10px] border border-white/30 bg-[#CC5200]/60 py-3 pl-14 pr-4 text-white placeholder-white/65 outline-none transition focus:border-white focus:ring-2 focus:ring-white/30"
             >
         </div>
 
         <button type="submit"
-            class="w-full rounded-[10px] bg-white py-3 text-base font-semibold text-[#6400B3] transition hover:bg-white/90">
+            class="w-full rounded-[10px] bg-white py-3 text-base font-semibold text-[#FF6600] transition hover:bg-white/90">
             Send reset code
         </button>
 

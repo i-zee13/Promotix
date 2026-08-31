@@ -89,7 +89,7 @@
             border: 4px solid var(--auth-brand-ring);
             box-shadow:
                 0 0 0 10px var(--auth-brand-ring-soft),
-                0 0 80px rgba(100, 0, 178, 0.45);
+                0 0 80px rgba(var(--brand-primary-rgb, 255, 102, 0), 0.45);
         }
 
         .auth-hero-ring::after {
@@ -97,7 +97,7 @@
             position: absolute;
             inset: -8%;
             border-radius: 50%;
-            border: 2px solid rgba(147, 51, 234, 0.22);
+            border: 2px solid rgba(var(--brand-primary-rgb, 255, 102, 0), 0.22);
             pointer-events: none;
         }
 
@@ -106,11 +106,11 @@
             inset: 16%;
             border-radius: 50%;
             overflow: hidden;
-            background: linear-gradient(160deg, rgba(5, 5, 8, 0.92) 0%, rgba(26, 10, 46, 0.88) 55%, rgba(13, 13, 18, 0.9) 100%);
+            background: linear-gradient(160deg, rgba(5, 5, 8, 0.92) 0%, rgba(40, 18, 8, 0.88) 55%, rgba(13, 13, 18, 0.9) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: inset 0 0 50px rgba(100, 0, 178, 0.3);
+            box-shadow: inset 0 0 50px rgba(var(--brand-primary-rgb, 255, 102, 0), 0.3);
         }
 
         .auth-hero-ring-inner img.auth-hero-photo {
@@ -183,7 +183,7 @@
                 max-width: 33.333333%;
                 min-height: calc(100vh - 52px);
                 padding: 2.5rem 2rem;
-                border-left: 1px solid rgba(100, 0, 178, 0.25);
+                border-left: 1px solid rgba(var(--brand-primary-rgb, 255, 102, 0), 0.25);
                 background: rgba(8, 8, 15, 0.35);
                 backdrop-filter: blur(2px);
                 box-shadow: -12px 0 40px rgba(0, 0, 0, 0.25);
@@ -224,8 +224,8 @@
             align-items: center;
             justify-content: center;
             border-radius: 0.55rem;
-            background: rgba(100, 0, 178, 0.25);
-            color: #c084fc;
+            background: rgba(var(--brand-primary-rgb, 255, 102, 0), 0.22);
+            color: var(--brand-primary, #FF6600);
             pointer-events: none;
         }
 
@@ -254,7 +254,7 @@
 
         .auth-field-input:focus {
             border-color: var(--auth-border-focus);
-            box-shadow: 0 0 0 3px rgba(100, 0, 178, 0.22);
+            box-shadow: 0 0 0 3px rgba(var(--brand-primary-rgb, 255, 102, 0), 0.22);
             background: #16161f;
         }
 
@@ -284,7 +284,7 @@
         }
 
         .auth-pwd-toggle:hover {
-            color: #c084fc;
+            color: var(--brand-primary, #FF6600);
         }
 
         .auth-remember {
@@ -333,7 +333,7 @@
 
         .auth-btn-primary:hover {
             filter: brightness(1.08);
-            box-shadow: 0 10px 32px rgba(100, 0, 178, 0.5);
+            box-shadow: 0 10px 32px rgba(var(--brand-primary-rgb, 255, 102, 0), 0.5);
         }
 
         .auth-btn-outline {
@@ -342,10 +342,10 @@
             justify-content: center;
             min-height: 2.75rem;
             padding: 0.65rem 0.75rem;
-            border: 1.5px solid rgba(192, 132, 252, 0.45);
+            border: 1.5px solid rgba(var(--brand-primary-rgb, 255, 102, 0), 0.5);
             border-radius: 0.65rem;
-            background: rgba(100, 0, 178, 0.12);
-            color: #e9d5ff;
+            background: rgba(var(--brand-primary-rgb, 255, 102, 0), 0.12);
+            color: #ffe8d4;
             font-family: inherit;
             font-size: 0.78rem;
             font-weight: 600;
@@ -357,8 +357,8 @@
         }
 
         .auth-btn-outline:hover {
-            background: rgba(100, 0, 178, 0.28);
-            border-color: rgba(192, 132, 252, 0.7);
+            background: rgba(var(--brand-primary-rgb, 255, 102, 0), 0.28);
+            border-color: rgba(var(--brand-primary-rgb, 255, 102, 0), 0.75);
         }
 
         .auth-forgot {
@@ -367,7 +367,7 @@
             text-align: right;
             font-size: 0.8rem;
             font-weight: 500;
-            color: #c084fc;
+            color: var(--brand-primary, #FF6600);
             text-decoration: none;
         }
 
@@ -395,8 +395,8 @@
         }
 
         .auth-google-btn:hover {
-            border-color: rgba(100, 0, 178, 0.45);
-            background: rgba(100, 0, 178, 0.12);
+            border-color: rgba(var(--brand-primary-rgb, 255, 102, 0), 0.45);
+            background: rgba(var(--brand-primary-rgb, 255, 102, 0), 0.12);
         }
 
         .auth-error {

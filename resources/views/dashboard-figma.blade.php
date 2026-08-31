@@ -42,9 +42,9 @@
             <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings',{detail:{tab:'reports'}}))" title="Reports" class="ov-tool-btn">
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[18px] w-[18px]'])
             </button>
-            <a href="{{ route('profile.edit') }}" title="Settings" class="ov-tool-btn">
+            <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings'))" title="Settings" class="ov-tool-btn" aria-label="Open settings">
                 @include('partials.sidebar-icon', ['name' => 'settings', 'class' => 'h-[18px] w-[18px]'])
-            </a>
+            </button>
         </div>
     </div>
 

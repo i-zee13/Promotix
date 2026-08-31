@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
 use App\Models\Plan;
+use App\Support\DomainKeyHostGuard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -250,18 +251,11 @@ class DomainManagementController extends Controller
     {
         abort_unless($domain->user_id === $request->user()->id, 403);
 
-        $hostname = $domain->hostname;
-
-        // Remove manual row and any legacy google_ads row for same hostname so re-add starts fresh.
-        Domain::query()
-            ->where('user_id', $request->user()->id)
-            ->where('hostname', $hostname)
-            ->delete();
-
+        // Plan slots are permanent: customers cannot free a domain slot by deleting.
+        // Super Admin can still remove domains from Super Admin → Domains.
         return response()->json([
-            'ok' => true,
-            'message' => 'Domain and all related traffic data (visits, IPs, clicks, metrics) have been removed.',
-        ]);
+            'message' => 'Domains cannot be removed once added. This keeps your plan domain slots from being reused. Contact support if a hostname must be changed, or upgrade your plan for more domains.',
+        ], 403);
     }
 
     public function updateStatus(Request $request, Domain $domain): JsonResponse
@@ -417,10 +411,21 @@ class DomainManagementController extends Controller
 
         $recentVisitCount = 0;
         if (Schema::hasTable('visits')) {
-            $recentVisitCount = (int) DB::table('visits')
+            $recentRows = DB::table('visits')
                 ->where('domain_id', $domain->id)
                 ->where('visited_at', '>=', now()->subDays(7))
-                ->count();
+                ->limit(50)
+                ->get(['url', 'referrer']);
+            foreach ($recentRows as $row) {
+                $urlHost = DomainKeyHostGuard::hostFromUrl((string) ($row->url ?? ''));
+                $refHost = DomainKeyHostGuard::hostFromUrl((string) ($row->referrer ?? ''));
+                if (
+                    ($urlHost !== '' && DomainKeyHostGuard::hostsMatch($urlHost, (string) $domain->hostname))
+                    || ($refHost !== '' && DomainKeyHostGuard::hostsMatch($refHost, (string) $domain->hostname))
+                ) {
+                    $recentVisitCount++;
+                }
+            }
         }
 
         $tagInstalled = $wpResult['verified'] || $htmlResult['verified'];
@@ -579,23 +584,56 @@ class DomainManagementController extends Controller
      */
     private function verifyRecentTagActivity(Domain $domain): array
     {
-        if (! $domain->last_seen_at) {
+        if (! Schema::hasTable('visits')) {
+            if (! $domain->last_seen_at) {
+                return [
+                    'verified' => false,
+                    'message' => 'No visit received yet. Open the site in a browser after installing the tag, then verify again.',
+                ];
+            }
+
             return [
                 'verified' => false,
-                'message' => 'No visit received yet. Open the site in a browser after installing the tag, then verify again.',
+                'message' => 'Could not verify hostname-bound tag activity. Open '.$domain->hostname.' with this domain’s own keys installed.',
             ];
         }
 
-        if ($domain->last_seen_at->gte(now()->subDays(7))) {
+        $since = now()->subDays(7);
+        $recent = DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('visited_at', '>=', $since)
+            ->orderByDesc('visited_at')
+            ->limit(40)
+            ->get(['url', 'referrer', 'visited_at']);
+
+        $matched = 0;
+        foreach ($recent as $row) {
+            $urlHost = DomainKeyHostGuard::hostFromUrl((string) ($row->url ?? ''));
+            $refHost = DomainKeyHostGuard::hostFromUrl((string) ($row->referrer ?? ''));
+            $ok = ($urlHost !== '' && DomainKeyHostGuard::hostsMatch($urlHost, (string) $domain->hostname))
+                || ($refHost !== '' && DomainKeyHostGuard::hostsMatch($refHost, (string) $domain->hostname));
+            if ($ok) {
+                $matched++;
+            }
+        }
+
+        if ($matched > 0) {
             return [
                 'verified' => true,
-                'message' => 'Tag is active — last visit received ' . $domain->last_seen_at->diffForHumans() . '.',
+                'message' => "Tag is active on {$domain->hostname} — {$matched} matching visit(s) in the last 7 days.",
+            ];
+        }
+
+        if ($domain->last_seen_at && $domain->last_seen_at->gte($since)) {
+            return [
+                'verified' => false,
+                'message' => 'Recent pings were received but none matched hostname '.$domain->hostname.'. Keys from another domain cannot activate this site — install this domain’s own keys and open '.$domain->hostname.'.',
             ];
         }
 
         return [
             'verified' => false,
-            'message' => 'Last visit was ' . $domain->last_seen_at->diffForHumans() . '. Open the site to send a fresh ping, then verify again.',
+            'message' => 'No visit received yet from '.$domain->hostname.'. Install this domain’s keys on that site only, open it in a browser, then verify again.',
         ];
     }
 

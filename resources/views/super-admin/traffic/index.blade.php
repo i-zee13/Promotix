@@ -236,7 +236,7 @@
                 <input type="text" class="figma-input" placeholder="Reason (optional)" x-model="manual.reason">
                 <button type="submit" class="figma-sa-btn figma-sa-btn-primary">Block IP</button>
             </form>
-            <div class="max-h-[360px] overflow-auto rounded-[6px] bg-[#6400b3]">
+            <div class="max-h-[360px] overflow-auto rounded-[6px] bg-[#FF6600]">
                 <table class="figma-sa-subs-table min-w-full">
                     <thead>
                         <tr>

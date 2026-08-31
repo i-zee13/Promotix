@@ -132,7 +132,7 @@
                                         <span>
                                             <span class="figma-sa-products-name">{{ $product->name }}</span>
                                             @if ($product->gatesCustomerPortal())
-                                                <span class="mt-1 inline-flex rounded-full bg-[#6400B2]/25 px-2 py-0.5 text-[10px] font-semibold text-[#c9a8ef]">Gates customer portal</span>
+                                                <span class="mt-1 inline-flex rounded-full bg-[#FF6600]/25 px-2 py-0.5 text-[10px] font-semibold text-[#ffd0b0]">Gates customer portal</span>
                                             @endif
                                             <span class="figma-sa-products-sub">{{ $subtitle }}</span>
                                             <span class="figma-sa-products-sub">{{ $product->slug }}</span>

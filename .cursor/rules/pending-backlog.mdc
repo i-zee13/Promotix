@@ -1,0 +1,12 @@
+---
+description: Queued product work — remind user; do not start unless asked
+alwaysApply: true
+---
+
+# Pending backlog (queued by user)
+
+When starting a session or when the user asks what’s next / remaining, briefly remind them of queued items below. **Do not implement** these until the user explicitly says to start.
+
+## Queued
+
+1. **ChatGPT-style chat** — Build an in-app chat experience similar to ChatGPT (queued 2026-09-01). User said keep in queue and remind later.

@@ -155,7 +155,7 @@
                 </div>
             </article>
 
-            <article class="figma-sa-analytics-card !bg-transparent border-2 border-[#6706b3] p-0">
+            <article class="figma-sa-analytics-card !bg-transparent border-2 border-[var(--brand-primary,#FF6600)] p-0">
                 <div class="flex items-center justify-between px-[18px] pt-[16px]">
                     <h2 class="text-[18px] font-normal text-[#d9d9d9]">Usage Analytics</h2>
                     <span class="text-[12px] text-white/50">Synced just now</span>
@@ -274,7 +274,7 @@
                     const w = Math.max(16, slot * 0.5);
                     const x = pad.l + i * slot + (slot - w) / 2;
                     const y = pad.t + plotH - h;
-                    ctx.fillStyle = i % 2 === 0 ? '#9a1aff' : '#d1b8ff';
+                    ctx.fillStyle = i % 2 === 0 ? '#FF6600' : '#FFB380';
                     const r = 4;
                     ctx.beginPath();
                     ctx.moveTo(x + r, y);
@@ -320,7 +320,7 @@
                 drawLine('mrr-chart', @js($mrrTrend));
                 drawBars('active-subs-chart', @js($activeSubsTrend));
                 drawDonut('churn-donut', {{ $churnRate }}, '#ffffff');
-                drawDonut('conversion-donut', {{ $conversionRate }}, '#d1b8ff');
+                drawDonut('conversion-donut', {{ $conversionRate }}, '#FFB380');
             };
 
             return {

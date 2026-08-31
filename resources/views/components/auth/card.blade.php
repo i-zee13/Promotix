@@ -23,7 +23,7 @@
         'justify-center',
         $padding,
     ]) }}
-        style="background:var(--brand-primary,#6400B3);box-shadow:0 1px 0 0 rgba(255,255,255,0.25),0 25px 60px -20px rgba(var(--brand-primary-rgb,100,0,179),0.55);"
+        style="background:var(--brand-primary,#FF6600);box-shadow:0 1px 0 0 rgba(255,255,255,0.25),0 25px 60px -20px rgba(var(--brand-primary-rgb,255,102,0),0.55);"
     >
         <div class="w-full {{ $innerWidth }} mx-auto">
             {{ $slot }}

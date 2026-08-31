@@ -6,10 +6,14 @@
             ? \App\Support\AdminIntegrationCatalog::guidanceChatbotEnabledForUser(auth()->id())
             : false
     );
-    $rightbarActionCols = $guidanceChatActive ? 4 : 3;
 @endphp
 <div class="figma-rightbar-center mb-[16px]" id="rightbar-notify-root">
-    <div class="mx-auto grid w-full max-w-[168px] grid-cols-{{ $rightbarActionCols }} gap-[9px]" role="toolbar" aria-label="Quick panel actions">
+    {{-- Full class names required: Tailwind JIT does not emit dynamic grid-cols-{{ n }} --}}
+    <div
+        class="mx-auto grid w-full max-w-[168px] gap-[9px] {{ $guidanceChatActive ? 'grid-cols-4' : 'grid-cols-3' }}"
+        role="toolbar"
+        aria-label="Quick panel actions"
+    >
         <button
             type="button"
             id="rightbar-notify-toggle"

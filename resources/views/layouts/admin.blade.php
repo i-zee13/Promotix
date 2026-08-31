@@ -79,7 +79,7 @@
         ['route' => 'analytics.dashboard', 'icon' => 'chart', 'label' => 'Analytics'],
         ['route' => 'domains.index', 'icon' => 'globe', 'label' => 'Sites'],
         ['route' => 'billing.index', 'icon' => 'card', 'label' => 'Billing'],
-        ['route' => 'profile.edit', 'icon' => 'settings', 'label' => 'Settings'],
+        ['action' => 'open-settings', 'icon' => 'settings', 'label' => 'Settings'],
     ];
     $guidanceChatActive = $user
         ? \App\Support\AdminIntegrationCatalog::guidanceChatbotEnabledForUser($user->id)
@@ -269,9 +269,21 @@
             <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Tools</h2>
             <div class="mx-auto grid w-full max-w-[156px] grid-cols-3 gap-x-[18px] gap-y-[18px]">
                 @foreach ($toolLinks as $tool)
-                    <a href="{{ route($tool['route']) }}" title="{{ $tool['label'] }}" class="figma-rightbar-tool-btn">
-                        @include('partials.sidebar-icon', ['name' => $tool['icon'], 'class' => 'h-[18px] w-[18px]'])
-                    </a>
+                    @if (($tool['action'] ?? null) === 'open-settings')
+                        <button
+                            type="button"
+                            title="{{ $tool['label'] }}"
+                            class="figma-rightbar-tool-btn"
+                            aria-label="Open settings"
+                            onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings'))"
+                        >
+                            @include('partials.sidebar-icon', ['name' => $tool['icon'], 'class' => 'h-[18px] w-[18px]'])
+                        </button>
+                    @else
+                        <a href="{{ route($tool['route']) }}" title="{{ $tool['label'] }}" class="figma-rightbar-tool-btn">
+                            @include('partials.sidebar-icon', ['name' => $tool['icon'], 'class' => 'h-[18px] w-[18px]'])
+                        </a>
+                    @endif
                 @endforeach
                 @if (request()->routeIs('paid-marketing.dashboard'))
                     <button type="button" title="Export IPs CSV" onclick="window.dispatchEvent(new CustomEvent('promotix:export-ips-csv'))" class="figma-rightbar-tool-btn">
