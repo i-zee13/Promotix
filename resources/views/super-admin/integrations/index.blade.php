@@ -105,7 +105,8 @@
                     <template x-if="integration.name === 'smtp'">
                         <div class="figma-sa-integration-smtp-hint">
                             <p><strong>Recommended (DigitalOcean):</strong> Fill <strong>Mailgun domain</strong> + <strong>Mailgun API key</strong> from your Mailgun dashboard — uses HTTPS, no SMTP ports.</p>
-                            <p class="mt-1"><strong>SMTP fallback:</strong> <code>smtp.mailgun.org</code> port <strong>2525</strong> with Mailgun SMTP password (not the API key).</p>
+                            <p class="mt-1"><strong>Do not mix modes:</strong> For API, fill only Mailgun domain + API key + From email — leave SMTP host/username/password empty.</p>
+                            <p class="mt-1"><strong>SMTP fallback only:</strong> <code>smtp.mailgun.org</code> port <strong>2525</strong> with Mailgun <em>SMTP password</em> from Domain → SMTP credentials (not the API key).</p>
                             <p class="mt-1"><strong>Sandbox:</strong> Add authorized recipients in Mailgun before testing.</p>
                         </div>
                     </template>

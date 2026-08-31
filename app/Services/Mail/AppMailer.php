@@ -45,9 +45,12 @@ class AppMailer
 
         if (str_contains($lower, 'authentication') || str_contains($lower, '535') || str_contains($lower, 'username and password not accepted')) {
             $host = strtolower((string) config('mail.mailers.smtp.host', ''));
+            $username = strtolower((string) config('mail.mailers.smtp.username', ''));
 
-            if (str_contains($host, 'mailgun')) {
-                return $error.' — Mailgun rejected login. Username must be your Mailgun SMTP user (postmaster@…mailgun.org), password = Mailgun SMTP password — not Gmail.';
+            if (str_contains($host, 'mailgun') || str_contains($username, 'mailgun.org')) {
+                return $error.' — Mailgun SMTP password is wrong (API key is not the SMTP password). '
+                    .'Recommended: fill Mailgun domain + API key at the top of Integrations → SMTP, clear SMTP host/username/password, Save, then Test. '
+                    .'Or reset the SMTP password in Mailgun → Sending → Domain settings → SMTP credentials.';
             }
 
             return $error.' — Check SMTP username/password. Gmail needs an App Password; Mailgun/SendGrid need their own SMTP credentials.';

@@ -52,7 +52,14 @@ class SmtpConfigResolver
     {
         $mailgunDomain = trim((string) ($settings['mailgun_domain'] ?? ''));
         $apiKey = trim((string) ($secrets['api_key'] ?? ''));
-        if ($mailgunDomain !== '' && $apiKey !== '') {
+
+        if ($mailgunDomain !== '') {
+            if ($apiKey === '') {
+                self::$lastNote = 'Mailgun domain is set but API key is missing. Paste your Private API key, click Save, then Test. Clear SMTP host/username/password when using API mode.';
+
+                return false;
+            }
+
             return self::applyMailgunApi($settings, $mailgunDomain, $apiKey);
         }
 
@@ -300,6 +307,8 @@ class SmtpConfigResolver
             'integration_found' => self::resolveEnabledSmtpIntegration() !== null,
             'last_note' => self::$lastNote,
             'mailer' => config('mail.default'),
+            'mailgun_domain' => config('services.mailgun.domain'),
+            'mailgun_api_key_len' => strlen((string) config('services.mailgun.secret', '')),
             'host' => config('mail.mailers.smtp.host'),
             'port' => config('mail.mailers.smtp.port'),
             'scheme' => config('mail.mailers.smtp.scheme'),

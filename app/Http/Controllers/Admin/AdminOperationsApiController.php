@@ -256,7 +256,17 @@ class AdminOperationsApiController extends Controller
             $integration->settings = $data['settings'];
         }
         if (! empty($data['secrets'])) {
-            $integration->secret_payload = Crypt::encryptString(json_encode($data['secrets']));
+            $existing = [];
+            if ($integration->secret_payload) {
+                try {
+                    $decoded = json_decode(Crypt::decryptString($integration->secret_payload), true);
+                    $existing = is_array($decoded) ? $decoded : [];
+                } catch (\Throwable) {
+                    $existing = [];
+                }
+            }
+
+            $integration->secret_payload = Crypt::encryptString(json_encode(array_merge($existing, $data['secrets'])));
             $integration->key_version++;
             $integration->last_rotated_at = now();
         }
@@ -331,15 +341,25 @@ class AdminOperationsApiController extends Controller
 
             if (! $ok) {
                 $detail = \App\Services\Mail\AppMailer::humanizeSmtpError(\App\Services\Mail\AppMailer::lastError());
+                $mailer = (string) config('mail.default', 'log');
+                $note = \App\Services\Mail\SmtpConfigResolver::lastNote();
+                $prefix = $mailer === 'mailgun'
+                    ? '[Mailgun API] '
+                    : "[SMTP: {$mailer}] ";
 
                 return response()->json([
-                    'message' => $detail ?: 'SMTP test failed. Check host/port/credentials and storage/logs/laravel.log.',
+                    'message' => $prefix.($detail ?: 'Mail test failed. Check credentials and storage/logs/laravel.log.')
+                        .($note ? " ({$note})" : ''),
                     'integration' => $this->integrationResource($integration),
                 ], 422);
             }
 
+            $mailer = (string) config('mail.default', 'log');
+
             return response()->json([
-                'message' => "SMTP test email sent to {$to}.",
+                'message' => $mailer === 'mailgun'
+                    ? "Mailgun test email sent to {$to}."
+                    : "SMTP test email sent to {$to}.",
                 'integration' => $this->integrationResource($integration),
             ]);
         }
