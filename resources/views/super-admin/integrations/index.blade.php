@@ -104,8 +104,9 @@
 
                     <template x-if="integration.name === 'smtp'">
                         <div class="figma-sa-integration-smtp-hint">
-                            <p><strong>DigitalOcean / VPS:</strong> Gmail (<code>smtp.gmail.com:587</code>) is blocked — use <strong>Mailgun</strong> or <strong>SendGrid</strong> on port <strong>2525</strong>.</p>
-                            <p class="mt-1"><strong>Mailgun:</strong> host <code>smtp.mailgun.org</code>, username <code>postmaster@mg.yourdomain.com</code> (not Gmail), password = Mailgun SMTP password.</p>
+                            <p><strong>Recommended (DigitalOcean):</strong> Fill <strong>Mailgun domain</strong> + <strong>Mailgun API key</strong> from your Mailgun dashboard — uses HTTPS, no SMTP ports.</p>
+                            <p class="mt-1"><strong>SMTP fallback:</strong> <code>smtp.mailgun.org</code> port <strong>2525</strong> with Mailgun SMTP password (not the API key).</p>
+                            <p class="mt-1"><strong>Sandbox:</strong> Add authorized recipients in Mailgun before testing.</p>
                         </div>
                     </template>
 

@@ -27,7 +27,18 @@ class AppMailer
 
         $lower = strtolower($error);
 
+        if (str_contains($lower, 'getaddrinfo') || str_contains($lower, 'name resolution') || str_contains($lower, 'php_network_getaddresses')) {
+            return $error.' — SMTP host is wrong or misspelled (e.g. smtp.gmail.org does not exist; Gmail = smtp.gmail.com, Mailgun = smtp.mailgun.org).';
+        }
+
         if (str_contains($lower, 'connection timed out') || str_contains($lower, 'could not be established with host')) {
+            $host = strtolower((string) config('mail.mailers.smtp.host', ''));
+            $port = (int) config('mail.mailers.smtp.port', 0);
+
+            if (str_contains($host, 'gmail') && $port === 2525) {
+                return 'Cannot use Gmail on port 2525 — Gmail only supports 587/465 (blocked on DigitalOcean). Switch to Mailgun: host smtp.mailgun.org, port 2525, Mailgun SMTP username/password (not Gmail).';
+            }
+
             return $error.' — Your server cannot reach outbound SMTP (common on DigitalOcean: ports 25, 587, and 465 are blocked). '
                 .'Use a relay on port 2525 (e.g. Mailgun/SendGrid SMTP), an HTTP mail API (Mailgun/Postmark/SES), or ask your host to unblock SMTP.';
         }

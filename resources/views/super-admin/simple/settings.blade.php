@@ -100,6 +100,15 @@
             <button type="button" class="figma-sa-settings-card-btn" @click="modal = 'email'">Edit Templates</button>
         </article>
 
+        <article class="figma-sa-settings-card" x-show="matches('SMTP') || matches('Email Delivery') || matches('Mail')">
+            <span class="figma-sa-settings-card-icon" aria-hidden="true">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 11v6m-3-3h6"/></svg>
+            </span>
+            <h3 class="figma-sa-settings-card-title">Email Delivery (SMTP)</h3>
+            <p class="figma-sa-settings-card-desc">Mailgun/SendGrid on port 2525 for DigitalOcean (Gmail blocked)</p>
+            <a href="{{ route('super-admin.integrations.index') }}" class="figma-sa-settings-card-btn">Configure SMTP</a>
+        </article>
+
         <article class="figma-sa-settings-card" x-show="matches('Email') || matches('Email Logs') || matches('Logs')">
             <span class="figma-sa-settings-card-icon" aria-hidden="true">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>

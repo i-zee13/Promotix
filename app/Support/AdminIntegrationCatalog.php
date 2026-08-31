@@ -201,7 +201,7 @@ class AdminIntegrationCatalog
             ],
             'smtp' => [
                 'icon' => '@',
-                'subtitle' => 'Mailgun/SendGrid on port 2525 for VPS (Gmail SMTP blocked)',
+                'subtitle' => 'Mailgun HTTP API (recommended) or SMTP on port 2525',
                 'connected_label' => 'Configured',
             ],
             'oauth' => [
@@ -275,12 +275,15 @@ class AdminIntegrationCatalog
                 ['name' => 'service_account_key', 'label' => 'Service account JSON key', 'type' => 'textarea', 'secret' => true],
             ],
             'smtp' => [
-                ['name' => 'host', 'label' => 'SMTP host', 'type' => 'text', 'secret' => false],
+                ['name' => 'mailgun_domain', 'label' => 'Mailgun domain (API — recommended on VPS)', 'type' => 'text', 'secret' => false],
+                ['name' => 'mailgun_endpoint', 'label' => 'Mailgun API endpoint', 'type' => 'text', 'secret' => false],
+                ['name' => 'api_key', 'label' => 'Mailgun API key', 'type' => 'password', 'secret' => true],
+                ['name' => 'from_email', 'label' => 'From email', 'type' => 'text', 'secret' => false],
+                ['name' => 'host', 'label' => 'SMTP host (optional if Mailgun API above)', 'type' => 'text', 'secret' => false],
                 ['name' => 'port', 'label' => 'SMTP port', 'type' => 'text', 'secret' => false],
                 ['name' => 'encryption', 'label' => 'Encryption (tls or ssl)', 'type' => 'text', 'secret' => false],
                 ['name' => 'username', 'label' => 'SMTP username', 'type' => 'text', 'secret' => false],
                 ['name' => 'password', 'label' => 'SMTP password', 'type' => 'password', 'secret' => true],
-                ['name' => 'from_email', 'label' => 'From email', 'type' => 'text', 'secret' => false],
             ],
             'oauth' => [
                 ['name' => 'allowed_providers', 'label' => 'Allowed providers', 'type' => 'text', 'secret' => false],

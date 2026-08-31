@@ -13,29 +13,35 @@ class SmtpConfigResolver
     private static ?string $lastNote = null;
 
     /**
-     * Apply Super Admin → Integrations → SMTP when .env is not configured for real delivery.
+     * Apply Super Admin → Integrations → SMTP when enabled; fall back to .env only otherwise.
      */
     public static function apply(bool $force = false): bool
     {
         self::$lastNote = null;
 
+        $integration = self::resolveEnabledSmtpIntegration();
+        if ($integration !== null) {
+            $settings = is_array($integration->settings) ? $integration->settings : [];
+            $secrets = self::decryptSecrets($integration);
+
+            if ($force || self::integrationIsSendReady($settings, $secrets)) {
+                return self::applyFromSettings($settings, $secrets);
+            }
+        }
+
         if (! $force && self::envSmtpIsConfigured()) {
-            self::$lastNote = 'Using SMTP from .env (MAIL_*).';
+            self::$lastNote = 'Using SMTP from .env (MAIL_*). Disable or leave Integrations → SMTP off to keep .env; otherwise fill Integrations and toggle ON.';
 
             return false;
         }
 
-        $integration = self::resolveEnabledSmtpIntegration();
         if ($integration === null) {
             self::$lastNote = 'No enabled SMTP integration found for a platform admin. Open Super Admin → Integrations → SMTP, fill host/port/credentials, toggle ON, and Save.';
-
-            return false;
+        } else {
+            self::$lastNote = 'SMTP integration is ON but incomplete. Add Mailgun domain + API key, or SMTP host/credentials, then Save.';
         }
 
-        $settings = is_array($integration->settings) ? $integration->settings : [];
-        $secrets = self::decryptSecrets($integration);
-
-        return self::applyFromSettings($settings, $secrets);
+        return false;
     }
 
     /**
@@ -44,6 +50,12 @@ class SmtpConfigResolver
      */
     public static function applyFromSettings(array $settings, array $secrets): bool
     {
+        $mailgunDomain = trim((string) ($settings['mailgun_domain'] ?? ''));
+        $apiKey = trim((string) ($secrets['api_key'] ?? ''));
+        if ($mailgunDomain !== '' && $apiKey !== '') {
+            return self::applyMailgunApi($settings, $mailgunDomain, $apiKey);
+        }
+
         $host = trim((string) ($settings['host'] ?? ''));
         if ($host === '') {
             self::$lastNote = 'SMTP host is empty.';
@@ -93,10 +105,60 @@ class SmtpConfigResolver
 
     /**
      * @param  array<string, mixed>  $settings
+     */
+    private static function applyMailgunApi(array $settings, string $domain, string $apiKey): bool
+    {
+        $endpoint = trim((string) ($settings['mailgun_endpoint'] ?? ''));
+        if ($endpoint === '') {
+            $endpoint = 'api.mailgun.net';
+        }
+        $endpoint = preg_replace('#^https?://#', '', $endpoint) ?: 'api.mailgun.net';
+
+        config([
+            'mail.default' => 'mailgun',
+            'services.mailgun.domain' => $domain,
+            'services.mailgun.secret' => $apiKey,
+            'services.mailgun.endpoint' => $endpoint,
+            'services.mailgun.scheme' => 'https',
+        ]);
+
+        $fromEmail = trim((string) ($settings['from_email'] ?? ''));
+        if ($fromEmail === '') {
+            $fromEmail = 'postmaster@'.$domain;
+        }
+
+        config([
+            'mail.from.address' => $fromEmail,
+            'mail.from.name' => (string) (config('mail.from.name') ?: config('app.name', 'Clickronix')),
+        ]);
+
+        self::$lastNote = "Using Mailgun HTTP API ({$domain}).";
+
+        return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
      * @param  array<string, string>  $secrets
      */
     public static function validateSettings(array $settings, array $secrets): ?string
     {
+        $mailgunDomain = trim((string) ($settings['mailgun_domain'] ?? ''));
+        $apiKey = trim((string) ($secrets['api_key'] ?? ''));
+
+        if ($mailgunDomain !== '') {
+            if ($apiKey === '') {
+                return 'Mailgun domain is set but API key is missing. Paste your Private API key from Mailgun → API keys, then Save.';
+            }
+
+            $from = trim((string) ($settings['from_email'] ?? ''));
+            if ($from === '' || $from === 'hello@example.com') {
+                return 'Set From email to postmaster@your-mailgun-domain (sandbox: use the postmaster@…mailgun.org address).';
+            }
+
+            return null;
+        }
+
         $host = strtolower(trim((string) ($settings['host'] ?? '')));
         $username = trim((string) ($settings['username'] ?? ''));
         $password = trim((string) ($secrets['password'] ?? ''));
@@ -104,6 +166,18 @@ class SmtpConfigResolver
 
         if ($host === '') {
             return 'SMTP host is required.';
+        }
+
+        if (preg_match('/@(gmail|googlemail)\./i', $username) && ! str_contains($host, 'gmail')) {
+            return 'Username looks like Gmail but SMTP host is not smtp.gmail.com. Either use Mailgun/SendGrid credentials with their host, or use host smtp.gmail.com (often blocked on VPS).';
+        }
+
+        if (str_contains($host, 'gmail.org')) {
+            return 'Invalid host smtp.gmail.org — that domain does not exist. Gmail is smtp.gmail.com (blocked on DigitalOcean). For port 2525 use smtp.mailgun.org or smtp.sendgrid.net with their credentials.';
+        }
+
+        if (str_contains($host, 'gmail.com') && $port === 2525) {
+            return 'Port 2525 is for Mailgun/SendGrid, not Gmail. Gmail uses 587 or 465 (often blocked on VPS). Use smtp.mailgun.org:2525 with Mailgun SMTP login instead.';
         }
 
         if (str_contains($host, 'mailgun') && preg_match('/@(gmail|googlemail)\./i', $username)) {
@@ -138,6 +212,21 @@ class SmtpConfigResolver
     /** Return a validation error message, or null when config looks send-ready. */
     public static function readinessError(): ?string
     {
+        if (config('mail.default') === 'mailgun') {
+            $domain = trim((string) config('services.mailgun.domain', ''));
+            $secret = trim((string) config('services.mailgun.secret', ''));
+            if ($domain === '' || $secret === '') {
+                return self::$lastNote ?: 'Mailgun API is not fully configured.';
+            }
+
+            $from = trim((string) config('mail.from.address', ''));
+            if ($from === '' || $from === 'hello@example.com') {
+                return 'Set a valid From email for Mailgun (postmaster@sandbox….mailgun.org for sandbox).';
+            }
+
+            return null;
+        }
+
         $host = trim((string) config('mail.mailers.smtp.host', ''));
         if ($host === '' || in_array($host, ['127.0.0.1', 'localhost'], true)) {
             return self::$lastNote ?: 'SMTP host is not configured.';
@@ -183,6 +272,22 @@ class SmtpConfigResolver
     private static function resolveEnabledSmtpIntegration(): ?AdminIntegrationSetting
     {
         return AdminIntegrationCatalog::platformIntegrationSetting('smtp', true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @param  array<string, string>  $secrets
+     */
+    private static function integrationIsSendReady(array $settings, array $secrets): bool
+    {
+        $mailgunDomain = trim((string) ($settings['mailgun_domain'] ?? ''));
+        $apiKey = trim((string) ($secrets['api_key'] ?? ''));
+
+        if ($mailgunDomain !== '' && $apiKey !== '') {
+            return true;
+        }
+
+        return trim((string) ($settings['host'] ?? '')) !== '';
     }
 
     /** @return array<string, mixed> */
