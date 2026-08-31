@@ -282,6 +282,46 @@ class AdminOperationsApiController extends Controller
     public function testIntegration(Request $request, string $name): JsonResponse
     {
         $integration = $this->scopedIntegration($request, $name);
+
+        if ($name === 'smtp') {
+            \App\Services\Mail\SmtpConfigResolver::apply(true);
+
+            if (! \App\Services\Mail\AppMailer::mailIsConfigured()) {
+                return response()->json([
+                    'message' => 'SMTP is not configured. Set host, port, username, password, and from email, then Save.',
+                ], 422);
+            }
+
+            $to = (string) ($request->user()?->email ?: config('mail.from.address'));
+            if ($to === '') {
+                return response()->json(['message' => 'No recipient email available for SMTP test.'], 422);
+            }
+
+            $ok = \App\Services\Mail\AppMailer::sendRaw(
+                $to,
+                config('app.name', 'Clickronix').' SMTP test',
+                'SMTP integration test from '.config('app.url').' at '.now()->toDateTimeString(),
+                'integration_smtp_test'
+            );
+
+            $integration->forceFill([
+                'last_tested_at' => now(),
+                'status' => $ok && $integration->enabled ? 'ok' : 'error',
+            ])->save();
+
+            if (! $ok) {
+                return response()->json([
+                    'message' => 'SMTP test failed. Check host/port/credentials and storage/logs/laravel.log (DigitalOcean often blocks port 25 — use 587 or 465).',
+                    'integration' => $this->integrationResource($integration),
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => "SMTP test email sent to {$to}.",
+                'integration' => $this->integrationResource($integration),
+            ]);
+        }
+
         $integration->forceFill([
             'last_tested_at' => now(),
             'status' => $integration->enabled ? 'ok' : 'disabled',

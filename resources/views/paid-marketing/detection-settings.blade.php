@@ -1614,29 +1614,6 @@
                             </article>
                             @endif
 
-                            @if (! empty($enabledTenantIntegrations['chatbot']))
-                            <article class="figma-pac-card figma-pac-card--chatbot">
-                                <div class="figma-pac-card-top">
-                                    <div class="figma-pac-card-icon" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                                    </div>
-                                    <div class="figma-pac-card-heading">
-                                        <h3 class="figma-pac-card-title">Guidance chatbot</h3>
-                                        <span class="figma-pac-badge is-active">Active</span>
-                                    </div>
-                                </div>
-                                <div class="figma-pac-card-body">
-                                    <p class="figma-pac-list-label">Dashboard + on-site chat</p>
-                                    <p class="figma-pac-purpose"><span>Purpose</span> Product guidance chat powered by your published Knowledge Base articles.</p>
-                                    <p class="figma-pac-purpose"><span>Access</span> Enabled by your platform administrator.</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    class="figma-pac-card-btn"
-                                    @click="window.dispatchEvent(new CustomEvent('open-live-agent'))"
-                                >Open chat →</button>
-                            </article>
-                            @endif
                         </div>
                     </section>
 

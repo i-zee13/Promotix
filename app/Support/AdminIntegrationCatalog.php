@@ -29,7 +29,7 @@ class AdminIntegrationCatalog
             $defaults = [
                 'user_id' => $userId,
                 'status' => 'not_configured',
-                'enabled' => $row['name'] === 'guidance-chatbot',
+                'enabled' => false,
             ];
             AdminIntegrationSetting::query()->firstOrCreate(
                 ['user_id' => $userId, 'name' => $row['name']],
@@ -44,24 +44,10 @@ class AdminIntegrationCatalog
         return $userId !== null && self::guidanceChatbotEnabled();
     }
 
-    /** Platform-wide: Guidance chatbot enabled from any Super Admin Integrations toggle. */
+    /** Platform-wide: Guidance chatbot enabled from Super Admin → Integrations toggle. */
     public static function guidanceChatbotEnabled(): bool
     {
-        if (! Schema::hasTable('admin_integration_settings')) {
-            return true;
-        }
-
-        $query = AdminIntegrationSetting::query()->where('name', 'guidance-chatbot');
-        if (Schema::hasColumn('users', 'is_super_admin')) {
-            $query->whereHas('user', fn ($q) => $q->where('is_super_admin', true));
-        }
-
-        $row = $query->orderByDesc('enabled')->first();
-        if ($row === null) {
-            return true;
-        }
-
-        return (bool) $row->enabled;
+        return self::integrationEnabledForTenants('guidance-chatbot');
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -115,15 +101,12 @@ class AdminIntegrationCatalog
             return ['meta' => false, 'microsoft' => false];
         }
 
-        $query = AdminIntegrationSetting::query()
+        $enabled = self::platformOperatorIntegrationQuery()
             ->whereIn('name', self::AD_PLATFORM_NAMES)
-            ->where('enabled', true);
-
-        if (Schema::hasColumn('users', 'is_super_admin')) {
-            $query->whereHas('user', fn ($q) => $q->where('is_super_admin', true));
-        }
-
-        $enabled = $query->pluck('name')->unique()->all();
+            ->where('enabled', true)
+            ->pluck('name')
+            ->unique()
+            ->all();
 
         return [
             'meta' => in_array('meta-ads', $enabled, true),
@@ -132,7 +115,7 @@ class AdminIntegrationCatalog
     }
 
     /**
-     * Optional integrations surfaced on tenant Platform Integrate / Detection Panel
+     * Optional integrations surfaced on tenant Platform Integrate
      * when enabled in Super Admin → Integrations.
      *
      * @return array{cross_domain: bool, chatbot: bool}
@@ -151,15 +134,42 @@ class AdminIntegrationCatalog
             return false;
         }
 
-        $query = AdminIntegrationSetting::query()
-            ->where('name', $name)
-            ->where('enabled', true);
+        return self::platformOperatorIntegrationQuery($name)
+            ->where('enabled', true)
+            ->exists();
+    }
 
-        if (Schema::hasColumn('users', 'is_super_admin')) {
-            $query->whereHas('user', fn ($q) => $q->where('is_super_admin', true));
+    /** @return \Illuminate\Database\Eloquent\Builder<AdminIntegrationSetting> */
+    private static function platformOperatorIntegrationQuery(?string $name = null)
+    {
+        $query = AdminIntegrationSetting::query();
+        if ($name !== null) {
+            $query->where('name', $name);
         }
 
-        return $query->exists();
+        if (! Schema::hasTable('users')) {
+            return $query;
+        }
+
+        return $query->whereHas('user', function ($userQuery): void {
+            if (Schema::hasColumn('users', 'is_super_admin') && Schema::hasColumn('users', 'is_admin')) {
+                $userQuery->where(function ($inner): void {
+                    $inner->where('is_super_admin', true)->orWhere('is_admin', true);
+                });
+
+                return;
+            }
+
+            if (Schema::hasColumn('users', 'is_super_admin')) {
+                $userQuery->where('is_super_admin', true);
+
+                return;
+            }
+
+            if (Schema::hasColumn('users', 'is_admin')) {
+                $userQuery->where('is_admin', true);
+            }
+        });
     }
 
     public static function cardMeta(string $name): array
@@ -253,6 +263,7 @@ class AdminIntegrationCatalog
             'smtp' => [
                 ['name' => 'host', 'label' => 'SMTP host', 'type' => 'text', 'secret' => false],
                 ['name' => 'port', 'label' => 'SMTP port', 'type' => 'text', 'secret' => false],
+                ['name' => 'encryption', 'label' => 'Encryption (tls or ssl)', 'type' => 'text', 'secret' => false],
                 ['name' => 'username', 'label' => 'SMTP username', 'type' => 'text', 'secret' => false],
                 ['name' => 'password', 'label' => 'SMTP password', 'type' => 'password', 'secret' => true],
                 ['name' => 'from_email', 'label' => 'From email', 'type' => 'text', 'secret' => false],

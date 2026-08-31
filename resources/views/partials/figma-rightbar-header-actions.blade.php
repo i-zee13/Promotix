@@ -1,9 +1,15 @@
 {{-- Replaces “Digital Promotix” text in the account rightbar --}}
 @php
     $canInviteTeam = auth()->user()?->canInviteTeamMembers() ?? false;
+    $guidanceChatActive = $guidanceChatActive ?? (
+        auth()->user()
+            ? \App\Support\AdminIntegrationCatalog::guidanceChatbotEnabledForUser(auth()->id())
+            : false
+    );
+    $rightbarActionCols = $guidanceChatActive ? 4 : 3;
 @endphp
 <div class="figma-rightbar-center mb-[16px]" id="rightbar-notify-root">
-    <div class="mx-auto grid w-full max-w-[168px] grid-cols-4 gap-[9px]" role="toolbar" aria-label="Quick panel actions">
+    <div class="mx-auto grid w-full max-w-[168px] grid-cols-{{ $rightbarActionCols }} gap-[9px]" role="toolbar" aria-label="Quick panel actions">
         <button
             type="button"
             id="rightbar-notify-toggle"
@@ -19,21 +25,19 @@
             <span id="rightbar-notify-dot" class="absolute right-[5px] top-[5px] h-[6px] w-[6px] rounded-full bg-white" hidden aria-hidden="true"></span>
         </button>
 
-        <button
-            type="button"
-            @if ($guidanceChatActive ?? false)
-            @click="$dispatch('open-live-agent')"
-            @else
-            disabled
-            @endif
-            class="figma-rightbar-icon-btn @unless($guidanceChatActive ?? false) figma-rightbar-icon-btn--muted @endunless"
-            title="{{ ($guidanceChatActive ?? false) ? 'Messages' : 'Guidance chatbot disabled by platform admin' }}"
-            aria-label="Live agent chat"
-        >
-            <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M4 5h16v11H8l-4 4V5z"/>
-            </svg>
-        </button>
+        @if ($guidanceChatActive)
+            <button
+                type="button"
+                @click="$dispatch('open-live-agent')"
+                class="figma-rightbar-icon-btn"
+                title="Messages"
+                aria-label="Live agent chat"
+            >
+                <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M4 5h16v11H8l-4 4V5z"/>
+                </svg>
+            </button>
+        @endif
 
         @if ($canInviteTeam)
             <button
