@@ -3,12 +3,24 @@
 @section('title', 'Integrations')
 
 @section('content')
+<style>
+    .figma-sa-integrations-page .figma-sa-integration-field,
+    .figma-sa-integrations-page .figma-sa-integration-field:-webkit-autofill {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    html.light-mode .figma-main .figma-sa-integrations-page .figma-sa-integration-field {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+</style>
 <x-super-admin.page title="Integrations">
-    <div class="space-y-[16px]"
+    <div class="figma-sa-integrations-page space-y-[16px]"
         x-data="superAdminIntegrations({
             integrations: @js($integrations),
             urls: { integrations: '{{ url('api/admin/integrations') }}' },
             csrf: '{{ csrf_token() }}',
+            smtpTestEmail: @js(auth()->user()?->email ?? ''),
         })">
 
         <template x-if="toast.message">
@@ -38,7 +50,7 @@
 
         <div class="grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-3">
             <template x-for="integration in filteredIntegrations" :key="integration.id">
-                <article class="figma-sa-integration-card" :class="['guidance-chatbot','cross-domain'].includes(integration.name) ? 'ring-1 ring-[#FF6600]/35' : ''">
+                <article class="figma-sa-integration-card" :class="['guidance-chatbot','cross-domain','smtp'].includes(integration.name) ? 'ring-1 ring-[color-mix(in_srgb,var(--brand-primary)_50%,transparent)]' : ''">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex min-w-0 items-center gap-3">
                             <span class="figma-sa-integration-icon" :class="'is-' + integration.name" aria-hidden="true">
@@ -65,7 +77,7 @@
                                 @change="integration.enabled = $event.target.checked; saveIntegration(integration, true)"
                             >
                             <span class="relative inline-flex h-6 w-11 rounded-full transition"
-                                :class="integration.enabled ? 'bg-white/30' : 'bg-black/30'">
+                                :class="integration.enabled ? 'bg-[color-mix(in_srgb,var(--brand-primary)_55%,#ffffff)]' : 'bg-black/30'">
                                 <span class="inline-block h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition"
                                     :class="integration.enabled ? 'translate-x-6' : 'translate-x-1'"></span>
                             </span>
@@ -89,6 +101,27 @@
                             <span> · Tested <span x-text="integration.last_tested_at"></span></span>
                         </template>
                     </p>
+
+                    <template x-if="integration.name === 'smtp'">
+                        <div class="figma-sa-integration-smtp-hint">
+                            <p><strong>DigitalOcean / VPS:</strong> Gmail (<code>smtp.gmail.com:587</code>) is blocked — use <strong>Mailgun</strong> or <strong>SendGrid</strong> on port <strong>2525</strong>.</p>
+                            <p class="mt-1"><strong>Mailgun:</strong> host <code>smtp.mailgun.org</code>, username <code>postmaster@mg.yourdomain.com</code> (not Gmail), password = Mailgun SMTP password.</p>
+                        </div>
+                    </template>
+
+                    <template x-if="integration.name === 'smtp'">
+                        <div class="figma-sa-integration-key-row mt-2">
+                            <span class="figma-sa-integration-key-label">Send test to</span>
+                            <input
+                                type="email"
+                                class="figma-sa-integration-field"
+                                placeholder="you@company.com"
+                                x-model="smtpTestEmail"
+                                :disabled="testingIntegration === 'smtp'"
+                                autocomplete="email"
+                            >
+                        </div>
+                    </template>
 
                     <div class="mt-3 space-y-2">
                         <template x-for="field in integration.fields" :key="field.name">
@@ -128,9 +161,9 @@
                             :href="integration.manage_url || '#'"
                             class="figma-sa-integration-btn figma-sa-integration-btn--solid no-underline"
                         >View cross-domain intel →</a>
-                        <button type="button" class="figma-sa-integration-btn" x-show="!['guidance-chatbot','cross-domain'].includes(integration.name)" @click="testIntegration(integration)">
+                        <button type="button" class="figma-sa-integration-btn" x-show="!['guidance-chatbot','cross-domain'].includes(integration.name)" @click="testIntegration(integration)" :disabled="testingIntegration === integration.name">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Test
+                            <span x-text="testingIntegration === integration.name ? 'Sending…' : 'Test'"></span>
                         </button>
                         <button type="button" class="figma-sa-integration-btn" x-show="!['guidance-chatbot','cross-domain'].includes(integration.name)" @click="rotateIntegration(integration)">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0114-5M20 15a8 8 0 01-14 5"/></svg>
@@ -157,6 +190,8 @@ function superAdminIntegrations(initial) {
         })),
         urls: initial.urls,
         csrf: initial.csrf,
+        smtpTestEmail: initial.smtpTestEmail || '',
+        testingIntegration: null,
         query: '',
         statusFilter: '',
         toast: { message: '', type: 'success' },
@@ -227,12 +262,25 @@ function superAdminIntegrations(initial) {
             }
         },
         async testIntegration(integration) {
+            this.testingIntegration = integration.name;
             try {
-                const data = await this.request(`${this.urls.integrations}/${integration.name}/test`, 'POST');
+                const secrets = Object.fromEntries(
+                    Object.entries(integration._secrets || {}).filter(([, v]) => v && String(v).trim().length > 0)
+                );
+                const body = integration.name === 'smtp'
+                    ? {
+                        test_email: String(this.smtpTestEmail || '').trim(),
+                        settings: integration.settings || {},
+                        secrets,
+                    }
+                    : undefined;
+                const data = await this.request(`${this.urls.integrations}/${integration.name}/test`, 'POST', body);
                 Object.assign(integration, data.integration, { _secrets: {}, fields: integration.fields });
                 this.notify(data.message || 'Connection test ran.');
             } catch (e) {
                 this.notify(e.message, 'error');
+            } finally {
+                this.testingIntegration = null;
             }
         },
         async rotateIntegration(integration) {

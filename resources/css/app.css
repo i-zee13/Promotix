@@ -13473,11 +13473,17 @@ a.figma-sa-users-filter-option {
     padding-top: 24px;
 }
 
-/* Integration cards */
+/* Integration cards — orange brand theme */
 .figma-sa-integration-card {
-    border-radius: 6px;
-    background: #6706b3;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 45%, transparent);
+    background: linear-gradient(
+        165deg,
+        color-mix(in srgb, var(--brand-primary, #FF6600) 22%, #121212) 0%,
+        #121212 55%
+    );
     padding: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 .figma-sa-integration-icon {
@@ -13491,7 +13497,7 @@ a.figma-sa-users-filter-option {
     background: #ffffff;
     font-size: 16px;
     font-weight: 700;
-    color: #6400b2;
+    color: var(--brand-primary, #FF6600);
     overflow: hidden;
 }
 
@@ -13505,7 +13511,7 @@ a.figma-sa-users-filter-option {
 }
 
 .figma-sa-integration-icon.is-smtp {
-    background: #2f6fed;
+    background: var(--brand-primary, #FF6600);
     color: #ffffff;
 }
 
@@ -13530,7 +13536,8 @@ a.figma-sa-users-filter-option {
 }
 
 .figma-sa-integration-pill.is-connected {
-    background: rgba(18, 18, 18, 0.75);
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 35%, #121212);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 55%, transparent);
     color: #ffffff;
 }
 
@@ -13553,7 +13560,8 @@ a.figma-sa-users-filter-option {
     align-items: center;
     gap: 8px;
     border-radius: 10px;
-    background: rgba(18, 18, 18, 0.75);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 25%, transparent);
+    background: rgba(0, 0, 0, 0.35);
     padding: 4px 4px 4px 14px;
 }
 
@@ -13572,6 +13580,22 @@ a.figma-sa-users-filter-option {
     padding: 10px 0;
     font-size: 13px;
     color: #ffffff;
+    caret-color: #ffffff;
+}
+
+.figma-sa-integration-field:-webkit-autofill,
+.figma-sa-integration-field:-webkit-autofill:hover,
+.figma-sa-integration-field:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.35) inset !important;
+    box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.35) inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    color: #ffffff !important;
+    caret-color: #ffffff;
+}
+
+.light-mode .figma-main .figma-sa-integration-field {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
 }
 
 .figma-sa-integration-field::placeholder {
@@ -13618,8 +13642,8 @@ a.figma-sa-users-filter-option {
     align-items: center;
     gap: 6px;
     border-radius: 8px;
-    border: 0;
-    background: rgba(18, 18, 18, 0.75);
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 40%, transparent);
+    background: rgba(0, 0, 0, 0.35);
     padding: 9px 14px;
     font-size: 13px;
     font-weight: 500;
@@ -13633,17 +13657,40 @@ a.figma-sa-users-filter-option {
 }
 
 .figma-sa-integration-btn:hover {
-    background: #121212;
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 25%, #121212);
+    border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 65%, transparent);
+}
+
+.figma-sa-integration-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .figma-sa-integration-btn--solid {
-    background: #ffffff;
-    color: #6400b2;
+    background: var(--brand-primary, #FF6600);
+    border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 80%, #ffffff);
+    color: #ffffff;
     font-weight: 600;
 }
 
 .figma-sa-integration-btn--solid:hover {
-    background: #f0ecf5;
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 85%, #ffffff);
+}
+
+.figma-sa-integration-smtp-hint {
+    margin-top: 10px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
+    background: rgba(0, 0, 0, 0.28);
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.figma-sa-integration-smtp-hint strong {
+    color: #ffffff;
+    font-weight: 600;
 }
 
 /* Branding preview + sub-tabs */

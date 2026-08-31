@@ -37,6 +37,25 @@
         brandingTab: 'logo',
         emailTab: 'welcome_email',
         testEmailRecipient: @js(old('test_email', auth()->user()?->email ?? '')),
+        emailTestSending: false,
+        sendTestEmail() {
+            const email = String(this.testEmailRecipient || '').trim();
+            if (!email) {
+                alert('Enter an email address to send the test.');
+                return;
+            }
+            const form = document.getElementById('email-test-form-' + this.emailTab);
+            if (!form) {
+                alert('Select a template first.');
+                return;
+            }
+            const hidden = form.querySelector('[name=test_email]');
+            if (hidden) {
+                hidden.value = email;
+            }
+            this.emailTestSending = true;
+            form.submit();
+        },
         search: '',
         matches(label) {
             const q = this.search.trim().toLowerCase();
@@ -385,6 +404,19 @@
                 color: #ffffff !important;
                 -webkit-text-fill-color: #ffffff !important;
             }
+            .figma-sa-settings-modal input:-webkit-autofill,
+            .figma-sa-settings-modal input:-webkit-autofill:hover,
+            .figma-sa-settings-modal input:-webkit-autofill:focus,
+            .figma-sa-settings-modal textarea:-webkit-autofill,
+            .figma-sa-settings-modal textarea:-webkit-autofill:hover,
+            .figma-sa-settings-modal textarea:-webkit-autofill:focus {
+                -webkit-box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.35) inset !important;
+                box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.35) inset !important;
+                -webkit-text-fill-color: #ffffff !important;
+                color: #ffffff !important;
+                caret-color: #ffffff;
+                transition: background-color 99999s ease-in-out 0s, color 99999s ease-in-out 0s;
+            }
         </style>
         <div class="figma-sa-settings-modal" @click.outside="modal = null">
             <button type="button" class="figma-sa-settings-modal-close" @click="modal = null">&times;</button>
@@ -394,7 +426,7 @@
             </h2>
 
             <div class="mt-4 flex flex-wrap items-end gap-3 border-b border-white/10 pb-4">
-                <div class="min-w-[240px] flex-1">
+                <div class="min-w-[200px] flex-1">
                     <label for="email-test-recipient" class="figma-sa-settings-row-label" style="font-size:11px;opacity:.8;">Send test to</label>
                     <input
                         id="email-test-recipient"
@@ -403,10 +435,18 @@
                         class="figma-sa-settings-input mt-1"
                         placeholder="you@company.com"
                         autocomplete="email"
-                        required
+                        :disabled="emailTestSending"
                     >
                 </div>
-                <p class="max-w-[320px] text-[11px] leading-relaxed text-white/55">Enter any inbox to preview delivery. Uses SMTP from Integrations when .env mail is not set.</p>
+                <button
+                    type="button"
+                    class="figma-sa-settings-btn figma-sa-settings-btn--outline shrink-0"
+                    :disabled="emailTestSending"
+                    :class="emailTestSending ? 'opacity-60 cursor-not-allowed' : ''"
+                    @click="sendTestEmail()"
+                    x-text="emailTestSending ? 'Sending…' : 'Send Test Email'"
+                ></button>
+                <p class="w-full text-[11px] leading-relaxed text-white/55 sm:w-auto sm:max-w-[280px]">Uses the selected template above. SMTP from Integrations when .env mail is not set.</p>
             </div>
 
             <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[200px_minmax(0,1fr)_220px]">
@@ -442,17 +482,6 @@
                         <p class="text-[11px] text-white/60">{{ $tpl->description }}</p>
                         <div class="flex flex-wrap justify-end gap-2">
                             <button type="button" class="figma-sa-settings-btn figma-sa-settings-btn--outline" onclick="alert(document.getElementById('email-subject-{{ $tpl->key }}').value + '\n\n' + document.getElementById('email-body-{{ $tpl->key }}').value)">Preview</button>
-                            <button
-                                type="button"
-                                class="figma-sa-settings-btn figma-sa-settings-btn--outline"
-                                @click="
-                                    const email = testEmailRecipient.trim();
-                                    if (!email) { alert('Enter an email address to send the test.'); return; }
-                                    const form = document.getElementById('email-test-form-{{ $tpl->key }}');
-                                    form.querySelector('[name=test_email]').value = email;
-                                    form.submit();
-                                "
-                            >Send Test Email</button>
                             <button type="submit" form="email-restore-form-{{ $tpl->key }}" class="figma-sa-settings-btn figma-sa-settings-btn--outline">Restore Default</button>
                             <button type="submit" class="figma-sa-settings-btn figma-sa-settings-btn--primary">Save Template</button>
                         </div>

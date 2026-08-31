@@ -139,6 +139,20 @@ class AdminIntegrationCatalog
             ->exists();
     }
 
+    public static function platformIntegrationSetting(string $name, bool $enabledOnly = true): ?AdminIntegrationSetting
+    {
+        if (! Schema::hasTable('admin_integration_settings')) {
+            return null;
+        }
+
+        $query = self::platformOperatorIntegrationQuery($name);
+        if ($enabledOnly) {
+            $query->where('enabled', true);
+        }
+
+        return $query->orderByDesc('updated_at')->first();
+    }
+
     /** @return \Illuminate\Database\Eloquent\Builder<AdminIntegrationSetting> */
     private static function platformOperatorIntegrationQuery(?string $name = null)
     {
@@ -187,7 +201,7 @@ class AdminIntegrationCatalog
             ],
             'smtp' => [
                 'icon' => '@',
-                'subtitle' => 'Transactional email delivery',
+                'subtitle' => 'Mailgun/SendGrid on port 2525 for VPS (Gmail SMTP blocked)',
                 'connected_label' => 'Configured',
             ],
             'oauth' => [

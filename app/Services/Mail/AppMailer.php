@@ -12,6 +12,39 @@ use Illuminate\Support\Str;
 
 class AppMailer
 {
+    private static ?string $lastError = null;
+
+    public static function lastError(): ?string
+    {
+        return self::$lastError;
+    }
+
+    public static function humanizeSmtpError(?string $error): ?string
+    {
+        if ($error === null || trim($error) === '') {
+            return null;
+        }
+
+        $lower = strtolower($error);
+
+        if (str_contains($lower, 'connection timed out') || str_contains($lower, 'could not be established with host')) {
+            return $error.' — Your server cannot reach outbound SMTP (common on DigitalOcean: ports 25, 587, and 465 are blocked). '
+                .'Use a relay on port 2525 (e.g. Mailgun/SendGrid SMTP), an HTTP mail API (Mailgun/Postmark/SES), or ask your host to unblock SMTP.';
+        }
+
+        if (str_contains($lower, 'authentication') || str_contains($lower, '535') || str_contains($lower, 'username and password not accepted')) {
+            $host = strtolower((string) config('mail.mailers.smtp.host', ''));
+
+            if (str_contains($host, 'mailgun')) {
+                return $error.' — Mailgun rejected login. Username must be your Mailgun SMTP user (postmaster@…mailgun.org), password = Mailgun SMTP password — not Gmail.';
+            }
+
+            return $error.' — Check SMTP username/password. Gmail needs an App Password; Mailgun/SendGrid need their own SMTP credentials.';
+        }
+
+        return $error;
+    }
+
     public static function mailIsConfigured(): bool
     {
         $mailer = config('mail.default', 'log');
@@ -60,6 +93,8 @@ class AppMailer
 
     public static function sendRaw(string $to, string $subject, string $body, string $context = 'mail'): bool
     {
+        self::$lastError = null;
+
         try {
             $plain = trim(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
             $html = self::wrapHtmlEmail($subject, $body);
@@ -85,6 +120,7 @@ class AppMailer
 
             return true;
         } catch (\Throwable $e) {
+            self::$lastError = $e->getMessage();
             Log::warning('Outbound email failed', [
                 'context' => $context,
                 'to' => $to,

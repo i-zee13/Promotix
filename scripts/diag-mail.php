@@ -4,23 +4,39 @@ require __DIR__ . '/../vendor/autoload.php';
 $app = require __DIR__ . '/../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-\App\Services\Mail\SmtpConfigResolver::apply(true);
+$summary = \App\Services\Mail\SmtpConfigResolver::diagnosticSummary();
 
-echo 'mailer=' . config('mail.default') . PHP_EOL;
-echo 'scheme=' . var_export(config('mail.mailers.smtp.scheme'), true) . PHP_EOL;
-echo 'user_len=' . strlen((string) config('mail.mailers.smtp.username')) . PHP_EOL;
-echo 'pass_len=' . strlen((string) config('mail.mailers.smtp.password')) . PHP_EOL;
+foreach ($summary as $key => $value) {
+    echo $key.'='.var_export($value, true).PHP_EOL;
+}
 
-$to = config('mail.from.address');
+$to = $argv[1] ?? config('mail.from.address');
+if (! is_string($to) || trim($to) === '') {
+    echo "SEND_RESULT=SKIP (pass recipient as first arg)\n";
+    exit(1);
+}
+
+if ($summary['readiness_error'] ?? null) {
+    echo 'SEND_RESULT=SKIP ('.$summary['readiness_error'].")\n";
+    exit(1);
+}
+
 try {
     $ok = App\Services\Mail\AppMailer::sendRaw(
         $to,
-        'Promotix SMTP diagnostic',
-        'Promotix SMTP diagnostic at ' . now()->toDateTimeString(),
+        config('app.name', 'Promotix').' SMTP diagnostic',
+        'Promotix SMTP diagnostic at '.now()->toDateTimeString(),
         'diag-mail'
     );
-    echo $ok ? "SEND_RESULT=OK\n" : "SEND_RESULT=FAIL (see laravel.log)\n";
+    if ($ok) {
+        echo "SEND_RESULT=OK\n";
+        exit(0);
+    }
+
+    echo 'SEND_RESULT=FAIL '.(App\Services\Mail\AppMailer::lastError() ?: '(see laravel.log)')."\n";
+    exit(1);
 } catch (Throwable $e) {
     echo "SEND_RESULT=EXCEPTION\n";
-    echo $e->getMessage() . PHP_EOL;
+    echo $e->getMessage().PHP_EOL;
+    exit(1);
 }

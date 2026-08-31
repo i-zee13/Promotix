@@ -401,13 +401,22 @@ class SupportPagesController extends Controller
 
         if (! \App\Services\Mail\AppMailer::mailIsConfigured()) {
             $mailer = (string) config('mail.default', 'log');
+            $note = \App\Services\Mail\SmtpConfigResolver::lastNote();
 
             return back()
                 ->withInput(['test_email' => $to])
                 ->with('open_modal', 'email')
                 ->withErrors([
-                    'email' => "Mail is not configured for real delivery (MAIL_MAILER={$mailer}). Set SMTP in Super Admin → Integrations, or configure MAIL_* in .env.",
+                    'email' => trim("Mail is not configured for real delivery (MAIL_MAILER={$mailer}). {$note}"),
                 ]);
+        }
+
+        $readinessError = \App\Services\Mail\SmtpConfigResolver::readinessError();
+        if ($readinessError !== null) {
+            return back()
+                ->withInput(['test_email' => $to])
+                ->with('open_modal', 'email')
+                ->withErrors(['email' => $readinessError]);
         }
 
         if ($emailTemplate->is_active === false) {
@@ -446,10 +455,18 @@ class SupportPagesController extends Controller
         );
 
         if (! $ok) {
+            $detail = \App\Services\Mail\AppMailer::humanizeSmtpError(\App\Services\Mail\AppMailer::lastError());
+            $message = "Could not send test email to {$to}.";
+            if ($detail) {
+                $message .= ' '.$detail;
+            } else {
+                $message .= ' Check Integrations → SMTP and storage/logs/laravel.log.';
+            }
+
             return back()
                 ->withInput(['test_email' => $to])
                 ->with('open_modal', 'email')
-                ->withErrors(['email' => "Could not send test email to {$to}. Check mail config and laravel.log."]);
+                ->withErrors(['email' => $message]);
         }
 
         return back()

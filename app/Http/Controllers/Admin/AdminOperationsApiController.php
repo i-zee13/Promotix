@@ -284,7 +284,27 @@ class AdminOperationsApiController extends Controller
         $integration = $this->scopedIntegration($request, $name);
 
         if ($name === 'smtp') {
-            \App\Services\Mail\SmtpConfigResolver::apply(true);
+            $payload = $request->validate([
+                'test_email' => ['nullable', 'email', 'max:255'],
+                'settings' => ['nullable', 'array'],
+                'secrets' => ['nullable', 'array'],
+            ]);
+
+            $settings = array_merge(
+                is_array($integration->settings) ? $integration->settings : [],
+                $payload['settings'] ?? []
+            );
+            $storedSecrets = \App\Services\Mail\SmtpConfigResolver::decryptSecretsFor($integration);
+            $secrets = array_merge(
+                $storedSecrets,
+                array_filter($payload['secrets'] ?? [], fn ($v) => is_string($v) && trim($v) !== '')
+            );
+
+            if ($validationError = \App\Services\Mail\SmtpConfigResolver::validateSettings($settings, $secrets)) {
+                return response()->json(['message' => $validationError], 422);
+            }
+
+            \App\Services\Mail\SmtpConfigResolver::applyFromSettings($settings, $secrets);
 
             if (! \App\Services\Mail\AppMailer::mailIsConfigured()) {
                 return response()->json([
@@ -292,9 +312,9 @@ class AdminOperationsApiController extends Controller
                 ], 422);
             }
 
-            $to = (string) ($request->user()?->email ?: config('mail.from.address'));
-            if ($to === '') {
-                return response()->json(['message' => 'No recipient email available for SMTP test.'], 422);
+            $to = trim((string) ($payload['test_email'] ?? $request->user()?->email ?? config('mail.from.address')));
+            if ($to === '' || $to === 'hello@example.com') {
+                return response()->json(['message' => 'Enter a test recipient email address.'], 422);
             }
 
             $ok = \App\Services\Mail\AppMailer::sendRaw(
@@ -310,8 +330,10 @@ class AdminOperationsApiController extends Controller
             ])->save();
 
             if (! $ok) {
+                $detail = \App\Services\Mail\AppMailer::humanizeSmtpError(\App\Services\Mail\AppMailer::lastError());
+
                 return response()->json([
-                    'message' => 'SMTP test failed. Check host/port/credentials and storage/logs/laravel.log (DigitalOcean often blocks port 25 — use 587 or 465).',
+                    'message' => $detail ?: 'SMTP test failed. Check host/port/credentials and storage/logs/laravel.log.',
                     'integration' => $this->integrationResource($integration),
                 ], 422);
             }
