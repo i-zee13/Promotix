@@ -368,6 +368,24 @@
 
     {{-- Email Templates modal --}}
     <div x-show="modal === 'email'" x-cloak class="figma-sa-settings-modal-backdrop" @keydown.escape.window="modal = null">
+        <style>
+            /* Inline so white field text works before/without Vite CSS rebuild on deploy */
+            .figma-sa-settings-modal .figma-sa-settings-input,
+            .figma-sa-settings-modal .figma-sa-settings-textarea {
+                color: #ffffff !important;
+                -webkit-text-fill-color: #ffffff !important;
+                caret-color: #ffffff;
+            }
+            .figma-sa-settings-modal .figma-sa-settings-input::placeholder,
+            .figma-sa-settings-modal .figma-sa-settings-textarea::placeholder {
+                color: rgba(255, 255, 255, 0.5) !important;
+            }
+            html.light-mode .figma-main .figma-sa-settings-modal .figma-sa-settings-input,
+            html.light-mode .figma-main .figma-sa-settings-modal .figma-sa-settings-textarea {
+                color: #ffffff !important;
+                -webkit-text-fill-color: #ffffff !important;
+            }
+        </style>
         <div class="figma-sa-settings-modal" @click.outside="modal = null">
             <button type="button" class="figma-sa-settings-modal-close" @click="modal = null">&times;</button>
             <h2 class="figma-sa-settings-modal-title">
