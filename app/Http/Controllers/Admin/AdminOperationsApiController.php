@@ -253,7 +253,9 @@ class AdminOperationsApiController extends Controller
             $integration->enabled = (bool) $data['enabled'];
         }
         if (array_key_exists('settings', $data)) {
-            $integration->settings = $data['settings'];
+            $integration->settings = $name === 'smtp'
+                ? $this->sanitizeSmtpSettings($data['settings'])
+                : $data['settings'];
         }
         if (! empty($data['secrets'])) {
             $existing = [];
@@ -266,7 +268,12 @@ class AdminOperationsApiController extends Controller
                 }
             }
 
-            $integration->secret_payload = Crypt::encryptString(json_encode(array_merge($existing, $data['secrets'])));
+            $merged = array_merge($existing, $data['secrets']);
+            if ($name === 'smtp' && trim((string) (($integration->settings ?? [])['mailgun_domain'] ?? '')) !== '') {
+                unset($merged['password']);
+            }
+
+            $integration->secret_payload = Crypt::encryptString(json_encode($merged));
             $integration->key_version++;
             $integration->last_rotated_at = now();
         }
@@ -647,5 +654,20 @@ class AdminOperationsApiController extends Controller
         return strlen($value) <= 8
             ? str_repeat('*', max(4, strlen($value)))
             : substr($value, 0, 4) . str_repeat('*', max(4, strlen($value) - 8)) . substr($value, -4);
+    }
+
+    /** @param  array<string, mixed>  $settings */
+    private function sanitizeSmtpSettings(array $settings): array
+    {
+        if (trim((string) ($settings['mailgun_domain'] ?? '')) === '') {
+            return $settings;
+        }
+
+        $settings['host'] = '';
+        $settings['username'] = '';
+        $settings['port'] = '';
+        $settings['encryption'] = '';
+
+        return $settings;
     }
 }

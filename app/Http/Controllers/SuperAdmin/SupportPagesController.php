@@ -397,7 +397,15 @@ class SupportPagesController extends Controller
 
         $to = (string) $data['test_email'];
 
-        \App\Services\Mail\SmtpConfigResolver::apply(true);
+        $applied = \App\Services\Mail\SmtpConfigResolver::apply(true);
+        $note = \App\Services\Mail\SmtpConfigResolver::lastNote();
+
+        if (! $applied && $note) {
+            return back()
+                ->withInput(['test_email' => $to])
+                ->with('open_modal', 'email')
+                ->withErrors(['email' => $note]);
+        }
 
         if (! \App\Services\Mail\AppMailer::mailIsConfigured()) {
             $mailer = (string) config('mail.default', 'log');
@@ -456,7 +464,8 @@ class SupportPagesController extends Controller
 
         if (! $ok) {
             $detail = \App\Services\Mail\AppMailer::humanizeSmtpError(\App\Services\Mail\AppMailer::lastError());
-            $message = "Could not send test email to {$to}.";
+            $mailer = (string) config('mail.default', 'log');
+            $message = "Could not send test email to {$to}. [{$mailer}]";
             if ($detail) {
                 $message .= ' '.$detail;
             } else {

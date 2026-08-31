@@ -25,7 +25,13 @@ class SmtpConfigResolver
             $secrets = self::decryptSecrets($integration);
 
             if ($force || self::integrationIsSendReady($settings, $secrets)) {
-                return self::applyFromSettings($settings, $secrets);
+                if (self::applyFromSettings($settings, $secrets)) {
+                    return true;
+                }
+
+                self::neutralizeEnvSmtpFallback();
+
+                return false;
             }
         }
 
@@ -288,13 +294,32 @@ class SmtpConfigResolver
     private static function integrationIsSendReady(array $settings, array $secrets): bool
     {
         $mailgunDomain = trim((string) ($settings['mailgun_domain'] ?? ''));
-        $apiKey = trim((string) ($secrets['api_key'] ?? ''));
 
-        if ($mailgunDomain !== '' && $apiKey !== '') {
+        if ($mailgunDomain !== '') {
+            return true;
+        }
+
+        $apiKey = trim((string) ($secrets['api_key'] ?? ''));
+        if ($apiKey !== '') {
             return true;
         }
 
         return trim((string) ($settings['host'] ?? '')) !== '';
+    }
+
+    /** Prevent stale .env SMTP from sending when Integrations apply failed. */
+    private static function neutralizeEnvSmtpFallback(): void
+    {
+        config([
+            'mail.default' => 'log',
+            'mail.mailers.smtp.host' => '127.0.0.1',
+            'mail.mailers.smtp.port' => 2525,
+            'mail.mailers.smtp.username' => null,
+            'mail.mailers.smtp.password' => null,
+            'mail.mailers.smtp.scheme' => null,
+            'services.mailgun.domain' => null,
+            'services.mailgun.secret' => null,
+        ]);
     }
 
     /** @return array<string, mixed> */
