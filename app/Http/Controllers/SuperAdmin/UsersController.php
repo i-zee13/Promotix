@@ -141,9 +141,18 @@ class UsersController extends Controller
 
         $filterStatuses = StatusTone::userFilters();
 
+        $workspaceOwners = Schema::hasColumn('users', 'team_owner_id')
+            ? User::query()
+                ->whereNull('team_owner_id')
+                ->where('is_super_admin', false)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+            : collect();
+
         return view('super-admin.users.index', [
             'users' => $users,
             'roles' => Role::orderBy('name')->get(),
+            'teamRoles' => PortalTeamAccess::teamRoles(),
             'statuses' => ['active', 'suspended', 'pending', 'banned'],
             'filterStatuses' => $filterStatuses,
             'plans' => Plan::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'slug']),
@@ -151,6 +160,7 @@ class UsersController extends Controller
             'teamsBoard' => $teamsBoard,
             'teamColumns' => $teamColumns,
             'assignableTeams' => $assignableTeams,
+            'workspaceOwners' => $workspaceOwners,
             'perPage' => $perPage,
         ]);
     }
@@ -405,6 +415,7 @@ class UsersController extends Controller
         return view('super-admin.users.show', [
             'user' => $user,
             'assignablePlans' => $assignablePlans,
+            'plans' => Plan::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'slug']),
             'roles' => Role::orderBy('name')->get(),
             'teamRoles' => PortalTeamAccess::teamRoles(),
             'pendingInvites' => $pendingInvites,
@@ -421,12 +432,24 @@ class UsersController extends Controller
 
     public function invite(Request $request): RedirectResponse
     {
+        $workspaceOwner = $this->resolveWorkspaceOwner($request->input('workspace_owner_id'));
+        $teamRoleIds = PortalTeamAccess::teamRoles()->pluck('id')->all();
+
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'name' => ['nullable', 'string', 'max:255'],
             'role_id' => ['nullable', 'exists:roles,id'],
             'plan_id' => ['nullable', 'exists:plans,id'],
+            'workspace_owner_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
+
+        if ($request->filled('workspace_owner_id') && ! $workspaceOwner) {
+            return back()->withErrors(['workspace_owner_id' => 'Choose a valid workspace owner.']);
+        }
+
+        if ($workspaceOwner && isset($data['role_id']) && ! in_array((int) $data['role_id'], $teamRoleIds, true)) {
+            return back()->withErrors(['role_id' => 'Choose a valid portal team role.']);
+        }
 
         if (User::query()->where('email', $data['email'])->exists()) {
             return back()->withErrors(['email' => 'A user with this email already exists.']);
@@ -434,17 +457,24 @@ class UsersController extends Controller
 
         $token = Str::random(48);
         $expiresAt = now()->addDays(14);
+        $defaultTeamRoleId = $workspaceOwner ? (PortalTeamAccess::teamRoles()->first()?->id) : null;
+
+        $invitePayload = [
+            'invited_by_id' => $request->user()->id,
+            'name' => $data['name'] ?? null,
+            'role_id' => $data['role_id'] ?? $defaultTeamRoleId,
+            'plan_id' => $workspaceOwner ? null : ($data['plan_id'] ?? null),
+            'token' => $token,
+            'expires_at' => $expiresAt,
+        ];
+
+        if (Schema::hasColumn('user_invites', 'team_owner_id') && $workspaceOwner) {
+            $invitePayload['team_owner_id'] = $workspaceOwner->id;
+        }
 
         $invite = UserInvite::query()->updateOrCreate(
             ['email' => $data['email'], 'status' => 'pending'],
-            [
-                'invited_by_id' => $request->user()->id,
-                'name' => $data['name'] ?? null,
-                'role_id' => $data['role_id'] ?? null,
-                'plan_id' => $data['plan_id'] ?? null,
-                'token' => $token,
-                'expires_at' => $expiresAt,
-            ]
+            $invitePayload
         );
 
         $inviteUrl = route('register', [
@@ -460,7 +490,11 @@ class UsersController extends Controller
         ]);
 
         if (! AppMailer::mailIsConfigured()) {
-            return back()->with('status', "Invite created for {$invite->email}, but mail is not configured. Share this link: {$inviteUrl}");
+            $redirect = $workspaceOwner
+                ? redirect()->route('super-admin.users.index', ['tab' => 'teams'])
+                : back();
+
+            return $redirect->with('status', "Invite created for {$invite->email}, but mail is not configured. Share this link: {$inviteUrl}");
         }
 
         if (! $sent) {
@@ -471,7 +505,26 @@ class UsersController extends Controller
                 ->with('status', "Backup invite link (share manually): {$inviteUrl}");
         }
 
-        return back()->with('status', "Invite email sent to {$invite->email}. If it is not in the inbox, check Spam/Promotions. Link: {$inviteUrl}");
+        $successRedirect = $workspaceOwner
+            ? redirect()->route('super-admin.users.index', ['tab' => 'teams'])
+            : back();
+
+        return $successRedirect->with('status', "Invite email sent to {$invite->email}. If it is not in the inbox, check Spam/Promotions. Link: {$inviteUrl}");
+    }
+
+    private function resolveWorkspaceOwner(mixed $workspaceOwnerId): ?User
+    {
+        if (! $workspaceOwnerId || ! Schema::hasColumn('users', 'team_owner_id')) {
+            return null;
+        }
+
+        $owner = User::query()->find((int) $workspaceOwnerId);
+
+        if (! $owner || $owner->team_owner_id !== null) {
+            return null;
+        }
+
+        return $owner;
     }
 
     /**
@@ -479,6 +532,9 @@ class UsersController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $workspaceOwner = $this->resolveWorkspaceOwner($request->input('workspace_owner_id'));
+        $teamRoleIds = PortalTeamAccess::teamRoles()->pluck('id')->all();
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -486,13 +542,24 @@ class UsersController extends Controller
             'role_id' => ['nullable', 'exists:roles,id'],
             'plan_id' => ['nullable', 'exists:plans,id'],
             'status' => ['nullable', 'in:active,pending,suspended'],
+            'workspace_owner_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
-        $defaultRole = Role::query()->where('slug', 'default-user')->first();
+        if ($request->filled('workspace_owner_id') && ! $workspaceOwner) {
+            return back()->withErrors(['workspace_owner_id' => 'Choose a valid workspace owner.']);
+        }
+
+        if ($workspaceOwner && isset($data['role_id']) && ! in_array((int) $data['role_id'], $teamRoleIds, true)) {
+            return back()->withErrors(['role_id' => 'Choose a valid portal team role.']);
+        }
+
+        $defaultRole = $workspaceOwner
+            ? PortalTeamAccess::teamRoles()->first()
+            : Role::query()->where('slug', 'default-user')->first();
         $roleId = $data['role_id'] ?? $defaultRole?->id;
 
-        $user = DB::transaction(function () use ($data, $roleId) {
-            $user = User::query()->create([
+        $user = DB::transaction(function () use ($data, $roleId, $workspaceOwner) {
+            $payload = [
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
@@ -500,11 +567,17 @@ class UsersController extends Controller
                 'status' => $data['status'] ?? 'active',
                 'is_admin' => false,
                 'is_super_admin' => false,
-            ]);
+            ];
+
+            if ($workspaceOwner && Schema::hasColumn('users', 'team_owner_id')) {
+                $payload['team_owner_id'] = $workspaceOwner->id;
+            }
+
+            $user = User::query()->create($payload);
             $user->forceFill(['email_verified_at' => now()])->save();
 
-            // Optional plan attach — silent, no subscription email/card.
-            if (! empty($data['plan_id'])) {
+            // Optional plan attach — portal members inherit owner billing; skip when adding to workspace.
+            if (! $workspaceOwner && ! empty($data['plan_id'])) {
                 $plan = Plan::query()->whereKey($data['plan_id'])->where('is_active', true)->first();
                 if ($plan) {
                     Subscription::query()->create([
@@ -525,6 +598,12 @@ class UsersController extends Controller
 
             return $user;
         });
+
+        if ($workspaceOwner) {
+            return redirect()
+                ->route('super-admin.users.index', ['tab' => 'teams'])
+                ->with('status', "Portal member {$user->email} created under {$workspaceOwner->name}.");
+        }
 
         return redirect()
             ->route('super-admin.users.show', $user)

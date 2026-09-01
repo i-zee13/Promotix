@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
@@ -133,9 +134,13 @@ class RegisteredUserController extends Controller
             ]);
 
             $inviter = $invite->invitedBy;
-            // Super-admin provisioning invites create independent customer
-            // accounts. Customer invitations instead join the inviter's team.
-            if ($inviter && ! $inviter->is_super_admin && ! $inviter->is_admin) {
+            if ($invite->team_owner_id && Schema::hasColumn('users', 'team_owner_id')) {
+                $user->update([
+                    'team_owner_id' => $invite->team_owner_id,
+                    'allowed_page_slugs' => $invite->page_slugs,
+                    'allowed_domain_ids' => $invite->domain_ids,
+                ]);
+            } elseif ($inviter && ! $inviter->is_super_admin && ! $inviter->is_admin) {
                 $user->update([
                     'team_owner_id' => $inviter->team_owner_id ?: $inviter->id,
                     'allowed_page_slugs' => $invite->page_slugs,

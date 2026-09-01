@@ -9,6 +9,7 @@ class UserInvite extends Model
 {
     protected $fillable = [
         'invited_by_id',
+        'team_owner_id',
         'email',
         'name',
         'role_id',
@@ -34,6 +35,11 @@ class UserInvite extends Model
     public function invitedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'invited_by_id');
+    }
+
+    public function teamOwner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'team_owner_id');
     }
 
     public function role(): BelongsTo

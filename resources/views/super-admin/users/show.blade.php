@@ -21,7 +21,7 @@
 @endphp
 
 <x-super-admin.page :title="$user->name" subtitle="Profile, plan, and role history">
-    <div class="figma-sa-user-detail" x-data="{ editAccount: false, advancedOpen: false }">
+    <div class="figma-sa-user-detail" x-data="{ editAccount: false, advancedOpen: false, inviteOpen: false, inviteMode: 'invite' }">
         <nav class="figma-sa-user-detail-crumb" aria-label="Breadcrumb">
             <a href="{{ route('super-admin.users.index') }}">Users</a>
             <span aria-hidden="true">&gt;</span>
@@ -297,7 +297,7 @@
                         <p>These are members added by {{ $user->name }} in their portal.</p>
                     </div>
                     <div class="figma-sa-user-detail-portal-head-actions">
-                        <a href="{{ route('super-admin.users.index', ['tab' => 'teams', 'search' => $user->email]) }}" class="figma-sa-user-detail-primary-btn figma-sa-user-detail-primary-btn--sm">Add member</a>
+                        <button type="button" @click="inviteOpen = true; inviteMode = 'invite'" class="figma-sa-user-detail-primary-btn figma-sa-user-detail-primary-btn--sm">Add member</button>
                     </div>
                 </header>
 
@@ -480,6 +480,27 @@
                 </div>
             </section>
         </div>
+
+        @if ($isWorkspaceOwner ?? false)
+            @include('super-admin.users.partials.invite-create-modal', [
+                'roles' => $roles,
+                'teamRoles' => $teamRoles,
+                'plans' => $plans,
+                'workspaceOwner' => $user,
+            ])
+        @endif
     </div>
 </x-super-admin.page>
+
+@if ($errors->any())
+<script>
+    document.addEventListener('alpine:init', () => {
+        const root = document.querySelector('.figma-sa-user-detail');
+        if (root && root._x_dataStack) {
+            root._x_dataStack[0].inviteOpen = true;
+            root._x_dataStack[0].inviteMode = @json($errors->has('password') || ($errors->has('name') && ! $errors->has('email')) ? 'create' : 'invite');
+        }
+    });
+</script>
+@endif
 @endsection
