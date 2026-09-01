@@ -240,15 +240,7 @@
         @endif
 
         @if ($tab === 'teams')
-            {{-- Admin-assigned team columns (unchanged) --}}
-            <div class="figma-sa-teams-tabs">
-                @forelse (($teamColumns ?? array_keys($teamsBoard->all())) as $i => $col)
-                    <button type="button" @class(['figma-sa-teams-tab', 'figma-sa-teams-tab--active' => $i === 0])>{{ $col }}</button>
-                @empty
-                    <span class="text-[12px] text-white/50">No teams yet — run AdminPanelBootstrapSeeder.</span>
-                @endforelse
-            </div>
-
+            {{-- Admin-assigned team columns --}}
             <div class="figma-sa-teams-board">
                 @foreach ($teamsBoard as $column => $members)
                     <article class="figma-sa-teams-column">
