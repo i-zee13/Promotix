@@ -10,6 +10,19 @@
         : '12/1/2026';
 @endphp
 
+@php
+    $teamsCatalogJs = ($assignableTeams ?? collect())->map(fn ($t) => [
+        'id' => $t->id,
+        'name' => $t->name,
+        'member_ids' => $t->members->pluck('id')->values()->all(),
+    ])->values();
+    $assignableUsersJs = ($teamAssignableUsers ?? collect())->map(fn ($u) => [
+        'id' => $u->id,
+        'name' => $u->name,
+        'email' => $u->email,
+    ])->values();
+@endphp
+
 <x-super-admin.page title="Users & Teams">
     <div class="figma-sa-users" x-data="{
         tab: @js($tab),
@@ -17,6 +30,22 @@
         createTeamOpen: false,
         createTeamModalOpen: false,
         inviteMode: 'invite',
+        teamsCatalog: @js($teamsCatalogJs),
+        assignableUsers: @js($assignableUsersJs),
+        teamColumnMenuId: null,
+        teamAssignModal: { open: false, teamId: null, teamName: '', userId: '' },
+        toggleTeamColumnMenu(teamId) {
+            this.teamColumnMenuId = this.teamColumnMenuId === teamId ? null : teamId;
+        },
+        openTeamAssignModal(teamId, teamName) {
+            this.teamColumnMenuId = null;
+            this.teamAssignModal = { open: true, teamId, teamName, userId: '' };
+        },
+        usersAvailableForTeam(teamId) {
+            const team = this.teamsCatalog.find((t) => t.id === teamId);
+            if (!team) return this.assignableUsers;
+            return this.assignableUsers.filter((u) => !team.member_ids.includes(u.id));
+        },
         teamModal: { open: false, loading: false, ownerName: '', ownerEmail: '', members: [], error: '' },
         async openTeamModal(userId, ownerName, ownerEmail) {
             this.teamModal = { open: true, loading: true, ownerName, ownerEmail, members: [], error: '' };
@@ -269,10 +298,38 @@
                 @forelse ($assignableTeams as $team)
                     <article class="figma-sa-teams-column">
                         <header class="figma-sa-teams-column-head">
-                            <span>{{ $team->name }}</span>
-                            @if ($team->description)
-                                <span class="figma-sa-teams-column-sub" title="{{ $team->description }}">{{ Str::limit($team->description, 40) }}</span>
-                            @endif
+                            <div class="figma-sa-teams-column-head-main">
+                                <span class="figma-sa-teams-column-title">{{ $team->name }}</span>
+                                @if ($team->description)
+                                    <span class="figma-sa-teams-column-sub" title="{{ $team->description }}">{{ Str::limit($team->description, 40) }}</span>
+                                @endif
+                            </div>
+                            <div class="figma-sa-teams-column-actions">
+                                <button
+                                    type="button"
+                                    class="figma-sa-teams-kebab"
+                                    @click.stop="toggleTeamColumnMenu({{ $team->id }})"
+                                    aria-label="Team options for {{ $team->name }}"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                        <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+                                    </svg>
+                                </button>
+                                <div
+                                    x-show="teamColumnMenuId === {{ $team->id }}"
+                                    x-cloak
+                                    @click.outside="teamColumnMenuId = null"
+                                    class="figma-sa-teams-column-menu"
+                                >
+                                    <button
+                                        type="button"
+                                        class="figma-sa-teams-column-menu-item"
+                                        @click="openTeamAssignModal({{ $team->id }}, @js($team->name))"
+                                    >
+                                        Add user
+                                    </button>
+                                </div>
+                            </div>
                         </header>
                         <div class="figma-sa-teams-column-body">
                             @forelse ($team->members as $member)
@@ -298,22 +355,8 @@
                                     </form>
                                 </div>
                             @empty
-                                <p class="figma-sa-teams-empty">No members yet — assign below or from user profile.</p>
+                                <p class="figma-sa-teams-empty">No members yet — use ⋮ Add user.</p>
                             @endforelse
-
-                            @if (($teamAssignableUsers ?? collect())->isNotEmpty())
-                                <form method="POST" action="{{ route('super-admin.teams.assign-member', $team) }}" class="figma-sa-teams-assign-form">
-                                    @csrf
-                                    <select name="user_id" required class="figma-sa-teams-assign-select" onchange="if(this.value) this.form.submit()">
-                                        <option value="">+ Assign member</option>
-                                        @foreach ($teamAssignableUsers as $assignUser)
-                                            @unless ($team->members->contains('id', $assignUser->id))
-                                                <option value="{{ $assignUser->id }}">{{ $assignUser->name }}</option>
-                                            @endunless
-                                        @endforeach
-                                    </select>
-                                </form>
-                            @endif
                         </div>
                     </article>
                 @empty
@@ -372,6 +415,51 @@
 
         @if ($tab === 'teams')
             @include('super-admin.users.partials.create-team-modal', ['departments' => $departments])
+
+            {{-- Add user to team column --}}
+            <div
+                x-show="teamAssignModal.open"
+                x-cloak
+                class="figma-sa-users-modal-backdrop"
+                @keydown.escape.window="teamAssignModal.open = false"
+            >
+                <div class="figma-sa-users-modal figma-sa-users-modal--team-assign" @click.outside="teamAssignModal.open = false" role="dialog" aria-labelledby="team-assign-title">
+                    <button type="button" class="figma-sa-users-modal-close" @click="teamAssignModal.open = false" aria-label="Close">&times;</button>
+                    <h2 id="team-assign-title" class="figma-sa-users-modal-title">Add user</h2>
+                    <p class="figma-sa-users-modal-sub">
+                        Assign to <strong x-text="teamAssignModal.teamName"></strong>
+                    </p>
+                    <form
+                        method="POST"
+                        :action="`{{ url('/super-admin/teams') }}/${teamAssignModal.teamId}/assign-member`"
+                        class="mt-5 space-y-4"
+                    >
+                        @csrf
+                        <div>
+                            <label class="figma-sa-label">Select user</label>
+                            <select name="user_id" required class="figma-select mt-1 w-full" x-model="teamAssignModal.userId">
+                                <option value="">Select a user…</option>
+                                <template x-for="user in usersAvailableForTeam(teamAssignModal.teamId)" :key="user.id">
+                                    <option :value="user.id" x-text="`${user.name} (${user.email})`"></option>
+                                </template>
+                            </select>
+                            <p x-show="usersAvailableForTeam(teamAssignModal.teamId).length === 0" class="mt-2 text-xs text-[#8c8787]">
+                                All users are already in this team.
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap justify-end gap-3 pt-2">
+                            <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="teamAssignModal.open = false">Cancel</button>
+                            <button
+                                type="submit"
+                                class="figma-sa-btn figma-sa-btn-primary"
+                                :disabled="!teamAssignModal.userId || usersAvailableForTeam(teamAssignModal.teamId).length === 0"
+                            >
+                                Add to team
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
             @include('super-admin.users.partials.invite-create-modal', [
                 'roles' => $roles,
