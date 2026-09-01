@@ -11776,6 +11776,46 @@ a.figma-sa-users-filter-option {
     color: rgba(255, 255, 255, 0.65);
 }
 
+.figma-sa-teams-board-empty {
+    grid-column: 1 / -1;
+    padding: 32px 16px;
+    text-align: center;
+    font-size: 13px;
+    color: #d9d9d9;
+}
+
+.figma-sa-teams-column-sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 9px;
+    font-weight: 500;
+    opacity: 0.75;
+}
+
+.figma-sa-teams-assign-form {
+    margin-top: auto;
+    padding-top: 4px;
+}
+
+.figma-sa-teams-assign-select {
+    width: 100%;
+    border: 1px dashed rgba(255, 255, 255, 0.45);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 6px 8px;
+    font-size: 10px;
+    color: #ffffff;
+}
+
+a.figma-sa-teams-card-name {
+    display: block;
+    text-decoration: none;
+}
+
+a.figma-sa-teams-card-name:hover {
+    text-decoration: underline;
+}
+
 /* Invite modal */
 .figma-sa-users-modal-backdrop {
     position: fixed;

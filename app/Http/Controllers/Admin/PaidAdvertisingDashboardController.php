@@ -16,6 +16,7 @@ use App\Support\GlobalIpAllowlist;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleInvalidClickReconciler;
 use App\Support\GoogleVerifiedPaidTraffic;
+use App\Support\AccountCurrency;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -215,6 +216,7 @@ class PaidAdvertisingDashboardController extends Controller
         $invalidForSavings = $uniqueInvalidPaidClicks > 0 ? $uniqueInvalidPaidClicks : $invalid;
         $avgCpc = $googleClicks > 0 ? ($googleCost / $googleClicks) : 0.0;
         $costSaved = round($avgCpc * $invalidForSavings, 2);
+        $currencyCode = AccountCurrency::resolveForRequest($request, $domains);
 
         $selectedDomain = $request->filled('domain_id') && $domains->count() === 1
             ? $domains->first()
@@ -261,6 +263,10 @@ class PaidAdvertisingDashboardController extends Controller
             'google_cost' => round($googleCost, 2),
             'avg_cpc' => round($avgCpc, 4),
             'cost_saved' => $costSaved,
+            'cost_saved_label' => AccountCurrency::formatAmount($costSaved, $currencyCode),
+            'currency_code' => $currencyCode,
+            'currency_label' => AccountCurrency::label($currencyCode),
+            'currency_symbol' => AccountCurrency::symbol($currencyCode),
             'timezone_context' => UserTimezone::dashboardContext(
                 $request->user(),
                 $googleTz,

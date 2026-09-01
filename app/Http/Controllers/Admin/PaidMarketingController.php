@@ -23,6 +23,7 @@ use App\Support\ClickronixTrafficReport;
 use App\Support\AdminIntegrationCatalog;
 use App\Support\CrossDomainIntel;
 use App\Support\CountryFlag;
+use App\Support\AccountCurrency;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleIpBlockFormatter;
 use App\Support\GoogleVerifiedCampaignLookup;
@@ -2773,6 +2774,7 @@ class PaidMarketingController extends Controller
         $invalid = (int) ($summary['unique_invalid_paid_clicks'] ?? $summary['invalid_paid_visits'] ?? 0);
         $blocked = (int) ($summary['block_enforced'] ?? $summary['block_attempts'] ?? $summary['blocked_paid_visits'] ?? 0);
         $costSaved = (float) ($summary['cost_saved'] ?? 0);
+        $currencyCode = AccountCurrency::normalize((string) ($summary['currency_code'] ?? 'USD'));
         $trackingAccuracy = (int) ($summary['tracking_accuracy_pct'] ?? $summary['tag_capture_pct'] ?? 0);
 
         $pctBase = $tracked > 0 ? $tracked : max($valid + $invalid, 0);
@@ -2825,7 +2827,7 @@ class PaidMarketingController extends Controller
             [
                 'key' => 'waste',
                 'label' => 'Estimated Waste Prevented',
-                'value' => '$'.number_format($costSaved, 2),
+                'value' => AccountCurrency::formatAmount($costSaved, $currencyCode),
                 'sub' => 'Saved from invalid traffic',
                 'tone' => 'green',
             ],

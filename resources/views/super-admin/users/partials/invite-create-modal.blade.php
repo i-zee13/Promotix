@@ -3,6 +3,7 @@
     $modalOpenVar = $modalOpenVar ?? 'inviteOpen';
     $isPortalMember = ($workspaceOwner ?? null) !== null || $pickWorkspaceOwner;
     $modalRoles = $isPortalMember ? ($teamRoles ?? $roles) : $roles;
+    $showTeamPicker = ($assignableTeams ?? collect())->isNotEmpty() && ($pickWorkspaceOwner || $isPortalMember);
 @endphp
 
 <div
@@ -98,6 +99,18 @@
                     </select>
                 </div>
             @endunless
+            @if ($showTeamPicker)
+                <div>
+                    <label class="figma-sa-label">Assign to team</label>
+                    <select name="team_id" class="figma-select mt-1 w-full">
+                        <option value="">— None —</option>
+                        @foreach ($assignableTeams as $team)
+                            <option value="{{ $team->id }}" @selected(old('team_id') == $team->id)>{{ $team->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-[#8c8787]">Optional — places the user in a team column on the Teams board.</p>
+                </div>
+            @endif
             <div class="flex flex-wrap justify-end gap-3 pt-2">
                 <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="{{ $modalOpenVar }} = false">Cancel</button>
                 <button type="submit" class="figma-sa-btn figma-sa-btn-primary">Send invite</button>
@@ -158,6 +171,17 @@
                     </div>
                 @endunless
             </div>
+            @if ($showTeamPicker)
+                <div>
+                    <label class="figma-sa-label">Assign to team</label>
+                    <select name="team_id" class="figma-select mt-1 w-full">
+                        <option value="">— None —</option>
+                        @foreach ($assignableTeams as $team)
+                            <option value="{{ $team->id }}" @selected(old('team_id') == $team->id)>{{ $team->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div class="flex flex-wrap justify-end gap-3 pt-2">
                 <button type="button" class="figma-sa-btn figma-sa-btn-outline" @click="{{ $modalOpenVar }} = false">Cancel</button>
                 <button type="submit" class="figma-sa-btn figma-sa-btn-primary">Create user</button>

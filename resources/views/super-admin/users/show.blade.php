@@ -198,7 +198,8 @@
             <section class="figma-sa-user-detail-card figma-sa-user-detail-card--table" id="assign-team">
                 <header class="figma-sa-user-detail-card-head">
                     <div>
-                        <h3>Department / Team assignments</h3>
+                        <h3>Team assignments</h3>
+                        <p class="figma-sa-user-detail-card-note">Operational teams (Sales, Chat Support, etc.) — same columns as the Teams board.</p>
                     </div>
                 </header>
                 <div class="figma-sa-user-detail-assign-shell">
@@ -487,6 +488,7 @@
                 'teamRoles' => $teamRoles,
                 'plans' => $plans,
                 'workspaceOwner' => $user,
+                'assignableTeams' => $assignableTeams,
             ])
         @endif
     </div>

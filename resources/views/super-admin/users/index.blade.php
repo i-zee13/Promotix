@@ -15,6 +15,7 @@
         tab: @js($tab),
         inviteOpen: false,
         createTeamOpen: false,
+        createTeamModalOpen: false,
         inviteMode: 'invite',
         teamModal: { open: false, loading: false, ownerName: '', ownerEmail: '', members: [], error: '' },
         async openTeamModal(userId, ownerName, ownerEmail) {
@@ -110,14 +111,18 @@
 
             <div class="figma-sa-users-toolbar-actions">
                 @if ($tab === 'teams')
-                    <button type="button" @click="createTeamOpen = true; inviteMode = 'invite'" class="figma-sa-users-create-team-btn">
+                    <button type="button" @click="createTeamModalOpen = true" class="figma-sa-users-create-team-btn">
                         Create Team
                     </button>
                 @endif
 
-                <button type="button" @click="inviteOpen = true; inviteMode = 'invite'" class="figma-sa-users-invite-btn figma-sa-users-invite-btn--toolbar">
+                <button type="button" @click="createTeamOpen = true; inviteMode = 'invite'" class="figma-sa-users-invite-btn figma-sa-users-invite-btn--toolbar">
                     <span class="figma-sa-users-invite-icon" aria-hidden="true">+</span>
-                    Invite / Create
+                    @if ($tab === 'teams')
+                        Add portal member
+                    @else
+                        Invite / Create
+                    @endif
                 </button>
             </div>
         </form>
@@ -253,19 +258,30 @@
         @endif
 
         @if ($tab === 'teams')
+            @if (session('status'))
+                <div class="mb-3 rounded-[8px] border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100">
+                    {{ session('status') }}
+                </div>
+            @endif
+
             {{-- Admin-assigned team columns --}}
             <div class="figma-sa-teams-board">
-                @foreach ($teamsBoard as $column => $members)
+                @forelse ($assignableTeams as $team)
                     <article class="figma-sa-teams-column">
-                        <header class="figma-sa-teams-column-head">{{ $column }}</header>
+                        <header class="figma-sa-teams-column-head">
+                            <span>{{ $team->name }}</span>
+                            @if ($team->description)
+                                <span class="figma-sa-teams-column-sub" title="{{ $team->description }}">{{ Str::limit($team->description, 40) }}</span>
+                            @endif
+                        </header>
                         <div class="figma-sa-teams-column-body">
-                            @forelse ($members as $member)
+                            @forelse ($team->members as $member)
                                 <div class="figma-sa-teams-card">
                                     <span class="figma-sa-users-avatar figma-sa-users-avatar--sm" aria-hidden="true">
                                         @include('partials.user-avatar', ['avatarUser' => $member, 'avatarTextClass' => 'text-[10px] font-semibold leading-none text-[#FF6600]'])
                                     </span>
                                     <div class="min-w-0 flex-1">
-                                        <p class="figma-sa-teams-card-name">{{ $member->name }}</p>
+                                        <a href="{{ route('super-admin.users.show', $member) }}" class="figma-sa-teams-card-name">{{ $member->name }}</a>
                                         <p class="figma-sa-teams-card-email">{{ $member->email }}</p>
                                     </div>
                                     <form method="POST" action="{{ route('super-admin.users.status', $member) }}" class="shrink-0">
@@ -282,11 +298,27 @@
                                     </form>
                                 </div>
                             @empty
-                                <p class="figma-sa-teams-empty">Unassigned — assign members from a user profile. Teams ≠ portal users.</p>
+                                <p class="figma-sa-teams-empty">No members yet — assign below or from user profile.</p>
                             @endforelse
+
+                            @if (($teamAssignableUsers ?? collect())->isNotEmpty())
+                                <form method="POST" action="{{ route('super-admin.teams.assign-member', $team) }}" class="figma-sa-teams-assign-form">
+                                    @csrf
+                                    <select name="user_id" required class="figma-sa-teams-assign-select" onchange="if(this.value) this.form.submit()">
+                                        <option value="">+ Assign member</option>
+                                        @foreach ($teamAssignableUsers as $assignUser)
+                                            @unless ($team->members->contains('id', $assignUser->id))
+                                                <option value="{{ $assignUser->id }}">{{ $assignUser->name }}</option>
+                                            @endunless
+                                        @endforeach
+                                    </select>
+                                </form>
+                            @endif
                         </div>
                     </article>
-                @endforeach
+                @empty
+                    <p class="figma-sa-teams-board-empty">No teams yet. Click <strong>Create Team</strong> to add your first column (Sales, Chat Support, etc.).</p>
+                @endforelse
             </div>
         @endif
 
@@ -339,6 +371,8 @@
         ])
 
         @if ($tab === 'teams')
+            @include('super-admin.users.partials.create-team-modal', ['departments' => $departments])
+
             @include('super-admin.users.partials.invite-create-modal', [
                 'roles' => $roles,
                 'teamRoles' => $teamRoles,
@@ -346,6 +380,7 @@
                 'workspaceOwner' => null,
                 'workspaceOwners' => $workspaceOwners,
                 'pickWorkspaceOwner' => true,
+                'assignableTeams' => $assignableTeams,
                 'modalOpenVar' => 'createTeamOpen',
             ])
         @endif
@@ -357,9 +392,10 @@
     document.addEventListener('alpine:init', () => {
         const root = document.querySelector('.figma-sa-users');
         if (root && root._x_dataStack) {
-            const isTeamFlow = @json((bool) old('workspace_owner_id'));
+            const isTeamFlow = @json((bool) old('workspace_owner_id') || (bool) old('team_id'));
             root._x_dataStack[0].inviteOpen = !isTeamFlow;
-            root._x_dataStack[0].createTeamOpen = isTeamFlow;
+            root._x_dataStack[0].createTeamOpen = isTeamFlow && @json((bool) old('workspace_owner_id'));
+            root._x_dataStack[0].createTeamModalOpen = @json($errors->has('name') && ! old('workspace_owner_id'));
             root._x_dataStack[0].inviteMode = @json($errors->has('password') || ($errors->has('name') && ! $errors->has('email')) ? 'create' : 'invite');
         }
     });

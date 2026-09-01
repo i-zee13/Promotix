@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\Team;
@@ -149,6 +150,17 @@ class UsersController extends Controller
                 ->get(['id', 'name', 'email'])
             : collect();
 
+        $departments = Schema::hasTable('departments')
+            ? Department::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'slug'])
+            : collect();
+
+        $teamAssignableUsers = $tab === 'teams' && Schema::hasTable('team_members')
+            ? User::query()
+                ->where('is_super_admin', false)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+            : collect();
+
         return view('super-admin.users.index', [
             'users' => $users,
             'roles' => Role::orderBy('name')->get(),
@@ -160,6 +172,8 @@ class UsersController extends Controller
             'teamsBoard' => $teamsBoard,
             'teamColumns' => $teamColumns,
             'assignableTeams' => $assignableTeams,
+            'departments' => $departments,
+            'teamAssignableUsers' => $teamAssignableUsers,
             'workspaceOwners' => $workspaceOwners,
             'perPage' => $perPage,
         ]);
@@ -543,6 +557,7 @@ class UsersController extends Controller
             'plan_id' => ['nullable', 'exists:plans,id'],
             'status' => ['nullable', 'in:active,pending,suspended'],
             'workspace_owner_id' => ['nullable', 'integer', 'exists:users,id'],
+            'team_id' => ['nullable', 'exists:teams,id'],
         ]);
 
         if ($request->filled('workspace_owner_id') && ! $workspaceOwner) {
@@ -598,6 +613,17 @@ class UsersController extends Controller
 
             return $user;
         });
+
+        if (! empty($data['team_id']) && Schema::hasTable('team_members')) {
+            DB::table('team_members')->updateOrInsert(
+                ['team_id' => (int) $data['team_id'], 'user_id' => $user->id],
+                [
+                    'assigned_by' => $request->user()->id,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
 
         if ($workspaceOwner) {
             return redirect()

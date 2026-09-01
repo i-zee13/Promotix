@@ -2017,6 +2017,15 @@
                 this.reportingTimezone = this.resolveReportingTimezone(entry?.google_timezone || null);
                 this.syncPaidTimezoneHeader();
             },
+            activeCurrencySymbol() {
+                const id = String(this.filters.domain_id || '');
+                const entry = id ? this.domainCatalog[id] : null;
+                if (entry?.currency_code) {
+                    const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: '₨', AED: 'د.إ' };
+                    return map[entry.currency_code] || `${entry.currency_code} `;
+                }
+                return '$';
+            },
             syncPaidTimezoneHeader() {
                 window.promotixSyncPaidTimezoneHeader?.(this.domainTimezoneChip, this.timezoneContextPanel);
             },
@@ -2203,6 +2212,7 @@
                 const invalid = Number(summary?.unique_invalid_paid_clicks ?? summary?.invalid_paid_visits ?? 0);
                 const blocked = Number(summary?.block_enforced ?? summary?.block_attempts ?? summary?.blocked_paid_visits ?? 0);
                 const costSaved = Number(summary?.cost_saved ?? 0);
+                const currencySymbol = summary?.currency_symbol || this.activeCurrencySymbol();
                 const trackingAccuracy = Number(summary?.tracking_accuracy_pct ?? summary?.tag_capture_pct ?? 0);
                 const pctBase = tracked > 0 ? tracked : Math.max(valid + invalid, 0);
                 const validPct = pctBase > 0 ? ((valid / pctBase) * 100).toFixed(1) : '0.0';
@@ -2225,7 +2235,7 @@
                     { key: 'valid', label: 'Valid Clicks', value: fmt(valid), sub: `${validPct}% of tracked clicks`, tone: 'green' },
                     { key: 'invalid', label: 'Invalid Clicks', value: fmt(invalid), sub: `${invalidPct}% of tracked clicks`, tone: 'rose' },
                     { key: 'blocked', label: 'Blocked Clicks', value: fmt(blocked), sub: 'Blocked by protection', tone: 'rose' },
-                    { key: 'waste', label: 'Estimated Waste Prevented', value: `$${Number(costSaved || 0).toFixed(2)}`, sub: 'Saved from invalid traffic', tone: 'green' },
+                    { key: 'waste', label: 'Estimated Waste Prevented', value: summary?.cost_saved_label || `${currencySymbol}${Number(costSaved || 0).toFixed(2)}`, sub: 'Saved from invalid traffic', tone: 'green' },
                     { key: 'risk', label: 'Tracking Accuracy', value: `${trackingAccuracy}%`, sub: `Tracked clicks ${tracked}`, tone: 'amber' },
                 ];
             },

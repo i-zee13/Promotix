@@ -1,24 +1,36 @@
 @extends('layouts.auth')
 
 @section('content')
+@php
+    $displayCurrency = \App\Support\AccountCurrency::fromDomain(
+        \App\Models\Domain::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('google_ads_account_id')
+            ->with('googleAdsAccount')
+            ->first()
+    );
+    $currencyLabel = \App\Support\AccountCurrency::label($displayCurrency);
+    $currencySymbol = \App\Support\AccountCurrency::symbol($displayCurrency);
+@endphp
 <div class="min-h-screen px-4 py-12 sm:px-6 lg:px-8" style="background:var(--brand-background,#0D0D0D);">
     <div class="mx-auto max-w-6xl"
         x-data="{
             interval: 'monthly',
             yearlyDiscount: 0.15,
+            currencySymbol: @js($currencySymbol),
             priceLabel(row) {
                 const monthlyCents = row.monthlyCents;
                 const yearlyCents = row.yearlyCents;
                 if (this.interval === 'yearly') {
                     if (yearlyCents > 0) {
                         const perMonth = yearlyCents / 12 / 100;
-                        return '$' + perMonth.toFixed(0) + '/m';
+                        return this.currencySymbol + perMonth.toFixed(0) + '/m';
                     }
                     const monthly = monthlyCents / 100;
                     const discounted = monthly * (1 - this.yearlyDiscount);
-                    return '$' + discounted.toFixed(0) + '/m';
+                    return this.currencySymbol + discounted.toFixed(0) + '/m';
                 }
-                return '$' + (monthlyCents / 100).toFixed(0) + '/m';
+                return this.currencySymbol + (monthlyCents / 100).toFixed(0) + '/m';
             }
         }">
         {{-- Header --}}
@@ -56,12 +68,12 @@
                     <span class="figma-toggle-track"><span class="figma-toggle-thumb"></span></span>
                 </button>
                 <span :class="interval === 'yearly' ? 'text-white' : 'text-white/55'">Yearly</span>
-                <span class="ml-2 rounded-full border border-white/30 px-3 py-0.5 text-xs font-semibold text-white" style="background:color-mix(in srgb, var(--brand-primary,#6400B3) 60%, transparent);">Save 15%</span>
+                <span class="ml-2 rounded-full border border-[#FF6600]/40 bg-[#FF6600]/15 px-3 py-0.5 text-xs font-semibold text-[#ffd0b0]">Save 15%</span>
             </div>
 
-            {{-- Currency (display only) --}}
+            {{-- Currency (from connected Google Ads account when available) --}}
             <div class="mt-3 inline-flex items-center gap-1 text-sm text-white/70">
-                $ USD
+                {{ $currencyLabel }}
                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
             </div>
         </div>
@@ -113,22 +125,21 @@
                     {{-- Floating badge --}}
                     <div class="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2">
                         <div @class([
-                            'flex h-24 w-24 items-center justify-center rounded-full border text-base font-semibold shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]',
-                            'border-white/20 bg-[#B79CCB]/85 text-[#3A0D63]' => ! $plan->is_highlighted,
-                            'border-amber-300/50 bg-amber-400/90 text-[#3A0D63]' => $plan->is_highlighted,
+                            'flex h-24 w-24 items-center justify-center rounded-full border text-base font-semibold shadow-[0_8px_24px_-12px_rgba(0,0,0,0.25)]',
+                            'border-[#FF6600]/35 bg-white text-[#1c1c1c]' => ! $plan->is_highlighted,
+                            'border-[#FF6600] bg-[#FF6600] text-white' => $plan->is_highlighted,
                         ])>
                             {{ $plan->name }}
                         </div>
                     </div>
 
                     {{-- Card --}}
-                    <div class="brand-surface-card relative h-full rounded-[15px] border border-white/35 px-6 pb-8 pt-16"
-                        style="background:var(--brand-primary,#6400B3);box-shadow:0 25px 60px -20px rgba(var(--brand-primary-rgb,100,0,179),0.55);">
+                    <div class="relative h-full rounded-[15px] border border-[#e5e5e5] bg-white px-6 pb-8 pt-16 shadow-[0_25px_60px_-20px_rgba(0,0,0,0.18)]">
                         @if ($desc)
-                            <p class="mt-2 text-center text-sm text-white/85">{{ $desc }}</p>
+                            <p class="mt-2 text-center text-sm text-[#444444]">{{ $desc }}</p>
                         @endif
 
-                        <p class="mt-5 text-center text-3xl font-bold text-white" x-text="priceLabel({ monthlyCents: {{ (int) $plan->price_cents }}, yearlyCents: {{ $yearlyCents }} })"></p>
+                        <p class="mt-5 text-center text-3xl font-bold text-[#1c1c1c]" x-text="priceLabel({ monthlyCents: {{ (int) $plan->price_cents }}, yearlyCents: {{ $yearlyCents }} })"></p>
 
                         <form method="POST" action="{{ route('onboarding.start-trial') }}" class="mt-5">
                             @csrf
@@ -136,36 +147,35 @@
                             <input type="hidden" name="billing_interval" :value="interval">
                             @if ($plan->is_active)
                                 <button type="submit"
-                                    class="block w-full rounded-[10px] bg-white py-2.5 text-center text-sm font-semibold transition hover:bg-white/90"
-                                    style="color:var(--brand-primary,#6400B3);">
+                                    class="block w-full rounded-[10px] bg-[#FF6600] py-2.5 text-center text-sm font-semibold text-white transition hover:bg-[#e55c00]">
                                     {{ $plan->cta_label ?: 'Start free trial' }}
                                 </button>
                                 @if (! empty($stripeEnabled))
-                                    <p class="mt-2 text-center text-[11px] text-white/70">Secured by Stripe — you’ll add a card on Stripe’s checkout</p>
+                                    <p class="mt-2 text-center text-[11px] text-[#666666]">Secured by Stripe — you’ll add a card on Stripe’s checkout</p>
                                 @endif
                             @else
                                 <button type="button" disabled
-                                    class="block w-full cursor-not-allowed rounded-[10px] border border-white/40 bg-white/20 py-2.5 text-center text-sm font-semibold text-white/85">
+                                    class="block w-full cursor-not-allowed rounded-[10px] border border-[#cccccc] bg-[#f5f5f5] py-2.5 text-center text-sm font-semibold text-[#888888]">
                                     Coming soon
                                 </button>
                             @endif
                         </form>
 
-                        <div class="mt-5 text-center text-sm text-white/85">
+                        <div class="mt-5 text-center text-sm text-[#444444]">
                             @if ($domainLimit)
                                 Protect up to {{ $domainLimit }} website{{ $domainLimit === 1 ? '' : 's' }}<br>
                             @endif
                             @if ($visits)
                                 For sites with total traffic up to<br>
-                                <span class="font-semibold text-white">{{ number_format($visits / 1000) }}k visits/month</span>
+                                <span class="font-semibold text-[#1c1c1c]">{{ number_format($visits / 1000) }}k visits/month</span>
                             @endif
                         </div>
 
                         <div class="mt-6">
-                            <span class="inline-block rounded-md border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold text-white">
+                            <span class="inline-block rounded-md border border-[#FF6600]/35 bg-[#fff4ef] px-3 py-1 text-xs font-semibold text-[#1c1c1c]">
                                 Plan includes:
                             </span>
-                            <ul class="mt-3 space-y-1.5 text-sm text-white/90">
+                            <ul class="mt-3 space-y-1.5 text-sm text-[#333333]">
                                 @foreach ($featureList as $line)
                                     <li class="leading-relaxed">{!! $line !!}</li>
                                 @endforeach

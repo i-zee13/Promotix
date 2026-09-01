@@ -970,9 +970,9 @@
                 <div class="mt-[14px] flex items-end justify-between gap-[10px]">
                     <div>
                         <p class="paid-traffic-metrics__label">Cost Saved</p>
-                        <p class="text-[16px] font-semibold leading-none text-white">$<span x-text="Number(summary.cost_saved || 0).toFixed(2)"></span></p>
+                        <p class="text-[16px] font-semibold leading-none text-white"><span x-text="summary.cost_saved_label || (activeCurrencySymbol() + Number(summary.cost_saved || 0).toFixed(2))"></span></p>
                     </div>
-                    <p class="text-[9px] text-white/45" x-show="summary.avg_cpc">Avg CPC $<span x-text="Number(summary.avg_cpc || 0).toFixed(2)"></span></p>
+                    <p class="text-[9px] text-white/45" x-show="summary.avg_cpc">Avg CPC <span x-text="activeCurrencySymbol() + Number(summary.avg_cpc || 0).toFixed(2)"></span></p>
                 </div>
                 <div class="mt-auto pt-[12px]">
                     <div class="mb-[4px] flex items-center justify-between text-[9px]">
@@ -1071,7 +1071,7 @@
                                             <td class="truncate" :title="row.campaign" x-text="row.campaign"></td>
                                             <td x-text="fmt(row.total)"></td>
                                             <td x-text="(row.invalid_pct != null ? row.invalid_pct : 0) + '%'"></td>
-                                            <td>$<span x-text="Number(row.cost_saved || 0).toFixed(2)"></span></td>
+                                            <td><span x-text="row.cost_saved_label || (activeCurrencySymbol() + Number(row.cost_saved || 0).toFixed(2))"></span></td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -1817,7 +1817,7 @@ function paidAdvertisingFigma(config = {}) {
                     { label: 'Invalid clicks detected', value: fmt(invalid) },
                     { label: 'IPs blocked', value: fmt(blocked) },
                     { label: 'Monitored / flagged', value: fmt(this.summary.flagged_paid_visits) },
-                    { label: 'Cost saved', value: `$${Number(this.summary.cost_saved || 0).toFixed(2)}` },
+                    { label: 'Cost saved', value: this.summary.cost_saved_label || `${this.activeCurrencySymbol()}${Number(this.summary.cost_saved || 0).toFixed(2)}` },
                 ];
                 feed.innerHTML = items.map((item) => `
                     <div class="flex items-start justify-between gap-[8px] rounded-[6px] bg-[#0B0B0B]/55 px-[8px] py-[7px]">
@@ -1837,6 +1837,16 @@ function paidAdvertisingFigma(config = {}) {
             const entry = id ? this.domainCatalog[id] : null;
             this.userTimezone = this.resolveReportingTimezone(entry?.google_timezone || null);
             this.syncPaidTimezoneHeader();
+        },
+        activeCurrencySymbol() {
+            if (this.summary?.currency_symbol) return this.summary.currency_symbol;
+            const id = String(this.filters.domain_id || '');
+            const entry = id ? this.domainCatalog[id] : null;
+            if (entry?.currency_code) {
+                const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: '₨', AED: 'د.إ' };
+                return map[entry.currency_code] || `${entry.currency_code} `;
+            }
+            return '$';
         },
         syncPaidTimezoneHeader() {
             window.promotixSyncPaidTimezoneHeader?.(this.domainTimezoneChip, this.timezoneContextPanel);

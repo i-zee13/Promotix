@@ -227,12 +227,16 @@ class UserTimezone
             ? $domain->googleAdsAccount->time_zone
             : null;
 
+        $currencyCode = \App\Support\AccountCurrency::fromDomain($domain);
+
         return [
             'id' => (int) $domain->id,
             'hostname' => $domain->hostname,
             'google_account_name' => $domain->googleAdsAccount?->displayLabel(),
             'google_timezone' => $googleTz,
             'google_timezone_label' => self::formatDisplay($googleTz),
+            'currency_code' => $currencyCode,
+            'currency_label' => \App\Support\AccountCurrency::label($currencyCode),
         ];
     }
 

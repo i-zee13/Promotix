@@ -33,6 +33,7 @@ use App\Http\Controllers\SuperAdmin\SubscriptionsController as SuperAdminSubscri
 use App\Http\Controllers\SuperAdmin\SupportPagesController as SuperAdminSupportPagesController;
 use App\Http\Controllers\SuperAdmin\TicketsController as SuperAdminTicketsController;
 use App\Http\Controllers\SuperAdmin\RolesController as SuperAdminRolesController;
+use App\Http\Controllers\SuperAdmin\TeamsController as SuperAdminTeamsController;
 use App\Http\Controllers\SuperAdmin\UsersController as SuperAdminUsersController;
 use App\Http\Controllers\SuperAdmin\IpAllowlistController as SuperAdminIpAllowlistController;
 use App\Http\Controllers\CountryFlagController;
@@ -119,6 +120,10 @@ Route::middleware(['auth', 'super-admin'])
         Route::post('/billing-automation', [BillingAutomationController::class, 'update'])->name('billing-automation.update');
         Route::post('/users/invite', [SuperAdminUsersController::class, 'invite'])->name('users.invite');
         Route::post('/users/create', [SuperAdminUsersController::class, 'store'])->name('users.store');
+        Route::post('/teams', [SuperAdminTeamsController::class, 'store'])->name('teams.store');
+        Route::post('/teams/{team}/assign-member', [SuperAdminTeamsController::class, 'assignMember'])->name('teams.assign-member');
+        Route::put('/teams/{team}', [SuperAdminTeamsController::class, 'update'])->name('teams.update');
+        Route::delete('/teams/{team}', [SuperAdminTeamsController::class, 'destroy'])->name('teams.destroy');
         Route::get('/domains', [SuperAdminSupportPagesController::class, 'domains'])->name('domains.index');
         Route::patch('/domains/{domain}/tracking', [SuperAdminSupportPagesController::class, 'toggleDomainTracking'])->name('domains.toggle-tracking');
         Route::patch('/domains/{domain}/force-verify', [SuperAdminSupportPagesController::class, 'forceVerifyDomain'])->name('domains.force-verify');

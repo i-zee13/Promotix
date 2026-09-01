@@ -40,22 +40,25 @@ class GoogleAdsAccountTimezoneService
         }
 
         $version = $apiVersion ?? ($this->connectionApi->apiVersions()[0] ?? 'v24');
-        $timezone = $this->fetchCustomerTimezone($version, $customerId, $headers);
+        $metadata = $this->fetchCustomerMetadata($version, $customerId, $headers);
 
-        if ($timezone !== null) {
-            $account->forceFill(['time_zone' => $timezone])->save();
+        if ($metadata !== []) {
+            $account->forceFill($metadata)->save();
         }
 
         return $account->time_zone;
     }
 
-    private function fetchCustomerTimezone(string $apiVersion, string $customerId, array $headers): ?string
+    /**
+     * @return array<string, string>
+     */
+    private function fetchCustomerMetadata(string $apiVersion, string $customerId, array $headers): array
     {
         $developerToken = (string) config('services.google_ads.developer_token');
         if ($developerToken === '') {
             Log::warning('Google Ads customer timezone fetch skipped: missing GOOGLE_ADS_DEVELOPER_TOKEN');
 
-            return null;
+            return [];
         }
 
         $url = sprintf(
@@ -68,7 +71,7 @@ class GoogleAdsAccountTimezoneService
             'developer-token' => $developerToken,
             'Content-Type' => 'application/json',
         ]))->post($url, [
-            'query' => 'SELECT customer.id, customer.time_zone FROM customer LIMIT 1',
+            'query' => 'SELECT customer.id, customer.time_zone, customer.currency_code FROM customer LIMIT 1',
         ]);
 
         if (! $response->successful()) {
@@ -77,7 +80,7 @@ class GoogleAdsAccountTimezoneService
                 'status' => $response->status(),
             ]);
 
-            return null;
+            return [];
         }
 
         foreach ($response->json() as $chunk) {
@@ -88,13 +91,23 @@ class GoogleAdsAccountTimezoneService
             foreach ($chunk['results'] ?? [] as $row) {
                 $customer = $row['customer'] ?? [];
                 $timezone = trim((string) ($customer['timeZone'] ?? $customer['time_zone'] ?? ''));
+                $currency = strtoupper(trim((string) ($customer['currencyCode'] ?? $customer['currency_code'] ?? '')));
+                $payload = [];
 
                 if (UserTimezone::isValid($timezone)) {
-                    return $timezone;
+                    $payload['time_zone'] = $timezone;
+                }
+
+                if (strlen($currency) === 3) {
+                    $payload['currency_code'] = $currency;
+                }
+
+                if ($payload !== []) {
+                    return $payload;
                 }
             }
         }
 
-        return null;
+        return [];
     }
 }
