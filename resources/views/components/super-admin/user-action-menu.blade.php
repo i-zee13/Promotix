@@ -28,7 +28,7 @@
         </button>
     </form>
 
-    <a href="{{ route('super-admin.users.show', $user) }}#roles" class="figma-sa-users-action-item">
+    <a href="{{ route('super-admin.users.show', $user) }}#portal-users" class="figma-sa-users-action-item">
         <svg class="figma-sa-users-action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V4a2 2 0 114 0v2m-4 6h.01M9 16h.01"/></svg>
         Roles
     </a>

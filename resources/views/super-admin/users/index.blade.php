@@ -114,7 +114,11 @@
         </form>
 
         @if ($tab === 'users' || $tab === 'teams')
-            <div @class(['figma-sa-users-table-shell', 'mb-[20px]' => $tab === 'teams'])>
+            <div @class([
+                'figma-sa-users-table-shell',
+                'figma-sa-users-table-shell--teams' => $tab === 'teams',
+                'mb-[20px]' => $tab === 'teams',
+            ])>
                 <div class="figma-sa-table-scroll">
                     <table class="figma-sa-users-table">
                         <thead>

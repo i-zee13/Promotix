@@ -93,6 +93,10 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/users/{user}', [SuperAdminUsersController::class, 'show'])->name('users.show');
         Route::post('/users/{user}/assign-plan', [SuperAdminUsersController::class, 'assignPlan'])->name('users.assign-plan');
         Route::post('/users/{user}/assign-team', [SuperAdminUsersController::class, 'assignTeam'])->name('users.assign-team');
+        Route::patch('/users/{user}/workspace-role', [SuperAdminUsersController::class, 'updateWorkspaceRole'])->name('users.workspace-role');
+        Route::patch('/users/{user}/portal-members/{member}/role', [SuperAdminUsersController::class, 'updatePortalMemberRole'])->name('users.portal-members.update-role');
+        Route::delete('/users/{user}/portal-members/{member}', [SuperAdminUsersController::class, 'removePortalMember'])->name('users.portal-members.destroy');
+        Route::post('/users/{user}/transfer-ownership', [SuperAdminUsersController::class, 'transferOwnership'])->name('users.transfer-ownership');
         Route::put('/users/{user}', [SuperAdminUsersController::class, 'update'])->name('users.update');
         Route::patch('/users/{user}/status', [SuperAdminUsersController::class, 'status'])->name('users.status');
         Route::post('/users/{user}/reset-password', [SuperAdminUsersController::class, 'resetPassword'])->name('users.reset-password');

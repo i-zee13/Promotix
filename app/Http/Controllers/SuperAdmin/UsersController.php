@@ -12,6 +12,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Models\UserInvite;
 use App\Services\Mail\AppMailer;
+use App\Support\PortalTeamAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class UsersController extends Controller
@@ -218,15 +220,143 @@ class UsersController extends Controller
         return back()->with('status', 'User assigned to team by admin.');
     }
 
+    public function updateWorkspaceRole(Request $request, User $user): RedirectResponse
+    {
+        abort_if($user->team_owner_id !== null, 403, 'Only workspace owners can have their role set here.');
+
+        $data = $request->validate([
+            'role_id' => ['nullable', 'exists:roles,id'],
+        ]);
+
+        $oldRoleId = $user->role_id;
+        $user->update(['role_id' => $data['role_id'] ?? null]);
+
+        if ($oldRoleId !== $user->role_id) {
+            RoleChange::query()->create([
+                'user_id' => $user->id,
+                'old_role_id' => $oldRoleId,
+                'new_role_id' => $user->role_id,
+                'changed_by_id' => $request->user()->id,
+            ]);
+        }
+
+        return back()->with('status', 'Workspace owner role updated.');
+    }
+
+    public function updatePortalMemberRole(Request $request, User $user, User $member): RedirectResponse
+    {
+        abort_unless(
+            Schema::hasColumn('users', 'team_owner_id') && $member->team_owner_id === $user->id,
+            404
+        );
+
+        $teamRoleIds = PortalTeamAccess::teamRoles()->pluck('id')->all();
+
+        $data = $request->validate([
+            'role_id' => ['required', Rule::in($teamRoleIds)],
+        ]);
+
+        $oldRoleId = $member->role_id;
+        $member->update(['role_id' => $data['role_id']]);
+
+        if ($oldRoleId !== $member->role_id) {
+            RoleChange::query()->create([
+                'user_id' => $member->id,
+                'old_role_id' => $oldRoleId,
+                'new_role_id' => $member->role_id,
+                'changed_by_id' => $request->user()->id,
+            ]);
+        }
+
+        return back()->with('status', "Role updated for {$member->email}.");
+    }
+
+    public function removePortalMember(Request $request, User $user, User $member): RedirectResponse
+    {
+        abort_unless(
+            Schema::hasColumn('users', 'team_owner_id') && $member->team_owner_id === $user->id,
+            404
+        );
+
+        if ($member->is_super_admin) {
+            return back()->withErrors(['member' => 'Cannot remove a super admin from a workspace.']);
+        }
+
+        $email = $member->email;
+        $member->delete();
+
+        return back()->with('status', "Removed portal user {$email} from this workspace.");
+    }
+
+    public function transferOwnership(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(
+            Schema::hasColumn('users', 'team_owner_id') && $user->team_owner_id === null,
+            403,
+            'Only workspace owners can transfer ownership.'
+        );
+
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255', 'exists:users,email'],
+        ]);
+
+        $newOwner = User::query()->where('email', $data['email'])->firstOrFail();
+
+        if ($newOwner->id === $user->id) {
+            return back()->withErrors(['email' => 'That email already belongs to the current owner.']);
+        }
+
+        if ($newOwner->is_super_admin) {
+            return back()->withErrors(['email' => 'Cannot transfer ownership to a super admin account.']);
+        }
+
+        if ($newOwner->team_owner_id === null && $newOwner->teamMembers()->exists()) {
+            return back()->withErrors(['email' => 'That user already owns another workspace with members.']);
+        }
+
+        DB::transaction(function () use ($user, $newOwner): void {
+            User::query()
+                ->where('team_owner_id', $user->id)
+                ->update(['team_owner_id' => $newOwner->id]);
+
+            $user->update(['team_owner_id' => $newOwner->id]);
+
+            $newOwner->update(['team_owner_id' => null]);
+
+            if (Schema::hasTable('domains')) {
+                DB::table('domains')->where('user_id', $user->id)->update(['user_id' => $newOwner->id]);
+            }
+
+            if (Schema::hasTable('subscriptions')) {
+                DB::table('subscriptions')->where('user_id', $user->id)->update(['user_id' => $newOwner->id]);
+            }
+
+            if (Schema::hasTable('google_connections')) {
+                DB::table('google_connections')->where('user_id', $user->id)->update(['user_id' => $newOwner->id]);
+            }
+
+            if (! $newOwner->stripe_customer_id && $user->stripe_customer_id) {
+                $newOwner->update(['stripe_customer_id' => $user->stripe_customer_id]);
+                $user->update(['stripe_customer_id' => null]);
+            }
+        });
+
+        return redirect()
+            ->route('super-admin.users.show', $newOwner)
+            ->with('status', "Workspace ownership transferred to {$newOwner->email}. Domains, subscription, and members moved to the new owner.");
+    }
+
     public function show(User $user): View
     {
         $user->load([
             'role',
             'domains',
+            'paymentMethods',
             'roleChanges.oldRole',
             'roleChanges.newRole',
             'roleChanges.changedBy',
             'loginHistories' => fn ($q) => $q->limit(25),
+            'teams' => fn ($q) => $q->where('is_active', true)->orderBy('name'),
         ]);
 
         $assignablePlans = Plan::query()
@@ -253,26 +383,39 @@ class UsersController extends Controller
                 fn ($q) => $q->where('team_owner_id', $user->id),
                 fn ($q) => $q->whereRaw('1 = 0')
             )
-            ->with('role:id,name,slug')
+            ->with(['role:id,name,slug', 'teams' => fn ($q) => $q->where('is_active', true)->orderBy('name')])
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'role_id', 'status', 'created_at']);
+            ->get(['id', 'name', 'email', 'role_id', 'status', 'created_at', 'last_login_at']);
 
-        $userTeams = Schema::hasTable('teams')
-            ? Team::query()->whereHas('members', fn ($q) => $q->where('users.id', $user->id))->orderBy('name')->get()
+        $userTeams = $user->teams;
+        $assignedByIds = $userTeams->pluck('pivot.assigned_by')->filter()->unique()->values()->all();
+        $assignedByUsers = $assignedByIds !== []
+            ? User::query()->whereIn('id', $assignedByIds)->get()->keyBy('id')
             : collect();
 
         $assignableTeams = Schema::hasTable('teams')
             ? Team::query()->where('is_active', true)->orderBy('name')->get()
             : collect();
 
+        $primaryPaymentMethod = $user->paymentMethods->firstWhere('is_primary', true)
+            ?? $user->paymentMethods->first();
+
+        $activeSubscription = $user->activeSubscription();
+
         return view('super-admin.users.show', [
             'user' => $user,
             'assignablePlans' => $assignablePlans,
             'roles' => Role::orderBy('name')->get(),
+            'teamRoles' => PortalTeamAccess::teamRoles(),
             'pendingInvites' => $pendingInvites,
             'portalUsers' => $portalUsers,
             'userTeams' => $userTeams,
+            'assignedByUsers' => $assignedByUsers,
             'assignableTeams' => $assignableTeams,
+            'primaryPaymentMethod' => $primaryPaymentMethod,
+            'activeSubscription' => $activeSubscription,
+            'isWorkspaceOwner' => Schema::hasColumn('users', 'team_owner_id') && $user->team_owner_id === null,
+            'profileLanguage' => data_get($user->ui_preferences, 'language', 'English'),
         ]);
     }
 
