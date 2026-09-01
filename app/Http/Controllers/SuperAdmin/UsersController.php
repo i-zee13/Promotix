@@ -46,8 +46,12 @@ class UsersController extends Controller
             ->with(['role', 'domains'])
             ->withCount('teamMembers')
             ->when(
-                $tab === 'users' && Schema::hasColumn('users', 'team_owner_id'),
+                Schema::hasColumn('users', 'team_owner_id'),
                 fn ($query) => $query->whereNull('team_owner_id')
+            )
+            ->when(
+                $tab === 'teams',
+                fn ($query) => $query->has('teamMembers')
             )
             ->when($request->string('search')->toString(), function ($query, string $search): void {
                 $query->where(function ($q) use ($search): void {

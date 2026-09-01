@@ -113,8 +113,8 @@
             </button>
         </form>
 
-        @if ($tab === 'users')
-            <div class="figma-sa-users-table-shell">
+        @if ($tab === 'users' || $tab === 'teams')
+            <div @class(['figma-sa-users-table-shell', 'mb-[20px]' => $tab === 'teams'])>
                 <div class="figma-sa-table-scroll">
                     <table class="figma-sa-users-table">
                         <thead>
@@ -185,7 +185,13 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="figma-sa-users-empty">No users found.</td>
+                                    <td colspan="8" class="figma-sa-users-empty">
+                                        @if ($tab === 'teams')
+                                            No workspace owners with invited team members yet.
+                                        @else
+                                            No users found.
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -231,8 +237,10 @@
                     </div>
                 </div>
             </div>
-        @else
-            {{-- Teams board — real team columns only (admin-assigned members) --}}
+        @endif
+
+        @if ($tab === 'teams')
+            {{-- Admin-assigned team columns (unchanged) --}}
             <div class="figma-sa-teams-tabs">
                 @forelse (($teamColumns ?? array_keys($teamsBoard->all())) as $i => $col)
                     <button type="button" @class(['figma-sa-teams-tab', 'figma-sa-teams-tab--active' => $i === 0])>{{ $col }}</button>
