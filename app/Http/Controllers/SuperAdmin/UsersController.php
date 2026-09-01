@@ -12,6 +12,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Models\UserInvite;
 use App\Services\Mail\AppMailer;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -43,6 +44,7 @@ class UsersController extends Controller
 
         $baseQuery = User::query()
             ->with(['role', 'domains'])
+            ->withCount('teamMembers')
             ->when($request->string('search')->toString(), function ($query, string $search): void {
                 $query->where(function ($q) use ($search): void {
                     $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%");
@@ -151,6 +153,29 @@ class UsersController extends Controller
             'expiry' => 'pending',
             default => $status,
         };
+    }
+
+    public function teamMembersJson(User $user): JsonResponse
+    {
+        $members = User::query()
+            ->where('team_owner_id', $user->id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'status']);
+
+        return response()->json([
+            'owner' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+            'count' => $members->count(),
+            'members' => $members->map(fn (User $member) => [
+                'id' => $member->id,
+                'name' => $member->name,
+                'email' => $member->email,
+                'status' => $member->status ?? 'active',
+            ])->values(),
+        ]);
     }
 
     public function assignTeam(Request $request, User $user): RedirectResponse

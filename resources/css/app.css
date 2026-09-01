@@ -11247,12 +11247,13 @@ a.figma-sa-users-filter-option {
 
 .figma-sa-users-table th:nth-child(2),
 .figma-sa-users-table td:nth-child(2) {
-    width: 26%;
+    width: 24%;
 }
 
 .figma-sa-users-table th:nth-child(3),
 .figma-sa-users-table td:nth-child(3) {
-    width: 14%;
+    width: 8%;
+    text-align: center;
 }
 
 .figma-sa-users-table th:nth-child(4),
@@ -11267,7 +11268,17 @@ a.figma-sa-users-filter-option {
 
 .figma-sa-users-table th:nth-child(6),
 .figma-sa-users-table td:nth-child(6) {
-    width: 12%;
+    width: 10%;
+}
+
+.figma-sa-users-table th:nth-child(7),
+.figma-sa-users-table td:nth-child(7) {
+    width: 11%;
+}
+
+.figma-sa-users-table th:nth-child(8),
+.figma-sa-users-table td:nth-child(8) {
+    width: 10%;
 }
 
 .figma-sa-users-table th:last-child,
@@ -11275,6 +11286,37 @@ a.figma-sa-users-filter-option {
     width: 52px;
     padding-right: 10px;
     text-align: right;
+}
+
+.figma-sa-users-members-col {
+    text-align: center;
+}
+
+.figma-sa-users-members-count {
+    display: inline-flex;
+    min-width: 34px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 14%, #ffffff);
+    padding: 4px 10px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--brand-primary, #FF6600);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.figma-sa-users-members-count:hover {
+    background: var(--brand-primary, #FF6600);
+    color: #ffffff;
+}
+
+.figma-sa-users-members-empty {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(18, 18, 18, 0.35);
 }
 
 .figma-sa-users-table thead tr {
@@ -11733,6 +11775,68 @@ a.figma-sa-users-filter-option {
     font-size: 13px;
     color: #6b6280;
     line-height: 1.5;
+}
+
+.figma-sa-users-modal--team {
+    max-width: 520px;
+}
+
+.figma-sa-users-team-modal-body {
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.figma-sa-users-team-modal-hint {
+    padding: 12px 0;
+    font-size: 13px;
+    color: #6b6280;
+}
+
+.figma-sa-users-team-modal-error {
+    padding: 12px 0;
+    font-size: 13px;
+    color: #dc2626;
+}
+
+.figma-sa-users-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.figma-sa-users-team-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 8px;
+    border: 1px solid #e8d4c4;
+    background: #fff8f4;
+    padding: 10px 12px;
+}
+
+.figma-sa-users-team-list-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2d2d3a;
+}
+
+.figma-sa-users-team-list-email {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #6b6280;
+    word-break: break-all;
+}
+
+.figma-sa-users-team-list-status {
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 18%, #ffffff);
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--brand-primary, #FF6600);
+    text-transform: capitalize;
 }
 
 .figma-sa-users-modal .figma-sa-label {

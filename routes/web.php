@@ -89,6 +89,7 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/', fn () => redirect()->route('super-admin.dashboard'))->name('home');
         Route::get('/users', [SuperAdminUsersController::class, 'index'])->name('users.index');
+        Route::get('/users/{user}/team-members', [SuperAdminUsersController::class, 'teamMembersJson'])->name('users.team-members');
         Route::get('/users/{user}', [SuperAdminUsersController::class, 'show'])->name('users.show');
         Route::post('/users/{user}/assign-plan', [SuperAdminUsersController::class, 'assignPlan'])->name('users.assign-plan');
         Route::post('/users/{user}/assign-team', [SuperAdminUsersController::class, 'assignTeam'])->name('users.assign-team');

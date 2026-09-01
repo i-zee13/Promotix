@@ -11,7 +11,27 @@
 @endphp
 
 <x-super-admin.page title="Users & Teams">
-    <div class="figma-sa-users" x-data="{ tab: @js($tab), inviteOpen: false, inviteMode: 'invite' }">
+    <div class="figma-sa-users" x-data="{
+        tab: @js($tab),
+        inviteOpen: false,
+        inviteMode: 'invite',
+        teamModal: { open: false, loading: false, ownerName: '', ownerEmail: '', members: [], error: '' },
+        async openTeamModal(userId, ownerName, ownerEmail) {
+            this.teamModal = { open: true, loading: true, ownerName, ownerEmail, members: [], error: '' };
+            try {
+                const res = await fetch(@js(url('/super-admin/users')).replace(/\/$/, '') + '/' + userId + '/team-members', {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!res.ok) throw new Error('load failed');
+                const data = await res.json();
+                this.teamModal.members = data.members || [];
+            } catch (e) {
+                this.teamModal.error = 'Could not load team members.';
+            } finally {
+                this.teamModal.loading = false;
+            }
+        },
+    }">
         {{-- View tabs: Users list vs Teams board --}}
         <div class="figma-sa-users-view-tabs mb-[14px]">
             <a href="{{ route('super-admin.users.index', array_merge($query, ['tab' => 'users'])) }}"
@@ -105,6 +125,7 @@
                                         <svg class="h-3 w-3 opacity-60" fill="currentColor" viewBox="0 0 20 20"><path d="M5 12l5-5 5 5H5z"/></svg>
                                     </span>
                                 </th>
+                                <th>Members</th>
                                 <th>Email</th>
                                 <th>Plan Filter</th>
                                 <th>Status</th>
@@ -117,6 +138,7 @@
                                 @php
                                     $status = $user->status ?? 'active';
                                     $planLabel = $user->current_plan_name ?? ($user->is_trialing ? 'Trial' : '—');
+                                    $memberCount = (int) ($user->team_members_count ?? 0);
                                 @endphp
                                 <tr>
                                     <td><input type="checkbox" class="figma-sa-users-checkbox" aria-label="Select {{ $user->name }}"></td>
@@ -130,6 +152,18 @@
                                                 <span class="figma-sa-users-subemail">{{ $user->email }}</span>
                                             </span>
                                         </div>
+                                    </td>
+                                    <td class="figma-sa-users-members-col">
+                                        @if ($memberCount > 0)
+                                            <button
+                                                type="button"
+                                                class="figma-sa-users-members-count"
+                                                @click="openTeamModal({{ $user->id }}, @js($user->name), @js($user->email))"
+                                                title="View team members"
+                                            >{{ $memberCount }}</button>
+                                        @else
+                                            <span class="figma-sa-users-members-empty">0</span>
+                                        @endif
                                     </td>
                                     <td class="figma-sa-users-role-col">{{ $user->role?->name ?? ($user->is_admin ? 'Admin' : 'Member') }}</td>
                                     <td>
@@ -151,7 +185,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="figma-sa-users-empty">No users found.</td>
+                                    <td colspan="8" class="figma-sa-users-empty">No users found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -242,6 +276,47 @@
                 @endforeach
             </div>
         @endif
+
+        {{-- Workspace team members modal --}}
+        <div
+            x-show="teamModal.open"
+            x-cloak
+            class="figma-sa-users-modal-backdrop"
+            @keydown.escape.window="teamModal.open = false"
+        >
+            <div class="figma-sa-users-modal figma-sa-users-modal--team" @click.outside="teamModal.open = false" role="dialog" aria-labelledby="team-members-title">
+                <button type="button" class="figma-sa-users-modal-close" @click="teamModal.open = false" aria-label="Close">&times;</button>
+                <h2 id="team-members-title" class="figma-sa-users-modal-title">Team members</h2>
+                <p class="figma-sa-users-modal-sub">
+                    <span x-text="teamModal.ownerName"></span>
+                    <span> · </span>
+                    <span x-text="teamModal.ownerEmail"></span>
+                </p>
+
+                <div class="figma-sa-users-team-modal-body mt-4">
+                    <p x-show="teamModal.loading" class="figma-sa-users-team-modal-hint">Loading members…</p>
+                    <p x-show="teamModal.error" x-text="teamModal.error" class="figma-sa-users-team-modal-error" x-cloak></p>
+                    <template x-if="!teamModal.loading && !teamModal.error && teamModal.members.length === 0">
+                        <p class="figma-sa-users-team-modal-hint">No team members yet.</p>
+                    </template>
+                    <ul x-show="!teamModal.loading && teamModal.members.length" class="figma-sa-users-team-list" x-cloak>
+                        <template x-for="member in teamModal.members" :key="member.id">
+                            <li class="figma-sa-users-team-list-item">
+                                <div class="min-w-0">
+                                    <p class="figma-sa-users-team-list-name" x-text="member.name"></p>
+                                    <p class="figma-sa-users-team-list-email" x-text="member.email"></p>
+                                </div>
+                                <span class="figma-sa-users-team-list-status" x-text="member.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : 'Active'"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+
+                <div class="mt-5 flex justify-end">
+                    <button type="button" class="figma-sa-btn figma-sa-btn-primary" @click="teamModal.open = false">Close</button>
+                </div>
+            </div>
+        </div>
 
         {{-- Invite / Create users modal --}}
         <div
