@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 class SaasProduct extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['name', 'slug', 'description', 'is_active', 'settings'];
+    protected $fillable = ['name', 'slug', 'description', 'icon_path', 'is_active', 'settings'];
 
     protected function casts(): array
     {
@@ -30,6 +31,17 @@ class SaasProduct extends Model
     public function gatesCustomerPortal(): bool
     {
         return (bool) data_get($this->settings, 'gates_customer_portal', false);
+    }
+
+    public function iconUrl(): ?string
+    {
+        $path = trim((string) ($this->icon_path ?? ''));
+
+        if ($path === '' || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     /**

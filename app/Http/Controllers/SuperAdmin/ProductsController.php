@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\SaasProduct;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -55,12 +57,14 @@ class ProductsController extends Controller
             'description' => ['nullable', 'string'],
             'type' => ['nullable', 'in:'.implode(',', self::PRODUCT_TYPES)],
             'is_active' => ['nullable', 'boolean'],
+            'icon' => ['nullable', 'file', 'mimes:png,svg', 'max:2048'],
         ]);
 
         SaasProduct::create([
             'name' => $data['name'],
             'slug' => Str::slug($data['name']).'-'.Str::lower(Str::random(5)),
             'description' => $data['description'] ?? null,
+            'icon_path' => $this->storeProductIcon($request->file('icon')),
             'is_active' => (bool) ($data['is_active'] ?? true),
             'settings' => ['type' => $data['type'] ?? 'tracking'],
         ]);
@@ -76,6 +80,8 @@ class ProductsController extends Controller
             'type' => ['nullable', 'in:'.implode(',', self::PRODUCT_TYPES)],
             'is_active' => ['nullable', 'boolean'],
             'usage_limits' => ['nullable', 'string'],
+            'icon' => ['nullable', 'file', 'mimes:png,svg', 'max:2048'],
+            'remove_icon' => ['nullable', 'boolean'],
         ]);
 
         $settings = $product->settings ?? [];
@@ -88,9 +94,22 @@ class ProductsController extends Controller
             $settings['gates_customer_portal'] = true;
         }
 
+        $iconPath = $product->icon_path;
+
+        if ($request->boolean('remove_icon')) {
+            $this->deleteProductIcon($iconPath);
+            $iconPath = null;
+        }
+
+        if ($request->hasFile('icon')) {
+            $this->deleteProductIcon($iconPath);
+            $iconPath = $this->storeProductIcon($request->file('icon'));
+        }
+
         $product->update([
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
+            'icon_path' => $iconPath,
             'is_active' => (bool) ($data['is_active'] ?? false),
             'settings' => $settings,
         ]);
@@ -112,8 +131,29 @@ class ProductsController extends Controller
 
     public function destroy(SaasProduct $product): RedirectResponse
     {
+        $this->deleteProductIcon($product->icon_path);
         $product->delete();
 
         return back()->with('status', 'Product archived.');
+    }
+
+    private function storeProductIcon(?UploadedFile $file): ?string
+    {
+        if (! $file) {
+            return null;
+        }
+
+        return $file->store('product-icons', 'public');
+    }
+
+    private function deleteProductIcon(?string $path): void
+    {
+        $path = trim((string) ($path ?? ''));
+
+        if ($path === '') {
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
     }
 }

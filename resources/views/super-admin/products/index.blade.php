@@ -19,6 +19,7 @@
             'type' => $p->settings['type'] ?? 'tracking',
             'is_active' => (bool) $p->is_active,
             'usage_limits' => $p->settings['usage_limits'] ?? '',
+            'icon_url' => $p->iconUrl(),
         ],
     ]);
 @endphp
@@ -32,9 +33,23 @@
             limitsOpen: false,
             editingId: null,
             products: @js($productsMap),
+            createIconPreview: null,
+            editIconPreview: null,
             get editing() { return this.editingId ? this.products[this.editingId] : null; },
-            openEdit(id) { this.editingId = id; this.editOpen = true; },
+            openEdit(id) {
+                this.editingId = id;
+                this.editIconPreview = null;
+                this.editOpen = true;
+            },
             openLimits(id) { this.editingId = id; this.limitsOpen = true; },
+            previewIcon(event, target) {
+                const file = event.target.files?.[0];
+                if (!file) {
+                    this[target] = null;
+                    return;
+                }
+                this[target] = URL.createObjectURL(file);
+            },
         }"
         @edit-product.window="openEdit($event.detail.id)"
         @limits-product.window="openLimits($event.detail.id)"
@@ -223,7 +238,7 @@
                 <button type="button" class="figma-sa-users-modal-close" @click="createOpen = false">&times;</button>
                 <h2 class="figma-sa-users-modal-title">New Product</h2>
                 <p class="figma-sa-users-modal-sub">Add a SaaS product module (tracking, automation, or analytics).</p>
-                <form method="POST" action="{{ route('super-admin.products.store') }}" class="mt-5 space-y-4">
+                <form method="POST" action="{{ route('super-admin.products.store') }}" enctype="multipart/form-data" class="mt-5 space-y-4">
                     @csrf
                     <div>
                         <label class="figma-sa-label">Name</label>
@@ -232,6 +247,20 @@
                     <div>
                         <label class="figma-sa-label">Description</label>
                         <textarea name="description" rows="2" class="figma-input mt-1 w-full" placeholder="Short description"></textarea>
+                    </div>
+                    <div>
+                        <label class="figma-sa-label">Product image</label>
+                        <p class="mt-1 text-xs text-[#8c8787]">PNG or SVG, max 2 MB. Shown in the products table.</p>
+                        <input
+                            type="file"
+                            name="icon"
+                            accept="image/png,image/svg+xml,.png,.svg"
+                            class="figma-sa-settings-input mt-2 !py-2 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-[11px] file:text-white"
+                            @change="previewIcon($event, 'createIconPreview')"
+                        >
+                        <div x-show="createIconPreview" x-cloak class="mt-3">
+                            <img :src="createIconPreview" alt="" class="figma-sa-products-icon-img h-[63px] w-[63px]">
+                        </div>
                     </div>
                     <div>
                         <label class="figma-sa-label">Type</label>
@@ -260,7 +289,7 @@
                 <button type="button" class="figma-sa-users-modal-close" @click="editOpen = false">&times;</button>
                 <h2 class="figma-sa-users-modal-title">View / Edit Product</h2>
                 <template x-if="editing">
-                    <form :action="`{{ url('super-admin/products') }}/${editing.id}`" method="POST" class="mt-5 space-y-4">
+                    <form :action="`{{ url('super-admin/products') }}/${editing.id}`" method="POST" enctype="multipart/form-data" class="mt-5 space-y-4">
                         @csrf
                         @method('PUT')
                         <div>
@@ -270,6 +299,24 @@
                         <div>
                             <label class="figma-sa-label">Description</label>
                             <textarea name="description" rows="2" class="figma-input mt-1 w-full" x-model="editing.description"></textarea>
+                        </div>
+                        <div>
+                            <label class="figma-sa-label">Product image</label>
+                            <p class="mt-1 text-xs text-[#8c8787]">PNG or SVG, max 2 MB.</p>
+                            <div x-show="editIconPreview || editing.icon_url" x-cloak class="mb-3">
+                                <img :src="editIconPreview || editing.icon_url" alt="" class="figma-sa-products-icon-img h-[63px] w-[63px]">
+                            </div>
+                            <input
+                                type="file"
+                                name="icon"
+                                accept="image/png,image/svg+xml,.png,.svg"
+                                class="figma-sa-settings-input !py-2 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-[11px] file:text-white"
+                                @change="previewIcon($event, 'editIconPreview')"
+                            >
+                            <label x-show="editing.icon_url" class="mt-2 inline-flex items-center gap-2 text-xs text-[#d9d9d9]">
+                                <input type="checkbox" name="remove_icon" value="1" class="rounded border-white/20">
+                                Remove current image
+                            </label>
                         </div>
                         <div>
                             <label class="figma-sa-label">Type</label>

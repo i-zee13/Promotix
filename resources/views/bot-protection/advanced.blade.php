@@ -110,12 +110,16 @@
             .analytics-skin .bp-adv-kpi-card {
                 border-color: rgba(255, 102, 0, 0.55);
             }
-            .analytics-skin .bp-adv-kpi-card__icon.is-purple {
+            .analytics-skin .bp-adv-kpi-card__icon.is-purple,
+            .analytics-skin .bp-adv-kpi-card__icon.is-orange {
                 background: rgba(255, 102, 0, 0.22);
                 color: #FFB380;
             }
             .analytics-skin .bp-adv-country-row__bar {
                 background: #FF6600;
+            }
+            .analytics-skin .bp-adv-donut {
+                --bp-donut: conic-gradient(rgba(255, 102, 0, 0.25) 0 100%);
             }
             /* Orange scrollbars on Traffic Control table */
             .analytics-skin .pm-adv-table-x-scroll,
@@ -207,7 +211,8 @@
                 border-radius: 7px;
                 margin-bottom: 10px;
             }
-            .bp-adv-kpi-card__icon.is-purple { background: rgba(100, 0, 178, 0.28); color: #c4b5fd; }
+            .bp-adv-kpi-card__icon.is-purple,
+            .bp-adv-kpi-card__icon.is-orange { background: rgba(255, 102, 0, 0.22); color: #FFB380; }
             .bp-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.18); color: #86efac; }
             .bp-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.18); color: #fda4af; }
             .bp-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
@@ -257,8 +262,10 @@
             html.light-mode .bp-adv-kpi-card__label,
             html.light-mode .bp-adv-kpi-card__sub { color: #6b6280; }
             html.light-mode .bp-adv-kpi-card__value { color: #1a1a1a; }
-            html.light-mode .bp-adv-kpi-card__icon.is-purple { background: rgba(100, 0, 178, 0.12); color: #6400B2; }
+            html.light-mode .bp-adv-kpi-card__icon.is-purple,
+            html.light-mode .bp-adv-kpi-card__icon.is-orange { background: rgba(255, 102, 0, 0.14); color: #ea580c; }
             html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-purple,
+            html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-orange,
             html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-green,
             html.light-mode .analytics-skin .bp-adv-kpi-card__icon.is-amber {
                 background: rgba(255, 102, 0, 0.14);
@@ -698,7 +705,7 @@
                 min-width: 0;
             }
             .bp-adv-donut {
-                --bp-donut: conic-gradient(rgba(100,0,178,0.25) 0 100%);
+                --bp-donut: conic-gradient(rgba(255, 102, 0, 0.25) 0 100%);
                 width: 118px;
                 height: 118px;
                 border-radius: 999px;
@@ -837,7 +844,7 @@
                 display: block;
                 height: 100%;
                 border-radius: 999px;
-                background: #6400B2;
+                background: #FF6600;
             }
             .bp-adv-country-row__meta {
                 font-size: 11px;
@@ -1063,7 +1070,7 @@
         <div class="bp-adv-kpi-grid">
             <template x-for="card in statCards" :key="card.key">
                 <article class="bp-adv-kpi-card">
-                    <span class="bp-adv-kpi-card__icon" :class="'is-' + (card.tone || 'purple')" aria-hidden="true">
+                    <span class="bp-adv-kpi-card__icon" :class="'is-' + (card.tone || 'orange')" aria-hidden="true">
                         <template x-if="card.key === 'visitors'">
                             <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
                         </template>
@@ -1342,7 +1349,7 @@
                 <h3 class="bp-adv-chart-card__title">Threat Distribution</h3>
                 <p class="mb-2 -mt-1 text-[11px] text-white/45">Valid Paid · Suspicious · Repeat · Automated · VPN/Proxy · Datacenter · Out-of-Geo</p>
                 <div class="bp-adv-chart-card__body">
-                    <div class="bp-adv-donut" :style="`--bp-donut: ${threatDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                    <div class="bp-adv-donut" :style="`--bp-donut: ${threatDonut.gradient || 'conic-gradient(rgba(255,102,0,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">
                             <p class="bp-adv-donut__value" x-text="threatDonut.total_label || '0'"></p>
                             <p class="bp-adv-donut__label" x-text="chartThreat.center_label || 'Invalid Clicks'"></p>
@@ -1377,7 +1384,7 @@
                 <h3 class="bp-adv-chart-card__title">Risk Level Distribution</h3>
                 <p class="mb-2 -mt-1 text-[11px] text-white/45">Low = clean · Medium = some signals · High = strong suspicion · Critical = likely fraud</p>
                 <div class="bp-adv-chart-card__body">
-                    <div class="bp-adv-donut" :style="`--bp-donut: ${riskDonut.gradient || 'conic-gradient(rgba(100,0,178,0.25) 0 100%)'}`">
+                    <div class="bp-adv-donut" :style="`--bp-donut: ${riskDonut.gradient || 'conic-gradient(rgba(255,102,0,0.25) 0 100%)'}`">
                         <div class="bp-adv-donut__inner">
                             <p class="bp-adv-donut__value" x-text="riskDonut.total_label || '0'"></p>
                             <p class="bp-adv-donut__label" x-text="chartRisk.center_label || 'Unique IPs'"></p>
@@ -1726,7 +1733,7 @@ function botProtectionAdvancedFigma(config = {}) {
                 cursor = next;
             });
             if (!stops.length) {
-                stops.push('rgba(100,0,178,0.25) 0% 100%');
+                stops.push('rgba(255, 102, 0, 0.25) 0% 100%');
             }
             return {
                 visible_total: total,
@@ -1789,8 +1796,8 @@ function botProtectionAdvancedFigma(config = {}) {
             return [
                 { key: 'blocked', label: 'Blocked', value: this.stats.blocked ?? 0, tone: 'rose', sub: 'Blocked actions in range', asPercent: true },
                 { key: 'invalid_traffic', label: 'Invalid Traffic', value: this.stats.invalid_traffic ?? 0, tone: 'amber', sub: 'Flagged as invalid', asPercent: true },
-                { key: 'paid_traffic', label: 'Paid Traffic', value: this.stats.paid_traffic ?? 0, tone: 'purple', sub: 'Attributed paid share', asPercent: true },
-                { key: 'bot_detection', label: 'Bot Detection', value: this.stats.bot_detection ?? 0, tone: 'purple', sub: 'VPN / DC / rate threats', asPercent: true },
+                { key: 'paid_traffic', label: 'Paid Traffic', value: this.stats.paid_traffic ?? 0, tone: 'orange', sub: 'Attributed paid share', asPercent: true },
+                { key: 'bot_detection', label: 'Bot Detection', value: this.stats.bot_detection ?? 0, tone: 'orange', sub: 'VPN / DC / rate threats', asPercent: true },
                 { key: 'country', label: 'Country', value: this.stats.country ?? 0, tone: 'amber', sub: 'Visits with country data', asPercent: true },
                 { key: 'overall', label: 'Overall', value: this.stats.overall ?? 0, tone: 'green', sub: 'Valid traffic share', asPercent: true },
             ];
