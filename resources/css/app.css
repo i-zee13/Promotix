@@ -11546,9 +11546,11 @@ a.figma-sa-users-filter-option {
     padding: 4px 0;
 }
 
-.figma-sa-users-empty {
+.figma-sa-users-table tbody td.figma-sa-users-empty {
+    width: 100% !important;
+    max-width: none;
     padding: 48px 16px !important;
-    text-align: center;
+    text-align: center !important;
     color: rgba(18, 18, 18, 0.55);
 }
 
