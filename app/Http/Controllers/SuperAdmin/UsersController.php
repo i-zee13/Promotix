@@ -45,6 +45,10 @@ class UsersController extends Controller
         $baseQuery = User::query()
             ->with(['role', 'domains'])
             ->withCount('teamMembers')
+            ->when(
+                $tab === 'users' && Schema::hasColumn('users', 'team_owner_id'),
+                fn ($query) => $query->whereNull('team_owner_id')
+            )
             ->when($request->string('search')->toString(), function ($query, string $search): void {
                 $query->where(function ($q) use ($search): void {
                     $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%");
