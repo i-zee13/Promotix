@@ -4,11 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SupportTicket;
-use App\Models\SupportTicketMessage;
+use App\Support\SupportTicketInbox;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SupportSystemController extends Controller
@@ -94,65 +93,17 @@ class SupportSystemController extends Controller
 
         $tickets = SupportTicket::query()
             ->where('user_id', $user->id)
+            ->with(['requester:id,name,email', 'owner:id,name,email'])
             ->latest('updated_at')
             ->limit(200)
             ->get();
 
-        $lastBodies = SupportTicketMessage::query()
-            ->select('support_ticket_id', 'body')
-            ->whereIn('support_ticket_id', $tickets->pluck('id')->filter())
-            ->whereIn('id', function ($query): void {
-                $query->selectRaw('max(id)')
-                    ->from('support_ticket_messages')
-                    ->groupBy('support_ticket_id');
-            })
-            ->pluck('body', 'support_ticket_id');
-
-        $ticketRows = $tickets->map(function (SupportTicket $item) use ($lastBodies) {
-            $preview = $lastBodies[$item->id] ?? $item->body ?? '';
-
-            return [
-                'id' => $item->id,
-                'href' => route('support-system.show', $item),
-                'subject' => $item->subject,
-                'number' => $item->ticket_number ?: ('#'.$item->id),
-                'preview' => Str::limit(trim(preg_replace('/\s+/', ' ', (string) $preview) ?? ''), 80),
-                'status' => $item->status,
-                'when' => ($item->updated_at ?? $item->created_at)?->diffForHumans() ?? '',
-            ];
-        })->all();
-
-        $thread = [];
-        if ($ticket) {
-            $ticket->load(['messages.user:id,name,email', 'requester:id,name,email']);
-
-            if (filled($ticket->body)) {
-                $thread[] = [
-                    'id' => 'opening',
-                    'body' => $ticket->body,
-                    'name' => $ticket->requester?->name ?? $user->name,
-                    'when' => $ticket->created_at?->diffForHumans() ?? '',
-                    'is_agent' => false,
-                ];
-            }
-
-            foreach ($ticket->messages as $message) {
-                $thread[] = [
-                    'id' => $message->id,
-                    'body' => $message->body,
-                    'name' => $message->user?->name ?? ($message->is_agent_reply ? 'Support' : $user->name),
-                    'when' => $message->created_at?->diffForHumans() ?? '',
-                    'is_agent' => (bool) $message->is_agent_reply,
-                ];
-            }
-        }
-
         return view('support-system', [
-            'ticketRows' => $ticketRows,
+            'ticketRows' => SupportTicketInbox::rows($tickets, 'support-system.show'),
             'selected' => $ticket,
-            'thread' => $thread,
+            'thread' => $ticket ? SupportTicketInbox::thread($ticket) : [],
             'composing' => $composing,
-            'canReply' => $ticket && ! in_array($ticket->status, ['closed', 'resolved'], true),
+            'canReply' => $ticket && SupportTicketInbox::canCustomerReply($ticket),
         ]);
     }
 

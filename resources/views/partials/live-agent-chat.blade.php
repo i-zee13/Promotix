@@ -3,6 +3,7 @@
     x-data="liveAgentChat({
         askUrl: @js(url('/api/admin/guidance/ask')),
         ticketUrl: @js(url('/api/admin/guidance/ticket')),
+        ticketsUrl: @js(url('/api/admin/guidance/tickets')),
         csrf: @js(csrf_token()),
     })"
     x-cloak
@@ -31,14 +32,29 @@
         <header class="flex items-center justify-between border-b border-white/10 bg-[#FF6600] px-[14px] py-[12px]">
             <div>
                 <p class="text-[13px] font-semibold text-white">{{ \App\Support\PortalBrand::name() }} Copilot</p>
-                <p class="text-[10px] text-white/90" x-text="typing ? 'Typing…' : (agentOnline ? 'Online' : 'Connecting…')"></p>
+                <p class="text-[10px] text-white/90" x-text="mode === 'ticket' ? 'Support ticket' : (typing ? 'Typing…' : (agentOnline ? 'Online' : 'Connecting…'))"></p>
             </div>
             <button type="button" @click="closePanel()" class="rounded p-1 text-white/80 hover:bg-white/10" aria-label="Close chat">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </header>
 
-        <div class="flex-1 space-y-[10px] overflow-y-auto px-[14px] py-[12px] text-[12px]" id="live-agent-messages">
+        <div class="copilot-tickets" x-show="tickets.length" x-cloak>
+            <template x-for="ticket in tickets" :key="ticket.id">
+                <button
+                    type="button"
+                    class="copilot-ticket-chip"
+                    :class="activeTicketId === ticket.id ? 'is-on' : ''"
+                    :title="ticket.subject"
+                    @click="openTicket(ticket.id)"
+                >
+                    <span x-text="ticket.title"></span>
+                </button>
+            </template>
+            <button type="button" class="copilot-ticket-chip copilot-ticket-chip--new" @click="startNewChat()">New chat</button>
+        </div>
+
+        <div class="flex-1 space-y-[10px] overflow-y-auto px-[14px] py-[12px] text-[12px]" id="live-agent-messages" x-show="mode === 'copilot'">
             <template x-for="(msg, idx) in messages" :key="idx">
                 <div :class="msg.from === 'user' ? 'ml-[24px] text-right' : 'mr-[24px]'">
                     <p
@@ -74,7 +90,21 @@
             </template>
         </div>
 
-        <form @submit.prevent="send()" class="border-t border-white/10 p-[12px]">
+        <div class="flex-1 space-y-[10px] overflow-y-auto px-[14px] py-[12px] text-[12px]" x-show="mode === 'ticket'" x-cloak>
+            <template x-for="msg in ticketMessages" :key="msg.id">
+                <div :class="msg.is_agent ? 'mr-[24px]' : 'ml-[24px] text-right'">
+                    <p class="mb-1 text-[10px] text-white/40" x-text="(msg.is_agent ? (msg.name || 'Support') : 'You') + ' · ' + (msg.when || '')"></p>
+                    <p
+                        class="inline-block max-w-full rounded-[8px] px-[10px] py-[8px] text-left whitespace-pre-wrap"
+                        :class="msg.is_agent ? 'bg-[#1a1a1a] text-white/90 border border-white/10' : 'bg-[#FF6600] text-white'"
+                        x-text="msg.body"
+                    ></p>
+                </div>
+            </template>
+            <p x-show="!ticketMessages.length" class="text-center text-[11px] text-white/45">No messages on this ticket yet.</p>
+        </div>
+
+        <form x-show="mode === 'copilot'" @submit.prevent="send()" class="border-t border-white/10 p-[12px]">
             <div class="flex gap-[8px]">
                 <input
                     x-model="draft"
@@ -86,6 +116,20 @@
                 <button type="submit" class="shrink-0 rounded-[6px] bg-[#FF6600] px-[14px] text-[12px] font-semibold text-white hover:bg-[#ff7a1a]" :disabled="typing">Send</button>
             </div>
             <p class="mt-2 text-[10px] text-white/40">Idle chats close after 3 minutes.</p>
+        </form>
+
+        <form x-show="mode === 'ticket'" x-cloak @submit.prevent="replyTicket()" class="border-t border-white/10 p-[12px]">
+            <div class="flex gap-[8px]" x-show="ticketCanReply">
+                <input
+                    x-model="ticketDraft"
+                    type="text"
+                    placeholder="Reply to support…"
+                    class="h-[36px] flex-1 rounded-[6px] border border-white/15 bg-[#0d0d0d] px-[10px] text-[12px] text-white placeholder:text-white/40 focus:border-[#FF6600] focus:ring-0"
+                    :disabled="ticketBusy"
+                >
+                <button type="submit" class="shrink-0 rounded-[6px] bg-[#FF6600] px-[14px] text-[12px] font-semibold text-white hover:bg-[#ff7a1a]" :disabled="ticketBusy">Send</button>
+            </div>
+            <p x-show="!ticketCanReply" class="text-[11px] text-white/45">This ticket is closed. Start a new chat if you still need help.</p>
         </form>
     </div>
 </div>
@@ -105,13 +149,22 @@ function liveAgentChat(config) {
         ticketBusy: false,
         lastActivityAt: Date.now(),
         idleTimer: null,
-        messages: [
-            { from: 'agent', text: 'Hi — I’m the Clickronix Copilot. Ask about tracking, Google Ads connection, invalid clicks, Advanced View, analytics, domains, or billing. Answers come from the product knowledge bank (no OpenAI key). Say “agent” if you want a specialist.' },
-        ],
+        mode: 'copilot',
+        tickets: [],
+        activeTicketId: null,
+        ticketMessages: [],
+        ticketCanReply: false,
+        ticketDraft: '',
+        welcome: 'Hi — I’m the Clickronix Copilot. Ask about tracking, Google Ads connection, invalid clicks, Advanced View, analytics, domains, or billing. Answers come from the product knowledge bank (no OpenAI key). Say “agent” if you want a specialist.',
+        messages: [],
+        init() {
+            this.messages = [{ from: 'agent', text: this.welcome }];
+        },
         openPanel() {
             this.open = true;
             this.bumpActivity();
             this.startIdleWatch();
+            this.loadTickets();
             this.$nextTick(() => this.scrollMessages());
         },
         closePanel() {
@@ -141,7 +194,73 @@ function liveAgentChat(config) {
             const el = document.getElementById('live-agent-messages');
             if (el) el.scrollTop = el.scrollHeight;
         },
+        headers() {
+            return {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': config.csrf,
+            };
+        },
+        async loadTickets() {
+            if (!config.ticketsUrl) return;
+            try {
+                const res = await fetch(config.ticketsUrl, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                this.tickets = Array.isArray(data.tickets) ? data.tickets : [];
+            } catch (e) {
+                this.tickets = [];
+            }
+        },
+        startNewChat() {
+            this.mode = 'copilot';
+            this.activeTicketId = null;
+            this.ticketMessages = [];
+            this.ticketDraft = '';
+            this.offerTicket = false;
+            this.messages = [{ from: 'agent', text: this.welcome }];
+            this.bumpActivity();
+            this.$nextTick(() => this.scrollMessages());
+        },
+        async openTicket(id) {
+            this.bumpActivity();
+            this.ticketBusy = true;
+            try {
+                const res = await fetch(config.ticketsUrl + '/' + id, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                if (!res.ok || !data.ok) return;
+                this.mode = 'ticket';
+                this.activeTicketId = data.ticket.id;
+                this.ticketMessages = data.ticket.messages || [];
+                this.ticketCanReply = Boolean(data.ticket.can_reply);
+                this.offerTicket = false;
+            } catch (e) {}
+            this.ticketBusy = false;
+            this.$nextTick(() => this.scrollMessages());
+        },
+        async replyTicket() {
+            const text = String(this.ticketDraft || '').trim();
+            if (!text || !this.activeTicketId || this.ticketBusy || !this.ticketCanReply) return;
+            this.ticketBusy = true;
+            this.bumpActivity();
+            try {
+                const res = await fetch(config.ticketsUrl + '/' + this.activeTicketId + '/reply', {
+                    method: 'POST',
+                    headers: this.headers(),
+                    body: JSON.stringify({ body: text }),
+                });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    this.ticketDraft = '';
+                    this.ticketMessages = data.ticket.messages || [];
+                    this.ticketCanReply = Boolean(data.ticket.can_reply);
+                    this.loadTickets();
+                }
+            } catch (e) {}
+            this.ticketBusy = false;
+            this.$nextTick(() => this.scrollMessages());
+        },
         async send() {
+            if (this.mode !== 'copilot') return;
             const text = String(this.draft || '').trim();
             if (!text || this.typing) return;
             this.messages.push({ from: 'user', text });
@@ -156,11 +275,7 @@ function liveAgentChat(config) {
             try {
                 const res = await fetch(config.askUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': config.csrf,
-                    },
+                    headers: this.headers(),
                     body: JSON.stringify({
                         message: text,
                         session_id: this.sessionId,
@@ -211,11 +326,7 @@ function liveAgentChat(config) {
             try {
                 const res = await fetch(config.ticketUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': config.csrf,
-                    },
+                    headers: this.headers(),
                     body: JSON.stringify({
                         session_id: this.sessionId,
                         subject,
@@ -231,6 +342,7 @@ function liveAgentChat(config) {
                         related_page: '/admin/support-system/' + data.ticket_id,
                     });
                     this.offerTicket = false;
+                    this.loadTickets();
                 } else {
                     this.messages.push({ from: 'agent', text: data.message || 'Could not create ticket.' });
                 }

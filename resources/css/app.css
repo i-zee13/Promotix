@@ -4986,6 +4986,125 @@ select.figma-sa-subs-status-pill {
     color: rgba(0, 0, 0, 0.65);
 }
 
+.ticket-inbox--admin .ticket-inbox__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.ticket-inbox--admin .ticket-inbox__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ticket-inbox--admin .ticket-inbox__filter {
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 4px 10px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.ticket-inbox--admin .ticket-inbox__filter.is-on {
+    background: var(--brand-primary, #FF6600);
+    border-color: transparent;
+    color: #fff;
+}
+
+.ticket-inbox--admin .ticket-inbox__admin-split {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+}
+
+.ticket-inbox--admin .ticket-inbox__messages {
+    flex: 1;
+}
+
+.ticket-inbox--admin .ticket-inbox__assign {
+    width: 220px;
+    flex-shrink: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 12px;
+    overflow-y: auto;
+}
+
+.ticket-inbox--admin .ticket-inbox__assign-title {
+    margin-bottom: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.ticket-inbox--admin .ticket-inbox__assign-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.figma-sa-main:has(.ticket-inbox),
+.figma-customer-canvas:has(.ticket-inbox) {
+    overflow: hidden;
+    height: 100vh;
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+}
+
+.copilot-tickets {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    scrollbar-width: thin;
+}
+
+.copilot-ticket-chip {
+    flex-shrink: 0;
+    max-width: 112px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: #1a1a1a;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 6px 10px;
+}
+
+.copilot-ticket-chip.is-on,
+.copilot-ticket-chip--new {
+    background: var(--brand-primary, #FF6600);
+    border-color: transparent;
+    color: #fff;
+}
+
+.copilot-ticket-chip--new {
+    max-width: none;
+}
+
+@media (max-width: 900px) {
+    .ticket-inbox--admin .ticket-inbox__admin-split {
+        flex-direction: column;
+    }
+
+    .ticket-inbox--admin .ticket-inbox__assign {
+        width: 100%;
+        border-left: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        max-height: 180px;
+    }
+}
+
 /* Figma product pages (paid marketing, domains, etc.) manage their own layout */
 .figma-customer-canvas > [class*='min-h-[calc(100vh-49px)]'] {
     max-width: none;

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChatSession;
 use App\Models\SupportTicket;
 use App\Support\GuidanceService;
+use App\Support\SupportTicketInbox;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -155,6 +156,81 @@ class GuidanceChatController extends Controller
             'ok' => true,
             'ticket_id' => $ticket->id,
             'ticket_number' => $ticket->ticket_number ?? ('TKT-'.$ticket->id),
+        ]);
+    }
+
+    public function tickets(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        $tickets = SupportTicket::query()
+            ->where('user_id', $user->id)
+            ->with(['requester:id,name,email', 'owner:id,name,email'])
+            ->latest('updated_at')
+            ->limit(40)
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'tickets' => collect(SupportTicketInbox::rows($tickets, 'support-system.show'))
+                ->map(fn (array $row) => [
+                    'id' => $row['id'],
+                    'title' => $row['title'],
+                    'subject' => $row['subject'],
+                    'number' => $row['number'],
+                    'status' => $row['status'],
+                    'href' => $row['href'],
+                ])
+                ->values(),
+        ]);
+    }
+
+    public function ticket(Request $request, SupportTicket $ticket): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user && $ticket->user_id === $user->id, 403);
+
+        return response()->json([
+            'ok' => true,
+            'ticket' => [
+                'id' => $ticket->id,
+                'subject' => $ticket->subject,
+                'number' => $ticket->ticket_number ?: ('#'.$ticket->id),
+                'status' => $ticket->status,
+                'can_reply' => SupportTicketInbox::canCustomerReply($ticket),
+                'messages' => SupportTicketInbox::thread($ticket),
+            ],
+        ]);
+    }
+
+    public function replyTicket(Request $request, SupportTicket $ticket): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user && $ticket->user_id === $user->id, 403);
+        abort_unless(SupportTicketInbox::canCustomerReply($ticket), 403);
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:10000'],
+        ]);
+
+        $ticket->messages()->create([
+            'user_id' => $user->id,
+            'body' => $data['body'],
+            'is_agent_reply' => false,
+        ]);
+        $ticket->forceFill(['status' => 'open'])->save();
+
+        return response()->json([
+            'ok' => true,
+            'ticket' => [
+                'id' => $ticket->id,
+                'subject' => $ticket->subject,
+                'number' => $ticket->ticket_number ?: ('#'.$ticket->id),
+                'status' => $ticket->status,
+                'can_reply' => SupportTicketInbox::canCustomerReply($ticket),
+                'messages' => SupportTicketInbox::thread($ticket->fresh()),
+            ],
         ]);
     }
 

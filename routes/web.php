@@ -414,6 +414,9 @@ Route::middleware(['auth', 'admin', 'portal-product'])
 
         Route::post('/guidance/ask', [\App\Http\Controllers\Api\GuidanceChatController::class, 'ask'])->name('guidance.ask');
         Route::post('/guidance/ticket', [\App\Http\Controllers\Api\GuidanceChatController::class, 'createTicket'])->name('guidance.ticket');
+        Route::get('/guidance/tickets', [\App\Http\Controllers\Api\GuidanceChatController::class, 'tickets'])->name('guidance.tickets');
+        Route::get('/guidance/tickets/{ticket}', [\App\Http\Controllers\Api\GuidanceChatController::class, 'ticket'])->name('guidance.tickets.show');
+        Route::post('/guidance/tickets/{ticket}/reply', [\App\Http\Controllers\Api\GuidanceChatController::class, 'replyTicket'])->name('guidance.tickets.reply');
     });
 
 
