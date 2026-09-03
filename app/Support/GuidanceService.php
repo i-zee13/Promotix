@@ -15,37 +15,26 @@ class GuidanceService
     {
         $message = trim($message);
         if ($message === '') {
-            return self::fallback('Please type a short question about Clickronix setup, billing, or integrations.');
+            return self::localize(self::fallback('Please type a short question about setup, billing, or integrations.'));
         }
 
         // Local knowledge bank (FAQ + intent map) — no OpenAI required.
         $kb = ClickronixKnowledgeBank::answer($message);
-        $db = self::answerFromArticles($message, $department);
-
-        if ($kb && $db) {
-            $winner = ($kb['confidence'] ?? 0) >= ($db['confidence'] ?? 0) ? $kb : $db;
-            // Prefer KB for live-agent routing.
-            if (($kb['source'] ?? '') === 'live_agent_intent') {
-                $winner = $kb;
-            }
-
-            return $winner;
-        }
-
         if ($kb) {
-            return $kb;
+            return self::localize($kb);
         }
 
+        $db = self::answerFromArticles($message, $department);
         if ($db) {
-            return $db;
+            return self::localize($db);
         }
 
-        return self::fallback(
-            "I couldn’t find a confident answer in the Clickronix knowledge bank.\n\n"
+        return self::localize(self::fallback(
+            "I couldn’t find a confident answer in the knowledge bank.\n\n"
             ."Try asking about a specific page (Dashboard, Advanced View, Platform Integrate, Detection Panel, Domains, Billing) "
             ."or open a support ticket and our team will help.",
             true
-        );
+        ));
     }
 
     /**
@@ -167,5 +156,19 @@ class GuidanceService
             'offer_ticket' => $offerTicket,
             'source' => 'fallback',
         ];
+    }
+
+    /**
+     * @param  array{answer: string, title: ?string, related_page: ?string, steps: ?string, image_url: ?string, confidence: float, article_id: ?int, offer_ticket: bool, department?: ?string, source?: string}  $payload
+     * @return array{answer: string, title: ?string, related_page: ?string, steps: ?string, image_url: ?string, confidence: float, article_id: ?int, offer_ticket: bool, department?: ?string, source?: string}
+     */
+    private static function localize(array $payload): array
+    {
+        $payload['answer'] = PortalBrand::localizeCopy((string) ($payload['answer'] ?? ''));
+        if (! empty($payload['title'])) {
+            $payload['title'] = PortalBrand::localizeCopy((string) $payload['title']);
+        }
+
+        return $payload;
     }
 }

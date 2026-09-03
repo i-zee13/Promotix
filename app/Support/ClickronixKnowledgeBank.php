@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
  */
 class ClickronixKnowledgeBank
 {
-    private const CACHE_KEY = 'clickronix.kb.entries.v2';
+    private const CACHE_KEY = 'clickronix.kb.entries.v3';
 
     private const CACHE_TTL_SECONDS = 3600;
 
@@ -66,23 +66,39 @@ class ClickronixKnowledgeBank
             return $agent;
         }
 
+        $tokens = self::contentTokens($message);
+        if ($tokens === []) {
+            return [
+                'answer' => 'Tell me a bit more — for example domain tracking, Google Ads connection, invalid clicks, or billing — and I’ll point you to the right page.',
+                'title' => null,
+                'related_page' => null,
+                'steps' => null,
+                'image_url' => null,
+                'confidence' => 0.2,
+                'article_id' => null,
+                'offer_ticket' => true,
+                'department' => 'General Support',
+                'source' => 'clarifying',
+            ];
+        }
+
         $needle = Str::lower($message);
         $best = null;
         $bestScore = 0.0;
 
         foreach (self::entries() as $entry) {
-            $score = self::score($needle, $entry);
+            $score = self::score($needle, $tokens, $entry);
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $best = $entry;
             }
         }
 
-        if (! $best || $bestScore < 0.16) {
+        if (! $best || $bestScore < 0.42) {
             return null;
         }
 
-        $answer = trim((string) $best['answer']);
+        $answer = self::sanitizeAnswer((string) $best['answer']);
         $related = $best['related_page'] ?? null;
         if ($related && ! str_contains($answer, 'Go to:')) {
             $answer .= "\n\nGo to:\n".$related;
@@ -94,9 +110,9 @@ class ClickronixKnowledgeBank
             'related_page' => $related,
             'steps' => null,
             'image_url' => null,
-            'confidence' => round(min(1.0, $bestScore), 2),
+            'confidence' => round(min(1.0, $bestScore / 4), 2),
             'article_id' => null,
-            'offer_ticket' => $bestScore < 0.38,
+            'offer_ticket' => $bestScore < 1.2,
             'department' => $best['department'] ?? null,
             'source' => 'knowledge_bank',
         ];
@@ -136,6 +152,13 @@ class ClickronixKnowledgeBank
                 'keywords' => 'campaign campaigns campaign performance google ads campaign table invalid clicks',
                 'related_page' => 'Paid Advertising → Dashboard → Campaign Performance',
                 'department' => null,
+            ],
+            [
+                'title' => 'Website connection',
+                'answer' => "If the website is not connecting or tracking:\n\n1. Site Management → Domains — add the domain and install the tracking tag.\n2. Paid Advertising → Platform Integrate — check Connection Health and reconnect Google Ads if needed.\n\nTell me whether this is the tracking tag, Google Ads login, or the domain itself.",
+                'keywords' => 'website connection site connection domain connection website not connecting tracking not connecting connect nahi ho raha tag install connection health google ads disconnected',
+                'related_page' => 'Site Management → Domains · Paid Advertising → Platform Integrate',
+                'department' => 'Technical Support',
             ],
         ];
     }
@@ -254,7 +277,7 @@ class ClickronixKnowledgeBank
     {
         $entries = [];
         if (! preg_match_all(
-            '/FAQ\s+(\d+)\s*[—\-–]\s*(.+?)(?=\nFAQ\s+\d+\s*[—\-–]|\nCLICKRONIX|\n[A-Z]\.\s+[A-Z]|\z)/s',
+            '/(?:^|\n)FAQ\s+(\d+)\s*[—\-–]\s*(.+?)(?=\nFAQ\s+\d+\s*[—\-–]|\nCLICKRONIX|\n[A-Z]{1,3}\.\s+[A-Z]|\n={5,}|\z)/s',
             $raw,
             $matches,
             PREG_SET_ORDER
@@ -280,7 +303,7 @@ class ClickronixKnowledgeBank
             $entries[] = [
                 'title' => $title,
                 'answer' => $answer,
-                'keywords' => Str::lower($title.' '.$answer),
+                'keywords' => self::indexText($title.' '.$answer),
                 'related_page' => $related,
                 'department' => null,
             ];
@@ -334,12 +357,15 @@ class ClickronixKnowledgeBank
                 continue;
             }
 
-            // Skip pure identity/style sections that are too policy-heavy for FAQ replies
-            // but keep troubleshooting / page knowledge.
+            if (preg_match('/^(Customer|Bot|User):/m', $answer) || strlen($answer) > 1800) {
+                $title = null;
+                continue;
+            }
+
             $entries[] = [
                 'title' => $title,
                 'answer' => $answer,
-                'keywords' => Str::lower($title.' '.$answer),
+                'keywords' => self::indexText($title.' '.$answer),
                 'related_page' => self::extractGoTo($answer),
                 'department' => null,
             ];
@@ -401,7 +427,7 @@ class ClickronixKnowledgeBank
             $entries[] = [
                 'title' => 'Intent: '.$intent,
                 'answer' => $answer,
-                'keywords' => Str::lower(implode(' ', $phraseList).' '.$intent.' '.$answer),
+                'keywords' => self::indexText(implode(' ', $phraseList).' '.$intent.' '.$answer),
                 'related_page' => self::extractGoTo($answer),
                 'department' => null,
             ];
@@ -420,45 +446,111 @@ class ClickronixKnowledgeBank
     }
 
     /**
+     * @param  list<string>  $tokens
      * @param  array{title: string, answer: string, keywords: string, related_page: ?string, department: ?string}  $entry
      */
-    private static function score(string $needle, array $entry): float
+    private static function score(string $needle, array $tokens, array $entry): float
     {
-        $haystacks = array_filter([
-            Str::lower($entry['title']),
-            Str::lower($entry['keywords']),
-            Str::lower(Str::limit($entry['answer'], 800, '')),
-        ]);
+        $title = Str::lower($entry['title']);
+        $keywords = Str::lower($entry['keywords']);
+        $n = count($tokens);
+        if ($n === 0) {
+            return 0.0;
+        }
 
-        $tokens = preg_split('/\W+/', $needle, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        if ($tokens === []) {
+        $titleHits = 0;
+        $keywordHits = 0;
+        foreach ($tokens as $token) {
+            if (str_contains($title, $token)) {
+                $titleHits++;
+            }
+            if (str_contains($keywords, $token)) {
+                $keywordHits++;
+            }
+        }
+
+        if ($titleHits === 0 && $keywordHits === 0) {
             return 0.0;
         }
 
         $score = 0.0;
-        foreach ($haystacks as $hay) {
-            if ($hay === '') {
+        if (str_contains($title, $needle) || str_contains($keywords, $needle)) {
+            $score += 2.8;
+        }
+        $score += ($titleHits / $n) * 2.2;
+        $score += ($keywordHits / $n) * 0.9;
+
+        return $score;
+    }
+
+    /** @return list<string> */
+    private static function contentTokens(string $message): array
+    {
+        $stop = [
+            'the', 'and', 'for', 'you', 'your', 'have', 'has', 'had', 'this', 'that',
+            'with', 'from', 'about', 'regarding', 'issue', 'issues', 'problem', 'problems',
+            'help', 'please', 'what', 'how', 'can', 'want', 'need', 'hello', 'hey',
+            'just', 'like', 'some', 'any', 'there', 'they', 'them', 'does', 'mean',
+        ];
+        $tokens = preg_split('/\W+/', Str::lower($message), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $out = [];
+        foreach ($tokens as $token) {
+            if (strlen($token) < 3 || in_array($token, $stop, true)) {
                 continue;
             }
-            if (str_contains($hay, $needle)) {
-                $score += 1.2;
+            $out[] = $token;
+        }
+
+        return array_values(array_unique($out));
+    }
+
+    private static function indexText(string $text): string
+    {
+        $flat = trim((string) preg_replace('/\s+/', ' ', $text));
+
+        return Str::lower(Str::limit($flat, 280, ''));
+    }
+
+    private static function sanitizeAnswer(string $answer): string
+    {
+        $answer = trim($answer);
+        $goTo = '';
+        if (preg_match('/Go to:\s*\n*(.+?)(?:\n\n|\z)/s', $answer, $m)) {
+            $goTo = 'Go to: '.trim((string) preg_replace('/\s+/', ' ', $m[1]));
+        }
+
+        if (preg_match_all('/^Bot:\s*(.+?)(?=\n(?:Customer|Bot|User):|\z)/ims', $answer, $bots) && $bots[1] !== []) {
+            $answer = trim(implode("\n\n", array_map('trim', $bots[1])));
+        }
+
+        $answer = (string) preg_replace('/^(Customer|Bot|User):\s*/im', '', $answer);
+        $answer = (string) preg_replace('/^[A-Z]{1,3}\.\s+[A-Z][^\n]{0,80}$/m', '', $answer);
+        $answer = (string) preg_replace('/\n{3,}/', "\n\n", $answer);
+        $answer = trim($answer);
+
+        $paragraphs = preg_split('/\n\s*\n/', $answer) ?: [$answer];
+        $kept = [];
+        $len = 0;
+        foreach ($paragraphs as $paragraph) {
+            $paragraph = trim($paragraph);
+            if ($paragraph === '' || str_starts_with($paragraph, 'Go to:')) {
+                continue;
             }
-            $hits = 0;
-            $eligible = 0;
-            foreach ($tokens as $token) {
-                if (strlen($token) < 3) {
-                    continue;
-                }
-                $eligible++;
-                if (str_contains($hay, $token)) {
-                    $hits++;
-                }
+            if (preg_match('/^(Example|That is (much|a very)|Recommended flow)/i', $paragraph)) {
+                continue;
             }
-            if ($eligible > 0) {
-                $score += $hits / $eligible;
+            $kept[] = $paragraph;
+            $len += strlen($paragraph);
+            if (count($kept) >= 3 || $len >= 520) {
+                break;
             }
         }
 
-        return $score / max(1, count($haystacks));
+        $out = implode("\n\n", $kept);
+        if ($goTo !== '' && ! str_contains($out, 'Go to:')) {
+            $out = trim($out."\n\n".$goTo);
+        }
+
+        return $out !== '' ? $out : Str::limit(trim($answer), 420, '…');
     }
 }

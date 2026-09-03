@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="robots" content="noindex, nofollow">
-    <title>@yield('title', 'Sign in') — {{ config('app.name') }}</title>
+    <title>@yield('title', 'Sign in') — {{ \App\Support\PortalBrand::name() }}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -469,7 +469,7 @@
     </div>
 
     <footer class="auth-split-footer">
-        Copyright &copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.
+        Copyright &copy; {{ date('Y') }} {{ \App\Support\PortalBrand::name() }}. All rights reserved.
     </footer>
 </body>
 </html>

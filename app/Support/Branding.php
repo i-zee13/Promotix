@@ -27,7 +27,7 @@ class Branding
             'outline' => $outline,
             'cta' => $cta,
             'cta_text' => $ctaText,
-            'company_name' => (string) (app_setting('branding.company_name', config('app.name', 'Clickronix')) ?: config('app.name', 'Clickronix')),
+            'company_name' => \App\Support\PortalBrand::name(),
             'logo_url' => self::nullableString(app_setting('branding.logo_url')) ?: self::logoAsset('light'),
             'support_email' => self::nullableString(app_setting('branding.support_email')),
             'font_family' => self::nullableString(app_setting('branding.font_family')) ?: 'Inter',

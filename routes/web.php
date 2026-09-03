@@ -246,15 +246,17 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::get('/analytics/sources', [BotProtectionController::class, 'sources'])->name('analytics.sources');
         Route::get('/analytics/sales', [BotProtectionController::class, 'sales'])->name('analytics.sales');
         Route::get('/analytics/traffic-control', [BotProtectionController::class, 'advancedView'])->name('analytics.traffic-control');
-        Route::get('/support-system', [SupportSystemController::class, 'index'])->name('support-system');
-        Route::get('/support-system/create', [SupportSystemController::class, 'create'])->name('support-system.create');
-        Route::post('/support-system', [SupportSystemController::class, 'store'])->name('support-system.store');
-        Route::get('/support-system/{ticket}', [SupportSystemController::class, 'show'])->name('support-system.show');
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/security-logs', [SecurityLogsController::class, 'index'])->name('security-logs');
         Route::get('/system-settings', [SystemSettingsController::class, 'index'])->name('system-settings');
         Route::resource('roles', \App\Http\Controllers\Admin\RolesController::class)->except(['show']);
         });
+
+        Route::get('/support-system', [SupportSystemController::class, 'index'])->name('support-system');
+        Route::get('/support-system/create', [SupportSystemController::class, 'create'])->name('support-system.create');
+        Route::post('/support-system', [SupportSystemController::class, 'store'])->name('support-system.store');
+        Route::post('/support-system/{ticket}/reply', [SupportSystemController::class, 'reply'])->name('support-system.reply');
+        Route::get('/support-system/{ticket}', [SupportSystemController::class, 'show'])->name('support-system.show');
 
         Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
         Route::get('/billing/invoices/{payment}', [BillingController::class, 'showInvoice'])->name('billing.invoices.show');

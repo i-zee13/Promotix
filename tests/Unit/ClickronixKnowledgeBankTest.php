@@ -44,4 +44,17 @@ class ClickronixKnowledgeBankTest extends TestCase
         $this->assertStringContainsStringIgnoringCase('Google Ads Integration', $result['answer']);
         $this->assertTrue(($result['confidence'] ?? 0) >= 0.9);
     }
+
+    #[Test]
+    public function it_answers_website_connection_without_dumping_gclid_docs(): void
+    {
+        $result = GuidanceService::answer('hi i have an issue regarding website connection');
+
+        $this->assertStringContainsStringIgnoringCase('Domains', $result['answer']);
+        $this->assertStringContainsStringIgnoringCase('Platform Integrate', $result['answer']);
+        $this->assertStringNotContainsStringIgnoringCase('ADS_GCLID_DUP', $result['answer']);
+        $this->assertStringNotContainsStringIgnoringCase('BY. DUPLICATE', $result['answer']);
+        $this->assertDoesNotMatchRegularExpression('/^Customer:/m', $result['answer']);
+        $this->assertLessThan(800, strlen($result['answer']));
+    }
 }

@@ -8,7 +8,7 @@
     @auth
         <meta name="user-timezone" content="{{ \App\Support\UserTimezone::forUser(auth()->user()) }}">
     @endauth
-    <title>@yield('title', 'Dashboard') - {{ config('app.name') }}</title>
+    <title>@yield('title', 'Dashboard') - {{ \App\Support\PortalBrand::name() }}</title>
     <script>window.PROMOTIX_FILTER_DEBOUNCE_MS = 1500;</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @php $branding = \App\Support\Branding::cssVars(); @endphp
@@ -68,6 +68,7 @@
         ],
         'SITE MANAGEMENT' => [
             ['label' => 'Domains', 'route' => 'domains.index', 'icon' => 'globe', 'permission' => 'domain-management'],
+            ['label' => 'Support', 'route' => 'support-system', 'icon' => 'support', 'always' => true, 'active' => 'support-system*'],
         ],
     ];
     $toolLinks = [
@@ -86,7 +87,7 @@
         : false;
 @endphp
 
-<div id="figma-shell" class="figma-shell">
+<div id="figma-shell" class="figma-shell @yield('figma_shell_class')">
     @if (session('impersonator_id'))
         <div class="fixed left-0 right-0 top-0 z-50 border-b border-amber-500/40 bg-amber-500/20 px-4 py-2 text-xs text-amber-100">
             <form method="POST" action="{{ route('impersonate.stop') }}" class="flex flex-wrap items-center justify-between gap-2">
@@ -117,8 +118,8 @@
                         <p class="figma-nav-label mb-[8px] text-[11px] font-bold uppercase leading-none">{{ $group }}</p>
                         <div class="space-y-[4px]">
                             @foreach ($items as $item)
-                                @continue($user && ! $user->canAccess($item['permission']))
-                                @php $active = request()->routeIs($item['route']); @endphp
+                                @continue(empty($item['always']) && $user && ! $user->canAccess($item['permission']))
+                                @php $active = request()->routeIs($item['active'] ?? $item['route']); @endphp
                                 <a href="{{ route($item['route']) }}" @class([
                                     'figma-nav-link group relative flex h-[30px] items-center gap-[9px] rounded-[7px] px-[7px] text-[14px] leading-none transition',
                                     'is-active text-white' => $active,
@@ -372,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const iconOpen = document.getElementById('figma-rightbar-icon-open');
         const iconClose = document.getElementById('figma-rightbar-icon-close');
         if (!edgeToggle) return;
-        if (!desktop) {
+        if (shell?.classList.contains('figma-hide-rightbar') || !desktop) {
             edgeToggle.setAttribute('hidden', '');
             return;
         }

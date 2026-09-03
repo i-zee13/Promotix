@@ -1,105 +1,142 @@
 @extends('layouts.admin')
 
-@section('title', 'Support System')
+@section('title', 'Support')
+@section('figma_shell_class', 'figma-hide-rightbar')
+@section('rightbar')
+@endsection
 
 @section('content')
-    <div class="space-y-6">
-        {{-- Filter row + buttons --}}
-        <section class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
-            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-                <label for="support-search" class="sr-only">Search tickets</label>
-                <div class="relative min-w-0 flex-1 sm:max-w-xs">
-                    <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-500" aria-hidden="true">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    </span>
-                    <input
-                        id="support-search"
-                        type="search"
-                        placeholder="Search Tickets"
-                        class="w-full rounded-xl border border-dark-border bg-dark-card py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                    >
-                </div>
-                <label for="support-priority" class="sr-only">Priority</label>
-                <select id="support-priority" class="rounded-xl border border-dark-border bg-dark-card py-2 pl-4 pr-10 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-                    <option value="">All Priorities</option>
-                </select>
-                <label for="support-status" class="sr-only">Status</label>
-                <select id="support-status" class="rounded-xl border border-dark-border bg-dark-card py-2 pl-4 pr-10 text-sm text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-                    <option value="">All Statuses</option>
-                </select>
-            </div>
-            <div class="flex w-full flex-wrap gap-2 sm:w-auto">
-                <a href="{{ route('support-system.create') }}" class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-hover sm:flex-initial">
-                    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    New Ticket
+@php
+    $selectedId = $selected?->id;
+    $showThread = $selected || $composing;
+@endphp
+<div
+    class="ticket-inbox min-h-[calc(100vh-49px)]"
+    x-data="{ q: '' }"
+>
+    <aside class="ticket-inbox__list{{ $showThread ? ' ticket-inbox__list--hidden-mobile' : '' }}">
+        <div class="ticket-inbox__list-head">
+            <a href="{{ route('support-system.create') }}" class="ticket-inbox__new">
+                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                New ticket
+            </a>
+            <label class="sr-only" for="ticket-inbox-search">Search tickets</label>
+            <input
+                id="ticket-inbox-search"
+                type="search"
+                x-model="q"
+                placeholder="Search tickets"
+                class="ticket-inbox__search"
+            >
+        </div>
+
+        <div class="ticket-inbox__rows" role="list">
+            @forelse ($ticketRows as $row)
+                <a
+                    href="{{ $row['href'] }}"
+                    role="listitem"
+                    class="ticket-inbox__row{{ $selectedId === $row['id'] ? ' is-active' : '' }}"
+                    x-show="!q || {{ \Illuminate\Support\Js::from(mb_strtolower($row['subject'].' '.$row['number'].' '.$row['preview'])) }}.includes(q.toLowerCase())"
+                >
+                    <div class="ticket-inbox__row-top">
+                        <p class="ticket-inbox__row-title">{{ $row['subject'] }}</p>
+                        <span class="ticket-inbox__row-when">{{ $row['when'] }}</span>
+                    </div>
+                    <p class="ticket-inbox__row-preview">{{ $row['preview'] ?: 'No messages yet' }}</p>
+                    <div class="ticket-inbox__row-meta">
+                        <span class="ticket-inbox__pill">{{ $row['number'] }}</span>
+                        <span class="ticket-inbox__status is-{{ str_replace('_', '-', $row['status']) }}">{{ ucfirst(str_replace('_', ' ', $row['status'])) }}</span>
+                    </div>
                 </a>
-                <button type="button" class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-dark-border bg-gray-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-700 sm:flex-initial">
-                    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                    Export
-                </button>
-            </div>
-        </section>
+            @empty
+                <p class="ticket-inbox__empty-list">No tickets yet. Start a new one.</p>
+            @endforelse
+        </div>
+    </aside>
 
-        {{-- Stat cards --}}
-        <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-labelledby="support-stats-heading">
-            <h2 id="support-stats-heading" class="sr-only">Support summary</h2>
-            <div class="rounded-xl bg-gradient-to-br from-accent to-accent-hover p-6 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <x-stat-icon name="ticket" class="h-5 w-5" />
-                    </span>
-                    <div>
-                        <p class="text-2xl font-bold text-white">{{ number_format($stats['total'] ?? 0) }}</p>
-                        <p class="text-sm font-medium text-white/90">Total Tickets</p>
-                    </div>
+    <section class="ticket-inbox__thread{{ $showThread ? '' : ' ticket-inbox__thread--hidden-mobile' }}">
+        @if ($composing)
+            <header class="ticket-inbox__thread-head">
+                <a href="{{ route('support-system') }}" class="ticket-inbox__back">← Tickets</a>
+                <div>
+                    <h1>New ticket</h1>
+                    <p>Describe the issue. Replies from support will stay in this chat.</p>
                 </div>
-            </div>
-            <div class="rounded-xl bg-gradient-to-br from-accent to-accent-hover p-6 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <x-stat-icon name="check-badge" class="h-5 w-5" />
-                    </span>
-                    <div>
-                        <p class="text-2xl font-bold text-white">{{ number_format($stats['open'] ?? 0) }}</p>
-                        <p class="text-sm font-medium text-white/90">Open</p>
+            </header>
+            <form method="POST" action="{{ route('support-system.store') }}" class="ticket-inbox__compose-form">
+                @csrf
+                @if ($errors->any())
+                    <div class="ticket-inbox__alert">
+                        {{ $errors->first() }}
                     </div>
+                @endif
+                <label class="ticket-inbox__label" for="ticket-subject">Subject</label>
+                <input id="ticket-subject" name="subject" type="text" required maxlength="200" value="{{ old('subject') }}" class="ticket-inbox__input" placeholder="Short summary">
+                <label class="ticket-inbox__label" for="ticket-priority">Priority</label>
+                <select id="ticket-priority" name="priority" class="ticket-inbox__input">
+                    @foreach (['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'] as $value => $label)
+                        <option value="{{ $value }}" @selected(old('priority', 'medium') === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <label class="ticket-inbox__label" for="ticket-body">Message</label>
+                <textarea id="ticket-body" name="body" rows="8" required maxlength="10000" class="ticket-inbox__input ticket-inbox__textarea" placeholder="Write the first message…">{{ old('body') }}</textarea>
+                <div class="ticket-inbox__compose-actions">
+                    <a href="{{ route('support-system') }}" class="ticket-inbox__cancel">Cancel</a>
+                    <button type="submit" class="ticket-inbox__send">Start ticket</button>
                 </div>
-            </div>
-            <div class="rounded-xl bg-gradient-to-br from-accent to-accent-hover p-6 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <x-stat-icon name="users" class="h-5 w-5" />
-                    </span>
-                    <div>
-                        <p class="text-2xl font-bold text-white">{{ number_format($stats['assigned'] ?? 0) }}</p>
-                        <p class="text-sm font-medium text-white/90">Assigned</p>
-                    </div>
+            </form>
+        @elseif ($selected)
+            <header class="ticket-inbox__thread-head">
+                <a href="{{ route('support-system') }}" class="ticket-inbox__back">← Tickets</a>
+                <div class="min-w-0 flex-1">
+                    <h1>{{ $selected->subject }}</h1>
+                    <p>
+                        {{ $selected->ticket_number ?: ('#'.$selected->id) }}
+                        · {{ ucfirst(str_replace('_', ' ', $selected->status)) }}
+                        · {{ ucfirst($selected->priority) }}
+                    </p>
                 </div>
-            </div>
-            <div class="rounded-xl bg-gradient-to-br from-accent to-accent-hover p-6 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <x-stat-icon name="alert-triangle" class="h-5 w-5" />
-                    </span>
-                    <div>
-                        <p class="text-2xl font-bold text-white">{{ number_format($stats['sla_breaches'] ?? 0) }}</p>
-                        <p class="text-sm font-medium text-white/90">SLA Breaches</p>
-                    </div>
-                </div>
-            </div>
-            <div class="rounded-xl bg-gradient-to-br from-accent to-accent-hover p-6 shadow-lg">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <x-stat-icon name="hourglass" class="h-5 w-5" />
-                    </span>
-                    <div>
-                        <p class="text-2xl font-bold text-white">{{ number_format($stats['overdue'] ?? 0) }}</p>
-                        <p class="text-sm font-medium text-white/90">Overdue</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+            </header>
 
-        <x-support-ticket-table :rows="$rows" :total="$total" :from="$from" :to="$to" :status-classes="$statusClasses" :priority-classes="$priorityClasses" />
-    </div>
+            @if (session('status'))
+                <p class="ticket-inbox__flash">{{ session('status') }}</p>
+            @endif
+
+            <div class="ticket-inbox__messages" id="ticket-inbox-messages">
+                @foreach ($thread as $msg)
+                    <div class="ticket-inbox__bubble{{ $msg['is_agent'] ? ' is-agent' : ' is-you' }}">
+                        <div class="ticket-inbox__bubble-meta">
+                            <span>{{ $msg['is_agent'] ? $msg['name'] : 'You' }}</span>
+                            <span>{{ $msg['when'] }}</span>
+                        </div>
+                        <p>{{ $msg['body'] }}</p>
+                    </div>
+                @endforeach
+            </div>
+
+            @if ($canReply)
+                <form method="POST" action="{{ route('support-system.reply', $selected) }}" class="ticket-inbox__composer">
+                    @csrf
+                    <label class="sr-only" for="ticket-reply">Reply</label>
+                    <textarea id="ticket-reply" name="body" rows="2" required maxlength="10000" class="ticket-inbox__input ticket-inbox__textarea" placeholder="Message support…">{{ old('body') }}</textarea>
+                    <button type="submit" class="ticket-inbox__send">Send</button>
+                </form>
+            @else
+                <p class="ticket-inbox__closed">This ticket is {{ $selected->status }}. Open a new ticket if you still need help.</p>
+            @endif
+        @else
+            <div class="ticket-inbox__placeholder">
+                <p>Select a ticket</p>
+                <span>Your tickets stay on the left. Open one to see every reply in the same chat.</span>
+                <a href="{{ route('support-system.create') }}">New ticket</a>
+            </div>
+        @endif
+    </section>
+</div>
+<script>
+    (function () {
+        const pane = document.getElementById('ticket-inbox-messages');
+        if (pane) pane.scrollTop = pane.scrollHeight;
+    })();
+</script>
 @endsection

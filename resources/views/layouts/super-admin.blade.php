@@ -8,7 +8,7 @@
     @auth
         <meta name="user-timezone" content="{{ \App\Support\UserTimezone::forUser(auth()->user()) }}">
     @endauth
-    <title>@yield('title', 'Super Admin') — {{ config('app.name') }}</title>
+    <title>@yield('title', 'Super Admin') — {{ \App\Support\PortalBrand::name() }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>{!! \App\Support\Branding::rootStyleBlock() !!}</style>
 </head>

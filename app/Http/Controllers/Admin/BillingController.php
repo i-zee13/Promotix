@@ -74,18 +74,19 @@ class BillingController extends Controller
 
         $payment->loadMissing(['plan', 'user', 'subscription.plan']);
 
-        $companyName = trim((string) app_setting('branding.company_name', 'Clickronix')) ?: 'Clickronix';
+        $companyName = \App\Support\PortalBrand::name();
         $supportEmail = trim((string) app_setting('branding.support_email', '')) ?: 'support@clickronix.com';
         $planName = $payment->plan?->name
             ?? $payment->subscription?->plan?->name
             ?? 'Subscription';
+        $logos = \App\Support\PortalBrand::logoUrls();
 
         return view('billing.invoice', [
             'payment' => $payment,
             'company_name' => $companyName,
             'support_email' => $supportEmail,
             'plan_name' => $planName,
-            'logo_url' => \App\Support\Branding::logoAsset('light'),
+            'logo_url' => $logos['light'] ?? \App\Support\Branding::logoAsset('light'),
             'amount_label' => format_money_cents((int) $payment->amount_cents, $payment->currency ?: 'USD'),
         ]);
     }
@@ -103,18 +104,19 @@ class BillingController extends Controller
 
         $payment->loadMissing(['plan', 'user', 'subscription.plan']);
 
-        $companyName = trim((string) app_setting('branding.company_name', 'Clickronix')) ?: 'Clickronix';
+        $companyName = \App\Support\PortalBrand::name();
         $supportEmail = trim((string) app_setting('branding.support_email', '')) ?: 'support@clickronix.com';
         $planName = $payment->plan?->name
             ?? $payment->subscription?->plan?->name
             ?? 'Subscription';
+        $logos = \App\Support\PortalBrand::logoUrls();
 
         $html = view('billing.invoice', [
             'payment' => $payment,
             'company_name' => $companyName,
             'support_email' => $supportEmail,
             'plan_name' => $planName,
-            'logo_url' => \App\Support\Branding::logoAsset('light'),
+            'logo_url' => $logos['light'] ?? \App\Support\Branding::logoAsset('light'),
             'amount_label' => format_money_cents((int) $payment->amount_cents, $payment->currency ?: 'USD'),
         ])->render();
 

@@ -30,7 +30,7 @@
     >
         <header class="flex items-center justify-between border-b border-white/10 bg-[#FF6600] px-[14px] py-[12px]">
             <div>
-                <p class="text-[13px] font-semibold text-white">Clickronix Copilot</p>
+                <p class="text-[13px] font-semibold text-white">{{ \App\Support\PortalBrand::name() }} Copilot</p>
                 <p class="text-[10px] text-white/90" x-text="typing ? 'Typing…' : (agentOnline ? 'Online' : 'Connecting…')"></p>
             </div>
             <button type="button" @click="closePanel()" class="rounded p-1 text-white/80 hover:bg-white/10" aria-label="Close chat">
@@ -227,7 +227,8 @@ function liveAgentChat(config) {
                 if (res.ok && data.ok) {
                     this.messages.push({
                         from: 'agent',
-                        text: 'Ticket ' + (data.ticket_number || data.ticket_id) + ' created. Our team will follow up.',
+                        text: 'Ticket ' + (data.ticket_number || data.ticket_id) + ' created. Open Support to continue this conversation.',
+                        related_page: '/admin/support-system/' + data.ticket_id,
                     });
                     this.offerTicket = false;
                 } else {

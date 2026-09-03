@@ -22,6 +22,7 @@ class EnsureProtectionAccess
         'support-system.create',
         'support-system.store',
         'support-system.show',
+        'support-system.reply',
         'profile.edit',
         'profile.update',
         'profile.destroy',

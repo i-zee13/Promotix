@@ -16,6 +16,7 @@ return [
         'bot-protection' => ['route' => 'analytics.dashboard', 'label' => 'Analytics Dashboard',  'icon' => 'shield'],
         'domain-management' => ['route' => 'domains.index', 'label' => 'Domains',           'icon' => 'globe'],
         'upgrade-plan'      => ['route' => 'billing.index', 'label' => 'Billing',           'icon' => 'card'],
+        'support-system'    => ['route' => 'support-system', 'label' => 'Support',          'icon' => 'support'],
     ],
 
     /*
@@ -59,6 +60,7 @@ return [
             'items' => [
                 'domain-management' => ['route' => 'domains.index', 'label' => 'Domains', 'icon' => 'globe'],
                 'upgrade-plan' => ['route' => 'billing.index', 'label' => 'Billing', 'icon' => 'card'],
+                'support-system' => ['route' => 'support-system', 'label' => 'Support', 'icon' => 'support'],
             ],
         ],
     ],
@@ -149,10 +151,7 @@ return [
         'traffic-bot-logs' => 'traffic-bot-logs',
         'automation'       => 'automation',
         'automation.show'  => 'automation',
-        'support-system'   => 'support-system',
-        'support-system.show' => 'support-system',
-        'support-system.create' => 'support-system',
-        'support-system.store' => 'support-system',
+        // Customer Support inbox is available to every portal user (like Billing).
         'security-logs'    => 'security-logs',
         'system-settings'  => 'system-settings',
         'roles.index'      => 'roles',

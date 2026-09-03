@@ -4474,6 +4474,20 @@ select.figma-sa-subs-status-pill {
     right: 0;
 }
 
+.figma-shell.figma-hide-rightbar {
+    --figma-right: 0px;
+    padding-right: 0;
+}
+
+.figma-shell.figma-hide-rightbar .figma-header {
+    right: 0;
+}
+
+.figma-shell.figma-hide-rightbar .figma-rightbar,
+.figma-shell.figma-hide-rightbar .figma-rightbar-edge-toggle {
+    display: none !important;
+}
+
 .figma-shell.figma-shell-super .figma-main,
 .figma-shell.figma-shell-super .figma-sa-main {
     width: 100%;
@@ -4579,6 +4593,397 @@ select.figma-sa-subs-status-pill {
         padding-left: 24px;
         padding-right: 24px;
     }
+}
+
+.figma-main:has(.ticket-inbox) {
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* Customer Support inbox (ChatGPT-style ticket thread) */
+.ticket-inbox {
+    display: flex;
+    height: calc(100vh - 49px);
+    min-height: calc(100vh - 49px);
+    overflow: hidden;
+    background: #111111;
+    color: #f4f4f4;
+}
+
+.ticket-inbox__list {
+    display: flex;
+    width: min(320px, 100%);
+    flex-direction: column;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    background: #0d0d0d;
+}
+
+.ticket-inbox__list-head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 12px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ticket-inbox__new {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--brand-primary, #FF6600);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.ticket-inbox__new:hover {
+    filter: brightness(1.06);
+}
+
+.ticket-inbox__search,
+.ticket-inbox__input {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    background: #161616;
+    color: #fff;
+    font-size: 13px;
+    padding: 9px 12px;
+}
+
+.ticket-inbox__search:focus,
+.ticket-inbox__input:focus {
+    outline: none;
+    border-color: var(--brand-primary, #FF6600);
+}
+
+.ticket-inbox__rows {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.ticket-inbox__row {
+    display: block;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: inherit;
+}
+
+.ticket-inbox__row:hover,
+.ticket-inbox__row.is-active {
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 16%, #161616);
+}
+
+.ticket-inbox__row-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.ticket-inbox__row-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.ticket-inbox__row-when,
+.ticket-inbox__row-preview {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+}
+
+.ticket-inbox__row-preview {
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ticket-inbox__row-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.ticket-inbox__pill,
+.ticket-inbox__status {
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.ticket-inbox__pill {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.ticket-inbox__status {
+    background: rgba(255, 255, 255, 0.08);
+    text-transform: capitalize;
+}
+
+.ticket-inbox__status.is-open,
+.ticket-inbox__status.is-in-progress {
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 22%, transparent);
+    color: #ffd2b3;
+}
+
+.ticket-inbox__status.is-closed,
+.ticket-inbox__status.is-resolved {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.ticket-inbox__empty-list,
+.ticket-inbox__closed {
+    padding: 24px 16px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+}
+
+.ticket-inbox__thread {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    background: #111111;
+}
+
+.ticket-inbox__thread-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ticket-inbox__thread-head h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 650;
+}
+
+.ticket-inbox__thread-head p {
+    margin: 4px 0 0;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 12px;
+}
+
+.ticket-inbox__back {
+    display: none;
+    margin-top: 2px;
+    color: var(--brand-primary, #FF6600);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.ticket-inbox__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ticket-inbox__bubble {
+    max-width: min(72%, 640px);
+    border-radius: 14px;
+    padding: 10px 12px;
+}
+
+.ticket-inbox__bubble p {
+    margin: 0;
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.ticket-inbox__bubble-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.ticket-inbox__bubble.is-you {
+    margin-left: auto;
+    background: var(--brand-primary, #FF6600);
+    color: #fff;
+}
+
+.ticket-inbox__bubble.is-agent {
+    margin-right: auto;
+    background: #1c1c1c;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ticket-inbox__composer,
+.ticket-inbox__compose-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ticket-inbox__composer {
+    flex-direction: row;
+    align-items: flex-end;
+}
+
+.ticket-inbox__textarea {
+    min-height: 52px;
+    resize: vertical;
+}
+
+.ticket-inbox__label {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.ticket-inbox__compose-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.ticket-inbox__send {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 10px;
+    background: var(--brand-primary, #FF6600);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.ticket-inbox__cancel {
+    display: inline-flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 14px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+}
+
+.ticket-inbox__placeholder {
+    margin: auto;
+    max-width: 360px;
+    padding: 24px;
+    text-align: center;
+}
+
+.ticket-inbox__placeholder p {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 650;
+}
+
+.ticket-inbox__placeholder span {
+    display: block;
+    margin: 8px 0 16px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+}
+
+.ticket-inbox__placeholder a,
+.ticket-inbox__alert,
+.ticket-inbox__flash {
+    color: var(--brand-primary, #FF6600);
+}
+
+.ticket-inbox__alert,
+.ticket-inbox__flash {
+    margin: 0 20px;
+    padding-top: 12px;
+    font-size: 13px;
+}
+
+@media (max-width: 767px) {
+    .ticket-inbox__list--hidden-mobile {
+        display: none;
+    }
+
+    .ticket-inbox__thread--hidden-mobile {
+        display: none;
+    }
+
+    .ticket-inbox__list,
+    .ticket-inbox__thread {
+        width: 100%;
+    }
+
+    .ticket-inbox__back {
+        display: inline-block;
+    }
+
+    .ticket-inbox__bubble {
+        max-width: 88%;
+    }
+}
+
+.light-mode .ticket-inbox,
+.light-mode .ticket-inbox__thread {
+    background: #f7f6f4;
+    color: #1a1a1a;
+}
+
+.light-mode .ticket-inbox__list {
+    background: #fff;
+    border-right-color: rgba(0, 0, 0, 0.08);
+}
+
+.light-mode .ticket-inbox__search,
+.light-mode .ticket-inbox__input {
+    background: #fff;
+    border-color: rgba(0, 0, 0, 0.12);
+    color: #1a1a1a;
+}
+
+.light-mode .ticket-inbox__row {
+    border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+.light-mode .ticket-inbox__row-when,
+.light-mode .ticket-inbox__row-preview,
+.light-mode .ticket-inbox__thread-head p,
+.light-mode .ticket-inbox__empty-list,
+.light-mode .ticket-inbox__closed,
+.light-mode .ticket-inbox__placeholder span,
+.light-mode .ticket-inbox__label {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.light-mode .ticket-inbox__thread-head,
+.light-mode .ticket-inbox__list-head,
+.light-mode .ticket-inbox__composer,
+.light-mode .ticket-inbox__compose-form {
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+.light-mode .ticket-inbox__bubble.is-agent {
+    background: #fff;
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+.light-mode .ticket-inbox__pill {
+    background: rgba(0, 0, 0, 0.06);
+    color: rgba(0, 0, 0, 0.65);
 }
 
 /* Figma product pages (paid marketing, domains, etc.) manage their own layout */

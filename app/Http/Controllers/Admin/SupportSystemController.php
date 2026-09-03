@@ -4,127 +4,160 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SupportTicket;
-use App\Models\User;
+use App\Models\SupportTicketMessage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SupportSystemController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): View
     {
-        $tickets = SupportTicket::query()
-            ->where('user_id', $request->user()->id)
-            ->with(['requester:id,name,email', 'assignee:id,name,email'])
-            ->latest('id')
-            ->paginate(10);
-
-        $rows = $tickets->getCollection()->map(fn (SupportTicket $ticket) => [
-            'id' => (string) $ticket->id,
-            'href' => route('support-system.show', $ticket),
-            'name' => $ticket->subject,
-            'email' => $ticket->requester?->email ?? $request->user()->email,
-            'status' => ucfirst($ticket->status),
-            'priority' => ucfirst($ticket->priority),
-            'agent' => $ticket->assignee?->name ?? 'Unassigned',
-            'last_update' => $ticket->updated_at?->diffForHumans() ?? '—',
-            'sla' => $ticket->sla_due_at ? ($ticket->sla_due_at->isPast() ? 'Breached' : $ticket->sla_due_at->diffForHumans()) : 'No SLA',
-        ])->all();
-
-        $total = $tickets->total();
-        $from = $tickets->firstItem() ?? 0;
-        $to = $tickets->lastItem() ?? 0;
-        $stats = [
-            'total' => SupportTicket::query()->where('user_id', $request->user()->id)->count(),
-            'open' => SupportTicket::query()->where('user_id', $request->user()->id)->where('status', 'open')->count(),
-            'assigned' => SupportTicket::query()->where('user_id', $request->user()->id)->whereNotNull('assigned_to_id')->count(),
-            'sla_breaches' => SupportTicket::query()->where('user_id', $request->user()->id)->whereNotNull('sla_due_at')->where('sla_due_at', '<', now())->whereNotIn('status', ['closed', 'resolved'])->count(),
-            'overdue' => SupportTicket::query()->where('user_id', $request->user()->id)->where('priority', 'urgent')->whereNotIn('status', ['closed', 'resolved'])->count(),
-        ];
-        $statusClasses = [
-            'Open' => 'bg-green-600 text-white',
-            'Waiting' => 'bg-yellow-600 text-white',
-            'Resolved' => 'bg-gray-600 text-white',
-            'Closed' => 'bg-gray-600 text-white',
-            'Escalated' => 'bg-red-600 text-white',
-        ];
-        $priorityClasses = [
-            'High' => 'bg-red-600 text-white',
-            'Medium' => 'bg-yellow-600 text-white',
-            'Low' => 'bg-green-700 text-white',
-            'Urgent' => 'bg-red-700 text-white',
-        ];
-
-        return view('support-system', compact('rows', 'total', 'from', 'to', 'stats', 'statusClasses', 'priorityClasses'));
+        return $this->inbox($request);
     }
 
     public function show(Request $request, SupportTicket $ticket): View
     {
-        abort_unless($ticket->user_id === $request->user()->id, 403);
+        $this->assertOwner($request, $ticket);
 
-        $ticket->load(['messages.user:id,name,email', 'requester:id,name,email', 'assignee:id,name,email']);
-        $agents = User::query()
-            ->where('is_admin', true)
-            ->orWhere('is_super_admin', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
-
-        return view('support-ticket-detail', compact('ticket', 'agents'));
+        return $this->inbox($request, $ticket);
     }
 
     public function create(Request $request): View
     {
-        $agents = User::query()
-            ->where('is_admin', true)
-            ->orWhere('is_super_admin', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
-
-        return view('support-ticket-create', compact('agents'));
+        return $this->inbox($request, composing: true);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'subject' => ['required', 'string', 'max:200'],
-            'body' => ['required', 'string'],
-            'priority' => ['required', 'in:low,medium,high,urgent'],
-            'category' => ['nullable', 'string', 'max:80'],
-            'assigned_to_id' => ['nullable', 'integer', 'exists:users,id'],
-            'requester_email' => ['nullable', 'email', 'max:200'],
-            'sla_hours' => ['nullable', 'integer', 'min:1', 'max:240'],
+            'body' => ['required', 'string', 'max:10000'],
+            'priority' => ['nullable', 'in:low,medium,high,urgent'],
         ]);
-
-        $requester = null;
-        if (! empty($data['requester_email'])) {
-            $requester = User::query()->where('email', $data['requester_email'])->first();
-        }
 
         $ticket = SupportTicket::query()->create([
             'user_id' => $request->user()->id,
-            'requester_id' => $requester?->id ?? $request->user()->id,
-            'assigned_to_id' => $data['assigned_to_id'] ?? null,
+            'requester_id' => $request->user()->id,
             'subject' => $data['subject'],
             'body' => $data['body'],
-            'status' => $data['assigned_to_id'] ? 'open' : 'open',
-            'priority' => $data['priority'],
-            'category' => $data['category'] ?? null,
-            'sla_due_at' => isset($data['sla_hours']) ? now()->addHours((int) $data['sla_hours']) : now()->addHours(24),
+            'status' => 'open',
+            'priority' => $data['priority'] ?? 'medium',
+            'category' => 'support',
+            'sla_due_at' => now()->addHours(24),
         ]);
 
-        if (\Illuminate\Support\Facades\Schema::hasColumn('support_tickets', 'ticket_number') && blank($ticket->ticket_number)) {
+        if (Schema::hasColumn('support_tickets', 'ticket_number') && blank($ticket->ticket_number)) {
             $ticket->ticket_number = 'TKT-'.now()->format('Y').'-'.str_pad((string) $ticket->id, 6, '0', STR_PAD_LEFT);
-            if (\Illuminate\Support\Facades\Schema::hasColumn('support_tickets', 'department')) {
-                $ticket->department = $data['category'] ?? 'support';
-            }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('support_tickets', 'source')) {
-                $ticket->source = 'support_system';
-            }
-            $ticket->save();
         }
+        if (Schema::hasColumn('support_tickets', 'department')) {
+            $ticket->department = 'support';
+        }
+        if (Schema::hasColumn('support_tickets', 'source')) {
+            $ticket->source = 'support_system';
+        }
+        $ticket->save();
 
         return redirect()
             ->route('support-system.show', $ticket)
             ->with('status', 'Ticket created.');
+    }
+
+    public function reply(Request $request, SupportTicket $ticket): RedirectResponse
+    {
+        $this->assertOwner($request, $ticket);
+
+        abort_if(in_array($ticket->status, ['closed', 'resolved'], true), 403);
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:10000'],
+        ]);
+
+        $ticket->messages()->create([
+            'user_id' => $request->user()->id,
+            'body' => $data['body'],
+            'is_agent_reply' => false,
+        ]);
+
+        $ticket->forceFill(['status' => 'open'])->save();
+
+        return redirect()
+            ->route('support-system.show', $ticket)
+            ->with('status', 'Reply sent.');
+    }
+
+    private function inbox(Request $request, ?SupportTicket $ticket = null, bool $composing = false): View
+    {
+        $user = $request->user();
+
+        $tickets = SupportTicket::query()
+            ->where('user_id', $user->id)
+            ->latest('updated_at')
+            ->limit(200)
+            ->get();
+
+        $lastBodies = SupportTicketMessage::query()
+            ->select('support_ticket_id', 'body')
+            ->whereIn('support_ticket_id', $tickets->pluck('id')->filter())
+            ->whereIn('id', function ($query): void {
+                $query->selectRaw('max(id)')
+                    ->from('support_ticket_messages')
+                    ->groupBy('support_ticket_id');
+            })
+            ->pluck('body', 'support_ticket_id');
+
+        $ticketRows = $tickets->map(function (SupportTicket $item) use ($lastBodies) {
+            $preview = $lastBodies[$item->id] ?? $item->body ?? '';
+
+            return [
+                'id' => $item->id,
+                'href' => route('support-system.show', $item),
+                'subject' => $item->subject,
+                'number' => $item->ticket_number ?: ('#'.$item->id),
+                'preview' => Str::limit(trim(preg_replace('/\s+/', ' ', (string) $preview) ?? ''), 80),
+                'status' => $item->status,
+                'when' => ($item->updated_at ?? $item->created_at)?->diffForHumans() ?? '',
+            ];
+        })->all();
+
+        $thread = [];
+        if ($ticket) {
+            $ticket->load(['messages.user:id,name,email', 'requester:id,name,email']);
+
+            if (filled($ticket->body)) {
+                $thread[] = [
+                    'id' => 'opening',
+                    'body' => $ticket->body,
+                    'name' => $ticket->requester?->name ?? $user->name,
+                    'when' => $ticket->created_at?->diffForHumans() ?? '',
+                    'is_agent' => false,
+                ];
+            }
+
+            foreach ($ticket->messages as $message) {
+                $thread[] = [
+                    'id' => $message->id,
+                    'body' => $message->body,
+                    'name' => $message->user?->name ?? ($message->is_agent_reply ? 'Support' : $user->name),
+                    'when' => $message->created_at?->diffForHumans() ?? '',
+                    'is_agent' => (bool) $message->is_agent_reply,
+                ];
+            }
+        }
+
+        return view('support-system', [
+            'ticketRows' => $ticketRows,
+            'selected' => $ticket,
+            'thread' => $thread,
+            'composing' => $composing,
+            'canReply' => $ticket && ! in_array($ticket->status, ['closed', 'resolved'], true),
+        ]);
+    }
+
+    private function assertOwner(Request $request, SupportTicket $ticket): void
+    {
+        abort_unless($ticket->user_id === $request->user()->id, 403);
     }
 }

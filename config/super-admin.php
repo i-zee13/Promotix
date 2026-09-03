@@ -47,8 +47,5 @@ return [
         'analytics'        => 'super-admin.analytics.index',
         'security-logs'    => 'super-admin.security.index',
         'system-settings'  => 'super-admin.settings.index',
-        'support-system'   => 'super-admin.tickets.index',
-        'support-system.show' => 'super-admin.tickets.index',
-        'support-system.create' => 'super-admin.tickets.index',
     ],
 ];

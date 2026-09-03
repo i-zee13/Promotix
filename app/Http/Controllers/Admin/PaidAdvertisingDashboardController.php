@@ -80,10 +80,10 @@ class PaidAdvertisingDashboardController extends Controller
         $forceGoogleSync = $request->boolean('force_google_sync');
         $googleSyncErrors = $forceGoogleSync
             ? $this->syncGoogleMetricsForDomains(
-                $request,
-                $domains,
-                $metricFrom,
-                $metricTo,
+            $request,
+            $domains,
+            $metricFrom,
+            $metricTo,
                 true
             )
             : [];
@@ -417,7 +417,7 @@ class PaidAdvertisingDashboardController extends Controller
                 $labels[] = $spanDays <= 14
                     ? $period->format('D n/j')
                     : $period->format('M j');
-                $period->addDay();
+            $period->addDay();
             }
         }
 
@@ -428,22 +428,22 @@ class PaidAdvertisingDashboardController extends Controller
         $lastWeekSeries = array_fill(0, count($paidSeries), 0);
         if (! $hourly) {
             $days = max(1, $chartFrom->diffInDays($chartTo->copy()->startOfDay()) + 1);
-            $prevMetricFrom = Carbon::parse($metricFrom, $userTz)->subDays($days)->toDateString();
-            $prevMetricTo = Carbon::parse($metricFrom, $userTz)->subDay()->toDateString();
+        $prevMetricFrom = Carbon::parse($metricFrom, $userTz)->subDays($days)->toDateString();
+        $prevMetricTo = Carbon::parse($metricFrom, $userTz)->subDay()->toDateString();
             $prevRows = $fetchRows($prevMetricFrom, $prevMetricTo, false);
 
-            $googlePrev = null;
-            if ($googleByDay !== null && $domainIds->isNotEmpty()) {
-                $googlePrev = app(GoogleAdsDomainMetricsSync::class)
-                    ->dailyClicksByDateForDomains($domainIds, $prevMetricFrom, $prevMetricTo);
-            }
+        $googlePrev = null;
+        if ($googleByDay !== null && $domainIds->isNotEmpty()) {
+            $googlePrev = app(GoogleAdsDomainMetricsSync::class)
+                ->dailyClicksByDateForDomains($domainIds, $prevMetricFrom, $prevMetricTo);
+        }
 
             $previous = $buildSeries($prevMetricFrom, $prevMetricTo, $prevRows, $googlePrev, false);
-            $lastWeekSeries = $previous['paid'];
-            while (count($lastWeekSeries) < count($paidSeries)) {
-                array_unshift($lastWeekSeries, 0);
-            }
-            $lastWeekSeries = array_slice($lastWeekSeries, 0, count($paidSeries));
+        $lastWeekSeries = $previous['paid'];
+        while (count($lastWeekSeries) < count($paidSeries)) {
+            array_unshift($lastWeekSeries, 0);
+        }
+        $lastWeekSeries = array_slice($lastWeekSeries, 0, count($paidSeries));
         }
 
         $datasets = [
@@ -1065,21 +1065,21 @@ class PaidAdvertisingDashboardController extends Controller
 
         $select = [
             'ip',
-            'visited_at',
-            'url',
-            'country',
-            'browser',
-            'os',
+                'visited_at',
+                'url',
+                'country',
+                'browser',
+                'os',
             'device',
-            'is_invalid_traffic',
-            'threat_group',
-            'action_taken',
-            'detection_reasons',
-            DB::raw("{$campaignExpr} as campaign"),
-            DB::raw("{$paidIdExpr} as paid_id"),
-            DB::raw(Schema::hasColumn('visits', 'gclid') ? 'gclid' : 'NULL as gclid'),
-            DB::raw(Schema::hasColumn('visits', 'gbraid') ? 'gbraid' : 'NULL as gbraid'),
-            DB::raw(Schema::hasColumn('visits', 'wbraid') ? 'wbraid' : 'NULL as wbraid'),
+                'is_invalid_traffic',
+                'threat_group',
+                'action_taken',
+                'detection_reasons',
+                DB::raw("{$campaignExpr} as campaign"),
+                DB::raw("{$paidIdExpr} as paid_id"),
+                DB::raw(Schema::hasColumn('visits', 'gclid') ? 'gclid' : 'NULL as gclid'),
+                DB::raw(Schema::hasColumn('visits', 'gbraid') ? 'gbraid' : 'NULL as gbraid'),
+                DB::raw(Schema::hasColumn('visits', 'wbraid') ? 'wbraid' : 'NULL as wbraid'),
             DB::raw(Schema::hasColumn('visits', 'utm_term') ? 'utm_term as keyword' : 'NULL as keyword'),
             DB::raw(Schema::hasColumn('visits', 'threat_type') ? 'threat_type' : 'NULL as threat_type'),
         ];
@@ -1596,14 +1596,14 @@ class PaidAdvertisingDashboardController extends Controller
         $search = trim((string) $request->query('ip', ''));
         // IP / GCLID / Device ID search: do not hide rows just because the date chip is narrow.
         if ($search === '') {
-            UserTimezone::applyCalendarDateRangeFilter(
-                $query,
-                'visited_at',
-                $fromDate,
-                $toDate,
-                $request->user(),
-                $this->reportingTimezone($request, $domainIds),
-            );
+        UserTimezone::applyCalendarDateRangeFilter(
+            $query,
+            'visited_at',
+            $fromDate,
+            $toDate,
+            $request->user(),
+            $this->reportingTimezone($request, $domainIds),
+        );
         }
 
         GoogleClickAttribution::applyHasClickIdFilter($query);
@@ -1758,14 +1758,14 @@ class PaidAdvertisingDashboardController extends Controller
 
         $search = trim((string) $request->query('ip', ''));
         if ($search === '') {
-            UserTimezone::applyCalendarDateRangeFilter(
-                $query,
-                'pc.clicked_at',
-                $fromDate,
-                $toDate,
-                $request->user(),
-                $this->reportingTimezone($request, $domainIds),
-            );
+        UserTimezone::applyCalendarDateRangeFilter(
+            $query,
+            'pc.clicked_at',
+            $fromDate,
+            $toDate,
+            $request->user(),
+            $this->reportingTimezone($request, $domainIds),
+        );
         }
 
         $this->applyPaidTrafficOnlyFilter($query, 'pc');
@@ -2436,7 +2436,7 @@ class PaidAdvertisingDashboardController extends Controller
             } elseif ($actionRaw !== '') {
                 $actionLabel = ucfirst($actionRaw);
                 $actionTone = 'monitor';
-            } else {
+                } else {
                 $actionLabel = 'Allow';
                 $actionTone = 'allow';
             }
@@ -3198,9 +3198,9 @@ class PaidAdvertisingDashboardController extends Controller
         ];
 
         $legacyRules = [
-            ['label' => 'Bot traffic', 'action' => 'Monitor', 'tone' => 'monitor'],
-            ['label' => 'Malicious', 'action' => 'Monitor', 'tone' => 'monitor'],
-            ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
+                ['label' => 'Bot traffic', 'action' => 'Monitor', 'tone' => 'monitor'],
+                ['label' => 'Malicious', 'action' => 'Monitor', 'tone' => 'monitor'],
+                ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
         ];
 
         if (collect($domainIds)->isEmpty() || ! Schema::hasTable('domain_detection_settings')) {
@@ -3225,9 +3225,9 @@ class PaidAdvertisingDashboardController extends Controller
                 'detection_rules' => array_map(fn ($rule) => [...$rule, 'on' => false], $defaultDetection),
                 'protection_actions' => array_map(fn ($action) => [...$action, 'active' => false], $protectionActions),
                 'rules' => [
-                    ['label' => 'Bot traffic', 'action' => 'Not configured', 'tone' => 'off'],
-                    ['label' => 'Malicious', 'action' => 'Not configured', 'tone' => 'off'],
-                    ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
+                ['label' => 'Bot traffic', 'action' => 'Not configured', 'tone' => 'off'],
+                ['label' => 'Malicious', 'action' => 'Not configured', 'tone' => 'off'],
+                ['label' => 'Suspicious', 'action' => 'Off', 'tone' => 'off'],
                 ],
             ];
         }

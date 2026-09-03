@@ -9,23 +9,27 @@
 ])
 
 @php
-    $darkLogoPath = public_path('images/clickronix-logo-dark.png');
-    $lightLogoPath = public_path('images/clickronix-logo-light.png');
-    $darkLogoUrl = url('/images/clickronix-logo-dark.png') . (is_file($darkLogoPath) ? '?v=' . filemtime($darkLogoPath) : '');
-    $lightLogoUrl = is_file($lightLogoPath)
-        ? url('/images/clickronix-logo-light.png') . '?v=' . filemtime($lightLogoPath)
-        : $darkLogoUrl;
-    $logoUrl = in_array($variant, ['light'], true) ? $lightLogoUrl : $darkLogoUrl;
+    $brandName = \App\Support\PortalBrand::name();
+    $logos = \App\Support\PortalBrand::logoUrls();
+    $logoUrl = $logos
+        ? ($variant === 'light' ? $logos['light'] : $logos['dark'])
+        : null;
 @endphp
 
-<a href="{{ url('/') }}" {{ $attributes->class(['inline-flex items-center gap-2']) }} aria-label="Clickronix">
-    <img
-        src="{{ $logoUrl }}"
-        alt="Clickronix"
-        class="block w-auto max-w-full object-contain object-left"
-        style="height: {{ (int) $height }}px;"
-        loading="eager"
-        decoding="async"
-        referrerpolicy="no-referrer"
-    >
+<a href="{{ url('/') }}" {{ $attributes->class(['inline-flex items-center gap-2']) }} aria-label="{{ $brandName }}">
+    @if ($logoUrl)
+        <img
+            src="{{ $logoUrl }}"
+            alt="{{ $brandName }}"
+            class="block w-auto max-w-full object-contain object-left"
+            style="height: {{ (int) $height }}px;"
+            loading="eager"
+            decoding="async"
+            referrerpolicy="no-referrer"
+        >
+    @else
+        <span class="inline-flex items-center gap-2 font-extrabold uppercase tracking-[0.06em] text-white" style="font-size: {{ max(14, (int) $height - 12) }}px;">
+            {{ $brandName }}
+        </span>
+    @endif
 </a>

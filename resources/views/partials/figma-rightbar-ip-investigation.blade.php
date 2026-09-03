@@ -26,8 +26,8 @@
         display:flex; flex-direction:column; gap:10px;
     }
     .pm-ip-invest__hero {
-        border-radius:10px; border:1px solid rgba(100,0,178,.45);
-        background:linear-gradient(165deg, #1a1024 0%, #111111 55%, #0d0d0d 100%);
+        border-radius:10px; border:1px solid color-mix(in srgb, var(--brand-primary,#FF6600) 45%, transparent);
+        background:linear-gradient(165deg, color-mix(in srgb, var(--brand-primary,#FF6600) 16%, #111) 0%, #111111 55%, #0d0d0d 100%);
         padding:12px 11px 11px;
     }
     .pm-ip-invest__ip-row {
@@ -69,7 +69,7 @@
         font-size:10px; font-weight:700; color:rgba(255,255,255,.9);
     }
     .pm-ip-invest__section-title::before {
-        content:''; position:absolute; left:0; top:1px; bottom:1px; width:2px; border-radius:2px; background:#6400B2;
+        content:''; position:absolute; left:0; top:1px; bottom:1px; width:2px; border-radius:2px; background:var(--brand-primary,#FF6600);
     }
 
     .pm-ip-invest__reasons { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; }
@@ -104,11 +104,11 @@
     .pm-ip-invest__value.is-ok { color:#86efac; }
     .pm-ip-invest__mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:9px; }
 
-    .pm-ip-invest__timeline { list-style:none; margin:0; padding:0 0 0 2px; display:flex; flex-direction:column; gap:8px; border-left:1px solid rgba(100,0,178,.4); }
+    .pm-ip-invest__timeline { list-style:none; margin:0; padding:0 0 0 2px; display:flex; flex-direction:column; gap:8px; border-left:1px solid color-mix(in srgb, var(--brand-primary,#FF6600) 45%, transparent); }
     .pm-ip-invest__timeline li { position:relative; padding-left:12px; }
     .pm-ip-invest__dot {
         position:absolute; left:-4px; top:3px; width:7px; height:7px; border-radius:999px;
-        background:#6400B2; box-shadow:0 0 0 3px rgba(100,0,178,.22);
+        background:var(--brand-primary,#FF6600); box-shadow:0 0 0 3px color-mix(in srgb, var(--brand-primary,#FF6600) 22%, transparent);
     }
     .pm-ip-invest__tl-title { margin:0; font-size:10px; font-weight:600; color:#fff; }
     .pm-ip-invest__tl-meta { margin:2px 0 0; font-size:8px; color:rgba(255,255,255,.4); line-height:1.3; }
@@ -119,30 +119,30 @@
         padding:6px 10px; border-radius:7px; font-size:10px; font-weight:700;
         text-align:center; text-decoration:none; cursor:pointer; border:1px solid transparent;
     }
-    .pm-ip-invest__btn--primary { background:#6400B2; color:#fff; }
-    .pm-ip-invest__btn--primary:hover { background:#7B13C8; }
+    .pm-ip-invest__btn--primary { background:var(--brand-primary,#FF6600); color:#fff; }
+    .pm-ip-invest__btn--primary:hover { background:color-mix(in srgb, var(--brand-primary,#FF6600) 82%, white); }
     .pm-ip-invest__btn--ghost {
         background:#0d0d0d; border-color:rgba(255,255,255,.16); color:rgba(255,255,255,.82);
     }
-    .pm-ip-invest__btn--ghost:hover { border-color:rgba(100,0,178,.55); color:#fff; }
+    .pm-ip-invest__btn--ghost:hover { border-color:color-mix(in srgb, var(--brand-primary,#FF6600) 55%, transparent); color:#fff; }
 
     html.light-mode .pm-ip-invest__title { color:#5c5470; }
-    html.light-mode .pm-ip-invest__empty { background:#f4f2f7; border-color:#d4c4e8; color:#6b6280; }
+    html.light-mode .pm-ip-invest__empty { background:#f4f2f7; border-color:#e8d4c4; color:#6b6280; }
     html.light-mode .pm-ip-invest__hero {
-        background:linear-gradient(165deg, #f3eef9 0%, #fff 60%);
-        border-color:#d4c4e8;
+        background:linear-gradient(165deg, #fff4ee 0%, #fff 60%);
+        border-color:#e8d4c4;
     }
     html.light-mode .pm-ip-invest__ip,
     html.light-mode .pm-ip-invest__section-title,
     html.light-mode .pm-ip-invest__value,
     html.light-mode .pm-ip-invest__reasons li,
     html.light-mode .pm-ip-invest__tl-title { color:#1a1a1a; }
-    html.light-mode .pm-ip-invest__card { background:#fff; border-color:#e5ddf0; }
-    html.light-mode .pm-ip-invest__field { background:#f8f6fb; border-color:#ebe4f4; }
+    html.light-mode .pm-ip-invest__card { background:#fff; border-color:#e8d4c4; }
+    html.light-mode .pm-ip-invest__field { background:#fff8f3; border-color:#f0e0d4; }
     html.light-mode .pm-ip-invest__label,
     html.light-mode .pm-ip-invest__score-label,
     html.light-mode .pm-ip-invest__tl-meta { color:#6b6280; }
-    html.light-mode .pm-ip-invest__btn--ghost { background:#fff; border-color:#d4c4e8; color:#3d3848; }
+    html.light-mode .pm-ip-invest__btn--ghost { background:#fff; border-color:#e8d4c4; color:#3d3848; }
     html.light-mode .pm-ip-invest__reasons li.is-off { color:#b0a8bc; }
 </style>
 
