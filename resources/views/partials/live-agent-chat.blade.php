@@ -30,8 +30,8 @@
     >
         <header class="flex items-center justify-between border-b border-white/10 bg-[#FF6600] px-[14px] py-[12px]">
             <div>
-                <p class="text-[13px] font-semibold text-white">Guidance Agent</p>
-                <p class="text-[10px] text-white/90" x-text="typing ? 'Typing…' : (agentOnline ? 'Online — answers from admin knowledge base' : 'Connecting…')"></p>
+                <p class="text-[13px] font-semibold text-white">Clickronix Copilot</p>
+                <p class="text-[10px] text-white/90" x-text="typing ? 'Typing…' : (agentOnline ? 'Online — local knowledge bank (no AI key)' : 'Connecting…')"></p>
             </div>
             <button type="button" @click="closePanel()" class="rounded p-1 text-white/80 hover:bg-white/10" aria-label="Close chat">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -79,7 +79,7 @@
                 <input
                     x-model="draft"
                     type="text"
-                    placeholder="Ask about setup, billing, integrations…"
+                    placeholder="Ask about tracking, invalid clicks, Google Ads…"
                     class="h-[36px] flex-1 rounded-[6px] border border-white/15 bg-[#0d0d0d] px-[10px] text-[12px] text-white placeholder:text-white/40 focus:border-[#FF6600] focus:ring-0"
                     :disabled="typing"
                 >
@@ -101,11 +101,12 @@ function liveAgentChat(config) {
         offerTicket: false,
         ticketSubject: '',
         ticketBody: '',
+        ticketDepartment: 'support',
         ticketBusy: false,
         lastActivityAt: Date.now(),
         idleTimer: null,
         messages: [
-            { from: 'agent', text: 'Hi! Ask about tag install, Pixel Guard, reports, or billing. Answers come from the admin Guidance KB.' },
+            { from: 'agent', text: 'Hi — I’m the Clickronix Copilot. Ask about tracking, Google Ads connection, invalid clicks, Advanced View, analytics, domains, or billing. Answers come from the product knowledge bank (no OpenAI key). Say “agent” if you want a specialist.' },
         ],
         openPanel() {
             this.open = true;
@@ -191,6 +192,7 @@ function liveAgentChat(config) {
                     related_page: payload.related_page || null,
                     image_url: payload.image_url || null,
                 });
+                this.ticketDepartment = payload.department || 'support';
                 if (payload.offer_ticket || (payload.confidence !== undefined && payload.confidence < 0.35)) {
                     this.offerTicket = true;
                     this.ticketSubject = text.slice(0, 120);
@@ -218,7 +220,7 @@ function liveAgentChat(config) {
                         session_id: this.sessionId,
                         subject,
                         body,
-                        department: 'support',
+                        department: this.ticketDepartment || 'support',
                     }),
                 });
                 const data = await res.json();

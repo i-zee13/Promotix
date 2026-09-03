@@ -64,7 +64,7 @@ class GuidanceChatController extends Controller
             $transcript[] = ['from' => 'agent', 'text' => $result['answer'], 'at' => now()->toIso8601String(), 'meta' => $result];
             $session->transcript = $transcript;
             $session->last_activity_at = now();
-            $session->department = $data['department'] ?? $session->department;
+            $session->department = $data['department'] ?? ($result['department'] ?? $session->department);
             $session->save();
         }
 
@@ -72,6 +72,8 @@ class GuidanceChatController extends Controller
             'ok' => true,
             'session_id' => $session?->id,
             'ux_delay_ms' => 500,
+            'department' => $result['department'] ?? null,
+            'source' => $result['source'] ?? null,
             ...$result,
         ]);
     }

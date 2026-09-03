@@ -44,9 +44,13 @@ class AdminIntegrationCatalog
         return $userId !== null && self::guidanceChatbotEnabled();
     }
 
-    /** Platform-wide: Guidance chatbot enabled from Super Admin → Integrations toggle. */
+    /** Platform-wide: enabled when local KB files exist, or Super Admin toggle is on. */
     public static function guidanceChatbotEnabled(): bool
     {
+        if (ClickronixKnowledgeBank::isAvailable()) {
+            return true;
+        }
+
         return self::integrationEnabledForTenants('guidance-chatbot');
     }
 
@@ -226,8 +230,8 @@ class AdminIntegrationCatalog
             ],
             'guidance-chatbot' => [
                 'icon' => 'C',
-                'subtitle' => 'Dashboard + website chat both read published Guidance articles from Super Admin.',
-                'connected_label' => 'Synced',
+                'subtitle' => 'Clickronix Copilot — answers from local knowledge bank (no OpenAI key). Optional Guidance articles add extra coverage.',
+                'connected_label' => 'Knowledge bank ready',
             ],
             default => [
                 'icon' => '•',

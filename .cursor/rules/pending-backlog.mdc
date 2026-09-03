@@ -9,4 +9,8 @@ When starting a session or when the user asks what’s next / remaining, briefly
 
 ## Queued
 
-1. **ChatGPT-style chat** — Build an in-app chat experience similar to ChatGPT (queued 2026-09-01). User said keep in queue and remind later.
+_(none)_
+
+## Done recently
+
+1. **Clickronix Copilot chat** — Local knowledge-bank chatbot (no OpenAI), shipped 2026-09-03 from support-assistant + copilot master files.

@@ -34,8 +34,8 @@
                 type="button"
                 @click="$dispatch('open-live-agent')"
                 class="figma-rightbar-icon-btn"
-                title="Messages"
-                aria-label="Live agent chat"
+                title="Clickronix Copilot"
+                aria-label="Open Clickronix Copilot chat"
             >
                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M4 5h16v11H8l-4 4V5z"/>
