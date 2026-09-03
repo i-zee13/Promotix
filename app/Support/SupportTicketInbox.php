@@ -47,7 +47,7 @@ class SupportTicketInbox
     /**
      * Compact chips for the Copilot header (current user's tickets).
      *
-     * @return list<array{id:int,title:string,subject:string,number:string,status:string,href:string}>
+     * @return list<array{id:int,title:string,subject:string,number:string,status:string,can_reply:bool,messages:list<array<string, mixed>>}>
      */
     public static function copilotChips(?User $user, int $limit = 20): array
     {
@@ -57,22 +57,20 @@ class SupportTicketInbox
 
         $tickets = SupportTicket::query()
             ->where('user_id', $user->id)
-            ->with(['requester:id,name,email', 'owner:id,name,email'])
+            ->with(['requester:id,name,email', 'owner:id,name,email', 'messages.user:id,name,email'])
             ->latest('updated_at')
             ->limit($limit)
             ->get();
 
-        return collect(self::rows($tickets, 'support-system.show'))
-            ->map(fn (array $row) => [
-                'id' => $row['id'],
-                'title' => $row['title'],
-                'subject' => $row['subject'],
-                'number' => $row['number'],
-                'status' => $row['status'],
-                'href' => $row['href'],
-            ])
-            ->values()
-            ->all();
+        return $tickets->map(fn (SupportTicket $ticket) => [
+            'id' => $ticket->id,
+            'title' => Str::limit((string) $ticket->subject, 22),
+            'subject' => $ticket->subject,
+            'number' => $ticket->ticket_number ?: ('#'.$ticket->id),
+            'status' => $ticket->status,
+            'can_reply' => self::canCustomerReply($ticket),
+            'messages' => self::thread($ticket),
+        ])->values()->all();
     }
 
     /**

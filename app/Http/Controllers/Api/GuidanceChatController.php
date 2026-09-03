@@ -164,25 +164,9 @@ class GuidanceChatController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
 
-        $tickets = SupportTicket::query()
-            ->where('user_id', $user->id)
-            ->with(['requester:id,name,email', 'owner:id,name,email'])
-            ->latest('updated_at')
-            ->limit(40)
-            ->get();
-
         return response()->json([
             'ok' => true,
-            'tickets' => collect(SupportTicketInbox::rows($tickets, 'support-system.show'))
-                ->map(fn (array $row) => [
-                    'id' => $row['id'],
-                    'title' => $row['title'],
-                    'subject' => $row['subject'],
-                    'number' => $row['number'],
-                    'status' => $row['status'],
-                    'href' => $row['href'],
-                ])
-                ->values(),
+            'tickets' => SupportTicketInbox::copilotChips($user, 40),
         ]);
     }
 

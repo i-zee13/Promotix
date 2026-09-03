@@ -1116,6 +1116,15 @@ document.addEventListener('DOMContentLoaded', () => {
             html.light-mode .pi-footer-card .text-rose-200 {
                 color: #be123c !important;
             }
+            .ae-field {
+                background: var(--brand-input-bg, #0d0d0d);
+                color: var(--brand-text, #fff);
+                color-scheme: dark;
+            }
+            .ae-field option {
+                background: var(--brand-surface, #212121);
+                color: var(--brand-text, #fff);
+            }
         </style>
 
         {{-- Setup Progress --}}
@@ -1160,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <summary class="cursor-pointer text-[12px] font-semibold text-white">Pixel Guard &amp; Audience Exclusion guidance</summary>
                 <div class="mt-[10px] grid gap-[10px] text-[11px] leading-relaxed text-white/70 sm:grid-cols-2">
             <div>
-                        <p class="font-semibold text-[#B893D8]">Pixel Guard</p>
+                        <p class="font-semibold" style="color:color-mix(in srgb, var(--brand-primary) 70%, white)">Pixel Guard</p>
                         <ul class="mt-[6px] list-disc space-y-1 pl-[16px]">
                             <li><strong class="text-white/90">Google Tag ID</strong> — the AW-/GT- ID from Google Ads / Tag Manager for this domain.</li>
                             <li>Tag must match the hostname on the mapping; mismatch fails Save validation.</li>
@@ -1168,7 +1177,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </ul>
                     </div>
                     <div>
-                        <p class="font-semibold text-[#B893D8]">Audience Exclusion</p>
+                        <p class="font-semibold" style="color:color-mix(in srgb, var(--brand-primary) 70%, white)">Audience Exclusion</p>
                         <ul class="mt-[6px] list-disc space-y-1 pl-[16px]">
                             <li>Create Google Ads conversion <strong class="text-white/90">promo for ppc - invalid Users</strong>, then paste Conversion ID + Label.</li>
                             <li>Match each row to the domain tag (Installed / Not detected).</li>
@@ -1432,19 +1441,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 <div class="space-y-[10px]">
                     <template x-for="(row, idx) in audienceModal.rows" :key="idx">
-                        <div class="grid grid-cols-1 gap-[10px] rounded-[8px] border border-white/20 bg-[color-mix(in_srgb,var(--brand-secondary)_35%,transparent)] p-[12px] sm:grid-cols-[1fr_1fr_1fr_auto]">
+                        <div class="grid grid-cols-1 gap-[10px] rounded-[8px] border border-white/20 bg-black/25 p-[12px] sm:grid-cols-[1fr_1fr_1fr_auto]">
                             <label class="block">
                                 <span class="mb-[4px] block text-[11px] font-semibold text-white">Conversion ID</span>
-                                <input type="text" x-model="row.conversion_id" placeholder="AW-17783207578" class="w-full rounded-[6px] border border-white/25 bg-[#2a0050] px-[10px] py-[8px] text-[12px] text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/40">
+                                <input type="text" x-model="row.conversion_id" placeholder="AW-17783207578" class="ae-field w-full rounded-[6px] border border-white/25 px-[10px] py-[8px] text-[12px] text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50">
                             </label>
                             <label class="block">
                                 <span class="mb-[4px] block text-[11px] font-semibold text-white">Conversion Label</span>
-                                <input type="text" x-model="row.conversion_label" placeholder="getpropanereill.online" class="w-full rounded-[6px] border border-white/25 bg-[#2a0050] px-[10px] py-[8px] text-[12px] text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/40">
+                                <input type="text" x-model="row.conversion_label" placeholder="getpropanereill.online" class="ae-field w-full rounded-[6px] border border-white/25 px-[10px] py-[8px] text-[12px] text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/50">
                             </label>
                             <label class="block">
                                 <span class="mb-[4px] block text-[11px] font-semibold text-white">Tag</span>
                                 <select
-                                    class="w-full rounded-[6px] border border-white/25 bg-[#2a0050] px-[10px] py-[8px] text-[12px] text-white focus:outline-none focus:ring-1 focus:ring-white/40"
+                                    class="ae-field w-full rounded-[6px] border border-white/25 px-[10px] py-[8px] text-[12px] text-white focus:outline-none focus:ring-1 focus:ring-white/50"
                                     :value="row.domain_id || ''"
                                     @change="onAudienceTagChange(idx, $event.target.value)"
                                 >

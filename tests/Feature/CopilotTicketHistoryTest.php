@@ -103,6 +103,44 @@ class CopilotTicketHistoryTest extends TestCase
 
         $this->assertNotEmpty($chips);
         $this->assertSame('campaign related', $chips[0]['subject']);
+        $this->assertArrayNotHasKey('href', $chips[0]);
+        $this->assertNotEmpty($chips[0]['messages']);
+        $this->assertSame('i want to know the camapign', $chips[0]['messages'][0]['body']);
+        $this->assertFalse($chips[0]['messages'][0]['is_agent']);
+    }
+
+    public function test_copilot_ticket_thread_includes_opening_and_admin_replies(): void
+    {
+        $user = $this->portalUser();
+        $agent = $this->portalUser(['email' => 'agent-reply@example.com', 'name' => 'Support Agent']);
+        $ticket = SupportTicket::query()->create([
+            'user_id' => $user->id,
+            'requester_id' => $user->id,
+            'subject' => 'campaign related',
+            'body' => 'Need campaign help.',
+            'status' => 'open',
+            'priority' => 'medium',
+        ]);
+        SupportTicketMessage::query()->create([
+            'support_ticket_id' => $ticket->id,
+            'user_id' => $agent->id,
+            'body' => 'We checked your campaign settings.',
+            'is_agent_reply' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->getJson('/api/admin/guidance/tickets/'.$ticket->id)
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('ticket.subject', 'campaign related')
+            ->assertJsonPath('ticket.messages.0.body', 'Need campaign help.')
+            ->assertJsonPath('ticket.messages.0.is_agent', false)
+            ->assertJsonPath('ticket.messages.1.body', 'We checked your campaign settings.')
+            ->assertJsonPath('ticket.messages.1.is_agent', true);
+
+        $chips = \App\Support\SupportTicketInbox::copilotChips($user);
+        $this->assertSame('We checked your campaign settings.', $chips[0]['messages'][1]['body']);
+        $this->assertTrue($chips[0]['messages'][1]['is_agent']);
     }
 
     /**

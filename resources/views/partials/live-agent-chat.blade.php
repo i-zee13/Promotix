@@ -71,7 +71,7 @@
         <header class="flex items-center justify-between border-b border-white/10 bg-[#FF6600] px-[14px] py-[12px]">
             <div>
                 <p class="text-[13px] font-semibold text-white">{{ \App\Support\PortalBrand::name() }} Copilot</p>
-                <p class="text-[10px] text-white/90" x-text="mode === 'ticket' ? 'Support ticket' : (typing ? 'Typing…' : (agentOnline ? 'Online' : 'Connecting…'))"></p>
+                <p class="text-[10px] text-white/90" x-text="mode === 'ticket' ? (activeTicketSubject || 'Support ticket') : (typing ? 'Typing…' : (agentOnline ? 'Online' : 'Connecting…'))"></p>
             </div>
             <button type="button" @click="closePanel()" class="rounded p-1 text-white/80 hover:bg-white/10" aria-label="Close chat">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -85,61 +85,63 @@
                     class="copilot-ticket-chip"
                     :class="activeTicketId === ticket.id ? 'is-on' : ''"
                     :title="ticket.subject"
-                    @click="openTicket(ticket.id)"
+                    @click.stop.prevent="openTicket(ticket)"
                     x-text="ticket.title"
                 ></button>
             </template>
-            <button type="button" class="copilot-ticket-chip copilot-ticket-chip--new" @click="startNewChat()">New chat</button>
+            <button type="button" class="copilot-ticket-chip copilot-ticket-chip--new" @click.stop.prevent="startNewChat()">New chat</button>
         </div>
 
-        <div class="flex-1 space-y-[10px] overflow-y-auto px-[14px] py-[12px] text-[12px]" id="live-agent-messages" x-show="mode === 'copilot'">
-            <template x-for="(msg, idx) in messages" :key="idx">
-                <div :class="msg.from === 'user' ? 'ml-[24px] text-right' : 'mr-[24px]'">
-                    <p
-                        x-show="msg.text"
-                        class="inline-block max-w-full rounded-[8px] px-[10px] py-[8px] text-left whitespace-pre-wrap"
-                        :class="msg.from === 'user' ? 'bg-[#FF6600] text-white' : 'bg-[#1a1a1a] text-white/90 border border-white/10'"
-                        x-text="msg.text"
-                    ></p>
-                    <img
-                        x-show="msg.from === 'agent' && msg.image_url"
-                        :src="msg.image_url"
-                        alt=""
-                        class="mt-2 max-h-[180px] max-w-full rounded-[8px] border border-white/10 object-contain"
-                        loading="lazy"
-                    >
-                    <template x-if="msg.from === 'agent' && msg.related_page">
-                        <p class="mt-1 text-[10px] text-[#FFB380]">
-                            Related: <a :href="msg.related_page" class="underline" x-text="msg.related_page"></a>
-                        </p>
-                    </template>
-                </div>
-            </template>
+        <div class="min-h-0 flex-1 space-y-[10px] overflow-y-auto px-[14px] py-[12px] text-[12px]" id="live-agent-messages">
+            <div class="space-y-[10px]" x-show="mode === 'copilot'">
+                <template x-for="(msg, idx) in messages" :key="idx">
+                    <div :class="msg.from === 'user' ? 'ml-[24px] text-right' : 'mr-[24px]'">
+                        <p
+                            x-show="msg.text"
+                            class="inline-block max-w-full rounded-[8px] px-[10px] py-[8px] text-left whitespace-pre-wrap"
+                            :class="msg.from === 'user' ? 'bg-[#FF6600] text-white' : 'bg-[#1a1a1a] text-white/90 border border-white/10'"
+                            x-text="msg.text"
+                        ></p>
+                        <img
+                            x-show="msg.from === 'agent' && msg.image_url"
+                            :src="msg.image_url"
+                            alt=""
+                            class="mt-2 max-h-[180px] max-w-full rounded-[8px] border border-white/10 object-contain"
+                            loading="lazy"
+                        >
+                        <template x-if="msg.from === 'agent' && msg.related_page">
+                            <p class="mt-1 text-[10px] text-[#FFB380]">
+                                Related: <a :href="msg.related_page" class="underline" x-text="msg.related_page"></a>
+                            </p>
+                        </template>
+                    </div>
+                </template>
+                <template x-if="offerTicket">
+                    <div class="rounded-[8px] border border-amber-400/30 bg-amber-500/10 p-3 text-[11px] text-amber-50">
+                        <p class="mb-2 font-medium">Low confidence — open a ticket?</p>
+                        <input type="text" x-model="ticketSubject" placeholder="Subject" class="mb-2 h-[32px] w-full rounded border border-white/15 bg-[#0d0d0d] px-2 text-[12px] text-white">
+                        <textarea x-model="ticketBody" rows="3" placeholder="Describe the issue" class="mb-2 w-full rounded border border-white/15 bg-[#0d0d0d] px-2 py-1 text-[12px] text-white"></textarea>
+                        <button type="button" @click="createTicket()" class="rounded bg-[#FF6600] px-3 py-1.5 text-[11px] font-semibold text-white" :disabled="ticketBusy">
+                            <span x-text="ticketBusy ? 'Creating…' : 'Create support ticket'"></span>
+                        </button>
+                    </div>
+                </template>
+            </div>
 
-            <template x-if="offerTicket">
-                <div class="rounded-[8px] border border-amber-400/30 bg-amber-500/10 p-3 text-[11px] text-amber-50">
-                    <p class="mb-2 font-medium">Low confidence — open a ticket?</p>
-                    <input type="text" x-model="ticketSubject" placeholder="Subject" class="mb-2 h-[32px] w-full rounded border border-white/15 bg-[#0d0d0d] px-2 text-[12px] text-white">
-                    <textarea x-model="ticketBody" rows="3" placeholder="Describe the issue" class="mb-2 w-full rounded border border-white/15 bg-[#0d0d0d] px-2 py-1 text-[12px] text-white"></textarea>
-                    <button type="button" @click="createTicket()" class="rounded bg-[#FF6600] px-3 py-1.5 text-[11px] font-semibold text-white" :disabled="ticketBusy">
-                        <span x-text="ticketBusy ? 'Creating…' : 'Create support ticket'"></span>
-                    </button>
-                </div>
-            </template>
-        </div>
-
-        <div class="flex-1 space-y-[10px] overflow-y-auto px-[14px] py-[12px] text-[12px]" x-show="mode === 'ticket'" x-cloak>
-            <template x-for="msg in ticketMessages" :key="msg.id">
-                <div :class="msg.is_agent ? 'mr-[24px]' : 'ml-[24px] text-right'">
-                    <p class="mb-1 text-[10px] text-white/40" x-text="(msg.is_agent ? (msg.name || 'Support') : 'You') + ' · ' + (msg.when || '')"></p>
-                    <p
-                        class="inline-block max-w-full rounded-[8px] px-[10px] py-[8px] text-left whitespace-pre-wrap"
-                        :class="msg.is_agent ? 'bg-[#1a1a1a] text-white/90 border border-white/10' : 'bg-[#FF6600] text-white'"
-                        x-text="msg.body"
-                    ></p>
-                </div>
-            </template>
-            <p x-show="!ticketMessages.length" class="text-center text-[11px] text-white/45">No messages on this ticket yet.</p>
+            <div class="space-y-[10px]" x-show="mode === 'ticket'">
+                <p class="text-[11px] font-medium text-white/70" x-text="activeTicketSubject"></p>
+                <template x-for="msg in ticketMessages" :key="msg.id">
+                    <div :class="msg.is_agent ? 'mr-[24px]' : 'ml-[24px] text-right'">
+                        <p class="mb-1 text-[10px] text-white/40" x-text="(msg.is_agent ? (msg.name || 'Support') : 'You') + (msg.when ? (' · ' + msg.when) : '')"></p>
+                        <p
+                            class="inline-block max-w-full rounded-[8px] px-[10px] py-[8px] text-left whitespace-pre-wrap"
+                            :class="msg.is_agent ? 'bg-[#1a1a1a] text-white/90 border border-white/10' : 'bg-[#FF6600] text-white'"
+                            x-text="msg.body"
+                        ></p>
+                    </div>
+                </template>
+                <p x-show="!ticketMessages.length" class="text-center text-[11px] text-white/45">No messages on this ticket yet.</p>
+            </div>
         </div>
 
         <form x-show="mode === 'copilot'" @submit.prevent="send()" class="border-t border-white/10 p-[12px]">
@@ -156,7 +158,7 @@
             <p class="mt-2 text-[10px] text-white/40">Idle chats close after 3 minutes.</p>
         </form>
 
-        <form x-show="mode === 'ticket'" x-cloak @submit.prevent="replyTicket()" class="border-t border-white/10 p-[12px]">
+        <form x-show="mode === 'ticket'" @submit.prevent="replyTicket()" class="border-t border-white/10 p-[12px]">
             <div class="flex gap-[8px]" x-show="ticketCanReply">
                 <input
                     x-model="ticketDraft"
@@ -190,6 +192,7 @@ function liveAgentChat(config) {
         mode: 'copilot',
         tickets: Array.isArray(config.tickets) ? config.tickets : [],
         activeTicketId: null,
+        activeTicketSubject: '',
         ticketMessages: [],
         ticketCanReply: false,
         ticketDraft: '',
@@ -263,6 +266,7 @@ function liveAgentChat(config) {
         startNewChat() {
             this.mode = 'copilot';
             this.activeTicketId = null;
+            this.activeTicketSubject = '';
             this.ticketMessages = [];
             this.ticketDraft = '';
             this.offerTicket = false;
@@ -270,18 +274,38 @@ function liveAgentChat(config) {
             this.bumpActivity();
             this.$nextTick(() => this.scrollMessages());
         },
-        async openTicket(id) {
+        showTicket(ticket) {
+            this.mode = 'ticket';
+            this.activeTicketId = ticket.id;
+            this.activeTicketSubject = ticket.subject || ticket.title || 'Support ticket';
+            this.ticketMessages = Array.isArray(ticket.messages) ? ticket.messages : [];
+            this.ticketCanReply = Boolean(ticket.can_reply);
+            this.offerTicket = false;
+            this.ticketDraft = '';
+        },
+        openTicket(ticketOrId) {
             this.bumpActivity();
+            const chip = (ticketOrId && typeof ticketOrId === 'object')
+                ? ticketOrId
+                : this.tickets.find((t) => Number(t.id) === Number(ticketOrId));
+            if (chip) {
+                this.showTicket(chip);
+                this.$nextTick(() => this.scrollMessages());
+            }
+            const id = Number(chip?.id ?? ticketOrId);
+            if (id > 0) this.refreshTicket(id);
+        },
+        async refreshTicket(id) {
             this.ticketBusy = true;
             try {
-                const res = await fetch(config.ticketsUrl + '/' + id, { headers: { Accept: 'application/json' } });
+                const res = await fetch(config.ticketsUrl + '/' + id, {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                });
                 const data = await res.json();
-                if (!res.ok || !data.ok) return;
-                this.mode = 'ticket';
-                this.activeTicketId = data.ticket.id;
-                this.ticketMessages = data.ticket.messages || [];
-                this.ticketCanReply = Boolean(data.ticket.can_reply);
-                this.offerTicket = false;
+                if (res.ok && data.ok && data.ticket) {
+                    this.showTicket(data.ticket);
+                }
             } catch (e) {}
             this.ticketBusy = false;
             this.$nextTick(() => this.scrollMessages());
