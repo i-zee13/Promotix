@@ -31,7 +31,7 @@
         <header class="flex items-center justify-between border-b border-white/10 bg-[#FF6600] px-[14px] py-[12px]">
             <div>
                 <p class="text-[13px] font-semibold text-white">Clickronix Copilot</p>
-                <p class="text-[10px] text-white/90" x-text="typing ? 'Typing…' : (agentOnline ? 'Online — local knowledge bank (no AI key)' : 'Connecting…')"></p>
+                <p class="text-[10px] text-white/90" x-text="typing ? 'Typing…' : (agentOnline ? 'Online' : 'Connecting…')"></p>
             </div>
             <button type="button" @click="closePanel()" class="rounded p-1 text-white/80 hover:bg-white/10" aria-label="Close chat">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
