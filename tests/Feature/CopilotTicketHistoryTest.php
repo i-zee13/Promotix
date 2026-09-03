@@ -86,6 +86,25 @@ class CopilotTicketHistoryTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_copilot_header_chips_include_existing_tickets(): void
+    {
+        $user = $this->portalUser();
+        SupportTicket::query()->create([
+            'user_id' => $user->id,
+            'requester_id' => $user->id,
+            'subject' => 'campaign related',
+            'body' => 'i want to know the camapign',
+            'status' => 'open',
+            'priority' => 'medium',
+        ]);
+
+        $this->actingAs($user);
+        $chips = \App\Support\SupportTicketInbox::copilotChips($user);
+
+        $this->assertNotEmpty($chips);
+        $this->assertSame('campaign related', $chips[0]['subject']);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */

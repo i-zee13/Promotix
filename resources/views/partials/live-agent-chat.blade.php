@@ -1,10 +1,49 @@
 {{-- Live agent chat panel (trigger via @click or $dispatch('open-live-agent')) --}}
+@php
+    $copilotTickets = \App\Support\SupportTicketInbox::copilotChips(auth()->user());
+@endphp
+<style>
+.copilot-tickets {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: #141414;
+    scrollbar-width: thin;
+}
+.copilot-ticket-chip {
+    flex-shrink: 0;
+    max-width: 118px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: #1f1f1f;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 7px 10px;
+    cursor: pointer;
+}
+.copilot-ticket-chip.is-on,
+.copilot-ticket-chip--new {
+    background: #FF6600;
+    border-color: transparent;
+    color: #fff;
+}
+.copilot-ticket-chip--new { max-width: none; }
+</style>
 <div
     x-data="liveAgentChat({
         askUrl: @js(url('/api/admin/guidance/ask')),
         ticketUrl: @js(url('/api/admin/guidance/ticket')),
         ticketsUrl: @js(url('/api/admin/guidance/tickets')),
         csrf: @js(csrf_token()),
+        tickets: @js($copilotTickets),
     })"
     x-cloak
     @open-live-agent.window="openPanel()"
@@ -39,7 +78,7 @@
             </button>
         </header>
 
-        <div class="copilot-tickets" x-show="tickets.length" x-cloak>
+        <div class="copilot-tickets" x-show="tickets.length > 0">
             <template x-for="ticket in tickets" :key="ticket.id">
                 <button
                     type="button"
@@ -47,9 +86,8 @@
                     :class="activeTicketId === ticket.id ? 'is-on' : ''"
                     :title="ticket.subject"
                     @click="openTicket(ticket.id)"
-                >
-                    <span x-text="ticket.title"></span>
-                </button>
+                    x-text="ticket.title"
+                ></button>
             </template>
             <button type="button" class="copilot-ticket-chip copilot-ticket-chip--new" @click="startNewChat()">New chat</button>
         </div>
@@ -150,7 +188,7 @@ function liveAgentChat(config) {
         lastActivityAt: Date.now(),
         idleTimer: null,
         mode: 'copilot',
-        tickets: [],
+        tickets: Array.isArray(config.tickets) ? config.tickets : [],
         activeTicketId: null,
         ticketMessages: [],
         ticketCanReply: false,

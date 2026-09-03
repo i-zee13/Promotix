@@ -4,7 +4,9 @@ namespace App\Support;
 
 use App\Models\SupportTicket;
 use App\Models\SupportTicketMessage;
+use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class SupportTicketInbox
@@ -40,6 +42,37 @@ class SupportTicketInbox
                 'requester' => $item->requester?->email ?: ($item->owner?->email ?: ''),
             ];
         })->all();
+    }
+
+    /**
+     * Compact chips for the Copilot header (current user's tickets).
+     *
+     * @return list<array{id:int,title:string,subject:string,number:string,status:string,href:string}>
+     */
+    public static function copilotChips(?User $user, int $limit = 20): array
+    {
+        if (! $user || ! Schema::hasTable('support_tickets')) {
+            return [];
+        }
+
+        $tickets = SupportTicket::query()
+            ->where('user_id', $user->id)
+            ->with(['requester:id,name,email', 'owner:id,name,email'])
+            ->latest('updated_at')
+            ->limit($limit)
+            ->get();
+
+        return collect(self::rows($tickets, 'support-system.show'))
+            ->map(fn (array $row) => [
+                'id' => $row['id'],
+                'title' => $row['title'],
+                'subject' => $row['subject'],
+                'number' => $row['number'],
+                'status' => $row['status'],
+                'href' => $row['href'],
+            ])
+            ->values()
+            ->all();
     }
 
     /**
