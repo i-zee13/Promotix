@@ -51,10 +51,22 @@ class ClickronixKnowledgeBankTest extends TestCase
         $result = GuidanceService::answer('hi i have an issue regarding website connection');
 
         $this->assertStringContainsStringIgnoringCase('Domains', $result['answer']);
-        $this->assertStringContainsStringIgnoringCase('Platform Integrate', $result['answer']);
+        $this->assertStringContainsStringIgnoringCase('Tag Manager', $result['answer']);
+        $this->assertStringContainsStringIgnoringCase('Analytics', $result['answer']);
         $this->assertStringNotContainsStringIgnoringCase('ADS_GCLID_DUP', $result['answer']);
         $this->assertStringNotContainsStringIgnoringCase('BY. DUPLICATE', $result['answer']);
         $this->assertDoesNotMatchRegularExpression('/^Customer:/m', $result['answer']);
+        $this->assertLessThan(800, strlen($result['answer']));
+    }
+
+    #[Test]
+    public function it_answers_tag_manager_as_website_tag_not_paid_ads(): void
+    {
+        $result = GuidanceService::answer('tag manager tracking not working');
+
+        $this->assertStringContainsStringIgnoringCase('Tag Manager', $result['answer']);
+        $this->assertStringContainsStringIgnoringCase('website', $result['answer']);
+        $this->assertStringContainsStringIgnoringCase('Analytics', $result['answer']);
         $this->assertLessThan(800, strlen($result['answer']));
     }
 }

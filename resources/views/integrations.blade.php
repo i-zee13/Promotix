@@ -141,6 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'testUrl' => $primaryConnection ? route('integrations.google.test', $primaryConnection) : null,
         'disconnectUrl' => $primaryConnection ? route('integrations.google.disconnect', $primaryConnection) : null,
         'paidMarketingConnectUrl' => route('domains.paid-marketing.connect', ['domain' => 0]),
+        'tagSetupUrl' => $tagSetupUrl ?? route('domains.index'),
+        'domainsIndexUrl' => route('domains.index'),
         'domainConnections' => $domainConnections,
         'connectionHealth' => $connectionHealth ?? [],
         'tagReady' => (bool) ($tagReady ?? false),
@@ -242,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
 
                                 <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
-                                    <a href="{{ route('domains.index') }}" class="pi-ghost-btn">
+                                    <a href="{{ $tagSetupUrl ?? route('domains.index') }}" class="pi-ghost-btn">
                                         <span class="font-mono text-[11px]">&lt;/&gt;</span>
                                         <span>Tag Manager</span>
                                     </a>
@@ -1886,7 +1888,12 @@ function platformIntegrations(config) {
 
             const label = step.label;
 
-            if (label === 'Tag Manager' || label === 'Bot Protection') {
+            if (label === 'Tag Manager') {
+                window.location.href = `/domains/${domain.id}/setup`;
+                return;
+            }
+
+            if (label === 'Bot Protection') {
                 this.openDomainKeys(domain);
                 return;
             }

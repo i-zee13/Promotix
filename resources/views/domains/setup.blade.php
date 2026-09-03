@@ -98,15 +98,19 @@
             <div class="figma-domain-setup__panel-columns">
                 <div class="figma-domain-setup__panel-col flex flex-col justify-between gap-[18px]">
                     <div>
-                        <p class="text-[11px] uppercase tracking-wide text-white/55">Option 1 (recommended)</p>
+                        <p class="text-[11px] uppercase tracking-wide text-white/55">Website tracking tag — not Google Ads</p>
                         <div class="mt-[6px] flex flex-wrap items-center gap-[10px]">
                             <h2 class="text-[18px] font-semibold text-white">Google Tag Manager</h2>
                             @php($tagStatus = \App\Support\DomainTagStatus::forDomain($domain))
                             <span class="figma-domain-setup__badge">{{ $tagStatus['label'] }}</span>
                             <span class="text-[11px] text-white/60">Last seen: {{ $tagStatus['last_seen_human'] }}</span>
                         </div>
-                        <button type="button" class="figma-domain-setup__btn-gtm mt-[18px]" disabled title="GTM auto-connect coming soon">
-                            Connect with Google Tag Manager
+                        <p class="mt-[10px] text-[12px] leading-relaxed text-white/70">
+                            This tag records website visits on <strong class="text-white/90">Analytics</strong> and marks Tag Manager as installed.
+                            It does not need a Google Ads click (<code class="text-white/80">gclid</code>). Paid Ads is a separate step.
+                        </p>
+                        <button type="button" class="figma-domain-setup__btn-primary mt-[18px]" @click="verifyInstallation('{{ $domain->id }}')">
+                            Verify installation
                         </button>
                     </div>
                     <p class="figma-domain-setup__disclaimer">
@@ -219,8 +223,10 @@
 
         <div class="figma-domain-setup__panel mt-[22px] rounded-[12px] border border-[#6400B2]/40 bg-[#141018] p-[18px] sm:p-[22px]">
             <h2 class="text-[15px] font-semibold text-white">Google Ads tracking template</h2>
+            <p class="mt-[6px] text-[11px] font-medium uppercase tracking-wide text-[#FF6600]">Paid Advertising only — not required for Tag Manager</p>
             <p class="mt-[8px] text-[12px] leading-relaxed text-white/75">
-                Put this in Google Ads → Campaign → Settings → <strong>Tracking template</strong>.
+                Skip this if you only installed the website tag (GTM / Direct / WordPress).
+                For Paid Ads, put this in Google Ads → Campaign → Settings → <strong>Tracking template</strong>.
                 Auto-tagging must be <strong>ON</strong>. Google sends the click here first; we capture IP + click ID (no login, no blocking), then <strong>redirect</strong> to your Final URL.
             </p>
             <p class="mt-[12px] text-[11px] font-medium uppercase tracking-wide text-white/55">Final URL</p>

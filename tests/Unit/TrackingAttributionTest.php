@@ -94,4 +94,31 @@ class TrackingAttributionTest extends TestCase
 
         $this->assertStringContainsString('use App\Support\GoogleClickAttribution;', $source);
     }
+
+    public function test_organic_website_tag_is_not_paid_traffic(): void
+    {
+        $this->assertFalse(GoogleClickAttribution::isPaidTraffic([
+            'url' => 'https://getmecoverage.online/',
+            'type' => 'pageview',
+            'click_source' => 'tag',
+        ]));
+    }
+
+    public function test_tag_manager_script_always_sends_pageview(): void
+    {
+        $source = file_get_contents(
+            (new \ReflectionClass(\App\Http\Controllers\TagController::class))->getFileName()
+        );
+
+        $this->assertStringContainsString('pageview(true);', $source);
+        $this->assertStringNotContainsString('if (blocked) return;', $source);
+
+        $tracking = file_get_contents(
+            (new \ReflectionClass(\App\Http\Controllers\TrackingController::class))->getFileName()
+        );
+        $this->assertMatchesRegularExpression(
+            '/tag_connected = true;[\s\S]*bot_mitigation_connected = true;[\s\S]*if \(\$isPaidTraffic\)/',
+            $tracking
+        );
+    }
 }

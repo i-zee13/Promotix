@@ -1191,8 +1191,10 @@ class TagController extends Controller
       showConsentBanner();
       return;
     }
-    earlyIpCheck(function(blocked){
-      if (blocked) return;
+    earlyIpCheck(function(){
+      // Always record the pageview. Tag Manager / website analytics must
+      // connect without a Google Ads click ID. Protection overlay (if any)
+      // is already applied inside earlyIpCheck.
       pageview(true);
       hookSpaNavigation();
     });

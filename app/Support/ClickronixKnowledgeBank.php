@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
  */
 class ClickronixKnowledgeBank
 {
-    private const CACHE_KEY = 'clickronix.kb.entries.v3';
+    private const CACHE_KEY = 'clickronix.kb.entries.v4';
 
     private const CACHE_TTL_SECONDS = 3600;
 
@@ -155,9 +155,16 @@ class ClickronixKnowledgeBank
             ],
             [
                 'title' => 'Website connection',
-                'answer' => "If the website is not connecting or tracking:\n\n1. Site Management → Domains — add the domain and install the tracking tag.\n2. Paid Advertising → Platform Integrate — check Connection Health and reconnect Google Ads if needed.\n\nTell me whether this is the tracking tag, Google Ads login, or the domain itself.",
-                'keywords' => 'website connection site connection domain connection website not connecting tracking not connecting connect nahi ho raha tag install connection health google ads disconnected',
-                'related_page' => 'Site Management → Domains · Paid Advertising → Platform Integrate',
+                'answer' => "If the website is not connecting or tracking:\n\n1. Site Management → Domains → Setup — install the Tag Manager / website tag (GTM, WordPress, or Direct).\n2. Open the live site, then Verify installation. Status becomes Installed after the first pageview.\n3. Visits show on Analytics Dashboard. Paid Ads is separate and only counts Google Ads clicks with gclid.\n\nThis is the website tag, not the Google Ads tracking template.",
+                'keywords' => 'website connection site connection domain connection website not connecting tracking not connecting connect nahi ho raha tag install tag manager gtm tracking script',
+                'related_page' => 'Site Management → Domains → Setup · Analytics Dashboard',
+                'department' => 'Technical Support',
+            ],
+            [
+                'title' => 'Tag Manager tracking',
+                'answer' => "Tag Manager is the website tracking tag — not Paid Advertising.\n\nInstall it from Domains → Setup (GTM Custom HTML, WordPress plugin, or Direct script). After a real pageview, Domains shows Installed and Analytics shows the visit.\n\nPaid Ads Dashboard stays empty until someone clicks a Google ad (URL has gclid / gbraid / wbraid).",
+                'keywords' => 'tag manager gtm google tag manager tracking tag tracking script not tracking pm_tag not paid ads website tag',
+                'related_page' => 'Site Management → Domains → Setup',
                 'department' => 'Technical Support',
             ],
         ];

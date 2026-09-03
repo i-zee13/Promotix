@@ -436,11 +436,11 @@ class TrackingController extends Controller
         $domain->last_seen_at = UserTimezone::nowUtc();
         $domain->tag_connected = true;
         $domain->status = 'connected';
+        // Website tag / Tag Manager visit — Analytics is receiving traffic.
+        // Do not require a Google Ads click ID (gclid) for this flag.
+        $domain->bot_mitigation_connected = true;
         if ($isPaidTraffic) {
             $domain->paid_marketing_connected = true;
-        }
-        if ($detection['action_taken'] !== 'allow' || $isCrawler) {
-            $domain->bot_mitigation_connected = true;
         }
         $domain->save();
 

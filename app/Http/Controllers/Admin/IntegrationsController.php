@@ -71,7 +71,7 @@ class IntegrationsController extends Controller
             'steps' => [
                 ['label' => 'Tag Manager', 'done' => (bool) $d->tag_connected],
                 ['label' => 'Paid Marketing', 'done' => (bool) $d->paid_marketing_connected || $d->google_ads_account_id !== null],
-                ['label' => 'Analytics', 'done' => (bool) $d->bot_mitigation_connected],
+                ['label' => 'Analytics', 'done' => (bool) $d->tag_connected || (bool) $d->bot_mitigation_connected],
                 ['label' => 'Google Ads', 'done' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0],
             ],
         ])->values()->all();
@@ -97,7 +97,7 @@ class IntegrationsController extends Controller
         $tagReady = $manualDomains->contains(fn (Domain $d) => (bool) $d->tag_connected);
         $paidReady = $paidMarketingDomains->isNotEmpty();
         $botReady = $manualDomains->contains(
-            fn (Domain $d) => $d->tag_connected && $d->bot_mitigation_connected
+            fn (Domain $d) => (bool) $d->tag_connected || (bool) $d->bot_mitigation_connected
         );
         $platformReady = $botReady && $paidReady;
 
@@ -502,6 +502,9 @@ class IntegrationsController extends Controller
 
         $enabledAdPlatforms = AdminIntegrationCatalog::enabledAdPlatforms();
         $enabledTenantIntegrations = AdminIntegrationCatalog::enabledTenantIntegrations();
+        $tagSetupUrl = $firstDomain
+            ? route('domains.setup', $firstDomain)
+            : route('domains.index');
 
         return view('integrations', compact(
             'connections',
@@ -526,6 +529,7 @@ class IntegrationsController extends Controller
             'syncLogs',
             'enabledAdPlatforms',
             'enabledTenantIntegrations',
+            'tagSetupUrl',
         ));
     }
 
