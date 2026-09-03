@@ -16,4 +16,12 @@ class CustomerSupportInboxConfigTest extends TestCase
         $this->assertArrayNotHasKey('support-system.store', $redirects);
         $this->assertArrayNotHasKey('support-system.reply', $redirects);
     }
+
+    public function test_customer_sidebar_does_not_list_support_page(): void
+    {
+        $this->assertArrayNotHasKey('support-system', config('admin.menu'));
+        $siteGroup = collect(config('admin.groups'))->firstWhere('label', 'SITE MANAGEMENT');
+        $this->assertIsArray($siteGroup);
+        $this->assertArrayNotHasKey('support-system', $siteGroup['items'] ?? []);
+    }
 }

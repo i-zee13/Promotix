@@ -68,7 +68,6 @@
         ],
         'SITE MANAGEMENT' => [
             ['label' => 'Domains', 'route' => 'domains.index', 'icon' => 'globe', 'permission' => 'domain-management'],
-            ['label' => 'Support', 'route' => 'support-system', 'icon' => 'support', 'always' => true, 'active' => 'support-system*'],
         ],
     ];
     $toolLinks = [

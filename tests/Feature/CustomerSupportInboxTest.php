@@ -12,18 +12,16 @@ class CustomerSupportInboxTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_support_inbox_stays_on_the_customer_portal(): void
+    public function test_customer_support_page_redirects_into_copilot(): void
     {
         $user = $this->portalUser();
 
         $this->actingAs($user)
             ->get('/admin/support-system')
-            ->assertOk()
-            ->assertSee('New ticket')
-            ->assertDontSee('super-admin/tickets');
+            ->assertRedirect(route('dashboard', ['open_copilot' => 1]));
     }
 
-    public function test_replies_stay_on_the_same_ticket_thread(): void
+    public function test_replies_stay_on_the_same_ticket_and_open_copilot(): void
     {
         $user = $this->portalUser();
 
@@ -35,20 +33,13 @@ class CustomerSupportInboxTest extends TestCase
 
         $ticket = SupportTicket::query()->where('user_id', $user->id)->first();
         $this->assertNotNull($ticket);
-        $create->assertRedirect(route('support-system.show', $ticket));
+        $create->assertRedirect(route('dashboard', ['open_copilot' => 1, 'ticket' => $ticket->id]));
 
         $this->actingAs($user)
             ->post(route('support-system.reply', $ticket), [
                 'body' => 'Here is the extra detail.',
             ])
-            ->assertRedirect(route('support-system.show', $ticket));
-
-        $this->actingAs($user)
-            ->get(route('support-system.show', $ticket))
-            ->assertOk()
-            ->assertSee('Billing question')
-            ->assertSee('Invoice looks wrong.')
-            ->assertSee('Here is the extra detail.');
+            ->assertRedirect(route('dashboard', ['open_copilot' => 1, 'ticket' => $ticket->id]));
 
         $this->assertSame(1, SupportTicketMessage::query()->where('support_ticket_id', $ticket->id)->count());
         $this->assertFalse((bool) $ticket->messages()->first()?->is_agent_reply);

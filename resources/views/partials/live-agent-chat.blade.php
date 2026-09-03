@@ -197,6 +197,14 @@ function liveAgentChat(config) {
         messages: [],
         init() {
             this.messages = [{ from: 'agent', text: this.welcome }];
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('open_copilot') === '1') {
+                this.$nextTick(() => {
+                    this.openPanel();
+                    const id = Number(params.get('ticket') || 0);
+                    if (id > 0) this.openTicket(id);
+                });
+            }
         },
         openPanel() {
             this.open = true;
@@ -242,12 +250,15 @@ function liveAgentChat(config) {
         async loadTickets() {
             if (!config.ticketsUrl) return;
             try {
-                const res = await fetch(config.ticketsUrl, { headers: { Accept: 'application/json' } });
+                const res = await fetch(config.ticketsUrl, {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                });
                 const data = await res.json();
-                this.tickets = Array.isArray(data.tickets) ? data.tickets : [];
-            } catch (e) {
-                this.tickets = [];
-            }
+                if (res.ok && Array.isArray(data.tickets) && data.tickets.length) {
+                    this.tickets = data.tickets;
+                }
+            } catch (e) {}
         },
         startNewChat() {
             this.mode = 'copilot';
@@ -376,11 +387,11 @@ function liveAgentChat(config) {
                 if (res.ok && data.ok) {
                     this.messages.push({
                         from: 'agent',
-                        text: 'Ticket ' + (data.ticket_number || data.ticket_id) + ' created. Open Support to continue this conversation.',
-                        related_page: '/admin/support-system/' + data.ticket_id,
+                        text: 'Ticket ' + (data.ticket_number || data.ticket_id) + ' created. Use the chips above to open it — this is a support thread, not Copilot.',
                     });
                     this.offerTicket = false;
                     this.loadTickets();
+                    if (data.ticket_id) this.openTicket(data.ticket_id);
                 } else {
                     this.messages.push({ from: 'agent', text: data.message || 'Could not create ticket.' });
                 }

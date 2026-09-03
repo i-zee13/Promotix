@@ -16,7 +16,6 @@ return [
         'bot-protection' => ['route' => 'analytics.dashboard', 'label' => 'Analytics Dashboard',  'icon' => 'shield'],
         'domain-management' => ['route' => 'domains.index', 'label' => 'Domains',           'icon' => 'globe'],
         'upgrade-plan'      => ['route' => 'billing.index', 'label' => 'Billing',           'icon' => 'card'],
-        'support-system'    => ['route' => 'support-system', 'label' => 'Support',          'icon' => 'support'],
     ],
 
     /*
@@ -60,7 +59,6 @@ return [
             'items' => [
                 'domain-management' => ['route' => 'domains.index', 'label' => 'Domains', 'icon' => 'globe'],
                 'upgrade-plan' => ['route' => 'billing.index', 'label' => 'Billing', 'icon' => 'card'],
-                'support-system' => ['route' => 'support-system', 'label' => 'Support', 'icon' => 'support'],
             ],
         ],
     ],

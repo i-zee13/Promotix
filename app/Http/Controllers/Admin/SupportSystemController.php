@@ -4,29 +4,27 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SupportTicket;
-use App\Support\SupportTicketInbox;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\View\View;
 
 class SupportSystemController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): RedirectResponse
     {
-        return $this->inbox($request);
+        return $this->toCopilot();
     }
 
-    public function show(Request $request, SupportTicket $ticket): View
+    public function show(Request $request, SupportTicket $ticket): RedirectResponse
     {
         $this->assertOwner($request, $ticket);
 
-        return $this->inbox($request, $ticket);
+        return $this->toCopilot($ticket->id);
     }
 
-    public function create(Request $request): View
+    public function create(): RedirectResponse
     {
-        return $this->inbox($request, composing: true);
+        return $this->toCopilot();
     }
 
     public function store(Request $request): RedirectResponse
@@ -59,9 +57,7 @@ class SupportSystemController extends Controller
         }
         $ticket->save();
 
-        return redirect()
-            ->route('support-system.show', $ticket)
-            ->with('status', 'Ticket created.');
+        return $this->toCopilot($ticket->id);
     }
 
     public function reply(Request $request, SupportTicket $ticket): RedirectResponse
@@ -82,29 +78,15 @@ class SupportSystemController extends Controller
 
         $ticket->forceFill(['status' => 'open'])->save();
 
-        return redirect()
-            ->route('support-system.show', $ticket)
-            ->with('status', 'Reply sent.');
+        return $this->toCopilot($ticket->id);
     }
 
-    private function inbox(Request $request, ?SupportTicket $ticket = null, bool $composing = false): View
+    private function toCopilot(?int $ticketId = null): RedirectResponse
     {
-        $user = $request->user();
-
-        $tickets = SupportTicket::query()
-            ->where('user_id', $user->id)
-            ->with(['requester:id,name,email', 'owner:id,name,email'])
-            ->latest('updated_at')
-            ->limit(200)
-            ->get();
-
-        return view('support-system', [
-            'ticketRows' => SupportTicketInbox::rows($tickets, 'support-system.show'),
-            'selected' => $ticket,
-            'thread' => $ticket ? SupportTicketInbox::thread($ticket) : [],
-            'composing' => $composing,
-            'canReply' => $ticket && SupportTicketInbox::canCustomerReply($ticket),
-        ]);
+        return redirect()->route('dashboard', array_filter([
+            'open_copilot' => 1,
+            'ticket' => $ticketId,
+        ]));
     }
 
     private function assertOwner(Request $request, SupportTicket $ticket): void
