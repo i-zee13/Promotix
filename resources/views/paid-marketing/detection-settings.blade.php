@@ -1176,10 +1176,10 @@
                         <div class="figma-filter-select-wrap">
                             <select x-model="filters.domainId" @change="applyFilters()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                                 <option value="">All Domains</option>
-                                @foreach ($domains as $d)
+                            @foreach ($domains as $d)
                                     <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                                @endforeach
-                            </select>
+                            @endforeach
+                        </select>
                         </div>
                     </label>
                     <label class="flex w-[118px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
@@ -1230,11 +1230,11 @@
         @if ($domains->isEmpty())
             <div class="rounded-[10px] border border-[var(--brand-primary)] p-[28px] text-center text-[#a9a9a9]">No domain found. Add a domain first.</div>
         @else
-            @if ($domain)
+                @if ($domain)
                 <p class="detection-editing-line mb-[14px] text-[12px] font-semibold">
                     {{ request()->filled('domain_id') ? $domain->hostname : 'All Domains' }}
                 </p>
-            @endif
+                @endif
 
             @if ($domain && $settings)
             @php
@@ -1442,10 +1442,10 @@
                             <div class="figma-pac-head-text">
                                 <h2 id="figma-pac-heading" class="figma-pac-title">Primary Access Control</h2>
                                 <p class="figma-pac-lead">Control who can access your website and from where.</p>
-                            </div>
+                        </div>
                             <button type="button" class="figma-pac-manage-all" onclick="document.getElementById('detection-panel-geo-allow')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">
                                 Manage All Rules
-                            </button>
+                                </button>
                         </div>
 
                         <div class="figma-pac-grid">
@@ -1468,14 +1468,14 @@
                                         <ul class="figma-pac-list">
                                             @foreach ($allowedCountriesPreview->take(3) as $country)
                                                 <li><span class="figma-pac-dot figma-pac-dot--geo"></span>{{ $country }}</li>
-                                            @endforeach
+                            @endforeach
                                         </ul>
                                         @if ($allowedCountriesPreview->count() > 3)
                                             <p class="figma-pac-more">+{{ $allowedCountriesPreview->count() - 3 }} more</p>
                                         @endif
                                     @endif
                                     <p class="figma-pac-purpose"><span>Purpose</span> Allow legitimate advertising audience from approved countries.</p>
-                                </div>
+                        </div>
                                 <button type="button" class="figma-pac-card-btn" onclick="document.getElementById('detection-panel-geo-allow')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Manage Countries</button>
                             </article>
                             @endif
@@ -1485,7 +1485,7 @@
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3z"/><path d="M9.5 12.5l1.8 1.8 3.7-3.8"/></svg>
-                                    </div>
+                    </div>
                                     <div class="figma-pac-card-heading">
                                         <h3 class="figma-pac-card-title">Blocked Countries</h3>
                                         <x-figma-toggle name="google_geo_block_enabled" value="1" :checked="$settings->google_geo_block_enabled" size="sm" label-on="On" label-off="Off" />
@@ -1516,11 +1516,11 @@
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3z"/><path d="M9.5 12.5l1.8 1.8 3.7-3.8"/></svg>
-                                    </div>
+                                </div>
                                     <div class="figma-pac-card-heading">
                                         <h3 class="figma-pac-card-title">Whitelist IP Addresses</h3>
                                         <x-figma-toggle name="allow_list_enabled" value="1" :checked="$settings->allow_list_enabled" size="sm" label-on="On" label-off="Off" />
-                                    </div>
+                            </div>
                                 </div>
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Whitelisted IPs ({{ $allowIpsPreview->count() }})</p>
@@ -1547,11 +1547,11 @@
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19c1.6-2.6 3.8-4 6.5-4s4.9 1.4 6.5 4"/><path d="M16.5 6.5l4 4M20.5 6.5l-4 4"/></svg>
-                                    </div>
+                                </div>
                                     <div class="figma-pac-card-heading">
                                         <h3 class="figma-pac-card-title">Blacklist IP Addresses</h3>
                                         <x-figma-toggle name="block_list_enabled" value="1" :checked="$settings->block_list_enabled" size="sm" label-on="On" label-off="Off" />
-                                    </div>
+                            </div>
                                 </div>
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Blocked IPs ({{ $blockIpsPreview->count() }})</p>
@@ -1591,7 +1591,7 @@
                                             @change="crossDomainOn = $event.target.checked"
                                         />
                                     </div>
-                                </div>
+                                    </div>
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Visitor linking across domains</p>
                                     <p class="figma-pac-purpose"><span>Purpose</span> Queue cross-domain visitor IPs into Google Ads Exclusion Manager.</p>
@@ -1600,8 +1600,8 @@
                                         <select name="cross_domain_exclusion_mode" aria-label="Cross-domain exclusion scope">
                                             <option value="all" @selected($crossDomainMode === 'all')>All</option>
                                             <option value="domain_similarity" @selected($crossDomainMode === 'domain_similarity')>Similarity</option>
-                                        </select>
-                                    </div>
+                                            </select>
+                                        </div>
                                     <p class="figma-pac-cross-count">
                                         {{ $crossDomainAllCount }} cross-domain IP(s) in workspace ·
                                         {{ $crossDomainSimilarityCount }} with domain similarity
@@ -1614,7 +1614,7 @@
                             </article>
                             @endif
 
-                        </div>
+                            </div>
                     </section>
 
                     {{-- Detection Engine Modules (old Suspicious Activity matrix) --}}
@@ -1624,15 +1624,15 @@
                                 <h2 id="figma-dem-heading" class="figma-dem-title">Detection Engine Modules</h2>
                                 <p class="figma-dem-lead">All modules are active and running in real-time.</p>
                             </div>
-                            <x-figma-toggle
+                                    <x-figma-toggle
                                 name="suspicious_enabled"
-                                value="1"
+                                        value="1"
                                 :checked="$settings->suspicious_enabled"
                                 size="sm"
-                                label-on="On"
-                                label-off="Off"
-                            />
-                        </div>
+                                        label-on="On"
+                                        label-off="Off"
+                                    />
+                                </div>
                         <div class="figma-dem-grid">
                             @foreach ($detectionModules as $mod)
                                 @php
@@ -1670,7 +1670,7 @@
                                             @else
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2.6 17.2A2 2 0 004.3 20h15.4a2 2 0 001.7-2.8L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
                                             @endif
-                                        </div>
+                            </div>
                                         <div class="figma-dem-card-heading">
                                             <h3 class="figma-dem-card-title">{{ $mod['title'] }}</h3>
                                             @if (!empty($mod['toggle']))
@@ -1745,11 +1745,11 @@
                                 </div>
                                 <div class="figma-bip-head-actions">
                                     <label class="figma-bip-upload">
-                                        <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onFile($event)">
+                                                <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onFile($event)">
                                         Upload File
-                                    </label>
-                                </div>
-                            </div>
+                                            </label>
+                                        </div>
+                                    </div>
 
                             <div class="figma-bip-add">
                                 <label class="figma-bip-field figma-bip-field--grow">
@@ -1812,7 +1812,7 @@
                                         </template>
                                     </tbody>
                                 </table>
-                            </div>
+                                    </div>
                             <button type="button" class="figma-bip-view-all" x-show="rows.length > 5" @click="showAll = !showAll" x-text="showAll ? 'Show less' : 'View All Blocked IPs →'"></button>
                         </section>
 
@@ -1845,7 +1845,7 @@
 
                             <div class="figma-gaem-quick">
                                 <button type="button" class="figma-gaem-push-btn" :disabled="loading || !rows.length" @click="syncPending()">Push all pending</button>
-                            </div>
+                                    </div>
 
                             <p x-show="message" x-text="message" class="text-[11px] mt-[8px]" :class="ok ? 'text-emerald-300' : 'text-rose-300'"></p>
 
@@ -1926,21 +1926,21 @@
                             <div id="detection-panel-geo-allow" class="figma-rule-editor" x-data="geoAudiencePicker({{ json_encode(['rules' => $geoAudienceRules, 'countries' => $geoCountries, 'endpoints' => $geoEndpoints]) }})" x-init="init()">
                                 <h3 class="figma-rule-editor-title">Geo Targeting — Allowed Countries</h3>
                                 <input type="hidden" name="out_of_geo_audience" :value="jsonValue">
-                                <div class="figma-detection-card-inset space-y-[8px]">
-                                    <div class="flex flex-wrap items-end gap-[8px]">
-                                        @include('paid-marketing.partials.geo-audience-comboboxes')
-                                        <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
-                                    </div>
-                                    <template x-if="rules.length">
-                                        <div class="space-y-[4px]">
-                                            <template x-for="(rule, idx) in rules" :key="idx">
-                                                <div class="figma-detection-geo-rule-row">
-                                                    <span x-text="ruleLabel(rule)"></span>
-                                                    <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
-                                                </div>
-                                            </template>
+                                    <div class="figma-detection-card-inset space-y-[8px]">
+                                        <div class="flex flex-wrap items-end gap-[8px]">
+                                            @include('paid-marketing.partials.geo-audience-comboboxes')
+                                            <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
                                         </div>
-                                    </template>
+                                        <template x-if="rules.length">
+                                            <div class="space-y-[4px]">
+                                                <template x-for="(rule, idx) in rules" :key="idx">
+                                                    <div class="figma-detection-geo-rule-row">
+                                                        <span x-text="ruleLabel(rule)"></span>
+                                                        <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
                                     <p x-show="!rules.length" class="figma-detection-geo-empty">No audience locations added yet.</p>
                                 </div>
                             </div>
@@ -1949,36 +1949,36 @@
                                 <h3 class="figma-rule-editor-title">Blocked Countries (Google Ads)</h3>
                                 <input type="hidden" name="google_geo_block_audience" :value="jsonValue">
                                 <div class="figma-detection-card-inset space-y-[8px]">
-                                    <div class="flex flex-wrap items-end gap-[8px]">
+                                        <div class="flex flex-wrap items-end gap-[8px]">
                                         @include('paid-marketing.partials.geo-audience-comboboxes')
-                                        <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
-                                    </div>
-                                    <template x-if="rules.length">
-                                        <div class="space-y-[4px]">
-                                            <template x-for="(rule, idx) in rules" :key="idx">
-                                                <div class="figma-detection-geo-rule-row">
-                                                    <span x-text="ruleLabel(rule)"></span>
-                                                    <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
-                                                </div>
-                                            </template>
+                                            <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
                                         </div>
-                                    </template>
+                                        <template x-if="rules.length">
+                                            <div class="space-y-[4px]">
+                                                <template x-for="(rule, idx) in rules" :key="idx">
+                                                    <div class="figma-detection-geo-rule-row">
+                                                        <span x-text="ruleLabel(rule)"></span>
+                                                        <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
                                     <p x-show="!rules.length" class="figma-detection-geo-empty">No blocked locations added yet.</p>
+                                    </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
 
                         <div id="detection-panel-ip-allow" class="figma-rule-editor mt-[12px]" x-data="ipListFileUpload('allow_list_ips')">
                             <div class="flex flex-wrap items-center justify-between gap-[8px] mb-[8px]">
                                 <h3 class="figma-rule-editor-title !mb-0">Whitelist IP Addresses</h3>
-                                <label class="cursor-pointer rounded-[6px] border border-white/30 px-[10px] py-[6px] text-[10px] text-white hover:bg-white/10">
-                                    <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onFile($event)">
-                                    Choose file
-                                </label>
-                            </div>
+                                            <label class="cursor-pointer rounded-[6px] border border-white/30 px-[10px] py-[6px] text-[10px] text-white hover:bg-white/10">
+                                                <input type="file" class="sr-only" accept=".txt,.csv,text/plain,text/csv" @change="onFile($event)">
+                                                Choose file
+                                            </label>
+                                        </div>
                             <textarea id="allow_list_ips" name="allow_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="figma-textarea text-[11px]">{{ $settings->allow_list_ips }}</textarea>
-                        </div>
-                    </div>
+                                    </div>
+                                </div>
 
                     @php
                         $thr = $settings->detection_thresholds ?? [];
@@ -2048,12 +2048,12 @@
                                     <button type="button" class="figma-ads-pill" :class="{ 'is-active': rapidPreset === '60' }" @click="setRapid('60')">60 sec</button>
                                     <button type="button" class="figma-ads-pill" :class="{ 'is-active': rapidPreset === '300' }" @click="setRapid('300')">5 min</button>
                                     <button type="button" class="figma-ads-pill" :class="{ 'is-active': rapidPreset === 'custom' }" @click="setRapid('custom')">Custom</button>
-                                </div>
+                                        </div>
                                 <label class="figma-ads-custom" x-show="rapidPreset === 'custom'" x-cloak>
                                     <span>Custom window (sec)</span>
                                     <input type="number" min="10" max="600" x-model.number="rapidCustom">
-                                </label>
-                            </div>
+                                            </label>
+                                        </div>
                             @else
                                 <input type="hidden" name="rapid_window_seconds" value="{{ (int) ($thr['rapid_window_seconds'] ?? 120) }}">
                             @endif
@@ -2065,7 +2065,7 @@
                                     <label class="figma-ads-limit-field">
                                         <span>Hourly Limit</span>
                                         <div class="figma-ads-limit-input">
-                                            <input
+                                                <input
                                                 type="number"
                                                 name="hourly_valid_click_limit"
                                                 min="1"
@@ -2076,7 +2076,7 @@
                                             >
                                             <span class="figma-ads-limit-suffix">Clicks</span>
                                         </div>
-                                    </label>
+                                            </label>
                                     <label class="figma-ads-limit-field">
                                         <span>Daily Limit</span>
                                         <div class="figma-ads-limit-input">
@@ -2091,7 +2091,7 @@
                                             >
                                             <span class="figma-ads-limit-suffix">Clicks</span>
                                         </div>
-                                    </label>
+                                                </label>
                                     <label class="figma-ads-limit-field">
                                         <span>Weekly Limit</span>
                                         <div class="figma-ads-limit-input">
@@ -2105,12 +2105,12 @@
                                                 required
                                             >
                                             <span class="figma-ads-limit-suffix">Clicks</span>
-                                        </div>
+                                            </div>
                                     </label>
                                     <label class="figma-ads-limit-field">
                                         <span>Monthly Limit</span>
                                         <div class="figma-ads-limit-input">
-                                            <input
+                                                                    <input
                                                 type="number"
                                                 name="monthly_valid_click_limit"
                                                 min="1"
@@ -2121,9 +2121,9 @@
                                             >
                                             <span class="figma-ads-limit-suffix">Clicks</span>
                                         </div>
-                                    </label>
-                                </div>
-                            </div>
+                                                                </label>
+                                        </div>
+                                    </div>
                             @else
                                 <input type="hidden" name="hourly_valid_click_limit" value="{{ (int) ($thr['hourly_valid_click_limit'] ?? 3) }}">
                                 <input type="hidden" name="daily_valid_click_limit" value="{{ (int) ($thr['daily_valid_click_limit'] ?? 2) }}">
@@ -2145,8 +2145,8 @@
                                     <span>Redirect URL</span>
                                     <input type="url" name="block_redirect_url" value="{{ $settings->block_redirect_url }}" placeholder="https://example.com/safe">
                                 </label>
-                            </div>
-                        </div>
+                                        </div>
+                    </div>
 
                         @if ($pdf(\App\Support\DetectionPlanFeatures::BEHAVIOR_CONTROL))
                         <div class="figma-ads-card" style="margin-top:0;grid-template-columns:1fr;">
@@ -2157,7 +2157,7 @@
                                         Tracks scrolls, page changes, CTA clicks, and tel clicks on paid visits.
                                         Idle return (visit 2 idle) blocks. Matching scroll pattern: 2nd = suspicious, 3rd = block.
                                     </p>
-                                </div>
+                                            </div>
                                 <x-figma-toggle
                                     name="behavior_control_enabled"
                                     value="1"
@@ -2166,8 +2166,8 @@
                                     label-on="On"
                                     label-off="Off"
                                 />
+                                        </div>
                             </div>
-                        </div>
                         @endif
 
                         <div class="figma-ads-more space-y-[12px]">
@@ -2195,8 +2195,8 @@
                                     <option value="open" @selected(($settings->fail_mode ?? 'open') === 'open')>Fail open (allow)</option>
                                     <option value="closed" @selected(($settings->fail_mode ?? 'open') === 'closed')>Fail closed (block)</option>
                                 </select>
-                            </label>
-                        </div>
+                                </label>
+                            </div>
 
                         <div class="figma-detection-save-row flex justify-end pt-[16px]">
                             <button type="submit" class="rounded-[6px] bg-white px-[22px] py-[9px] text-[13px] font-semibold text-[var(--brand-primary)] shadow-[0_8px_20px_rgba(0,0,0,.25)]">Save changes</button>

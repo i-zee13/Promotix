@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
  */
 class ClickronixKnowledgeBank
 {
-    private const CACHE_KEY = 'clickronix.kb.entries.v1';
+    private const CACHE_KEY = 'clickronix.kb.entries.v2';
 
     private const CACHE_TTL_SECONDS = 3600;
 
@@ -108,19 +108,44 @@ class ClickronixKnowledgeBank
     public static function entries(): array
     {
         return Cache::remember(self::CACHE_KEY, self::CACHE_TTL_SECONDS, function (): array {
-            $entries = [];
+            $entries = self::builtInEntries();
 
             if ($path = self::assistantPath()) {
-                $entries = array_merge($entries, self::parseFaqFile((string) file_get_contents($path)));
+                $entries = array_merge($entries, self::parseFaqFile(self::readUtf8($path)));
             }
 
             if ($path = self::copilotPath()) {
-                $entries = array_merge($entries, self::parseCopilotSections((string) file_get_contents($path)));
-                $entries = array_merge($entries, self::parseIntentMap((string) file_get_contents($path)));
+                $raw = self::readUtf8($path);
+                $entries = array_merge($entries, self::parseCopilotSections($raw));
+                $entries = array_merge($entries, self::parseIntentMap($raw));
             }
 
             return $entries;
         });
+    }
+
+    /**
+     * @return list<array{title: string, answer: string, keywords: string, related_page: ?string, department: ?string}>
+     */
+    private static function builtInEntries(): array
+    {
+        return [
+            [
+                'title' => 'Campaign Performance',
+                'answer' => "Campaigns live under Paid Advertising.\n\nGo to:\nPaid Advertising → Dashboard → Campaign Performance\n\nThere you can see each Google Ads campaign's clicks, invalid clicks, and protection results. For one campaign's IPs and detections, open Paid Advertising → Advanced View and filter by campaign.",
+                'keywords' => 'campaign campaigns campaign performance google ads campaign table invalid clicks',
+                'related_page' => 'Paid Advertising → Dashboard → Campaign Performance',
+                'department' => null,
+            ],
+        ];
+    }
+
+    private static function readUtf8(string $path): string
+    {
+        $raw = (string) file_get_contents($path);
+        $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $raw);
+
+        return is_string($clean) ? $clean : $raw;
     }
 
     private static function assistantPath(): ?string
@@ -358,6 +383,7 @@ class ClickronixKnowledgeBank
             'domain_tracking_issue' => "Go to:\nSite Management → Domains\n\nConfirm the domain is active, tag is installed, and Platform Integrate → Connection Health shows tracking healthy.",
             'upgrade_plan_or_limit' => "Go to:\nSettings → Billing\n\nReview your plan limits and upgrade if you need more domains or capacity.",
             'billing_invoice' => "Go to:\nSettings → Billing\n\nOpen invoices / payment history for the selected period.",
+            'campaign_performance' => "Go to:\nPaid Advertising → Dashboard → Campaign Performance\n\nThis table shows each Google Ads campaign's clicks, invalid activity, and protection results for the selected domain and date range.",
         ];
 
         foreach ($matches as $match) {

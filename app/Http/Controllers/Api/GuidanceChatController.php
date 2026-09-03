@@ -57,15 +57,31 @@ class GuidanceChatController extends Controller
         }
 
         $result = GuidanceService::answer($data['message'], $data['department'] ?? null);
+        $result = $this->utf8SafeResult($result);
 
         if ($session) {
-            $transcript = is_array($session->transcript) ? $session->transcript : [];
-            $transcript[] = ['from' => 'user', 'text' => $data['message'], 'at' => now()->toIso8601String()];
-            $transcript[] = ['from' => 'agent', 'text' => $result['answer'], 'at' => now()->toIso8601String(), 'meta' => $result];
-            $session->transcript = $transcript;
-            $session->last_activity_at = now();
-            $session->department = $data['department'] ?? ($result['department'] ?? $session->department);
-            $session->save();
+            try {
+                $transcript = is_array($session->transcript) ? $session->transcript : [];
+                $transcript[] = ['from' => 'user', 'text' => $this->utf8Safe((string) $data['message']), 'at' => now()->toIso8601String()];
+                $transcript[] = [
+                    'from' => 'agent',
+                    'text' => $this->utf8Safe((string) ($result['answer'] ?? '')),
+                    'at' => now()->toIso8601String(),
+                    'meta' => $this->utf8SafeResult([
+                        'title' => $result['title'] ?? null,
+                        'related_page' => $result['related_page'] ?? null,
+                        'confidence' => $result['confidence'] ?? null,
+                        'source' => $result['source'] ?? null,
+                        'department' => $result['department'] ?? null,
+                    ]),
+                ];
+                $session->transcript = $transcript;
+                $session->last_activity_at = now();
+                $session->department = $data['department'] ?? ($result['department'] ?? $session->department);
+                $session->save();
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return response()->json([
@@ -156,5 +172,32 @@ class GuidanceChatController extends Controller
         }
 
         return $prefix.str_pad((string) $seq, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function utf8SafeResult(array $payload): array
+    {
+        foreach ($payload as $key => $value) {
+            if (is_string($value)) {
+                $payload[$key] = $this->utf8Safe($value);
+            } elseif (is_array($value)) {
+                $payload[$key] = $this->utf8SafeResult($value);
+            }
+        }
+
+        return $payload;
+    }
+
+    private function utf8Safe(string $value): string
+    {
+        $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
+        if (! is_string($clean) || $clean === '') {
+            $clean = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+        }
+
+        return is_string($clean) ? $clean : '';
     }
 }

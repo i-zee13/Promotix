@@ -1118,7 +1118,7 @@
                     </ul>
                 </div>
                 <p class="pm-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
-            </article>
+                    </article>
 
             <article class="pm-adv-chart-card">
                 <h3 class="pm-adv-chart-card__title">Risk Level Distribution</h3>
@@ -1151,9 +1151,9 @@
                                     </span>
                                 </button>
                             </li>
-                        </template>
+                </template>
                     </ul>
-                </div>
+            </div>
                 <p class="pm-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
             </article>
 
@@ -2400,7 +2400,7 @@
                 const generation = ++this.fetchGeneration;
                 this.loading = true;
                 window.promotixPageLoader?.show('Loading Advanced View…');
-                const qs = this.queryString();
+                    const qs = this.queryString();
                 try {
                     const stillCurrent = await this.runStaggered([
                         async (gen) => {
@@ -2416,9 +2416,9 @@
                             }
                         },
                         async (gen) => {
-                            const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
-                                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                            });
+                    const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
                             if (! this.isFetchCurrent(gen)) return;
                             if (!res.ok) {
                                 const msg = res.status === 403
@@ -2426,11 +2426,11 @@
                                     : `Failed to load visits (${res.status}).`;
                                 throw new Error(msg);
                             }
-                            const data = await res.json();
+                    const data = await res.json();
                             if (! this.isFetchCurrent(gen)) return;
-                            this.rows = data.rows || [];
+                    this.rows = data.rows || [];
                             this.page = 1;
-                            this.statCards = data.stats?.cards || [];
+                    this.statCards = data.stats?.cards || [];
                             this.kpiCards = data.stats?.kpis || this.kpiCards;
                             const charts = data.stats?.charts || {};
                             this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
@@ -2439,10 +2439,10 @@
                             this.highRiskIps = charts.high_risk_ips || [];
                             this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
                             this.timezoneContext = data.timezone_context || this.timezoneContext;
-                            if (this.timezoneContext?.reporting_timezone) {
-                                this.reportingTimezone = this.timezoneContext.reporting_timezone;
-                            }
-                            this.syncPaidTimezoneHeader();
+                    if (this.timezoneContext?.reporting_timezone) {
+                        this.reportingTimezone = this.timezoneContext.reporting_timezone;
+                    }
+                    this.syncPaidTimezoneHeader();
                             const rank = (r) => {
                                 let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
                                 if (score > 0 && score < 1) score *= 100;
@@ -2484,8 +2484,8 @@
                     }
                 } finally {
                     if (this.isFetchCurrent(generation)) {
-                        this.loading = false;
-                        window.promotixPageLoader?.hide();
+                    this.loading = false;
+                    window.promotixPageLoader?.hide();
                     }
                 }
             },

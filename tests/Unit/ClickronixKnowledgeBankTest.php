@@ -27,6 +27,15 @@ class ClickronixKnowledgeBankTest extends TestCase
     }
 
     #[Test]
+    public function it_answers_campaign_questions(): void
+    {
+        $result = GuidanceService::answer('i want to know about the campaign');
+
+        $this->assertGreaterThan(0.16, $result['confidence']);
+        $this->assertStringContainsStringIgnoringCase('Campaign Performance', $result['answer']);
+    }
+
+    #[Test]
     public function it_routes_live_agent_requests(): void
     {
         $result = GuidanceService::answer('I want to talk to a human agent about Google Ads');

@@ -27,7 +27,7 @@
                     <button type="submit" class="paid-quick-action" title="Sync Ads">
                         @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
                         <span>Sync Ads</span>
-                    </button>
+                </button>
                 </form>
             @else
                 <a href="{{ route('integrations.google.redirect') }}" class="paid-quick-action" title="Sync Ads">
@@ -342,13 +342,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div class="w-[88px] shrink-0 text-center">
                                         <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
                                             <svg class="h-[40px] w-[40px] text-[#1877F2]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.52 1.49-3.91 3.78-3.91 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.45 2.9h-2.33v7c4.78-.75 8.44-4.9 8.44-9.9 0-5.53-4.5-10.02-10-10.02z"/></svg>
-                                        </div>
+                            </div>
                                         <p class="text-[15px] font-semibold leading-none text-white">Meta Ads</p>
                                         <span class="pi-status-pill is-off mt-[8px]">
                                             <span class="pi-status-dot"></span>
                                             <span>Not connected</span>
                                         </span>
-                                    </div>
+                        </div>
                                     <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
                                         <a href="{{ route('paid-marketing.dashboard') }}" class="pi-ghost-btn">
                                             @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
@@ -362,9 +362,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                             <span class="text-[14px] leading-none">+</span>
                                             Connect Meta
                                         </button>
-                                    </div>
-                                </div>
                             </div>
+                        </div>
+                    </div>
                         </article>
                     @endif
 
@@ -380,13 +380,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 <path fill="#00A4EF" d="M3 12.5H11.5V21H3z"/>
                                                 <path fill="#FFB900" d="M12.5 12.5H21V21h-8.5z"/>
                                             </svg>
-                                        </div>
+                        </div>
                                         <p class="text-[15px] font-semibold leading-none text-white">Microsoft Ads</p>
                                         <span class="pi-status-pill is-off mt-[8px]">
                                             <span class="pi-status-dot"></span>
                                             <span>Not connected</span>
                                         </span>
-                                    </div>
+                        </div>
                                     <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
                                         <a href="{{ route('paid-marketing.dashboard') }}" class="pi-ghost-btn">
                                             @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
@@ -400,13 +400,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                             <span class="text-[14px] leading-none">+</span>
                                             Connect Microsoft
                                         </button>
-                                    </div>
-                                </div>
-                            </div>
+                        </div>
+                        </div>
+                        </div>
                         </article>
-                    @endif
-                </div>
-            </section>
+                        @endif
+                    </div>
+                </section>
 
             <div class="pi-side-stack">
                 <section class="pi-side-card">
@@ -418,12 +418,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="pi-status-row">
                             <span class="flex h-[28px] w-[28px] items-center justify-center rounded-[6px] bg-white">
                                 @include('partials.icons.google', ['class' => 'h-[16px] w-[16px]'])
-                            </span>
+                        </span>
                             <span class="min-w-0 flex-1 truncate text-[12px] text-white/90">Google Ads API</span>
                             <span class="pi-status-pill" :class="googleAdsApiHealthy ? 'is-on' : 'is-off'">
                                 <span class="pi-status-dot"></span>
                                 <span x-text="googleAdsApiHealthy ? 'Connected' : (googleOAuthConnected ? 'Pending' : 'Offline')"></span>
-                            </span>
+                        </span>
                         </div>
                         <div class="pi-status-row">
                             <span class="flex h-[28px] w-[28px] items-center justify-center rounded-[6px] bg-white p-[3px]">
@@ -434,8 +434,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span class="pi-status-dot"></span>
                                 <span x-text="tagManagerConnected ? 'Connected' : 'Offline'"></span>
                             </span>
-                        </div>
                     </div>
+                        </div>
                 </section>
 
                 <section class="pi-side-card">
@@ -1144,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <template x-if="step.key !== 'domain' && !step.done">
                                 <span class="h-[8px] w-[8px] rounded-full bg-white/40"></span>
                             </template>
-                        </div>
+            </div>
                         <div class="pi-setup-label" x-text="step.label"></div>
                         <div class="pi-setup-detail" :title="step.detail || ''" x-text="step.detail || '—'"></div>
                     </div>
@@ -1157,7 +1157,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <details class="mb-[14px] rounded-[10px] border border-white/10 bg-black/20 px-[14px] py-[12px]">
                 <summary class="cursor-pointer text-[12px] font-semibold text-white">Pixel Guard &amp; Audience Exclusion guidance</summary>
                 <div class="mt-[10px] grid gap-[10px] text-[11px] leading-relaxed text-white/70 sm:grid-cols-2">
-                    <div>
+            <div>
                         <p class="font-semibold text-[#B893D8]">Pixel Guard</p>
                         <ul class="mt-[6px] list-disc space-y-1 pl-[16px]">
                             <li><strong class="text-white/90">Google Tag ID</strong> — the AW-/GT- ID from Google Ads / Tag Manager for this domain.</li>
@@ -1237,7 +1237,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <span class="pi-prot {{ ($row['protection_tone'] ?? '') === 'track' ? 'is-track' : 'is-audience' }}">
                                         <svg class="h-[14px] w-[14px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z"/></svg>
                                         <span>{{ $row['protection'] }}</span>
-                                    </span>
+                                        </span>
                                 </td>
                                 <td class="font-mono text-[12px]">{{ $row['entity_id'] }}</td>
                                 <td>
@@ -1264,15 +1264,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                                     @endif
                                                     @if (! empty($row['delete_url']))
                                                         <form method="POST" action="{{ $row['delete_url'] }}" onsubmit="return confirm('Remove this platform link?');">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="figma-platform-menu-item figma-platform-menu-item--danger w-full text-left">
-                                                                @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'mr-[8px] inline h-[14px] w-[14px]'])
-                                                                Delete
-                                                            </button>
-                                                        </form>
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="figma-platform-menu-item figma-platform-menu-item--danger w-full text-left">
+                                                    @include('partials.sidebar-icon', ['name' => 'trash', 'class' => 'mr-[8px] inline h-[14px] w-[14px]'])
+                                                    Delete
+                                                </button>
+                                            </form>
                                                     @endif
-                                                </x-integrations.platform-card-dropdown>
+                                        </x-integrations.platform-card-dropdown>
                                             </div>
                                         @else
                                             <button type="button" class="rounded p-[4px] text-black/40 hover:text-black" title="More" aria-label="More options">
@@ -1289,7 +1289,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         @endforelse
                         <tr x-show="filteredPlatformRows.length === 0 && platformRows.length > 0" x-cloak>
                             <td colspan="8" class="!py-[28px] text-center text-[13px] text-black/45">No platforms match your search.</td>
-                        </tr>
+                            </tr>
                     </tbody>
                 </table>
             </div>
