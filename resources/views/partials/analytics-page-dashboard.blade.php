@@ -299,20 +299,23 @@
 
         .pa-dash .pa-donut-wrap {
             display: grid;
-            grid-template-columns: 140px minmax(0, 1fr);
-            gap: 14px;
+            grid-template-columns: 120px minmax(0, 1fr);
+            gap: 18px;
             align-items: center;
             flex: 1;
+            min-height: 0;
         }
         @media (max-width: 640px) {
-            .pa-dash .pa-donut-wrap { grid-template-columns: 1fr; }
+            .pa-dash .pa-donut-wrap { grid-template-columns: 1fr; justify-items: center; }
         }
         .pa-dash .pa-donut {
-            width: 140px;
-            height: 140px;
-            margin: 0 auto;
+            width: 120px;
+            height: 120px;
+            margin: 0;
             border-radius: 999px;
             position: relative;
+            flex-shrink: 0;
+            box-sizing: border-box;
         }
         .pa-dash .pa-donut--sm {
             width: 112px;
@@ -328,47 +331,70 @@
             align-items: center;
             justify-content: center;
             text-align: center;
+            pointer-events: none;
         }
         .pa-dash .pa-donut__hole strong {
-            font-size: 16px;
+            font-size: 18px;
+            font-weight: 700;
             color: #fff;
             line-height: 1.1;
+            letter-spacing: -0.02em;
         }
         .pa-dash .pa-donut__hole span {
-            font-size: 9px;
+            font-size: 10px;
             color: rgba(255, 255, 255, 0.45);
-            margin-top: 2px;
+            margin-top: 3px;
         }
         .pa-dash .pa-legend {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            justify-content: center;
+            gap: 10px;
             min-width: 0;
+            width: 100%;
+            padding-left: 2px;
         }
         .pa-dash .pa-legend__row {
-            display: flex;
+            display: grid;
+            grid-template-columns: 10px minmax(0, 1fr) auto;
             align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.7);
+            column-gap: 10px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.78);
+            line-height: 1.2;
         }
         .pa-dash .pa-legend__left {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            min-width: 0;
+            display: contents;
         }
         .pa-dash .pa-legend__swatch {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 2px;
             flex-shrink: 0;
+            display: block;
+            box-sizing: border-box;
+        }
+        .pa-dash .pa-legend__label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .pa-dash .pa-legend__pct {
             font-variant-numeric: tabular-nums;
             color: rgba(255, 255, 255, 0.55);
             white-space: nowrap;
+            text-align: right;
+            min-width: 3.5rem;
+            font-size: 12px;
+        }
+
+        .pa-dash .pa-card--device {
+            display: flex;
+            flex-direction: column;
+        }
+        .pa-dash .pa-card--device .pa-donut-wrap {
+            margin-top: 4px;
         }
 
         .pa-dash .pa-table {
@@ -1175,11 +1201,9 @@
                 <div class="pa-legend">
                     <template x-for="row in pageTrafficSources()" :key="row.key || row.label">
                         <div class="pa-legend__row">
-                            <span class="pa-legend__left">
-                                <i class="pa-legend__swatch" :style="`background:${row.color || '#FF6600'}`"></i>
-                                <span x-text="row.label"></span>
-                            </span>
-                            <span class="pa-legend__pct" x-text="(row.pct != null ? row.pct : 0) + '%'"></span>
+                            <span class="pa-legend__swatch" :style="`background:${row.color || '#FF6600'}`" aria-hidden="true"></span>
+                            <span class="pa-legend__label" x-text="row.label"></span>
+                            <span class="pa-legend__pct" x-text="Number(row.pct != null ? row.pct : 0).toFixed(1) + '%'"></span>
                         </div>
                     </template>
                     <p x-show="!(pageTrafficSources() || []).length" class="pa-empty">No traffic sources in this window.</p>
@@ -1269,9 +1293,9 @@
         @endif
 
         @if ($showDeviceBlock)
-        <section class="pa-card pa-card--compact">
+        <section class="pa-card pa-card--compact pa-card--device">
             <h2 class="pa-card__title">Device Breakdown</h2>
-            <div class="pa-donut-wrap" style="grid-template-columns: 112px minmax(0, 1fr);">
+            <div class="pa-donut-wrap">
                 <div class="pa-donut" role="img" aria-label="Devices"
                     :style="(rows => {
                         const list = rows || [];
@@ -1293,11 +1317,9 @@
                 <div class="pa-legend">
                     <template x-for="row in pageDevices()" :key="row.key || row.label">
                         <div class="pa-legend__row">
-                            <span class="pa-legend__left">
-                                <i class="pa-legend__swatch" :style="`background:${row.color || '#FF6600'}`"></i>
-                                <span x-text="row.label"></span>
-                            </span>
-                            <span class="pa-legend__pct" x-text="(row.pct != null ? row.pct : 0) + '%'"></span>
+                            <span class="pa-legend__swatch" :style="`background:${row.color || '#FF6600'}`" aria-hidden="true"></span>
+                            <span class="pa-legend__label" x-text="row.label"></span>
+                            <span class="pa-legend__pct" x-text="Number(row.pct != null ? row.pct : 0).toFixed(1) + '%'"></span>
                         </div>
                     </template>
                 </div>
