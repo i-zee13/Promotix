@@ -4,6 +4,40 @@
     'showViewAll' => false,
     'fullPage' => false,
 ])
+<style>
+.figma-sa-cross-domain-head {
+    background: var(--brand-primary, #FF6600) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.22) !important;
+}
+.figma-sa-cross-domain-title,
+.figma-sa-cross-domain-subtitle,
+.figma-sa-cross-domain-view-all,
+html.light-mode .figma-sa-cross-domain-title,
+html.light-mode .figma-sa-cross-domain-subtitle,
+html.light-mode .figma-sa-cross-domain-view-all {
+    color: #ffffff !important;
+}
+.figma-sa-cross-domain-head .figma-sa-subs-search,
+html.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.45) !important;
+}
+.figma-sa-cross-domain-head .figma-sa-subs-search input,
+.figma-sa-cross-domain-head .figma-sa-subs-search svg,
+.figma-sa-cross-domain-head .figma-sa-subs-search input::placeholder,
+html.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search input,
+html.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search svg,
+html.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search input::placeholder {
+    color: #ffffff !important;
+}
+.figma-sa-cross-domain-panel.is-fullpage {
+    min-height: calc(100vh - 150px) !important;
+}
+.figma-sa-cross-domain-panel.is-fullpage .figma-sa-cross-domain-scroll {
+    max-height: none !important;
+    min-height: calc(100vh - 280px) !important;
+}
+</style>
 
 <div
     @class([
@@ -13,10 +47,10 @@
     ])
     x-data="crossDomainTable({ rows: {{ \Illuminate\Support\Js::from($rows) }} })"
 >
-    <div class="figma-sa-cross-domain-head">
+    <div class="figma-sa-cross-domain-head" style="background:var(--brand-primary,#FF6600);color:#fff;">
         <div>
-            <h2 class="figma-sa-cross-domain-title">Cross-domain intelligence</h2>
-            <p class="figma-sa-cross-domain-subtitle">Evidence scores only — never auto-block from this panel.</p>
+            <h2 class="figma-sa-cross-domain-title" style="color:#fff;">Cross-domain intelligence</h2>
+            <p class="figma-sa-cross-domain-subtitle" style="color:rgba(255,255,255,.92);">Evidence scores only — never auto-block from this panel.</p>
         </div>
         <div class="figma-sa-cross-domain-tools">
             <label class="figma-sa-subs-search figma-sa-cross-domain-search">

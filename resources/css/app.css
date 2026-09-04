@@ -3202,7 +3202,7 @@ html.figma-gads-calendar-open body {
 }
 
 .figma-sa-cross-domain-panel.is-fullpage {
-    min-height: calc(100vh - 168px);
+    min-height: calc(100vh - 150px);
 }
 
 .figma-sa-cross-domain-head {
@@ -3271,7 +3271,7 @@ html.figma-gads-calendar-open body {
 
 .figma-sa-cross-domain-panel.is-fullpage .figma-sa-cross-domain-scroll {
     max-height: none;
-    min-height: 480px;
+    min-height: calc(100vh - 280px);
 }
 
 .figma-sa-cross-domain-scroll thead th {
