@@ -114,31 +114,38 @@
         }
         .pa-dash .pa-perf__metrics { display: flex; flex-wrap: wrap; gap: 8px; }
         .pa-dash .pa-perf__metric {
-            min-width: 110px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            min-width: 118px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-left: 3px solid rgba(255, 255, 255, 0.18);
             background: rgba(255, 255, 255, 0.03);
-            padding: 8px 10px;
+            padding: 10px 12px;
             text-align: left;
             cursor: pointer;
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(255, 255, 255, 0.55);
+            transition: border-color .15s ease, background .15s ease, color .15s ease;
         }
         .pa-dash .pa-perf__metric.is-active {
-            border-color: currentColor;
+            color: rgba(255, 255, 255, 0.92);
             background: rgba(255, 255, 255, 0.06);
+            border-left-color: currentColor;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
         }
         .pa-dash .pa-perf__metric-label {
             display: block;
             font-size: 10px;
             font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
             opacity: 0.7;
         }
         .pa-dash .pa-perf__metric-value {
             display: block;
-            margin-top: 2px;
-            font-size: 18px;
+            margin-top: 4px;
+            font-size: 20px;
             font-weight: 700;
             color: #fff;
+            letter-spacing: -0.02em;
         }
         .pa-dash .pa-perf__right { display: inline-flex; align-items: center; gap: 8px; }
         .pa-dash .pa-perf__select {
@@ -149,7 +156,14 @@
             font-size: 11px;
             padding: 6px 10px;
         }
-        .pa-dash .pa-perf__chart { height: 220px; width: 100%; }
+        .pa-dash .pa-perf__chart {
+            height: 280px;
+            width: 100%;
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 40%);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 8px 4px 0;
+        }
         .pa-dash .pa-perf__chart svg { width: 100%; height: 100%; display: block; }
         .pa-dash .pa-cost__top {
             display: grid;
@@ -992,7 +1006,7 @@
 
     {{-- Row 2: Performance Over Time --}}
     @if ($showPerformanceBlock)
-    <section class="pa-card pa-perf" x-data="{ perfMode: 'line' }">
+    <section class="pa-card pa-perf">
         <div class="pa-card__head">
             <h2 class="pa-card__title">Performance Over Time</h2>
             <div class="pa-perf__right">
@@ -1009,7 +1023,7 @@
                         type="button"
                         class="pa-perf__metric"
                         :class="isPerfSeriesActive(series.key) ? 'is-active' : ''"
-                        :style="`color:${series.color}`"
+                        :style="isPerfSeriesActive(series.key) ? `color:${series.color}` : ''"
                         @click="togglePerfSeries(series.key)"
                     >
                         <span class="pa-perf__metric-label" x-text="series.label"></span>
@@ -1018,7 +1032,7 @@
                 </template>
             </div>
         </div>
-        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode)"></div>
+        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode, (perfActiveSeries || []).join(','))"></div>
         <p x-show="!(pagePerformanceSeries() || []).length" class="pa-empty">No performance data in this window.</p>
     </section>
     @endif

@@ -469,7 +469,13 @@ class PageAnalyticsAggregator
             'performance' => [
                 'granularity' => $hourly ? 'hourly' : 'daily',
                 'labels' => array_values(array_keys($this->sortedPerformanceBuckets($performanceBuckets, $from, $to, $hourly))),
-                'series' => $this->buildPerformanceSeries($performanceBuckets, $from, $to, $hourly),
+                'series' => $this->buildPerformanceSeries(
+                    $performanceBuckets,
+                    $from,
+                    $to,
+                    $hourly,
+                    $this->googleClicksByDay($domainIds, $from, $to),
+                ),
             ],
             'referrers' => $this->chartRows(collect($platforms)->map(fn ($v, $k) => [
                 'key' => $k,
@@ -700,10 +706,16 @@ class PageAnalyticsAggregator
 
     /**
      * @param  array<string, array<string, int>>  $buckets
+     * @param  array<string, int>  $googleClicksByDay  metric_date => clicks
      * @return list<array<string, mixed>>
      */
-    private function buildPerformanceSeries(array $buckets, Carbon $from, Carbon $to, bool $hourly): array
-    {
+    private function buildPerformanceSeries(
+        array $buckets,
+        Carbon $from,
+        Carbon $to,
+        bool $hourly,
+        array $googleClicksByDay = [],
+    ): array {
         $filled = $this->sortedPerformanceBuckets($buckets, $from, $to, $hourly);
         $labels = [];
         $visitors = [];
@@ -711,13 +723,35 @@ class PageAnalyticsAggregator
         $conversions = [];
         $valid = [];
         $paid = [];
+        $hasGoogleClicks = $googleClicksByDay !== [];
 
         foreach ($filled as $key => $row) {
+            $dayKey = $hourly
+                ? Carbon::parse($key)->toDateString()
+                : (strlen($key) >= 10 ? substr($key, 0, 10) : $key);
             $labels[] = $hourly
                 ? Carbon::parse($key)->format('g A')
                 : Carbon::parse($key)->format('M j');
             $visitors[] = (int) ($row['visitors'] ?? 0);
-            $clicks[] = (int) ($row['clicks'] ?? 0);
+            // Prefer Google Ads reported clicks per day; fall back to paid visit clicks.
+            if ($hasGoogleClicks && ! $hourly) {
+                $clicks[] = (int) ($googleClicksByDay[$dayKey] ?? 0);
+            } elseif ($hasGoogleClicks && $hourly) {
+                // Spread the day's Google clicks across hours proportional to paid activity.
+                $dayTotal = (int) ($googleClicksByDay[$dayKey] ?? 0);
+                $dayPaid = 0;
+                foreach ($filled as $k2 => $r2) {
+                    if (Carbon::parse($k2)->toDateString() === $dayKey) {
+                        $dayPaid += (int) ($r2['paid'] ?? 0);
+                    }
+                }
+                $hourPaid = (int) ($row['paid'] ?? 0);
+                $clicks[] = ($dayPaid > 0 && $dayTotal > 0)
+                    ? (int) round($dayTotal * ($hourPaid / $dayPaid))
+                    : (int) ($row['clicks'] ?? 0);
+            } else {
+                $clicks[] = (int) ($row['clicks'] ?? 0);
+            }
             $conversions[] = (int) ($row['conversions'] ?? 0);
             $valid[] = (int) ($row['valid'] ?? 0);
             $paid[] = (int) ($row['paid'] ?? 0);
@@ -730,6 +764,37 @@ class PageAnalyticsAggregator
             ['key' => 'valid', 'label' => 'Valid Users', 'color' => '#FF6600', 'total' => array_sum($valid), 'points' => $valid, 'labels' => $labels],
             ['key' => 'paid', 'label' => 'Paid Visits', 'color' => '#A855F7', 'total' => array_sum($paid), 'points' => $paid, 'labels' => $labels],
         ];
+    }
+
+    /**
+     * @param  list<int>  $domainIds
+     * @return array<string, int>
+     */
+    private function googleClicksByDay(array $domainIds, Carbon $from, Carbon $to): array
+    {
+        if ($domainIds === [] || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            return [];
+        }
+
+        $rows = DB::table('google_ads_campaign_daily_metrics')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->when(
+                Schema::hasColumn('google_ads_campaign_daily_metrics', 'clicks'),
+                fn ($q) => $q->selectRaw('metric_date, SUM(clicks) as clicks'),
+                fn ($q) => $q->selectRaw('metric_date, 0 as clicks')
+            )
+            ->groupBy('metric_date')
+            ->orderBy('metric_date')
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $date = Carbon::parse((string) $row->metric_date)->toDateString();
+            $map[$date] = (int) ($row->clicks ?? 0);
+        }
+
+        return $map;
     }
 
     /**
@@ -1169,6 +1234,7 @@ class PageAnalyticsAggregator
                 return [
                     'key' => $row['path'],
                     'path' => $row['path'],
+                    'visitors' => $row['sessions'],
                     'views' => $row['views'],
                     'avg_time' => sprintf('%d:%02d', intdiv($avgSec, 60), $avgSec % 60),
                     'bounce' => min(100, max(0, $bounce)),

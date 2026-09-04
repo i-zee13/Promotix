@@ -1256,6 +1256,7 @@ function botProtectionFigma(config = {}) {
         pageAnalytics: null,
         keywordHeadlineSource: 'ads',
         perfActiveSeries: ['clicks', 'visitors', 'conversions'],
+        perfMode: 'line',
         countryModal: { open: false, country: '', rows: [], loading: false },
         domainsList: [],
         invalidTrends: { labels: [], datasets: [], stats: { pageloads: 0, interactions: 0 } },
@@ -1522,51 +1523,97 @@ function botProtectionFigma(config = {}) {
             }
             this.perfActiveSeries = list;
         },
-        performanceChartSvg(mode = 'line') {
+        performanceChartSvg(mode = 'line', _seriesKey = '') {
             const series = (this.pagePerformanceSeries() || []).filter((s) => this.isPerfSeriesActive(s.key));
-            if (!series.length) {
-                return '<svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg"><text x="24" y="28" fill="rgba(255,255,255,0.35)" font-size="12">No series selected</text></svg>';
-            }
-            const labels = series[0].labels || [];
-            const width = 640;
-            const height = 220;
-            const padL = 36;
-            const padR = 16;
-            const padT = 18;
-            const padB = 28;
+            const width = 920;
+            const height = 280;
+            const padL = 44;
+            const padR = 20;
+            const padT = 24;
+            const padB = 36;
             const innerW = width - padL - padR;
             const innerH = height - padT - padB;
+            if (!series.length) {
+                return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><text x="${padL}" y="36" fill="rgba(255,255,255,0.35)" font-size="12">No series selected</text></svg>`;
+            }
+            const labels = series[0].labels || [];
             const maxVal = Math.max(1, ...series.flatMap((s) => (s.points || []).map((n) => Number(n || 0))));
+            // Nice Y max (round up)
+            const yMax = (() => {
+                const raw = maxVal;
+                if (raw <= 5) return 5;
+                const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+                const norm = raw / mag;
+                const nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+                return nice * mag;
+            })();
             const n = Math.max(1, (series[0].points || []).length);
             const xAt = (i) => padL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
-            const yAt = (v) => padT + innerH - (Number(v || 0) / maxVal) * innerH;
+            const yAt = (v) => padT + innerH - (Number(v || 0) / yMax) * innerH;
+
+            const smoothPath = (points) => {
+                if (points.length === 0) return '';
+                if (points.length === 1) {
+                    const [x, y] = points[0];
+                    return `M ${x} ${y}`;
+                }
+                let d = `M ${points[0][0]} ${points[0][1]}`;
+                for (let i = 0; i < points.length - 1; i++) {
+                    const p0 = points[i === 0 ? i : i - 1];
+                    const p1 = points[i];
+                    const p2 = points[i + 1];
+                    const p3 = points[i + 2] || p2;
+                    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+                    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+                    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+                    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+                    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+                }
+                return d;
+            };
+
             let body = '';
+            // Grid + Y labels
+            const ticks = 4;
+            for (let t = 0; t <= ticks; t++) {
+                const val = (yMax / ticks) * t;
+                const y = yAt(val);
+                body += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${width - padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
+                body += `<text x="${padL - 8}" y="${(y + 3).toFixed(1)}" text-anchor="end" fill="rgba(255,255,255,0.35)" font-size="10">${Math.round(val)}</text>`;
+            }
+
             if (mode === 'bar') {
                 const groupW = innerW / n;
-                const barW = Math.max(2, (groupW * 0.7) / Math.max(1, series.length));
+                const barW = Math.max(3, (groupW * 0.72) / Math.max(1, series.length));
                 series.forEach((s, si) => {
                     (s.points || []).forEach((v, i) => {
-                        const x = padL + i * groupW + si * barW + groupW * 0.15;
+                        const x = padL + i * groupW + si * barW + groupW * 0.14;
                         const y = yAt(v);
                         const h = padT + innerH - y;
-                        body += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" fill="${s.color}" opacity="0.85" rx="2"/>`;
+                        body += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" fill="${s.color}" opacity="0.88" rx="3"/>`;
                     });
                 });
             } else {
-                series.forEach((s) => {
-                    const pts = (s.points || []).map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
-                    body += `<polyline fill="none" stroke="${s.color}" stroke-width="2.5" points="${pts}"/>`;
-                    (s.points || []).forEach((v, i) => {
-                        body += `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="3" fill="${s.color}"/>`;
+                series.forEach((s, idx) => {
+                    const pts = (s.points || []).map((v, i) => [xAt(i), yAt(v)]);
+                    const line = smoothPath(pts);
+                    const area = `${line} L ${pts[pts.length - 1][0].toFixed(1)} ${(padT + innerH).toFixed(1)} L ${pts[0][0].toFixed(1)} ${(padT + innerH).toFixed(1)} Z`;
+                    const gradId = `paGrad${idx}`;
+                    body += `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.28"/><stop offset="100%" stop-color="${s.color}" stop-opacity="0"/></linearGradient></defs>`;
+                    body += `<path d="${area}" fill="url(#${gradId})"/>`;
+                    body += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>`;
+                    pts.forEach(([x, y]) => {
+                        body += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="#141414" stroke="${s.color}" stroke-width="2"/>`;
                     });
                 });
             }
+
             const labelStep = Math.max(1, Math.floor(labels.length / 8));
             labels.forEach((label, i) => {
                 if (i % labelStep !== 0 && i !== labels.length - 1) return;
-                body += `<text x="${xAt(i).toFixed(1)}" y="${height - 8}" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">${label}</text>`;
+                body += `<text x="${xAt(i).toFixed(1)}" y="${height - 10}" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="11">${label}</text>`;
             });
-            return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+            return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">${body}</svg>`;
         },
         pageTrafficSources() {
             return this.pageAnalytics?.traffic_sources || [];
