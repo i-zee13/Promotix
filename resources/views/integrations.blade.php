@@ -1651,15 +1651,23 @@ function platformIntegrations(config) {
             }
             return Boolean(this.tagReady);
         },
+        get firstIpCaught() {
+            if (this.activeDomainStatus) {
+                return Boolean(this.activeDomainStatus.last_seen_at);
+            }
+            return Boolean(this.connectionHealth.last_event_at) || Number(this.connectionHealth.events_today || 0) > 0;
+        },
         get healthItems() {
             const syncAgo = this.relativeAgo(this.connectionHealth.last_sync_at);
             const eventAgo = this.relativeAgo(this.connectionHealth.last_event_at);
-            // Tag/GTM ≠ Google Ads API. API is healthy only after OAuth + non-error health.
-            const apiStatus = String(this.connectionHealth.health_status || '').toLowerCase();
+            const ipAgo = this.activeDomainStatus
+                ? this.relativeAgo(this.activeDomainStatus.last_seen_at)
+                : eventAgo;
+            const apiOk = this.googleAdsApiHealthy;
             const apiLinked = Boolean(this.googleOAuthConnected);
-            const apiOk = apiLinked && apiStatus !== 'error' && apiStatus !== 'pending';
             const tagOk = this.tagManagerConnected;
             const trackOk = this.trackingScriptOk;
+            const ipOk = this.firstIpCaught;
             const botOk = this.activeDomainStatus
                 ? Boolean((this.activeDomainStatus.steps || []).find((s) => s.label === 'Analytics' || s.label === 'Bot Protection')?.done)
                 : Boolean(this.botReady || this.domainConnections.some((d) => (d.steps || []).find((s) => s.label === 'Analytics' || s.label === 'Bot Protection')?.done));
@@ -1668,13 +1676,13 @@ function platformIntegrations(config) {
                     key: 'api',
                     label: 'Google Ads API',
                     ok: apiOk,
-                    // Linked but never verified / token issue → Pending (not “Connected via tag”).
-                    stateLabel: apiOk ? 'Healthy' : (apiLinked ? 'Pending' : 'Not connected'),
+                    stateLabel: apiOk ? 'Healthy' : (this.googleAdsApiErrored ? 'Error' : (apiLinked ? 'Pending' : 'Not connected')),
                     ago: apiLinked ? syncAgo : '—',
                 },
                 { key: 'gtm', label: 'Tag Manager', ok: tagOk, stateLabel: tagOk ? 'Healthy' : 'Pending', ago: eventAgo },
                 { key: 'script', label: 'Tracking Script', ok: trackOk, stateLabel: trackOk ? 'Healthy' : 'Pending', ago: eventAgo },
-                    { key: 'bot', label: 'Analytics', ok: botOk, stateLabel: botOk ? 'Healthy' : 'Pending', ago: eventAgo },
+                { key: 'ip', label: 'First IP caught', ok: ipOk, stateLabel: ipOk ? 'Healthy' : 'Waiting', ago: ipOk ? ipAgo : '—' },
+                { key: 'bot', label: 'Analytics', ok: botOk, stateLabel: botOk ? 'Healthy' : 'Pending', ago: eventAgo },
             ];
         },
         get setupProgressFill() {
@@ -1694,7 +1702,7 @@ function platformIntegrations(config) {
             return Math.round((items.filter((i) => i.ok).length / items.length) * 100);
         },
         get healthLive() {
-            return this.googleAdsApiHealthy && this.healthPct >= 75;
+            return this.googleAdsApiHealthy && this.firstIpCaught && this.healthPct === 100;
         },
         get filteredTrackingIds() {
             let rows = this.trackingIds || [];
@@ -1811,9 +1819,17 @@ function platformIntegrations(config) {
             // OAuth / Ads API only — never infer from tag script.
             return Boolean(this.googleOAuthConnected);
         },
-        get googleAdsApiHealthy() {
+        get googleAdsApiErrored() {
             const status = String(this.connectionHealth.health_status || '').toLowerCase();
-            return Boolean(this.googleOAuthConnected) && status !== 'error' && status !== 'pending';
+            return status === 'error' || status === 'failed';
+        },
+        get googleAdsApiHealthy() {
+            if (!this.googleOAuthConnected || this.googleAdsApiErrored) return false;
+            const status = String(this.connectionHealth.health_status || '').toLowerCase();
+            if (status === 'pending' || status === '') {
+                return Number(this.connectionHealth.accounts || 0) > 0 || Boolean(this.connectionHealth.last_sync_at);
+            }
+            return true;
         },
         get googleAdsConnected() {
             if (this.activeDomainStatus) return Boolean(this.activeDomainStatus.google_ads_connected);

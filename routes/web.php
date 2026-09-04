@@ -145,6 +145,8 @@ Route::middleware(['auth', 'super-admin'])
         Route::post('/email-templates/{emailTemplate}/send-test', [SuperAdminSupportPagesController::class, 'sendTestEmailTemplate'])->name('email-templates.send-test');
         Route::post('/plans/{plan}/toggles', [SuperAdminSupportPagesController::class, 'updatePlanToggles'])->name('plans.toggles');
         Route::get('/tickets', [SuperAdminTicketsController::class, 'index'])->name('tickets.index');
+        Route::get('/tickets/queue', [SuperAdminTicketsController::class, 'queue'])->name('tickets.queue');
+        Route::get('/tickets/queue/{ticket}', [SuperAdminTicketsController::class, 'queueShow'])->name('tickets.queue.show');
         Route::get('/tickets/{ticket}', [SuperAdminTicketsController::class, 'show'])->name('tickets.show');
         Route::post('/tickets/{ticket}/assign', [SuperAdminTicketsController::class, 'assign'])->name('tickets.assign');
         Route::post('/tickets/{ticket}/reply', [SuperAdminTicketsController::class, 'reply'])->name('tickets.reply');

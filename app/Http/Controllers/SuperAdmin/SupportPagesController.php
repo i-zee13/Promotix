@@ -611,7 +611,7 @@ class SupportPagesController extends Controller
 
     public function crossDomainIntel(Request $request): View|\Illuminate\Http\JsonResponse
     {
-        $rows = $this->buildCrossDomainIntel(50);
+        $rows = $this->buildCrossDomainIntel(500);
 
         if ($request->wantsJson()) {
             return response()->json([

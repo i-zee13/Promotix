@@ -14,6 +14,9 @@
                 <span>{{ number_format($stats['assigned']) }} assigned</span>
                 <span>{{ number_format($stats['unassigned']) }} unassigned</span>
             </div>
+            <div class="mb-2 flex flex-wrap gap-[8px]">
+                <a href="{{ route('super-admin.tickets.queue') }}" class="ticket-inbox__filter">Assignment board</a>
+            </div>
             <div class="ticket-inbox__filters">
                 <a href="{{ route('super-admin.tickets.index') }}" class="ticket-inbox__filter{{ ! request()->boolean('assigned') && ! request()->boolean('unassigned') && ! request()->boolean('mine') ? ' is-on' : '' }}">All</a>
                 <a href="{{ route('super-admin.tickets.index', ['assigned' => 1]) }}" class="ticket-inbox__filter{{ request()->boolean('assigned') ? ' is-on' : '' }}">Assigned</a>

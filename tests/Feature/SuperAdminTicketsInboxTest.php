@@ -41,6 +41,36 @@ class SuperAdminTicketsInboxTest extends TestCase
             ->assertSee('Reply as support');
     }
 
+    public function test_assignment_board_is_available_alongside_chat_inbox(): void
+    {
+        $admin = $this->superAdmin();
+        $customer = User::factory()->create(['email' => 'cust-queue@example.com']);
+
+        $ticket = SupportTicket::query()->create([
+            'user_id' => $customer->id,
+            'requester_id' => $customer->id,
+            'subject' => 'Assign this ticket',
+            'body' => 'Needs an agent.',
+            'status' => 'open',
+            'priority' => 'high',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('super-admin.tickets.queue'))
+            ->assertOk()
+            ->assertSee('Assignment board')
+            ->assertSee('Assign this ticket')
+            ->assertSee('Chat inbox');
+
+        $this->actingAs($admin)
+            ->from(route('super-admin.tickets.queue.show', $ticket))
+            ->post(route('super-admin.tickets.assign', $ticket), [
+                'assigned_to_id' => $admin->id,
+                'return' => 'queue',
+            ])
+            ->assertRedirect(route('super-admin.tickets.queue.show', $ticket));
+    }
+
     public function test_agent_reply_stays_on_ticket_and_is_marked_as_support(): void
     {
         $admin = $this->superAdmin();

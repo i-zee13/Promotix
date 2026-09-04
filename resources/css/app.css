@@ -3197,6 +3197,12 @@ html.figma-gads-calendar-open body {
 
 .figma-sa-cross-domain-panel {
     margin-top: 2px;
+    display: flex;
+    flex-direction: column;
+}
+
+.figma-sa-cross-domain-panel.is-fullpage {
+    min-height: calc(100vh - 168px);
 }
 
 .figma-sa-cross-domain-head {
@@ -3205,9 +3211,9 @@ html.figma-gads-calendar-open body {
     align-items: flex-end;
     justify-content: space-between;
     gap: 10px;
-    padding: 16px 16px 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(0, 0, 0, 0.12);
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+    background: var(--brand-primary, #FF6600);
 }
 
 .figma-sa-cross-domain-title {
@@ -3220,13 +3226,35 @@ html.figma-gads-calendar-open body {
 .figma-sa-cross-domain-subtitle {
     margin: 4px 0 0;
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.figma-sa-cross-domain-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.figma-sa-cross-domain-search {
+    min-width: 220px;
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.figma-sa-cross-domain-search input,
+.figma-sa-cross-domain-search svg {
+    color: #ffffff;
+}
+
+.figma-sa-cross-domain-search input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .figma-sa-cross-domain-view-all {
     font-size: 11px;
     font-weight: 600;
-    color: #ffb380;
+    color: #ffffff;
     text-decoration: none;
 }
 
@@ -3238,6 +3266,12 @@ html.figma-gads-calendar-open body {
     max-height: 320px;
     overflow-x: auto;
     overflow-y: auto;
+    flex: 1 1 auto;
+}
+
+.figma-sa-cross-domain-panel.is-fullpage .figma-sa-cross-domain-scroll {
+    max-height: none;
+    min-height: 480px;
 }
 
 .figma-sa-cross-domain-scroll thead th {
@@ -3273,20 +3307,28 @@ html.figma-gads-calendar-open body {
 }
 
 .light-mode .figma-sa-cross-domain-head {
-    background: var(--brand-tint-soft, #fff7f0);
-    border-bottom-color: var(--brand-tint-border, #ffd4b3);
+    background: var(--brand-primary, #FF6600);
+    border-bottom-color: rgba(255, 255, 255, 0.22);
 }
 
-.light-mode .figma-sa-cross-domain-title {
-    color: #2d2d3a;
-}
-
-.light-mode .figma-sa-cross-domain-subtitle {
-    color: #6b6578;
-}
-
+.light-mode .figma-sa-cross-domain-title,
+.light-mode .figma-sa-cross-domain-subtitle,
 .light-mode .figma-sa-cross-domain-view-all {
-    color: var(--brand-primary, #ff6600);
+    color: #ffffff;
+}
+
+.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search {
+    background: rgba(255, 255, 255, 0.16) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search input,
+.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search svg {
+    color: #ffffff !important;
+}
+
+.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search input::placeholder {
+    color: rgba(255, 255, 255, 0.75) !important;
 }
 
 .light-mode .figma-sa-cross-domain-scroll thead th {

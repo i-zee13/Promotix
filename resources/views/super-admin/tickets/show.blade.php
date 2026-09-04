@@ -4,6 +4,10 @@
 @section('content')
 <x-super-admin.page :title="'Ticket #'.($ticket->ticket_number ?? $ticket->id)" :subtitle="$ticket->subject">
 @include('partials.super-admin.flash')
+<div class="mb-[14px] flex flex-wrap items-center gap-[10px]">
+    <a href="{{ route('super-admin.tickets.queue') }}" class="figma-sa-btn figma-sa-btn-outline !px-4 !py-2 text-[13px]">← Assignment board</a>
+    <a href="{{ route('super-admin.tickets.show', $ticket) }}" class="figma-sa-btn figma-sa-btn-outline !px-4 !py-2 text-[13px]">Open in chat inbox</a>
+</div>
 <div class="space-y-[16px]">
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <x-super-admin.card class="lg:col-span-2" title="Conversation">
@@ -27,6 +31,7 @@
 
             <form method="POST" action="{{ route('super-admin.tickets.reply', $ticket) }}" class="mt-4 space-y-3 border-t border-white/10 pt-4">
                 @csrf
+                <input type="hidden" name="return" value="queue">
                 <label class="figma-sa-label">Reply</label>
                 <textarea name="body" rows="4" required class="figma-select mt-1 w-full" placeholder="Write a reply to the requester…"></textarea>
                 <button class="figma-sa-btn figma-sa-btn-primary">Send reply</button>
@@ -59,6 +64,7 @@
 
             <form method="POST" action="{{ route('super-admin.tickets.assign', $ticket) }}" class="mt-4 space-y-3">
                 @csrf
+                <input type="hidden" name="return" value="queue">
                 <div>
                     <label class="figma-sa-label">Assignee</label>
                     <select name="assigned_to_id" class="figma-select mt-1">

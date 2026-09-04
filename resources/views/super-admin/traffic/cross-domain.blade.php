@@ -14,6 +14,7 @@
         'rows' => $rows,
         'scrollable' => true,
         'showViewAll' => false,
+        'fullPage' => true,
     ])
 </x-super-admin.page>
 @endsection

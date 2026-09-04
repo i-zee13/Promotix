@@ -17,6 +17,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Support\AdminIntegrationCatalog;
 use App\Support\AudienceExclusionAudiences;
+use App\Support\GoogleAdsApiHealth;
 use App\Support\UserTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -68,6 +69,9 @@ class IntegrationsController extends Controller
             'tag_connected' => (bool) $d->tag_connected,
             'google_connected' => false,
             'google_ads_connected' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0,
+            'last_seen_at' => $d->last_seen_at
+                ? \Illuminate\Support\Carbon::parse((string) $d->last_seen_at)->toIso8601String()
+                : null,
             'steps' => [
                 ['label' => 'Tag Manager', 'done' => (bool) $d->tag_connected],
                 ['label' => 'Paid Marketing', 'done' => (bool) $d->paid_marketing_connected || $d->google_ads_account_id !== null],
@@ -112,7 +116,7 @@ class IntegrationsController extends Controller
         $connectionHealth = [
             'oauth_connected' => $connections->isNotEmpty(),
             'email' => $primary?->google_email,
-            'health_status' => $primary?->health_status ?: ($connections->isNotEmpty() ? 'ok' : 'pending'),
+            'health_status' => GoogleAdsApiHealth::status($primary, $accounts->count()),
             'last_sync_at' => optional($primary?->last_sync_at)->toIso8601String(),
             'last_sync_status' => $primary?->last_sync_status,
             'last_sync_message' => $primary?->last_sync_message,
@@ -1565,9 +1569,12 @@ class IntegrationsController extends Controller
         );
 
         if ($account->connection) {
+            $hardFail = $metricsSaved === 0
+                && filled($metricsMessage)
+                && GoogleAdsApiHealth::isHardFailure((string) $metricsMessage);
             $this->markConnectionHealth(
                 $account->connection,
-                $metricsMessage && $metricsSaved === 0 ? 'error' : 'ok',
+                $hardFail ? 'error' : 'ok',
                 $metricsMessage ?: ('Linked '.$account->displayLabel())
             );
         }
@@ -1726,7 +1733,7 @@ class IntegrationsController extends Controller
                 'accounts' => $googleAccountsCount,
                 'oauth_configured' => $oauthConfigured,
                 'developer_token_configured' => $devTokenConfigured,
-                'health_status' => $connection?->health_status ?: ($googleConnected ? 'ok' : 'pending'),
+                'health_status' => GoogleAdsApiHealth::status($connection, $googleAccountsCount),
                 'last_sync_at' => optional($connection?->last_sync_at)->toIso8601String(),
                 'last_sync_status' => $connection?->last_sync_status,
                 'last_sync_message' => $connection?->last_sync_message,

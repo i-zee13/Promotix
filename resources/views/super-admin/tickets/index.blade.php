@@ -5,6 +5,10 @@
 @section('content')
 <x-super-admin.page title="Support System">
     <div class="figma-sa-subs">
+        <div class="mb-[14px] flex flex-wrap items-center gap-[10px]">
+            <a href="{{ route('super-admin.tickets.index') }}" class="figma-sa-btn figma-sa-btn-outline !px-4 !py-2 text-[13px]">Chat inbox</a>
+            <span class="figma-sa-btn figma-sa-btn-primary !px-4 !py-2 text-[13px]">Assignment board</span>
+        </div>
         <div class="grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-5">
             <article class="figma-sa-traffic-stat">
                 <div class="figma-sa-traffic-stat-icon" aria-hidden="true">
@@ -48,7 +52,7 @@
             </article>
         </div>
 
-        <form method="GET" action="{{ route('super-admin.tickets.index') }}" class="figma-sa-subs-filters">
+        <form method="GET" action="{{ route('super-admin.tickets.queue') }}" class="figma-sa-subs-filters">
             <label class="figma-sa-subs-search">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 <input type="search" name="search" value="{{ request('search') }}" placeholder="Search subject, number, or email" autocomplete="off">
@@ -63,9 +67,9 @@
                         </span>
                     </button>
                 </x-slot:trigger>
-                <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['priority', 'page']), [])) }}" class="figma-sa-users-action-item">All Priorities</a>
+                <a href="{{ route('super-admin.tickets.queue', array_merge(request()->except(['priority', 'page']), [])) }}" class="figma-sa-users-action-item">All Priorities</a>
                 @foreach ($priorities as $priority)
-                    <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['priority', 'page']), ['priority' => $priority])) }}" class="figma-sa-users-action-item">{{ ucfirst($priority) }}</a>
+                    <a href="{{ route('super-admin.tickets.queue', array_merge(request()->except(['priority', 'page']), ['priority' => $priority])) }}" class="figma-sa-users-action-item">{{ ucfirst($priority) }}</a>
                 @endforeach
             </x-super-admin.dashboard-dropdown>
 
@@ -79,7 +83,7 @@
                     </button>
                 </x-slot:trigger>
                 @foreach ($filterStatuses as $fs)
-                    <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['status', 'page']), $fs['value'] !== '' ? ['status' => $fs['value']] : [])) }}"
+                    <a href="{{ route('super-admin.tickets.queue', array_merge(request()->except(['status', 'page']), $fs['value'] !== '' ? ['status' => $fs['value']] : [])) }}"
                        class="figma-sa-users-filter-option block">
                         {{ $fs['label'] }}
                     </a>
@@ -95,14 +99,14 @@
                         </span>
                     </button>
                 </x-slot:trigger>
-                <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['department', 'page']), [])) }}" class="figma-sa-users-action-item">All Departments</a>
+                <a href="{{ route('super-admin.tickets.queue', array_merge(request()->except(['department', 'page']), [])) }}" class="figma-sa-users-action-item">All Departments</a>
                 @foreach ($departments as $dept)
-                    <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['department', 'page']), ['department' => $dept])) }}" class="figma-sa-users-action-item">{{ ucfirst($dept) }}</a>
+                    <a href="{{ route('super-admin.tickets.queue', array_merge(request()->except(['department', 'page']), ['department' => $dept])) }}" class="figma-sa-users-action-item">{{ ucfirst($dept) }}</a>
                 @endforeach
             </x-super-admin.dashboard-dropdown>
 
             <button type="submit" class="figma-sa-btn figma-sa-btn-outline !px-4 !py-2 text-[13px]">Filter</button>
-            <a href="{{ route('super-admin.tickets.index', array_merge(request()->except(['unassigned', 'page']), request()->boolean('unassigned') ? [] : ['unassigned' => 1])) }}"
+            <a href="{{ route('super-admin.tickets.queue', array_merge(request()->except(['unassigned', 'page']), request()->boolean('unassigned') ? [] : ['unassigned' => 1])) }}"
                class="figma-sa-btn {{ request()->boolean('unassigned') ? 'figma-sa-btn-primary' : 'figma-sa-btn-outline' }} !px-4 !py-2 text-[13px]">
                 Unassigned ({{ number_format($stats['unassigned'] ?? 0) }})
             </a>
@@ -134,7 +138,7 @@
                                     <input type="checkbox" class="figma-sa-subs-checkbox" aria-label="Select ticket {{ $ticket->ticket_number ?? $ticket->id }}">
                                 </td>
                                 <td>
-                                    <a href="{{ route('super-admin.tickets.show', $ticket) }}" class="figma-sa-subs-user">
+                                    <a href="{{ route('super-admin.tickets.queue.show', $ticket) }}" class="figma-sa-subs-user">
                                         <span class="figma-sa-subs-avatar" aria-hidden="true">
                                             @include('partials.user-avatar', ['avatarUser' => $ticket->requester, 'avatarTextClass' => 'text-[12px] font-semibold leading-none text-[#FF6600]'])
                                         </span>
