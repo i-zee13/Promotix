@@ -55,7 +55,7 @@ class AccountCurrency
             'CAD' => 'C$',
             'NZD' => 'NZ$',
             'INR' => '₹',
-            'PKR' => '₨',
+            'PKR' => 'Rs ',
             'AED' => 'د.إ',
             'SAR' => '﷼',
             'JPY' => '¥',
@@ -84,7 +84,7 @@ class AccountCurrency
     {
         $code = self::normalize($currencyCode);
 
-        if (class_exists(\NumberFormatter::class)) {
+        if (class_exists(\NumberFormatter::class) && ! in_array($code, ['PKR'], true)) {
             $formatter = new \NumberFormatter(app()->getLocale(), \NumberFormatter::CURRENCY);
             $formatted = $formatter->formatCurrency($amount, $code);
             if (is_string($formatted) && $formatted !== '') {
@@ -93,5 +93,20 @@ class AccountCurrency
         }
 
         return self::symbol($code).number_format($amount, 2);
+    }
+
+    /** Compact display for dashboard cards (e.g. Rs 1.79K). */
+    public static function formatCompact(float $amount, string $currencyCode = 'USD'): string
+    {
+        $symbol = self::symbol($currencyCode);
+        $abs = abs($amount);
+        if ($abs >= 1_000_000) {
+            return $symbol.rtrim(rtrim(number_format($amount / 1_000_000, 2), '0'), '.').'M';
+        }
+        if ($abs >= 1_000) {
+            return $symbol.rtrim(rtrim(number_format($amount / 1_000, 2), '0'), '.').'K';
+        }
+
+        return $symbol.number_format($amount, 2);
     }
 }

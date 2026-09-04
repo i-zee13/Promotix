@@ -8,6 +8,7 @@ use App\Models\GoogleAdsAccount;
 use App\Models\IpLog;
 use App\Services\IpIntel\AllowListMatcher;
 use App\Services\IpIntel\IpIntelService;
+use App\Support\AccountCurrency;
 use App\Support\GlobalIpAllowlist;
 use App\Support\CountryFlag;
 use App\Support\GoogleClickAttribution;
@@ -15,6 +16,7 @@ use App\Support\PageAnalyticsAggregator;
 use App\Support\TrafficControlSessionQuery;
 use App\Support\TrafficSourceClassifier;
 use App\Support\UserTimezone;
+use App\Services\GoogleAdsDomainMetricsSync;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -85,16 +87,62 @@ class BotProtectionController extends Controller
             $prevTo = $from->copy()->subSecond();
             $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
 
+            $domains = Domain::query()
+                ->whereIn('id', $domainIds)
+                ->with('googleAdsAccount')
+                ->get();
+            $currencyCode = AccountCurrency::resolveForRequest($request, $domains);
+            $reportingTz = UserTimezone::reportingTimezoneForRequest(
+                $request->user(),
+                (int) $request->query('domain_id', 0) ?: null,
+                $domainIds,
+            );
+            $adsTotals = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
+            if ($domainIds !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
+                $adsTotals = app(GoogleAdsDomainMetricsSync::class)
+                    ->clickTotalsForDomainsReporting(
+                        $domainIds,
+                        $from->toDateString(),
+                        $to->toDateString(),
+                        $reportingTz,
+                        $domains,
+                    );
+            }
+
             $aggregator = app(PageAnalyticsAggregator::class);
-            $payload = $aggregator->build($domainIds, $from, $to, null, $filters);
+            $payload = $aggregator->build($domainIds, $from, $to, null, $filters, $currencyCode, $adsTotals);
 
             if ($domainIds !== [] && Schema::hasTable('visits')) {
-                $prevPayload = $aggregator->build($domainIds, $prevFrom, $prevTo, null, $filters);
+                $prevAds = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
+                if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
+                    $prevAds = app(GoogleAdsDomainMetricsSync::class)
+                        ->clickTotalsForDomainsReporting(
+                            $domainIds,
+                            $prevFrom->toDateString(),
+                            $prevTo->toDateString(),
+                            $reportingTz,
+                            $domains,
+                        );
+                }
+                $prevPayload = $aggregator->build($domainIds, $prevFrom, $prevTo, null, $filters, $currencyCode, $prevAds);
                 $prevKpis = $prevPayload['kpis'] ?? [];
+                $prevCost = (float) (($prevPayload['cost']['cost_per_conversion'] ?? 0));
                 $payload['kpis']['deltas'] = [
+                    'live_visitors' => $this->pctDelta(
+                        (int) ($payload['kpis']['live_visitors'] ?? 0),
+                        (int) ($prevKpis['live_visitors'] ?? 0)
+                    ),
                     'total_visitors' => $this->pctDelta(
                         (int) ($payload['kpis']['total_visitors'] ?? 0),
                         (int) ($prevKpis['total_visitors'] ?? 0)
+                    ),
+                    'valid_users' => $this->pctDelta(
+                        (int) ($payload['kpis']['valid_users'] ?? 0),
+                        (int) ($prevKpis['valid_users'] ?? 0)
+                    ),
+                    'total_conversions' => $this->pctDelta(
+                        (int) ($payload['kpis']['total_conversions'] ?? 0),
+                        (int) ($prevKpis['total_conversions'] ?? 0)
                     ),
                     'organic_traffic' => $this->pctDelta(
                         (int) ($payload['kpis']['organic_traffic'] ?? 0),
@@ -116,7 +164,14 @@ class BotProtectionController extends Controller
                         (float) ($payload['kpis']['conversion_rate'] ?? 0),
                         (float) ($prevKpis['conversion_rate'] ?? 0)
                     ),
+                    'cost_per_conversion' => $this->pctDelta(
+                        (float) ($payload['cost']['cost_per_conversion'] ?? 0),
+                        $prevCost
+                    ),
                 ];
+                if (isset($payload['cost']) && is_array($payload['cost'])) {
+                    $payload['cost']['delta'] = (float) ($payload['kpis']['deltas']['cost_per_conversion'] ?? 0);
+                }
             }
 
             return response()->json($payload);

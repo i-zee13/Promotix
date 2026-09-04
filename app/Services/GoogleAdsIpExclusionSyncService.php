@@ -57,7 +57,7 @@ class GoogleAdsIpExclusionSyncService
         $ip = trim($ip);
         $googleIp = GoogleIpBlockFormatter::normalize($ip);
         if ($ip === '' || $googleIp === null) {
-            $this->markRow($domain->id, $ip, 'failed', 'Invalid IP or range. Use single IP, CIDR (e.g. 13.0.0.0/8), or wildcard (e.g. 216.67.176.* → converted to /24).');
+            $this->markRow($domain->id, $ip, 'failed', 'Invalid IP or range. Use single IP, CIDR (e.g. 13.0.0.0/8), or wildcard (e.g. 216.67.176.* → converted to /24).', null, $rowId);
 
             return false;
         }
@@ -74,21 +74,21 @@ class GoogleAdsIpExclusionSyncService
         $domain->loadMissing('googleAdsAccount.connection');
         $account = $domain->googleAdsAccount;
         if (! $account || (bool) $account->is_manager) {
-            $this->markRow($domain->id, $ip, 'skipped', 'Domain has no linked Google Ads customer account.');
+            $this->markRow($domain->id, $ip, 'skipped', 'Domain has no linked Google Ads customer account.', null, $rowId);
 
             return false;
         }
 
         $headers = $this->headersForAccount($account);
         if ($headers === null) {
-            $this->markRow($domain->id, $ip, 'failed', 'Google Ads API credentials unavailable.');
+            $this->markRow($domain->id, $ip, 'failed', 'Google Ads API credentials unavailable.', null, $rowId);
 
             return false;
         }
 
         $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
         if ($customerId === '') {
-            $this->markRow($domain->id, $ip, 'failed', 'Missing Google Ads customer id.');
+            $this->markRow($domain->id, $ip, 'failed', 'Missing Google Ads customer id.', null, $rowId);
 
             return false;
         }
@@ -175,7 +175,7 @@ class GoogleAdsIpExclusionSyncService
             if ($extra !== []) {
                 $note .= ' | ' . implode(' | ', $extra);
             }
-            $this->markRow($domain->id, $ip, 'synced', $note, now());
+            $this->markRow($domain->id, $ip, 'synced', $note, now(), $rowId);
 
             return true;
         }
@@ -186,7 +186,7 @@ class GoogleAdsIpExclusionSyncService
             if ($extra !== []) {
                 $note .= ' | ' . implode(' | ', $extra);
             }
-            $this->markRow($domain->id, $ip, 'synced', $note, now());
+            $this->markRow($domain->id, $ip, 'synced', $note, now(), $rowId);
 
             return true;
         }
@@ -197,7 +197,7 @@ class GoogleAdsIpExclusionSyncService
             $message .= ' Reconnect Google Ads in Integrations with Standard access, or ensure campaigns belong to this linked account.';
         }
 
-        $this->markRow($domain->id, $ip, 'failed', $message);
+        $this->markRow($domain->id, $ip, 'failed', $message, null, $rowId);
 
         return false;
     }
@@ -796,8 +796,14 @@ class GoogleAdsIpExclusionSyncService
         $query->update($payload);
     }
 
-    private function markRow(int $domainId, string $ip, string $status, ?string $error, ?\Illuminate\Support\Carbon $syncedAt = null): void
-    {
+    private function markRow(
+        int $domainId,
+        string $ip,
+        string $status,
+        ?string $error,
+        ?\Illuminate\Support\Carbon $syncedAt = null,
+        ?int $rowId = null,
+    ): void {
         if (! Schema::hasTable('google_ads_ip_exclusions')) {
             return;
         }
@@ -809,14 +815,35 @@ class GoogleAdsIpExclusionSyncService
             'updated_at' => now(),
         ];
 
+        $normalized = GoogleIpBlockFormatter::normalize($ip);
+        if ($normalized !== null) {
+            // Keep stored IP aligned with Google form so later updates match.
+            $payload['ip'] = $normalized;
+        }
+
         if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active') && $status === 'synced') {
             $payload['is_active'] = true;
         }
 
-        DB::table('google_ads_ip_exclusions')
-            ->where('domain_id', $domainId)
-            ->where('ip', $ip)
-            ->update($payload);
+        $query = DB::table('google_ads_ip_exclusions')->where('domain_id', $domainId);
+
+        if ($rowId !== null) {
+            $query->where('id', $rowId);
+        } else {
+            $needle = $normalized ?? $ip;
+            $existing = DB::table('google_ads_ip_exclusions')
+                ->where('domain_id', $domainId)
+                ->get()
+                ->first(fn ($row) => GoogleIpBlockFormatter::matches((string) ($row->ip ?? ''), $needle));
+
+            if ($existing) {
+                $query->where('id', $existing->id);
+            } else {
+                $query->where('ip', $ip);
+            }
+        }
+
+        $query->update($payload);
     }
 
     private function extractErrorMessage(string $body): string

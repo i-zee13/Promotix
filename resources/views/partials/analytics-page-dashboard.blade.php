@@ -3,16 +3,18 @@
     $analyticsFocus = $analyticsFocus ?? 'dashboard';
     $showAll = $analyticsFocus === 'dashboard';
     $showKpis = $showAll || in_array($analyticsFocus, ['sources', 'sales'], true);
-    $showSourcesBlock = $showAll || $analyticsFocus === 'sources';
+    $showPerformanceBlock = $showAll;
+    $showSourcesBlock = $analyticsFocus === 'sources';
     $showJourneyBlock = $showAll || $analyticsFocus === 'journeys';
     $showTopPagesBlock = $showAll || $analyticsFocus === 'journeys';
     $showFunnelBlock = $showAll || $analyticsFocus === 'sales';
-    $showReferrersBlock = $showAll || $analyticsFocus === 'sources';
+    $showReferrersBlock = $analyticsFocus === 'sources';
     $showKeywordsBlock = $showAll || $analyticsFocus === 'sources';
     $showGeoBlock = $showAll || $analyticsFocus === 'sources';
     $showDeviceBlock = $showAll || $analyticsFocus === 'sources';
-    $showSalesBlock = $showAll || $analyticsFocus === 'sales';
-    $showQualityBlock = $showAll || $analyticsFocus === 'sales';
+    $showCostBlock = $showAll || $analyticsFocus === 'sales';
+    $showSalesBlock = $analyticsFocus === 'sales';
+    $showQualityBlock = $analyticsFocus === 'sales';
 @endphp
 <div class="pa-dash" data-analytics-focus="{{ $analyticsFocus }}">
     <style>
@@ -27,12 +29,12 @@
         }
         .pa-dash .pa-kpi-grid {
             display: grid;
-            grid-template-columns: repeat(6, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: var(--pa-gutter);
             margin-bottom: 14px;
         }
         @media (max-width: 1280px) {
-            .pa-dash .pa-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .pa-dash .pa-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 720px) {
             .pa-dash .pa-kpi-grid { grid-template-columns: 1fr; }
@@ -94,6 +96,89 @@
             width: 100%;
             height: 34px;
             display: block;
+        }
+
+        .pa-dash .pa-perf { margin-bottom: 14px; }
+        .pa-dash .pa-perf__sub {
+            margin: -6px 0 12px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.45);
+        }
+        .pa-dash .pa-perf__controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .pa-dash .pa-perf__metrics { display: flex; flex-wrap: wrap; gap: 8px; }
+        .pa-dash .pa-perf__metric {
+            min-width: 110px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 8px 10px;
+            text-align: left;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .pa-dash .pa-perf__metric.is-active {
+            border-color: currentColor;
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .pa-dash .pa-perf__metric-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 600;
+            opacity: 0.7;
+        }
+        .pa-dash .pa-perf__metric-value {
+            display: block;
+            margin-top: 2px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .pa-dash .pa-perf__right { display: inline-flex; align-items: center; gap: 8px; }
+        .pa-dash .pa-perf__select {
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 11px;
+            padding: 6px 10px;
+        }
+        .pa-dash .pa-perf__chart { height: 220px; width: 100%; }
+        .pa-dash .pa-perf__chart svg { width: 100%; height: 100%; display: block; }
+        .pa-dash .pa-cost__top {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .pa-dash .pa-cost__stat span {
+            display: block;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.45);
+        }
+        .pa-dash .pa-cost__stat strong {
+            display: block;
+            margin-top: 4px;
+            font-size: 16px;
+            color: #fff;
+        }
+        .pa-dash .pa-cost__main { margin-top: auto; }
+        .pa-dash .pa-cost__label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.55);
+        }
+        .pa-dash .pa-cost__value {
+            margin: 6px 0 0;
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.02em;
         }
 
         .pa-dash .pa-row-3 {
@@ -905,123 +990,41 @@
     </div>
     @endif
 
-    {{-- Row 2: Traffic / Journey / Top Pages --}}
-    @if ($showSourcesBlock || $showJourneyBlock || $showTopPagesBlock)
-    <div class="pa-row-3">
-        @if ($showSourcesBlock)
-        <section class="pa-card" id="sources">
-            <h2 class="pa-card__title">Traffic Source Overview</h2>
-            <div class="pa-donut-wrap">
-                <div
-                    class="pa-donut"
-                    role="img"
-                    aria-label="Traffic sources"
-                    :style="(rows => {
-                        const list = rows || [];
-                        const total = list.reduce((a, r) => a + Number(r.value || 0), 0);
-                        if (!total) return { background: 'conic-gradient(rgba(255,255,255,0.15) 0 100%)' };
-                        let deg = 0;
-                        const stops = list.map(r => {
-                            const span = (Number(r.value || 0) / total) * 360;
-                            const start = deg;
-                            deg += span;
-                            return `${r.color || '#FF6600'} ${start}deg ${deg}deg`;
-                        });
-                        return { background: `conic-gradient(${stops.join(', ')})` };
-                    })(pageTrafficSources())"
-                >
-                    <div class="pa-donut__hole">
-                        <strong x-text="fmt((pageTrafficSources() || []).reduce((a, r) => a + Number(r.value || 0), 0))"></strong>
-                        <span>Total Visitors</span>
-                    </div>
-                </div>
-                <div class="pa-legend">
-                    <template x-for="row in pageTrafficSources()" :key="row.key || row.label">
-                        <div class="pa-legend__row">
-                            <span class="pa-legend__left">
-                                <i class="pa-legend__swatch" :style="`background:${row.color || '#FF6600'}`"></i>
-                                <span x-text="row.label"></span>
-                            </span>
-                            <span class="pa-legend__pct" x-text="(row.pct != null ? row.pct : 0) + '%'"></span>
-                        </div>
-                    </template>
-                    <p x-show="!(pageTrafficSources() || []).length" class="pa-empty">No traffic sources in this window.</p>
-                </div>
+    {{-- Row 2: Performance Over Time --}}
+    @if ($showPerformanceBlock)
+    <section class="pa-card pa-perf" x-data="{ perfMode: 'line' }">
+        <div class="pa-card__head">
+            <h2 class="pa-card__title">Performance Over Time</h2>
+            <div class="pa-perf__right">
+                <span class="text-[11px] text-white/45" x-text="(pagePerformance()?.granularity === 'daily') ? 'Daily' : 'Hourly'"></span>
+                <button type="button" class="pa-kh-toggle__btn" :class="perfMode === 'line' ? 'is-active' : ''" @click="perfMode = 'line'">Line</button>
+                <button type="button" class="pa-kh-toggle__btn" :class="perfMode === 'bar' ? 'is-active' : ''" @click="perfMode = 'bar'">Bar</button>
             </div>
-        </section>
-        @endif
-
-        @if ($showJourneyBlock)
-        <section class="pa-card">
-            <h2 class="pa-card__title" id="journey">Visitor Journey Summary</h2>
-            <div class="overflow-x-auto">
-                <table class="pa-table">
-                    <thead>
-                        <tr>
-                            <th>Step</th>
-                            <th class="num">Visitors</th>
-                            <th class="num">Drop-off</th>
-                            <th class="num">Avg time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-for="row in pageJourney()" :key="row.key || row.label || row.step">
-                            <tr>
-                                <td x-text="row.label || row.step"></td>
-                                <td class="num" x-text="fmt(row.visitors ?? row.value)"></td>
-                                <td class="num muted" x-text="(row.dropoff != null ? row.dropoff : Math.max(0, 100 - Number(row.pct || 0)).toFixed(0)) + '%'"></td>
-                                <td class="num muted" x-text="row.avg_time || '0:45'"></td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-                <p x-show="!(pageJourney() || []).length" class="pa-empty">No journey data in this window.</p>
-                <p
-                    x-show="(pageJourney() || []).length"
-                    class="mt-[10px] text-[11px] text-white/55"
-                >
-                    Avg. Session Duration:
-                    <strong class="text-[#FFB380]" x-text="pageJourneySummary()?.avg_session_duration || '00:00:00'"></strong>
-                </p>
+        </div>
+        <p class="pa-perf__sub">Real-time insights and performance overview.</p>
+        <div class="pa-perf__controls">
+            <div class="pa-perf__metrics">
+                <template x-for="series in pagePerformanceSeries()" :key="series.key">
+                    <button
+                        type="button"
+                        class="pa-perf__metric"
+                        :class="isPerfSeriesActive(series.key) ? 'is-active' : ''"
+                        :style="`color:${series.color}`"
+                        @click="togglePerfSeries(series.key)"
+                    >
+                        <span class="pa-perf__metric-label" x-text="series.label"></span>
+                        <span class="pa-perf__metric-value" x-text="fmt(series.total || 0)"></span>
+                    </button>
+                </template>
             </div>
-        </section>
-        @endif
-
-        @if ($showTopPagesBlock)
-        <section class="pa-card">
-            <h2 class="pa-card__title">Top Pages</h2>
-            <div class="overflow-x-auto">
-                <table class="pa-table">
-                    <thead>
-                        <tr>
-                            <th>Page path</th>
-                            <th class="num">Visits</th>
-                            <th class="num">Avg time</th>
-                            <th class="num">Bounce</th>
-                            <th class="num">Conv.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-for="row in pageTopPages()" :key="row.key || row.path || row.page">
-                            <tr>
-                                <td x-text="row.path || row.page || row.label"></td>
-                                <td class="num" x-text="fmt(row.views ?? row.visitors ?? row.value)"></td>
-                                <td class="num muted" x-text="row.avg_time || '1:12'"></td>
-                                <td class="num muted" x-text="(row.bounce != null ? row.bounce : Math.max(12, 55 - Number(row.pct || 0))) + '%'"></td>
-                                <td class="num muted" x-text="row.conversions != null ? fmt(row.conversions) : Math.round(Number(row.views || 0) * 0.03)"></td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-                <p x-show="!(pageTopPages() || []).length" class="pa-empty">No page data in this window.</p>
-            </div>
-        </section>
-        @endif
-    </div>
+        </div>
+        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode)"></div>
+        <p x-show="!(pagePerformanceSeries() || []).length" class="pa-empty">No performance data in this window.</p>
+    </section>
     @endif
 
-    {{-- Row 3: Funnel / Referrers / Keywords --}}
-    @if ($showFunnelBlock || $showReferrersBlock || $showKeywordsBlock)
+    {{-- Row 3: Funnel / Journey / Top Pages --}}
+    @if ($showFunnelBlock || $showJourneyBlock || $showTopPagesBlock)
     <div class="pa-row-3">
         @if ($showFunnelBlock)
         <section class="pa-card">
@@ -1054,7 +1057,7 @@
                         <div class="pa-funnel__metrics">
                             <div>
                                 <span class="pa-funnel__metric-label">Revenue</span>
-                                <span class="pa-funnel__metric-value" x-text="pageConversionSummary()?.revenue || '$0.00'"></span>
+                                <span class="pa-funnel__metric-value" x-text="pageConversionSummary()?.revenue || ((pageAnalytics?.currency_symbol || '$') + '0.00')"></span>
                             </div>
                             <div>
                                 <span class="pa-funnel__metric-label">Transactions</span>
@@ -1068,6 +1071,107 @@
         </section>
         @endif
 
+        @if ($showJourneyBlock)
+        <section class="pa-card">
+            <h2 class="pa-card__title" id="journey">Visitor Journey Summary</h2>
+            <div class="overflow-x-auto">
+                <table class="pa-table">
+                    <thead>
+                        <tr>
+                            <th>Step</th>
+                            <th class="num">Visitors</th>
+                            <th class="num">Drop-off</th>
+                            <th class="num">Avg time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="row in pageJourney()" :key="row.key || row.label || row.step">
+                            <tr>
+                                <td x-text="row.label || row.step"></td>
+                                <td class="num" x-text="fmt(row.visitors ?? row.value)"></td>
+                                <td class="num muted" x-text="(row.dropoff != null ? row.dropoff : Math.max(0, 100 - Number(row.pct || 0)).toFixed(0)) + '%'"></td>
+                                <td class="num muted" x-text="row.avg_time || '0:45'"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <p x-show="!(pageJourney() || []).length" class="pa-empty">No journey data in this window.</p>
+                <p x-show="(pageJourney() || []).length" class="mt-[10px] text-[11px] text-white/55">
+                    Avg. Session Duration:
+                    <strong class="text-[#FFB380]" x-text="pageJourneySummary()?.avg_session_duration || '00:00:00'"></strong>
+                </p>
+            </div>
+        </section>
+        @endif
+
+        @if ($showTopPagesBlock)
+        <section class="pa-card">
+            <h2 class="pa-card__title">Top Pages</h2>
+            <div class="overflow-x-auto">
+                <table class="pa-table">
+                    <thead>
+                        <tr>
+                            <th>Page</th>
+                            <th class="num">Visitors</th>
+                            <th class="num">Views</th>
+                            <th class="num">Conv.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="row in pageTopPages()" :key="row.key || row.path || row.page">
+                            <tr>
+                                <td x-text="row.path || row.page || row.label"></td>
+                                <td class="num" x-text="fmt(row.visitors ?? row.value ?? 0)"></td>
+                                <td class="num" x-text="fmt(row.views ?? row.visitors ?? row.value)"></td>
+                                <td class="num muted" x-text="row.conversions != null ? fmt(row.conversions) : Math.round(Number(row.views || 0) * 0.03)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <p x-show="!(pageTopPages() || []).length" class="pa-empty">No page data in this window.</p>
+            </div>
+        </section>
+        @endif
+    </div>
+    @endif
+
+    @if ($showSourcesBlock)
+    <div class="pa-row-3">
+        <section class="pa-card" id="sources">
+            <h2 class="pa-card__title">Traffic Source Overview</h2>
+            <div class="pa-donut-wrap">
+                <div class="pa-donut" role="img" aria-label="Traffic sources"
+                    :style="(rows => {
+                        const list = rows || [];
+                        const total = list.reduce((a, r) => a + Number(r.value || 0), 0);
+                        if (!total) return { background: 'conic-gradient(rgba(255,255,255,0.15) 0 100%)' };
+                        let deg = 0;
+                        const stops = list.map(r => {
+                            const span = (Number(r.value || 0) / total) * 360;
+                            const start = deg; deg += span;
+                            return `${r.color || '#FF6600'} ${start}deg ${deg}deg`;
+                        });
+                        return { background: `conic-gradient(${stops.join(', ')})` };
+                    })(pageTrafficSources())">
+                    <div class="pa-donut__hole">
+                        <strong x-text="fmt((pageTrafficSources() || []).reduce((a, r) => a + Number(r.value || 0), 0))"></strong>
+                        <span>Total Visitors</span>
+                    </div>
+                </div>
+                <div class="pa-legend">
+                    <template x-for="row in pageTrafficSources()" :key="row.key || row.label">
+                        <div class="pa-legend__row">
+                            <span class="pa-legend__left">
+                                <i class="pa-legend__swatch" :style="`background:${row.color || '#FF6600'}`"></i>
+                                <span x-text="row.label"></span>
+                            </span>
+                            <span class="pa-legend__pct" x-text="(row.pct != null ? row.pct : 0) + '%'"></span>
+                        </div>
+                    </template>
+                    <p x-show="!(pageTrafficSources() || []).length" class="pa-empty">No traffic sources in this window.</p>
+                </div>
+            </div>
+        </section>
         @if ($showReferrersBlock)
         <section class="pa-card">
             <h2 class="pa-card__title">Referrer / Platform Breakdown</h2>
@@ -1077,10 +1181,7 @@
                         <span class="pa-bar-row__label" x-text="row.label"></span>
                         <span class="pa-bar-row__meta" x-text="`${fmt(row.value)} · ${row.pct != null ? row.pct : 0}%`"></span>
                         <div class="pa-bar-track">
-                            <div
-                                class="pa-bar-fill is-soft"
-                                :style="`width:${row.bar != null ? row.bar : Math.max(4, Number(row.pct || 0))}%`"
-                            ></div>
+                            <div class="pa-bar-fill is-soft" :style="`width:${row.bar != null ? row.bar : Math.max(4, Number(row.pct || 0))}%`"></div>
                         </div>
                     </div>
                 </template>
@@ -1088,126 +1189,67 @@
             </div>
         </section>
         @endif
-
-        @if ($showKeywordsBlock)
-        <section class="pa-card">
-            <div class="pa-card__head">
-                <h2 class="pa-card__title">Keyword &amp; Headline</h2>
-                <div class="pa-kh-toggle" role="group" aria-label="Keyword source">
-                    <button
-                        type="button"
-                        class="pa-kh-toggle__btn"
-                        :class="keywordHeadlineSource === 'ads' ? 'is-active' : ''"
-                        @click="keywordHeadlineSource = 'ads'"
-                        title="Keywords and campaigns captured from ads"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
-                        Ads
-                    </button>
-                    <button
-                        type="button"
-                        class="pa-kh-toggle__btn"
-                        :class="keywordHeadlineSource === 'site' ? 'is-active' : ''"
-                        @click="keywordHeadlineSource = 'site'"
-                        title="Page titles and meta keywords from the website"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
-                        Website
-                    </button>
-                </div>
-            </div>
-            <p class="pa-kh-toggle__hint" x-text="keywordHeadlineSource === 'ads' ? 'UTM terms and ad campaigns captured on click.' : 'Page titles and meta keywords seen on-site.'"></p>
-            <div class="pa-split-2">
-                <div>
-                    <h3>Keywords</h3>
-                    <template x-for="row in pageKeywords()" :key="row.key || row.keyword || row.label">
-                        <div class="pa-list-item">
-                            <span x-text="row.keyword || row.label"></span>
-                            <span x-text="row.pct != null ? (row.pct + '%') : fmt(row.value)"></span>
-                        </div>
-                    </template>
-                    <p x-show="!(pageKeywords() || []).length" class="pa-empty" x-text="keywordHeadlineSource === 'ads' ? 'No ad keywords.' : 'No on-site keywords.'"></p>
-                </div>
-                <div>
-                    <h3>Headlines</h3>
-                    <template x-for="row in pageHeadlines()" :key="row.key || row.headline || row.label">
-                        <div class="pa-list-item">
-                            <span x-text="row.headline || row.label"></span>
-                            <span x-text="row.pct != null ? (row.pct + '%') : fmt(row.value)"></span>
-                        </div>
-                    </template>
-                    <p x-show="!(pageHeadlines() || []).length" class="pa-empty" x-text="keywordHeadlineSource === 'ads' ? 'No ad headlines.' : 'No page titles.'"></p>
-                </div>
-            </div>
-            <div class="mt-[14px]" x-show="(pageKeywordHeadlines() || []).length">
-                <h3 class="pa-kh-combo-title">Keyword × Headline</h3>
-                <div class="overflow-x-auto">
-                    <table class="pa-table">
-                        <thead>
-                            <tr>
-                                <th>Keyword</th>
-                                <th x-text="keywordHeadlineSource === 'ads' ? 'Headline / Campaign' : 'Page title'"></th>
-                                <th class="num">Visits</th>
-                                <th class="num">Share</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="row in pageKeywordHeadlines()" :key="row.key || row.label">
-                                <tr>
-                                    <td x-text="row.keyword"></td>
-                                    <td class="muted" x-text="row.headline"></td>
-                                    <td class="num" x-text="fmt(row.value)"></td>
-                                    <td class="num muted" x-text="(row.pct != null ? row.pct : 0) + '%'"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-        @endif
     </div>
     @endif
 
-    {{-- Row 4: Geo / Device / Revenue / Quality --}}
-    @if ($showGeoBlock || $showDeviceBlock || $showSalesBlock || $showQualityBlock)
+    @if ($showKeywordsBlock || $showGeoBlock || $showDeviceBlock || $showCostBlock || $showSalesBlock || $showQualityBlock)
     <div class="pa-row-4">
+        @if ($showKeywordsBlock)
+        <section class="pa-card pa-card--compact">
+            <div class="pa-card__head">
+                <h2 class="pa-card__title">Keyword Performance</h2>
+                <div class="pa-kh-toggle" role="group" aria-label="Keyword source">
+                    <button type="button" class="pa-kh-toggle__btn" :class="keywordHeadlineSource === 'ads' ? 'is-active' : ''" @click="keywordHeadlineSource = 'ads'">Ads</button>
+                    <button type="button" class="pa-kh-toggle__btn" :class="keywordHeadlineSource === 'site' ? 'is-active' : ''" @click="keywordHeadlineSource = 'site'">Website</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="pa-table">
+                    <thead>
+                        <tr>
+                            <th>Keyword</th>
+                            <th class="num">Clicks</th>
+                            <th class="num">Conversions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="row in pageKeywords()" :key="row.key || row.keyword || row.label">
+                            <tr>
+                                <td x-text="row.keyword || row.label"></td>
+                                <td class="num" x-text="fmt(row.clicks ?? row.value ?? 0)"></td>
+                                <td class="num" x-text="fmt(row.conversions ?? 0)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <p x-show="!(pageKeywords() || []).length" class="pa-empty" x-text="keywordHeadlineSource === 'ads' ? 'No ad keywords.' : 'No on-site keywords.'"></p>
+            </div>
+        </section>
+        @endif
+
         @if ($showGeoBlock)
         <section class="pa-card pa-card--compact">
             <h2 class="pa-card__title">Geography</h2>
+            <p class="pa-kh-toggle__hint">Ads campaign visitors only</p>
             <div class="pa-geo">
                 <div class="pa-geo__map" role="img" aria-label="World map traffic chart">
                     @include('partials.analytics-world-map')
                 </div>
                 <div class="pa-geo__legend" x-show="(pageGeo() || []).length">
                     <i></i>
-                    <span>Visit intensity by country</span>
+                    <span>Ads visit intensity by country</span>
                 </div>
                 <div class="pa-geo__list" x-show="(pageGeo() || []).length">
                     <template x-for="row in pageGeo()" :key="row.key || row.code || row.country || row.name">
                         <div class="pa-geo__row">
-                            <img
-                                class="pa-geo__flag"
-                                x-show="typeof countryFlagUrl === 'function' && countryFlagUrl(row.code || row.country || row.name)"
-                                :src="typeof countryFlagUrl === 'function' ? countryFlagUrl(row.code || row.country || row.name) : ''"
-                                :alt="row.name || row.country || ''"
-                            >
-                            <span
-                                class="pa-geo__flag-fallback"
-                                x-show="!(typeof countryFlagUrl === 'function' && countryFlagUrl(row.code || row.country || row.name))"
-                            ></span>
+                            <img class="pa-geo__flag" x-show="typeof countryFlagUrl === 'function' && countryFlagUrl(row.code || row.country || row.name)" :src="typeof countryFlagUrl === 'function' ? countryFlagUrl(row.code || row.country || row.name) : ''" :alt="row.name || row.country || ''">
+                            <span class="pa-geo__flag-fallback" x-show="!(typeof countryFlagUrl === 'function' && countryFlagUrl(row.code || row.country || row.name))"></span>
                             <span class="pa-geo__name" x-text="row.name || row.country || row.label || row.code"></span>
-                            <span class="pa-geo__meta" x-text="`${fmt(row.value)} · ${row.pct != null ? row.pct : 0}%`"></span>
-                            <div class="pa-bar-track">
-                                <div
-                                    class="pa-bar-fill is-soft"
-                                    :style="`width:${row.bar != null ? row.bar : Math.max(4, Number(row.pct || 0))}%`"
-                                ></div>
-                            </div>
+                            <span class="pa-geo__meta" x-text="`${row.pct != null ? row.pct : 0}%`"></span>
                         </div>
                     </template>
                 </div>
-                <p x-show="!(pageGeo() || []).length" class="pa-empty">No geography data in this window.</p>
+                <p x-show="!(pageGeo() || []).length" class="pa-empty">No ads geography data in this window.</p>
             </div>
         </section>
         @endif
@@ -1216,10 +1258,7 @@
         <section class="pa-card pa-card--compact">
             <h2 class="pa-card__title">Device Breakdown</h2>
             <div class="pa-donut-wrap" style="grid-template-columns: 112px minmax(0, 1fr);">
-                <div
-                    class="pa-donut pa-donut--sm"
-                    role="img"
-                    aria-label="Device breakdown"
+                <div class="pa-donut" role="img" aria-label="Devices"
                     :style="(rows => {
                         const list = rows || [];
                         const total = list.reduce((a, r) => a + Number(r.value || 0), 0);
@@ -1227,16 +1266,14 @@
                         let deg = 0;
                         const stops = list.map(r => {
                             const span = (Number(r.value || 0) / total) * 360;
-                            const start = deg;
-                            deg += span;
+                            const start = deg; deg += span;
                             return `${r.color || '#FF6600'} ${start}deg ${deg}deg`;
                         });
                         return { background: `conic-gradient(${stops.join(', ')})` };
-                    })(pageDevices())"
-                >
+                    })(pageDevices())">
                     <div class="pa-donut__hole">
-                        <strong style="font-size:14px" x-text="fmt((pageDevices() || []).reduce((a, r) => a + Number(r.value || 0), 0))"></strong>
-                        <span>Devices</span>
+                        <strong x-text="fmt((pageDevices() || []).reduce((a, r) => a + Number(r.value || 0), 0))"></strong>
+                        <span>Visitors</span>
                     </div>
                 </div>
                 <div class="pa-legend">
@@ -1249,8 +1286,29 @@
                             <span class="pa-legend__pct" x-text="(row.pct != null ? row.pct : 0) + '%'"></span>
                         </div>
                     </template>
-                    <p x-show="!(pageDevices() || []).length" class="pa-empty">No device data.</p>
                 </div>
+            </div>
+        </section>
+        @endif
+
+        @if ($showCostBlock)
+        <section class="pa-card pa-card--compact">
+            <h2 class="pa-card__title">Cost per Conversion</h2>
+            <div class="pa-cost__top">
+                <div class="pa-cost__stat">
+                    <span>Avg. CPC</span>
+                    <strong x-text="pageCost()?.avg_cpc_label || ((pageAnalytics?.currency_symbol || '$') + '0.00')"></strong>
+                </div>
+                <div class="pa-cost__stat">
+                    <span>Total Cost</span>
+                    <strong x-text="pageCost()?.total_cost_label || ((pageAnalytics?.currency_symbol || '$') + '0.00')"></strong>
+                </div>
+            </div>
+            <div class="pa-cost__main">
+                <span class="pa-cost__label">Cost per Conversion</span>
+                <p class="pa-cost__value" x-text="pageCost()?.cost_per_conversion_label || ((pageAnalytics?.currency_symbol || '$') + '0.00')"></p>
+                <p class="pa-kpi__delta" :class="Number(pageCost()?.delta || 0) >= 0 ? 'is-up' : 'is-down'" x-text="formatDelta(pageCost()?.delta || 0)"></p>
+                <div class="pa-kpi__spark" aria-hidden="true" x-html="sparkSvg(pageRevenueSpark(), '#FF6600')"></div>
             </div>
         </section>
         @endif
@@ -1259,18 +1317,9 @@
         <section class="pa-card pa-card--compact" id="sales">
             <h2 class="pa-card__title">Sales &amp; Revenue</h2>
             <div class="pa-revenue-stats" x-show="pageConversionSummary()">
-                <div>
-                    <span>Revenue</span>
-                    <strong x-text="pageConversionSummary()?.revenue || '$0.00'"></strong>
-                </div>
-                <div>
-                    <span>Transactions</span>
-                    <strong x-text="pageConversionSummary()?.transactions || '0'"></strong>
-                </div>
-                <div>
-                    <span>AOV</span>
-                    <strong x-text="pageConversionSummary()?.aov || '$0.00'"></strong>
-                </div>
+                <div><span>Revenue</span><strong x-text="pageConversionSummary()?.revenue || ((pageAnalytics?.currency_symbol || '$') + '0.00')"></strong></div>
+                <div><span>Transactions</span><strong x-text="pageConversionSummary()?.transactions || '0'"></strong></div>
+                <div><span>AOV</span><strong x-text="pageConversionSummary()?.aov || ((pageAnalytics?.currency_symbol || '$') + '0.00')"></strong></div>
             </div>
             <div class="pa-revenue-spark" aria-hidden="true" x-html="sparkSvg(pageRevenueSpark(), '#FF6600')"></div>
         </section>
@@ -1294,42 +1343,7 @@
                             <span class="pa-bar-row__meta-sep">·</span>
                             <span class="pa-bar-row__meta-pct" x-text="Number(pageQuality()?.human || 0).toFixed(1) + '%'"></span>
                         </span>
-                        <div class="pa-bar-track">
-                            <div class="pa-bar-fill is-green" :style="`width:${Math.max(4, Number(pageQuality()?.human || 0))}%`"></div>
-                        </div>
-                    </div>
-                    <div class="pa-bar-row">
-                        <span class="pa-bar-row__label">Crawlers</span>
-                        <span class="pa-bar-row__meta">
-                            <span class="pa-bar-row__meta-count" x-text="fmt(pageQuality()?.crawlers_count || 0)"></span>
-                            <span class="pa-bar-row__meta-sep">·</span>
-                            <span class="pa-bar-row__meta-pct" x-text="Number(pageQuality()?.crawlers || 0).toFixed(1) + '%'"></span>
-                        </span>
-                        <div class="pa-bar-track">
-                            <div class="pa-bar-fill is-soft" :style="`width:${Math.max(4, Number(pageQuality()?.crawlers || 0))}%`"></div>
-                        </div>
-                    </div>
-                    <div class="pa-bar-row">
-                        <span class="pa-bar-row__label">Automation</span>
-                        <span class="pa-bar-row__meta">
-                            <span class="pa-bar-row__meta-count" x-text="fmt(pageQuality()?.automation_count || 0)"></span>
-                            <span class="pa-bar-row__meta-sep">·</span>
-                            <span class="pa-bar-row__meta-pct" x-text="Number(pageQuality()?.automation || 0).toFixed(1) + '%'"></span>
-                        </span>
-                        <div class="pa-bar-track">
-                            <div class="pa-bar-fill is-amber" :style="`width:${Math.max(4, Number(pageQuality()?.automation || 0))}%`"></div>
-                        </div>
-                    </div>
-                    <div class="pa-bar-row">
-                        <span class="pa-bar-row__label">Malicious Activity</span>
-                        <span class="pa-bar-row__meta">
-                            <span class="pa-bar-row__meta-count" x-text="fmt(pageQuality()?.malicious_count || 0)"></span>
-                            <span class="pa-bar-row__meta-sep">·</span>
-                            <span class="pa-bar-row__meta-pct" x-text="Number(pageQuality()?.malicious || 0).toFixed(1) + '%'"></span>
-                        </span>
-                        <div class="pa-bar-track">
-                            <div class="pa-bar-fill is-rose" :style="`width:${Math.max(4, Number(pageQuality()?.malicious || 0))}%`"></div>
-                        </div>
+                        <div class="pa-bar-track"><div class="pa-bar-fill is-green" :style="`width:${Math.max(4, Number(pageQuality()?.human || 0))}%`"></div></div>
                     </div>
                 </div>
             </div>

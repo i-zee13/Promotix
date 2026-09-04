@@ -37,6 +37,23 @@ html.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search input::placeho
     max-height: none !important;
     min-height: calc(100vh - 280px) !important;
 }
+.figma-sa-cross-domain-panel.is-scrollable {
+    min-height: 620px !important;
+}
+.figma-sa-cross-domain-panel.is-scrollable .figma-sa-cross-domain-scroll {
+    max-height: none !important;
+    min-height: 520px !important;
+    flex: 1 1 auto;
+}
+.figma-sa-traffic-table-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 620px;
+}
+.figma-sa-traffic-table-panel > .figma-sa-subs-table-scroll {
+    flex: 1 1 auto;
+    min-height: 520px;
+}
 </style>
 
 <div
@@ -45,7 +62,7 @@ html.light-mode .figma-sa-cross-domain-head .figma-sa-subs-search input::placeho
         'is-fullpage' => $fullPage,
         'is-scrollable' => $scrollable && ! $fullPage,
     ])
-    x-data="crossDomainTable({ rows: {{ \Illuminate\Support\Js::from($rows) }} })"
+    x-data="crossDomainTable({ rows: {{ \Illuminate\Support\Js::from($rows) }}, perPage: {{ $fullPage ? 25 : 10 }} })"
 >
     <div class="figma-sa-cross-domain-head" style="background:var(--brand-primary,#FF6600);color:#fff;">
         <div>
@@ -138,7 +155,7 @@ function crossDomainTable(config) {
         rows: Array.isArray(config.rows) ? config.rows : [],
         q: '',
         page: 1,
-        perPage: 25,
+        perPage: Number(config.perPage) > 0 ? Number(config.perPage) : 25,
         get filtered() {
             const q = String(this.q || '').trim().toLowerCase();
             if (!q) return this.rows;

@@ -487,9 +487,9 @@ class IntegrationsController extends Controller
                     'account_id' => $account->id,
                     'domain_id' => $domain->id,
                     'domain' => $domain->hostname,
-                    'label' => $account->displayLabel(),
-                    'customer_id' => $account->display_customer_id ?: $account->customer_id,
-                    'google_tag_id' => $account->google_tag_id,
+            'label' => $account->displayLabel(),
+            'customer_id' => $account->display_customer_id ?: $account->customer_id,
+            'google_tag_id' => $account->google_tag_id,
                 ]);
             }
         }
@@ -662,10 +662,10 @@ class IntegrationsController extends Controller
         if ($isAuthFlow && ! $user) {
             $defaultRole = Role::query()->where('slug', 'default-user')->first();
             $newUserData = [
-                'name' => $name !== '' ? $name : Str::before($email, '@'),
-                'password' => Hash::make(Str::random(40)),
-                'role_id' => $defaultRole?->id,
-                'email_verified_at' => now(),
+                    'name' => $name !== '' ? $name : Str::before($email, '@'),
+                    'password' => Hash::make(Str::random(40)),
+                    'role_id' => $defaultRole?->id,
+                    'email_verified_at' => now(),
             ];
             if (Schema::hasColumn('users', 'google_avatar_url')) {
                 $newUserData['google_avatar_url'] = $picture !== '' ? $picture : null;
@@ -2039,8 +2039,8 @@ class IntegrationsController extends Controller
         $mapping = null;
 
         if (! empty($data['mapping_id'])) {
-            $mapping = DomainGoogleAdsMapping::query()
-                ->where('id', $data['mapping_id'])
+        $mapping = DomainGoogleAdsMapping::query()
+            ->where('id', $data['mapping_id'])
                 ->whereHas('domain', fn ($q) => $q->where('user_id', $userId))
                 ->first();
         }
@@ -2096,7 +2096,7 @@ class IntegrationsController extends Controller
         }
 
         if (array_key_exists('enabled', $data)) {
-            $mapping->audience_exclusion_enabled = (bool) $data['enabled'];
+        $mapping->audience_exclusion_enabled = (bool) $data['enabled'];
         } else {
             $mapping->audience_exclusion_enabled = true;
         }
@@ -2159,7 +2159,7 @@ class IntegrationsController extends Controller
         $integration->delete();
 
         if ($request->expectsJson() || $request->wantsJson()) {
-            return response()->json(['ok' => true, 'id' => $integration->id]);
+        return response()->json(['ok' => true, 'id' => $integration->id]);
         }
 
         return back()->with('status', 'Direct Ads connection removed.');

@@ -188,10 +188,10 @@
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.domain_id" @change="reload()" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0">
                             <option value="">All Domains</option>
-                            @foreach ($domains as $d)
-                                <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                            @endforeach
-                        </select>
+                        @foreach ($domains as $d)
+                            <option value="{{ $d->id }}">{{ $d->hostname }}</option>
+                        @endforeach
+                    </select>
                     </div>
                 </label>
                 <label class="bp-dash-f-traffic flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
@@ -234,7 +234,7 @@
                     </div>
                 </label>
                 <div class="bp-dash-f-actions">
-                    @include('partials.figma-filter-date-fields')
+                @include('partials.figma-filter-date-fields')
                     <div class="bp-dash-f-export">
                         <a
                             :href="`/bot-protection/page-analytics/export?${qs()}&format=csv`"
@@ -248,10 +248,10 @@
                                 <path d="M5 21h14"/>
                             </svg>
                         </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+                            </div>
+                                </div>
+                            </div>
+                        </div>
 
         <div class="figma-bp-dashboard">
             <style>
@@ -793,14 +793,14 @@
                         <div class="bpv2-kpi__top">
                             <span class="bpv2-kpi__icon" x-html="card.icon"></span>
                             <p class="bpv2-kpi__title" x-text="card.title"></p>
-                        </div>
+                    </div>
                         <p class="bpv2-kpi__value" x-text="card.value"></p>
                         <p class="bpv2-kpi__sub" x-text="card.sub"></p>
                         <p class="bpv2-kpi__trend" :class="card.delta >= 0 ? 'is-up' : 'is-down'" x-text="card.deltaLabel"></p>
                         <div class="bpv2-kpi__spark" aria-hidden="true" x-html="sparkSvg(card.spark, card.color)"></div>
                     </article>
                 </template>
-            </div>
+                        </div>
 
             {{-- Row 2: Classification / Threats / Detection --}}
             <div class="bpv2-grid">
@@ -822,13 +822,13 @@
                                 </span>
                             </template>
                         </div>
-                    </div>
+                </div>
                     <div class="bpv2-class-body">
                         <div class="bpv2-donut" :style="classificationDonutStyle()" role="img" aria-label="Traffic classification">
                             <div class="bpv2-donut__hole">
                                 <strong x-text="fmt(classificationVisibleTotal())"></strong>
                                 <span>Total Visits</span>
-                            </div>
+            </div>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="bpv2-table">
@@ -844,8 +844,8 @@
                                     <template x-for="row in classificationRows()" :key="row.key">
                                         <tr :class="{ 'is-muted': isClassificationHidden(row.key) }">
                                             <td>
-                                                <button
-                                                    type="button"
+                            <button
+                                type="button"
                                                     class="bpv2-class-type"
                                                     :class="{ 'is-off': isClassificationHidden(row.key) }"
                                                     @click="toggleClassification(row.key)"
@@ -858,13 +858,13 @@
                                                         :style="isClassificationHidden(row.key) ? '' : `background:${row.color}`"
                                                     ></span>
                                                     <span x-text="row.label"></span>
-                                                </button>
+                            </button>
                                             </td>
                                             <td class="num" x-text="fmt(row.value)"></td>
                                             <td class="num" x-text="row.pct + '%'"></td>
                                             <td class="num" :style="`color:${row.delta >= 0 ? '#34d399' : '#f87171'}`" x-text="formatDelta(row.delta)"></td>
                                         </tr>
-                                    </template>
+                        </template>
                                     <tr>
                                         <td>Total</td>
                                         <td class="num" x-text="fmt(classificationVisibleTotal())"></td>
@@ -873,7 +873,7 @@
                                     </tr>
                                 </tbody>
                             </table>
-                        </div>
+                    </div>
                     </div>
                 </section>
 
@@ -890,7 +890,7 @@
                         <p x-show="threatBarRows().length === 0" class="text-[11px] text-white/45">No threat groups in this window.</p>
                     </div>
                     <p class="bpv2-card__foot">Total <span x-text="fmt(threatBarTotal())"></span></p>
-                </section>
+                    </section>
 
                 <section class="bpv2-card">
                     <h2 class="bpv2-card__title">Bot Detection Summary</h2>
@@ -938,9 +938,9 @@
                                 </template>
                             </div>
                         </div>
+                            </div>
+                        </section>
                     </div>
-                </section>
-            </div>
 
             {{-- Row 3: Ads / Reasons / Malicious --}}
             <div class="bpv2-grid">
@@ -959,7 +959,7 @@
                                         <span x-text="paidOfAllPct() + '%'"></span>
                                         <span class="bpv2-ads__count" x-text="fmt(summary.paid?.total || 0) + ' sessions'"></span>
                                     </p>
-                                </div>
+                        </div>
                             </div>
                         </div>
                         <div class="bpv2-ads__col">
@@ -1031,7 +1031,7 @@
                         <div class="bpv2-mal__hero">
                             <span class="bpv2-mal__badge" aria-hidden="true">
                                 <svg class="h-[28px] w-[28px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 3v5c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V6l8-3z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4"/></svg>
-                            </span>
+                                    </span>
                             <p class="bpv2-mal__count" x-text="fmt(summary.invalid_malicious_visits || 0)"></p>
                             <p class="bpv2-mal__sub">Malicious Activities</p>
                         </div>
@@ -1048,8 +1048,8 @@
                             </template>
                             <p x-show="maliciousReasonRows().length === 0" class="text-[11px] text-white/45">No malicious reasons.</p>
                         </div>
-                    </div>
-                </section>
+                        </div>
+                    </section>
             </div>
 
             {{-- Domain (left) + Country (right) — classic figma-bp table design --}}
@@ -1058,8 +1058,8 @@
                     <h2 class="bpv2-card__title">Domain Performance</h2>
                     <div class="figma-bp-domain-panel">
                         <div class="figma-bp-table">
-                            <div class="figma-bp-table-head figma-bp-table-head--domain">
-                                <span>Domain</span>
+                    <div class="figma-bp-table-head figma-bp-table-head--domain">
+                        <span>Domain</span>
                                 <span class="figma-bp-num">Total Visits</span>
                                 <span class="figma-bp-num">Human Traffic</span>
                                 <span class="figma-bp-num">Bots</span>
@@ -1067,14 +1067,14 @@
                                 <span class="figma-bp-num">Risk Score</span>
                                 <span>Protection Status</span>
                                 <span class="figma-bp-num">Trend</span>
-                            </div>
-                            <div class="figma-bp-table-body promotix-slim-scroll">
+                    </div>
+                    <div class="figma-bp-table-body promotix-slim-scroll">
                                 <template x-for="row in domainsList" :key="'d-' + row.id">
-                                    <div class="figma-bp-table-row--domain">
+                            <div class="figma-bp-table-row--domain">
                                         <span class="figma-bp-domain-cell">
                                             <svg class="figma-bp-domain-icon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V7l7-4z"/></svg>
-                                            <span class="truncate" x-text="row.hostname"></span>
-                                        </span>
+                                    <span class="truncate" x-text="row.hostname"></span>
+                                </span>
                                         <span class="figma-bp-num" x-text="fmt(row.total_visits ?? 0)"></span>
                                         <span class="figma-bp-num" x-text="fmt(row.human_traffic ?? row.valid_visits ?? 0)"></span>
                                         <span class="figma-bp-num" x-text="fmt(row.bots ?? 0)"></span>
@@ -1089,8 +1089,8 @@
                                             <span x-text="domainProtection(row)"></span>
                                         </span>
                                         <span class="figma-bp-num" :class="domainTrendClass(row)" x-text="domainTrendLabel(row)"></span>
-                                    </div>
-                                </template>
+                            </div>
+                        </template>
                                 <p x-show="!domainsList.length" class="figma-bp-empty">No domains in this window.</p>
                             </div>
                         </div>
@@ -1107,7 +1107,7 @@
                                 <span class="figma-bp-num">Visits</span>
                                 <span class="figma-bp-num">Invalid</span>
                                 <span class="figma-bp-num">%</span>
-                            </div>
+            </div>
                             <div class="figma-bp-table-body figma-bp-table-body--country promotix-slim-scroll">
                                 <template x-for="row in countries" :key="'c-' + row.country">
                                     <button type="button" class="figma-bp-table-row--country" @click="openCountryIps(row.country)">
@@ -1127,16 +1127,16 @@
                                     </button>
                                 </template>
                                 <p x-show="!countries.length" class="figma-bp-empty">No country data.</p>
-                            </div>
+        </div>
                         </div>
                     </div>
                 </section>
             </div>
             </div>{{-- /.bp-legacy-dashboard --}}
 
-            <p class="mt-[12px] text-right">
+        <p class="mt-[12px] text-right">
                 <a href="{{ route('analytics.traffic-control') }}" class="text-[11px] text-[#FFB380] hover:text-white hover:underline">Open Traffic Control →</a>
-            </p>
+        </p>
         </div>
 
         <div class="figma-modal-overlay"
@@ -1255,6 +1255,7 @@ function botProtectionFigma(config = {}) {
         countries: [],
         pageAnalytics: null,
         keywordHeadlineSource: 'ads',
+        perfActiveSeries: ['clicks', 'visitors', 'conversions'],
         countryModal: { open: false, country: '', rows: [], loading: false },
         domainsList: [],
         invalidTrends: { labels: [], datasets: [], stats: { pageloads: 0, interactions: 0 } },
@@ -1460,13 +1461,112 @@ function botProtectionFigma(config = {}) {
             const sparks = this.summary?.sparklines || {};
             const icon = (path) => `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${path}</svg>`;
             return [
-                { key: 'total', title: 'Total Visitors', value: this.fmt(k.total_visitors || 0), delta: Number(d.total_visitors || 0), deltaLabel: this.formatDelta(d.total_visitors), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m6-4a4 4 0 11-8 0 4 4 0 018 0z"/>') },
-                { key: 'organic', title: 'Organic Traffic', value: this.fmt(k.organic_traffic || 0), delta: Number(d.organic_traffic || 0), deltaLabel: this.formatDelta(d.organic_traffic), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>') },
-                { key: 'direct', title: 'Direct Traffic', value: this.fmt(k.direct_traffic || 0), delta: Number(d.direct_traffic || 0), deltaLabel: this.formatDelta(d.direct_traffic), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/>') },
-                { key: 'referral', title: 'Referral/Backlink Traffic', value: this.fmt(k.referral_traffic || 0), delta: Number(d.referral_traffic || 0), deltaLabel: this.formatDelta(d.referral_traffic), spark: sparks.crawlers || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757"/>') },
-                { key: 'keyword', title: 'Keyword Visits', value: this.fmt(k.keyword_visits || 0), delta: Number(d.keyword_visits || 0), deltaLabel: this.formatDelta(d.keyword_visits), spark: sparks.valid || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 8h10M7 12h6m-6 4h8"/>') },
-                { key: 'conv', title: 'Conversion Rate', value: `${Number(k.conversion_rate || 0).toFixed(2)}%`, delta: Number(d.conversion_rate || 0), deltaLabel: this.formatDelta(d.conversion_rate), spark: sparks.bot_impact || [], icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 3v18h18M7 14l4-4 3 3 5-6"/>') },
+                {
+                    key: 'live',
+                    title: 'Live Visitors',
+                    value: this.fmt(k.live_visitors || 0),
+                    delta: Number(d.live_visitors || 0),
+                    deltaLabel: this.formatDelta(d.live_visitors),
+                    spark: sparks.valid || [],
+                    icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>'),
+                },
+                {
+                    key: 'total',
+                    title: 'Total Visitors',
+                    value: this.fmt(k.total_visitors || 0),
+                    delta: Number(d.total_visitors || 0),
+                    deltaLabel: this.formatDelta(d.total_visitors),
+                    spark: sparks.valid || [],
+                    icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m6-4a4 4 0 11-8 0 4 4 0 018 0z"/>'),
+                },
+                {
+                    key: 'valid',
+                    title: 'Valid Users',
+                    value: this.fmt(k.valid_users || 0),
+                    delta: Number(d.valid_users || 0),
+                    deltaLabel: this.formatDelta(d.valid_users),
+                    spark: sparks.valid || [],
+                    icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'),
+                },
+                {
+                    key: 'conversions',
+                    title: 'Total Conversions',
+                    value: this.fmt(k.total_conversions || 0),
+                    delta: Number(d.total_conversions || 0),
+                    deltaLabel: this.formatDelta(d.total_conversions),
+                    spark: sparks.bot_impact || [],
+                    icon: icon('<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 3v18h18M7 14l4-4 3 3 5-6"/>'),
+                },
             ];
+        },
+        pagePerformance() {
+            return this.pageAnalytics?.performance || null;
+        },
+        pagePerformanceSeries() {
+            return this.pagePerformance()?.series || [];
+        },
+        pageCost() {
+            return this.pageAnalytics?.cost || null;
+        },
+        isPerfSeriesActive(key) {
+            return (this.perfActiveSeries || []).includes(key);
+        },
+        togglePerfSeries(key) {
+            const list = Array.isArray(this.perfActiveSeries) ? [...this.perfActiveSeries] : [];
+            const idx = list.indexOf(key);
+            if (idx >= 0) {
+                if (list.length === 1) return;
+                list.splice(idx, 1);
+            } else {
+                list.push(key);
+            }
+            this.perfActiveSeries = list;
+        },
+        performanceChartSvg(mode = 'line') {
+            const series = (this.pagePerformanceSeries() || []).filter((s) => this.isPerfSeriesActive(s.key));
+            if (!series.length) {
+                return '<svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg"><text x="24" y="28" fill="rgba(255,255,255,0.35)" font-size="12">No series selected</text></svg>';
+            }
+            const labels = series[0].labels || [];
+            const width = 640;
+            const height = 220;
+            const padL = 36;
+            const padR = 16;
+            const padT = 18;
+            const padB = 28;
+            const innerW = width - padL - padR;
+            const innerH = height - padT - padB;
+            const maxVal = Math.max(1, ...series.flatMap((s) => (s.points || []).map((n) => Number(n || 0))));
+            const n = Math.max(1, (series[0].points || []).length);
+            const xAt = (i) => padL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+            const yAt = (v) => padT + innerH - (Number(v || 0) / maxVal) * innerH;
+            let body = '';
+            if (mode === 'bar') {
+                const groupW = innerW / n;
+                const barW = Math.max(2, (groupW * 0.7) / Math.max(1, series.length));
+                series.forEach((s, si) => {
+                    (s.points || []).forEach((v, i) => {
+                        const x = padL + i * groupW + si * barW + groupW * 0.15;
+                        const y = yAt(v);
+                        const h = padT + innerH - y;
+                        body += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" fill="${s.color}" opacity="0.85" rx="2"/>`;
+                    });
+                });
+            } else {
+                series.forEach((s) => {
+                    const pts = (s.points || []).map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
+                    body += `<polyline fill="none" stroke="${s.color}" stroke-width="2.5" points="${pts}"/>`;
+                    (s.points || []).forEach((v, i) => {
+                        body += `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="3" fill="${s.color}"/>`;
+                    });
+                });
+            }
+            const labelStep = Math.max(1, Math.floor(labels.length / 8));
+            labels.forEach((label, i) => {
+                if (i % labelStep !== 0 && i !== labels.length - 1) return;
+                body += `<text x="${xAt(i).toFixed(1)}" y="${height - 8}" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">${label}</text>`;
+            });
+            return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
         },
         pageTrafficSources() {
             return this.pageAnalytics?.traffic_sources || [];
@@ -1501,6 +1601,9 @@ function botProtectionFigma(config = {}) {
             if (k.includes('form')) {
                 return wrap('<path d="M8 6h8M8 10h8M8 14h5"/><rect x="4" y="3" width="16" height="18" rx="2"/>');
             }
+            if (k.includes('tel') || k.includes('call')) {
+                return wrap('<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>');
+            }
             return wrap('<path d="M5 12h14M13 6l6 6-6 6"/>');
         },
         pageConversionSummary() {
@@ -1511,7 +1614,11 @@ function botProtectionFigma(config = {}) {
         },
         pageKeywords() {
             const key = this.keywordHeadlineSource === 'site' ? 'site_keywords' : 'keywords';
-            return this.pageAnalytics?.[key] || [];
+            return (this.pageAnalytics?.[key] || []).map((row) => ({
+                ...row,
+                clicks: row.clicks ?? row.value ?? 0,
+                conversions: row.conversions ?? 0,
+            }));
         },
         pageHeadlines() {
             const key = this.keywordHeadlineSource === 'site' ? 'site_headlines' : 'headlines';
@@ -1907,7 +2014,7 @@ function botProtectionFigma(config = {}) {
                     return;
                 }
 
-                const qs = this.qs();
+            const qs = this.qs();
 
                 const summaryRes = await fetch(`/bot-protection/summary?${qs}`);
                 const summary = await this.parseJson(summaryRes);
@@ -1928,8 +2035,8 @@ function botProtectionFigma(config = {}) {
                 ]);
                 this.pageAnalytics = pageAnalytics?.kpis ? pageAnalytics : null;
                 this.paintGeoMap();
-                this.invalidTrends = trends;
-                this.countries = c;
+            this.invalidTrends = trends;
+            this.countries = c;
                 this.domainsList = Array.isArray(ds) ? ds : [];
                 this.cache = {
                     traffic,

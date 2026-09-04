@@ -3263,10 +3263,18 @@ html.figma-gads-calendar-open body {
 }
 
 .figma-sa-cross-domain-scroll {
-    max-height: 320px;
+    max-height: none;
     overflow-x: auto;
     overflow-y: auto;
     flex: 1 1 auto;
+}
+
+.figma-sa-cross-domain-panel.is-scrollable {
+    min-height: 620px;
+}
+
+.figma-sa-cross-domain-panel.is-scrollable .figma-sa-cross-domain-scroll {
+    min-height: 520px;
 }
 
 .figma-sa-cross-domain-panel.is-fullpage .figma-sa-cross-domain-scroll {
@@ -3297,8 +3305,8 @@ html.figma-gads-calendar-open body {
 }
 
 .figma-sa-cross-domain-sim--medium {
-    background: rgba(250, 204, 21, 0.16);
-    color: #fde047;
+    background: rgba(250, 204, 21, 0.28);
+    color: #92400e;
 }
 
 .figma-sa-cross-domain-sim--low {
@@ -3341,8 +3349,8 @@ html.figma-gads-calendar-open body {
 }
 
 .light-mode .figma-sa-cross-domain-sim--medium {
-    background: rgba(250, 204, 21, 0.22);
-    color: #a16207;
+    background: rgba(250, 204, 21, 0.35);
+    color: #854d0e;
 }
 
 .light-mode .figma-sa-cross-domain-sim--low {

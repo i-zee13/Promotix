@@ -6,6 +6,7 @@ use App\Jobs\SyncGoogleAdsIpExclusionJob;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Support\GlobalIpAllowlist;
+use App\Support\GoogleIpBlockFormatter;
 
 class GoogleAudienceExclusionService
 {
@@ -86,6 +87,13 @@ class GoogleAudienceExclusionService
         if (! \Illuminate\Support\Facades\Schema::hasTable('google_ads_ip_exclusions') || $ip === '') {
             return;
         }
+
+        // Store the same form Google sync uses (e.g. 1.2.3.4 → 1.2.3.4/32) so markRow can match.
+        $normalized = GoogleIpBlockFormatter::normalize($ip);
+        if ($normalized === null) {
+            return;
+        }
+        $ip = $normalized;
 
         $settings ??= DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
         if (! $settings) {

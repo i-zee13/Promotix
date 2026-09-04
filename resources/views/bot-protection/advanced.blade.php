@@ -1378,7 +1378,7 @@
                     </ul>
                 </div>
                 <p class="bp-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
-            </article>
+                        </article>
 
             <article class="bp-adv-chart-card">
                 <h3 class="bp-adv-chart-card__title">Risk Level Distribution</h3>
@@ -1388,7 +1388,7 @@
                         <div class="bp-adv-donut__inner">
                             <p class="bp-adv-donut__value" x-text="riskDonut.total_label || '0'"></p>
                             <p class="bp-adv-donut__label" x-text="chartRisk.center_label || 'Unique IPs'"></p>
-                        </div>
+                    </div>
                     </div>
                     <ul class="bp-adv-legend">
                         <template x-for="item in (chartRisk.items || [])" :key="'risk-' + legendKey(item)">
@@ -1408,9 +1408,9 @@
                                     </span>
                                 </button>
                             </li>
-                        </template>
+                </template>
                     </ul>
-                </div>
+            </div>
                 <p class="bp-adv-chart-card__updated" x-text="chartsUpdatedLabel"></p>
             </article>
 
@@ -1784,7 +1784,7 @@ function botProtectionAdvancedFigma(config = {}) {
                 const cta = Number(k.cta_clicks ?? pa?.kpis?.cta_clicks ?? 0);
                 const sessions = Math.max(1, Number(k.total_sessions ?? this.meta.total ?? 0));
                 const ctaRate = ((cta / sessions) * 100).toFixed(2);
-                return [
+            return [
                     { key: 'visitors', label: 'Unique Visitors', value: this.fmt(pa?.kpis?.total_visitors ?? k.total_sessions ?? this.meta.total ?? 0), tone: 'green', sub: 'Visits in selected range', asPercent: false },
                     { key: 'duration', label: 'Avg. Session Duration', value: pa?.journey_summary?.avg_session_duration || '00:00:00', tone: 'green', sub: 'Entry → exit average', asPercent: false },
                     { key: 'pps', label: 'Pages per Session', value: Number(pa?.pages_per_session ?? 0).toFixed(2), tone: 'amber', sub: 'Average depth', asPercent: false },
@@ -1949,7 +1949,7 @@ function botProtectionAdvancedFigma(config = {}) {
             window.promotixPageLoader?.show(this.analyticsMode ? 'Loading Traffic Control…' : 'Loading Traffic Control…');
             try {
                 if (this.analyticsMode) {
-                    const qs = this.qs({ page: this.meta.page, per_page: this.meta.per_page });
+                const qs = this.qs({ page: this.meta.page, per_page: this.meta.per_page });
                     const [sessionsRes, analyticsRes] = await Promise.all([
                         fetch(`/bot-protection/traffic-control/sessions?${qs}`),
                         fetch(`/bot-protection/page-analytics?${this.qs()}`),

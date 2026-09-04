@@ -161,8 +161,14 @@ class CrossDomainIntel
         ];
     }
 
-    private function hostnameSimilarity(string $a, string $b): float
+    public function hostnameSimilarity(string $a, string $b): float
     {
+        $a = strtolower(trim(preg_replace('/^www\./', '', $a) ?? $a));
+        $b = strtolower(trim(preg_replace('/^www\./', '', $b) ?? $b));
+
+        if ($a === '' || $b === '') {
+            return 0.0;
+        }
         if ($a === $b) {
             return 1.0;
         }
@@ -174,8 +180,31 @@ class CrossDomainIntel
         }
 
         similar_text($a, $b, $pct);
+        $score = min(1.0, $pct / 100);
 
-        return min(1.0, $pct / 100);
+        // Boost shared marketing/brand tokens (internet, fiber, coverage, deals…).
+        $tokensA = $this->hostnameTokens($a);
+        $tokensB = $this->hostnameTokens($b);
+        if ($tokensA !== [] && $tokensB !== []) {
+            $shared = count(array_intersect($tokensA, $tokensB));
+            if ($shared > 0) {
+                $score = max($score, min(1.0, 0.45 + ($shared * 0.2)));
+            }
+        }
+
+        return $score;
+    }
+
+    /** @return list<string> */
+    private function hostnameTokens(string $host): array
+    {
+        $label = explode('.', $host)[0] ?? $host;
+        $parts = preg_split('/[^a-z0-9]+/i', $label) ?: [];
+
+        return array_values(array_filter(array_map(
+            fn ($p) => strtolower(trim((string) $p)),
+            $parts
+        ), fn ($p) => strlen($p) >= 3));
     }
 
     private function registrableDomain(string $host): string

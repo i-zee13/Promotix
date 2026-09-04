@@ -18,14 +18,23 @@ class PageAnalyticsAggregator
      *   path?: string,
      *   device?: string
      * }  $filters
+     * @param  array{clicks?:int,cost?:float,impressions?:int}|null  $adsTotals
      * @return array<string, mixed>
      */
-    public function build(array|\Illuminate\Support\Collection $domainIds, Carbon $from, Carbon $to, ?object $previous = null, array $filters = []): array
-    {
+    public function build(
+        array|\Illuminate\Support\Collection $domainIds,
+        Carbon $from,
+        Carbon $to,
+        ?object $previous = null,
+        array $filters = [],
+        string $currencyCode = 'USD',
+        ?array $adsTotals = null,
+    ): array {
         $domainIds = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values()->all();
+        $currencyCode = AccountCurrency::normalize($currencyCode);
 
         if (! Schema::hasTable('visits') || $domainIds === []) {
-            return $this->emptyPayload();
+            return $this->emptyPayload($currencyCode);
         }
 
         $select = [
@@ -66,7 +75,7 @@ class PageAnalyticsAggregator
         $rows = $query->orderBy('visited_at')->get($select);
 
         if ($rows->isEmpty()) {
-            return $this->emptyPayload();
+            return $this->emptyPayload($currencyCode);
         }
 
         $sourceFilter = strtolower(trim((string) ($filters['traffic_source'] ?? '')));
@@ -79,15 +88,20 @@ class PageAnalyticsAggregator
         $headlines = [];
         $keywordHeadlines = [];
         $countries = [];
+        $adsCountries = [];
         $devices = ['mobile' => 0, 'desktop' => 0, 'tablet' => 0, 'other' => 0];
         $sessions = [];
         $keywordVisits = 0;
+        $keywordSessionMap = [];
         $human = 0;
         $crawlers = 0;
         $automation = 0;
         $malicious = 0;
+        $validUsers = 0;
         $productViews = 0;
         $filtered = collect();
+        $performanceBuckets = [];
+        $hourly = $from->toDateString() === $to->toDateString();
 
         foreach ($rows as $row) {
             $gclid = property_exists($row, 'gclid') ? ($row->gclid ?? null) : null;
@@ -148,6 +162,8 @@ class PageAnalyticsAggregator
             if ($term !== '') {
                 $keywordVisits++;
                 $keywords[$term] = ($keywords[$term] ?? 0) + 1;
+                $sidForKw = (string) ($row->session_id ?: ($row->domain_id.'|'.$row->ip) ?: ('v'.$row->id));
+                $keywordSessionMap[$term][$sidForKw] = true;
             }
 
             $campaign = trim((string) ($row->utm_campaign ?? ''));
@@ -162,9 +178,33 @@ class PageAnalyticsAggregator
             $country = strtoupper(trim((string) ($row->country ?? '')));
             if ($country !== '') {
                 $countries[$country] = ($countries[$country] ?? 0) + 1;
+                if ($bucket === 'paid' || (bool) $row->is_paid_traffic) {
+                    $adsCountries[$country] = ($adsCountries[$country] ?? 0) + 1;
+                }
             }
 
             $devices[$deviceKey] = ($devices[$deviceKey] ?? 0) + 1;
+
+            $visitedAt = $this->parseInstant($row->visited_at);
+            if ($visitedAt) {
+                $bucketKey = $hourly
+                    ? $visitedAt->format('Y-m-d H:00:00')
+                    : $visitedAt->toDateString();
+                if (! isset($performanceBuckets[$bucketKey])) {
+                    $performanceBuckets[$bucketKey] = [
+                        'visitors' => 0,
+                        'clicks' => 0,
+                        'conversions' => 0,
+                        'valid' => 0,
+                        'paid' => 0,
+                    ];
+                }
+                $performanceBuckets[$bucketKey]['visitors']++;
+                if ($bucket === 'paid' || (bool) $row->is_paid_traffic) {
+                    $performanceBuckets[$bucketKey]['clicks']++;
+                    $performanceBuckets[$bucketKey]['paid']++;
+                }
+            }
 
             $sessionKey = (string) ($row->session_id ?: ($row->domain_id.'|'.$row->ip));
             if (! isset($sessions[$sessionKey])) {
@@ -180,6 +220,8 @@ class PageAnalyticsAggregator
                     'browser' => $row->browser ?? null,
                     'os' => $row->os ?? null,
                     'country' => $country !== '' ? $country : null,
+                    'is_paid' => $bucket === 'paid' || (bool) $row->is_paid_traffic,
+                    'is_valid' => ! (bool) ($row->is_crawler ?? false) && ! (bool) $row->is_invalid_traffic,
                 ];
             }
             $sessions[$sessionKey]['events'][] = [
@@ -193,6 +235,14 @@ class PageAnalyticsAggregator
             if ($row->visited_at > $sessions[$sessionKey]['last_at']) {
                 $sessions[$sessionKey]['last_at'] = $row->visited_at;
             }
+            if ($bucket === 'paid' || (bool) $row->is_paid_traffic) {
+                $sessions[$sessionKey]['is_paid'] = true;
+            }
+            if (! (bool) ($row->is_crawler ?? false) && ! (bool) $row->is_invalid_traffic) {
+                $sessions[$sessionKey]['is_valid'] = ($sessions[$sessionKey]['is_valid'] ?? true);
+            } else {
+                $sessions[$sessionKey]['is_valid'] = false;
+            }
 
             if ((bool) ($row->is_crawler ?? false)) {
                 $crawlers++;
@@ -205,12 +255,21 @@ class PageAnalyticsAggregator
                 }
             } else {
                 $human++;
+                if ($bucket === 'paid' || (bool) $row->is_paid_traffic) {
+                    $validUsers++;
+                    if ($visitedAt) {
+                        $bucketKey = $hourly
+                            ? $visitedAt->format('Y-m-d H:00:00')
+                            : $visitedAt->toDateString();
+                        $performanceBuckets[$bucketKey]['valid'] = ($performanceBuckets[$bucketKey]['valid'] ?? 0) + 1;
+                    }
+                }
             }
         }
 
         $rows = $filtered;
         if ($rows->isEmpty()) {
-            return $this->emptyPayload();
+            return $this->emptyPayload($currencyCode);
         }
 
         $total = $rows->count();
@@ -273,6 +332,53 @@ class PageAnalyticsAggregator
         $conversionRate = round(($purchases / $sessionCount) * 100, 2);
         $aov = $transactions > 0 ? round($revenue / $transactions, 2) : 0.0;
 
+        $telClicks = (int) ($recordingStats['tel'] ?? 0);
+        $ctaClicks = (int) ($recordingStats['cta'] ?? 0);
+        $formFills = (int) ($recordingStats['forms'] ?? 0);
+        $carts = (int) ($recordingStats['carts'] ?? 0);
+        $checkouts = (int) ($recordingStats['checkouts'] ?? 0);
+        // Total Conversions = every conversion-funnel action (call, CTA, form, cart, checkout, purchase).
+        $totalConversions = $telClicks + $ctaClicks + $formFills + $carts + $checkouts + $purchases;
+
+        // Valid Users = ad visitors who are not invalid/crawler. Fallback to human when no paid traffic.
+        if ($validUsers === 0 && $human > 0 && ($buckets['paid'] ?? 0) === 0) {
+            $validUsers = $human;
+        }
+
+        $liveVisitors = $this->countLiveVisitors($domainIds, 5);
+        $inactiveVisitors = max(0, $total - $liveVisitors);
+
+        $googleClicks = (int) ($adsTotals['clicks'] ?? 0);
+        $googleCost = (float) ($adsTotals['cost'] ?? 0);
+        $avgCpc = $googleClicks > 0 ? round($googleCost / $googleClicks, 4) : 0.0;
+        $costPerConversion = $totalConversions > 0
+            ? round($googleCost / $totalConversions, 4)
+            : 0.0;
+
+        foreach ($convertingSessions as $sid => $_) {
+            $session = $sessions[$sid] ?? null;
+            if (! $session) {
+                continue;
+            }
+            $at = $this->parseInstant($session['last_at'] ?? null);
+            if (! $at) {
+                continue;
+            }
+            $bucketKey = $hourly ? $at->format('Y-m-d H:00:00') : $at->toDateString();
+            if (! isset($performanceBuckets[$bucketKey])) {
+                $performanceBuckets[$bucketKey] = [
+                    'visitors' => 0,
+                    'clicks' => 0,
+                    'conversions' => 0,
+                    'valid' => 0,
+                    'paid' => 0,
+                ];
+            }
+            $performanceBuckets[$bucketKey]['conversions']++;
+        }
+
+        $keywordRows = $this->rankKeywordPerformance($keywords, $keywordSessionMap, $convertingSessions, $total);
+
         $prevTotal = $previous ? (int) ($previous->total ?? 0) : 0;
         $pctDelta = static function (int|float $cur, int|float $prev): float {
             $cur = (float) $cur;
@@ -285,26 +391,36 @@ class PageAnalyticsAggregator
         };
 
         $productViewCount = max($productViews, (int) ($recordingStats['product_views'] ?? 0), (int) round($total * 0.35));
+        $geoSource = $adsCountries !== [] ? $adsCountries : [];
+        $geoTotal = max(1, array_sum($geoSource) ?: 1);
 
         return [
             'kpis' => [
+                'live_visitors' => $liveVisitors,
                 'total_visitors' => $total,
+                'inactive_visitors' => $inactiveVisitors,
+                'valid_users' => $validUsers,
+                'total_conversions' => $totalConversions,
                 'organic_traffic' => (int) ($buckets['organic'] ?? 0),
                 'direct_traffic' => (int) ($buckets['direct'] ?? 0),
                 'referral_traffic' => $referralBucket,
                 'keyword_visits' => $keywordVisits,
                 'conversion_rate' => $conversionRate,
-                'cta_clicks' => (int) ($recordingStats['cta'] ?? 0),
-                'tel_clicks' => (int) ($recordingStats['tel'] ?? 0),
-                'form_submits' => (int) ($recordingStats['forms'] ?? 0),
+                'cta_clicks' => $ctaClicks,
+                'tel_clicks' => $telClicks,
+                'form_submits' => $formFills,
                 'purchases' => $purchases,
                 'deltas' => [
+                    'live_visitors' => 0.0,
                     'total_visitors' => $pctDelta($total, $prevTotal),
+                    'valid_users' => $pctDelta($validUsers, $previous->valid_users ?? 0),
+                    'total_conversions' => $pctDelta($totalConversions, $previous->total_conversions ?? 0),
                     'organic_traffic' => $pctDelta($buckets['organic'] ?? 0, $previous->organic ?? 0),
                     'direct_traffic' => $pctDelta($buckets['direct'] ?? 0, $previous->direct ?? 0),
                     'referral_traffic' => $pctDelta($referralBucket, $previous->referral ?? 0),
                     'keyword_visits' => $pctDelta($keywordVisits, $previous->keywords ?? 0),
                     'conversion_rate' => $pctDelta($conversionRate, $previous->conversion_rate ?? 0),
+                    'cost_per_conversion' => 0.0,
                 ],
             ],
             'traffic_sources' => $this->chartRows([
@@ -323,16 +439,37 @@ class PageAnalyticsAggregator
             'funnel' => $this->buildFunnel($total, array_merge($recordingStats, [
                 'product_views' => $productViewCount,
                 'purchases' => $purchases,
+                'tel' => $telClicks,
             ])),
             'conversion_summary' => [
                 'rate' => number_format($conversionRate, 2).'%',
-                'revenue' => '$'.number_format($revenue, 2),
+                'revenue' => AccountCurrency::formatAmount($revenue, $currencyCode),
                 'transactions' => (string) $transactions,
-                'aov' => '$'.number_format($aov, 2),
+                'aov' => AccountCurrency::formatAmount($aov, $currencyCode),
                 'rate_raw' => $conversionRate,
                 'revenue_raw' => $revenue,
                 'transactions_raw' => $transactions,
                 'aov_raw' => $aov,
+                'currency_code' => $currencyCode,
+                'currency_symbol' => AccountCurrency::symbol($currencyCode),
+            ],
+            'cost' => [
+                'avg_cpc' => $avgCpc,
+                'total_cost' => round($googleCost, 2),
+                'cost_per_conversion' => $costPerConversion,
+                'google_clicks' => $googleClicks,
+                'conversions' => $totalConversions,
+                'avg_cpc_label' => AccountCurrency::formatCompact($avgCpc, $currencyCode),
+                'total_cost_label' => AccountCurrency::formatCompact($googleCost, $currencyCode),
+                'cost_per_conversion_label' => AccountCurrency::formatCompact($costPerConversion, $currencyCode),
+                'currency_code' => $currencyCode,
+                'currency_symbol' => AccountCurrency::symbol($currencyCode),
+                'delta' => 0.0,
+            ],
+            'performance' => [
+                'granularity' => $hourly ? 'hourly' : 'daily',
+                'labels' => array_values(array_keys($this->sortedPerformanceBuckets($performanceBuckets, $from, $to, $hourly))),
+                'series' => $this->buildPerformanceSeries($performanceBuckets, $from, $to, $hourly),
             ],
             'referrers' => $this->chartRows(collect($platforms)->map(fn ($v, $k) => [
                 'key' => $k,
@@ -340,18 +477,18 @@ class PageAnalyticsAggregator
                 'value' => (int) $v,
                 'color' => '#FF6600',
             ])->sortByDesc('value')->values()->all(), $total),
-            'keywords' => $this->rankList($keywords, $total, 'keyword'),
+            'keywords' => $keywordRows,
             'headlines' => $this->rankList($headlines, $total, 'headline'),
             'keyword_headlines' => $this->rankComboList($keywordHeadlines, $total),
             ...$this->buildSiteKeywordHeadlineStats($domainIds, $from, $to, $filters),
-            'geo' => $this->chartRows(collect($countries)->map(fn ($v, $k) => [
+            'geo' => $this->chartRows(collect($geoSource)->map(fn ($v, $k) => [
                 'key' => $k,
                 'code' => $k,
                 'name' => $k,
                 'label' => $k,
                 'value' => (int) $v,
                 'color' => '#FF6600',
-            ])->sortByDesc('value')->take(8)->values()->all(), $total),
+            ])->sortByDesc('value')->take(8)->values()->all(), $geoTotal),
             'devices' => $this->chartRows([
                 ['key' => 'mobile', 'label' => 'Mobile', 'value' => (int) ($devices['mobile'] ?? 0), 'color' => '#FF6600'],
                 ['key' => 'desktop', 'label' => 'Desktop', 'value' => (int) ($devices['desktop'] ?? 0), 'color' => '#3B82F6'],
@@ -359,6 +496,8 @@ class PageAnalyticsAggregator
                 ['key' => 'other', 'label' => 'Other', 'value' => (int) ($devices['other'] ?? 0), 'color' => '#94A3B8'],
             ], $total),
             'revenue_trend' => $recordingStats['trend'],
+            'currency_code' => $currencyCode,
+            'currency_symbol' => AccountCurrency::symbol($currencyCode),
             'quality' => [
                 'score' => max(0, min(100, (int) round(($human / max(1, $total)) * 100))),
                 'label' => $human / max(1, $total) >= 0.85 ? 'High Quality Traffic' : ($human / max(1, $total) >= 0.6 ? 'Mixed Quality' : 'Needs Attention'),
@@ -386,11 +525,18 @@ class PageAnalyticsAggregator
     }
 
     /** @return array<string, mixed> */
-    private function emptyPayload(): array
+    private function emptyPayload(string $currencyCode = 'USD'): array
     {
+        $currencyCode = AccountCurrency::normalize($currencyCode);
+        $zeroMoney = AccountCurrency::formatAmount(0, $currencyCode);
+
         return [
             'kpis' => [
+                'live_visitors' => 0,
                 'total_visitors' => 0,
+                'inactive_visitors' => 0,
+                'valid_users' => 0,
+                'total_conversions' => 0,
                 'organic_traffic' => 0,
                 'direct_traffic' => 0,
                 'referral_traffic' => 0,
@@ -412,13 +558,33 @@ class PageAnalyticsAggregator
             'funnel' => [],
             'conversion_summary' => [
                 'rate' => '0.00%',
-                'revenue' => '$0.00',
+                'revenue' => $zeroMoney,
                 'transactions' => '0',
-                'aov' => '$0.00',
+                'aov' => $zeroMoney,
                 'rate_raw' => 0,
                 'revenue_raw' => 0,
                 'transactions_raw' => 0,
                 'aov_raw' => 0,
+                'currency_code' => $currencyCode,
+                'currency_symbol' => AccountCurrency::symbol($currencyCode),
+            ],
+            'cost' => [
+                'avg_cpc' => 0.0,
+                'total_cost' => 0.0,
+                'cost_per_conversion' => 0.0,
+                'google_clicks' => 0,
+                'conversions' => 0,
+                'avg_cpc_label' => AccountCurrency::formatCompact(0, $currencyCode),
+                'total_cost_label' => AccountCurrency::formatCompact(0, $currencyCode),
+                'cost_per_conversion_label' => AccountCurrency::formatCompact(0, $currencyCode),
+                'currency_code' => $currencyCode,
+                'currency_symbol' => AccountCurrency::symbol($currencyCode),
+                'delta' => 0.0,
+            ],
+            'performance' => [
+                'granularity' => 'hourly',
+                'labels' => [],
+                'series' => [],
             ],
             'referrers' => [],
             'keywords' => [],
@@ -430,6 +596,8 @@ class PageAnalyticsAggregator
             'geo' => [],
             'devices' => [],
             'revenue_trend' => [],
+            'currency_code' => $currencyCode,
+            'currency_symbol' => AccountCurrency::symbol($currencyCode),
             'quality' => [
                 'score' => 0,
                 'label' => 'No Data',
@@ -452,6 +620,115 @@ class PageAnalyticsAggregator
             'conversion_by_source' => [],
             'high_value_sessions' => [],
             'pages_per_session' => 0,
+        ];
+    }
+
+
+    /** @param  list<int>  $domainIds */
+    private function countLiveVisitors(array $domainIds, int $minutes = 5): int
+    {
+        if ($domainIds === [] || ! Schema::hasTable('visits')) {
+            return 0;
+        }
+
+        return (int) DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->where('visited_at', '>=', now()->subMinutes(max(1, $minutes)))
+            ->count();
+    }
+
+    /**
+     * @param  array<string, int>  $keywords
+     * @param  array<string, array<string, bool>>  $keywordSessionMap
+     * @param  array<string, bool>  $convertingSessions
+     * @return list<array<string, mixed>>
+     */
+    private function rankKeywordPerformance(array $keywords, array $keywordSessionMap, array $convertingSessions, int $total): array
+    {
+        $rows = [];
+        foreach ($keywords as $keyword => $clicks) {
+            $sessions = array_keys($keywordSessionMap[$keyword] ?? []);
+            $conversions = 0;
+            foreach ($sessions as $sid) {
+                if (isset($convertingSessions[$sid])) {
+                    $conversions++;
+                }
+            }
+            $rows[] = [
+                'key' => (string) $keyword,
+                'keyword' => (string) $keyword,
+                'label' => (string) $keyword,
+                'value' => (int) $clicks,
+                'clicks' => (int) $clicks,
+                'conversions' => $conversions,
+                'pct' => $this->pct((int) $clicks, max(1, $total)),
+            ];
+        }
+
+        usort($rows, fn ($a, $b) => ($b['clicks'] <=> $a['clicks']));
+
+        return array_slice($rows, 0, 20);
+    }
+
+    /**
+     * @param  array<string, array<string, int>>  $buckets
+     * @return array<string, array<string, int>>
+     */
+    private function sortedPerformanceBuckets(array $buckets, Carbon $from, Carbon $to, bool $hourly): array
+    {
+        $filled = [];
+        $cursor = $hourly ? $from->copy()->startOfHour() : $from->copy()->startOfDay();
+        $end = $hourly ? $to->copy()->endOfHour() : $to->copy()->endOfDay();
+
+        while ($cursor <= $end) {
+            $key = $hourly ? $cursor->format('Y-m-d H:00:00') : $cursor->toDateString();
+            $filled[$key] = $buckets[$key] ?? [
+                'visitors' => 0,
+                'clicks' => 0,
+                'conversions' => 0,
+                'valid' => 0,
+                'paid' => 0,
+            ];
+            $hourly ? $cursor->addHour() : $cursor->addDay();
+            if (count($filled) > 48) {
+                break;
+            }
+        }
+
+        return $filled;
+    }
+
+    /**
+     * @param  array<string, array<string, int>>  $buckets
+     * @return list<array<string, mixed>>
+     */
+    private function buildPerformanceSeries(array $buckets, Carbon $from, Carbon $to, bool $hourly): array
+    {
+        $filled = $this->sortedPerformanceBuckets($buckets, $from, $to, $hourly);
+        $labels = [];
+        $visitors = [];
+        $clicks = [];
+        $conversions = [];
+        $valid = [];
+        $paid = [];
+
+        foreach ($filled as $key => $row) {
+            $labels[] = $hourly
+                ? Carbon::parse($key)->format('g A')
+                : Carbon::parse($key)->format('M j');
+            $visitors[] = (int) ($row['visitors'] ?? 0);
+            $clicks[] = (int) ($row['clicks'] ?? 0);
+            $conversions[] = (int) ($row['conversions'] ?? 0);
+            $valid[] = (int) ($row['valid'] ?? 0);
+            $paid[] = (int) ($row['paid'] ?? 0);
+        }
+
+        return [
+            ['key' => 'clicks', 'label' => 'Clicks', 'color' => '#3B82F6', 'total' => array_sum($clicks), 'points' => $clicks, 'labels' => $labels],
+            ['key' => 'visitors', 'label' => 'Visitors', 'color' => '#F43F5E', 'total' => array_sum($visitors), 'points' => $visitors, 'labels' => $labels],
+            ['key' => 'conversions', 'label' => 'Conversions', 'color' => '#22C55E', 'total' => array_sum($conversions), 'points' => $conversions, 'labels' => $labels],
+            ['key' => 'valid', 'label' => 'Valid Users', 'color' => '#FF6600', 'total' => array_sum($valid), 'points' => $valid, 'labels' => $labels],
+            ['key' => 'paid', 'label' => 'Paid Visits', 'color' => '#A855F7', 'total' => array_sum($paid), 'points' => $paid, 'labels' => $labels],
         ];
     }
 
@@ -920,6 +1197,7 @@ class PageAnalyticsAggregator
             $checkout = $purchase;
         }
 
+        $tel = (int) ($stats['tel'] ?? 0);
         $steps = [
             ['key' => 'views', 'label' => 'Product Views', 'value' => $views],
             ['key' => 'cart', 'label' => 'Add to Cart', 'value' => $cart],
@@ -927,6 +1205,7 @@ class PageAnalyticsAggregator
             ['key' => 'purchase', 'label' => 'Purchases', 'value' => $purchase],
             ['key' => 'form', 'label' => 'Form Fills', 'value' => $forms],
             ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta],
+            ['key' => 'tel', 'label' => 'Call Clicks', 'value' => $tel],
         ];
         $max = max(1, $steps[0]['value']);
 

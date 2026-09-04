@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Domain;
 use App\Models\Plan;
 use App\Support\DomainKeyHostGuard;
+use App\Support\SimilarDomainBlockSuggestions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -135,10 +136,48 @@ class DomainManagementController extends Controller
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['ok' => true, 'domain' => $domain]);
+            $suggestions = app(SimilarDomainBlockSuggestions::class)->forHostname((string) $domain->hostname);
+
+            return response()->json([
+                'ok' => true,
+                'domain' => $domain,
+                'similarity' => $suggestions,
+            ]);
         }
 
         return back()->with('status', 'Domain saved.');
+    }
+
+    public function similaritySuggestions(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'hostname' => ['required', 'string', 'max:255'],
+        ]);
+
+        $hostname = $this->normalizeHostname($data['hostname']);
+        $suggestions = app(SimilarDomainBlockSuggestions::class)->forHostname($hostname);
+
+        return response()->json(['ok' => true, 'similarity' => $suggestions]);
+    }
+
+    public function applySimilarityBlocks(Request $request, Domain $domain): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        $data = $request->validate([
+            'ips' => ['required', 'array', 'min:1'],
+            'ips.*' => ['required', 'string', 'max:64'],
+        ]);
+
+        $result = app(SimilarDomainBlockSuggestions::class)->applyToDomain($domain, $data['ips']);
+
+        return response()->json([
+            'ok' => true,
+            'message' => $result['applied'] > 0
+                ? "Applied {$result['applied']} similar-domain block(s) to {$domain->hostname}."
+                : 'Those IPs were already on the block list.',
+            ...$result,
+        ]);
     }
 
     public function list(Request $request): JsonResponse
@@ -180,6 +219,7 @@ class DomainManagementController extends Controller
         $currentCount = $user->domainsUsed();
         $added = [];
         $skipped = [];
+        $addedDomains = [];
 
         foreach ($data['hostnames'] as $raw) {
             if (! $user->canAddDomain()) {
@@ -212,9 +252,23 @@ class DomainManagementController extends Controller
 
             $currentCount++;
             $added[] = $hostname;
+            $addedDomains[] = $domain;
         }
 
-        return response()->json(compact('added', 'skipped'));
+        $similarity = null;
+        if (count($addedDomains) === 1) {
+            $similarity = app(SimilarDomainBlockSuggestions::class)->forHostname((string) $addedDomains[0]->hostname);
+        }
+
+        return response()->json([
+            'added' => $added,
+            'skipped' => $skipped,
+            'domains' => collect($addedDomains)->map(fn (Domain $d) => [
+                'id' => $d->id,
+                'hostname' => $d->hostname,
+            ])->values()->all(),
+            'similarity' => $similarity,
+        ]);
     }
 
     public function update(Request $request, Domain $domain): JsonResponse

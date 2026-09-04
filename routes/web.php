@@ -192,6 +192,8 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::delete('/paid-marketing/session-recording/{recording}', [PaidMarketingController::class, 'destroySessionRecording'])->name('paid-marketing.session-recording.destroy');
         Route::get('/domains', [DomainManagementController::class, 'index'])->name('domains.index');
         Route::post('/domains', [DomainManagementController::class, 'store'])->name('domains.store');
+        Route::get('/domains/similarity-suggestions', [DomainManagementController::class, 'similaritySuggestions'])->name('domains.similarity-suggestions');
+        Route::post('/domains/{domain}/apply-similarity-blocks', [DomainManagementController::class, 'applySimilarityBlocks'])->name('domains.apply-similarity-blocks');
         Route::put('/domains/{domain}', [DomainManagementController::class, 'update'])->name('domains.update');
         Route::delete('/domains/{domain}', [DomainManagementController::class, 'destroy'])->name('domains.destroy');
         Route::get('/domains/{domain}/setup', [DomainManagementController::class, 'setup'])->name('domains.setup');
@@ -321,6 +323,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/domains', [DomainManagementController::class, 'store']);
     Route::post('/domains/validate', [DomainManagementController::class, 'validateDomain']);
     Route::post('/domains/bulk-add', [DomainManagementController::class, 'bulkAdd']);
+    Route::get('/domains/similarity-suggestions', [DomainManagementController::class, 'similaritySuggestions']);
+    Route::post('/domains/{domain}/apply-similarity-blocks', [DomainManagementController::class, 'applySimilarityBlocks']);
     Route::put('/domains/{domain}', [DomainManagementController::class, 'update']);
     Route::delete('/domains/{domain}', [DomainManagementController::class, 'destroy']);
     Route::put('/domains/{domain}/status', [DomainManagementController::class, 'updateStatus']);

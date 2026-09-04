@@ -145,7 +145,11 @@
                     </button>
                 @endif
 
-                <button type="button" @click="createTeamOpen = true; inviteMode = 'invite'" class="figma-sa-users-invite-btn figma-sa-users-invite-btn--toolbar">
+                <button
+                    type="button"
+                    @click="{{ $tab === 'teams' ? 'createTeamOpen' : 'inviteOpen' }} = true; inviteMode = 'invite'"
+                    class="figma-sa-users-invite-btn figma-sa-users-invite-btn--toolbar"
+                >
                     <span class="figma-sa-users-invite-icon" aria-hidden="true">+</span>
                     @if ($tab === 'teams')
                         Add portal member

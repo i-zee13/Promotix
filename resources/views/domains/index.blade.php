@@ -269,6 +269,51 @@
         </div>
     </div>
 
+    {{-- Similar-domain block suggestions --}}
+    <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/70 p-[16px]" x-show="modal === 'similarity'" x-cloak x-transition @click.self="skipSimilarity()">
+        <div class="flex max-h-[min(88vh,720px)] w-full max-w-[640px] flex-col overflow-hidden rounded-[12px] bg-[var(--brand-primary,#FF6600)] text-white shadow-2xl" @click.stop>
+            <header class="border-b border-white/25 px-[22px] py-[16px]">
+                <h2 class="text-[18px] font-semibold">Similar-domain blocks</h2>
+                <p class="mt-[4px] text-[12px] text-white/90">
+                    We found related domains for <span class="font-semibold" x-text="similarity.hostname"></span>. Apply their blocked IPs to your new domain?
+                </p>
+            </header>
+            <div class="min-h-0 flex-1 space-y-[12px] overflow-y-auto px-[22px] py-[16px]">
+                <div class="rounded-[8px] border border-white/20 bg-black/20 px-[12px] py-[10px]">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-white/80">Related domains</p>
+                    <div class="mt-[8px] flex flex-wrap gap-[6px]">
+                        <template x-for="d in similarity.similar_domains" :key="d.id">
+                            <span class="rounded-full bg-white/15 px-[10px] py-[4px] text-[11px]" x-text="d.hostname + ' · ' + d.similarity + '% ' + d.similarity_label"></span>
+                        </template>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-[10px]">
+                    <p class="text-[12px] font-semibold" x-text="(similarity.suggested_ips || []).length + ' suggested blocked IP(s)'"></p>
+                    <button type="button" class="text-[11px] font-semibold underline" @click="toggleAllSimilarityIps()">Select all / none</button>
+                </div>
+                <div class="max-h-[280px] space-y-[6px] overflow-y-auto rounded-[8px] border border-white/15 bg-black/15 p-[8px]">
+                    <template x-for="row in similarity.suggested_ips" :key="row.ip">
+                        <label class="flex cursor-pointer items-start gap-[10px] rounded-[6px] border border-white/10 bg-black/20 px-[10px] py-[8px] hover:bg-black/30">
+                            <input type="checkbox" class="mt-[3px] rounded border-white/40" :value="row.ip" x-model="similarity.selected">
+                            <span class="min-w-0 flex-1">
+                                <span class="block font-mono text-[12px] font-semibold" x-text="row.ip"></span>
+                                <span class="mt-[2px] block text-[10px] text-white/75" x-text="'From: ' + (row.from_domains || []).join(', ')"></span>
+                            </span>
+                            <span class="shrink-0 text-[10px] text-white/60" x-text="(row.hits || 0) + ' hits'"></span>
+                        </label>
+                    </template>
+                </div>
+                <p class="text-[11px] text-white/80">Selected IPs go on this domain’s block list. If Google Ads is connected, they are also queued for Exclusion Manager.</p>
+            </div>
+            <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[22px] py-[14px]">
+                <button type="button" @click="skipSimilarity()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Skip</button>
+                <button type="button" @click="applySimilarity()" :disabled="similarity.busy || !similarity.selected.length" class="rounded-[6px] bg-white px-[18px] py-[8px] text-[13px] font-semibold text-[var(--brand-primary,#FF6600)] disabled:opacity-50">
+                    <span x-text="similarity.busy ? 'Applying…' : ('Apply ' + similarity.selected.length + ' IP(s)')"></span>
+                </button>
+            </footer>
+        </div>
+    </div>
+
     {{-- Edit domain modal --}}
     <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-[16px]" x-show="modal === 'edit'" x-cloak x-transition @click.self="modal = null">
         <div class="w-full max-w-[440px] overflow-hidden rounded-[10px] bg-[#d9d9d9] text-[#101010] shadow-2xl" @click.stop>
@@ -437,6 +482,14 @@ function siteManagementFigma() {
         addBusy: false,
         editBusy: false,
         addForm: { hostname: '' },
+        similarity: {
+            domainId: null,
+            hostname: '',
+            similar_domains: [],
+            suggested_ips: [],
+            selected: [],
+            busy: false,
+        },
         editForm: { id: null, hostname: '', paid_marketing_connected: false, bot_mitigation_connected: false },
         keysForm: { id: null, hostname: '' },
         keyRows: [],
@@ -685,6 +738,54 @@ function siteManagementFigma() {
             url.searchParams.delete('add');
             window.location.replace(url.pathname + url.search);
         },
+        openSimilarity(domain, payload) {
+            const sim = payload?.similarity || payload || {};
+            const ips = Array.isArray(sim.suggested_ips) ? sim.suggested_ips : [];
+            if (!domain?.id || !ips.length) {
+                this.redirectAfterDomainChange();
+                return;
+            }
+            this.similarity = {
+                domainId: domain.id,
+                hostname: domain.hostname || sim.hostname || '',
+                similar_domains: Array.isArray(sim.similar_domains) ? sim.similar_domains : [],
+                suggested_ips: ips,
+                selected: ips.map((r) => r.ip),
+                busy: false,
+            };
+            this.modal = 'similarity';
+        },
+        toggleAllSimilarityIps() {
+            const all = (this.similarity.suggested_ips || []).map((r) => r.ip);
+            this.similarity.selected = this.similarity.selected.length === all.length ? [] : all;
+        },
+        skipSimilarity() {
+            this.redirectAfterDomainChange();
+        },
+        async applySimilarity() {
+            if (!this.similarity.domainId || !this.similarity.selected.length || this.similarity.busy) return;
+            this.similarity.busy = true;
+            try {
+                const res = await fetch(`/domains/${this.similarity.domainId}/apply-similarity-blocks`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify({ ips: this.similarity.selected }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    alert(data.message || 'Could not apply similar-domain blocks.');
+                    return;
+                }
+                this.toast = data.message || 'Similar-domain blocks applied.';
+                this.redirectAfterDomainChange();
+            } finally {
+                this.similarity.busy = false;
+            }
+        },
         async submitAdd() {
             const lines = (this.addForm.hostname || '').split('\n').map(v => v.trim()).filter(Boolean);
             if (!lines.length) return;
@@ -700,30 +801,35 @@ function siteManagementFigma() {
                         },
                         body: JSON.stringify({ hostname: lines[0] }),
                     });
+                    const data = await res.json().catch(() => ({}));
                     if (!res.ok) {
-                        const err = await res.json().catch(() => ({}));
-                        alert(err.message || 'Could not add domain.');
+                        alert(data.message || 'Could not add domain.');
                         return;
                     }
-                } else {
-                    const res = await fetch('/domains/bulk-add', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': this.csrf,
-                            Accept: 'application/json',
-                        },
-                        body: JSON.stringify({ hostnames: lines }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok) {
-                        alert(data.message || 'Could not add domains.');
-                        return;
-                    }
-                    if (!(data.added || []).length && (data.skipped || []).length) {
-                        alert('No domains were added. Check duplicates or plan limit.');
-                        return;
-                    }
+                    this.openSimilarity(data.domain, data);
+                    return;
+                }
+                const res = await fetch('/domains/bulk-add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify({ hostnames: lines }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.message || 'Could not add domains.');
+                    return;
+                }
+                if (!(data.added || []).length && (data.skipped || []).length) {
+                    alert('No domains were added. Check duplicates or plan limit.');
+                    return;
+                }
+                if ((data.domains || []).length === 1 && data.similarity?.count > 0) {
+                    this.openSimilarity(data.domains[0], data);
+                    return;
                 }
                 this.redirectAfterDomainChange();
             } finally {

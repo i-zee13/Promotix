@@ -137,7 +137,7 @@
         </x-super-admin.dashboard-dropdown>
     </div>
 
-    <div class="figma-sa-subs-panel">
+    <div class="figma-sa-subs-panel figma-sa-traffic-table-panel">
         <div class="figma-sa-subs-table-scroll">
             <table class="figma-sa-subs-table">
                 <thead>
