@@ -1255,7 +1255,7 @@ function botProtectionFigma(config = {}) {
         countries: [],
         pageAnalytics: null,
         keywordHeadlineSource: 'ads',
-        perfActiveSeries: ['clicks', 'visitors', 'conversions'],
+        perfActiveSeries: ['clicks', 'visitors', 'conversions', 'valid'],
         perfMode: 'line',
         countryModal: { open: false, country: '', rows: [], loading: false },
         domainsList: [],

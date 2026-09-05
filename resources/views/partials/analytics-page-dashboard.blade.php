@@ -112,40 +112,60 @@
             gap: 10px;
             margin-bottom: 12px;
         }
-        .pa-dash .pa-perf__metrics { display: flex; flex-wrap: wrap; gap: 8px; }
-        .pa-dash .pa-perf__metric {
-            min-width: 118px;
+        .pa-dash .pa-perf__metrics {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0;
+            width: 100%;
             border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.10);
-            border-left: 3px solid rgba(255, 255, 255, 0.18);
-            background: rgba(255, 255, 255, 0.03);
-            padding: 10px 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .pa-dash .pa-perf__metric {
+            min-width: 0;
+            border: 0;
+            border-radius: 0;
+            border-right: 1px solid rgba(0, 0, 0, 0.12);
+            background: #2a2a2a;
+            padding: 12px 14px 14px;
             text-align: left;
             cursor: pointer;
-            color: rgba(255, 255, 255, 0.55);
-            transition: border-color .15s ease, background .15s ease, color .15s ease;
+            color: #fff;
+            transition: filter .15s ease, opacity .15s ease;
+            opacity: 0.55;
         }
-        .pa-dash .pa-perf__metric.is-active {
-            color: rgba(255, 255, 255, 0.92);
-            background: rgba(255, 255, 255, 0.06);
-            border-left-color: currentColor;
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+        .pa-dash .pa-perf__metric:last-child { border-right: 0; }
+        .pa-dash .pa-perf__metric.is-active { opacity: 1; filter: none; }
+        .pa-dash .pa-perf__metric.is-scheme-blue { background: #4285F4; color: #fff; }
+        .pa-dash .pa-perf__metric.is-scheme-red { background: #EA4335; color: #fff; }
+        .pa-dash .pa-perf__metric.is-scheme-orange { background: #FF6600; color: #fff; }
+        .pa-dash .pa-perf__metric.is-scheme-white {
+            background: #fff;
+            color: #1f1f1f;
         }
+        .pa-dash .pa-perf__metric.is-scheme-white .pa-perf__metric-value { color: #111; }
+        .pa-dash .pa-perf__metric.is-scheme-white .pa-perf__metric-label { color: rgba(0,0,0,0.55); }
         .pa-dash .pa-perf__metric-label {
             display: block;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 600;
-            letter-spacing: 0.02em;
-            text-transform: uppercase;
-            opacity: 0.7;
+            letter-spacing: 0.01em;
+            opacity: 0.92;
+            text-transform: none;
         }
         .pa-dash .pa-perf__metric-value {
             display: block;
-            margin-top: 4px;
-            font-size: 20px;
+            margin-top: 8px;
+            font-size: 26px;
             font-weight: 700;
-            color: #fff;
+            color: inherit;
             letter-spacing: -0.02em;
+            line-height: 1;
+        }
+        @media (max-width: 900px) {
+            .pa-dash .pa-perf__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .pa-dash .pa-perf__metric:nth-child(2n) { border-right: 0; }
+            .pa-dash .pa-perf__metric:nth-child(-n+2) { border-bottom: 1px solid rgba(0,0,0,0.12); }
         }
         .pa-dash .pa-perf__right { display: inline-flex; align-items: center; gap: 8px; }
         .pa-dash .pa-perf__select {
@@ -1048,8 +1068,13 @@
                     <button
                         type="button"
                         class="pa-perf__metric"
-                        :class="isPerfSeriesActive(series.key) ? 'is-active' : ''"
-                        :style="isPerfSeriesActive(series.key) ? `color:${series.color}` : ''"
+                        :class="{
+                            'is-active': isPerfSeriesActive(series.key),
+                            'is-scheme-blue': series.scheme === 'blue',
+                            'is-scheme-red': series.scheme === 'red',
+                            'is-scheme-orange': series.scheme === 'orange',
+                            'is-scheme-white': series.scheme === 'white',
+                        }"
                         @click="togglePerfSeries(series.key)"
                     >
                         <span class="pa-perf__metric-label" x-text="series.label"></span>

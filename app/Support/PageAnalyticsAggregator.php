@@ -337,6 +337,50 @@ class PageAnalyticsAggregator
         $formFills = (int) ($recordingStats['forms'] ?? 0);
         $carts = (int) ($recordingStats['carts'] ?? 0);
         $checkouts = (int) ($recordingStats['checkouts'] ?? 0);
+
+        // Align funnel with journey: count sessions that hit CTA/form-like paths when
+        // session-recording events are missing (common when tag fires pageviews only).
+        $ctaFormSessions = 0;
+        $formPathSessions = 0;
+        $ctaPathSessions = 0;
+        foreach ($sessions as $session) {
+            $hitForm = false;
+            $hitCta = false;
+            foreach ($session['pages'] ?? [] as $pagePath) {
+                $path = (string) $pagePath;
+                if ($this->looksLikeCtaOrFormPath($path)) {
+                    if (preg_match('#(form|contact|enquiry|inquiry|register|signup|sign-up|subscribe|apply|quote)#i', $path)) {
+                        $hitForm = true;
+                    } else {
+                        $hitCta = true;
+                    }
+                }
+                if ($this->looksLikeConversionPath($path)) {
+                    $hitCta = true;
+                }
+            }
+            if ($hitForm || $hitCta) {
+                $ctaFormSessions++;
+            }
+            if ($hitForm) {
+                $formPathSessions++;
+            }
+            if ($hitCta) {
+                $ctaPathSessions++;
+            }
+        }
+        if ($formFills === 0 && $formPathSessions > 0) {
+            $formFills = $formPathSessions;
+        }
+        if ($ctaClicks === 0 && $ctaPathSessions > 0) {
+            $ctaClicks = $ctaPathSessions;
+        }
+        if ($formFills === 0 && $ctaClicks === 0 && $ctaFormSessions > 0) {
+            // Split ambiguous CTA/form path hits evenly so funnel isn't empty while journey shows activity.
+            $formFills = (int) ceil($ctaFormSessions / 2);
+            $ctaClicks = (int) floor($ctaFormSessions / 2);
+        }
+
         // Total Conversions = every conversion-funnel action (call, CTA, form, cart, checkout, purchase).
         $totalConversions = $telClicks + $ctaClicks + $formFills + $carts + $checkouts + $purchases;
 
@@ -758,11 +802,11 @@ class PageAnalyticsAggregator
         }
 
         return [
-            ['key' => 'clicks', 'label' => 'Clicks', 'color' => '#3B82F6', 'total' => array_sum($clicks), 'points' => $clicks, 'labels' => $labels],
-            ['key' => 'visitors', 'label' => 'Visitors', 'color' => '#F43F5E', 'total' => array_sum($visitors), 'points' => $visitors, 'labels' => $labels],
-            ['key' => 'conversions', 'label' => 'Conversions', 'color' => '#22C55E', 'total' => array_sum($conversions), 'points' => $conversions, 'labels' => $labels],
-            ['key' => 'valid', 'label' => 'Valid Users', 'color' => '#FF6600', 'total' => array_sum($valid), 'points' => $valid, 'labels' => $labels],
-            ['key' => 'paid', 'label' => 'Paid Visits', 'color' => '#A855F7', 'total' => array_sum($paid), 'points' => $paid, 'labels' => $labels],
+            ['key' => 'clicks', 'label' => 'Clicks', 'color' => '#4285F4', 'scheme' => 'blue', 'total' => array_sum($clicks), 'points' => $clicks, 'labels' => $labels],
+            ['key' => 'visitors', 'label' => 'Visitors', 'color' => '#EA4335', 'scheme' => 'red', 'total' => array_sum($visitors), 'points' => $visitors, 'labels' => $labels],
+            ['key' => 'conversions', 'label' => 'Conversions', 'color' => '#FF6600', 'scheme' => 'orange', 'total' => array_sum($conversions), 'points' => $conversions, 'labels' => $labels],
+            // White card in UI; chart stroke stays light-gray so it remains visible on dark canvas.
+            ['key' => 'valid', 'label' => 'Valid Users', 'color' => '#CBD5E1', 'scheme' => 'white', 'total' => array_sum($valid), 'points' => $valid, 'labels' => $labels],
         ];
     }
 
@@ -1160,9 +1204,19 @@ class PageAnalyticsAggregator
                 $steps['Product / Content']['count']++;
                 $steps['Product / Content']['secs'][] = $dwellAt(2);
             }
-            if ($count >= 4) {
+
+            // CTA / Form = sessions that actually hit a form/CTA-like page (not "4th page" heuristic).
+            $ctaIdx = null;
+            foreach ($events as $idx => $ev) {
+                $path = (string) ($ev['path'] ?? '');
+                if ($this->looksLikeCtaOrFormPath($path) || $this->looksLikeConversionPath($path)) {
+                    $ctaIdx = (int) $idx;
+                    break;
+                }
+            }
+            if ($ctaIdx !== null) {
                 $steps['CTA / Form']['count']++;
-                $steps['CTA / Form']['secs'][] = $dwellAt(min(3, $count - 1));
+                $steps['CTA / Form']['secs'][] = $dwellAt($ctaIdx);
             }
 
             $exitIdx = $count - 1;
@@ -1499,6 +1553,20 @@ class PageAnalyticsAggregator
         $p = strtolower($path);
 
         return (bool) preg_match('#(thank|thanks|success|order|purchase|checkout/complete|confirmation|receipt)#', $p);
+    }
+
+    /** Paths that imply a form / CTA / lead step (used by journey + funnel). */
+    private function looksLikeCtaOrFormPath(string $path): bool
+    {
+        $p = strtolower(trim($path));
+        if ($p === '' || $p === '/') {
+            return false;
+        }
+
+        return (bool) preg_match(
+            '#(contact|form|quote|demo|signup|sign-up|register|apply|book|booking|call|lead|enquiry|inquiry|cta|get-started|get_started|request|subscribe|trial|checkout|cart|insurance-quote|auto-insurance)#',
+            $p
+        );
     }
 
     private function parseInstant(mixed $value): ?Carbon
