@@ -1,7 +1,8 @@
 {{-- Spec Image 2: Connect Google Ads account --}}
 <template x-teleport="body">
 <div
-    class="pi-spec-modal-root fixed inset-0 z-[9999] flex items-center justify-center p-[16px]"
+    class="pi-spec-modal-root flex items-center justify-center p-[16px]"
+    style="position:fixed;inset:0;z-index:2147483000;"
     x-show="connectGoogleModal.open"
     x-cloak
     role="dialog"

@@ -239,14 +239,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 overflow: hidden !important;
             }
             .pi-spec-modal-root {
+                position: fixed !important;
+                inset: 0 !important;
+                z-index: 2147483000 !important;
                 isolation: isolate;
             }
             .pi-spec-modal-backdrop {
-                background: rgba(0, 0, 0, 0.82) !important;
+                background: rgba(0, 0, 0, 0.88) !important;
             }
             .pi-spec-modal-panel {
                 background: #121212 !important;
                 color: #fff !important;
+                position: relative;
+                z-index: 1;
+            }
+            /* While modal is open, kill any competing stacking from page widgets */
+            html.pi-spec-modal-open .pi-setup-card,
+            html.pi-spec-modal-open .pi-platforms-card,
+            html.pi-spec-modal-open .pi-first-row,
+            html.pi-spec-modal-open .pi-first-row--spec,
+            html.pi-spec-modal-open .bp-adv-page-head,
+            html.pi-spec-modal-open .pi-setup-step,
+            html.pi-spec-modal-open .pi-setup-track {
+                z-index: 0 !important;
+                pointer-events: none !important;
+            }
+            html.pi-spec-modal-open .pi-setup-card {
+                visibility: hidden !important;
+            }
+            html.pi-spec-modal-open .figma-main {
+                z-index: 0 !important;
             }
             .pi-first-row {
                 display: grid;
@@ -431,6 +453,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 border: 1px solid var(--brand-secondary);
                 background: #0d0d0d;
                 padding: 18px 18px 16px;
+                position: relative;
+                z-index: 0;
+                isolation: isolate;
             }
             .pi-platforms-card {
                 background: #ffffff;
@@ -447,6 +472,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 grid-template-columns: repeat(6, minmax(0, 1fr));
                 gap: 8px;
                 position: relative;
+                /* Keep step z-index inside this card — never above page modals */
+                isolation: isolate;
+                z-index: 0;
             }
             .pi-setup-track__fill {
                 position: absolute;
