@@ -1,0 +1,20 @@
+> vite build
+
+vite v6.4.1 building for production...
+transforming (1) resources/js/app.jsBrowserslist: browsers data (can
+transforming (1) resources/js/app.jsBrowserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/up
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 62 modules transformed.
+public/build/manifest.json              0.27 kB │ gzip:   0.15 kB
+public/build/assets/app-BLsY2K-R.css  433.72 kB │ gzip:  66.23 kB
+public/build/assets/app-C7a-aJLq.js   912.43 kB │ gzip: 273.88 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: h
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manua- Adjust chunk size limit for this warning via build.chunkSizeWarnin
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 4.52s[A[A[A[B[B[B[B[A[B[Bcls
+clear
