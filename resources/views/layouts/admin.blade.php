@@ -214,23 +214,23 @@
             @endif
 
             <div class="relative" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
-                <div class="flex h-[27px] max-w-[60vw] items-center overflow-hidden rounded-[3px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] text-white sm:max-w-none">
+                <div class="figma-header-userchip flex h-[34px] max-w-[60vw] items-center overflow-hidden rounded-[4px] border border-[#6400B2] bg-[#0D0D0D] text-[13px] text-white sm:max-w-none">
                     @if ($user?->canInviteTeamMembers())
                         <button
                             type="button"
                             @click="window.dispatchEvent(new CustomEvent('open-portal-team-invite'))"
-                            class="flex h-full w-[30px] shrink-0 items-center justify-center overflow-hidden border-r border-[#6400B2] bg-white/10 hover:bg-white/20"
+                            class="figma-header-avatar flex h-full w-[36px] shrink-0 items-center justify-center overflow-hidden border-r border-[#6400B2] bg-white/10 hover:bg-white/20"
                             title="Invite teammate"
                             aria-label="Invite teammate"
                         >
                             @include('partials.user-avatar', ['avatarUser' => $user])
                         </button>
                     @else
-                        <span class="flex h-full w-[30px] shrink-0 items-center justify-center overflow-hidden border-r border-[#6400B2] bg-white/10">
+                        <span class="figma-header-avatar flex h-full w-[36px] shrink-0 items-center justify-center overflow-hidden border-r border-[#6400B2] bg-white/10">
                             @include('partials.user-avatar', ['avatarUser' => $user])
                         </span>
                     @endif
-                    <button type="button" @click="userMenuOpen = ! userMenuOpen" class="truncate px-[9px] text-left sm:px-[14px]">{{ $user?->name ?: ($user?->email ?? 'User') }}</button>
+                    <button type="button" @click="userMenuOpen = ! userMenuOpen" class="truncate px-[12px] text-left sm:px-[16px]">{{ $user?->name ?: ($user?->email ?? 'User') }}</button>
                 </div>
 
                 <div x-show="userMenuOpen" x-cloak class="figma-user-menu absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#6400B2]/60 bg-[#111111] py-1 shadow-card-lg">
