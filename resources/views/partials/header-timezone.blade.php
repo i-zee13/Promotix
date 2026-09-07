@@ -7,7 +7,7 @@
     <a
         href="{{ route('profile.edit') }}#timezone-settings"
         id="header-timezone"
-        class="figma-header-timezone hidden h-[34px] shrink-0 items-center gap-[8px] rounded-[4px] border border-[#6400B2] bg-[#0D0D0D] px-[11px] text-[12px] text-white/85 hover:border-[#7B13C8] hover:text-white sm:inline-flex"
+        class="figma-header-timezone hidden h-[34px] shrink-0 items-center gap-[8px] rounded-[4px] border border-[#6400B2] bg-[#0D0D0D] px-[11px] text-[12px] leading-none text-white/85 hover:border-[#7B13C8] hover:text-white sm:inline-flex"
         title="{{ \App\Support\UserTimezone::headerTitle($headerUser) }}"
         data-timezone="{{ $headerTzId }}"
     >

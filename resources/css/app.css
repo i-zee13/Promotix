@@ -4615,41 +4615,67 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-header .figma-portal-switch {
+    display: inline-flex;
+    align-items: stretch;
+    height: 34px;
     font-size: 13px;
+    line-height: 1;
     border-radius: 7px;
 }
 
 .figma-header .figma-portal-switch a {
-    padding: 9px 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 14px;
+    line-height: 1;
+    box-sizing: border-box;
 }
 
 .figma-header .figma-header-timezone {
+    display: inline-flex;
+    align-items: center;
     height: 34px;
     gap: 8px;
-    padding-left: 11px;
-    padding-right: 11px;
+    padding: 0 11px;
     font-size: 12px;
+    line-height: 1;
     border-radius: 4px;
+    box-sizing: border-box;
 }
 
 .figma-header .figma-header-timezone svg {
     width: 16px;
     height: 16px;
+    display: block;
+    flex-shrink: 0;
 }
 
 .figma-header .figma-header-userchip {
+    display: flex;
+    align-items: center;
     height: 34px;
     font-size: 13px;
+    line-height: 1;
     border-radius: 4px;
+    box-sizing: border-box;
 }
 
 .figma-header .figma-header-userchip .figma-header-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 36px;
+    height: 100%;
 }
 
 .figma-header .figma-header-userchip button.truncate {
-    padding-left: 12px;
-    padding-right: 16px;
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 16px;
+    line-height: 1;
 }
 
 /* Shared customer-portal canvas: typography, page inset, legacy token harmonization */
