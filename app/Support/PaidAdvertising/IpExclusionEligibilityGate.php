@@ -6,8 +6,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Google IP exclusion eligibility gate (Manual flowchart end).
- * Identity block can happen without this; platform IP push must pass safety checks.
+ * Google IP exclusion eligibility gate (advisory / reporting).
+ * Exclusion Manager auto-queue uses GoogleAudienceExclusionService rules instead;
+ * this gate still surfaces suppression reasons in visit payloads when useful.
  *
  * Meta / Microsoft excluded from product scope for now.
  */

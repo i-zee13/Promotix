@@ -775,17 +775,21 @@ class TrackingController extends Controller
             $detection['action_taken'] === 'block'
             && ! $protection->isAllowListed($domain, $ip)
             && $isPaidTraffic
-            && $ipExclusionEligible
         ) {
-            app(GoogleAudienceExclusionService::class)->queueBlockedIpIfEligible(
+            // Exclusion Manager On → queue for Google Ads IP lists.
+            // Safety-gate eligibility is advisory; manager rules decide auto-queue.
+            $queued = app(GoogleAudienceExclusionService::class)->queueBlockedIpIfEligible(
                 $domain,
                 $ip,
                 $detection['threat_group'] ?? null,
                 isPaidTraffic: true,
             );
-        } elseif ($isPaidTraffic && ($detection['action_taken'] ?? '') === 'block' && ! $ipExclusionEligible) {
-            // Identity may still be blocked on-site; Google IP exclusion suppressed by safety gate.
-            $detection['ip_exclusion_status'] = $detection['ip_exclusion_status'] ?? 'suppressed';
+            if ($queued) {
+                $detection['ip_exclusion_status'] = 'queued';
+                $detection['ip_exclusion_eligible'] = true;
+            } elseif (! $ipExclusionEligible) {
+                $detection['ip_exclusion_status'] = $detection['ip_exclusion_status'] ?? 'suppressed';
+            }
         }
 
         $clientPayload = $protection->clientPayload(

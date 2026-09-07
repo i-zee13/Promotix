@@ -4624,25 +4624,26 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-header .figma-portal-switch a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 0 14px;
-    line-height: 1;
-    box-sizing: border-box;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 100% !important;
+    padding: 0 14px !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+    box-sizing: border-box !important;
 }
 
 .figma-header .figma-header-timezone {
-    display: inline-flex;
-    align-items: center;
-    height: 34px;
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 34px !important;
     gap: 8px;
-    padding: 0 11px;
+    padding: 0 11px !important;
     font-size: 12px;
-    line-height: 1;
+    line-height: 1 !important;
     border-radius: 4px;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
 }
 
 .figma-header .figma-header-timezone svg {
@@ -4653,29 +4654,32 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-header .figma-header-userchip {
-    display: flex;
-    align-items: center;
-    height: 34px;
+    display: flex !important;
+    align-items: center !important;
+    height: 34px !important;
     font-size: 13px;
-    line-height: 1;
+    line-height: 1 !important;
     border-radius: 4px;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
 }
 
 .figma-header .figma-header-userchip .figma-header-avatar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     width: 36px;
-    height: 100%;
+    height: 100% !important;
+    padding: 0 !important;
 }
 
-.figma-header .figma-header-userchip button.truncate {
-    display: inline-flex;
-    align-items: center;
-    height: 100%;
-    padding: 0 16px;
-    line-height: 1;
+.figma-header .figma-header-userchip button.truncate,
+.figma-header .figma-header-userchip > button {
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 100% !important;
+    padding: 0 16px !important;
+    margin: 0 !important;
+    line-height: 1 !important;
 }
 
 /* Shared customer-portal canvas: typography, page inset, legacy token harmonization */
@@ -7997,15 +8001,24 @@ html.light-mode .figma-geo-combobox-label {
 }
 
 .figma-rightbar-icon-btn {
-    display: flex;
-    height: 31px;
+    display: inline-flex !important;
+    height: 32px;
     width: 32px;
-    align-items: center;
-    justify-content: center;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 0;
+    line-height: 0 !important;
     border-radius: 3px;
     background: var(--brand-primary, #FF6600);
     color: #fff;
     transition: background 0.15s ease;
+    box-sizing: border-box;
+}
+
+.figma-rightbar-icon-btn svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .figma-rightbar-icon-btn:hover {

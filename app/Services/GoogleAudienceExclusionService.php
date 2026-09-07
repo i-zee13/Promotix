@@ -101,7 +101,9 @@ class GoogleAudienceExclusionService
         }
 
         $payload = [
-            'threat_group' => $threatGroup,
+            'threat_group' => $threatGroup !== null && trim((string) $threatGroup) !== ''
+                ? $threatGroup
+                : 'blocked',
             'exclusion_mode' => $settings->audience_exclusion_event,
             'sync_status' => 'pending',
             'sync_error' => null,
@@ -117,7 +119,116 @@ class GoogleAudienceExclusionService
             $payload
         );
 
-        SyncGoogleAdsIpExclusionJob::dispatch($domain->id, $ip);
+        $domainId = (int) $domain->id;
+        $queuedIp = $ip;
+
+        // Keep unit tests deterministic (row stays pending; job can be Bus::fake'd).
+        if (app()->environment('testing')) {
+            SyncGoogleAdsIpExclusionJob::dispatch($domainId, $queuedIp);
+
+            return;
+        }
+
+        // Push to Google after the HTTP response so Exclusion Manager "auto" works
+        // without a queue worker. Job is a retry fallback if the push fails.
+        dispatch(function () use ($domainId, $queuedIp): void {
+            $domain = Domain::query()->find($domainId);
+            if (! $domain) {
+                return;
+            }
+
+            $ok = false;
+            try {
+                $ok = app(GoogleAdsIpExclusionSyncService::class)->syncRow($domain, $queuedIp);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Immediate Google Ads IP exclusion sync failed', [
+                    'domain_id' => $domainId,
+                    'ip' => $queuedIp,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            if (! $ok) {
+                SyncGoogleAdsIpExclusionJob::dispatch($domainId, $queuedIp);
+            }
+        })->afterResponse();
+    }
+
+    /**
+     * Queue recent blocked/invalid paid IPs for this domain into Exclusion Manager,
+     * then they can be pushed to Google Ads campaign IP lists (max 500 / campaign).
+     */
+    public function queueRecentInvalidIpsForDomain(Domain $domain, int $limit = 50): int
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('visits') || ! $domain->hasGoogleAdsConnection()) {
+            return 0;
+        }
+
+        $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        if (! $settings) {
+            return 0;
+        }
+
+        $rules = $this->normalizedRules($settings);
+        if (! ($rules['enabled'] ?? true)) {
+            return 0;
+        }
+
+        $query = \Illuminate\Support\Facades\DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->where('visited_at', '>=', now()->subDays(14))
+            ->whereNotNull('ip')
+            ->where('ip', '!=', '')
+            ->orderByDesc('visited_at')
+            ->limit(max(1, min(200, $limit * 4)));
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('visits', 'is_paid_traffic')) {
+            $query->where('is_paid_traffic', true);
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('visits', 'action_taken')) {
+            $query->where('action_taken', 'block');
+        } elseif (\Illuminate\Support\Facades\Schema::hasColumn('visits', 'is_invalid_traffic')) {
+            $query->where('is_invalid_traffic', true);
+        }
+
+        $queued = 0;
+        $seen = [];
+        foreach ($query->get(['ip', 'threat_group']) as $row) {
+            $ip = trim((string) ($row->ip ?? ''));
+            if ($ip === '' || isset($seen[$ip])) {
+                continue;
+            }
+            $seen[$ip] = true;
+
+            $threat = (string) ($row->threat_group ?? 'blocked');
+            if ($threat === '') {
+                $threat = 'blocked';
+            }
+            if (! $this->shouldQueue($threat, 'block', $settings)) {
+                continue;
+            }
+
+            $this->queueIp($domain, $ip, $threat, $settings);
+            $queued++;
+
+            if ($queued >= $limit) {
+                break;
+            }
+        }
+
+        return $queued;
+    }
+
+    public function isManagerEnabled(?DomainDetectionSetting $settings): bool
+    {
+        if (! $settings) {
+            return true;
+        }
+
+        $rules = $this->normalizedRules($settings);
+
+        return (bool) ($rules['enabled'] ?? true);
     }
 
     /** @param  array<string, bool>  $rules */
@@ -179,11 +290,8 @@ class GoogleAudienceExclusionService
             return false;
         }
 
-        if ($group === 'cross_domain') {
-            return true;
-        }
-
-        return $group !== '';
+        // Empty / null threat_group still means a detection-driven queue row.
+        return true;
     }
 
     public static function threatGroupLabel(?string $threatGroup): string

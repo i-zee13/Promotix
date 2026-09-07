@@ -4105,17 +4105,120 @@ class PaidMarketingController extends Controller
             return response()->json(['ok' => false, 'message' => 'Exclusion table not available.'], 503);
         }
 
+        $exclusionService = app(GoogleAudienceExclusionService::class);
+        $settings = DomainDetectionSetting::query()->where('domain_id', $domain->id)->first();
+        if (! $exclusionService->isManagerEnabled($settings)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Exclusion Manager is Off. Turn it On, then Push again.',
+                'rows' => $this->googleExclusionRowsForDomain($domain->id),
+            ], 422);
+        }
+
+        if (! $domain->hasGoogleAdsConnection()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Connect Google Ads for this domain first.',
+                'rows' => [],
+            ], 422);
+        }
+
+        // Refresh queue from recent invalid/blocked paid visits, then push pending.
+        $freshQueued = $exclusionService->queueRecentInvalidIpsForDomain($domain, 40);
         $limit = min(200, max(1, (int) $request->input('limit', 100)));
         $synced = $sync->syncPendingForDomain($domain, $limit);
 
+        $parts = [];
+        if ($freshQueued > 0) {
+            $parts[] = "Queued {$freshQueued} recent invalid IP(s)";
+        }
+        $parts[] = $synced > 0
+            ? "pushed {$synced} IP(s) to Google Ads campaign exclusions"
+            : 'no pending IPs pushed (check Search/Display campaigns + Google permissions)';
+
+        return response()->json([
+            'ok' => $synced > 0 || $freshQueued > 0,
+            'message' => ucfirst(implode('; ', $parts)).'.',
+            'synced' => $synced,
+            'queued' => $freshQueued,
+            'rows' => $this->googleExclusionRowsForDomain($domain->id),
+        ], ($synced > 0 || $freshQueued > 0) ? 200 : 422);
+    }
+
+    public function setGoogleExclusionManagerEnabled(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        $enabled = $request->boolean('enabled');
+        $settings = DomainDetectionSetting::query()->firstOrCreate(
+            ['domain_id' => $domain->id],
+            []
+        );
+
+        $exclusionService = app(GoogleAudienceExclusionService::class);
+        $rules = array_merge(
+            $exclusionService->defaultRules(),
+            is_array($settings->google_exclusion_rules) ? $settings->google_exclusion_rules : []
+        );
+        $rules['enabled'] = $enabled;
+        $settings->google_exclusion_rules = $rules;
+        $settings->save();
+
+        $synced = 0;
+        $queued = 0;
+        if ($enabled && $domain->hasGoogleAdsConnection()) {
+            $queued = $exclusionService->queueRecentInvalidIpsForDomain($domain, 40);
+            $synced = $sync->syncPendingForDomain($domain, 100);
+        }
+
         return response()->json([
             'ok' => true,
-            'message' => $synced > 0
-                ? "Pushed {$synced} IP(s) to Google Ads campaign exclusions."
-                : 'No pending IPs to push (or all pushes failed — see list below).',
+            'enabled' => $enabled,
+            'queued' => $queued,
             'synced' => $synced,
+            'message' => $enabled
+                ? ($synced > 0
+                    ? "Exclusion Manager On — pushed {$synced} IP(s) to Google Ads."
+                    : ($queued > 0
+                        ? "Exclusion Manager On — queued {$queued} IP(s). Push if status still Pending."
+                        : 'Exclusion Manager On. New blocked paid IPs will queue for Google Ads.'))
+                : 'Exclusion Manager Off — new IPs will not auto-queue.',
             'rows' => $this->googleExclusionRowsForDomain($domain->id),
         ]);
+    }
+
+    /**
+     * Legacy URL: Apply audience exclusion to campaigns (not IP push).
+     * Prefer integrations.google.apply-audience.
+     */
+    public function applyAudienceAndPushInvalidIps(Request $request, Domain $domain, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        $campaignIds = $request->input('campaign_ids', []);
+        if (! is_array($campaignIds) || $campaignIds === []) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Select at least one campaign to attach the audience exclusion.',
+            ], 422);
+        }
+
+        $result = $associations->applyToCampaigns(
+            $domain,
+            $campaignIds,
+            (string) $request->input('audience_name', 'Clickronix - Confirmed Invalid Traffic v1'),
+            $request->input('user_list_id'),
+            (string) $request->input('event_name', \App\Services\AudienceSignalService::DEFAULT_EVENT),
+        );
+
+        return response()->json([
+            'ok' => $result['ok'],
+            'message' => $result['message'],
+            'attached' => $result['attached'],
+            'failed' => $result['failed'],
+            'stored' => $result['stored'],
+            'campaign_ids' => $campaignIds,
+        ], $result['ok'] ? 200 : 422);
     }
 
     /** @return list<array<string, mixed>> */

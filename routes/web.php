@@ -231,6 +231,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::delete('/integrations/mappings/{mapping}', [IntegrationsController::class, 'destroyMapping'])->name('integrations.destroy-mapping');
         Route::get('/integrations/google-ads/campaign-metrics', [IntegrationsController::class, 'campaignMetricsForHost'])->name('integrations.google.campaign-metrics');
         Route::get('/integrations/google-ads/audience-campaigns', [IntegrationsController::class, 'audienceCampaigns'])->name('integrations.google.audience-campaigns');
+        Route::post('/integrations/google-ads/apply-audience', [IntegrationsController::class, 'applyAudienceExclusion'])->name('integrations.google.apply-audience');
         Route::get('/domains/{domain}/google-ads/pick-accounts', [IntegrationsController::class, 'pickAccountsJson'])->name('domains.google.pick-accounts');
         Route::post('/domains/{domain}/google-ads/link', [IntegrationsController::class, 'linkDomainPaidAccount'])->name('domains.google.link-account');
         Route::get('/paid-marketing/dashboard', [PaidAdvertisingDashboardController::class, 'index'])->name('paid-marketing.dashboard');
@@ -239,6 +240,8 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/toggle-row', [PaidMarketingController::class, 'toggleGoogleExclusionRow'])->name('paid-marketing.detection-settings.google-exclusion.toggle-row');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/push-bulk', [PaidMarketingController::class, 'pushGoogleExclusionBulk'])->name('paid-marketing.detection-settings.google-exclusion.push-bulk');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/sync', [PaidMarketingController::class, 'syncGoogleExclusionIps'])->name('paid-marketing.detection-settings.google-exclusion.sync');
+        Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/manager-enabled', [PaidMarketingController::class, 'setGoogleExclusionManagerEnabled'])->name('paid-marketing.detection-settings.google-exclusion.manager-enabled');
+        Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/apply-audience', [PaidMarketingController::class, 'applyAudienceAndPushInvalidIps'])->name('paid-marketing.detection-settings.google-exclusion.apply-audience');
         Route::get('/paid-marketing/detection-settings', [PaidMarketingController::class, 'detectionSettings'])->name('paid-marketing.detection-settings');
         Route::post('/paid-marketing/detection-settings/{domain}', [PaidMarketingController::class, 'updateDetectionSettings'])->name('paid-marketing.detection-settings.update');
         Route::get('/paid-marketing/geo/countries', [PaidMarketingController::class, 'geoCountries'])->name('paid-marketing.geo.countries');

@@ -61,10 +61,11 @@ class GoogleAudienceExclusionGateTest extends TestCase
         $this->assertTrue(GoogleAudienceExclusionService::isExclusionManagerRow('vpn'));
         $this->assertTrue(GoogleAudienceExclusionService::isExclusionManagerRow('cross_domain'));
         $this->assertTrue(GoogleAudienceExclusionService::isExclusionManagerRow('abnormal_rate_limit'));
+        $this->assertTrue(GoogleAudienceExclusionService::isExclusionManagerRow(''));
+        $this->assertTrue(GoogleAudienceExclusionService::isExclusionManagerRow(null));
         $this->assertFalse(GoogleAudienceExclusionService::isExclusionManagerRow('manual'));
         $this->assertFalse(GoogleAudienceExclusionService::isExclusionManagerRow('manual_bulk'));
         $this->assertFalse(GoogleAudienceExclusionService::isExclusionManagerRow('vpn', 'manual_bulk'));
-        $this->assertFalse(GoogleAudienceExclusionService::isExclusionManagerRow(''));
     }
 
     public function test_queue_ip_stores_normalized_cidr_form(): void

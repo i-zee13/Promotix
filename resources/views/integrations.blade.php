@@ -174,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'google_tag_id' => $a->resolvedGoogleTagId() ?: $a->google_tag_id,
         ])->values(),
         'audienceCampaignsUrl' => route('integrations.google.audience-campaigns'),
+        'applyAudienceUrl' => route('integrations.google.apply-audience'),
     ]))"
     @platform-menu.window="handlePlatformMenu($event.detail)"
 >
@@ -1561,6 +1562,8 @@ function platformIntegrations(config) {
             preserve: true,
             sourceLinked: true,
             campaignsUrl: config.audienceCampaignsUrl || '',
+            applyUrl: config.applyAudienceUrl || '',
+            userListId: '',
             campaigns: [],
         },
         pixelGuardModal: {
@@ -2159,16 +2162,57 @@ function platformIntegrations(config) {
                 this.applyAudienceModal.loading = false;
             }
         },
-        applyEligibleAudienceExclusion() {
+        async applyEligibleAudienceExclusion() {
             if (this.applyAudienceSelectedCount < 1) {
                 this.showMenuToast('Select at least one eligible campaign.', 'info');
                 return;
             }
-            (this.applyAudienceModal.campaigns || []).forEach((c) => {
-                if (c.selected && c.canSelect) c.state = 'Attached (pending read-back)';
-            });
-            this.showMenuToast('Exclusion queued. Applied only after Google Ads API read-back.', 'success');
-            this.closeApplyAudienceModal();
+            const selected = (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect);
+            selected.forEach((c) => { c.state = 'Attaching…'; });
+
+            let domainId = this.selectedDomainId || '';
+            if (!domainId && (this.trackingIds || []).length) {
+                domainId = this.trackingIds[0].domain_id || '';
+            }
+            if (!domainId || !this.applyAudienceModal.applyUrl) {
+                this.showMenuToast('Select a domain first, then apply the audience to campaigns.', 'info');
+                return;
+            }
+
+            try {
+                const res = await fetch(this.applyAudienceModal.applyUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf || document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        domain_id: Number(domainId),
+                        campaign_ids: selected.map((c) => String(c.id)),
+                        audience_name: this.applyAudienceModal.audienceName || this.createAudienceModal.name,
+                        user_list_id: this.applyAudienceModal.userListId || null,
+                        event_name: 'clickronix_invalid_traffic',
+                    }),
+                });
+                const data = await res.json().catch(() => ({}));
+                const attached = new Set((data.attached || []).map(String));
+                selected.forEach((c) => {
+                    c.state = attached.has(String(c.id))
+                        ? 'Attached'
+                        : (data.ok ? 'Queued (awaiting user list / read-back)' : 'Failed');
+                });
+                this.showMenuToast(data.message || (data.ok
+                    ? 'Audience exclusion applied / queued for selected campaigns.'
+                    : 'Could not apply audience exclusion.'), data.ok ? 'success' : 'error');
+                if (data.ok) {
+                    this.closeApplyAudienceModal();
+                }
+            } catch (_) {
+                selected.forEach((c) => { c.state = 'Failed'; });
+                this.showMenuToast('Apply audience request failed.', 'error');
+            }
         },
         openPixelGuardModal() {
             this.pixelGuardModal.google_tag_id = this.trackingInstallation.google_tag?.id && this.trackingInstallation.google_tag.id !== '—'

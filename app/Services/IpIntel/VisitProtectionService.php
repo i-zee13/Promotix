@@ -6,6 +6,7 @@ use App\Jobs\EnrichIpIntelJob;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\IpLog;
+use App\Services\AudienceSignalService;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
@@ -17,6 +18,7 @@ class VisitProtectionService
     public function __construct(
         private readonly IpIntelService $intel,
         private readonly IpFraudEvaluator $evaluator,
+        private readonly AudienceSignalService $audienceSignals,
     ) {
     }
 
@@ -280,6 +282,10 @@ class VisitProtectionService
             if ($visitId !== null) {
                 $payload['visit_id'] = $visitId;
             }
+        }
+
+        foreach ($this->audienceSignals->clientFlags($detection) as $key => $value) {
+            $payload[$key] = $value;
         }
 
         return $payload;

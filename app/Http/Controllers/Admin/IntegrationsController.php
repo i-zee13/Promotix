@@ -1630,6 +1630,43 @@ class IntegrationsController extends Controller
     }
 
     /**
+     * Apply step: attach Invalid Traffic audience (user list) as negative exclusion on selected campaigns.
+     * Does not push IPs — membership is Client ID + clickronix_invalid_traffic from the tag.
+     */
+    public function applyAudienceExclusion(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
+    {
+        $data = $request->validate([
+            'domain_id' => ['required', 'integer'],
+            'campaign_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'campaign_ids.*' => ['string', 'max:40'],
+            'audience_name' => ['nullable', 'string', 'max:255'],
+            'user_list_id' => ['nullable', 'string', 'max:40'],
+            'event_name' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $domain = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->where('id', $data['domain_id'])
+            ->firstOrFail();
+
+        $result = $associations->applyToCampaigns(
+            $domain,
+            $data['campaign_ids'],
+            (string) ($data['audience_name'] ?: 'Clickronix - Confirmed Invalid Traffic v1'),
+            $data['user_list_id'] ?? null,
+            (string) ($data['event_name'] ?: \App\Services\AudienceSignalService::DEFAULT_EVENT),
+        );
+
+        return response()->json([
+            'ok' => $result['ok'],
+            'message' => $result['message'],
+            'attached' => $result['attached'],
+            'failed' => $result['failed'],
+            'stored' => $result['stored'],
+        ], $result['ok'] ? 200 : 422);
+    }
+
+    /**
      * @return list<array{id: string, name: string, channel: string, status: string}>
      */
     private function parseAudienceCampaignRows(mixed $payload): array

@@ -234,6 +234,9 @@ class TagController extends Controller
 
   function applyProtection(resp){
     if (!resp || typeof resp !== 'object') return;
+    if (resp.fire_audience_event) {
+      fireInvalidAudienceEvent(resp);
+    }
     if (resp.blocked) {
       applyBlockResponse(resp);
       return;
@@ -244,6 +247,58 @@ class TagController extends Controller
     if (resp.record_session) {
       startSessionRecording(resp);
     }
+  }
+
+  /** Populate GA4/GTM Invalid Traffic audience via Client ID + event (not IP). */
+  function fireInvalidAudienceEvent(resp){
+    try {
+      if (consentRequired && !hasConsent()) return;
+      var eventName = String(resp.audience_event || 'clickronix_invalid_traffic');
+      var params = {
+        traffic_status: String(resp.audience_traffic_status || resp.traffic_status || 'invalid'),
+        risk_confidence: 'high',
+        threat_group: resp.threat_group || undefined,
+        send_to: undefined
+      };
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: eventName,
+        traffic_status: params.traffic_status,
+        risk_confidence: params.risk_confidence,
+        threat_group: params.threat_group || null,
+        clickronix_source: 'protection_tag'
+      });
+      function pushGtag(clientId){
+        try {
+          if (typeof gtag === 'function') {
+            var payload = {
+              traffic_status: params.traffic_status,
+              risk_confidence: params.risk_confidence
+            };
+            if (clientId) payload.clickronix_client_id = String(clientId);
+            if (params.threat_group) payload.threat_group = String(params.threat_group);
+            gtag('event', eventName, payload);
+          }
+        } catch (e) {}
+      }
+      var measurementId = '';
+      try {
+        if (window.google_tag_manager || typeof gtag === 'function') {
+          // Prefer GA4 client_id when available (async).
+          var ids = [];
+          try {
+            if (window.__gtag_measurement_ids && window.__gtag_measurement_ids.length) {
+              ids = window.__gtag_measurement_ids;
+            }
+          } catch (e2) {}
+          if (ids.length && typeof gtag === 'function') {
+            gtag('get', ids[0], 'client_id', function(cid){ pushGtag(cid); });
+            return;
+          }
+        }
+      } catch (e3) {}
+      pushGtag(null);
+    } catch (e) {}
   }
 
   function startSessionRecording(meta){

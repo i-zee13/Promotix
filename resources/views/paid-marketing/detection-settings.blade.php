@@ -1847,13 +1847,53 @@
                                     <h2 class="figma-gaem-title">Google Ads Exclusion Manager</h2>
                                     <p class="figma-gaem-lead">Detected blocks and cross-domain IPs queued for Google Ads.</p>
                                 </div>
-                                <div class="figma-gaem-head-actions">
-                                    <x-figma-toggle name="google_exclusion_enabled" value="1" :checked="($exclusionRules['enabled'] ?? true) && $pdf(\App\Support\DetectionPlanFeatures::GOOGLE_EXCLUSION)" size="sm" label-on="On" label-off="Off" variant="on-light" />
+                                <div class="figma-gaem-head-actions" x-data="{
+                                    saving: false,
+                                    async setEnabled(checked) {
+                                        this.saving = true;
+                                        try {
+                                            const res = await fetch(@js(route('paid-marketing.detection-settings.google-exclusion.manager-enabled', $domain)), {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'Accept': 'application/json',
+                                                    'X-CSRF-TOKEN': @js(csrf_token()),
+                                                    'X-Requested-With': 'XMLHttpRequest',
+                                                },
+                                                body: JSON.stringify({ enabled: checked }),
+                                            });
+                                            const data = await res.json().catch(() => ({}));
+                                            const root = document.getElementById('detection-panel-google-exclusion');
+                                            if (root && window.Alpine) {
+                                                const panel = Alpine.$data(root);
+                                                if (panel) {
+                                                    if (Array.isArray(data.rows)) panel.rows = data.rows;
+                                                    panel.ok = !!data.ok;
+                                                    panel.message = data.message || '';
+                                                }
+                                            }
+                                        } catch (e) {
+                                            /* keep checkbox state; user can retry */
+                                        } finally {
+                                            this.saving = false;
+                                        }
+                                    }
+                                }">
+                                    <x-figma-toggle
+                                        name="google_exclusion_enabled"
+                                        value="1"
+                                        :checked="($exclusionRules['enabled'] ?? true) && $pdf(\App\Support\DetectionPlanFeatures::GOOGLE_EXCLUSION)"
+                                        size="sm"
+                                        label-on="On"
+                                        label-off="Off"
+                                        variant="on-light"
+                                        @change="setEnabled($event.target.checked)"
+                                    />
                                 </div>
                             </div>
 
                             <div class="figma-gaem-quick">
-                                <button type="button" class="figma-gaem-push-btn" :disabled="loading || !rows.length" @click="syncPending()">Push all pending</button>
+                                <button type="button" class="figma-gaem-push-btn" :disabled="loading || !adsConnected" @click="syncPending()">Push all pending</button>
                                     </div>
 
                             <p x-show="message" x-text="message" class="text-[11px] mt-[8px]" :class="ok ? 'text-emerald-300' : 'text-rose-300'"></p>
