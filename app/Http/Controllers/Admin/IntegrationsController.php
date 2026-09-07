@@ -136,7 +136,7 @@ class IntegrationsController extends Controller
         $hasFirstClick = ((int) ($connectionHealth['events_today'] ?? 0) > 0)
             || filled($connectionHealth['last_event_at'] ?? null);
         $adsCustomerId = $firstAccount
-            ? (string) ($firstAccount->display_customer_id ?: $firstAccount->customer_id ?: '')
+            ? $firstAccount->formattedCustomerId()
             : '';
 
         $domainVisitTotals = collect();
@@ -171,7 +171,7 @@ class IntegrationsController extends Controller
             if (! $googleConnected) {
                 $adsDetail = 'Connect Google first';
             } elseif ($linkedAccount) {
-                $cid = (string) ($linkedAccount->display_customer_id ?: $linkedAccount->customer_id ?: '');
+                $cid = $linkedAccount->formattedCustomerId();
                 $adsDetail = $cid !== '' ? $cid : ($googleEmail ?: 'Connected');
             }
 
@@ -225,7 +225,7 @@ class IntegrationsController extends Controller
                 ],
                 [
                     'key' => 'protection',
-                    'label' => 'Protection Setup',
+                    'label' => $protectionDone ? 'Protection Active' : 'Protection Setup Required',
                     'done' => $protectionDone,
                     'detail' => $protectionDetail,
                 ],
@@ -284,7 +284,7 @@ class IntegrationsController extends Controller
             ],
             [
                 'key' => 'protection',
-                'label' => 'Protection Setup',
+                'label' => $protectionActive ? 'Protection Active' : 'Protection Setup Required',
                 'done' => $protectionActive,
                 'detail' => $protectionActive ? 'Active' : 'Action needed',
             ],
@@ -296,8 +296,8 @@ class IntegrationsController extends Controller
         $apiHealthy = GoogleAdsApiHealth::status($primary, $accounts->count()) === 'ok';
 
         foreach ($mappings as $mapping) {
-            $customerId = (string) ($mapping->account?->display_customer_id ?: $mapping->account?->customer_id ?: '');
-            $googleTagId = (string) ($mapping->account?->google_tag_id ?: '');
+            $customerId = $mapping->account?->formattedCustomerId() ?: '';
+            $googleTagId = $mapping->account?->resolvedGoogleTagId() ?: '';
             $domain = $mapping->domain;
             $scriptActive = (bool) ($domain?->tag_connected);
             $gtmId = (string) ($domain?->gtm_container_id ?: '');
@@ -377,8 +377,8 @@ class IntegrationsController extends Controller
             if (! $account) {
                 continue;
             }
-            $customerId = (string) ($account->display_customer_id ?: $account->customer_id ?: '');
-            $googleTagId = (string) ($account->google_tag_id ?: '');
+            $customerId = $account->formattedCustomerId();
+            $googleTagId = $account->resolvedGoogleTagId();
             $gtmId = (string) ($domain->gtm_container_id ?: '');
             $scriptKey = (string) ($domain->domain_key ?: '');
             $scriptActive = (bool) $domain->tag_connected;
@@ -440,15 +440,17 @@ class IntegrationsController extends Controller
         // Spec: one unique account/domain row — do not list separate GTM / Direct Ads rows.
         $platformRows = $platformRows->values();
 
-        $googleTagId = (string) ($firstAccount?->google_tag_id ?: '');
+        $googleTagId = $firstAccount?->resolvedGoogleTagId() ?: '';
         $gtmContainerId = (string) ($firstDomain?->gtm_container_id ?: '');
         $clickronixScriptId = $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '';
 
         $googleAdsSummary = [
             'connected' => $googleConnected,
             'account_connected' => $adsAccountDone,
+            'protection_active' => $protectionActive,
             'email' => $googleEmail,
             'customer_id' => $adsCustomerId,
+            'google_tag_id' => $googleTagId !== '' ? $googleTagId : '—',
             'label' => $firstAccount?->displayLabel() ?: 'Google Ads',
             'oauth_url' => route('integrations.google.redirect'),
             'sync_url' => $primary ? route('integrations.google.sync-accounts', $primary) : null,
@@ -502,8 +504,8 @@ class IntegrationsController extends Controller
                     'domain_id' => $domain->id,
                     'domain' => $domain->hostname,
             'label' => $account->displayLabel(),
-            'customer_id' => $account->display_customer_id ?: $account->customer_id,
-            'google_tag_id' => $account->google_tag_id,
+            'customer_id' => $account->formattedCustomerId(),
+            'google_tag_id' => $account->resolvedGoogleTagId(),
                 ]);
             }
         }
@@ -972,10 +974,11 @@ class IntegrationsController extends Controller
             }
 
             $customerId = preg_replace('/\D+/', '', (string) ($customer['id'] ?? $customerId));
-            $display = 'AW-' . $customerId;
+            $display = GoogleAdsAccount::formatCustomerId($customerId);
+            $googleTagId = $customerId !== '' ? 'AW-'.$customerId : '';
             $name = trim((string) ($customer['descriptiveName'] ?? $customer['descriptive_name'] ?? ''));
             if ($name === '') {
-                $name = 'Google Ads ' . $display;
+                $name = 'Google Ads '.($display !== '' ? $display : $customerId);
             }
             $isManager = (bool) ($customer['manager'] ?? false);
             $timeZone = trim((string) ($customer['timeZone'] ?? $customer['time_zone'] ?? ''));
@@ -986,7 +989,7 @@ class IntegrationsController extends Controller
                 'account_name' => $name,
                 'is_manager' => $isManager,
                 'manager_customer_id' => null,
-                'google_tag_id' => $display,
+                'google_tag_id' => $googleTagId,
                 'is_active' => true,
             ];
             if ($timeZone !== null) {
@@ -1291,8 +1294,9 @@ class IntegrationsController extends Controller
             }
 
             $childName = trim((string) ($client['descriptiveName'] ?? $client['descriptive_name'] ?? ''));
+            $childDisplay = GoogleAdsAccount::formatCustomerId($clientId);
             if ($childName === '') {
-                $childName = 'Google Ads AW-' . $clientId;
+                $childName = 'Google Ads '.($childDisplay !== '' ? $childDisplay : $clientId);
             }
 
             $adsAccount = GoogleAdsAccount::updateOrCreate(
@@ -1301,11 +1305,11 @@ class IntegrationsController extends Controller
                     'customer_id' => $clientId,
                 ],
                 [
-                    'display_customer_id' => 'AW-' . $clientId,
+                    'display_customer_id' => $childDisplay,
                     'account_name' => $childName,
                     'is_manager' => false,
                     'manager_customer_id' => $managerCustomerId,
-                    'google_tag_id' => 'AW-' . $clientId,
+                    'google_tag_id' => $clientId !== '' ? 'AW-'.$clientId : null,
                     'is_active' => true,
                 ]
             );

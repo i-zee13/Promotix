@@ -40,12 +40,19 @@
                                     <tr class="border-t border-white/10" :class="row.selected ? 'bg-[var(--brand-primary)]/15' : ''">
                                         <td class="px-[6px] py-[10px]"><input type="checkbox" x-model="row.selected"></td>
                                         <td class="px-[6px] py-[10px] font-mono" x-text="row.ip"></td>
-                                        <td class="px-[6px] py-[10px]" x-text="row.risk"></td>
+                                        <td class="px-[6px] py-[10px] font-semibold text-[var(--brand-primary)]" x-text="row.risk"></td>
                                         <td class="px-[6px] py-[10px] text-white/75" x-text="row.reason"></td>
                                         <td class="px-[6px] py-[10px] text-white/75" x-text="row.scope"></td>
                                         <td class="px-[6px] py-[10px] text-white/65" x-text="row.expires"></td>
                                         <td class="px-[6px] py-[10px]">
-                                            <span :class="row.google_status === 'Applied' ? 'text-emerald-300' : (row.google_status === 'Failed' ? 'text-rose-300' : 'text-amber-300')" x-text="row.google_status"></span>
+                                            <span class="rounded-full px-[8px] py-[3px] text-[10px] font-semibold"
+                                                  :class="{
+                                                    'bg-emerald-500/25 text-emerald-300': row.google_status === 'Applied',
+                                                    'bg-amber-500/25 text-amber-200': row.google_status === 'Review required' || row.google_status === 'Queued' || row.google_status === 'Sent',
+                                                    'bg-rose-500/25 text-rose-300': row.google_status === 'Failed',
+                                                    'bg-white/10 text-white/60': !['Applied','Review required','Queued','Sent','Failed'].includes(row.google_status)
+                                                  }"
+                                                  x-text="row.google_status"></span>
                                         </td>
                                     </tr>
                                 </template>
@@ -56,32 +63,49 @@
                 </template>
                 <template x-if="ipExclusionsModal.tab === 'policy'">
                     <ul class="space-y-[10px] text-[12px] text-white/80">
-                        <li>Auto exclude: high confidence + repeat/strong evidence</li>
-                        <li>VPN/proxy only: review by default</li>
-                        <li>Scope: explicit eligible campaigns</li>
-                        <li>Expiry: short duration; Clickronix-owned only auto-remove</li>
-                        <li>Customer entries: preserve; owner=customer</li>
-                        <li>Status flow: Queued → Sent → Applied/Failed</li>
-                        <li>Proof: Google mutation request + later read-back</li>
+                        <li><strong>Auto exclude:</strong> High confidence + repeat/strong evidence</li>
+                        <li><strong>VPN/proxy only:</strong> Review by default</li>
+                        <li><strong>Scope:</strong> Explicit eligible campaigns</li>
+                        <li><strong>Expiry:</strong> Short duration; Clickronix-owned only auto-remove</li>
+                        <li><strong>Customer entries:</strong> Preserve; owner=customer</li>
+                        <li><strong>Idempotency:</strong> decision + customer + campaign + IP</li>
+                        <li><strong>Status:</strong> Queued → Sent → Applied/Failed</li>
+                        <li><strong>Proof:</strong> Google mutation request + later read-back</li>
                     </ul>
                 </template>
                 <p class="mt-[14px] rounded-[8px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[10px] py-[8px] text-[11px] text-[#ffd0b0]">
-                    Note: IP blocking affects future eligible exposure and does not refund a charged click.
+                    Reality check: IP exclusion future eligible exposure affect karta hai — already charged click refund nahi. Dynamic/shared IP ki wajah se audience exclusion complementary hai, replacement nahi.
                 </p>
             </div>
             <aside class="space-y-[14px] bg-[#161616] px-[16px] py-[14px]">
                 <div>
                     <p class="mb-[8px] text-[11px] font-semibold uppercase tracking-wide text-white/50">Google Ads API read-back</p>
-                    <p class="text-[12px]"><span class="text-white/50">Status:</span> <span class="text-emerald-300" x-text="ipReadback.status"></span></p>
-                    <p class="mt-[4px] font-mono text-[11px] text-white/70" x-text="'Request: ' + (ipReadback.request_id || '—')"></p>
+                    <p class="inline-flex items-center gap-[6px] text-[12px]">
+                        <span class="inline-flex h-[16px] w-[16px] items-center justify-center rounded-full bg-emerald-500/25 text-[10px] text-emerald-300">✓</span>
+                        <span class="text-white/50">Status:</span>
+                        <span class="font-semibold text-emerald-300" x-text="ipReadback.status"></span>
+                    </p>
+                    <p class="mt-[6px] font-mono text-[11px] text-white/70" x-text="'Mutation request ID: ' + (ipReadback.request_id || '—')"></p>
                     <p class="mt-[4px] text-[11px] text-white/55" x-text="'Last verified: ' + (ipReadback.verified_at || '—')"></p>
                 </div>
                 <div>
                     <p class="mb-[8px] text-[11px] font-semibold uppercase tracking-wide text-white/50">Policy</p>
-                    <label class="mb-[8px] flex items-center justify-between gap-[8px] text-[12px]"><span>Auto-apply only high confidence and repeat evidence</span><input type="checkbox" x-model="ipExclusionsModal.policy.highOnly" class="accent-[var(--brand-primary)]"></label>
-                    <label class="mb-[8px] flex items-center justify-between gap-[8px] text-[12px]"><span>VPN alone requires review</span><input type="checkbox" x-model="ipExclusionsModal.policy.vpnReview" class="accent-[var(--brand-primary)]"></label>
-                    <label class="mb-[8px] flex items-center justify-between gap-[8px] text-[12px]"><span>Preserve customer exclusions</span><input type="checkbox" x-model="ipExclusionsModal.policy.preserveCustomer" class="accent-[var(--brand-primary)]"></label>
-                    <label class="flex items-center justify-between gap-[8px] text-[12px]"><span>Auto-expire Clickronix-owned entries</span><input type="checkbox" x-model="ipExclusionsModal.policy.autoExpire" class="accent-[var(--brand-primary)]"></label>
+                    <template x-for="item in [
+                        { key: 'highOnly', label: 'Auto-apply only high confidence and repeat evidence' },
+                        { key: 'vpnReview', label: 'VPN alone requires review' },
+                        { key: 'preserveCustomer', label: 'Preserve customer exclusions' },
+                        { key: 'autoExpire', label: 'Auto-expire Clickronix-owned entries' },
+                    ]" :key="item.key">
+                        <div class="mb-[10px] flex items-center justify-between gap-[8px] text-[12px]">
+                            <span x-text="item.label"></span>
+                            <button type="button" class="relative h-[22px] w-[40px] shrink-0 rounded-full transition"
+                                    :class="ipExclusionsModal.policy[item.key] ? 'bg-[var(--brand-primary)]' : 'bg-white/20'"
+                                    @click="ipExclusionsModal.policy[item.key] = !ipExclusionsModal.policy[item.key]">
+                                <span class="absolute top-[2px] h-[18px] w-[18px] rounded-full bg-white transition"
+                                      :class="ipExclusionsModal.policy[item.key] ? 'left-[20px]' : 'left-[2px]'"></span>
+                            </button>
+                        </div>
+                    </template>
                 </div>
             </aside>
         </div>

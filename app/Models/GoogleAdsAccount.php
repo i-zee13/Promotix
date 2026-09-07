@@ -68,7 +68,53 @@ class GoogleAdsAccount extends Model
             return $name;
         }
 
-        return $this->display_customer_id ?: $this->customer_id;
+        $formatted = $this->formattedCustomerId();
+
+        return $formatted !== '' ? $formatted : (string) ($this->display_customer_id ?: $this->customer_id);
+    }
+
+    /** Spec: Customer ID is XXX-XXX-XXXX — never AW-… */
+    public static function formatCustomerId(?string $raw): string
+    {
+        $value = trim((string) $raw);
+        if ($value === '') {
+            return '';
+        }
+        if (preg_match('/^AW-/i', $value)) {
+            $value = substr($value, 3);
+        }
+        $digits = preg_replace('/\D+/', '', $value) ?: '';
+        if (strlen($digits) === 10) {
+            return substr($digits, 0, 3).'-'.substr($digits, 3, 3).'-'.substr($digits, 6);
+        }
+
+        return $digits !== '' ? $digits : '';
+    }
+
+    public function formattedCustomerId(): string
+    {
+        $display = trim((string) $this->display_customer_id);
+        if ($display !== '' && ! preg_match('/^AW-/i', $display)) {
+            return self::formatCustomerId($display);
+        }
+
+        return self::formatCustomerId((string) $this->customer_id);
+    }
+
+    /** Spec: Google Tag ID is AW-… — separate from Customer ID */
+    public function resolvedGoogleTagId(): string
+    {
+        $tag = trim((string) $this->google_tag_id);
+        if ($tag !== '' && preg_match('/^AW-/i', $tag)) {
+            return strtoupper(substr($tag, 0, 3)).substr($tag, 3);
+        }
+        $display = trim((string) $this->display_customer_id);
+        if ($display !== '' && preg_match('/^AW-/i', $display)) {
+            return strtoupper(substr($display, 0, 3)).substr($display, 3);
+        }
+        $digits = preg_replace('/\D+/', '', (string) $this->customer_id) ?: '';
+
+        return $digits !== '' ? 'AW-'.$digits : '';
     }
 }
 

@@ -1989,7 +1989,7 @@ html.figma-gads-calendar-open body {
 
 .figma-sa-main {
     min-height: 100vh;
-    padding-top: 49px;
+    padding-top: 52px;
 }
 
 /* Super admin UI tokens */
@@ -4602,14 +4602,16 @@ select.figma-sa-subs-status-pill {
     left: var(--figma-left);
     right: var(--figma-right);
     z-index: 30;
-    height: 49px;
+    height: 52px;
+    padding-top: 2.5px;
+    box-sizing: border-box;
     border-bottom: 2px solid var(--figma-chrome-border);
     background: #0e0e0e;
 }
 
 .figma-main {
     min-height: 100vh;
-    padding-top: 49px;
+    padding-top: 52px;
 }
 
 /* Shared customer-portal canvas: typography, page inset, legacy token harmonization */
@@ -4653,8 +4655,8 @@ select.figma-sa-subs-status-pill {
 /* Customer Support inbox (ChatGPT-style ticket thread) */
 .ticket-inbox {
     display: flex;
-    height: calc(100vh - 49px);
-    min-height: calc(100vh - 49px);
+    height: calc(100vh - 52px);
+    min-height: calc(100vh - 52px);
     overflow: hidden;
     background: #111111;
     color: #f4f4f4;
@@ -5620,13 +5622,14 @@ select.figma-sa-subs-status-pill {
     }
 
     .figma-sidebar-brand .figma-sidebar-logo {
-        height: 46px;
-        max-width: 200px;
+        height: 50px;
+        max-width: 240px;
     }
 
     .figma-sidebar-logo {
-        height: 42px;
-        width: 104px;
+        height: 50px;
+        width: auto;
+        max-width: 240px;
     }
 }
 
@@ -5709,16 +5712,16 @@ html.light-mode {
 
 /* Sidebar brand logo (Clickronix) */
 .figma-sidebar-brand {
-    min-height: 44px;
+    min-height: 54px;
     width: 100%;
     align-items: flex-start;
     padding-top: 0;
 }
 
 .figma-sidebar-brand .figma-sidebar-logo {
-    height: 44px;
+    height: 54px;
     width: auto;
-    max-width: 220px;
+    max-width: 260px;
     object-fit: contain;
     object-position: left center;
     opacity: 1;
@@ -11233,6 +11236,64 @@ html.light-mode .ov-page .ov-suite-stat__vs {
 
 /* Brand pill backgrounds (keep accent color but lighten background) */
 .light-mode .brand-pill-neutral { background-color: #EEF0F7 !important; color: #0F1126 !important; }
+
+/*
+ * Light-mode status flags / soft chips
+ * Dark theme uses pale text on tinted fills; on white UI that becomes invisible.
+ * Rule: soft tint fill + dark ink (same hue family).
+ */
+html.light-mode .brand-pill-success,
+.light-mode .brand-pill-success {
+    background-color: rgba(22, 163, 74, 0.14) !important;
+    color: #166534 !important;
+    --tw-ring-color: rgba(22, 101, 52, 0.28);
+}
+html.light-mode .brand-pill-warning,
+.light-mode .brand-pill-warning {
+    background-color: rgba(217, 119, 6, 0.14) !important;
+    color: #92400e !important;
+    --tw-ring-color: rgba(146, 64, 14, 0.28);
+}
+html.light-mode .brand-pill-danger,
+.light-mode .brand-pill-danger {
+    background-color: rgba(225, 29, 72, 0.12) !important;
+    color: #9f1239 !important;
+    --tw-ring-color: rgba(159, 18, 57, 0.28);
+}
+
+/* Soft Tailwind status chips: same node has tint bg + pale text */
+html.light-mode [class*="bg-emerald-"][class*="text-emerald-"],
+html.light-mode [class*="bg-green-"][class*="text-emerald-"],
+html.light-mode [class*="bg-green-"][class*="text-green-"] {
+    color: #166534 !important;
+}
+html.light-mode [class*="bg-rose-"][class*="text-rose-"],
+html.light-mode [class*="bg-red-"][class*="text-rose-"],
+html.light-mode [class*="bg-red-"][class*="text-red-"] {
+    color: #9f1239 !important;
+}
+html.light-mode [class*="bg-amber-"][class*="text-amber-"],
+html.light-mode [class*="bg-yellow-"][class*="text-amber-"],
+html.light-mode [class*="bg-yellow-"][class*="text-yellow-"] {
+    color: #92400e !important;
+}
+html.light-mode [class*="bg-orange-"][class*="text-orange-"] {
+    color: #9a3412 !important;
+}
+
+/* Shared status pill pattern used on Platform Integration + health rows */
+html.light-mode .pi-status-pill.is-on {
+    background: rgba(22, 163, 74, 0.16) !important;
+    color: #166534 !important;
+}
+html.light-mode .pi-status-pill.is-warn {
+    background: rgba(234, 88, 12, 0.16) !important;
+    color: #9a3412 !important;
+}
+html.light-mode .pi-status-pill.is-off {
+    background: #f3f4f6 !important;
+    color: #4b5563 !important;
+}
 
 /* Slate palette compat (older super-admin pages we haven't touched yet) */
 .light-mode .bg-slate-950,

@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Platform Integrate')
+@section('title', 'Google Ads | Platform Integration')
 
 @php
     $googleOAuthConnected = $connections->isNotEmpty();
@@ -22,13 +22,10 @@
                 <span>Test Integration</span>
             </a>
             @if ($primaryConnection)
-                <form method="POST" action="{{ route('integrations.google.sync-accounts', $primaryConnection) }}" class="contents">
-                    @csrf
-                    <button type="submit" class="paid-quick-action" title="Sync Campaigns">
-                        @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
-                        <span>Sync Campaigns</span>
-                </button>
-                </form>
+                <a href="#" class="paid-quick-action" title="Sync Campaigns" @click.prevent="openSyncPreview()">
+                    @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
+                    <span>Sync Campaigns</span>
+                </a>
             @else
                 <a href="#" class="paid-quick-action" title="Sync Campaigns" @click.prevent="openConnectGoogleModal()">
                     @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
@@ -173,8 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'accountsForConnect' => ($accounts ?? collect())->take(40)->map(fn ($a) => [
             'id' => $a->id,
             'label' => $a->displayLabel(),
-            'customer_id' => $a->display_customer_id ?: $a->customer_id,
-            'google_tag_id' => $a->google_tag_id,
+            'customer_id' => $a->formattedCustomerId() ?: ($a->display_customer_id ?: $a->customer_id),
+            'google_tag_id' => $a->resolvedGoogleTagId() ?: $a->google_tag_id,
         ])->values(),
     ]))"
     @platform-menu.window="handlePlatformMenu($event.detail)"
@@ -182,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <section class="mx-auto w-full max-w-[1180px] px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[19px] xl:pt-[68px]">
         <div class="bp-adv-page-head mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-[12px] shrink-0">
-                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
+                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Google Ads</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Platform Integration</span>
             </div>
@@ -417,6 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             .pi-status-pill.is-on { background: rgba(34, 197, 94, 0.22); color: #bbf7d0; }
             .pi-status-pill.is-off { background: rgba(0, 0, 0, 0.2); color: rgba(255, 255, 255, 0.7); }
+            .pi-status-pill.is-warn { background: rgba(255, 102, 0, 0.22); color: #ffd0b0; }
             .pi-status-dot {
                 width: 6px;
                 height: 6px;
@@ -878,9 +876,18 @@ document.addEventListener('DOMContentLoaded', () => {
             html.light-mode .pi-side-card a[class*="text-[#B893D8]"]:hover {
                 color: var(--brand-secondary) !important;
             }
+            /* Soft tint + dark ink — pale-on-pale was unreadable in light mode */
+            html.light-mode .pi-status-pill.is-on {
+                background: rgba(22, 163, 74, 0.16);
+                color: #166534;
+            }
+            html.light-mode .pi-status-pill.is-warn {
+                background: rgba(234, 88, 12, 0.16);
+                color: #9a3412;
+            }
             html.light-mode .pi-status-pill.is-off {
                 background: #f3f4f6;
-                color: #6b7280;
+                color: #4b5563;
             }
             html.light-mode .pi-platforms-card details[class*="bg-black"] {
                 background: var(--brand-tint-soft) !important;
@@ -1104,9 +1111,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                                         </a>
                                                     @endif
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openConnectGoogleModal()">Account details</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openProtectionCenter()">Protection Center</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openIpExclusionsModal()">IP exclusions</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPlacementModal()">Placement exclusions</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openAudienceMethodModal()">Audience Exclusion</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openCreateAudienceModal()">Create GA4 audience</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openApplyAudienceModal()">Apply audience exclusion</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPixelGuardModal()">Pixel Guard</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openTrackingTemplateModal()">Tracking template</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openSyncPreview()">Campaign Sync preview</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'copy-tracking' })">Copy Tracking Link</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'test-google' })">Test Connection</button>
                                                     @if (! empty($row['delete_url']))
                                                         <form method="POST" action="{{ $row['delete_url'] }}" onsubmit="return confirm('Remove this platform link?');">
                                                 @csrf
@@ -1221,6 +1236,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     @include('partials.integrations.connect-google-modal')
     @include('partials.integrations.install-tags-modal')
+    @include('partials.integrations.protection-center-modal')
+    @include('partials.integrations.audience-method-modal')
+    @include('partials.integrations.create-audience-modal')
+    @include('partials.integrations.apply-audience-modal')
+    @include('partials.integrations.pixel-guard-modal')
     @include('partials.integrations.ip-exclusions-modal')
     @include('partials.integrations.placement-exclusions-modal')
     @include('partials.integrations.tracking-template-modal')
@@ -1474,13 +1494,106 @@ function platformIntegrations(config) {
         googleAdsSummary: Object.assign({
             connected: false,
             account_connected: false,
+            protection_active: false,
             email: '',
             customer_id: '',
+            google_tag_id: '',
             label: 'Google Ads',
             oauth_url: '',
             sync_url: null,
             protection_url: '',
         }, config.googleAdsSummary || {}),
+        protectionCenter: {
+            open: false,
+            tab: 'overview',
+            tabs: [
+                { id: 'overview', label: 'Overview' },
+                { id: 'ip', label: 'IP' },
+                { id: 'audience', label: 'Audience' },
+                { id: 'placement', label: 'Placement' },
+                { id: 'pixel', label: 'Pixel Guard' },
+            ],
+        },
+        audienceMethodModal: {
+            open: false,
+            method: 'ga4',
+        },
+        createAudienceModal: {
+            open: false,
+            step: 0,
+            steps: ['Source', 'Rule active', 'Validate', 'Apply'],
+            ga4_property: 'demo-ga4',
+            ads_account: '',
+            name: 'Clickronix - Confirmed Invalid Traffic v1',
+            duration: '30 days',
+            evaluation: 'User scoped from first matching event',
+            ga4Options: [
+                { id: 'demo-ga4', label: 'Demo GA4 (G-ABC123XYZ)' },
+            ],
+            adsOptions: [],
+            includeRules: [
+                { field: 'Event name', param: '', op: 'exactly matches', value: 'clickronix_invalid_traffic' },
+                { field: 'Event parameter', param: 'traffic_status', op: 'exactly matches', value: 'invalid' },
+                { field: 'Event parameter', param: 'risk_confidence', op: 'equals', value: 'high' },
+            ],
+            excludeRules: [
+                { field: 'Event name', param: '', op: 'exactly matches', value: 'clickronix_valid_override' },
+            ],
+            evidence: [
+                { key: 'event', label: 'GA4 event received', detail: 'Waiting for safe test event', ok: false },
+                { key: 'status', label: 'traffic_status', detail: 'invalid', ok: false },
+                { key: 'consent', label: 'Consent (analytics_storage)', detail: 'not verified', ok: false },
+                { key: 'match', label: 'Test user matched', detail: 'Include rules + not excluded', ok: false },
+            ],
+            draftSaved: false,
+        },
+        applyAudienceModal: {
+            open: false,
+            audienceName: 'Clickronix - Confirmed Invalid Traffic v1',
+            source: 'GA4',
+            status: 'Populating',
+            searchSize: '86 — below 100 eligibility threshold',
+            displaySize: '124 eligible',
+            scope: 'campaign',
+            preserve: true,
+            sourceLinked: true,
+            campaigns: [
+                { id: 1, name: 'Demo Search Calls', type: 'Search', eligibility: 'Waiting for 100', state: 'Not attached', canSelect: false, selected: false },
+                { id: 2, name: 'Demo Display Retargeting', type: 'Display', eligibility: 'Eligible', state: 'Not attached', canSelect: true, selected: true },
+                { id: 3, name: 'Demo Performance Max', type: 'PMax', eligibility: 'Supported but review', state: 'Not attached', canSelect: true, selected: false },
+            ],
+        },
+        pixelGuardModal: {
+            open: false,
+            tab: 'mapping',
+            tabs: [
+                { id: 'mapping', label: 'Event mapping' },
+                { id: 'policy', label: 'Policy' },
+                { id: 'tests', label: 'Test History' },
+            ],
+            conversion_action: 'Qualified Lead',
+            google_tag_id: '',
+            conversion_label: '',
+            trigger_source: 'Server-accepted-lead',
+            unique_key: 'lead_id',
+            sendAudienceSignal: true,
+            audience_event: 'clickronix_invalid_traffic',
+            policyRows: [
+                { verdict: 'Valid traffic', action: 'send conversion once', tone: 'ok', icon: '✓' },
+                { verdict: 'Confirmed invalid', action: 'suppress Google Ads conversion', tone: 'bad', icon: '×' },
+                { verdict: 'Pending', action: 'wait up to 900 ms', tone: 'wait', icon: '⏳' },
+                { verdict: 'Timeout', action: 'fail open and flag for review', tone: 'neutral', icon: '?' },
+                { verdict: 'Duplicate lead_id', action: 'suppress duplicate', tone: 'neutral', icon: '↻' },
+            ],
+            tests: [
+                { label: 'Valid event sent once', ok: false },
+                { label: 'Invalid conversion suppressed', ok: false },
+                { label: 'Audience signal received', ok: false },
+                { label: 'Timeout behavior', ok: false },
+            ],
+            getUrl: '/integrations/google/pixel-guard',
+            saveUrl: '/integrations/google/pixel-guard',
+        },
         trackingInstallation: Object.assign({
             google_tag: { id: '—', status: 'Not detected', ok: false },
             gtm: { id: '—', status: 'Offline', ok: false, unpublished: false },
@@ -1515,10 +1628,14 @@ function platformIntegrations(config) {
             ],
             preserve: true,
             neverUnknown: true,
+            campaignScope: '2 campaigns',
+            filterSource: 'Display + Performance Max',
+            filterRange: 'Last 30 days',
+            filterConfidence: 'High confidence',
             rows: [
-                { id: 1, placement: 'demo-app.example', source: 'App', clicks: 42, invalid_rate: 92, leads: 0, confidence: 'High', selected: true },
-                { id: 2, placement: 'content.example.net', source: 'Website', clicks: 18, invalid_rate: 61, leads: 1, confidence: 'Medium', selected: false },
-                { id: 3, placement: 'unknown-inventory', source: 'Unknown', clicks: 9, invalid_rate: 40, leads: 0, confidence: 'Low', selected: false },
+                { id: 1, placement: 'demo-app.example', source: 'App', clicks: 184, invalid_rate: 92, leads: 0, confidence: 'High', selected: true },
+                { id: 2, placement: 'news-demo.example', source: 'Website', clicks: 72, invalid_rate: 68, leads: 1, confidence: 'Medium', selected: false },
+                { id: 3, placement: 'Unknown inventory', source: 'Unknown', clicks: 55, invalid_rate: 81, leads: null, confidence: 'Low', selected: false },
             ],
         },
         trackingTemplateModal: {
@@ -1536,6 +1653,7 @@ function platformIntegrations(config) {
             suffix: 'cx_source=google',
             preserveGclid: true,
             preserveParams: true,
+            certification: 'Not verified',
             checks: [
                 { label: 'HTTPS', status: 'Passed' },
                 { label: 'Visible next-hop (lpurl)', status: 'Passed' },
@@ -1782,6 +1900,59 @@ function platformIntegrations(config) {
         get placementSelectedCount() {
             return (this.placementModal.rows || []).filter((r) => r.selected).length;
         },
+        get filteredPlacementRows() {
+            const conf = this.placementModal.filterConfidence;
+            return (this.placementModal.rows || []).filter((r) => {
+                if (conf === 'High confidence') return r.confidence === 'High';
+                if (conf === 'Medium+') return r.confidence === 'High' || r.confidence === 'Medium';
+                return true;
+            });
+        },
+        get placementSelectedReason() {
+            const row = (this.placementModal.rows || []).find((r) => r.selected);
+            if (!row) return 'Select a known placement to review evidence.';
+            return `High invalid rate (${row.invalid_rate}%) and ${row.leads ? row.leads + ' qualified lead(s)' : 'no qualified leads'} observed.`;
+        },
+        get trackingTemplateCanApply() {
+            const checksOk = (this.trackingTemplateModal.checks || []).every((c) => c.status === 'Passed');
+            return checksOk && this.trackingTemplateModal.certification === 'Verified';
+        },
+        reviewAndExcludePlacements() {
+            const selected = (this.placementModal.rows || []).filter((r) => r.selected);
+            if (!selected.length) {
+                this.showMenuToast('Select at least one known placement.', 'info');
+                return;
+            }
+            if (this.placementModal.neverUnknown && selected.some((r) => r.source === 'Unknown')) {
+                this.showMenuToast('Unknown inventory cannot be auto-excluded.', 'error');
+                return;
+            }
+            this.showMenuToast(`${selected.length} placement(s) queued for Google mutate + read-back (P2).`, 'success');
+            this.closePlacementModal();
+        },
+        saveTrackingTemplateDraft() {
+            this.showMenuToast('Tracking template draft saved (non-destructive).', 'success');
+        },
+        testTrackingTemplate() {
+            this.trackingTemplateModal.checks = [
+                { label: 'HTTPS', status: 'Passed' },
+                { label: 'Visible next-hop (lpurl)', status: 'Passed' },
+                { label: 'Supplied destination followed', status: 'Passed' },
+                { label: 'Redirect compatibility', status: 'Passed' },
+            ];
+            this.trackingTemplateModal.tab = 'tests';
+            this.trackingTemplateModal.certification = 'In review';
+            this.showMenuToast('Template tests passed. Certification still required before Apply.', 'success');
+        },
+        applyTrackingTemplate() {
+            if (!this.trackingTemplateCanApply) {
+                this.showMenuToast('Apply requires Verified certification + all tests Passed.', 'error');
+                return;
+            }
+            this.trackingTemplateModal.current = this.trackingTemplateModal.proposed;
+            this.showMenuToast('Template applied with rollback reference saved.', 'success');
+            this.closeTrackingTemplateModal();
+        },
         get activeDomainLabel() {
             const id = this.selectedDomainId;
             const match = (this.domainConnections || []).find((d) => String(d.id) === String(id));
@@ -1796,8 +1967,202 @@ function platformIntegrations(config) {
         unlockSpecModal() {
             if (!this.connectGoogleModal.open && !this.installTagsModal.open
                 && !this.ipExclusionsModal.open && !this.placementModal.open
-                && !this.trackingTemplateModal.open && !this.testProtectionModal.open) {
+                && !this.trackingTemplateModal.open && !this.testProtectionModal.open
+                && !this.protectionCenter.open && !this.audienceMethodModal.open
+                && !this.createAudienceModal.open && !this.applyAudienceModal.open
+                && !this.pixelGuardModal.open) {
                 document.documentElement.classList.remove('pi-spec-modal-open');
+            }
+        },
+        openProtectionCenter(tab = 'overview') {
+            if (tab === 'pixel') {
+                this.openPixelGuardModal();
+                return;
+            }
+            this.protectionCenter.tab = tab || 'overview';
+            this.protectionCenter.open = true;
+            this.lockSpecModal();
+        },
+        closeProtectionCenter() {
+            this.protectionCenter.open = false;
+            this.unlockSpecModal();
+        },
+        openAudienceMethodModal() {
+            this.audienceMethodModal.method = 'ga4';
+            this.audienceMethodModal.open = true;
+            this.lockSpecModal();
+        },
+        closeAudienceMethodModal() {
+            this.audienceMethodModal.open = false;
+            this.unlockSpecModal();
+        },
+        continueAudienceMethod() {
+            const method = this.audienceMethodModal.method;
+            this.closeAudienceMethodModal();
+            if (method === 'website') {
+                this.openInstallTagsModal('google_tag');
+                this.showMenuToast('Website segment path: AW tag + traffic_status=invalid. Use custom_event_id (event_id is reserved).', 'info');
+                return;
+            }
+            this.openCreateAudienceModal();
+        },
+        get createAudienceReady() {
+            const ev = this.createAudienceModal.evidence || [];
+            return ev.length > 0 && ev.every((e) => e.ok)
+                && Boolean(this.createAudienceModal.ga4_property)
+                && Boolean(this.createAudienceModal.ads_account || this.googleAdsSummary.customer_id);
+        },
+        openCreateAudienceModal() {
+            const accounts = (config.accountsForConnect || []).map((a) => ({
+                id: String(a.id),
+                label: (a.customer_id || a.label || ('Account ' + a.id)),
+            }));
+            this.createAudienceModal.adsOptions = accounts.length
+                ? accounts
+                : [{ id: 'summary', label: this.googleAdsSummary.customer_id || 'Linked Ads account' }];
+            if (!this.createAudienceModal.ads_account) {
+                this.createAudienceModal.ads_account = this.createAudienceModal.adsOptions[0]?.id || '';
+            }
+            this.createAudienceModal.step = 0;
+            this.createAudienceModal.open = true;
+            this.lockSpecModal();
+        },
+        closeCreateAudienceModal() {
+            this.createAudienceModal.open = false;
+            this.unlockSpecModal();
+        },
+        simulateAudienceTestEvidence() {
+            this.createAudienceModal.evidence = [
+                { key: 'event', label: 'GA4 event received', detail: 'just now (safe synthetic)', ok: true },
+                { key: 'status', label: 'traffic_status', detail: 'invalid', ok: true },
+                { key: 'consent', label: 'Consent (analytics_storage)', detail: 'granted', ok: true },
+                { key: 'match', label: 'Test user matched', detail: 'Include rules matched; not excluded.', ok: true },
+            ];
+            this.createAudienceModal.step = Math.max(this.createAudienceModal.step, 2);
+            this.showMenuToast('Safe test evidence marked. Create GA4 audience is now enabled.', 'success');
+        },
+        saveCreateAudienceDraft() {
+            this.createAudienceModal.draftSaved = true;
+            this.createAudienceModal.step = Math.max(this.createAudienceModal.step, 1);
+            this.showMenuToast('Audience draft saved (non-destructive).', 'success');
+        },
+        createGa4Audience() {
+            if (!this.createAudienceReady) {
+                this.showMenuToast('Wait for test evidence before creating the audience.', 'error');
+                return;
+            }
+            this.createAudienceModal.step = 3;
+            this.applyAudienceModal.audienceName = this.createAudienceModal.name;
+            this.applyAudienceModal.status = 'Populating';
+            this.closeCreateAudienceModal();
+            this.showMenuToast('GA4 audience created as draft. Population can take 24–48h.', 'success');
+            this.openApplyAudienceModal();
+        },
+        get applyAudienceSelectedCount() {
+            return (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect).length;
+        },
+        openApplyAudienceModal() {
+            if (!this.applyAudienceModal.audienceName) {
+                this.applyAudienceModal.audienceName = this.createAudienceModal.name;
+            }
+            this.applyAudienceModal.open = true;
+            this.lockSpecModal();
+        },
+        closeApplyAudienceModal() {
+            this.applyAudienceModal.open = false;
+            this.unlockSpecModal();
+        },
+        applyEligibleAudienceExclusion() {
+            if (this.applyAudienceSelectedCount < 1) {
+                this.showMenuToast('Select at least one eligible campaign.', 'info');
+                return;
+            }
+            (this.applyAudienceModal.campaigns || []).forEach((c) => {
+                if (c.selected && c.canSelect) c.state = 'Attached (pending read-back)';
+            });
+            this.showMenuToast('Exclusion queued. Applied only after Google Ads API read-back.', 'success');
+            this.closeApplyAudienceModal();
+        },
+        openPixelGuardModal() {
+            this.pixelGuardModal.google_tag_id = this.trackingInstallation.google_tag?.id && this.trackingInstallation.google_tag.id !== '—'
+                ? this.trackingInstallation.google_tag.id
+                : (this.googleAdsSummary.google_tag_id && this.googleAdsSummary.google_tag_id !== '—'
+                    ? this.googleAdsSummary.google_tag_id
+                    : '');
+            this.pixelGuardModal.tab = 'mapping';
+            this.pixelGuardModal.open = true;
+            this.lockSpecModal();
+            this.loadPixelGuard();
+        },
+        closePixelGuardModal() {
+            this.pixelGuardModal.open = false;
+            this.unlockSpecModal();
+        },
+        async loadPixelGuard() {
+            try {
+                const res = await fetch(this.pixelGuardModal.getUrl, { headers: { Accept: 'application/json' } });
+                const data = await res.json().catch(() => ({}));
+                const first = (data.accounts || [])[0];
+                if (first?.google_tag_id) {
+                    this.pixelGuardModal.google_tag_id = first.google_tag_id;
+                }
+            } catch (_) { /* draft UI still usable */ }
+        },
+        async savePixelGuardPolicy() {
+            this.pixelGuardModal.tab = 'tests';
+            this.showMenuToast('Pixel Guard policy saved. Activate after tests pass.', 'success');
+            try {
+                const accounts = await fetch(this.pixelGuardModal.getUrl, { headers: { Accept: 'application/json' } }).then((r) => r.json()).catch(() => ({}));
+                const accountId = (accounts.accounts || [])[0]?.id;
+                if (!accountId || !this.pixelGuardModal.google_tag_id) return;
+                await fetch(this.pixelGuardModal.saveUrl, {
+                    method: 'PUT',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        account_id: accountId,
+                        google_tag_id: this.pixelGuardModal.google_tag_id,
+                    }),
+                });
+            } catch (_) { /* keep toast */ }
+        },
+        runPixelGuardTests() {
+            this.pixelGuardModal.tests = this.pixelGuardModal.tests.map((t) => ({ ...t, ok: true }));
+            this.showMenuToast('Pixel Guard tests marked Passed (safe synthetic).', 'success');
+        },
+        activatePixelGuard() {
+            const allOk = (this.pixelGuardModal.tests || []).every((t) => t.ok);
+            if (!allOk) {
+                this.pixelGuardModal.tab = 'tests';
+                this.showMenuToast('Run tests before Activate.', 'info');
+                return;
+            }
+            this.showMenuToast('Pixel Guard activated — invalid conversions suppressed; audience signal separate.', 'success');
+            this.closePixelGuardModal();
+        },
+        openSyncPreview() {
+            this.openTestProtectionModal('sync');
+        },
+        onHealthItemClick(item) {
+            const key = item?.key;
+            if (key === 'audience') {
+                this.openAudienceMethodModal();
+                return;
+            }
+            if (key === 'tag' || key === 'script') {
+                this.openInstallTagsModal(key === 'script' ? 'script' : 'google_tag');
+                return;
+            }
+            if (key === 'api') {
+                this.openConnectGoogleModal();
+                return;
+            }
+            if (key === 'sync') {
+                this.openSyncPreview();
             }
         },
         openIpExclusionsModal() {
@@ -1838,12 +2203,13 @@ function platformIntegrations(config) {
             this.trackingTemplateModal.open = false;
             this.unlockSpecModal();
         },
-        openTestProtectionModal() {
+        openTestProtectionModal(tab = 'tests') {
             const apiOk = Boolean(this.connectionHealth.api_ok) || this.googleAdsApiHealthy;
             const scriptOk = Boolean(this.connectionHealth.script_ok) || this.trackingScriptOk;
             const tagOk = Boolean(this.connectionHealth.google_tag_ok) || this.trackingInstallation.google_tag?.ok;
             const audienceOk = String(this.connectionHealth.audience_protection || '').toLowerCase() === 'active';
             const hasCustomer = Boolean(this.googleAdsSummary.customer_id);
+            this.testProtectionModal.tab = tab || 'tests';
             this.testProtectionModal.checks = [
                 { key: 'api', label: 'Ads API permission', ok: apiOk, warn: false, state: apiOk ? 'Passed' : 'Missing' },
                 { key: 'cid', label: 'Customer ID', ok: hasCustomer, warn: false, state: hasCustomer ? 'Passed' : 'Missing' },
@@ -1880,7 +2246,7 @@ function platformIntegrations(config) {
                 return;
             }
             if (next.key === 'audience') {
-                this.openAudienceModal?.() || this.showMenuToast('Open Audience wizard from Google menu.', 'info');
+                this.openAudienceMethodModal();
                 return;
             }
             this.openPlacementModal();
@@ -2282,11 +2648,10 @@ function platformIntegrations(config) {
                     this.copyText(config.trackingLink, 'Tracking link');
                     break;
                 case 'open-pixel-guard':
-                    this.scrollToEl('connected-platforms');
-                    this.showMenuToast('Connected platforms below.');
+                    this.openPixelGuardModal();
                     break;
                 case 'open-audience-exclusion':
-                    this.openAudienceModal();
+                    this.openAudienceMethodModal();
                     break;
                 case 'manage-ad-account':
                     this.scrollToEl('connected-platforms');

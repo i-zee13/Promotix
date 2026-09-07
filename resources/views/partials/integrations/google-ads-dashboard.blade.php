@@ -18,25 +18,34 @@
                         </div>
                         <div class="min-w-0">
                             <p class="text-[15px] font-semibold text-white">Google Ads</p>
-                            <span class="pi-status-pill mt-[6px]" :class="googleAdsSummary.account_connected ? 'is-on' : 'is-off'">
-                                <span class="pi-status-dot"></span>
-                                <span x-text="googleAdsSummary.account_connected ? 'Account Connected' : (googleAdsSummary.connected ? 'OAuth only' : 'Not connected')"></span>
-                            </span>
+                            <div class="mt-[6px] flex flex-wrap items-center gap-[6px]">
+                                <span class="pi-status-pill" :class="googleAdsSummary.account_connected ? 'is-on' : 'is-off'">
+                                    <span class="pi-status-dot"></span>
+                                    <span x-text="googleAdsSummary.account_connected ? 'Account Connected' : (googleAdsSummary.connected ? 'OAuth only' : 'Not connected')"></span>
+                                </span>
+                                <span class="pi-status-pill" :class="googleAdsSummary.protection_active ? 'is-on' : 'is-warn'"
+                                      x-show="googleAdsSummary.account_connected || googleAdsSummary.connected"
+                                      x-cloak>
+                                    <span class="pi-status-dot"></span>
+                                    <span x-text="googleAdsSummary.protection_active ? 'Protection Active' : 'Protection not active'"></span>
+                                </span>
+                            </div>
                             <p class="mt-[8px] truncate font-mono text-[11px] text-white/70" x-show="googleAdsSummary.customer_id">
                                 Customer ID: <span class="text-white/90" x-text="googleAdsSummary.customer_id"></span>
                             </p>
                             <p class="mt-[4px] truncate text-[11px] text-white/55" x-show="googleAdsSummary.email" x-text="googleAdsSummary.email"></p>
                         </div>
                     </div>
+                    <x-integrations.google-platform-menu
+                        menu-id="google-account-card"
+                        :google-oauth-connected="(bool) ($summary['connected'] ?? false)"
+                        :menu-domain="$menuDomain ?? null"
+                        :primary-connection="$primaryConnection ?? null"
+                    />
                 </div>
                 <div class="mt-[14px] flex flex-wrap gap-[8px]">
-                    <template x-if="googleAdsSummary.sync_url">
-                        <form method="POST" :action="googleAdsSummary.sync_url">
-                            @csrf
-                            <button type="submit" class="pi-primary-btn">Campaign Sync</button>
-                        </form>
-                    </template>
-                    <button type="button" class="pi-ghost-btn" @click="openIpExclusionsModal()">Protection Rules</button>
+                    <button type="button" class="pi-primary-btn" @click="openSyncPreview()">Campaign Sync</button>
+                    <button type="button" class="pi-ghost-btn" @click="openProtectionCenter()">Protection Rules</button>
                     <button type="button" class="pi-text-link" @click="openConnectGoogleModal()">
                         <span x-text="googleAdsSummary.connected ? '+ Add Connection' : 'Connect Google Ads'"></span>
                     </button>
@@ -47,7 +56,14 @@
             <article class="pi-panel pi-panel--tracking">
                 <div class="mb-[10px] flex items-center justify-between gap-[8px]">
                     <h3 class="text-[14px] font-semibold text-white">Tracking Installation</h3>
-                    <button type="button" class="pi-primary-btn" @click="openInstallTagsModal()">Connect GTM</button>
+                    <x-integrations.platform-card-dropdown menu-id="tracking-install-card" label="Tracking installation options">
+                        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openInstallTagsModal('gtm')">Connect GTM</button>
+                        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openInstallTagsModal('script')">View Clickronix Script</button>
+                        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openInstallTagsModal('google_tag')">View Google Tag</button>
+                        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openTrackingTemplateModal()">Tracking template</button>
+                        <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'copy-tracking' })">Copy Tracking Link</button>
+                        <a :href="trackingInstallation.setup_url || '#'" class="figma-platform-menu-item">Open tag setup</a>
+                    </x-integrations.platform-card-dropdown>
                 </div>
                 <div class="space-y-[8px]">
                     <div class="pi-track-row">
@@ -84,6 +100,9 @@
                         <button type="button" class="pi-text-link shrink-0" @click="openInstallTagsModal('script')">View details</button>
                     </div>
                 </div>
+                <div class="mt-[12px]">
+                    <button type="button" class="pi-primary-btn w-full sm:w-auto" @click="openInstallTagsModal('gtm')">Connect GTM</button>
+                </div>
             </article>
         </div>
     </section>
@@ -96,13 +115,15 @@
             </div>
             <div class="space-y-[8px]">
                 <template x-for="item in healthItems" :key="item.key">
-                    <div class="pi-status-row">
+                    <button type="button"
+                            class="pi-status-row w-full text-left transition hover:border-white/25"
+                            @click="onHealthItemClick(item)">
                         <span class="min-w-0 flex-1 truncate text-[12px] text-white/90" x-text="item.label"></span>
                         <span class="pi-status-pill" :class="item.ok ? 'is-on' : (item.warn ? 'is-warn' : 'is-off')">
                             <span class="pi-status-dot"></span>
                             <span x-text="item.stateLabel || (item.ok ? 'Connected' : 'Pending')"></span>
                         </span>
-                    </div>
+                    </button>
                 </template>
             </div>
             <button type="button" class="pi-text-link mt-[12px]" @click="openTestProtectionModal()">Test Integration →</button>
@@ -138,9 +159,5 @@
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.12);
         background: rgba(0, 0, 0, 0.22);
-    }
-    .pi-status-pill.is-warn {
-        background: rgba(255, 102, 0, 0.22);
-        color: #ffd0b0;
     }
 </style>

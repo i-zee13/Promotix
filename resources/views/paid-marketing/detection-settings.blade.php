@@ -331,6 +331,10 @@
             html.light-mode .figma-pac-empty,
             html.light-mode .figma-pac-purpose { color: #6b6578; }
             html.light-mode .figma-pac-purpose span { color: #4a4458; }
+            html.light-mode .figma-pac-badge.is-active {
+                background: rgba(22, 163, 74, 0.16);
+                color: #166534;
+            }
             html.light-mode .figma-pac-badge.is-off {
                 background: var(--brand-tint-soft);
                 color: #7a7388;
@@ -831,6 +835,11 @@
                 background: rgba(34,197,94,.18);
                 color: #4ade80;
                 border: 1px solid rgba(74,222,128,.35);
+            }
+            html.light-mode .ds-badge-active {
+                background: rgba(22, 163, 74, 0.16);
+                color: #166534;
+                border-color: rgba(22, 101, 52, 0.28);
             }
             .ds-split {
                 display: grid;

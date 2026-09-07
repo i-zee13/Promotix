@@ -19,15 +19,33 @@
     <a href="{{ $editConnectionUrl }}" class="figma-platform-menu-item" title="{{ $googleOAuthConnected ? 'Reconnect or add another Google account' : 'Add a domain and connect Google' }}">
         Edit Connection
     </a>
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openConnectGoogleModal()">
+        Account details
+    </button>
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'copy-tracking' })" title="Copy Promotix tag script URL to clipboard">
         Copy Tracking Link
     </button>
-    <a href="#connected-platforms" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'open-pixel-guard' })" title="Scroll to connected platforms">
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPixelGuardModal()">
         Open Pixel Guard
-    </a>
-    <a href="#connected-platforms" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'open-audience-exclusion' })" title="Set Up Audience Exclusion (Conversion ID / Label)">
+    </button>
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openAudienceMethodModal()">
         Open Audience Exclusion
-    </a>
+    </button>
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openApplyAudienceModal()">
+        Apply audience exclusion
+    </button>
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openIpExclusionsModal()">
+        IP exclusions
+    </button>
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPlacementModal()">
+        Placement exclusions
+    </button>
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openTrackingTemplateModal()">
+        Tracking template
+    </button>
+    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openSyncPreview()">
+        Campaign Sync preview
+    </button>
     <a href="#connected-platforms" class="figma-platform-menu-item" @click.prevent="$dispatch('platform-menu', { action: 'manage-ad-account' })" title="Scroll to connected platforms">
         Manage Ad Account
     </a>

@@ -97,7 +97,7 @@
         </div>
     @endif
 
-    <aside class="figma-sidebar px-[16px] pt-[2px] pb-[6px] xl:px-[20px] xl:pt-[3px] xl:pb-[8px]">
+    <aside class="figma-sidebar px-[16px] pt-[5px] pb-[6px] xl:px-[20px] xl:pt-[6px] xl:pb-[8px]">
         <div class="figma-sidebar-inner flex min-h-[100dvh] flex-col">
             <a href="{{ route('dashboard') }}" class="figma-sidebar-brand mb-[6px] mt-0 flex shrink-0 items-center">
                 @include('partials.sidebar-logo')
