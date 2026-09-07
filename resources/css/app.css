@@ -5622,14 +5622,14 @@ select.figma-sa-subs-status-pill {
     }
 
     .figma-sidebar-brand .figma-sidebar-logo {
-        height: 50px;
-        max-width: 240px;
+        height: 56px;
+        max-width: 260px;
     }
 
     .figma-sidebar-logo {
-        height: 50px;
+        height: 56px;
         width: auto;
-        max-width: 240px;
+        max-width: 260px;
     }
 }
 
@@ -5712,16 +5712,16 @@ html.light-mode {
 
 /* Sidebar brand logo (Clickronix) */
 .figma-sidebar-brand {
-    min-height: 54px;
+    min-height: 60px;
     width: 100%;
     align-items: flex-start;
     padding-top: 0;
 }
 
 .figma-sidebar-brand .figma-sidebar-logo {
-    height: 54px;
+    height: 60px;
     width: auto;
-    max-width: 260px;
+    max-width: 280px;
     object-fit: contain;
     object-position: left center;
     opacity: 1;
