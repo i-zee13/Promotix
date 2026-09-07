@@ -524,6 +524,64 @@ class IntegrationsController extends Controller
             ? route('domains.setup', $firstDomain)
             : route('domains.index');
 
+        $ipExclusionRows = collect();
+        if (Schema::hasTable('google_ads_ip_exclusions') && $manualDomains->isNotEmpty()) {
+            $ipQuery = DB::table('google_ads_ip_exclusions')
+                ->whereIn('domain_id', $manualDomains->pluck('id'))
+                ->orderByDesc('id')
+                ->limit(40);
+            if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+                // keep both active and inactive for History/Pending tabs
+            }
+            $ipExclusionRows = $ipQuery->get()->map(function ($row) {
+                $status = strtolower((string) ($row->sync_status ?? 'pending'));
+                $googleStatus = match (true) {
+                    in_array($status, ['synced', 'applied', 'ok', 'success'], true) => 'Applied',
+                    in_array($status, ['failed', 'error'], true) => 'Failed',
+                    in_array($status, ['disabled', 'removed'], true) => 'Removed',
+                    default => 'Queued',
+                };
+                $threat = (string) ($row->threat_group ?? '');
+                $risk = match (true) {
+                    str_contains($threat, 'vpn') => 72,
+                    str_contains($threat, 'datacenter') || str_contains($threat, 'bot') => 90,
+                    default => 80,
+                };
+                $expiresRaw = null;
+                foreach (['expires_at', 'expire_at', 'expires_on'] as $col) {
+                    if (isset($row->{$col}) && filled($row->{$col})) {
+                        $expiresRaw = (string) $row->{$col};
+                        break;
+                    }
+                }
+                $requestId = '';
+                foreach (['google_request_id', 'mutation_id', 'last_request_id'] as $col) {
+                    if (isset($row->{$col}) && filled($row->{$col})) {
+                        $requestId = (string) $row->{$col};
+                        break;
+                    }
+                }
+
+                return [
+                    'id' => (int) $row->id,
+                    'ip' => (string) $row->ip,
+                    'risk' => $risk,
+                    'reason' => $threat !== '' ? str_replace('_', ' ', $threat) : 'Clickronix exclusion',
+                    'scope' => 'Eligible campaigns',
+                    'expires' => $expiresRaw
+                        ? \Illuminate\Support\Carbon::parse($expiresRaw)->diffForHumans()
+                        : '—',
+                    'google_status' => $googleStatus,
+                    'selected' => false,
+                    'tab' => $googleStatus === 'Applied' ? 'active' : (in_array($googleStatus, ['Queued'], true) ? 'pending' : 'history'),
+                    'request_id' => $requestId,
+                    'verified_at' => filled($row->synced_at ?? null)
+                        ? \Illuminate\Support\Carbon::parse((string) $row->synced_at)->diffForHumans()
+                        : null,
+                ];
+            })->values();
+        }
+
         return view('integrations', compact(
             'connections',
             'domains',
@@ -550,6 +608,7 @@ class IntegrationsController extends Controller
             'tagSetupUrl',
             'googleAdsSummary',
             'trackingInstallation',
+            'ipExclusionRows',
         ));
     }
 

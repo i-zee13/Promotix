@@ -36,7 +36,7 @@
                             <button type="submit" class="pi-primary-btn">Campaign Sync</button>
                         </form>
                     </template>
-                    <a :href="googleAdsSummary.protection_url || '#'" class="pi-ghost-btn">Protection Rules</a>
+                    <button type="button" class="pi-ghost-btn" @click="openIpExclusionsModal()">Protection Rules</button>
                     <button type="button" class="pi-text-link" @click="openConnectGoogleModal()">
                         <span x-text="googleAdsSummary.connected ? '+ Add Connection' : 'Connect Google Ads'"></span>
                     </button>
@@ -105,7 +105,7 @@
                     </div>
                 </template>
             </div>
-            <button type="button" class="pi-text-link mt-[12px]" @click="openTestModal()">Test Integration →</button>
+            <button type="button" class="pi-text-link mt-[12px]" @click="openTestProtectionModal()">Test Integration →</button>
         </section>
     </div>
 </div>

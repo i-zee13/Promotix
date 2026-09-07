@@ -17,7 +17,7 @@
     <div class="figma-rightbar-center mt-[16px] border-t-2 border-[#5a2a99] pt-[14px]">
         <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
         <div class="mx-auto grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
-            <a href="#" class="paid-quick-action" title="Test Integration" @click.prevent="openTestModal()">
+            <a href="#" class="paid-quick-action" title="Test Integration" @click.prevent="openTestProtectionModal()">
                 @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
                 <span>Test Integration</span>
             </a>
@@ -169,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'setupProgressByDomain' => $setupProgressByDomain ?? [],
         'googleAdsSummary' => $googleAdsSummary ?? [],
         'trackingInstallation' => $trackingInstallation ?? [],
+        'ipExclusionRows' => ($ipExclusionRows ?? collect())->values(),
         'accountsForConnect' => ($accounts ?? collect())->take(40)->map(fn ($a) => [
             'id' => $a->id,
             'label' => $a->displayLabel(),
@@ -1102,6 +1103,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                                         </a>
                                                     @endif
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openConnectGoogleModal()">Account details</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openIpExclusionsModal()">IP exclusions</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPlacementModal()">Placement exclusions</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openTrackingTemplateModal()">Tracking template</button>
                                                     @if (! empty($row['delete_url']))
                                                         <form method="POST" action="{{ $row['delete_url'] }}" onsubmit="return confirm('Remove this platform link?');">
                                                 @csrf
@@ -1216,6 +1220,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     @include('partials.integrations.connect-google-modal')
     @include('partials.integrations.install-tags-modal')
+    @include('partials.integrations.ip-exclusions-modal')
+    @include('partials.integrations.placement-exclusions-modal')
+    @include('partials.integrations.tracking-template-modal')
+    @include('partials.integrations.test-protection-modal')
 
     {{-- Domain keys modal (Tag Manager + Bot Protection) --}}
     <div class="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-[16px]" x-show="keysModal.open" x-cloak x-transition @click.self="closeKeysModal()" @keydown.escape.window="closeKeysModal()">
@@ -1478,6 +1486,72 @@ function platformIntegrations(config) {
             script: { id: '—', status: 'Missing', ok: false },
             setup_url: '#',
         }, config.trackingInstallation || {}),
+        ipExclusionsModal: {
+            open: false,
+            tab: 'active',
+            tabs: [
+                { id: 'active', label: 'Active' },
+                { id: 'pending', label: 'Pending' },
+                { id: 'history', label: 'History' },
+                { id: 'policy', label: 'Policy' },
+            ],
+            rows: (config.ipExclusionRows || []).map((r) => ({ ...r, selected: false })),
+            policy: {
+                highOnly: true,
+                vpnReview: true,
+                preserveCustomer: true,
+                autoExpire: true,
+            },
+        },
+        placementModal: {
+            open: false,
+            tab: 'recommendations',
+            tabs: [
+                { id: 'recommendations', label: 'Recommendations' },
+                { id: 'applied', label: 'Applied' },
+                { id: 'allowlist', label: 'Allowlist' },
+                { id: 'rules', label: 'Rules' },
+            ],
+            preserve: true,
+            neverUnknown: true,
+            rows: [
+                { id: 1, placement: 'demo-app.example', source: 'App', clicks: 42, invalid_rate: 92, leads: 0, confidence: 'High', selected: true },
+                { id: 2, placement: 'content.example.net', source: 'Website', clicks: 18, invalid_rate: 61, leads: 1, confidence: 'Medium', selected: false },
+                { id: 3, placement: 'unknown-inventory', source: 'Unknown', clicks: 9, invalid_rate: 40, leads: 0, confidence: 'Low', selected: false },
+            ],
+        },
+        trackingTemplateModal: {
+            open: false,
+            tab: 'template',
+            tabs: [
+                { id: 'template', label: 'Template' },
+                { id: 'tests', label: 'Test results' },
+                { id: 'history', label: 'Change history' },
+            ],
+            scope: 'Search campaigns',
+            current: 'None',
+            proposed: 'https://track.clickronix.example/click?url={lpurl}&cx_campaign={campaignid}',
+            finalUrl: '',
+            suffix: 'cx_source=google',
+            preserveGclid: true,
+            preserveParams: true,
+            checks: [
+                { label: 'HTTPS', status: 'Passed' },
+                { label: 'Visible next-hop (lpurl)', status: 'Passed' },
+                { label: 'Supplied destination followed', status: 'Passed' },
+                { label: 'Redirect compatibility', status: 'Pending' },
+            ],
+        },
+        testProtectionModal: {
+            open: false,
+            tab: 'tests',
+            tabs: [
+                { id: 'tests', label: 'Integration tests' },
+                { id: 'sync', label: 'Sync preview' },
+                { id: 'log', label: 'Activity log' },
+            ],
+            checks: [],
+        },
         audienceGetUrl: '/integrations/google/audience-exclusion',
         audienceSaveUrl: '/integrations/google/audience-exclusion',
         csrf: config.csrf || '',
@@ -1685,12 +1759,130 @@ function platformIntegrations(config) {
             this.closeInstallTagsModal();
         },
         openTestModal() {
+            this.openTestProtectionModal();
+        },
+        get filteredIpExclusionRows() {
+            const tab = this.ipExclusionsModal.tab;
+            if (tab === 'policy') return [];
+            return (this.ipExclusionsModal.rows || []).filter((r) => {
+                if (tab === 'active') return r.tab === 'active' || r.google_status === 'Applied';
+                if (tab === 'pending') return r.tab === 'pending' || r.google_status === 'Queued';
+                return r.tab === 'history' || ['Failed', 'Removed'].includes(r.google_status);
+            });
+        },
+        get ipReadback() {
+            const applied = (this.ipExclusionsModal.rows || []).find((r) => r.google_status === 'Applied') || (this.ipExclusionsModal.rows || [])[0];
+            return {
+                status: applied?.google_status || 'Not configured',
+                request_id: applied?.request_id || '—',
+                verified_at: applied?.verified_at || '—',
+            };
+        },
+        get placementSelectedCount() {
+            return (this.placementModal.rows || []).filter((r) => r.selected).length;
+        },
+        get activeDomainLabel() {
+            const id = this.selectedDomainId;
+            const match = (this.domainConnections || []).find((d) => String(d.id) === String(id));
+            return match?.hostname || (this.domainConnections?.[0]?.hostname) || 'All domains';
+        },
+        get testReadyCount() {
+            return (this.testProtectionModal.checks || []).filter((c) => c.ok).length;
+        },
+        lockSpecModal() {
+            document.documentElement.classList.add('pi-spec-modal-open');
+        },
+        unlockSpecModal() {
+            if (!this.connectGoogleModal.open && !this.installTagsModal.open
+                && !this.ipExclusionsModal.open && !this.placementModal.open
+                && !this.trackingTemplateModal.open && !this.testProtectionModal.open) {
+                document.documentElement.classList.remove('pi-spec-modal-open');
+            }
+        },
+        openIpExclusionsModal() {
+            this.ipExclusionsModal.open = true;
+            this.lockSpecModal();
+        },
+        closeIpExclusionsModal() {
+            this.ipExclusionsModal.open = false;
+            this.unlockSpecModal();
+        },
+        toggleAllIpRows(checked) {
+            this.filteredIpExclusionRows.forEach((r) => { r.selected = Boolean(checked); });
+        },
+        removeSelectedIpExclusions() {
+            const before = this.ipExclusionsModal.rows.length;
+            this.ipExclusionsModal.rows = this.ipExclusionsModal.rows.filter((r) => !r.selected);
+            const removed = before - this.ipExclusionsModal.rows.length;
+            this.showMenuToast(removed ? `${removed} selected row(s) removed from view.` : 'Select rows first.', removed ? 'success' : 'info');
+        },
+        openPlacementModal() {
+            this.placementModal.open = true;
+            this.lockSpecModal();
+        },
+        closePlacementModal() {
+            this.placementModal.open = false;
+            this.unlockSpecModal();
+        },
+        openTrackingTemplateModal() {
+            if (!this.trackingTemplateModal.finalUrl) {
+                this.trackingTemplateModal.finalUrl = this.activeDomainLabel.startsWith('http')
+                    ? this.activeDomainLabel
+                    : (`https://${this.activeDomainLabel}`);
+            }
+            this.trackingTemplateModal.open = true;
+            this.lockSpecModal();
+        },
+        closeTrackingTemplateModal() {
+            this.trackingTemplateModal.open = false;
+            this.unlockSpecModal();
+        },
+        openTestProtectionModal() {
+            const apiOk = Boolean(this.connectionHealth.api_ok) || this.googleAdsApiHealthy;
+            const scriptOk = Boolean(this.connectionHealth.script_ok) || this.trackingScriptOk;
+            const tagOk = Boolean(this.connectionHealth.google_tag_ok) || this.trackingInstallation.google_tag?.ok;
+            const audienceOk = String(this.connectionHealth.audience_protection || '').toLowerCase() === 'active';
+            const hasCustomer = Boolean(this.googleAdsSummary.customer_id);
+            this.testProtectionModal.checks = [
+                { key: 'api', label: 'Ads API permission', ok: apiOk, warn: false, state: apiOk ? 'Passed' : 'Missing' },
+                { key: 'cid', label: 'Customer ID', ok: hasCustomer, warn: false, state: hasCustomer ? 'Passed' : 'Missing' },
+                { key: 'script', label: 'Clickronix script', ok: scriptOk, warn: false, state: scriptOk ? 'Passed' : 'Missing' },
+                { key: 'tag', label: 'Google tag', ok: tagOk, warn: !tagOk, state: tagOk ? 'Passed' : 'Missing' },
+                { key: 'ga4', label: 'GA4 invalid event', ok: false, warn: true, state: 'Pending' },
+                { key: 'audience', label: 'Audience list', ok: audienceOk, warn: !audienceOk, state: audienceOk ? 'Passed' : 'Not created' },
+                { key: 'ip', label: 'IP write permission', ok: apiOk, warn: false, state: apiOk ? 'Passed' : 'Pending' },
+                { key: 'placement', label: 'Placement report access', ok: apiOk, warn: false, state: apiOk ? 'Passed' : 'Pending' },
+            ];
+            this.testProtectionModal.open = true;
+            this.lockSpecModal();
             if (config.testUrl) {
                 this.testGoogleHealth();
+            }
+        },
+        closeTestProtectionModal() {
+            this.testProtectionModal.open = false;
+            this.unlockSpecModal();
+        },
+        fixNextRequirement() {
+            const next = (this.testProtectionModal.checks || []).find((c) => !c.ok);
+            this.closeTestProtectionModal();
+            if (!next) {
+                this.showMenuToast('All checks ready.', 'success');
                 return;
             }
-            this.openConnectGoogleModal();
-            this.showMenuToast('Connect Google Ads first, then run Test Integration.', 'info');
+            if (next.key === 'tag' || next.key === 'script' || next.key === 'ga4') {
+                this.openInstallTagsModal(next.key === 'script' ? 'script' : 'gtm');
+                return;
+            }
+            if (next.key === 'cid' || next.key === 'api' || next.key === 'ip') {
+                this.openConnectGoogleModal();
+                return;
+            }
+            if (next.key === 'audience') {
+                this.openAudienceModal?.() || this.showMenuToast('Open Audience wizard from Google menu.', 'info');
+                return;
+            }
+            this.openPlacementModal();
         },
         get setupProgressFill() {
             const steps = this.activeSetupProgress || [];
