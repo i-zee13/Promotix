@@ -1,7 +1,7 @@
 {{-- Spec Image 3: Install tracking and audience tags --}}
 <template x-teleport="body">
 <div
-    class="pi-spec-modal-root flex items-center justify-center p-[16px]"
+    class="pi-spec-modal-root"
     style="position:fixed;inset:0;z-index:2147483000;"
     x-show="installTagsModal.open"
     x-cloak
@@ -11,8 +11,8 @@
     @keydown.escape.window="if (installTagsModal.open) closeInstallTagsModal()"
 >
     <div class="pi-spec-modal-backdrop absolute inset-0 bg-black/80" aria-hidden="true" @click="closeInstallTagsModal()"></div>
-    <div class="pi-spec-modal-panel relative z-[1] flex max-h-[min(92vh,860px)] w-full max-w-[980px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#121212] text-white shadow-2xl" @click.stop>
-        <header class="flex shrink-0 items-start justify-between gap-[12px] border-b border-white/15 bg-[#121212] px-[22px] py-[16px]">
+    <div class="pi-spec-modal-panel relative z-[1] flex w-full max-w-[980px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#121212] text-white shadow-2xl" @click.stop>
+        <header class="flex shrink-0 items-start justify-between gap-[12px] border-b border-white/15 bg-[#121212] px-[22px] pb-[14px] pt-[22px]">
             <div>
                 <h2 class="text-[18px] font-semibold">Install tracking and audience tags</h2>
                 <p class="mt-[4px] text-[12px] text-white/60">Clickronix Script, Google Tag, and GTM publication are separate. GTM connected ≠ Google tag installed.</p>
@@ -32,7 +32,7 @@
             </template>
         </div>
 
-        <div class="grid min-h-0 flex-1 gap-0 overflow-y-auto bg-[#121212] lg:grid-cols-[240px_minmax(0,1fr)]">
+        <div class="pi-spec-modal-body grid gap-0 bg-[#121212] lg:grid-cols-[240px_minmax(0,1fr)]">
             <aside class="space-y-[10px] border-b border-white/10 bg-[#161616] px-[16px] py-[16px] lg:border-b-0 lg:border-r">
                 <div class="rounded-[8px] border border-white/10 bg-[#0d0d0d] px-[10px] py-[10px]">
                     <div class="flex items-center justify-between gap-[6px]">
@@ -64,7 +64,7 @@
                 </p>
             </aside>
 
-            <div class="bg-[#121212] px-[18px] py-[16px]">
+            <div class="bg-[#121212] px-[18px] py-[16px] pb-[20px]">
                 <template x-if="installTagsModal.tab === 'script'">
                     <div class="space-y-[12px]">
                         <p class="text-[13px] text-white/80">Install the Clickronix collector on every landing page. Heartbeat + last event + domain match are success evidence.</p>

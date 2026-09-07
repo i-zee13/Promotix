@@ -1,7 +1,7 @@
 {{-- Spec Image 2: Connect Google Ads account --}}
 <template x-teleport="body">
 <div
-    class="pi-spec-modal-root flex items-center justify-center p-[16px]"
+    class="pi-spec-modal-root"
     style="position:fixed;inset:0;z-index:2147483000;"
     x-show="connectGoogleModal.open"
     x-cloak
@@ -11,8 +11,8 @@
     @keydown.escape.window="if (connectGoogleModal.open) closeConnectGoogleModal()"
 >
     <div class="pi-spec-modal-backdrop absolute inset-0 bg-black/80" aria-hidden="true" @click="closeConnectGoogleModal()"></div>
-    <div class="pi-spec-modal-panel relative z-[1] flex max-h-[min(92vh,820px)] w-full max-w-[920px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#121212] text-white shadow-2xl" @click.stop>
-        <header class="flex shrink-0 items-start justify-between gap-[12px] border-b border-white/15 bg-[#121212] px-[22px] py-[16px]">
+    <div class="pi-spec-modal-panel relative z-[1] flex w-full max-w-[920px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#121212] text-white shadow-2xl" @click.stop>
+        <header class="flex shrink-0 items-start justify-between gap-[12px] border-b border-white/15 bg-[#121212] px-[22px] pb-[14px] pt-[22px]">
             <div>
                 <h2 class="text-[18px] font-semibold">Connect Google Ads account</h2>
                 <p class="mt-[4px] text-[12px] text-white/60">Bind OAuth login to Customer ID and verified domain. Read and write capabilities are tested separately.</p>
@@ -34,7 +34,7 @@
             </ol>
         </div>
 
-        <div class="grid min-h-0 flex-1 gap-[0] overflow-y-auto bg-[#121212] lg:grid-cols-2">
+        <div class="pi-spec-modal-body grid gap-[0] bg-[#121212] lg:grid-cols-2">
             <div class="space-y-[12px] border-b border-white/10 bg-[#121212] px-[22px] py-[18px] lg:border-b-0 lg:border-r">
                 <label class="block">
                     <span class="mb-[4px] block text-[11px] font-semibold text-white/70">Google login</span>

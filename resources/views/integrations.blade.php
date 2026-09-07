@@ -243,6 +243,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 inset: 0 !important;
                 z-index: 2147483000 !important;
                 isolation: isolate;
+                display: flex !important;
+                align-items: flex-start !important;
+                justify-content: center !important;
+                padding: 40px 16px 24px !important;
+                box-sizing: border-box;
+                overflow: auto;
             }
             .pi-spec-modal-backdrop {
                 background: rgba(0, 0, 0, 0.88) !important;
@@ -252,6 +258,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 color: #fff !important;
                 position: relative;
                 z-index: 1;
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                max-height: min(80vh, 720px) !important;
+                overflow: hidden;
+            }
+            .pi-spec-modal-body {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto;
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(255, 102, 0, 0.7) rgba(255, 255, 255, 0.08);
+            }
+            .pi-spec-modal-body::-webkit-scrollbar {
+                width: 8px;
+            }
+            .pi-spec-modal-body::-webkit-scrollbar-thumb {
+                background: rgba(255, 102, 0, 0.65);
+                border-radius: 999px;
+            }
+            .pi-spec-modal-body::-webkit-scrollbar-track {
+                background: rgba(255, 255, 255, 0.06);
             }
             /* While modal is open, kill any competing stacking from page widgets */
             html.pi-spec-modal-open .pi-setup-card,
