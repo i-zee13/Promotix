@@ -4609,6 +4609,11 @@ select.figma-sa-subs-status-pill {
     background: #0e0e0e;
 }
 
+/* Right header cluster (portal / timezone / user) — bottom padding for visual balance */
+.figma-header > .relative.flex.items-center {
+    padding-bottom: 15px;
+}
+
 .figma-main {
     min-height: 100vh;
     padding-top: 75px; /* top:17 + header:58 */

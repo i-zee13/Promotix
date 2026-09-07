@@ -83,7 +83,7 @@
             </a>
         </div>
 
-        <div class="relative flex items-center gap-[8px]" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
+        <div class="relative flex items-center gap-[8px] pb-[15px]" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
             @include('partials.portal-switch')
             @include('partials.header-timezone')
             <div class="figma-header-userchip flex h-[34px] max-w-[60vw] items-center overflow-hidden rounded-[4px] border border-[#6400B2] bg-[#0D0D0D] text-[13px] leading-none text-white sm:max-w-none">

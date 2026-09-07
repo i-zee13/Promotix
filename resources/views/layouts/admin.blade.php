@@ -183,7 +183,7 @@
             </a>
         </div>
 
-        <div class="relative flex items-center gap-[8px]">
+        <div class="relative flex items-center gap-[8px] pb-[15px]">
             @hasSection('header-actions')
                 <div class="hidden items-center gap-2 md:flex">@yield('header-actions')</div>
             @endif
