@@ -94,11 +94,16 @@ class GoogleAdsIpExclusionSyncService
         }
 
         $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
+        $loginCustomerId = (string) ($headers['login-customer-id'] ?? '');
         $campaignIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
 
         $failures = [];
         $skipped = [];
         $successes = 0;
+
+        if ($campaignIds === []) {
+            $skipped[] = 'No eligible Search/Display campaigns found for this domain (PMax/Video/Demand Gen do not support campaign IP exclusions).';
+        }
 
         foreach ($campaignIds as $campaignId) {
             if ($this->ipAlreadyBlockedOnCampaign($customerId, $campaignId, $version, $headers, $googleIp)) {
@@ -107,9 +112,10 @@ class GoogleAdsIpExclusionSyncService
                 continue;
             }
 
-            $response = Http::timeout(30)
-                ->withHeaders($headers)
-                ->post($this->googleAdsUrl($version, "customers/{$customerId}/campaignCriteria:mutate"), [
+            $response = $this->mutateWithLoginRetry(
+                $this->googleAdsUrl($version, "customers/{$customerId}/campaignCriteria:mutate"),
+                $headers,
+                [
                     'operations' => [[
                         'create' => [
                             'campaign' => "customers/{$customerId}/campaigns/{$campaignId}",
@@ -119,7 +125,8 @@ class GoogleAdsIpExclusionSyncService
                             ],
                         ],
                     ]],
-                ]);
+                ],
+            );
 
             if ($response->successful()) {
                 $successes++;
@@ -127,6 +134,7 @@ class GoogleAdsIpExclusionSyncService
                     'domain_id' => $domain->id,
                     'hostname' => $domain->hostname,
                     'customer_id' => $customerId,
+                    'login_customer_id' => $loginCustomerId ?: null,
                     'campaign_id' => $campaignId,
                     'ip' => $ip,
                 ]);
@@ -193,8 +201,18 @@ class GoogleAdsIpExclusionSyncService
 
         $combined = array_merge($failures, $skipped);
         $message = $combined !== [] ? implode(' | ', $combined) : 'Google did not confirm the IP on campaign or account exclusions.';
-        if ($this->allPermissionErrors($combined)) {
-            $message .= ' Reconnect Google Ads in Integrations with Standard access, or ensure campaigns belong to this linked account.';
+        if ($this->allPermissionErrors($failures) || $this->containsPermissionError($combined)) {
+            $message = $this->permissionFailureHint($customerId, $loginCustomerId, $account, $message);
+            Log::warning('Google Ads IP exclusion permission denied', [
+                'domain_id' => $domain->id,
+                'hostname' => $domain->hostname,
+                'customer_id' => $customerId,
+                'manager_customer_id' => $account->manager_customer_id,
+                'login_customer_id' => $loginCustomerId ?: null,
+                'eligible_campaigns' => count($campaignIds),
+                'ip' => $ip,
+                'message' => $message,
+            ]);
         }
 
         $this->markRow($domain->id, $ip, 'failed', $message, null, $rowId);
@@ -214,9 +232,10 @@ class GoogleAdsIpExclusionSyncService
             return ['ok' => true, 'error' => null];
         }
 
-        $response = Http::timeout(30)
-            ->withHeaders($headers)
-            ->post($this->googleAdsUrl($version, "customers/{$customerId}/customerNegativeCriteria:mutate"), [
+        $response = $this->mutateWithLoginRetry(
+            $this->googleAdsUrl($version, "customers/{$customerId}/customerNegativeCriteria:mutate"),
+            $headers,
+            [
                 'operations' => [[
                     'create' => [
                         'ipBlock' => [
@@ -224,11 +243,13 @@ class GoogleAdsIpExclusionSyncService
                         ],
                     ],
                 ]],
-            ]);
+            ],
+        );
 
         if ($response->successful()) {
             Log::info('Google Ads account-level IP exclusion synced', [
                 'customer_id' => $customerId,
+                'login_customer_id' => $headers['login-customer-id'] ?? null,
                 'ip' => $rawIp,
             ]);
 
@@ -512,12 +533,114 @@ class GoogleAdsIpExclusionSyncService
             return null;
         }
 
-        $loginId = preg_replace('/\D+/', '', (string) ($account->manager_customer_id ?: $this->connectionApi->loginCustomerId()));
-        if ($loginId !== '') {
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+        // Prefer the MCC stored on this linked account. Env fallback is last resort only.
+        $loginId = preg_replace('/\D+/', '', (string) ($account->manager_customer_id ?: ''));
+        if ($loginId === '') {
+            $loginId = preg_replace('/\D+/', '', (string) $this->connectionApi->loginCustomerId());
+        }
+
+        // login-customer-id must be the manager (MCC), not the client itself.
+        if ($loginId !== '' && $loginId !== $customerId) {
             $headers['login-customer-id'] = $loginId;
         }
 
         return $headers;
+    }
+
+    /**
+     * Retry mutate once without login-customer-id when Google returns USER_PERMISSION_DENIED.
+     * Wrong/stale MCC in the header is a common cause of "The caller does not have permission".
+     *
+     * @param  array<string, string>  $headers
+     * @param  array<string, mixed>  $payload
+     */
+    private function mutateWithLoginRetry(string $url, array $headers, array $payload): \Illuminate\Http\Client\Response
+    {
+        $response = Http::timeout(30)->withHeaders($headers)->post($url, $payload);
+        if ($response->successful()) {
+            return $response;
+        }
+
+        $error = $this->extractErrorMessage((string) $response->body());
+        if (! $this->isPermissionError($error) || empty($headers['login-customer-id'])) {
+            return $response;
+        }
+
+        $altHeaders = $headers;
+        unset($altHeaders['login-customer-id']);
+
+        $retry = Http::timeout(30)->withHeaders($altHeaders)->post($url, $payload);
+        if ($retry->successful()) {
+            Log::info('Google Ads IP exclusion succeeded after dropping login-customer-id', [
+                'url' => $url,
+                'dropped_login_customer_id' => $headers['login-customer-id'],
+            ]);
+
+            return $retry;
+        }
+
+        // Keep the more detailed of the two error bodies for the caller.
+        $retryError = $this->extractErrorMessage((string) $retry->body());
+        if (strlen($retryError) > strlen($error)) {
+            return $retry;
+        }
+
+        return $response;
+    }
+
+    private function isPermissionError(string $error): bool
+    {
+        $needles = [
+            'does not have permission',
+            'PERMISSION_DENIED',
+            'USER_PERMISSION_DENIED',
+            'AUTHORIZATION_ERROR',
+            "doesn't have permission to access customer",
+            'does not have permission to access customer',
+        ];
+
+        foreach ($needles as $needle) {
+            if (stripos($error, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @param  list<string>  $messages */
+    private function containsPermissionError(array $messages): bool
+    {
+        foreach ($messages as $message) {
+            if ($this->isPermissionError($message)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function permissionFailureHint(
+        string $customerId,
+        string $loginCustomerId,
+        GoogleAdsAccount $account,
+        string $message,
+    ): string {
+        $parts = [Str::limit($message, 420)];
+        $parts[] = 'Fix: In Google Ads, give the connected Google user Standard or Admin access on customer '
+            . ($account->formattedCustomerId() ?: $customerId)
+            . '.';
+        if ($loginCustomerId !== '') {
+            $parts[] = 'If this account is under an MCC, confirm manager/login-customer-id '
+                . $loginCustomerId
+                . ' can access it (or clear a wrong GOOGLE_ADS_LOGIN_CUSTOMER_ID).';
+        } elseif (! $account->manager_customer_id) {
+            $parts[] = 'If the Ads account sits under a manager (MCC), re-sync Google Ads in Integrations so manager_customer_id is stored.';
+        }
+        $parts[] = 'Then Retry.';
+
+        return implode(' ', $parts);
     }
 
     /** @param  array<string, string>  $headers */
@@ -853,20 +976,31 @@ class GoogleAdsIpExclusionSyncService
             return $body;
         }
 
+        // Prefer nested GoogleAdsFailure detail (includes login-customer-id hint).
+        $detailBuckets = [];
+        if (isset($json['error']['details']) && is_array($json['error']['details'])) {
+            $detailBuckets[] = $json['error']['details'];
+        }
+        if (isset($json[0]['error']['details']) && is_array($json[0]['error']['details'])) {
+            $detailBuckets[] = $json[0]['error']['details'];
+        }
+
+        foreach ($detailBuckets as $details) {
+            foreach ($details as $detail) {
+                if (! is_array($detail)) {
+                    continue;
+                }
+                foreach (($detail['errors'] ?? []) as $err) {
+                    if (is_array($err) && ! empty($err['message'])) {
+                        return (string) $err['message'];
+                    }
+                }
+            }
+        }
+
         $message = (string) ($json['error']['message'] ?? '');
         if ($message !== '') {
             return $message;
-        }
-
-        foreach (($json[0]['error']['details'] ?? []) as $detail) {
-            if (! is_array($detail)) {
-                continue;
-            }
-            foreach (($detail['errors'] ?? []) as $err) {
-                if (is_array($err) && ! empty($err['message'])) {
-                    return (string) $err['message'];
-                }
-            }
         }
 
         return $body;

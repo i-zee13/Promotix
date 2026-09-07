@@ -173,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'customer_id' => $a->formattedCustomerId() ?: ($a->display_customer_id ?: $a->customer_id),
             'google_tag_id' => $a->resolvedGoogleTagId() ?: $a->google_tag_id,
         ])->values(),
+        'audienceCampaignsUrl' => route('integrations.google.audience-campaigns'),
     ]))"
     @platform-menu.window="handlePlatformMenu($event.detail)"
 >
@@ -1549,6 +1550,8 @@ function platformIntegrations(config) {
         },
         applyAudienceModal: {
             open: false,
+            loading: false,
+            error: '',
             audienceName: 'Clickronix - Confirmed Invalid Traffic v1',
             source: 'GA4',
             status: 'Populating',
@@ -1557,11 +1560,8 @@ function platformIntegrations(config) {
             scope: 'campaign',
             preserve: true,
             sourceLinked: true,
-            campaigns: [
-                { id: 1, name: 'Demo Search Calls', type: 'Search', eligibility: 'Waiting for 100', state: 'Not attached', canSelect: false, selected: false },
-                { id: 2, name: 'Demo Display Retargeting', type: 'Display', eligibility: 'Eligible', state: 'Not attached', canSelect: true, selected: true },
-                { id: 3, name: 'Demo Performance Max', type: 'PMax', eligibility: 'Supported but review', state: 'Not attached', canSelect: true, selected: false },
-            ],
+            campaignsUrl: config.audienceCampaignsUrl || '',
+            campaigns: [],
         },
         pixelGuardModal: {
             open: false,
@@ -2061,16 +2061,103 @@ function platformIntegrations(config) {
         get applyAudienceSelectedCount() {
             return (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect).length;
         },
+        get applyAudienceSearchBelowThreshold() {
+            const raw = String(this.applyAudienceModal.searchSize || '');
+            const match = raw.match(/(\d+)/);
+            if (!match) return true;
+            return Number(match[1]) < 100;
+        },
         openApplyAudienceModal() {
             if (!this.applyAudienceModal.audienceName) {
                 this.applyAudienceModal.audienceName = this.createAudienceModal.name;
             }
             this.applyAudienceModal.open = true;
             this.lockSpecModal();
+            this.loadApplyAudienceCampaigns();
         },
         closeApplyAudienceModal() {
             this.applyAudienceModal.open = false;
             this.unlockSpecModal();
+        },
+        audienceChannelLabel(channel) {
+            const key = String(channel || '').toUpperCase();
+            const map = {
+                SEARCH: 'Search',
+                DISPLAY: 'Display',
+                PERFORMANCE_MAX: 'PMax',
+                VIDEO: 'Video',
+                DEMAND_GEN: 'Demand Gen',
+                SHOPPING: 'Shopping',
+                MULTI_CHANNEL: 'Multi',
+                LOCAL: 'Local',
+                SMART: 'Smart',
+                UNKNOWN: 'Unknown',
+            };
+            return map[key] || (key ? key.replace(/_/g, ' ') : 'Unknown');
+        },
+        mapAudienceCampaignRow(row) {
+            const type = this.audienceChannelLabel(row.channel);
+            let eligibility = 'Eligible';
+            let canSelect = true;
+            if (type === 'Search' && this.applyAudienceSearchBelowThreshold) {
+                eligibility = 'Waiting for 100';
+                canSelect = false;
+            } else if (type === 'PMax' || type === 'Video' || type === 'Demand Gen') {
+                eligibility = 'Supported but review';
+            } else if (type === 'Unknown') {
+                eligibility = 'Supported but review';
+            }
+            return {
+                id: String(row.id),
+                name: row.name || ('Campaign ' + row.id),
+                type,
+                eligibility,
+                state: 'Not attached',
+                canSelect,
+                selected: canSelect && eligibility === 'Eligible',
+            };
+        },
+        async loadApplyAudienceCampaigns() {
+            if (!this.applyAudienceModal.campaignsUrl) {
+                this.applyAudienceModal.error = 'Campaigns endpoint missing.';
+                this.applyAudienceModal.campaigns = [];
+                return;
+            }
+            this.applyAudienceModal.loading = true;
+            this.applyAudienceModal.error = '';
+            this.applyAudienceModal.campaigns = [];
+            try {
+                let domainId = this.selectedDomainId || '';
+                let accountId = this.selectedAdsAccountId || '';
+                if (!domainId && !accountId && (this.trackingIds || []).length) {
+                    domainId = this.trackingIds[0].domain_id || '';
+                    accountId = this.trackingIds[0].account_id || '';
+                } else if (domainId && !accountId) {
+                    const match = (this.trackingIds || []).find((t) => String(t.domain_id) === String(domainId));
+                    if (match) accountId = match.account_id || '';
+                } else if (accountId && !domainId) {
+                    const match = (this.trackingIds || []).find((t) => String(t.account_id) === String(accountId));
+                    if (match) domainId = match.domain_id || '';
+                }
+                const params = new URLSearchParams();
+                if (domainId) params.set('domain_id', String(domainId));
+                if (accountId) params.set('google_ads_account_id', String(accountId));
+                const res = await fetch(this.applyAudienceModal.campaignsUrl + '?' + params.toString(), {
+                    headers: { Accept: 'application/json' },
+                });
+                const data = await res.json().catch(() => ({}));
+                const rows = Array.isArray(data.campaigns) ? data.campaigns : [];
+                this.applyAudienceModal.campaigns = rows.map((row) => this.mapAudienceCampaignRow(row));
+                if (this.applyAudienceModal.campaigns.length === 0) {
+                    this.applyAudienceModal.error = data.error
+                        || 'No campaigns found. Sync Google Ads metrics or select a linked domain/account.';
+                }
+            } catch (_) {
+                this.applyAudienceModal.campaigns = [];
+                this.applyAudienceModal.error = 'Could not load campaigns from Google Ads.';
+            } finally {
+                this.applyAudienceModal.loading = false;
+            }
         },
         applyEligibleAudienceExclusion() {
             if (this.applyAudienceSelectedCount < 1) {

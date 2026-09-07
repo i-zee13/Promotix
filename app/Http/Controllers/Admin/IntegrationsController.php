@@ -1515,6 +1515,159 @@ class IntegrationsController extends Controller
         ]);
     }
 
+    /**
+     * Real campaign list for Apply audience exclusion modal (names + channel type).
+     */
+    public function audienceCampaigns(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $domainId = (int) $request->query('domain_id', 0);
+        $accountId = (int) $request->query('google_ads_account_id', 0);
+
+        $domain = null;
+        if ($domainId > 0) {
+            $domain = Domain::query()
+                ->where('user_id', $user->id)
+                ->where('id', $domainId)
+                ->with(['googleAdsAccount.connection', 'googleAdsMappings.account.connection'])
+                ->first();
+        }
+
+        $account = null;
+        if ($accountId > 0) {
+            $account = GoogleAdsAccount::query()
+                ->where('id', $accountId)
+                ->whereHas('connection', fn ($q) => $q->where('user_id', $user->id))
+                ->with('connection')
+                ->first();
+        }
+
+        if (! $account && $domain) {
+            $account = $domain->googleAdsAccount;
+            if (! $account) {
+                $account = $domain->googleAdsMappings->pluck('account')->filter()->first();
+            }
+        }
+
+        if (! $account && $domainId <= 0 && $accountId <= 0) {
+            // Prefer first linked domain account when filters are "All".
+            $domain = Domain::query()
+                ->where('user_id', $user->id)
+                ->manual()
+                ->whereNotNull('google_ads_account_id')
+                ->with('googleAdsAccount.connection')
+                ->orderBy('hostname')
+                ->first();
+            $account = $domain?->googleAdsAccount;
+        }
+
+        if (! $account || ! $account->connection || (bool) $account->is_manager) {
+            return response()->json([
+                'campaigns' => [],
+                'source' => 'none',
+                'error' => 'Link a Google Ads customer account to a domain first.',
+            ]);
+        }
+
+        $api = app(GoogleAdsConnectionService::class);
+        $headers = $api->apiHeaders($account->connection);
+        $campaigns = [];
+        $source = 'stored';
+
+        if ($headers) {
+            $loginId = preg_replace('/\D+/', '', (string) ($account->manager_customer_id ?: $api->loginCustomerId()));
+            $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+            if ($loginId !== '' && $loginId !== $customerId) {
+                $headers['login-customer-id'] = $loginId;
+            }
+
+            $version = $api->apiVersions()[0] ?? 'v24';
+            $query = "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.status IN ('ENABLED', 'PAUSED') ORDER BY campaign.name";
+            $res = Http::timeout(30)
+                ->withHeaders($headers)
+                ->post('https://googleads.googleapis.com/'.$version.'/customers/'.$customerId.'/googleAds:searchStream', [
+                    'query' => $query,
+                ]);
+
+            if ($res->successful()) {
+                $source = 'live';
+                foreach ($this->parseAudienceCampaignRows($res->json()) as $row) {
+                    $campaigns[] = $row;
+                }
+            }
+        }
+
+        if ($campaigns === [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            $metricsQuery = DB::table('google_ads_campaign_daily_metrics')
+                ->where('google_ads_account_id', $account->id)
+                ->when($domain, fn ($q) => $q->where('domain_id', $domain->id))
+                ->whereNotNull('campaign_id')
+                ->where('campaign_id', '!=', '')
+                ->select('campaign_id', DB::raw('MAX(campaign_name) as campaign_name'), DB::raw('MAX(status) as status'))
+                ->groupBy('campaign_id')
+                ->orderBy('campaign_name')
+                ->limit(100);
+
+            foreach ($metricsQuery->get() as $row) {
+                $campaigns[] = [
+                    'id' => (string) $row->campaign_id,
+                    'name' => (string) ($row->campaign_name ?: ('Campaign '.$row->campaign_id)),
+                    'channel' => 'UNKNOWN',
+                    'status' => (string) ($row->status ?: ''),
+                ];
+            }
+            $source = $campaigns !== [] ? 'stored' : $source;
+        }
+
+        return response()->json([
+            'campaigns' => $campaigns,
+            'source' => $source,
+            'account' => $account->displayLabel(),
+            'customer_id' => $account->formattedCustomerId() ?: $account->customer_id,
+            'domain_id' => $domain?->id,
+            'hostname' => $domain?->hostname,
+        ]);
+    }
+
+    /**
+     * @return list<array{id: string, name: string, channel: string, status: string}>
+     */
+    private function parseAudienceCampaignRows(mixed $payload): array
+    {
+        if (! is_array($payload)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($payload as $chunk) {
+            if (! is_array($chunk)) {
+                continue;
+            }
+            foreach (($chunk['results'] ?? []) as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $campaign = $row['campaign'] ?? [];
+                if (! is_array($campaign)) {
+                    continue;
+                }
+                $id = preg_replace('/\D+/', '', (string) ($campaign['id'] ?? ''));
+                $name = trim((string) ($campaign['name'] ?? ''));
+                if ($id === '') {
+                    continue;
+                }
+                $out[] = [
+                    'id' => $id,
+                    'name' => $name !== '' ? $name : ('Campaign '.$id),
+                    'channel' => strtoupper((string) ($campaign['advertisingChannelType'] ?? $campaign['advertising_channel_type'] ?? 'UNKNOWN')),
+                    'status' => strtoupper((string) ($campaign['status'] ?? '')),
+                ];
+            }
+        }
+
+        return $out;
+    }
+
     public function pickAccountsJson(Request $request, Domain $domain): JsonResponse
     {
         abort_unless($domain->user_id === $request->user()->id && $domain->isManual(), 403);

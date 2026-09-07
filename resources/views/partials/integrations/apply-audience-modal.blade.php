@@ -46,8 +46,14 @@
                         </tr>
                     </thead>
                     <tbody>
+                        <tr x-show="applyAudienceModal.loading" x-cloak>
+                            <td colspan="5" class="px-[12px] py-[16px] text-white/55">Loading campaigns from Google Ads…</td>
+                        </tr>
+                        <tr x-show="!applyAudienceModal.loading && applyAudienceModal.campaigns.length === 0" x-cloak>
+                            <td colspan="5" class="px-[12px] py-[16px] text-amber-200/90" x-text="applyAudienceModal.error || 'No campaigns found for the selected account.'"></td>
+                        </tr>
                         <template x-for="row in applyAudienceModal.campaigns" :key="row.id">
-                            <tr class="border-t border-white/10">
+                            <tr class="border-t border-white/10" x-show="!applyAudienceModal.loading">
                                 <td class="px-[12px] py-[10px] font-medium" x-text="row.name"></td>
                                 <td class="px-[12px] py-[10px] text-white/70" x-text="row.type"></td>
                                 <td class="px-[12px] py-[10px]">
