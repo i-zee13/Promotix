@@ -77,7 +77,7 @@
     <div id="figma-sidebar-overlay" class="figma-sidebar-overlay"></div>
 
     <header class="figma-header flex items-center justify-between px-[10px] sm:px-[14px]">
-        <div class="flex min-w-0 items-center gap-[13px] text-white/85">
+        <div class="flex min-w-0 items-center gap-[13px] pb-[15px] text-white/85">
             <a href="{{ route('integrations') }}" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L11 4.93"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 11a5 5 0 00-7.07 0L4.8 13.12a5 5 0 007.07 7.07L13 19.07"/></svg>
             </a>

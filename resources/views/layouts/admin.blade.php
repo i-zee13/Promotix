@@ -173,7 +173,7 @@
     <div id="figma-sidebar-overlay" class="figma-sidebar-overlay"></div>
 
     <header class="figma-header flex items-center justify-between px-[10px] sm:px-[14px]">
-        <div class="flex min-w-0 items-center gap-[13px] text-white/85">
+        <div class="flex min-w-0 items-center gap-[13px] pb-[15px] text-white/85">
             {{-- Mobile only: open nav drawer. Desktop left sidebar stays fixed (no toggle). --}}
             <button id="figma-sidebar-toggle" type="button" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 lg:hidden" aria-label="Open menu">
                 <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg>
