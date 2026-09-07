@@ -1,6 +1,6 @@
 {{-- Spec Image 10: Google Ads tracking template --}}
 <template x-teleport="body">
-<div class="pi-spec-modal-root" style="position:fixed;inset:0;z-index:2147483000;" x-show="trackingTemplateModal.open" x-cloak role="dialog" aria-modal="true" @click.self="closeTrackingTemplateModal()" @keydown.escape.window="if (trackingTemplateModal.open) closeTrackingTemplateModal()">
+<div class="pi-spec-modal-root" style="position:fixed;inset:0;z-index:2147483000;display:none;" x-show="trackingTemplateModal.open" x-cloak role="dialog" aria-modal="true" @click.self="closeTrackingTemplateModal()" @keydown.escape.window="if (trackingTemplateModal.open) closeTrackingTemplateModal()">
     <div class="pi-spec-modal-backdrop absolute inset-0 bg-black/80" @click="closeTrackingTemplateModal()"></div>
     <div class="pi-spec-modal-panel relative z-[1] flex w-full max-w-[980px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#121212] text-white shadow-2xl" @click.stop>
         <header class="flex shrink-0 items-start justify-between gap-[12px] border-b border-white/15 px-[22px] pb-[10px] pt-[22px]">

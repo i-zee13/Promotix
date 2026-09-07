@@ -244,9 +244,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 inset: 0 !important;
                 z-index: 2147483000 !important;
                 isolation: isolate;
-                display: flex !important;
-                align-items: flex-start !important;
-                justify-content: center !important;
+                /* display must NOT use !important — Alpine x-show sets inline display:none */
+                display: flex;
+                align-items: flex-start;
+                justify-content: center;
                 padding: 40px 16px 24px !important;
                 box-sizing: border-box;
                 overflow: auto;

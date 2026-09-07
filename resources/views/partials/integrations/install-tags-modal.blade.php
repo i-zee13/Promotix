@@ -2,7 +2,7 @@
 <template x-teleport="body">
 <div
     class="pi-spec-modal-root"
-    style="position:fixed;inset:0;z-index:2147483000;"
+    style="position:fixed;inset:0;z-index:2147483000;display:none;"
     x-show="installTagsModal.open"
     x-cloak
     role="dialog"
