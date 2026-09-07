@@ -71,8 +71,8 @@ class GoogleAdsIpExclusionSyncService
             }
         }
 
-        $domain->loadMissing('googleAdsAccount.connection');
-        $account = $domain->googleAdsAccount;
+        $domain->loadMissing(['googleAdsAccount.connection', 'googleAdsMappings.account.connection']);
+        $account = $this->resolveAdsAccount($domain);
         if (! $account || (bool) $account->is_manager) {
             $this->markRow($domain->id, $ip, 'skipped', 'Domain has no linked Google Ads customer account.', null, $rowId);
 
@@ -102,7 +102,7 @@ class GoogleAdsIpExclusionSyncService
         $successes = 0;
 
         if ($campaignIds === []) {
-            $skipped[] = 'No eligible Search/Display campaigns found for this domain (PMax/Video/Demand Gen do not support campaign IP exclusions).';
+            $skipped[] = 'No eligible Search/Display campaigns on this domain\'s linked Google Ads account (PMax/Video/Demand Gen cannot take campaign IP exclusions).';
         }
 
         foreach ($campaignIds as $campaignId) {
@@ -340,7 +340,9 @@ class GoogleAdsIpExclusionSyncService
     }
 
     /**
-     * Campaigns that advertise this domain's hostname (from stored metrics or Google Ads API).
+     * Campaigns for this domain's linked Google Ads account.
+     * Prefer hostname/metrics match; if that yields only unsupported types (e.g. PMax),
+     * fall back to all eligible Search/Display campaigns on the same linked account.
      *
      * @return list<string>
      */
@@ -373,18 +375,72 @@ class GoogleAdsIpExclusionSyncService
                 ->all();
         }
 
-        $candidateIds = $hostnameIds !== []
-            ? array_values(array_unique($hostnameIds))
-            : array_values(array_unique($metricIds));
-
+        $candidateIds = [];
         if ($hostnameIds !== [] && $metricIds !== []) {
             $overlap = array_values(array_intersect($hostnameIds, $metricIds));
-            if ($overlap !== []) {
-                $candidateIds = $overlap;
-            }
+            $candidateIds = $overlap !== []
+                ? $overlap
+                : array_values(array_unique(array_merge($hostnameIds, $metricIds)));
+        } elseif ($hostnameIds !== []) {
+            $candidateIds = array_values(array_unique($hostnameIds));
+        } else {
+            $candidateIds = array_values(array_unique($metricIds));
         }
 
-        return $this->filterEligibleCampaignIds($customerId, $candidateIds, $version, $headers);
+        $eligible = $this->filterEligibleCampaignIds($customerId, $candidateIds, $version, $headers);
+        if ($eligible !== []) {
+            return $eligible;
+        }
+
+        // Domain-matched set was empty or only PMax/Video/etc. — still push to
+        // Search/Display on the same linked Ads account for this domain.
+        $accountWide = $this->listEligibleCampaignIdsForAccount($customerId, $version, $headers);
+        if ($accountWide !== []) {
+            Log::info('Google Ads IP exclusion using account-wide eligible campaigns', [
+                'domain_id' => $domain->id,
+                'hostname' => $domain->hostname,
+                'customer_id' => $customerId,
+                'campaign_count' => count($accountWide),
+            ]);
+        }
+
+        return $accountWide;
+    }
+
+    /**
+     * All Enabled/Paused campaigns on the customer that support IP exclusions.
+     *
+     * @param  array<string, string>  $headers
+     * @return list<string>
+     */
+    private function listEligibleCampaignIdsForAccount(
+        string $customerId,
+        string $version,
+        array $headers,
+    ): array {
+        $query = "SELECT campaign.id, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.status IN ('ENABLED', 'PAUSED')";
+
+        $response = Http::timeout(30)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if (! $response->successful()) {
+            return [];
+        }
+
+        $eligible = [];
+        foreach ($this->parseRows($response->json()) as $row) {
+            $id = (string) ($row['campaign']['id'] ?? '');
+            $channel = (string) ($row['campaign']['advertisingChannelType'] ?? $row['campaign']['advertising_channel_type'] ?? '');
+            if ($id === '' || $this->channelLikelyUnsupportedForIpBlock($channel)) {
+                continue;
+            }
+            $eligible[] = $id;
+        }
+
+        return array_values(array_unique($eligible));
     }
 
     /**
@@ -515,6 +571,22 @@ class GoogleAdsIpExclusionSyncService
         }
 
         return true;
+    }
+
+    /** Prefer direct domain FK, then first mapped Ads account. */
+    private function resolveAdsAccount(Domain $domain): ?GoogleAdsAccount
+    {
+        $account = $domain->googleAdsAccount;
+        if ($account instanceof GoogleAdsAccount) {
+            return $account;
+        }
+
+        $mapped = $domain->googleAdsMappings
+            ->pluck('account')
+            ->filter(fn ($a) => $a instanceof GoogleAdsAccount && ! (bool) $a->is_manager)
+            ->first();
+
+        return $mapped instanceof GoogleAdsAccount ? $mapped : null;
     }
 
     /** @return array<string, string>|null */
@@ -693,8 +765,8 @@ class GoogleAdsIpExclusionSyncService
      */
     public function verifyIpOnCampaigns(Domain $domain, string $ip): array
     {
-        $domain->loadMissing('googleAdsAccount.connection');
-        $account = $domain->googleAdsAccount;
+        $domain->loadMissing(['googleAdsAccount.connection', 'googleAdsMappings.account.connection']);
+        $account = $this->resolveAdsAccount($domain);
         if (! $account || (bool) $account->is_manager) {
             return [];
         }
@@ -751,8 +823,8 @@ class GoogleAdsIpExclusionSyncService
             return false;
         }
 
-        $domain->loadMissing('googleAdsAccount.connection');
-        $account = $domain->googleAdsAccount;
+        $domain->loadMissing(['googleAdsAccount.connection', 'googleAdsMappings.account.connection']);
+        $account = $this->resolveAdsAccount($domain);
         if (! $account || (bool) $account->is_manager) {
             $this->markRowDisabled($domain->id, $googleIp, $rowId, 'Domain has no linked Google Ads customer account.');
 
