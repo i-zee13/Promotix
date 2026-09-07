@@ -171,9 +171,8 @@ class IntegrationsController extends Controller
             if (! $googleConnected) {
                 $adsDetail = 'Connect Google first';
             } elseif ($linkedAccount) {
-                $tag = (string) ($linkedAccount->google_tag_id ?: '');
                 $cid = (string) ($linkedAccount->display_customer_id ?: $linkedAccount->customer_id ?: '');
-                $adsDetail = $tag !== '' ? $tag : ($cid !== '' ? $cid : $adsDetail);
+                $adsDetail = $cid !== '' ? $cid : ($googleEmail ?: 'Connected');
             }
 
             $trackingDone = (bool) $domain->tag_connected;
@@ -189,30 +188,34 @@ class IntegrationsController extends Controller
             $protectionDone = (bool) $domain->bot_mitigation_connected
                 || (bool) $domain->paid_marketing_connected;
 
+            $scriptKey = (string) ($domain->domain_key ?: '');
+            $scriptDetail = $trackingDone
+                ? ($scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : 'Active')
+                : 'Install Clickronix script';
+
+            // Spec: Account Connected ≠ Protection Active. Protection only when policy modules are on.
+            $protectionDetail = $protectionDone ? 'Active' : 'Action needed';
+
             return [
                 [
                     'key' => 'domain',
-                    'label' => 'Domain Added',
+                    'label' => 'Domain Verified',
                     'done' => true,
-                    'detail' => $domain->hostname ?: 'Domain added',
-                ],
-                [
-                    'key' => 'google',
-                    'label' => 'Google Account Connected',
-                    'done' => $googleConnected,
-                    'detail' => $googleConnected ? ($googleEmail ?: 'Connected') : 'Connect Google',
+                    'detail' => $domain->hostname ?: 'Domain verified',
                 ],
                 [
                     'key' => 'ads',
-                    'label' => 'Google Ads Connected',
+                    'label' => 'Ads Account Connected',
                     'done' => $adsDone,
-                    'detail' => $adsDetail,
+                    'detail' => $adsDone
+                        ? ($adsDetail !== 'Link an ads account' ? $adsDetail : ($googleEmail ?: 'Connected'))
+                        : ($googleConnected ? 'Select Customer ID' : 'Connect Google first'),
                 ],
                 [
                     'key' => 'tracking',
-                    'label' => 'Tracking Script Installed',
+                    'label' => 'Script Active',
                     'done' => $trackingDone,
-                    'detail' => $trackingDone ? 'Active' : 'Pending',
+                    'detail' => $scriptDetail,
                 ],
                 [
                     'key' => 'click',
@@ -222,9 +225,9 @@ class IntegrationsController extends Controller
                 ],
                 [
                     'key' => 'protection',
-                    'label' => 'Protection Enabled',
+                    'label' => 'Protection Setup',
                     'done' => $protectionDone,
-                    'detail' => $protectionDone ? 'Active' : 'Pending',
+                    'detail' => $protectionDetail,
                 ],
             ];
         };
@@ -234,39 +237,40 @@ class IntegrationsController extends Controller
             $setupProgressByDomain[(string) $domain->id] = $buildSetupProgressForDomain($domain);
         }
 
+        $adsAccountDone = $googleConnected && (
+            $accounts->isNotEmpty() || $manualDomains->contains(
+                fn (Domain $d) => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0
+            )
+        );
+        $protectionActive = $manualDomains->contains(
+            fn (Domain $d) => (bool) $d->bot_mitigation_connected || (bool) $d->paid_marketing_connected
+        );
+        $scriptKey = (string) ($firstDomain?->domain_key ?: '');
+
         // "All Domains" = best available aggregate (any domain completing a step counts).
+        // Spec Image 1: 5-step derived sequence; Customer ID shown — not AW tag as account id.
         $setupProgress = [
             [
                 'key' => 'domain',
-                'label' => 'Domain Added',
+                'label' => 'Domain Verified',
                 'done' => $manualDomains->isNotEmpty(),
                 'detail' => $firstDomain?->hostname ?: 'Add a domain',
             ],
             [
-                'key' => 'google',
-                'label' => 'Google Account Connected',
-                'done' => $googleConnected,
-                'detail' => $googleConnected ? ($googleEmail ?: 'Connected') : 'Connect Google',
-            ],
-            [
                 'key' => 'ads',
-                'label' => 'Google Ads Connected',
-                'done' => $googleConnected && (
-                    $accounts->isNotEmpty() || $manualDomains->contains(
-                        fn (Domain $d) => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0
-                    )
-                ),
+                'label' => 'Ads Account Connected',
+                'done' => $adsAccountDone,
                 'detail' => (! $googleConnected)
                     ? 'Connect Google first'
-                    : ($adsCustomerId !== ''
-                        ? ((string) ($firstAccount?->google_tag_id ?: $adsCustomerId))
-                        : 'Link an ads account'),
+                    : ($adsCustomerId !== '' ? $adsCustomerId : 'Select Customer ID'),
             ],
             [
                 'key' => 'tracking',
-                'label' => 'Tracking Script Installed',
+                'label' => 'Script Active',
                 'done' => $tagReady,
-                'detail' => $tagReady ? 'Active' : 'Pending',
+                'detail' => $tagReady
+                    ? ($scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : 'Active')
+                    : 'Install Clickronix script',
             ],
             [
                 'key' => 'click',
@@ -280,25 +284,32 @@ class IntegrationsController extends Controller
             ],
             [
                 'key' => 'protection',
-                'label' => 'Protection Enabled',
-                'done' => $botReady || $paidReady || $manualDomains->contains(
-                    fn (Domain $d) => (bool) $d->bot_mitigation_connected || (bool) $d->paid_marketing_connected
-                ),
-                'detail' => ($botReady || $paidReady || $manualDomains->contains(
-                    fn (Domain $d) => (bool) $d->bot_mitigation_connected || (bool) $d->paid_marketing_connected
-                )) ? 'Active' : 'Pending',
+                'label' => 'Protection Setup',
+                'done' => $protectionActive,
+                'detail' => $protectionActive ? 'Active' : 'Action needed',
             ],
         ];
 
         $domainVisitCounts = $domainVisitTotals;
 
         $platformRows = collect();
+        $apiHealthy = GoogleAdsApiHealth::status($primary, $accounts->count()) === 'ok';
 
         foreach ($mappings as $mapping) {
             $customerId = (string) ($mapping->account?->display_customer_id ?: $mapping->account?->customer_id ?: '');
-            $entityId = (string) ($mapping->account?->google_tag_id ?: ($customerId !== '' ? 'AW-' . preg_replace('/\D+/', '', $customerId) : '—'));
-            $protection = $mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion';
+            $googleTagId = (string) ($mapping->account?->google_tag_id ?: '');
+            $domain = $mapping->domain;
+            $scriptActive = (bool) ($domain?->tag_connected);
+            $gtmId = (string) ($domain?->gtm_container_id ?: '');
+            $scriptKey = (string) ($domain?->domain_key ?: '');
+            $protectionDone = (bool) ($domain?->bot_mitigation_connected || $domain?->paid_marketing_connected);
+            $protectionLabel = $protectionDone
+                ? ($mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion')
+                : 'Not configured';
             $lastSyncAt = $mapping->account?->connection?->last_sync_at;
+            $lastEventAt = $domain?->last_seen_at
+                ? \Illuminate\Support\Carbon::parse((string) $domain->last_seen_at)
+                : null;
             $clicks = (int) ($domainVisitCounts[$mapping->domain_id] ?? 0);
 
             $platformRows->push([
@@ -307,18 +318,29 @@ class IntegrationsController extends Controller
                 'platform' => 'Google Ads',
                 'domain_id' => $mapping->domain_id,
                 'account_id' => $mapping->google_ads_account_id,
-                'account_primary' => $mapping->account?->displayLabel() ?: ($mapping->domain?->hostname ?: 'Google Ads'),
-                'account_secondary' => $customerId !== '' ? $customerId : ($mapping->domain?->hostname ?: '—'),
-                'protection' => $protection,
-                'protection_tone' => $protection === 'Tracking Only' ? 'track' : 'audience',
-                'entity_id' => $entityId,
-                'status' => 'Connected',
+                'account_primary' => $mapping->account?->displayLabel() ?: ($domain?->hostname ?: 'Google Ads'),
+                'account_secondary' => $domain?->hostname ?: '—',
+                'customer_id' => $customerId !== '' ? $customerId : '—',
+                'google_tag_id' => $googleTagId !== '' ? $googleTagId : '—',
+                'gtm_id' => $gtmId !== '' ? $gtmId : '—',
+                'script_id' => $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '—',
+                'api_status' => $apiHealthy ? 'Connected' : ($googleConnected ? 'Pending' : 'Offline'),
+                'api_ok' => $apiHealthy,
+                'script_status' => $scriptActive ? 'Active' : 'Missing',
+                'script_ok' => $scriptActive,
+                'last_event' => $lastEventAt ? $lastEventAt->diffForHumans() : '—',
+                'last_event_at' => optional($lastEventAt)->toIso8601String(),
+                'protection' => $protectionLabel,
+                'protection_ok' => $protectionDone,
+                'protection_tone' => $protectionDone ? 'audience' : 'track',
+                'entity_id' => $customerId !== '' ? $customerId : '—',
+                'status' => 'Account Connected',
                 'last_sync' => $lastSyncAt ? $lastSyncAt->diffForHumans() : '—',
                 'last_sync_at' => optional($lastSyncAt)->toIso8601String(),
                 'clicks' => $clicks,
                 'clicks_label' => number_format($clicks),
                 'clicks_caption' => 'Tracked visits',
-                'action_label' => 'Campaign Settings',
+                'action_label' => 'Manage',
                 'action_url' => route('paid-marketing.detection-settings', ['domain_id' => $mapping->domain_id]),
                 'edit_url' => route('integrations.google.redirect', [
                     'domain_id' => $mapping->domain_id,
@@ -330,10 +352,11 @@ class IntegrationsController extends Controller
                 'search' => strtolower(trim(implode(' ', [
                     'google ads',
                     $mapping->account?->displayLabel(),
-                    $mapping->domain?->hostname,
+                    $domain?->hostname,
                     $customerId,
-                    $entityId,
-                    $protection,
+                    $googleTagId,
+                    $gtmId,
+                    $protectionLabel,
                 ]))),
             ]);
         }
@@ -355,9 +378,16 @@ class IntegrationsController extends Controller
                 continue;
             }
             $customerId = (string) ($account->display_customer_id ?: $account->customer_id ?: '');
-            $entityId = (string) ($account->google_tag_id ?: ($customerId !== '' ? 'AW-' . preg_replace('/\D+/', '', $customerId) : '—'));
+            $googleTagId = (string) ($account->google_tag_id ?: '');
+            $gtmId = (string) ($domain->gtm_container_id ?: '');
+            $scriptKey = (string) ($domain->domain_key ?: '');
+            $scriptActive = (bool) $domain->tag_connected;
+            $protectionDone = (bool) $domain->bot_mitigation_connected || (bool) $domain->paid_marketing_connected;
             $clicks = (int) ($domainVisitCounts[$domain->id] ?? 0);
             $lastSyncAt = $account->connection?->last_sync_at;
+            $lastEventAt = $domain->last_seen_at
+                ? \Illuminate\Support\Carbon::parse((string) $domain->last_seen_at)
+                : null;
 
             $platformRows->push([
                 'key' => 'ads-fk-' . $domain->id,
@@ -366,17 +396,28 @@ class IntegrationsController extends Controller
                 'domain_id' => $domain->id,
                 'account_id' => $account->id,
                 'account_primary' => $account->displayLabel() ?: $domain->hostname,
-                'account_secondary' => $customerId !== '' ? $customerId : $domain->hostname,
-                'protection' => 'Audience Exclusion',
-                'protection_tone' => 'audience',
-                'entity_id' => $entityId,
-                'status' => 'Connected',
+                'account_secondary' => $domain->hostname,
+                'customer_id' => $customerId !== '' ? $customerId : '—',
+                'google_tag_id' => $googleTagId !== '' ? $googleTagId : '—',
+                'gtm_id' => $gtmId !== '' ? $gtmId : '—',
+                'script_id' => $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '—',
+                'api_status' => $apiHealthy ? 'Connected' : ($googleConnected ? 'Pending' : 'Offline'),
+                'api_ok' => $apiHealthy,
+                'script_status' => $scriptActive ? 'Active' : 'Missing',
+                'script_ok' => $scriptActive,
+                'last_event' => $lastEventAt ? $lastEventAt->diffForHumans() : '—',
+                'last_event_at' => optional($lastEventAt)->toIso8601String(),
+                'protection' => $protectionDone ? 'Audience Exclusion' : 'Not configured',
+                'protection_ok' => $protectionDone,
+                'protection_tone' => $protectionDone ? 'audience' : 'track',
+                'entity_id' => $customerId !== '' ? $customerId : '—',
+                'status' => 'Account Connected',
                 'last_sync' => $lastSyncAt ? $lastSyncAt->diffForHumans() : '—',
                 'last_sync_at' => optional($lastSyncAt)->toIso8601String(),
                 'clicks' => $clicks,
                 'clicks_label' => number_format($clicks),
                 'clicks_caption' => 'Tracked visits',
-                'action_label' => 'Campaign Settings',
+                'action_label' => 'Manage',
                 'action_url' => route('paid-marketing.detection-settings', ['domain_id' => $domain->id]),
                 'edit_url' => route('integrations.google.redirect', [
                     'domain_id' => $domain->id,
@@ -390,87 +431,60 @@ class IntegrationsController extends Controller
                     $account->displayLabel(),
                     $domain->hostname,
                     $customerId,
-                    $entityId,
-                ]))),
-            ]);
-        }
-
-        foreach ($manualDomains as $domain) {
-            if (! $domain->tag_connected && blank($domain->gtm_container_id)) {
-                continue;
-            }
-            $gtmId = (string) ($domain->gtm_container_id ?: '');
-            $entityId = $gtmId !== '' ? $gtmId : (string) ($domain->domain_key ?: '—');
-            $clicks = (int) ($domainVisitCounts[$domain->id] ?? 0);
-            $lastSeen = $domain->last_seen_at;
-
-            $platformRows->push([
-                'key' => 'gtm-' . $domain->id,
-                'kind' => 'gtm',
-                'platform' => 'Google Tag Manager',
-                'domain_id' => $domain->id,
-                'account_id' => null,
-                'account_primary' => $domain->hostname,
-                'account_secondary' => $gtmId !== '' ? $gtmId : 'Tracking connected',
-                'protection' => 'Tracking Only',
-                'protection_tone' => 'track',
-                'entity_id' => $entityId,
-                'status' => $domain->tag_connected ? 'Connected' : 'Pending',
-                'last_sync' => $lastSeen ? \Illuminate\Support\Carbon::parse((string) $lastSeen)->diffForHumans() : '—',
-                'last_sync_at' => $lastSeen ? \Illuminate\Support\Carbon::parse((string) $lastSeen)->toIso8601String() : null,
-                'clicks' => $clicks,
-                'clicks_label' => number_format($clicks),
-                'action_label' => 'Tag Settings',
-                'action_url' => route('domains.setup', $domain),
-                'edit_url' => route('domains.setup', $domain),
-                'edit_label' => 'Edit Connection',
-                'delete_url' => route('integrations.destroy-gtm', $domain),
-                'menu_id' => 'gtm-' . $domain->id,
-                'search' => strtolower(trim(implode(' ', [
-                    'google tag manager',
-                    'gtm',
-                    $domain->hostname,
+                    $googleTagId,
                     $gtmId,
-                    $entityId,
-                    'tracking only',
                 ]))),
             ]);
         }
 
-        foreach ($directAds as $row) {
-            $platformRows->push([
-                'key' => 'direct-' . $row->id,
-                'kind' => 'direct',
-                'platform' => 'Direct Ads',
-                'domain_id' => null,
-                'account_id' => null,
-                'account_primary' => $row->account_label ?: 'Direct Ads',
-                'account_secondary' => $row->account_id ?: '—',
-                'protection' => 'ID Tracking',
-                'protection_tone' => 'track',
-                'entity_id' => $row->tag_id ?: ($row->account_id ?: '—'),
-                'status' => 'Connected',
-                'last_sync' => optional($row->updated_at)->diffForHumans() ?: '—',
-                'last_sync_at' => optional($row->updated_at)->toIso8601String(),
-                'clicks' => 0,
-                'clicks_label' => '0',
-                'action_label' => 'Campaign Settings',
-                'action_url' => '#connected-platforms',
-                'edit_url' => route('integrations.google.redirect', ['context' => 'paid_domain']),
-                'edit_label' => 'Edit Connection',
-                'delete_url' => route('integrations.direct-ads.destroy', $row),
-                'menu_id' => 'direct-' . $row->id,
-                'search' => strtolower(trim(implode(' ', [
-                    'direct ads',
-                    $row->account_label,
-                    $row->account_id,
-                    $row->tag_id,
-                    'id tracking',
-                ]))),
-            ]);
-        }
-
+        // Spec: one unique account/domain row — do not list separate GTM / Direct Ads rows.
         $platformRows = $platformRows->values();
+
+        $googleTagId = (string) ($firstAccount?->google_tag_id ?: '');
+        $gtmContainerId = (string) ($firstDomain?->gtm_container_id ?: '');
+        $clickronixScriptId = $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '';
+
+        $googleAdsSummary = [
+            'connected' => $googleConnected,
+            'account_connected' => $adsAccountDone,
+            'email' => $googleEmail,
+            'customer_id' => $adsCustomerId,
+            'label' => $firstAccount?->displayLabel() ?: 'Google Ads',
+            'oauth_url' => route('integrations.google.redirect'),
+            'sync_url' => $primary ? route('integrations.google.sync-accounts', $primary) : null,
+            'protection_url' => route('paid-marketing.detection-settings'),
+        ];
+
+        $trackingInstallation = [
+            'google_tag' => [
+                'id' => $googleTagId !== '' ? $googleTagId : '—',
+                'status' => $googleTagId !== '' && $tagReady ? 'Detected' : 'Not detected',
+                'ok' => $googleTagId !== '' && $tagReady,
+            ],
+            'gtm' => [
+                'id' => $gtmContainerId !== '' ? $gtmContainerId : '—',
+                'status' => $gtmContainerId !== ''
+                    ? ($tagReady ? 'Connected' : 'Offline')
+                    : 'Offline',
+                'ok' => $gtmContainerId !== '' && $tagReady,
+                'unpublished' => $gtmContainerId !== '' && ! $tagReady,
+            ],
+            'script' => [
+                'id' => $clickronixScriptId !== '' ? $clickronixScriptId : '—',
+                'status' => $tagReady ? 'Active' : 'Missing',
+                'ok' => $tagReady,
+            ],
+            'setup_url' => $firstDomain
+                ? route('domains.setup', $firstDomain)
+                : route('domains.index'),
+        ];
+
+        $connectionHealth['audience_protection'] = $protectionActive ? 'Active' : 'Not configured';
+        $connectionHealth['google_tag_ok'] = $googleTagId !== '' && $tagReady;
+        $connectionHealth['script_ok'] = $tagReady;
+        $connectionHealth['api_ok'] = $apiHealthy;
+        $connectionHealth['sync_ok'] = filled($connectionHealth['last_sync_at'])
+            && in_array((string) ($connectionHealth['last_sync_status'] ?? ''), ['ok', 'success', 'synced'], true);
 
         // Only accounts explicitly linked to a domain (paid advertising pick) — not every Ads account under the Gmail OAuth.
         $trackingIds = collect();
@@ -534,6 +548,8 @@ class IntegrationsController extends Controller
             'enabledAdPlatforms',
             'enabledTenantIntegrations',
             'tagSetupUrl',
+            'googleAdsSummary',
+            'trackingInstallation',
         ));
     }
 

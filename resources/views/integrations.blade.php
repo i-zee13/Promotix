@@ -17,27 +17,27 @@
     <div class="figma-rightbar-center mt-[16px] border-t-2 border-[#5a2a99] pt-[14px]">
         <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
         <div class="mx-auto grid w-full max-w-[168px] grid-cols-2 gap-[10px]">
-            <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Test Tracking">
+            <a href="#" class="paid-quick-action" title="Test Integration" @click.prevent="openTestModal()">
                 @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
-                <span>Test Tracking</span>
+                <span>Test Integration</span>
             </a>
             @if ($primaryConnection)
                 <form method="POST" action="{{ route('integrations.google.sync-accounts', $primaryConnection) }}" class="contents">
                     @csrf
-                    <button type="submit" class="paid-quick-action" title="Sync Ads">
+                    <button type="submit" class="paid-quick-action" title="Sync Campaigns">
                         @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
-                        <span>Sync Ads</span>
+                        <span>Sync Campaigns</span>
                 </button>
                 </form>
             @else
-                <a href="{{ route('integrations.google.redirect') }}" class="paid-quick-action" title="Sync Ads">
+                <a href="#" class="paid-quick-action" title="Sync Campaigns" @click.prevent="openConnectGoogleModal()">
                     @include('partials.sidebar-icon', ['name' => 'plug', 'class' => 'h-[16px] w-[16px]'])
-                    <span>Sync Ads</span>
+                    <span>Sync Campaigns</span>
                 </a>
             @endif
-            <a href="{{ route('domains.index') }}" class="paid-quick-action" title="Generate Tag">
+            <a href="#" class="paid-quick-action" title="Install Tag" @click.prevent="openInstallTagsModal()">
                 @include('partials.sidebar-icon', ['name' => 'tag', 'class' => 'h-[16px] w-[16px]'])
-                <span>Generate Tag</span>
+                <span>Install Tag</span>
             </a>
             <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings',{detail:{tab:'reports'}}))" class="paid-quick-action" title="View Reports">
                 @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[16px] w-[16px]'])
@@ -167,6 +167,14 @@ document.addEventListener('DOMContentLoaded', () => {
         'trackingIds' => ($trackingIds ?? collect())->values(),
         'setupProgress' => $setupProgress ?? [],
         'setupProgressByDomain' => $setupProgressByDomain ?? [],
+        'googleAdsSummary' => $googleAdsSummary ?? [],
+        'trackingInstallation' => $trackingInstallation ?? [],
+        'accountsForConnect' => ($accounts ?? collect())->take(40)->map(fn ($a) => [
+            'id' => $a->id,
+            'label' => $a->displayLabel(),
+            'customer_id' => $a->display_customer_id ?: $a->customer_id,
+            'google_tag_id' => $a->google_tag_id,
+        ])->values(),
     ]))"
     @platform-menu.window="handlePlatformMenu($event.detail)"
 >
@@ -222,258 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="mb-[14px] rounded-[8px] border border-white/30 bg-[var(--brand-primary)]/70 px-[14px] py-[10px] text-[13px] text-white">{{ session('status') }}</div>
         @endif
 
-        {{-- First row: Connect Platforms | Status + Health --}}
-        <div class="pi-first-row">
-            <section class="pi-connect-card">
-                <h2 class="pi-section-title">Connect Your Platforms</h2>
-
-                <div class="pi-connect-grid">
-                    {{-- Google Ads OAuth panel --}}
-                    <article class="pi-panel">
-                        <div class="flex items-start justify-between gap-[8px]">
-                            <div class="flex min-w-0 flex-1 gap-[16px]">
-                                <div class="w-[88px] shrink-0 text-center">
-                                    <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
-                                        @include('partials.icons.google', ['class' => 'h-[44px] w-[44px]'])
-                                    </div>
-                                    <p class="text-[15px] font-semibold leading-none text-white">Google Ads</p>
-                                    <span class="pi-status-pill mt-[8px]" :class="googleOAuthConnected ? 'is-on' : 'is-off'">
-                                        <span class="pi-status-dot"></span>
-                                        <span x-text="googleOAuthConnected ? 'Connected' : 'Not connected'"></span>
-                                    </span>
-                                </div>
-
-                                <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
-                                    <a href="{{ $tagSetupUrl ?? route('domains.index') }}" class="pi-ghost-btn">
-                                        <span class="font-mono text-[11px]">&lt;/&gt;</span>
-                                        <span>Tag Manager</span>
-                                    </a>
-                                    <a href="{{ route('paid-marketing.dashboard') }}" class="pi-ghost-btn">
-                                        @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                        <span>Paid Marketing</span>
-                                    </a>
-                                    <a href="{{ route('analytics.dashboard') }}" class="pi-ghost-btn">
-                                        @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                        <span>Bot Protection</span>
-                                    </a>
-
-                                    @if ($googleOAuthConnected && $primaryConnection)
-                                        <form method="POST" action="{{ route('integrations.google.sync-accounts', $primaryConnection) }}">
-                                            @csrf
-                                            <button type="submit" class="pi-primary-btn">
-                                                <svg class="h-[14px] w-[14px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                                Sync Ads
-                                            </button>
-                                        </form>
-                                        <a href="{{ route('integrations.google.redirect') }}" class="pi-text-link" title="Reconnect if Google Ads token expired">Reconnect Google</a>
-                                        <form method="POST" action="{{ route('integrations.google.reconnect-all') }}" onsubmit="return confirm('Refresh tokens for all Google connections / domains? Failed ones still need OAuth reconnect.');">
-                                            @csrf
-                                            <button type="submit" class="pi-text-link" title="Force-refresh tokens for every Google connection">Reconnect all domains</button>
-                                        </form>
-                                        <a href="{{ route('integrations.google.redirect') }}" class="pi-text-link">+ Add Google Login</a>
-                                    @else
-                                        <a href="{{ route('integrations.google.redirect') }}" class="pi-primary-btn">
-                                            <span class="text-[14px] leading-none">+</span>
-                                            Connect Google
-                                        </a>
-                                    @endif
-                                </div>
-                            </div>
-                            <x-integrations.google-platform-menu
-                                menu-id="google"
-                                :google-o-auth-connected="$googleOAuthConnected"
-                                :menu-domain="$menuDomain"
-                                :primary-connection="$primaryConnection"
-                            />
-                        </div>
-                    </article>
-
-                    {{-- Direct Ads panel --}}
-                    <article class="pi-panel">
-                        <div class="mb-[14px] flex items-start justify-between gap-[8px]">
-                            <div class="flex items-center gap-[12px]">
-                                @include('partials.icons.google-ads', ['class' => 'h-[36px] w-[36px]'])
-                                <p class="text-[16px] font-semibold text-white">Direct Ads</p>
-                            </div>
-                            <x-integrations.direct-ads-platform-menu menu-id="direct" />
-                        </div>
-
-                        <form class="flex flex-col gap-[12px]" @submit.prevent="addDirectAds()">
-                            <label class="block">
-                                <span class="mb-[5px] flex items-center gap-[5px] text-[10px] font-medium text-white/65">
-                                    Google Ads Customer ID
-                                    <span class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border border-white/35 text-[8px]" title="Your Google Ads customer ID, e.g. 123-456-7890">i</span>
-                                </span>
-                                <div class="pi-field">
-                                    <input
-                                        id="direct-account-id"
-                                        x-model="directForm.account_id"
-                                        placeholder="123-456-7890"
-                                        class="pi-field__input"
-                                    >
-                                    <button type="button" class="pi-field__copy" title="Copy" @click="copyText(directForm.account_id)">
-                                        <svg class="h-[13px] w-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 8h10v12H8z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 16H4V4h12v2"/></svg>
-                                    </button>
-                                </div>
-                            </label>
-                            <label class="block">
-                                <span class="mb-[5px] flex items-center gap-[5px] text-[10px] font-medium text-white/65">
-                                    Conversion Tag ID
-                                    <span class="inline-flex h-[12px] w-[12px] items-center justify-center rounded-full border border-white/35 text-[8px]" title="Google conversion / AW tag ID">i</span>
-                                </span>
-                                <div class="pi-field">
-                                    <input
-                                        id="direct-tag-id"
-                                        x-model="directForm.tag_id"
-                                        placeholder="AW-123456789"
-                                        class="pi-field__input"
-                                    >
-                                    <button type="button" class="pi-field__copy" title="Copy" @click="copyText(directForm.tag_id)">
-                                        <svg class="h-[13px] w-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 8h10v12H8z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 16H4V4h12v2"/></svg>
-                                    </button>
-                                </div>
-                            </label>
-                            <button type="submit" class="pi-primary-btn pi-primary-btn--wide">Save &amp; Connect</button>
-                        </form>
-                    </article>
-
-                    @if (! empty($enabledAdPlatforms['meta']))
-                        <article class="pi-panel">
-                            <div class="flex items-start justify-between gap-[8px]">
-                                <div class="flex min-w-0 flex-1 gap-[16px]">
-                                    <div class="w-[88px] shrink-0 text-center">
-                                        <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
-                                            <svg class="h-[40px] w-[40px] text-[#1877F2]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.52 1.49-3.91 3.78-3.91 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.45 2.9h-2.33v7c4.78-.75 8.44-4.9 8.44-9.9 0-5.53-4.5-10.02-10-10.02z"/></svg>
-                            </div>
-                                        <p class="text-[15px] font-semibold leading-none text-white">Meta Ads</p>
-                                        <span class="pi-status-pill is-off mt-[8px]">
-                                            <span class="pi-status-dot"></span>
-                                            <span>Not connected</span>
-                                        </span>
-                        </div>
-                                    <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
-                                        <a href="{{ route('paid-marketing.dashboard') }}" class="pi-ghost-btn">
-                                            @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                            <span>Paid Marketing</span>
-                                        </a>
-                                        <a href="{{ route('analytics.dashboard') }}" class="pi-ghost-btn">
-                                            @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                            <span>Bot Protection</span>
-                                        </a>
-                                        <button type="button" class="pi-primary-btn" @click="showMenuToast('Meta Ads connect is coming soon.', 'info')">
-                                            <span class="text-[14px] leading-none">+</span>
-                                            Connect Meta
-                                        </button>
-                            </div>
-                        </div>
-                    </div>
-                        </article>
-                    @endif
-
-                    @if (! empty($enabledAdPlatforms['microsoft']))
-                        <article class="pi-panel">
-                            <div class="flex items-start justify-between gap-[8px]">
-                                <div class="flex min-w-0 flex-1 gap-[16px]">
-                                    <div class="w-[88px] shrink-0 text-center">
-                                        <div class="mx-auto mb-[10px] flex h-[72px] w-[72px] items-center justify-center rounded-[8px] bg-white">
-                                            <svg class="h-[36px] w-[36px]" viewBox="0 0 24 24" aria-hidden="true">
-                                                <path fill="#F25022" d="M3 3h8.5v8.5H3z"/>
-                                                <path fill="#7FBA00" d="M12.5 3H21v8.5h-8.5z"/>
-                                                <path fill="#00A4EF" d="M3 12.5H11.5V21H3z"/>
-                                                <path fill="#FFB900" d="M12.5 12.5H21V21h-8.5z"/>
-                                            </svg>
-                        </div>
-                                        <p class="text-[15px] font-semibold leading-none text-white">Microsoft Ads</p>
-                                        <span class="pi-status-pill is-off mt-[8px]">
-                                            <span class="pi-status-dot"></span>
-                                            <span>Not connected</span>
-                                        </span>
-                        </div>
-                                    <div class="flex min-w-0 flex-1 flex-col justify-center gap-[8px]">
-                                        <a href="{{ route('paid-marketing.dashboard') }}" class="pi-ghost-btn">
-                                            @include('partials.sidebar-icon', ['name' => 'chart', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                            <span>Paid Marketing</span>
-                                        </a>
-                                        <a href="{{ route('analytics.dashboard') }}" class="pi-ghost-btn">
-                                            @include('partials.sidebar-icon', ['name' => 'shield-check', 'class' => 'h-[14px] w-[14px] shrink-0'])
-                                            <span>Bot Protection</span>
-                                        </a>
-                                        <button type="button" class="pi-primary-btn" @click="showMenuToast('Microsoft Ads connect is coming soon.', 'info')">
-                                            <span class="text-[14px] leading-none">+</span>
-                                            Connect Microsoft
-                                        </button>
-                        </div>
-                        </div>
-                        </div>
-                        </article>
-                        @endif
-                    </div>
-                </section>
-
-            <div class="pi-side-stack">
-                <section class="pi-side-card">
-                    <div class="mb-[12px] flex items-center justify-between gap-[8px]">
-                        <h2 class="text-[14px] font-semibold text-white">Connection Status</h2>
-                        <a href="#connected-platforms" class="text-[11px] font-semibold text-[#B893D8] hover:text-white">View All</a>
-                    </div>
-                    <div class="space-y-[8px]">
-                        <div class="pi-status-row">
-                            <span class="flex h-[28px] w-[28px] items-center justify-center rounded-[6px] bg-white">
-                                @include('partials.icons.google', ['class' => 'h-[16px] w-[16px]'])
-                        </span>
-                            <span class="min-w-0 flex-1 truncate text-[12px] text-white/90">Google Ads API</span>
-                            <span class="pi-status-pill" :class="googleAdsApiHealthy ? 'is-on' : 'is-off'">
-                                <span class="pi-status-dot"></span>
-                                <span x-text="googleAdsApiHealthy ? 'Connected' : (googleOAuthConnected ? 'Pending' : 'Offline')"></span>
-                        </span>
-                        </div>
-                        <div class="pi-status-row">
-                            <span class="flex h-[28px] w-[28px] items-center justify-center rounded-[6px] bg-white p-[3px]">
-                                <img src="{{ asset('images/google-tag-manager.svg') }}" alt="" class="h-[18px] w-[18px]">
-                            </span>
-                            <span class="min-w-0 flex-1 truncate text-[12px] text-white/90">Google Tag Manager</span>
-                            <span class="pi-status-pill" :class="tagManagerConnected ? 'is-on' : 'is-off'">
-                                <span class="pi-status-dot"></span>
-                                <span x-text="tagManagerConnected ? 'Connected' : 'Offline'"></span>
-                            </span>
-                    </div>
-                        </div>
-                </section>
-
-                <section class="pi-side-card">
-                    <div class="mb-[12px] flex items-center justify-between gap-[8px]">
-                        <h2 class="text-[14px] font-semibold text-white">Connection Health</h2>
-                        <span class="pi-status-pill" :class="healthLive ? 'is-on' : 'is-off'">
-                            <span class="pi-status-dot"></span>
-                            <span x-text="healthLive ? 'Live' : 'Pending'"></span>
-                        </span>
-                    </div>
-                    <div class="flex items-center gap-[14px]">
-                        <div class="pi-health-ring shrink-0" :style="`--pi-health:${healthPct}`">
-                            <div class="pi-health-ring__inner">
-                                <span class="text-[13px] font-bold leading-none text-white" x-text="healthPct + '%'"></span>
-                                <span class="mt-[2px] text-[8px] uppercase tracking-wide text-white/55">Healthy</span>
-                            </div>
-                        </div>
-                        <div class="min-w-0 flex-1 space-y-[7px]">
-                            <template x-for="item in healthItems" :key="item.key">
-                                <div class="flex items-center gap-[8px] text-[11px]">
-                                    <span class="min-w-0 flex-1 truncate text-white/80" x-text="item.label"></span>
-                                    <span class="inline-flex items-center gap-[4px] shrink-0" :class="item.ok ? 'text-emerald-300' : 'text-amber-300'">
-                                        <svg x-show="item.ok" class="h-[12px] w-[12px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7"/></svg>
-                                        <span x-text="item.stateLabel || (item.ok ? 'Healthy' : 'Pending')"></span>
-                                    </span>
-                                    <span class="w-[42px] shrink-0 text-right text-[10px] text-white/40" x-text="item.ago"></span>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                    @if ($primaryConnection)
-                        <button type="button" class="pi-text-link mt-[12px]" @click="testGoogleHealth()">Test connection health →</button>
-                    @endif
-                </section>
-            </div>
-        </div>
+        {{-- Spec Image 1: corrected Google Ads dashboard --}}
+        @include('partials.integrations.google-ads-dashboard')
 
         <style>
             .pi-first-row {
@@ -1190,7 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="pi-platforms-head">
                 <div>
                     <h2>Connected Platforms</h2>
-                    <p>Linked accounts &amp; domains</p>
+                    <p>Linked Google Ads accounts</p>
                 </div>
                 <div class="pi-platforms-tools">
                     <label class="pi-search">
@@ -1205,7 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </svg>
                         Refresh
                     </button>
-                    <a href="{{ route('integrations.google.redirect') }}" class="pi-add-btn">+ Add Connection</a>
+                    <button type="button" class="pi-add-btn" @click="openConnectGoogleModal()">+ Add Connection</button>
                 </div>
             </div>
 
@@ -1215,11 +973,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <tr>
                             <th>Platform</th>
                             <th>Account / Domain</th>
-                            <th>Protection Type</th>
-                            <th>Connected Entity ID</th>
-                            <th>Status</th>
-                            <th>Last Sync</th>
-                            <th>Tracked Clicks</th>
+                            <th>API</th>
+                            <th>Script</th>
+                            <th>Last Event</th>
+                            <th>Protection</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -1229,13 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <td>
                                     <span class="pi-plat-name">
                                         <span class="pi-plat-logo">
-                                            @if (($row['kind'] ?? '') === 'gtm')
-                                                <img src="{{ url('/images/google-tag-manager.svg') }}" alt="" width="18" height="18">
-                                            @elseif (($row['kind'] ?? '') === 'direct')
-                                                <svg class="h-[14px] w-[14px] text-[var(--brand-primary)]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
-                                            @else
-                                                @include('partials.icons.google', ['class' => 'h-[16px] w-[16px]'])
-                                            @endif
+                                            @include('partials.icons.google', ['class' => 'h-[16px] w-[16px]'])
                                         </span>
                                         <span>{{ $row['platform'] }}</span>
                                     </span>
@@ -1243,28 +994,33 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <td>
                                     <div class="pi-acct-primary truncate" title="{{ $row['account_primary'] }}">{{ $row['account_primary'] }}</div>
                                     <div class="pi-acct-secondary truncate" title="{{ $row['account_secondary'] }}">{{ $row['account_secondary'] }}</div>
-                                </td>
-                                <td>
-                                    <span class="pi-prot {{ ($row['protection_tone'] ?? '') === 'track' ? 'is-track' : 'is-audience' }}">
-                                        <svg class="h-[14px] w-[14px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z"/></svg>
-                                        <span>{{ $row['protection'] }}</span>
-                                        </span>
-                                </td>
-                                <td class="font-mono text-[12px]">{{ $row['entity_id'] }}</td>
-                                <td>
-                                    <span class="{{ ($row['status'] ?? '') === 'Connected' ? 'pi-status-connected' : 'pi-status-pending' }}">{{ $row['status'] }}</span>
-                                </td>
-                                <td>
-                                    @if (! empty($row['last_sync_at']))
-                                        <span x-text="relativeAgo(@js($row['last_sync_at']))">{{ $row['last_sync'] }}</span>
-                                    @else
-                                        {{ $row['last_sync'] }}
+                                    @if (! empty($row['customer_id']) && ($row['customer_id'] ?? '') !== '—')
+                                        <div class="truncate font-mono text-[10px] text-black/45">{{ $row['customer_id'] }}</div>
                                     @endif
                                 </td>
-                                <td>{{ $row['clicks_label'] }}</td>
+                                <td>
+                                    <span class="{{ ! empty($row['api_ok']) ? 'pi-status-connected' : 'pi-status-pending' }}">{{ $row['api_status'] ?? '—' }}</span>
+                                </td>
+                                <td>
+                                    <span class="{{ ! empty($row['script_ok']) ? 'pi-status-connected' : 'pi-status-pending' }}">{{ $row['script_status'] ?? '—' }}</span>
+                                </td>
+                                <td>
+                                    @if (! empty($row['last_event_at']))
+                                        <span x-text="relativeAgo(@js($row['last_event_at']))">{{ $row['last_event'] ?? '—' }}</span>
+                                    @else
+                                        {{ $row['last_event'] ?? '—' }}
+                                    @endif
+                                </td>
+                                <td>
+                                    <span class="pi-prot {{ ! empty($row['protection_ok']) ? 'is-audience' : 'is-track' }}">
+                                        <svg class="h-[14px] w-[14px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z"/></svg>
+                                        <span>{{ $row['protection'] }}</span>
+                                    </span>
+                                </td>
                                 <td>
                                     <div class="pi-row-actions">
                                         <a href="{{ $row['action_url'] }}" class="pi-row-link">{{ $row['action_label'] }}</a>
+                                        <button type="button" class="pi-row-link" @click="openInstallTagsModal()">Install Tag</button>
                                         @if (! empty($row['delete_url']) || ! empty($row['edit_url']))
                                             <div class="integration-row-menu inline-flex">
                                                 <x-integrations.platform-card-dropdown :menu-id="$row['menu_id']" label="Platform row options">
@@ -1273,6 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                                             {{ $row['edit_label'] ?? 'Edit Connection' }}
                                                         </a>
                                                     @endif
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openConnectGoogleModal()">Account details</button>
                                                     @if (! empty($row['delete_url']))
                                                         <form method="POST" action="{{ $row['delete_url'] }}" onsubmit="return confirm('Remove this platform link?');">
                                                 @csrf
@@ -1285,21 +1042,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                                     @endif
                                         </x-integrations.platform-card-dropdown>
                                             </div>
-                                        @else
-                                            <button type="button" class="rounded p-[4px] text-black/40 hover:text-black" title="More" aria-label="More options">
-                                                <svg class="h-[16px] w-[16px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="19" r="1.6"/><circle cx="12" cy="12" r="1.6"/></svg>
-                                            </button>
                                         @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="!py-[28px] text-center text-[13px] text-black/45">No connected platforms yet. Add a connection to get started.</td>
+                                <td colspan="7" class="!py-[28px] text-center text-[13px] text-black/45">No connected Google Ads accounts yet. Add a connection to get started.</td>
                             </tr>
                         @endforelse
                         <tr x-show="filteredPlatformRows.length === 0 && platformRows.length > 0" x-cloak>
-                            <td colspan="8" class="!py-[28px] text-center text-[13px] text-black/45">No platforms match your search.</td>
+                            <td colspan="7" class="!py-[28px] text-center text-[13px] text-black/45">No platforms match your search.</td>
                             </tr>
                     </tbody>
                 </table>
@@ -1388,6 +1141,9 @@ document.addEventListener('DOMContentLoaded', () => {
             @method('DELETE')
         </form>
     @endif
+
+    @include('partials.integrations.connect-google-modal')
+    @include('partials.integrations.install-tags-modal')
 
     {{-- Domain keys modal (Tag Manager + Bot Protection) --}}
     <div class="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-[16px]" x-show="keysModal.open" x-cloak x-transition @click.self="closeKeysModal()" @keydown.escape.window="closeKeysModal()">
@@ -1598,6 +1354,58 @@ function platformIntegrations(config) {
             rows: [{ conversion_id: '', conversion_label: '', tag: '', domain_id: null }],
             tags: [],
         },
+        connectGoogleModal: {
+            open: false,
+            step: 0,
+            steps: ['Google login', 'Select account', 'Permissions', 'Test'],
+            manager_id: '',
+            customer_id: '',
+            domain_id: '',
+            google_tag_id: '',
+            gtm_id: '',
+            testing: false,
+            accounts: config.accountsForConnect || [],
+            permissions: [
+                { key: 'read', label: 'Read campaigns', status: 'pending' },
+                { key: 'ip', label: 'Manage IP exclusions', status: 'pending' },
+                { key: 'audience', label: 'Manage audience associations', status: 'pending' },
+                { key: 'placement', label: 'Placement exclusions', status: 'pending' },
+            ],
+        },
+        installTagsModal: {
+            open: false,
+            tab: 'gtm',
+            tabs: [
+                { id: 'script', label: 'Clickronix Script' },
+                { id: 'google_tag', label: 'Google Tag' },
+                { id: 'gtm', label: 'Google Tag Manager' },
+                { id: 'direct', label: 'Direct Install' },
+            ],
+            google_tag_id: '',
+            gtm_id: '',
+            workspace: 'Default Workspace',
+            requiredTags: [
+                { name: 'Clickronix Collector', meta: 'Type: Custom HTML' },
+                { name: 'Google tag', meta: 'Type: Google tag · AW destination' },
+                { name: 'Invalid Traffic GA4 Event', meta: 'Type: GA4 Event · clickronix_invalid_traffic' },
+            ],
+        },
+        googleAdsSummary: Object.assign({
+            connected: false,
+            account_connected: false,
+            email: '',
+            customer_id: '',
+            label: 'Google Ads',
+            oauth_url: '',
+            sync_url: null,
+            protection_url: '',
+        }, config.googleAdsSummary || {}),
+        trackingInstallation: Object.assign({
+            google_tag: { id: '—', status: 'Not detected', ok: false },
+            gtm: { id: '—', status: 'Offline', ok: false, unpublished: false },
+            script: { id: '—', status: 'Missing', ok: false },
+            setup_url: '#',
+        }, config.trackingInstallation || {}),
         audienceGetUrl: '/integrations/google/audience-exclusion',
         audienceSaveUrl: '/integrations/google/audience-exclusion',
         csrf: config.csrf || '',
@@ -1660,30 +1468,149 @@ function platformIntegrations(config) {
         get healthItems() {
             const syncAgo = this.relativeAgo(this.connectionHealth.last_sync_at);
             const eventAgo = this.relativeAgo(this.connectionHealth.last_event_at);
-            const ipAgo = this.activeDomainStatus
-                ? this.relativeAgo(this.activeDomainStatus.last_seen_at)
-                : eventAgo;
-            const apiOk = this.googleAdsApiHealthy;
-            const apiLinked = Boolean(this.googleOAuthConnected);
-            const tagOk = this.tagManagerConnected;
-            const trackOk = this.trackingScriptOk;
-            const ipOk = this.firstIpCaught;
-            const botOk = this.activeDomainStatus
-                ? Boolean((this.activeDomainStatus.steps || []).find((s) => s.label === 'Analytics' || s.label === 'Bot Protection')?.done)
-                : Boolean(this.botReady || this.domainConnections.some((d) => (d.steps || []).find((s) => s.label === 'Analytics' || s.label === 'Bot Protection')?.done));
+            const apiOk = Boolean(this.connectionHealth.api_ok) || this.googleAdsApiHealthy;
+            const syncOk = Boolean(this.connectionHealth.sync_ok) || Boolean(this.connectionHealth.last_sync_at);
+            const scriptOk = Boolean(this.connectionHealth.script_ok) || this.trackingScriptOk;
+            const tagOk = Boolean(this.connectionHealth.google_tag_ok) || this.trackingInstallation.google_tag?.ok;
+            const audienceOk = String(this.connectionHealth.audience_protection || '').toLowerCase() === 'active';
             return [
                 {
                     key: 'api',
                     label: 'Google Ads API',
                     ok: apiOk,
-                    stateLabel: apiOk ? 'Healthy' : (this.googleAdsApiErrored ? 'Error' : (apiLinked ? 'Pending' : 'Not connected')),
-                    ago: apiLinked ? syncAgo : '—',
+                    stateLabel: apiOk ? 'Connected' : (this.googleOAuthConnected ? 'Pending' : 'Offline'),
+                    ago: syncAgo,
                 },
-                { key: 'gtm', label: 'Tag Manager', ok: tagOk, stateLabel: tagOk ? 'Healthy' : 'Pending', ago: eventAgo },
-                { key: 'script', label: 'Tracking Script', ok: trackOk, stateLabel: trackOk ? 'Healthy' : 'Pending', ago: eventAgo },
-                { key: 'ip', label: 'First IP caught', ok: ipOk, stateLabel: ipOk ? 'Healthy' : 'Waiting', ago: ipOk ? ipAgo : '—' },
-                { key: 'bot', label: 'Analytics', ok: botOk, stateLabel: botOk ? 'Healthy' : 'Pending', ago: eventAgo },
+                {
+                    key: 'sync',
+                    label: 'Campaign Sync',
+                    ok: syncOk,
+                    stateLabel: syncOk ? 'Healthy' : 'Pending',
+                    ago: syncAgo,
+                },
+                {
+                    key: 'script',
+                    label: 'Clickronix Script',
+                    ok: scriptOk,
+                    stateLabel: scriptOk ? 'Active' : 'Missing',
+                    ago: eventAgo,
+                },
+                {
+                    key: 'tag',
+                    label: 'Google Tag',
+                    ok: tagOk,
+                    warn: !tagOk,
+                    stateLabel: tagOk ? 'Detected' : 'Missing',
+                    ago: eventAgo,
+                },
+                {
+                    key: 'audience',
+                    label: 'Audience Protection',
+                    ok: audienceOk,
+                    stateLabel: audienceOk ? 'Active' : 'Not configured',
+                    ago: '—',
+                },
             ];
+        },
+        get canSaveGoogleAccount() {
+            const digits = String(this.connectGoogleModal.customer_id || '').replace(/\D+/g, '');
+            return digits.length >= 10 && Boolean(this.connectGoogleModal.domain_id);
+        },
+        openConnectGoogleModal() {
+            const first = (this.connectGoogleModal.accounts || [])[0] || {};
+            this.connectGoogleModal.customer_id = this.googleAdsSummary.customer_id || first.customer_id || '';
+            this.connectGoogleModal.google_tag_id = first.google_tag_id || this.trackingInstallation.google_tag?.id || '';
+            if (this.connectGoogleModal.google_tag_id === '—') this.connectGoogleModal.google_tag_id = '';
+            this.connectGoogleModal.gtm_id = this.trackingInstallation.gtm?.id && this.trackingInstallation.gtm.id !== '—'
+                ? this.trackingInstallation.gtm.id
+                : '';
+            this.connectGoogleModal.domain_id = this.selectedDomainId || '';
+            this.connectGoogleModal.step = this.googleAdsSummary.connected ? 1 : 0;
+            this.connectGoogleModal.open = true;
+        },
+        closeConnectGoogleModal() {
+            this.connectGoogleModal.open = false;
+        },
+        async runPermissionTest() {
+            this.connectGoogleModal.testing = true;
+            this.connectGoogleModal.step = 3;
+            try {
+                if (config.testUrl) {
+                    const res = await fetch(config.testUrl, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': config.csrf,
+                            'Content-Type': 'application/json',
+                        },
+                        body: '{}',
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    const ok = res.ok && (data.ok !== false);
+                    this.connectGoogleModal.permissions = this.connectGoogleModal.permissions.map((p, idx) => ({
+                        ...p,
+                        status: ok ? (idx === 0 ? 'passed' : 'pending') : (idx === 0 ? 'failed' : 'pending'),
+                    }));
+                    this.showMenuToast(ok ? 'Read permission passed. Write capabilities still need campaign scope.' : 'Permission test failed. Reconnect Google.', ok ? 'success' : 'error');
+                } else {
+                    this.showMenuToast('Connect Google OAuth first.', 'error');
+                }
+            } catch (e) {
+                this.showMenuToast('Permission test failed.', 'error');
+            } finally {
+                this.connectGoogleModal.testing = false;
+            }
+        },
+        saveGoogleAccountDraft() {
+            if (! this.canSaveGoogleAccount) {
+                this.showMenuToast('Enter a valid Customer ID and domain.', 'error');
+                return;
+            }
+            // Non-destructive draft: persist IDs in local UI state / toast. Full save uses OAuth + domain link flows.
+            this.googleAdsSummary.customer_id = this.connectGoogleModal.customer_id;
+            if (this.connectGoogleModal.google_tag_id) {
+                this.trackingInstallation.google_tag.id = this.connectGoogleModal.google_tag_id;
+            }
+            if (this.connectGoogleModal.gtm_id) {
+                this.trackingInstallation.gtm.id = this.connectGoogleModal.gtm_id;
+            }
+            this.showMenuToast('Draft saved locally. Complete OAuth + domain link to apply.', 'success');
+            this.closeConnectGoogleModal();
+        },
+        openInstallTagsModal(tab) {
+            const map = { script: 'script', google_tag: 'google_tag', gtm: 'gtm', direct: 'direct' };
+            this.installTagsModal.tab = map[tab] || 'gtm';
+            this.installTagsModal.google_tag_id = this.trackingInstallation.google_tag?.id === '—'
+                ? ''
+                : (this.trackingInstallation.google_tag?.id || '');
+            this.installTagsModal.gtm_id = this.trackingInstallation.gtm?.id === '—'
+                ? ''
+                : (this.trackingInstallation.gtm?.id || '');
+            this.installTagsModal.open = true;
+        },
+        closeInstallTagsModal() {
+            this.installTagsModal.open = false;
+        },
+        saveInstallTagsDraft() {
+            if (this.installTagsModal.google_tag_id) {
+                this.trackingInstallation.google_tag.id = this.installTagsModal.google_tag_id;
+            }
+            if (this.installTagsModal.gtm_id) {
+                this.trackingInstallation.gtm.id = this.installTagsModal.gtm_id;
+                this.trackingInstallation.gtm.status = 'Offline';
+                this.trackingInstallation.gtm.unpublished = true;
+                this.trackingInstallation.gtm.ok = false;
+            }
+            this.showMenuToast('Draft saved. Publish in GTM, then run Full Test.', 'success');
+            this.closeInstallTagsModal();
+        },
+        openTestModal() {
+            if (config.testUrl) {
+                this.testGoogleHealth();
+                return;
+            }
+            this.openConnectGoogleModal();
+            this.showMenuToast('Connect Google Ads first, then run Test Integration.', 'info');
         },
         get setupProgressFill() {
             const steps = this.activeSetupProgress || [];
@@ -1717,16 +1644,10 @@ function platformIntegrations(config) {
         get filteredPlatformRows() {
             let rows = this.platformRows || [];
             if (this.selectedDomainId) {
-                rows = rows.filter((row) => {
-                    if (row.domain_id == null || row.domain_id === '') return row.kind === 'direct';
-                    return String(row.domain_id) === String(this.selectedDomainId);
-                });
+                rows = rows.filter((row) => String(row.domain_id) === String(this.selectedDomainId));
             }
             if (this.selectedAdsAccountId) {
-                rows = rows.filter((row) => {
-                    if (row.account_id == null || row.account_id === '') return row.kind !== 'google_ads';
-                    return String(row.account_id) === String(this.selectedAdsAccountId);
-                });
+                rows = rows.filter((row) => String(row.account_id) === String(this.selectedAdsAccountId));
             }
             const q = String(this.platformSearch || '').trim().toLowerCase();
             if (!q) return rows;

@@ -36,6 +36,9 @@
                     align-items: stretch;
                     gap: 12px;
                     min-width: 0;
+                    position: relative;
+                    z-index: 30;
+                    overflow: visible;
                 }
                 @media (min-width: 1400px) {
                     .bp-adv-page-head {
@@ -57,7 +60,8 @@
                     flex-wrap: wrap !important;
                     align-items: stretch;
                     gap: 0 !important;
-                    overflow: hidden !important;
+                    /* Must stay visible so the date-range popover is not clipped */
+                    overflow: visible !important;
                     box-sizing: border-box;
                     min-height: 48px !important;
                 }
@@ -112,6 +116,9 @@
                     flex: 1 1 100% !important;
                     align-items: stretch;
                     align-self: stretch;
+                    position: relative;
+                    z-index: 40;
+                    overflow: visible;
                     border-left: 0;
                     border-top: 1px solid rgba(0, 0, 0, 0.12);
                 }
@@ -130,6 +137,9 @@
                     align-items: center;
                     justify-content: center;
                     align-self: stretch;
+                    position: relative;
+                    z-index: 50;
+                    overflow: visible;
                     border-left: 0 !important;
                     padding: 5px 8px !important;
                     margin: 0 !important;
@@ -175,7 +185,7 @@
                 }
             </style>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar ml-auto flex min-h-[48px] w-full max-w-full flex-wrap overflow-hidden rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar ml-auto flex min-h-[48px] w-full max-w-full flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
                 <label class="bp-dash-f-search flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
                     <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Search</span>
                     <div class="figma-filter-path-wrap">
