@@ -234,6 +234,20 @@ document.addEventListener('DOMContentLoaded', () => {
         @include('partials.integrations.google-ads-dashboard')
 
         <style>
+            html.pi-spec-modal-open,
+            html.pi-spec-modal-open body {
+                overflow: hidden !important;
+            }
+            .pi-spec-modal-root {
+                isolation: isolate;
+            }
+            .pi-spec-modal-backdrop {
+                background: rgba(0, 0, 0, 0.82) !important;
+            }
+            .pi-spec-modal-panel {
+                background: #121212 !important;
+                color: #fff !important;
+            }
             .pi-first-row {
                 display: grid;
                 gap: 14px;
@@ -1527,9 +1541,13 @@ function platformIntegrations(config) {
             this.connectGoogleModal.domain_id = this.selectedDomainId || '';
             this.connectGoogleModal.step = this.googleAdsSummary.connected ? 1 : 0;
             this.connectGoogleModal.open = true;
+            document.documentElement.classList.add('pi-spec-modal-open');
         },
         closeConnectGoogleModal() {
             this.connectGoogleModal.open = false;
+            if (! this.installTagsModal.open) {
+                document.documentElement.classList.remove('pi-spec-modal-open');
+            }
         },
         async runPermissionTest() {
             this.connectGoogleModal.testing = true;
@@ -1587,9 +1605,13 @@ function platformIntegrations(config) {
                 ? ''
                 : (this.trackingInstallation.gtm?.id || '');
             this.installTagsModal.open = true;
+            document.documentElement.classList.add('pi-spec-modal-open');
         },
         closeInstallTagsModal() {
             this.installTagsModal.open = false;
+            if (! this.connectGoogleModal.open) {
+                document.documentElement.classList.remove('pi-spec-modal-open');
+            }
         },
         saveInstallTagsDraft() {
             if (this.installTagsModal.google_tag_id) {
