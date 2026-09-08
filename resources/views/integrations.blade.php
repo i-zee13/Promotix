@@ -174,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'google_tag_id' => $a->resolvedGoogleTagId() ?: $a->google_tag_id,
         ])->values(),
         'audienceCampaignsUrl' => route('integrations.google.audience-campaigns'),
+        'ga4StatusUrl' => route('integrations.google.ga4-status'),
         'createAudienceUrl' => route('integrations.google.create-audience'),
         'applyAudienceUrl' => route('integrations.google.apply-audience'),
     ]))"
@@ -1534,6 +1535,11 @@ function platformIntegrations(config) {
             method: 'ga4',
             ga4Options: [],
             adsOptions: [],
+            ga4Checking: false,
+            ga4Present: null,
+            ga4Message: '',
+            ga4Confidence: '',
+            ga4StatusUrl: config.ga4StatusUrl || '',
             includeRules: [
                 { field: 'Event name', param: '', op: 'exactly matches', value: 'clickronix_invalid_traffic' },
                 { field: 'Event parameter', param: 'traffic_status', op: 'exactly matches', value: 'invalid' },
@@ -1554,6 +1560,7 @@ function platformIntegrations(config) {
         applyAudienceModal: {
             open: false,
             loading: false,
+            applying: false,
             error: '',
             audienceName: 'Clickronix - Confirmed Invalid Traffic v1',
             source: 'GA4',
@@ -1565,6 +1572,8 @@ function platformIntegrations(config) {
             sourceLinked: true,
             campaignsUrl: config.audienceCampaignsUrl || '',
             applyUrl: config.applyAudienceUrl || '',
+            ga4Present: null,
+            ga4Message: '',
             userListId: '',
             campaigns: [],
         },
@@ -2015,38 +2024,133 @@ function platformIntegrations(config) {
             this.openCreateAudienceModal();
         },
         get createAudienceReady() {
+            const needsGa4 = (this.createAudienceModal.method || 'ga4') === 'ga4';
+            const ga4Ok = !needsGa4 || this.createAudienceModal.ga4Present === true;
             return Boolean(this.createAudienceModal.name)
                 && Boolean(this.createAudienceModal.ads_account || this.googleAdsSummary.customer_id)
-                && !this.createAudienceModal.creating;
+                && !this.createAudienceModal.creating
+                && !this.createAudienceModal.ga4Checking
+                && ga4Ok;
+        },
+        resolveAudienceDomainId() {
+            let domainId = this.selectedDomainId || '';
+            if (!domainId && (this.trackingIds || []).length) {
+                domainId = this.trackingIds[0].domain_id || '';
+            }
+            return domainId ? String(domainId) : '';
+        },
+        async checkGa4SiteStatus(forApply = false) {
+            const domainId = this.resolveAudienceDomainId();
+            const url = this.createAudienceModal.ga4StatusUrl;
+            if (!domainId || !url) {
+                this.createAudienceModal.ga4Present = false;
+                this.createAudienceModal.ga4Message = 'Select a domain first so we can check GA4/GTM on the website.';
+                this.createAudienceModal.ga4Confidence = 'none';
+                if (forApply) {
+                    this.applyAudienceModal.ga4Present = false;
+                    this.applyAudienceModal.ga4Message = this.createAudienceModal.ga4Message;
+                }
+                return false;
+            }
+            this.createAudienceModal.ga4Checking = true;
+            try {
+                const res = await fetch(url + '?domain_id=' + encodeURIComponent(domainId), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const data = await res.json().catch(() => ({}));
+                const d = data.detection || {};
+                const present = Boolean(d.present);
+                const message = d.message || (present
+                    ? 'GA4/GTM detected on the website.'
+                    : 'GA4/GTM not detected on the website.');
+                this.createAudienceModal.ga4Present = present;
+                this.createAudienceModal.ga4Message = message;
+                this.createAudienceModal.ga4Confidence = d.confidence || (present ? 'medium' : 'none');
+                if (forApply) {
+                    this.applyAudienceModal.ga4Present = present;
+                    this.applyAudienceModal.ga4Message = message;
+                }
+                return present;
+            } catch (_) {
+                this.createAudienceModal.ga4Present = false;
+                this.createAudienceModal.ga4Message = 'Could not check GA4/GTM on the website. Try again.';
+                this.createAudienceModal.ga4Confidence = 'none';
+                if (forApply) {
+                    this.applyAudienceModal.ga4Present = false;
+                    this.applyAudienceModal.ga4Message = this.createAudienceModal.ga4Message;
+                }
+                return false;
+            } finally {
+                this.createAudienceModal.ga4Checking = false;
+            }
         },
         openCreateAudienceModal() {
-            const accounts = (config.accountsForConnect || []).map((a) => ({
-                id: String(a.id),
-                label: (a.customer_id || a.label || ('Account ' + a.id)),
-            }));
-            this.createAudienceModal.adsOptions = accounts.length
-                ? accounts
-                : [{ id: 'summary', label: this.googleAdsSummary.customer_id || 'Linked Ads account' }];
-            if (!this.createAudienceModal.ads_account) {
-                this.createAudienceModal.ads_account = this.createAudienceModal.adsOptions[0]?.id || '';
+            // Only domain-linked Ads accounts — not every OAuth/MCC child account.
+            let rows = Array.isArray(this.trackingIds) ? [...this.trackingIds] : [];
+            if (this.selectedDomainId) {
+                rows = rows.filter((t) => String(t.domain_id) === String(this.selectedDomainId));
             }
-            const gtag = this.trackingInstallation?.google_tag?.id;
+            if (this.selectedAdsAccountId) {
+                rows = rows.filter((t) => String(t.account_id) === String(this.selectedAdsAccountId));
+            }
+            const seen = new Set();
+            const accounts = [];
+            rows.forEach((t) => {
+                const id = String(t.account_id || '');
+                if (!id || seen.has(id)) return;
+                seen.add(id);
+                const cid = String(t.customer_id || '').trim();
+                const name = String(t.label || '').trim();
+                let label = name || cid || ('Account ' + id);
+                if (name && cid && name !== cid && !name.includes(cid)) {
+                    label = name + ' (' + cid + ')';
+                }
+                accounts.push({
+                    id,
+                    label,
+                    customer_id: cid,
+                    google_tag_id: t.google_tag_id || '',
+                    domain_id: t.domain_id,
+                    domain: t.domain || '',
+                });
+            });
+            this.createAudienceModal.adsOptions = accounts;
+            if (!accounts.length) {
+                this.createAudienceModal.ads_account = '';
+                this.showMenuToast('No linked Google Ads account for this domain. Link an account first.', 'info');
+            } else if (!this.createAudienceModal.ads_account
+                || !accounts.find((a) => String(a.id) === String(this.createAudienceModal.ads_account))) {
+                this.createAudienceModal.ads_account = accounts[0].id;
+            }
+
+            // Tag options only from linked accounts (not a long AW list).
             this.createAudienceModal.ga4Options = [];
-            if (gtag && String(gtag) !== '—') {
-                this.createAudienceModal.ga4Options.push({ id: String(gtag), label: 'Linked tag ' + gtag });
-            }
-            if (this.googleAdsSummary?.google_tag_id && this.googleAdsSummary.google_tag_id !== '—') {
-                const id = String(this.googleAdsSummary.google_tag_id);
-                if (!this.createAudienceModal.ga4Options.find((p) => p.id === id)) {
-                    this.createAudienceModal.ga4Options.push({ id, label: 'Google tag ' + id });
+            const tagSeen = new Set();
+            accounts.forEach((a) => {
+                const tag = String(a.google_tag_id || '').trim();
+                if (!tag || tag === '—' || tagSeen.has(tag)) return;
+                tagSeen.add(tag);
+                this.createAudienceModal.ga4Options.push({
+                    id: tag,
+                    label: (a.label ? a.label + ' · ' : '') + tag,
+                });
+            });
+            if (!this.createAudienceModal.ga4Options.length) {
+                const gtag = this.trackingInstallation?.google_tag?.id;
+                if (gtag && String(gtag) !== '—') {
+                    this.createAudienceModal.ga4Options.push({ id: String(gtag), label: 'Linked tag ' + gtag });
                 }
             }
-            if (!this.createAudienceModal.ga4_property && this.createAudienceModal.ga4Options.length) {
-                this.createAudienceModal.ga4_property = this.createAudienceModal.ga4Options[0].id;
+            if (!this.createAudienceModal.ga4_property
+                || !this.createAudienceModal.ga4Options.find((p) => p.id === this.createAudienceModal.ga4_property)) {
+                this.createAudienceModal.ga4_property = this.createAudienceModal.ga4Options[0]?.id || '';
             }
+            this.createAudienceModal.ga4Present = null;
+            this.createAudienceModal.ga4Message = '';
             this.createAudienceModal.step = 0;
             this.createAudienceModal.open = true;
             this.lockSpecModal();
+            this.checkGa4SiteStatus(false);
         },
         closeCreateAudienceModal() {
             this.createAudienceModal.open = false;
@@ -2068,17 +2172,23 @@ function platformIntegrations(config) {
             this.showMenuToast('Audience draft saved locally.', 'success');
         },
         async createGa4Audience() {
-            if (!this.createAudienceReady) {
+            if (!this.createAudienceModal.name || !(this.createAudienceModal.ads_account || this.googleAdsSummary.customer_id)) {
                 this.showMenuToast('Enter audience name and select a Google Ads account.', 'error');
                 return;
             }
-            let domainId = this.selectedDomainId || '';
-            if (!domainId && (this.trackingIds || []).length) {
-                domainId = this.trackingIds[0].domain_id || '';
-            }
+            const domainId = this.resolveAudienceDomainId();
             if (!domainId || !this.createAudienceModal.createUrl) {
                 this.showMenuToast('Select a domain first, then Create audience.', 'error');
                 return;
+            }
+            if ((this.createAudienceModal.method || 'ga4') === 'ga4') {
+                const present = this.createAudienceModal.ga4Present === true
+                    ? true
+                    : await this.checkGa4SiteStatus(false);
+                if (!present) {
+                    this.showMenuToast(this.createAudienceModal.ga4Message || 'GA4/GTM not detected on the website. Install tracking first.', 'error');
+                    return;
+                }
             }
             this.createAudienceModal.creating = true;
             try {
@@ -2104,6 +2214,10 @@ function platformIntegrations(config) {
                     body: JSON.stringify(body),
                 });
                 const data = await res.json().catch(() => ({}));
+                if (data.ga4_detection) {
+                    this.createAudienceModal.ga4Present = Boolean(data.ga4_detection.present);
+                    this.createAudienceModal.ga4Message = data.ga4_detection.message || this.createAudienceModal.ga4Message;
+                }
                 if (!data.ok) {
                     this.showMenuToast(data.message || 'Could not create audience in Google Ads.', 'error');
                     return;
@@ -2132,8 +2246,11 @@ function platformIntegrations(config) {
             if (!this.applyAudienceModal.audienceName) {
                 this.applyAudienceModal.audienceName = this.createAudienceModal.name;
             }
+            this.applyAudienceModal.ga4Present = this.createAudienceModal.ga4Present;
+            this.applyAudienceModal.ga4Message = this.createAudienceModal.ga4Message || '';
             this.applyAudienceModal.open = true;
             this.lockSpecModal();
+            this.checkGa4SiteStatus(true);
             this.loadApplyAudienceCampaigns();
         },
         closeApplyAudienceModal() {
@@ -2221,17 +2338,22 @@ function platformIntegrations(config) {
                 this.showMenuToast('Select at least one eligible campaign.', 'info');
                 return;
             }
-            const selected = (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect);
-            selected.forEach((c) => { c.state = 'Attaching…'; });
-
-            let domainId = this.selectedDomainId || '';
-            if (!domainId && (this.trackingIds || []).length) {
-                domainId = this.trackingIds[0].domain_id || '';
-            }
+            const domainId = this.resolveAudienceDomainId();
             if (!domainId || !this.applyAudienceModal.applyUrl) {
                 this.showMenuToast('Select a domain first, then apply the audience to campaigns.', 'info');
                 return;
             }
+            const ga4Ok = this.applyAudienceModal.ga4Present === true
+                ? true
+                : await this.checkGa4SiteStatus(true);
+            if (!ga4Ok) {
+                this.showMenuToast(this.applyAudienceModal.ga4Message || 'GA4/GTM not detected — fix tracking before Apply exclusion.', 'error');
+                return;
+            }
+
+            const selected = (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect);
+            selected.forEach((c) => { c.state = 'Attaching…'; });
+            this.applyAudienceModal.applying = true;
 
             try {
                 const res = await fetch(this.applyAudienceModal.applyUrl, {
@@ -2252,11 +2374,15 @@ function platformIntegrations(config) {
                     }),
                 });
                 const data = await res.json().catch(() => ({}));
+                if (data.ga4_detection) {
+                    this.applyAudienceModal.ga4Present = Boolean(data.ga4_detection.present);
+                    this.applyAudienceModal.ga4Message = data.ga4_detection.message || '';
+                }
                 const attached = new Set((data.attached || []).map(String));
                 selected.forEach((c) => {
                     c.state = attached.has(String(c.id)) || attached.has('ag:' + String(c.id))
                         ? 'Attached in Google Ads'
-                        : (data.ok ? 'Queued' : 'Not attached');
+                        : 'Not attached';
                 });
                 if (data.user_list_id) {
                     this.applyAudienceModal.userListId = String(data.user_list_id);
@@ -2270,6 +2396,8 @@ function platformIntegrations(config) {
             } catch (_) {
                 selected.forEach((c) => { c.state = 'Failed'; });
                 this.showMenuToast('Apply audience request failed.', 'error');
+            } finally {
+                this.applyAudienceModal.applying = false;
             }
         },
         openPixelGuardModal() {

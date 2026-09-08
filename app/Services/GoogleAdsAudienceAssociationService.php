@@ -87,15 +87,28 @@ class GoogleAdsAudienceAssociationService
 
         $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
         $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
-        $resolved = $this->resolveUserList(
-            $customerId,
-            $version,
-            $headers,
-            $audienceName,
-            null,
-            $eventName,
-            $days,
-        );
+        $resolved = null;
+        foreach ($this->headerVariantsForAccount($account) as $headersTry) {
+            $resolved = $this->resolveUserList(
+                $customerId,
+                $version,
+                $headersTry,
+                $audienceName,
+                null,
+                $eventName,
+                $days,
+            );
+            if (($resolved['id'] ?? null) !== null) {
+                $headers = $headersTry;
+                break;
+            }
+        }
+        $resolved ??= [
+            'id' => null,
+            'name' => null,
+            'created' => false,
+            'error' => 'Could not create Google Ads audience list.',
+        ];
 
         if (($resolved['id'] ?? null) === null) {
             return [
@@ -271,16 +284,33 @@ class GoogleAdsAudienceAssociationService
 
         $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
         $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
+        $headerVariants = $this->headerVariantsForAccount($account);
+        if ($headerVariants === []) {
+            $headerVariants = [$headers];
+        }
 
-        $resolved = $this->resolveUserList(
-            $customerId,
-            $version,
-            $headers,
-            $audienceName,
-            $stored['user_list_id'],
-            $eventName,
-            $this->parseMembershipDays((string) ($stored['membership_days'] ?? '30')),
-        );
+        $resolved = null;
+        foreach ($headerVariants as $headersTry) {
+            $resolved = $this->resolveUserList(
+                $customerId,
+                $version,
+                $headersTry,
+                $audienceName,
+                $stored['user_list_id'],
+                $eventName,
+                $this->parseMembershipDays((string) ($stored['membership_days'] ?? '30')),
+            );
+            if (($resolved['id'] ?? null) !== null) {
+                $headers = $headersTry;
+                break;
+            }
+        }
+        $resolved ??= [
+            'id' => null,
+            'name' => null,
+            'created' => false,
+            'error' => 'Could not find or create user list.',
+        ];
 
         if (($resolved['id'] ?? null) === null) {
             $stored['status'] = 'user_list_missing';
@@ -308,77 +338,79 @@ class GoogleAdsAudienceAssociationService
         $userListResource = "customers/{$customerId}/userLists/{$listId}";
         $attached = [];
         $failed = [];
+        // Recompute variants after resolve may have selected a working login header.
+        $headerVariants = $this->headerVariantsForAccount($account);
+        if ($headerVariants === []) {
+            $headerVariants = [$headers];
+        }
 
         if ($stored['scope'] === 'adgroup') {
             foreach ($adGroupIds as $adGroupId) {
-                $response = Http::timeout(30)
-                    ->withHeaders($headers)
-                    ->post($this->googleAdsUrl($version, "customers/{$customerId}/adGroupCriteria:mutate"), [
-                        'operations' => [[
-                            'create' => [
-                                'adGroup' => "customers/{$customerId}/adGroups/{$adGroupId}",
-                                'negative' => true,
-                                'userList' => [
-                                    'userList' => $userListResource,
-                                ],
-                            ],
-                        ]],
-                    ]);
-
-                if ($response->successful() || $this->isBenignDuplicate((string) $response->body())) {
+                $attach = $this->mutateNegativeUserList(
+                    $customerId,
+                    $version,
+                    $headerVariants,
+                    'adGroupCriteria',
+                    [
+                        'adGroup' => "customers/{$customerId}/adGroups/{$adGroupId}",
+                        'negative' => true,
+                        'userList' => ['userList' => $userListResource],
+                    ],
+                );
+                if ($attach['ok']) {
                     $attached[] = 'ag:'.$adGroupId;
                     continue;
                 }
-
-                $failed[] = 'adGroup '.$adGroupId.': '.Str::limit($this->extractError((string) $response->body()), 160);
+                $failed[] = 'adGroup '.$adGroupId.': '.Str::limit((string) $attach['error'], 160);
                 Log::warning('Google Ads ad-group audience exclusion attach failed', [
                     'domain_id' => $domain->id,
                     'ad_group_id' => $adGroupId,
                     'user_list_id' => $listId,
-                    'body' => Str::limit((string) $response->body(), 500),
+                    'error' => $attach['error'],
                 ]);
             }
         } else {
             foreach ($campaignIds as $campaignId) {
-                $response = Http::timeout(30)
-                    ->withHeaders($headers)
-                    ->post($this->googleAdsUrl($version, "customers/{$customerId}/campaignCriteria:mutate"), [
-                        'partialFailure' => true,
-                        'operations' => [[
-                            'create' => [
-                                'campaign' => "customers/{$customerId}/campaigns/{$campaignId}",
-                                'negative' => true,
-                                'userList' => [
-                                    'userList' => $userListResource,
-                                ],
-                            ],
-                        ]],
-                    ]);
-
-                if ($response->successful() || $this->isBenignDuplicate((string) $response->body())) {
-                    // partialFailure can still return 200 with errors inside
-                    if ($this->mutateHadPartialFailure((string) $response->body()) && ! $this->isBenignDuplicate((string) $response->body())) {
-                        $failed[] = $campaignId.': '.Str::limit($this->extractError((string) $response->body()), 160);
-                        continue;
-                    }
+                $attach = $this->mutateNegativeUserList(
+                    $customerId,
+                    $version,
+                    $headerVariants,
+                    'campaignCriteria',
+                    [
+                        'campaign' => "customers/{$customerId}/campaigns/{$campaignId}",
+                        'negative' => true,
+                        'userList' => ['userList' => $userListResource],
+                    ],
+                );
+                if ($attach['ok']) {
                     $attached[] = $campaignId;
                     continue;
                 }
-
-                $failed[] = $campaignId.': '.Str::limit($this->extractError((string) $response->body()), 160);
+                $failed[] = $campaignId.': '.Str::limit((string) $attach['error'], 160);
                 Log::warning('Google Ads audience exclusion attach failed', [
                     'domain_id' => $domain->id,
                     'campaign_id' => $campaignId,
                     'user_list_id' => $listId,
-                    'body' => Str::limit((string) $response->body(), 500),
+                    'error' => $attach['error'],
                 ]);
             }
         }
 
-        // Read-back confirmation when Google returns criterion rows.
+        // Read-back confirmation — required for campaign scope so UI false-positives don't slip through.
         if ($stored['scope'] !== 'adgroup' && $attached !== []) {
-            $verified = $this->verifyCampaignExclusions($customerId, $version, $headers, $attached, $listId);
-            if ($verified !== []) {
+            $verified = [];
+            foreach ($headerVariants as $headersTry) {
+                $verified = $this->verifyCampaignExclusions($customerId, $version, $headersTry, $attached, $listId);
+                if ($verified !== []) {
+                    break;
+                }
+            }
+            if ($verified === []) {
+                foreach ($attached as $cid) {
+                    $failed[] = $cid.': Attached API call succeeded but exclusion not found in Google Ads read-back. Check MCC access / login-customer-id.';
+                }
+                $attached = [];
+            } else {
                 foreach (array_diff($attached, $verified) as $cid) {
                     $failed[] = $cid.': Not confirmed in Google Ads campaign exclusions read-back.';
                 }
@@ -592,71 +624,211 @@ class GoogleAdsAudienceAssociationService
         int $membershipDays = 30,
     ): array {
         $lifeSpan = (string) max(1, min(540, $membershipDays));
-        $payload = [
-            'operations' => [[
-                'create' => [
-                    'name' => mb_substr($audienceName, 0, 255),
-                    'description' => mb_substr(
-                        'Clickronix invalid-traffic exclusion. Event: '.$eventName
-                        .' + Google Client ID. Attach as negative audience on Search/Display campaigns.',
-                        0,
-                        500
-                    ),
-                    'membershipStatus' => 'OPEN',
-                    'membershipLifeSpan' => $lifeSpan,
-                    'crmBasedUserList' => [
-                        'uploadKeyType' => 'CONTACT_INFO',
+        $baseName = mb_substr($audienceName, 0, 255);
+        $description = mb_substr(
+            'Clickronix invalid-traffic exclusion. Event: '.$eventName
+            .' + Google Client ID. Attach as negative audience on Search/Display campaigns.',
+            0,
+            500
+        );
+
+        // Prefer remarketing/rule list (shows under Audiences); CRM Contact Info often needs Customer Match agreement.
+        $attempts = [
+            [
+                'name' => $baseName,
+                'description' => $description,
+                'membershipStatus' => 'OPEN',
+                'membershipLifeSpan' => $lifeSpan,
+                'ruleBasedUserList' => [
+                    'prepopulationStatus' => 'REQUESTED',
+                    'flexibleRuleUserList' => [
+                        'inclusiveRuleOperator' => 'AND',
+                        'inclusiveOperands' => [[
+                            'ruleItemGroups' => [[
+                                'ruleItems' => [[
+                                    'name' => 'e:'.$eventName,
+                                    'stringRuleItem' => [
+                                        'operator' => 'EQUALS',
+                                        'value' => $eventName,
+                                    ],
+                                ]],
+                            ]],
+                            'lookbackWindowDays' => $lifeSpan,
+                        ]],
                     ],
                 ],
-            ]],
+            ],
+            [
+                'name' => $baseName,
+                'description' => $description,
+                'membershipStatus' => 'OPEN',
+                'membershipLifeSpan' => $lifeSpan,
+                'crmBasedUserList' => [
+                    'uploadKeyType' => 'CONTACT_INFO',
+                ],
+            ],
         ];
 
-        $response = Http::timeout(30)
-            ->withHeaders($headers)
-            ->post($this->googleAdsUrl($version, "customers/{$customerId}/userLists:mutate"), $payload);
+        $lastError = 'User list create failed.';
+        foreach ($attempts as $createBody) {
+            $payload = ['operations' => [['create' => $createBody]]];
+            $response = Http::timeout(30)
+                ->withHeaders($headers)
+                ->post($this->googleAdsUrl($version, "customers/{$customerId}/userLists:mutate"), $payload);
 
-        if (! $response->successful()) {
-            // Retry with a unique name if duplicate.
-            if ($this->isBenignDuplicate((string) $response->body())) {
-                $payload['operations'][0]['create']['name'] = mb_substr($audienceName.' '.now()->format('Ymd-Hi'), 0, 255);
+            if (! $response->successful() && $this->isBenignDuplicate((string) $response->body())) {
+                $createBody['name'] = mb_substr($baseName.' '.now()->format('Ymd-Hi'), 0, 255);
+                $payload = ['operations' => [['create' => $createBody]]];
                 $response = Http::timeout(30)
                     ->withHeaders($headers)
                     ->post($this->googleAdsUrl($version, "customers/{$customerId}/userLists:mutate"), $payload);
             }
-        }
 
-        if (! $response->successful()) {
-            Log::warning('Google Ads user list create failed', [
-                'customer_id' => $customerId,
-                'body' => Str::limit((string) $response->body(), 600),
-            ]);
+            if (! $response->successful()) {
+                $lastError = Str::limit($this->extractError((string) $response->body()), 200);
+                Log::warning('Google Ads user list create attempt failed', [
+                    'customer_id' => $customerId,
+                    'body' => Str::limit((string) $response->body(), 600),
+                ]);
+                continue;
+            }
 
-            return [
-                'id' => null,
-                'name' => null,
-                'error' => Str::limit($this->extractError((string) $response->body()), 200),
-            ];
-        }
-
-        $json = $response->json();
-        $resource = (string) (
-            $json['results'][0]['resourceName']
-            ?? $json['results'][0]['resource_name']
-            ?? ''
-        );
-        if (preg_match('#userLists/(\d+)#', $resource, $m)) {
-            return [
-                'id' => $m[1],
-                'name' => (string) ($payload['operations'][0]['create']['name'] ?? $audienceName),
-                'error' => null,
-            ];
+            $json = $response->json();
+            $resource = (string) (
+                $json['results'][0]['resourceName']
+                ?? $json['results'][0]['resource_name']
+                ?? ''
+            );
+            if (preg_match('#userLists/(\d+)#', $resource, $m)) {
+                return [
+                    'id' => $m[1],
+                    'name' => (string) ($createBody['name'] ?? $audienceName),
+                    'error' => null,
+                ];
+            }
+            $lastError = 'User list created but ID missing in API response.';
         }
 
         return [
             'id' => null,
             'name' => null,
-            'error' => 'User list created but ID missing in API response.',
+            'error' => $lastError,
         ];
+    }
+
+    /**
+     * Try mutate with alternate login-customer-id headers until one works.
+     *
+     * @param  list<array<string, string>>  $headerVariants
+     * @param  array<string, mixed>  $criterionCreate
+     * @return array{ok: bool, error: ?string}
+     */
+    private function mutateNegativeUserList(
+        string $customerId,
+        string $version,
+        array $headerVariants,
+        string $resource,
+        array $criterionCreate,
+    ): array {
+        $lastError = 'Google Ads rejected the audience exclusion.';
+        foreach ($headerVariants as $headers) {
+            $response = Http::timeout(30)
+                ->withHeaders($headers)
+                ->post($this->googleAdsUrl($version, "customers/{$customerId}/{$resource}:mutate"), [
+                    'partialFailure' => true,
+                    'operations' => [['create' => $criterionCreate]],
+                ]);
+
+            $body = (string) $response->body();
+            if ($this->isBenignDuplicate($body)) {
+                return ['ok' => true, 'error' => null];
+            }
+
+            if (! $response->successful()) {
+                $lastError = $this->extractError($body);
+                continue;
+            }
+
+            if ($this->mutateHadPartialFailure($body)) {
+                $lastError = $this->extractError($body);
+                continue;
+            }
+
+            if ($this->mutateReturnedResourceName($body)) {
+                return ['ok' => true, 'error' => null];
+            }
+
+            $lastError = 'Google Ads returned success without a criterion resource name.';
+        }
+
+        return ['ok' => false, 'error' => $lastError];
+    }
+
+    private function mutateReturnedResourceName(string $body): bool
+    {
+        $json = json_decode($body, true);
+        if (! is_array($json)) {
+            return false;
+        }
+        foreach ((is_array($json['results'] ?? null) ? $json['results'] : []) as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $name = trim((string) ($row['resourceName'] ?? $row['resource_name'] ?? ''));
+            if ($name !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private function headerVariantsForAccount(GoogleAdsAccount $account): array
+    {
+        $connection = $account->connection;
+        if (! $connection) {
+            return [];
+        }
+
+        $this->connectionApi->refreshAccessToken($connection);
+        $connection->refresh();
+        $base = $this->connectionApi->apiHeaders($connection, forceRefresh: true);
+        if (! $base) {
+            return [];
+        }
+
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id) ?: '';
+        $candidates = [];
+        $manager = preg_replace('/\D+/', '', (string) ($account->manager_customer_id ?: '')) ?: '';
+        $root = preg_replace('/\D+/', '', (string) $this->connectionApi->loginCustomerId()) ?: '';
+        if ($manager !== '' && $manager !== $customerId) {
+            $candidates[] = $manager;
+        }
+        if ($root !== '' && $root !== $customerId && $root !== $manager) {
+            $candidates[] = $root;
+        }
+        $candidates[] = ''; // direct / no MCC header
+
+        $out = [];
+        $seen = [];
+        foreach ($candidates as $loginId) {
+            $headers = $base;
+            unset($headers['login-customer-id']);
+            if ($loginId !== '') {
+                $headers['login-customer-id'] = $loginId;
+            }
+            $key = $loginId === '' ? '_none' : $loginId;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $headers;
+        }
+
+        return $out;
     }
 
     private function mutateHadPartialFailure(string $body): bool
@@ -806,6 +978,21 @@ class GoogleAdsAudienceAssociationService
         if (! is_array($json)) {
             return $body;
         }
+
+        $partial = $json['partialFailureError'] ?? $json['partial_failure_error'] ?? null;
+        if (is_array($partial)) {
+            foreach (($partial['details'] ?? []) as $detail) {
+                foreach (($detail['errors'] ?? []) as $err) {
+                    if (! empty($err['message'])) {
+                        return (string) $err['message'];
+                    }
+                }
+            }
+            if (! empty($partial['message'])) {
+                return (string) $partial['message'];
+            }
+        }
+
         foreach (($json['error']['details'] ?? []) as $detail) {
             foreach (($detail['errors'] ?? []) as $err) {
                 if (! empty($err['message'])) {

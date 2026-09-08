@@ -29,6 +29,10 @@ class SuperAdminTicketsInboxTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('super-admin.tickets.index'))
+            ->assertRedirect(route('super-admin.tickets.queue'));
+
+        $this->actingAs($admin)
+            ->get(route('super-admin.tickets.index', ['inbox' => 1]))
             ->assertOk()
             ->assertSee('Assigned')
             ->assertSee('Tag not tracking')

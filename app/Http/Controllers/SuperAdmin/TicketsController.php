@@ -16,8 +16,13 @@ use Illuminate\View\View;
 
 class TicketsController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse|View
     {
+        // Support System default landing = Assignment board (not chat inbox).
+        if (! $request->boolean('inbox')) {
+            return redirect()->route('super-admin.tickets.queue', $request->query());
+        }
+
         return $this->inbox($request);
     }
 

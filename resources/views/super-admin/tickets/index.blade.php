@@ -6,7 +6,7 @@
 <x-super-admin.page title="Support System">
     <div class="figma-sa-subs">
         <div class="mb-[14px] flex flex-wrap items-center gap-[10px]">
-            <a href="{{ route('super-admin.tickets.index') }}" class="figma-sa-btn figma-sa-btn-outline !px-4 !py-2 text-[13px]">Chat inbox</a>
+            <a href="{{ route('super-admin.tickets.index', ['inbox' => 1]) }}" class="figma-sa-btn figma-sa-btn-outline !px-4 !py-2 text-[13px]">Chat inbox</a>
             <span class="figma-sa-btn figma-sa-btn-primary !px-4 !py-2 text-[13px]">Assignment board</span>
         </div>
         <div class="grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-5">

@@ -1631,9 +1631,9 @@ class IntegrationsController extends Controller
 
     /**
      * Create Ads-side audience (user list) for exclusion. Real Google Ads API call — not demo.
-     * GA4 Admin audience create requires separate Analytics OAuth (not in current Ads scopes).
+     * Requires GA4/GTM detected on the domain website (or linked measurement ID / GTM in portal).
      */
-    public function createAudience(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
+    public function createAudience(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations, \App\Services\Ga4SitePresenceService $ga4Presence): JsonResponse
     {
         $data = $request->validate([
             'domain_id' => ['required', 'integer'],
@@ -1642,6 +1642,7 @@ class IntegrationsController extends Controller
             'event_name' => ['nullable', 'string', 'max:120'],
             'method' => ['nullable', 'string', 'in:ga4,website'],
             'google_ads_account_id' => ['nullable', 'integer'],
+            'skip_ga4_check' => ['sometimes', 'boolean'],
         ]);
 
         $domain = Domain::query()
@@ -1660,22 +1661,59 @@ class IntegrationsController extends Controller
             }
         }
 
+        $method = (string) ($data['method'] ?? 'ga4');
+        $detection = $ga4Presence->detect($domain);
+        if ($method === 'ga4' && ! $detection['present'] && ! $request->boolean('skip_ga4_check')) {
+            return response()->json([
+                'ok' => false,
+                'message' => $detection['message'],
+                'ga4_detection' => $detection,
+                'user_list_id' => null,
+                'user_list_name' => null,
+                'created' => false,
+            ], 422);
+        }
+
         $result = $associations->createAudienceList(
             $domain,
             (string) $data['audience_name'],
             (string) ($data['duration'] ?? '30 days'),
             (string) ($data['event_name'] ?: \App\Services\AudienceSignalService::DEFAULT_EVENT),
-            (string) ($data['method'] ?? 'ga4'),
+            $method,
         );
 
-        return response()->json($result, $result['ok'] ? 200 : 422);
+        return response()->json($result + ['ga4_detection' => $detection], $result['ok'] ? 200 : 422);
+    }
+
+    /**
+     * Live GA4/GTM presence check for a domain (Create audience gate).
+     */
+    public function ga4SiteStatus(Request $request, \App\Services\Ga4SitePresenceService $ga4Presence): JsonResponse
+    {
+        $data = $request->validate([
+            'domain_id' => ['required', 'integer'],
+        ]);
+
+        $domain = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->where('id', $data['domain_id'])
+            ->firstOrFail();
+
+        $detection = $ga4Presence->detect($domain);
+
+        return response()->json([
+            'ok' => true,
+            'domain_id' => $domain->id,
+            'hostname' => $domain->hostname,
+            'detection' => $detection,
+        ]);
     }
 
     /**
      * Apply step: attach Invalid Traffic audience (user list) as negative exclusion on selected campaigns.
      * Does not push IPs — membership is Client ID + clickronix_invalid_traffic from the tag.
      */
-    public function applyAudienceExclusion(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
+    public function applyAudienceExclusion(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations, \App\Services\Ga4SitePresenceService $ga4Presence): JsonResponse
     {
         $data = $request->validate([
             'domain_id' => ['required', 'integer'],
@@ -1693,6 +1731,17 @@ class IntegrationsController extends Controller
             ->where('user_id', $request->user()->id)
             ->where('id', $data['domain_id'])
             ->firstOrFail();
+
+        $detection = $ga4Presence->detect($domain);
+        if (! $detection['present']) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'GA4/GTM not detected on the website — fix tracking first, then Apply exclusion. '.$detection['message'],
+                'attached' => [],
+                'failed' => [],
+                'ga4_detection' => $detection,
+            ], 422);
+        }
 
         $result = $associations->applyToCampaigns(
             $domain,
@@ -1712,6 +1761,7 @@ class IntegrationsController extends Controller
             'stored' => $result['stored'],
             'user_list_id' => $result['user_list_id'] ?? null,
             'user_list_name' => $result['user_list_name'] ?? null,
+            'ga4_detection' => $detection,
         ], $result['ok'] ? 200 : 422);
     }
 

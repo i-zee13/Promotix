@@ -32,6 +32,30 @@
             <div class="space-y-[16px] border-b border-white/10 px-[18px] py-[16px] lg:border-b-0 lg:border-r">
                 <section>
                     <p class="mb-[8px] text-[12px] font-semibold text-white">1. Source</p>
+                    <div class="mb-[10px] rounded-[8px] border px-[10px] py-[8px] text-[11px]"
+                         :class="createAudienceModal.ga4Checking
+                            ? 'border-white/20 bg-white/5 text-white/60'
+                            : (createAudienceModal.ga4Present === true
+                                ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
+                                : (createAudienceModal.ga4Present === false
+                                    ? 'border-rose-400/40 bg-rose-500/10 text-rose-100'
+                                    : 'border-white/15 bg-[#0d0d0d] text-white/55'))">
+                        <div class="flex items-start justify-between gap-[8px]">
+                            <div class="min-w-0">
+                                <p class="font-semibold" x-text="createAudienceModal.ga4Checking
+                                    ? 'Checking GA4/GTM on website…'
+                                    : (createAudienceModal.ga4Present === true
+                                        ? 'GA4/GTM detected on website'
+                                        : (createAudienceModal.ga4Present === false
+                                            ? 'GA4/GTM not detected on website'
+                                            : 'Website GA4 check'))"></p>
+                                <p class="mt-[3px] text-white/70" x-show="createAudienceModal.ga4Message" x-text="createAudienceModal.ga4Message"></p>
+                            </div>
+                            <button type="button" class="shrink-0 text-[10px] font-semibold text-[#ffd0b0] hover:underline disabled:opacity-40"
+                                    :disabled="createAudienceModal.ga4Checking"
+                                    @click="checkGa4SiteStatus(false)">Re-check</button>
+                        </div>
+                    </div>
                     <div class="grid gap-[10px] sm:grid-cols-2">
                         <label class="block text-[11px]"><span class="mb-[4px] block text-white/60">GA4 property</span>
                             <select class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="createAudienceModal.ga4_property">
@@ -43,11 +67,12 @@
                         </label>
                         <label class="block text-[11px]"><span class="mb-[4px] block text-white/60">Linked Google Ads account</span>
                             <select class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="createAudienceModal.ads_account">
-                                <option value="">Select Customer ID</option>
+                                <option value="">Select linked account</option>
                                 <template x-for="a in createAudienceModal.adsOptions" :key="a.id">
                                     <option :value="a.id" x-text="a.label"></option>
                                 </template>
                             </select>
+                            <span class="mt-[4px] block text-[10px] text-white/45" x-show="!createAudienceModal.adsOptions.length">Only accounts linked to a domain appear here.</span>
                         </label>
                     </div>
                 </section>
@@ -140,7 +165,13 @@
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[8px] text-[13px] font-semibold text-white disabled:opacity-40"
                         :disabled="!createAudienceReady"
                         @click="createGa4Audience()">
-                    <span x-text="createAudienceModal.creating ? 'Creating in Google Ads…' : 'Create audience in Google Ads'"></span>
+                    <span x-text="createAudienceModal.creating
+                        ? 'Creating in Google Ads…'
+                        : (createAudienceModal.ga4Checking
+                            ? 'Checking website GA4…'
+                            : (createAudienceModal.ga4Present === false && createAudienceModal.method === 'ga4'
+                                ? 'Install GA4/GTM first'
+                                : 'Create audience in Google Ads'))"></span>
                 </button>
             </div>
         </footer>

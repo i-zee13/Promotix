@@ -15,14 +15,14 @@
                 <span>{{ number_format($stats['unassigned']) }} unassigned</span>
             </div>
             <div class="mb-2 flex flex-wrap gap-[8px]">
-                <span class="ticket-inbox__filter is-on">Chat inbox</span>
+                <a href="{{ route('super-admin.tickets.index', ['inbox' => 1]) }}" class="ticket-inbox__filter is-on">Chat inbox</a>
                 <a href="{{ route('super-admin.tickets.queue') }}" class="ticket-inbox__filter">Assignment board</a>
             </div>
             <div class="ticket-inbox__filters">
-                <a href="{{ route('super-admin.tickets.index') }}" class="ticket-inbox__filter{{ ! request()->boolean('assigned') && ! request()->boolean('unassigned') && ! request()->boolean('mine') ? ' is-on' : '' }}">All</a>
-                <a href="{{ route('super-admin.tickets.index', ['assigned' => 1]) }}" class="ticket-inbox__filter{{ request()->boolean('assigned') ? ' is-on' : '' }}">Assigned</a>
-                <a href="{{ route('super-admin.tickets.index', ['unassigned' => 1]) }}" class="ticket-inbox__filter{{ request()->boolean('unassigned') ? ' is-on' : '' }}">Unassigned</a>
-                <a href="{{ route('super-admin.tickets.index', ['mine' => 1]) }}" class="ticket-inbox__filter{{ request()->boolean('mine') ? ' is-on' : '' }}">Mine</a>
+                <a href="{{ route('super-admin.tickets.index', array_merge(['inbox' => 1], request()->except(['page', 'assigned', 'unassigned', 'mine', 'inbox']))) }}" class="ticket-inbox__filter{{ ! request()->boolean('assigned') && ! request()->boolean('unassigned') && ! request()->boolean('mine') ? ' is-on' : '' }}">All</a>
+                <a href="{{ route('super-admin.tickets.index', ['inbox' => 1, 'assigned' => 1]) }}" class="ticket-inbox__filter{{ request()->boolean('assigned') ? ' is-on' : '' }}">Assigned</a>
+                <a href="{{ route('super-admin.tickets.index', ['inbox' => 1, 'unassigned' => 1]) }}" class="ticket-inbox__filter{{ request()->boolean('unassigned') ? ' is-on' : '' }}">Unassigned</a>
+                <a href="{{ route('super-admin.tickets.index', ['inbox' => 1, 'mine' => 1]) }}" class="ticket-inbox__filter{{ request()->boolean('mine') ? ' is-on' : '' }}">Mine</a>
             </div>
             <label class="sr-only" for="sa-ticket-search">Search tickets</label>
             <input
@@ -61,7 +61,7 @@
     <section class="ticket-inbox__thread{{ $selected ? '' : ' ticket-inbox__thread--hidden-mobile' }}">
         @if ($selected)
             <header class="ticket-inbox__thread-head">
-                <a href="{{ route('super-admin.tickets.index', $query) }}" class="ticket-inbox__back">← Tickets</a>
+                <a href="{{ route('super-admin.tickets.index', array_merge(['inbox' => 1], $query)) }}" class="ticket-inbox__back">← Tickets</a>
                 <div class="min-w-0 flex-1">
                     <h1>{{ $selected->subject }}</h1>
                     <p>

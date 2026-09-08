@@ -231,6 +231,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::delete('/integrations/mappings/{mapping}', [IntegrationsController::class, 'destroyMapping'])->name('integrations.destroy-mapping');
         Route::get('/integrations/google-ads/campaign-metrics', [IntegrationsController::class, 'campaignMetricsForHost'])->name('integrations.google.campaign-metrics');
         Route::get('/integrations/google-ads/audience-campaigns', [IntegrationsController::class, 'audienceCampaigns'])->name('integrations.google.audience-campaigns');
+        Route::get('/integrations/google-ads/ga4-status', [IntegrationsController::class, 'ga4SiteStatus'])->name('integrations.google.ga4-status');
         Route::post('/integrations/google-ads/create-audience', [IntegrationsController::class, 'createAudience'])->name('integrations.google.create-audience');
         Route::post('/integrations/google-ads/apply-audience', [IntegrationsController::class, 'applyAudienceExclusion'])->name('integrations.google.apply-audience');
         Route::get('/domains/{domain}/google-ads/pick-accounts', [IntegrationsController::class, 'pickAccountsJson'])->name('domains.google.pick-accounts');

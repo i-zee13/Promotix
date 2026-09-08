@@ -4191,7 +4191,7 @@ class PaidMarketingController extends Controller
      * Legacy URL: Apply audience exclusion to campaigns (not IP push).
      * Prefer integrations.google.apply-audience.
      */
-    public function applyAudienceAndPushInvalidIps(Request $request, Domain $domain, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
+    public function applyAudienceAndPushInvalidIps(Request $request, Domain $domain, \App\Services\GoogleAdsAudienceAssociationService $associations, \App\Services\Ga4SitePresenceService $ga4Presence): JsonResponse
     {
         abort_unless($domain->user_id === $request->user()->id, 403);
 
@@ -4200,6 +4200,17 @@ class PaidMarketingController extends Controller
             return response()->json([
                 'ok' => false,
                 'message' => 'Select at least one campaign to attach the audience exclusion.',
+            ], 422);
+        }
+
+        $detection = $ga4Presence->detect($domain);
+        if (! $detection['present']) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'GA4/GTM not detected on the website — fix tracking first, then Apply exclusion. '.$detection['message'],
+                'attached' => [],
+                'failed' => [],
+                'ga4_detection' => $detection,
             ], 422);
         }
 
@@ -4222,6 +4233,7 @@ class PaidMarketingController extends Controller
             'user_list_id' => $result['user_list_id'] ?? null,
             'user_list_name' => $result['user_list_name'] ?? null,
             'campaign_ids' => is_array($campaignIds) ? array_values($campaignIds) : [],
+            'ga4_detection' => $detection,
         ], $result['ok'] ? 200 : 422);
     }
 

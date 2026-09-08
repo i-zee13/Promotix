@@ -17,6 +17,20 @@
         </header>
 
         <div class="pi-spec-modal-body space-y-[16px] px-[18px] py-[16px]">
+            <section class="rounded-[10px] border px-[14px] py-[10px] text-[12px]"
+                     :class="applyAudienceModal.ga4Present === true
+                        ? 'border-emerald-400/35 bg-emerald-500/10 text-emerald-100'
+                        : (applyAudienceModal.ga4Present === false
+                            ? 'border-rose-400/35 bg-rose-500/10 text-rose-100'
+                            : 'border-white/10 bg-[#0d0d0d] text-white/60')">
+                <p class="font-semibold" x-text="applyAudienceModal.ga4Present === true
+                    ? 'GA4/GTM on website — exclusion attach enabled'
+                    : (applyAudienceModal.ga4Present === false
+                        ? 'GA4/GTM missing on website — Apply is blocked'
+                        : 'Checking GA4/GTM on website…')"></p>
+                <p class="mt-[3px] text-[11px] opacity-90" x-show="applyAudienceModal.ga4Message" x-text="applyAudienceModal.ga4Message"></p>
+            </section>
+
             <section class="rounded-[10px] border border-white/10 bg-[#0d0d0d] p-[14px]">
                 <p class="mb-[8px] text-[11px] font-semibold uppercase text-white/50">Audience summary</p>
                 <p class="text-[14px] font-semibold" x-text="applyAudienceModal.audienceName"></p>
@@ -111,9 +125,11 @@
             <div class="flex flex-wrap gap-[8px]">
                 <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="showMenuToast('Export preview coming soon.', 'info')">Export preview</button>
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[8px] text-[13px] font-semibold text-white disabled:opacity-40"
-                        :disabled="applyAudienceSelectedCount < 1 || !applyAudienceModal.sourceLinked"
+                        :disabled="applyAudienceSelectedCount < 1 || !applyAudienceModal.sourceLinked || applyAudienceModal.applying || applyAudienceModal.ga4Present === false"
                         @click="applyEligibleAudienceExclusion()">
-                    Apply eligible exclusion
+                    <span x-text="applyAudienceModal.applying
+                        ? 'Attaching in Google Ads…'
+                        : (applyAudienceModal.ga4Present === false ? 'Install GA4/GTM first' : 'Apply eligible exclusion')"></span>
                 </button>
             </div>
         </footer>
