@@ -16,7 +16,7 @@ return [
         'traffic'       => ['route' => 'super-admin.traffic.index',       'label' => 'Traffic & Bot Logs', 'icon' => 'shield'],
         'automation'    => ['route' => 'super-admin.automation.index',    'label' => 'Automation',         'icon' => 'repeat'],
         'integrations'  => ['route' => 'super-admin.integrations.index',  'label' => 'Integrations',       'icon' => 'plug'],
-        'tickets'       => ['route' => 'super-admin.tickets.index',       'label' => 'Support System',     'icon' => 'support'],
+        'tickets'       => ['route' => 'super-admin.tickets.queue',       'label' => 'Support System',     'icon' => 'support'],
         'guidance'      => ['route' => 'super-admin.guidance.index',      'label' => 'Guidance KB',        'icon' => 'box'],
         'analytics'     => ['route' => 'super-admin.analytics.index',     'label' => 'Analytics',          'icon' => 'chart'],
         'security'      => ['route' => 'super-admin.security.index',      'label' => 'Security & Logs',    'icon' => 'shield'],

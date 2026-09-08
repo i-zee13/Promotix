@@ -15,6 +15,7 @@
                 <span>{{ number_format($stats['unassigned']) }} unassigned</span>
             </div>
             <div class="mb-2 flex flex-wrap gap-[8px]">
+                <span class="ticket-inbox__filter is-on">Chat inbox</span>
                 <a href="{{ route('super-admin.tickets.queue') }}" class="ticket-inbox__filter">Assignment board</a>
             </div>
             <div class="ticket-inbox__filters">
