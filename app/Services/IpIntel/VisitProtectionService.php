@@ -288,6 +288,20 @@ class VisitProtectionService
             $payload[$key] = $value;
         }
 
+        if ($domain) {
+            $domain->loadMissing(['googleAdsAccount', 'googleAdsMappings.account']);
+            $tagId = $domain->googleAdsAccount?->resolvedGoogleTagId()
+                ?: $domain->googleAdsAccount?->google_tag_id
+                ?: null;
+            if (! $tagId) {
+                $mapped = $domain->googleAdsMappings->pluck('account')->filter()->first();
+                $tagId = $mapped?->resolvedGoogleTagId() ?: $mapped?->google_tag_id;
+            }
+            if (is_string($tagId) && $tagId !== '') {
+                $payload['google_tag_id'] = $tagId;
+            }
+        }
+
         return $payload;
     }
 

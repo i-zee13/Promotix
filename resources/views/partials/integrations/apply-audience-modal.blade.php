@@ -97,12 +97,12 @@
                 <strong class="text-white" x-text="applyAudienceSelectedCount + ' exclusion will be added'"></strong>
                 · <span class="text-white/55">0 removed</span>
             </p>
-            <p class="text-[11px] text-white/45">Note: Apply attaches this audience list as a negative exclusion on selected campaigns. Membership comes from <code class="text-white/70">clickronix_invalid_traffic</code> + Google Client ID (not IP). IP Exclusion Manager is a separate path. Search/Display typically need ≥100 users / 30 days.</p>
+            <p class="text-[11px] text-white/45">Apply finds or creates the Google Ads audience (user list), then attaches it as a <strong class="text-white/70">negative exclusion</strong> on the selected campaigns so it appears under Audiences / Exclusions in Google Ads. Membership still comes from <code class="text-white/70">clickronix_invalid_traffic</code> + Client ID when GA4 is live.</p>
             <label class="block text-[12px]">
-                <span class="text-white/55">Google Ads user list ID (optional — required for live attach once GA4→Ads sync completes)</span>
+                <span class="text-white/55">Google Ads user list ID (optional — leave blank to auto-find / create by audience name)</span>
                 <input type="text" x-model="applyAudienceModal.userListId"
                        class="mt-[6px] w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[13px] text-white"
-                       placeholder="e.g. 1234567890">
+                       placeholder="Auto if empty">
             </label>
         </div>
 

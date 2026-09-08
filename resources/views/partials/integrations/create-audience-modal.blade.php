@@ -9,7 +9,7 @@
         <header class="flex shrink-0 items-start justify-between gap-[12px] border-b border-white/15 px-[22px] pb-[12px] pt-[22px]">
             <div>
                 <h2 class="text-[18px] font-semibold">Create invalid-traffic audience</h2>
-                <p class="mt-[4px] text-[12px] text-white/55">GA4 custom-event audience — not a conversion, not an IP list.</p>
+                <p class="mt-[4px] text-[12px] text-white/55">Creates a real Google Ads audience (user list) for exclusions. GA4/GTM event still populates membership on the site.</p>
             </div>
             <button type="button" class="rounded p-[6px] text-white/60 hover:bg-white/10" @click="closeCreateAudienceModal()" aria-label="Close">
                 <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -122,10 +122,10 @@
                             </li>
                         </template>
                     </ul>
-                    <button type="button" class="mt-[10px] text-[11px] font-semibold text-[#ffd0b0] hover:underline" @click="simulateAudienceTestEvidence()">Refresh / mark safe test evidence</button>
+                    <button type="button" class="mt-[10px] text-[11px] font-semibold text-[#ffd0b0] hover:underline" @click="simulateAudienceTestEvidence()">Optional: mark test evidence</button>
                 </div>
                 <p class="rounded-[8px] border border-[var(--brand-primary)]/40 bg-[var(--brand-primary)]/10 px-[10px] py-[8px] text-[11px] text-[#ffd0b0]">
-                    Important: This audience can take 24–48 hours to populate after creation. Definitions cannot be edited after creation — use a new version when changes are required.
+                    Create calls Google Ads API with your membership duration (7 / 30 / … days). Test evidence is optional — not required to create.
                 </p>
                 <p class="rounded-[8px] border border-rose-400/35 bg-rose-500/10 px-[10px] py-[8px] text-[11px] text-rose-100">
                     Critical: Audience event is <strong>not</strong> a conversion. Never fire as Lead / Purchase / Qualified Lead.
@@ -140,7 +140,7 @@
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[8px] text-[13px] font-semibold text-white disabled:opacity-40"
                         :disabled="!createAudienceReady"
                         @click="createGa4Audience()">
-                    Create GA4 audience
+                    <span x-text="createAudienceModal.creating ? 'Creating in Google Ads…' : 'Create audience in Google Ads'"></span>
                 </button>
             </div>
         </footer>

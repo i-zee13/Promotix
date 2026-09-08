@@ -277,22 +277,30 @@ class TagController extends Controller
             };
             if (clientId) payload.clickronix_client_id = String(clientId);
             if (params.threat_group) payload.threat_group = String(params.threat_group);
+            var sendTo = String(resp.google_tag_id || '');
+            if (sendTo) payload.send_to = sendTo;
             gtag('event', eventName, payload);
           }
         } catch (e) {}
       }
-      var measurementId = '';
       try {
         if (window.google_tag_manager || typeof gtag === 'function') {
-          // Prefer GA4 client_id when available (async).
           var ids = [];
           try {
             if (window.__gtag_measurement_ids && window.__gtag_measurement_ids.length) {
-              ids = window.__gtag_measurement_ids;
+              ids = window.__gtag_measurement_ids.slice();
             }
           } catch (e2) {}
+          if (resp.google_tag_id) {
+            ids.unshift(String(resp.google_tag_id));
+          }
           if (ids.length && typeof gtag === 'function') {
-            gtag('get', ids[0], 'client_id', function(cid){ pushGtag(cid); });
+            var mid = ids[0];
+            if (String(mid).indexOf('G-') === 0) {
+              gtag('get', mid, 'client_id', function(cid){ pushGtag(cid); });
+              return;
+            }
+            pushGtag(null);
             return;
           }
         }

@@ -4205,10 +4205,12 @@ class PaidMarketingController extends Controller
 
         $result = $associations->applyToCampaigns(
             $domain,
-            $campaignIds,
+            is_array($campaignIds) ? $campaignIds : [],
             (string) $request->input('audience_name', 'Clickronix - Confirmed Invalid Traffic v1'),
             $request->input('user_list_id'),
             (string) $request->input('event_name', \App\Services\AudienceSignalService::DEFAULT_EVENT),
+            is_array($request->input('ad_group_ids')) ? $request->input('ad_group_ids') : [],
+            (string) $request->input('scope', 'campaign'),
         );
 
         return response()->json([
@@ -4217,7 +4219,9 @@ class PaidMarketingController extends Controller
             'attached' => $result['attached'],
             'failed' => $result['failed'],
             'stored' => $result['stored'],
-            'campaign_ids' => $campaignIds,
+            'user_list_id' => $result['user_list_id'] ?? null,
+            'user_list_name' => $result['user_list_name'] ?? null,
+            'campaign_ids' => is_array($campaignIds) ? array_values($campaignIds) : [],
         ], $result['ok'] ? 200 : 422);
     }
 

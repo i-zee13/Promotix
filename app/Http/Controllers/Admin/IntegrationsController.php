@@ -1630,6 +1630,48 @@ class IntegrationsController extends Controller
     }
 
     /**
+     * Create Ads-side audience (user list) for exclusion. Real Google Ads API call — not demo.
+     * GA4 Admin audience create requires separate Analytics OAuth (not in current Ads scopes).
+     */
+    public function createAudience(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
+    {
+        $data = $request->validate([
+            'domain_id' => ['required', 'integer'],
+            'audience_name' => ['required', 'string', 'max:255'],
+            'duration' => ['nullable', 'string', 'max:40'],
+            'event_name' => ['nullable', 'string', 'max:120'],
+            'method' => ['nullable', 'string', 'in:ga4,website'],
+            'google_ads_account_id' => ['nullable', 'integer'],
+        ]);
+
+        $domain = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->where('id', $data['domain_id'])
+            ->firstOrFail();
+
+        if (! empty($data['google_ads_account_id'])) {
+            $account = GoogleAdsAccount::query()
+                ->where('id', $data['google_ads_account_id'])
+                ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+                ->first();
+            if ($account && (int) $domain->google_ads_account_id !== (int) $account->id) {
+                $domain->google_ads_account_id = $account->id;
+                $domain->save();
+            }
+        }
+
+        $result = $associations->createAudienceList(
+            $domain,
+            (string) $data['audience_name'],
+            (string) ($data['duration'] ?? '30 days'),
+            (string) ($data['event_name'] ?: \App\Services\AudienceSignalService::DEFAULT_EVENT),
+            (string) ($data['method'] ?? 'ga4'),
+        );
+
+        return response()->json($result, $result['ok'] ? 200 : 422);
+    }
+
+    /**
      * Apply step: attach Invalid Traffic audience (user list) as negative exclusion on selected campaigns.
      * Does not push IPs — membership is Client ID + clickronix_invalid_traffic from the tag.
      */
@@ -1637,8 +1679,11 @@ class IntegrationsController extends Controller
     {
         $data = $request->validate([
             'domain_id' => ['required', 'integer'],
-            'campaign_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'campaign_ids' => ['nullable', 'array', 'max:200'],
             'campaign_ids.*' => ['string', 'max:40'],
+            'ad_group_ids' => ['nullable', 'array', 'max:200'],
+            'ad_group_ids.*' => ['string', 'max:40'],
+            'scope' => ['nullable', 'string', 'in:campaign,adgroup'],
             'audience_name' => ['nullable', 'string', 'max:255'],
             'user_list_id' => ['nullable', 'string', 'max:40'],
             'event_name' => ['nullable', 'string', 'max:120'],
@@ -1651,10 +1696,12 @@ class IntegrationsController extends Controller
 
         $result = $associations->applyToCampaigns(
             $domain,
-            $data['campaign_ids'],
+            $data['campaign_ids'] ?? [],
             (string) ($data['audience_name'] ?: 'Clickronix - Confirmed Invalid Traffic v1'),
             $data['user_list_id'] ?? null,
             (string) ($data['event_name'] ?: \App\Services\AudienceSignalService::DEFAULT_EVENT),
+            $data['ad_group_ids'] ?? [],
+            (string) ($data['scope'] ?? 'campaign'),
         );
 
         return response()->json([
@@ -1663,6 +1710,8 @@ class IntegrationsController extends Controller
             'attached' => $result['attached'],
             'failed' => $result['failed'],
             'stored' => $result['stored'],
+            'user_list_id' => $result['user_list_id'] ?? null,
+            'user_list_name' => $result['user_list_name'] ?? null,
         ], $result['ok'] ? 200 : 422);
     }
 

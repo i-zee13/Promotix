@@ -174,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'google_tag_id' => $a->resolvedGoogleTagId() ?: $a->google_tag_id,
         ])->values(),
         'audienceCampaignsUrl' => route('integrations.google.audience-campaigns'),
+        'createAudienceUrl' => route('integrations.google.create-audience'),
         'applyAudienceUrl' => route('integrations.google.apply-audience'),
     ]))"
     @platform-menu.window="handlePlatformMenu($event.detail)"
@@ -1523,15 +1524,15 @@ function platformIntegrations(config) {
         createAudienceModal: {
             open: false,
             step: 0,
+            creating: false,
             steps: ['Source', 'Rule active', 'Validate', 'Apply'],
-            ga4_property: 'demo-ga4',
+            ga4_property: '',
             ads_account: '',
             name: 'Clickronix - Confirmed Invalid Traffic v1',
             duration: '30 days',
             evaluation: 'User scoped from first matching event',
-            ga4Options: [
-                { id: 'demo-ga4', label: 'Demo GA4 (G-ABC123XYZ)' },
-            ],
+            method: 'ga4',
+            ga4Options: [],
             adsOptions: [],
             includeRules: [
                 { field: 'Event name', param: '', op: 'exactly matches', value: 'clickronix_invalid_traffic' },
@@ -1542,12 +1543,13 @@ function platformIntegrations(config) {
                 { field: 'Event name', param: '', op: 'exactly matches', value: 'clickronix_valid_override' },
             ],
             evidence: [
-                { key: 'event', label: 'GA4 event received', detail: 'Waiting for safe test event', ok: false },
+                { key: 'event', label: 'GA4 event received', detail: 'Optional check — not required to create Ads list', ok: false },
                 { key: 'status', label: 'traffic_status', detail: 'invalid', ok: false },
                 { key: 'consent', label: 'Consent (analytics_storage)', detail: 'not verified', ok: false },
-                { key: 'match', label: 'Test user matched', detail: 'Include rules + not excluded', ok: false },
+                { key: 'match', label: 'Test user matched', detail: 'Optional', ok: false },
             ],
             draftSaved: false,
+            createUrl: config.createAudienceUrl || '',
         },
         applyAudienceModal: {
             open: false,
@@ -1555,9 +1557,9 @@ function platformIntegrations(config) {
             error: '',
             audienceName: 'Clickronix - Confirmed Invalid Traffic v1',
             source: 'GA4',
-            status: 'Populating',
-            searchSize: '86 — below 100 eligibility threshold',
-            displaySize: '124 eligible',
+            status: 'Ready to apply',
+            searchSize: 'Attach works on Search/Display — size affects serving later',
+            displaySize: 'Eligible when list exists',
             scope: 'campaign',
             preserve: true,
             sourceLinked: true,
@@ -2003,17 +2005,19 @@ function platformIntegrations(config) {
             const method = this.audienceMethodModal.method;
             this.closeAudienceMethodModal();
             if (method === 'website') {
-                this.openInstallTagsModal('google_tag');
-                this.showMenuToast('Website segment path: AW tag + traffic_status=invalid. Use custom_event_id (event_id is reserved).', 'info');
+                this.createAudienceModal.method = 'website';
+                this.createAudienceModal.name = this.createAudienceModal.name || 'Clickronix - Website Invalid Segment v1';
+                this.openCreateAudienceModal();
+                this.showMenuToast('Website segment: we create the Ads audience list, then Apply attaches exclusions. Tag must fire clickronix_invalid_traffic to AW/GTM.', 'info');
                 return;
             }
+            this.createAudienceModal.method = 'ga4';
             this.openCreateAudienceModal();
         },
         get createAudienceReady() {
-            const ev = this.createAudienceModal.evidence || [];
-            return ev.length > 0 && ev.every((e) => e.ok)
-                && Boolean(this.createAudienceModal.ga4_property)
-                && Boolean(this.createAudienceModal.ads_account || this.googleAdsSummary.customer_id);
+            return Boolean(this.createAudienceModal.name)
+                && Boolean(this.createAudienceModal.ads_account || this.googleAdsSummary.customer_id)
+                && !this.createAudienceModal.creating;
         },
         openCreateAudienceModal() {
             const accounts = (config.accountsForConnect || []).map((a) => ({
@@ -2026,6 +2030,20 @@ function platformIntegrations(config) {
             if (!this.createAudienceModal.ads_account) {
                 this.createAudienceModal.ads_account = this.createAudienceModal.adsOptions[0]?.id || '';
             }
+            const gtag = this.trackingInstallation?.google_tag?.id;
+            this.createAudienceModal.ga4Options = [];
+            if (gtag && String(gtag) !== '—') {
+                this.createAudienceModal.ga4Options.push({ id: String(gtag), label: 'Linked tag ' + gtag });
+            }
+            if (this.googleAdsSummary?.google_tag_id && this.googleAdsSummary.google_tag_id !== '—') {
+                const id = String(this.googleAdsSummary.google_tag_id);
+                if (!this.createAudienceModal.ga4Options.find((p) => p.id === id)) {
+                    this.createAudienceModal.ga4Options.push({ id, label: 'Google tag ' + id });
+                }
+            }
+            if (!this.createAudienceModal.ga4_property && this.createAudienceModal.ga4Options.length) {
+                this.createAudienceModal.ga4_property = this.createAudienceModal.ga4Options[0].id;
+            }
             this.createAudienceModal.step = 0;
             this.createAudienceModal.open = true;
             this.lockSpecModal();
@@ -2036,39 +2054,79 @@ function platformIntegrations(config) {
         },
         simulateAudienceTestEvidence() {
             this.createAudienceModal.evidence = [
-                { key: 'event', label: 'GA4 event received', detail: 'just now (safe synthetic)', ok: true },
+                { key: 'event', label: 'GA4 event received', detail: 'marked for QA (optional)', ok: true },
                 { key: 'status', label: 'traffic_status', detail: 'invalid', ok: true },
                 { key: 'consent', label: 'Consent (analytics_storage)', detail: 'granted', ok: true },
                 { key: 'match', label: 'Test user matched', detail: 'Include rules matched; not excluded.', ok: true },
             ];
             this.createAudienceModal.step = Math.max(this.createAudienceModal.step, 2);
-            this.showMenuToast('Safe test evidence marked. Create GA4 audience is now enabled.', 'success');
+            this.showMenuToast('Test evidence marked (optional). You can Create without this.', 'success');
         },
         saveCreateAudienceDraft() {
             this.createAudienceModal.draftSaved = true;
             this.createAudienceModal.step = Math.max(this.createAudienceModal.step, 1);
-            this.showMenuToast('Audience draft saved (non-destructive).', 'success');
+            this.showMenuToast('Audience draft saved locally.', 'success');
         },
-        createGa4Audience() {
+        async createGa4Audience() {
             if (!this.createAudienceReady) {
-                this.showMenuToast('Wait for test evidence before creating the audience.', 'error');
+                this.showMenuToast('Enter audience name and select a Google Ads account.', 'error');
                 return;
             }
-            this.createAudienceModal.step = 3;
-            this.applyAudienceModal.audienceName = this.createAudienceModal.name;
-            this.applyAudienceModal.status = 'Populating';
-            this.closeCreateAudienceModal();
-            this.showMenuToast('GA4 audience created as draft. Population can take 24–48h.', 'success');
-            this.openApplyAudienceModal();
+            let domainId = this.selectedDomainId || '';
+            if (!domainId && (this.trackingIds || []).length) {
+                domainId = this.trackingIds[0].domain_id || '';
+            }
+            if (!domainId || !this.createAudienceModal.createUrl) {
+                this.showMenuToast('Select a domain first, then Create audience.', 'error');
+                return;
+            }
+            this.createAudienceModal.creating = true;
+            try {
+                const adsId = this.createAudienceModal.ads_account;
+                const body = {
+                    domain_id: Number(domainId),
+                    audience_name: this.createAudienceModal.name,
+                    duration: this.createAudienceModal.duration || '30 days',
+                    event_name: 'clickronix_invalid_traffic',
+                    method: this.createAudienceModal.method || 'ga4',
+                };
+                if (adsId && adsId !== 'summary' && /^\d+$/.test(String(adsId))) {
+                    body.google_ads_account_id = Number(adsId);
+                }
+                const res = await fetch(this.createAudienceModal.createUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf || document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!data.ok) {
+                    this.showMenuToast(data.message || 'Could not create audience in Google Ads.', 'error');
+                    return;
+                }
+                this.createAudienceModal.step = 3;
+                this.applyAudienceModal.audienceName = data.user_list_name || this.createAudienceModal.name;
+                this.applyAudienceModal.userListId = data.user_list_id ? String(data.user_list_id) : '';
+                this.applyAudienceModal.status = 'Created in Google Ads';
+                this.applyAudienceModal.source = (this.createAudienceModal.method === 'website') ? 'Website segment' : 'GA4 event';
+                this.closeCreateAudienceModal();
+                this.showMenuToast(data.message || 'Audience created in Google Ads.', 'success');
+                this.openApplyAudienceModal();
+            } catch (_) {
+                this.showMenuToast('Create audience request failed.', 'error');
+            } finally {
+                this.createAudienceModal.creating = false;
+            }
         },
         get applyAudienceSelectedCount() {
             return (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect).length;
         },
         get applyAudienceSearchBelowThreshold() {
-            const raw = String(this.applyAudienceModal.searchSize || '');
-            const match = raw.match(/(\d+)/);
-            if (!match) return true;
-            return Number(match[1]) < 100;
+            return false;
         },
         openApplyAudienceModal() {
             if (!this.applyAudienceModal.audienceName) {
@@ -2102,13 +2160,9 @@ function platformIntegrations(config) {
             const type = this.audienceChannelLabel(row.channel);
             let eligibility = 'Eligible';
             let canSelect = true;
-            if (type === 'Search' && this.applyAudienceSearchBelowThreshold) {
-                eligibility = 'Waiting for 100';
+            if (type === 'PMax' || type === 'Video' || type === 'Demand Gen' || type === 'Shopping') {
+                eligibility = 'Unsupported for user-list exclusion API';
                 canSelect = false;
-            } else if (type === 'PMax' || type === 'Video' || type === 'Demand Gen') {
-                eligibility = 'Supported but review';
-            } else if (type === 'Unknown') {
-                eligibility = 'Supported but review';
             }
             return {
                 id: String(row.id),
@@ -2117,7 +2171,7 @@ function platformIntegrations(config) {
                 eligibility,
                 state: 'Not attached',
                 canSelect,
-                selected: canSelect && eligibility === 'Eligible',
+                selected: canSelect && (type === 'Search' || type === 'Display'),
             };
         },
         async loadApplyAudienceCampaigns() {
@@ -2194,18 +2248,22 @@ function platformIntegrations(config) {
                         audience_name: this.applyAudienceModal.audienceName || this.createAudienceModal.name,
                         user_list_id: this.applyAudienceModal.userListId || null,
                         event_name: 'clickronix_invalid_traffic',
+                        scope: this.applyAudienceModal.scope || 'campaign',
                     }),
                 });
                 const data = await res.json().catch(() => ({}));
                 const attached = new Set((data.attached || []).map(String));
                 selected.forEach((c) => {
-                    c.state = attached.has(String(c.id))
-                        ? 'Attached'
-                        : (data.ok ? 'Queued (awaiting user list / read-back)' : 'Failed');
+                    c.state = attached.has(String(c.id)) || attached.has('ag:' + String(c.id))
+                        ? 'Attached in Google Ads'
+                        : (data.ok ? 'Queued' : 'Not attached');
                 });
+                if (data.user_list_id) {
+                    this.applyAudienceModal.userListId = String(data.user_list_id);
+                }
                 this.showMenuToast(data.message || (data.ok
-                    ? 'Audience exclusion applied / queued for selected campaigns.'
-                    : 'Could not apply audience exclusion.'), data.ok ? 'success' : 'error');
+                    ? 'Audience attached to campaign exclusions in Google Ads.'
+                    : 'Could not attach audience exclusion in Google Ads.'), data.ok ? 'success' : 'error');
                 if (data.ok) {
                     this.closeApplyAudienceModal();
                 }
