@@ -179,12 +179,20 @@
         .pa-dash .pa-perf__chart {
             height: 280px;
             width: 100%;
+            max-width: 100%;
             border-radius: 10px;
             background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 40%);
             border: 1px solid rgba(255,255,255,0.05);
-            padding: 8px 4px 0;
+            padding: 8px 8px 0;
+            overflow: hidden;
+            box-sizing: border-box;
         }
-        .pa-dash .pa-perf__chart svg { width: 100%; height: 100%; display: block; }
+        .pa-dash .pa-perf__chart svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            overflow: visible;
+        }
         .pa-dash .pa-cost__top {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -1083,7 +1091,7 @@
                 </template>
             </div>
         </div>
-        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode, (perfActiveSeries || []).join(','))"></div>
+        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode, (perfActiveSeries || []).join(',') + '|' + (perfChartNonce || 0))"></div>
         <p x-show="!(pagePerformanceSeries() || []).length" class="pa-empty">No performance data in this window.</p>
     </section>
     @endif

@@ -1267,6 +1267,7 @@ function botProtectionFigma(config = {}) {
         keywordHeadlineSource: 'ads',
         perfActiveSeries: ['clicks', 'visitors', 'conversions', 'valid'],
         perfMode: 'line',
+        perfChartNonce: 0,
         countryModal: { open: false, country: '', rows: [], loading: false },
         domainsList: [],
         invalidTrends: { labels: [], datasets: [], stats: { pageloads: 0, interactions: 0 } },
@@ -1535,16 +1536,23 @@ function botProtectionFigma(config = {}) {
         },
         performanceChartSvg(mode = 'line', _seriesKey = '') {
             const series = (this.pagePerformanceSeries() || []).filter((s) => this.isPerfSeriesActive(s.key));
-            const width = 920;
+            // Match viewBox to container so preserveAspectRatio none does not stretch ovals / leave a dead right gutter.
+            let width = 920;
             const height = 280;
-            const padL = 44;
-            const padR = 20;
-            const padT = 24;
-            const padB = 36;
-            const innerW = width - padL - padR;
+            try {
+                const host = document.querySelector('.pa-dash .pa-perf__chart');
+                if (host && host.clientWidth > 120) {
+                    width = Math.max(560, Math.floor(host.clientWidth));
+                }
+            } catch (e) {}
+            const padL = 48;
+            const padR = 16;
+            const padT = 20;
+            const padB = 34;
+            const innerW = Math.max(80, width - padL - padR);
             const innerH = height - padT - padB;
             if (!series.length) {
-                return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><text x="${padL}" y="36" fill="rgba(255,255,255,0.35)" font-size="12">No series selected</text></svg>`;
+                return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"><text x="${padL}" y="36" fill="rgba(255,255,255,0.35)" font-size="12">No series selected</text></svg>`;
             }
             const labels = series[0].labels || [];
             const maxVal = Math.max(1, ...series.flatMap((s) => (s.points || []).map((n) => Number(n || 0))));
@@ -1611,9 +1619,9 @@ function botProtectionFigma(config = {}) {
                     const gradId = `paGrad${idx}`;
                     body += `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.28"/><stop offset="100%" stop-color="${s.color}" stop-opacity="0"/></linearGradient></defs>`;
                     body += `<path d="${area}" fill="url(#${gradId})"/>`;
-                    body += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>`;
+                    body += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
                     pts.forEach(([x, y]) => {
-                        body += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="#141414" stroke="${s.color}" stroke-width="2"/>`;
+                        body += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.25" fill="#141414" stroke="${s.color}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
                     });
                 });
             }
@@ -1623,7 +1631,8 @@ function botProtectionFigma(config = {}) {
                 if (i % labelStep !== 0 && i !== labels.length - 1) return;
                 body += `<text x="${xAt(i).toFixed(1)}" y="${height - 10}" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="11">${label}</text>`;
             });
-            return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">${body}</svg>`;
+            // none is safe when viewBox width ≈ container width — fills edge-to-edge without oval stretch.
+            return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">${body}</svg>`;
         },
         pageTrafficSources() {
             return this.pageAnalytics?.traffic_sources || [];
@@ -2383,7 +2392,8 @@ function botProtectionFigma(config = {}) {
             this.applyHiddenSeries('invalid');
         },
         renderCharts() {
-            // Apex charts from older layout removed; KPI/panel UI is Alpine-driven.
+            // Force Performance Over Time SVG to remeasure container width (no stretch / right gutter).
+            this.perfChartNonce = (this.perfChartNonce || 0) + 1;
         },
     };
 }
