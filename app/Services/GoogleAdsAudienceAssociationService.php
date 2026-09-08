@@ -501,12 +501,12 @@ class GoogleAdsAudienceAssociationService
             ];
         }
 
-        $created = $this->createUserList($customerId, $version, $headers, $audienceName, $eventName, $membershipDays);
+        $created = $this->createUserList($customerId, $version, $headers, $audienceName, $eventName, $membershipDays, $lists);
         if (($created['id'] ?? null) !== null) {
             return [
                 'id' => $created['id'],
                 'name' => $created['name'] ?? $audienceName,
-                'created' => true,
+                'created' => (bool) ($created['created'] ?? true),
                 'error' => null,
             ];
         }
@@ -574,6 +574,9 @@ class GoogleAdsAudienceAssociationService
     }
 
     /**
+     * Reuse only when the Ads user-list name matches exactly (case-insensitive).
+     * Fuzzy / "contains Clickronix" matching was rewriting the user's chosen name.
+     *
      * @param  list<array{id: string, name: string}>  $lists
      * @return array{id: string, name: string}|null
      */
@@ -585,22 +588,13 @@ class GoogleAdsAudienceAssociationService
         }
 
         foreach ($lists as $row) {
-            if (mb_strtolower($row['name']) === $needle) {
-                return $row;
-            }
-        }
-
-        foreach ($lists as $row) {
-            $name = mb_strtolower($row['name']);
-            if (str_contains($name, $needle) || str_contains($needle, $name)) {
-                return $row;
-            }
-        }
-
-        foreach ($lists as $row) {
-            $name = mb_strtolower($row['name']);
-            if (str_contains($name, 'clickronix') && str_contains($name, 'invalid')) {
-                return $row;
+            if (mb_strtolower(trim($row['name'])) === $needle) {
+                return [
+                    'id' => $row['id'],
+                    // Keep the name the user requested (canonical casing from their input).
+                    'name' => trim($audienceName),
+                    'ads_name' => $row['name'],
+                ];
             }
         }
 
@@ -612,8 +606,12 @@ class GoogleAdsAudienceAssociationService
      * Membership still grows from GA4 event / remarketing when linked; attach is what
      * makes the list appear under Exclusions in the Ads UI.
      *
+     * Never renames the audience (no timestamp suffix). On duplicate name, reuse the
+     * exact existing list so the user-facing name stays stable.
+     *
      * @param  array<string, string>  $headers
-     * @return array{id: ?string, name: ?string, error: ?string}
+     * @param  list<array{id: string, name: string}>  $knownLists
+     * @return array{id: ?string, name: ?string, created?: bool, error: ?string}
      */
     private function createUserList(
         string $customerId,
@@ -622,9 +620,10 @@ class GoogleAdsAudienceAssociationService
         string $audienceName,
         string $eventName,
         int $membershipDays = 30,
+        array $knownLists = [],
     ): array {
         $lifeSpan = (string) max(1, min(540, $membershipDays));
-        $baseName = mb_substr($audienceName, 0, 255);
+        $baseName = mb_substr(trim($audienceName), 0, 255);
         $description = mb_substr(
             'Clickronix invalid-traffic exclusion. Event: '.$eventName
             .' + Google Client ID. Attach as negative audience on Search/Display campaigns.',
@@ -676,12 +675,23 @@ class GoogleAdsAudienceAssociationService
                 ->withHeaders($headers)
                 ->post($this->googleAdsUrl($version, "customers/{$customerId}/userLists:mutate"), $payload);
 
+            // Duplicate name → reuse exact list; do not append date/time to the name.
             if (! $response->successful() && $this->isBenignDuplicate((string) $response->body())) {
-                $createBody['name'] = mb_substr($baseName.' '.now()->format('Ymd-Hi'), 0, 255);
-                $payload = ['operations' => [['create' => $createBody]]];
-                $response = Http::timeout(30)
-                    ->withHeaders($headers)
-                    ->post($this->googleAdsUrl($version, "customers/{$customerId}/userLists:mutate"), $payload);
+                $existing = $this->matchUserListByName($knownLists, $baseName);
+                if ($existing === null) {
+                    $refreshed = $this->fetchUserLists($customerId, $version, $headers) ?? [];
+                    $existing = $this->matchUserListByName($refreshed, $baseName);
+                }
+                if ($existing !== null) {
+                    return [
+                        'id' => $existing['id'],
+                        'name' => $baseName,
+                        'created' => false,
+                        'error' => null,
+                    ];
+                }
+                $lastError = 'An audience with this exact name already exists but could not be loaded.';
+                continue;
             }
 
             if (! $response->successful()) {
@@ -702,7 +712,8 @@ class GoogleAdsAudienceAssociationService
             if (preg_match('#userLists/(\d+)#', $resource, $m)) {
                 return [
                     'id' => $m[1],
-                    'name' => (string) ($createBody['name'] ?? $audienceName),
+                    'name' => $baseName,
+                    'created' => true,
                     'error' => null,
                 ];
             }
