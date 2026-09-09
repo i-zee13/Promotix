@@ -4598,12 +4598,14 @@ select.figma-sa-subs-status-pill {
 
 .figma-header {
     position: fixed;
-    top: 17px;
+    /* Cover viewport top so scrolled page content never peeks above the bar */
+    top: 0;
     left: var(--figma-left);
     right: var(--figma-right);
     z-index: 30;
-    height: 58px;
-    padding-top: 0;
+    /* Keep controls visually at the old 17px offset; fill the gap with solid chrome */
+    height: 75px;
+    padding-top: 17px;
     box-sizing: border-box;
     border-bottom: 2px solid var(--figma-chrome-border);
     background: #0e0e0e;
