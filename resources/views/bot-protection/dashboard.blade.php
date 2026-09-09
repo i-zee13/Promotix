@@ -1267,6 +1267,7 @@ function botProtectionFigma(config = {}) {
         keywordHeadlineSource: 'ads',
         perfActiveSeries: ['clicks', 'visitors', 'conversions', 'valid'],
         perfMode: 'line',
+        perfGranularity: 'daily',
         perfChartNonce: 0,
         countryModal: { open: false, country: '', rows: [], loading: false },
         domainsList: [],
@@ -1523,6 +1524,29 @@ function botProtectionFigma(config = {}) {
         isPerfSeriesActive(key) {
             return (this.perfActiveSeries || []).includes(key);
         },
+        canUseHourlyPerf() {
+            const from = this.filters?.from;
+            const to = this.filters?.to;
+            if (!from || !to) return true;
+            try {
+                const a = new Date(from + 'T00:00:00');
+                const b = new Date(to + 'T00:00:00');
+                const days = Math.round((b - a) / 86400000) + 1;
+                return days <= 7;
+            } catch (e) {
+                return true;
+            }
+        },
+        setPerfGranularity(mode) {
+            const next = mode === 'hourly' ? 'hourly' : 'daily';
+            if (next === 'hourly' && !this.canUseHourlyPerf()) {
+                this.perfGranularity = 'daily';
+                return;
+            }
+            if (this.perfGranularity === next) return;
+            this.perfGranularity = next;
+            this.reload();
+        },
         togglePerfSeries(key) {
             const list = Array.isArray(this.perfActiveSeries) ? [...this.perfActiveSeries] : [];
             const idx = list.indexOf(key);
@@ -1538,7 +1562,7 @@ function botProtectionFigma(config = {}) {
             const series = (this.pagePerformanceSeries() || []).filter((s) => this.isPerfSeriesActive(s.key));
             // Match viewBox to container so preserveAspectRatio none does not stretch ovals / leave a dead right gutter.
             let width = 920;
-            const height = 280;
+            const height = 300;
             try {
                 const host = document.querySelector('.pa-dash .pa-perf__chart');
                 if (host && host.clientWidth > 120) {
@@ -1621,15 +1645,18 @@ function botProtectionFigma(config = {}) {
                     body += `<path d="${area}" fill="url(#${gradId})"/>`;
                     body += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
                     pts.forEach(([x, y]) => {
-                        body += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.25" fill="#141414" stroke="${s.color}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+                        body += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="#141414" stroke="${s.color}" stroke-width="2.25" vector-effect="non-scaling-stroke"/>`;
                     });
                 });
             }
 
-            const labelStep = Math.max(1, Math.floor(labels.length / 8));
+            // Show denser X labels: all days when ≤14; otherwise ~10 ticks. Hourly: ~12 ticks.
+            const maxLabels = (this.perfGranularity === 'hourly' || (series[0].points || []).length > 24) ? 12 : 14;
+            const labelStep = Math.max(1, Math.ceil(labels.length / maxLabels));
             labels.forEach((label, i) => {
                 if (i % labelStep !== 0 && i !== labels.length - 1) return;
-                body += `<text x="${xAt(i).toFixed(1)}" y="${height - 10}" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="11">${label}</text>`;
+                const safe = String(label).replace(/[<>&"]/g, '');
+                body += `<text x="${xAt(i).toFixed(1)}" y="${height - 10}" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="10">${safe}</text>`;
             });
             // none is safe when viewBox width ≈ container width — fills edge-to-edge without oval stretch.
             return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">${body}</svg>`;
@@ -1914,6 +1941,7 @@ function botProtectionFigma(config = {}) {
             if (this.filters.q) p.set('q', this.filters.q);
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);
+            if (this.perfGranularity) p.set('granularity', this.perfGranularity);
             return p.toString();
         },
         reloadTimer: null,
@@ -1940,6 +1968,12 @@ function botProtectionFigma(config = {}) {
             window.dispatchEvent(new CustomEvent('promotix:date-range', {
                 detail: { from: this.filters.from, to: this.filters.to },
             }));
+            // Same-day → hourly denser points; multi-day → daily (user can still switch to Hourly ≤7d).
+            if (this.filters.from === this.filters.to) {
+                this.perfGranularity = 'hourly';
+            } else if (!this.canUseHourlyPerf() || this.perfGranularity !== 'hourly') {
+                this.perfGranularity = 'daily';
+            }
             this.reload();
         },
         async init() {
@@ -2100,6 +2134,12 @@ function botProtectionFigma(config = {}) {
                     fetch(`/bot-protection/page-analytics?${qs}`).then(r => this.parseJson(r)),
                 ]);
                 this.pageAnalytics = pageAnalytics?.kpis ? pageAnalytics : null;
+                const g = this.pageAnalytics?.performance?.granularity;
+                if (g === 'hourly' || g === 'daily') {
+                    this.perfGranularity = g;
+                } else if (this.filters.from && this.filters.to && this.filters.from === this.filters.to) {
+                    this.perfGranularity = 'hourly';
+                }
                 this.paintGeoMap();
             this.invalidTrends = trends;
             this.countries = c;

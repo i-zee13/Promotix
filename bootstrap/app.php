@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'super-admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'support-desk' => \App\Http\Middleware\EnsureSupportDeskAccess::class,
             'permission' => \App\Http\Middleware\EnsureUserHasPermission::class,
             'onboarded' => \App\Http\Middleware\EnsureOnboardingComplete::class,
             'protection' => \App\Http\Middleware\EnsureProtectionAccess::class,

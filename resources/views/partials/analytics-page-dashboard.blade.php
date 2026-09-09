@@ -108,40 +108,44 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             gap: 10px;
             margin-bottom: 12px;
         }
         .pa-dash .pa-perf__metrics {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0;
-            width: 100%;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            width: auto;
+            max-width: 100%;
+            border-radius: 0;
+            overflow: visible;
+            border: 0;
         }
         .pa-dash .pa-perf__metric {
-            min-width: 0;
-            border: 0;
-            border-radius: 0;
-            border-right: 1px solid rgba(0, 0, 0, 0.12);
+            flex: 0 1 auto;
+            min-width: 112px;
+            max-width: 168px;
+            width: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
             background: #2a2a2a;
-            padding: 12px 14px 14px;
+            padding: 10px 12px 12px;
             text-align: left;
             cursor: pointer;
             color: #fff;
-            transition: filter .15s ease, opacity .15s ease;
+            transition: filter .15s ease, opacity .15s ease, transform .12s ease;
             opacity: 0.55;
         }
-        .pa-dash .pa-perf__metric:last-child { border-right: 0; }
+        .pa-dash .pa-perf__metric:last-child { border-right: 1px solid rgba(255, 255, 255, 0.1); }
         .pa-dash .pa-perf__metric.is-active { opacity: 1; filter: none; }
-        .pa-dash .pa-perf__metric.is-scheme-blue { background: #4285F4; color: #fff; }
-        .pa-dash .pa-perf__metric.is-scheme-red { background: #EA4335; color: #fff; }
-        .pa-dash .pa-perf__metric.is-scheme-orange { background: #FF6600; color: #fff; }
+        .pa-dash .pa-perf__metric.is-scheme-blue { background: #4285F4; color: #fff; border-color: transparent; }
+        .pa-dash .pa-perf__metric.is-scheme-red { background: #EA4335; color: #fff; border-color: transparent; }
+        .pa-dash .pa-perf__metric.is-scheme-orange { background: #FF6600; color: #fff; border-color: transparent; }
         .pa-dash .pa-perf__metric.is-scheme-white {
             background: #fff;
             color: #1f1f1f;
+            border-color: transparent;
         }
         .pa-dash .pa-perf__metric.is-scheme-white .pa-perf__metric-value { color: #111; }
         .pa-dash .pa-perf__metric.is-scheme-white .pa-perf__metric-label { color: rgba(0,0,0,0.55); }
@@ -155,17 +159,18 @@
         }
         .pa-dash .pa-perf__metric-value {
             display: block;
-            margin-top: 8px;
-            font-size: 26px;
+            margin-top: 6px;
+            font-size: 22px;
             font-weight: 700;
             color: inherit;
             letter-spacing: -0.02em;
             line-height: 1;
         }
         @media (max-width: 900px) {
-            .pa-dash .pa-perf__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .pa-dash .pa-perf__metric:nth-child(2n) { border-right: 0; }
-            .pa-dash .pa-perf__metric:nth-child(-n+2) { border-bottom: 1px solid rgba(0,0,0,0.12); }
+            .pa-dash .pa-perf__metric {
+                min-width: calc(50% - 4px);
+                max-width: calc(50% - 4px);
+            }
         }
         .pa-dash .pa-perf__right { display: inline-flex; align-items: center; gap: 8px; }
         .pa-dash .pa-perf__select {
@@ -177,7 +182,7 @@
             padding: 6px 10px;
         }
         .pa-dash .pa-perf__chart {
-            height: 280px;
+            height: 300px;
             width: 100%;
             max-width: 100%;
             border-radius: 10px;
@@ -1064,9 +1069,26 @@
         <div class="pa-card__head">
             <h2 class="pa-card__title">Performance Over Time</h2>
             <div class="pa-perf__right">
-                <span class="text-[11px] text-white/45" x-text="(pagePerformance()?.granularity === 'daily') ? 'Daily' : 'Hourly'"></span>
-                <button type="button" class="pa-kh-toggle__btn" :class="perfMode === 'line' ? 'is-active' : ''" @click="perfMode = 'line'">Line</button>
-                <button type="button" class="pa-kh-toggle__btn" :class="perfMode === 'bar' ? 'is-active' : ''" @click="perfMode = 'bar'">Bar</button>
+                <div class="pa-kh-toggle" role="group" aria-label="Chart granularity">
+                    <button
+                        type="button"
+                        class="pa-kh-toggle__btn"
+                        :class="perfGranularity === 'hourly' ? 'is-active' : ''"
+                        :disabled="!canUseHourlyPerf()"
+                        :title="canUseHourlyPerf() ? 'Hourly points' : 'Hourly available for ranges up to 7 days'"
+                        @click="setPerfGranularity('hourly')"
+                    >Hourly</button>
+                    <button
+                        type="button"
+                        class="pa-kh-toggle__btn"
+                        :class="perfGranularity === 'daily' ? 'is-active' : ''"
+                        @click="setPerfGranularity('daily')"
+                    >Daily</button>
+                </div>
+                <div class="pa-kh-toggle" role="group" aria-label="Chart type">
+                    <button type="button" class="pa-kh-toggle__btn" :class="perfMode === 'line' ? 'is-active' : ''" @click="perfMode = 'line'">Line</button>
+                    <button type="button" class="pa-kh-toggle__btn" :class="perfMode === 'bar' ? 'is-active' : ''" @click="perfMode = 'bar'">Bar</button>
+                </div>
             </div>
         </div>
         <p class="pa-perf__sub">Real-time insights and performance overview.</p>

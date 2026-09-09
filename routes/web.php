@@ -144,12 +144,6 @@ Route::middleware(['auth', 'super-admin'])
         Route::post('/email-templates/{emailTemplate}/restore', [SuperAdminSupportPagesController::class, 'restoreEmailTemplate'])->name('email-templates.restore');
         Route::post('/email-templates/{emailTemplate}/send-test', [SuperAdminSupportPagesController::class, 'sendTestEmailTemplate'])->name('email-templates.send-test');
         Route::post('/plans/{plan}/toggles', [SuperAdminSupportPagesController::class, 'updatePlanToggles'])->name('plans.toggles');
-        Route::get('/tickets', [SuperAdminTicketsController::class, 'index'])->name('tickets.index');
-        Route::get('/tickets/queue', [SuperAdminTicketsController::class, 'queue'])->name('tickets.queue');
-        Route::get('/tickets/queue/{ticket}', [SuperAdminTicketsController::class, 'queueShow'])->name('tickets.queue.show');
-        Route::get('/tickets/{ticket}', [SuperAdminTicketsController::class, 'show'])->name('tickets.show');
-        Route::post('/tickets/{ticket}/assign', [SuperAdminTicketsController::class, 'assign'])->name('tickets.assign');
-        Route::post('/tickets/{ticket}/reply', [SuperAdminTicketsController::class, 'reply'])->name('tickets.reply');
         Route::get('/guidance', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'index'])->name('guidance.index');
         Route::post('/guidance', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'store'])->name('guidance.store');
         Route::put('/guidance/{guidance}', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'update'])->name('guidance.update');
@@ -160,6 +154,19 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/traffic-bot-logs', [SuperAdminSupportPagesController::class, 'trafficBotLogs'])->name('traffic.index');
         Route::get('/automation', [SuperAdminSupportPagesController::class, 'automation'])->name('automation.index');
         Route::get('/integrations', [SuperAdminSupportPagesController::class, 'integrations'])->name('integrations.index');
+    });
+
+Route::middleware(['auth', 'support-desk'])
+    ->prefix('super-admin')
+    ->name('super-admin.')
+    ->group(function () {
+        Route::get('/tickets', [SuperAdminTicketsController::class, 'index'])->name('tickets.index');
+        Route::get('/tickets/queue', [SuperAdminTicketsController::class, 'queue'])->name('tickets.queue');
+        Route::get('/tickets/queue/{ticket}', [SuperAdminTicketsController::class, 'queueShow'])->name('tickets.queue.show');
+        Route::get('/tickets/{ticket}', [SuperAdminTicketsController::class, 'show'])->name('tickets.show');
+        Route::post('/tickets/{ticket}/assign', [SuperAdminTicketsController::class, 'assign'])->name('tickets.assign');
+        Route::post('/tickets/{ticket}/claim', [SuperAdminTicketsController::class, 'claim'])->name('tickets.claim');
+        Route::post('/tickets/{ticket}/reply', [SuperAdminTicketsController::class, 'reply'])->name('tickets.reply');
     });
 
 Route::middleware(['auth', 'admin', 'portal-product'])

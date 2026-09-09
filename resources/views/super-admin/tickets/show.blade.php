@@ -75,8 +75,16 @@
                             </option>
                         @endforeach
                     </select>
-                    <p class="mt-1 text-[11px] text-white/45">Assign only if this agent is on the correct team queue.</p>
+                    <p class="mt-1 text-[11px] text-white/45">Team/department staff appear here and can take tickets from the unassigned balance.</p>
                 </div>
+                @if (! empty($canClaim))
+                    <form method="POST" action="{{ route('super-admin.tickets.claim', $ticket) }}" class="rounded-[8px] border border-[#FF6600]/35 bg-[#FF6600]/10 p-3">
+                        @csrf
+                        <input type="hidden" name="return" value="queue">
+                        <p class="mb-2 text-[12px] text-white/80">This ticket is in the unassigned balance for your department.</p>
+                        <button type="submit" class="figma-sa-btn figma-sa-btn-primary w-full">Assign to me</button>
+                    </form>
+                @endif
                 <div>
                     <label class="figma-sa-label">Department</label>
                     <select name="department" class="figma-select mt-1">

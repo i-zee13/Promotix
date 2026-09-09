@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Department;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketMessage;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class SuperAdminTicketsInboxTest extends TestCase
@@ -102,6 +105,90 @@ class SuperAdminTicketsInboxTest extends TestCase
         $this->assertSame($admin->id, $message->user_id);
     }
 
+    public function test_team_department_agent_can_claim_unassigned_balance_ticket(): void
+    {
+        $agent = $this->supportAgent('support');
+        $customer = User::factory()->create(['email' => 'cust-claim@example.com']);
+
+        $attrs = [
+            'user_id' => $customer->id,
+            'requester_id' => $customer->id,
+            'subject' => 'Balance ticket',
+            'body' => 'Please claim me.',
+            'status' => 'open',
+            'priority' => 'high',
+        ];
+        if (Schema::hasColumn('support_tickets', 'department')) {
+            $attrs['department'] = 'support';
+        }
+
+        $ticket = SupportTicket::query()->create($attrs);
+
+        $this->actingAs($agent)
+            ->get(route('super-admin.tickets.queue'))
+            ->assertOk()
+            ->assertSee('Balance ticket')
+            ->assertSee('Assign to me');
+
+        $this->actingAs($agent)
+            ->post(route('super-admin.tickets.claim', $ticket), ['return' => 'queue'])
+            ->assertRedirect(route('super-admin.tickets.queue.show', $ticket));
+
+        $ticket->refresh();
+        $this->assertSame($agent->id, (int) $ticket->assigned_to_id);
+        $this->assertSame('assigned', $ticket->status);
+    }
+
+    public function test_team_agent_appears_in_assignee_list_for_super_admin(): void
+    {
+        $admin = $this->superAdmin();
+        $agent = $this->supportAgent('support');
+        $customer = User::factory()->create(['email' => 'cust-assignee@example.com']);
+
+        $attrs = [
+            'user_id' => $customer->id,
+            'requester_id' => $customer->id,
+            'subject' => 'Pick team agent',
+            'body' => 'Assign from balance.',
+            'status' => 'open',
+            'priority' => 'normal',
+        ];
+        if (Schema::hasColumn('support_tickets', 'department')) {
+            $attrs['department'] = 'support';
+        }
+        $ticket = SupportTicket::query()->create($attrs);
+
+        $this->actingAs($admin)
+            ->get(route('super-admin.tickets.queue.show', $ticket))
+            ->assertOk()
+            ->assertSee($agent->email);
+    }
+
+    public function test_team_agent_cannot_open_unrelated_department_ticket(): void
+    {
+        $agent = $this->supportAgent('support');
+        $customer = User::factory()->create(['email' => 'cust-billing@example.com']);
+
+        if (! Schema::hasColumn('support_tickets', 'department')) {
+            $this->markTestSkipped('department column required');
+        }
+
+        $ticket = SupportTicket::query()->create([
+            'user_id' => $customer->id,
+            'requester_id' => $customer->id,
+            'subject' => 'Billing only',
+            'body' => 'Invoice question',
+            'status' => 'open',
+            'priority' => 'normal',
+            'department' => 'billing',
+            'assigned_to_id' => null,
+        ]);
+
+        $this->actingAs($agent)
+            ->get(route('super-admin.tickets.queue.show', $ticket))
+            ->assertForbidden();
+    }
+
     private function superAdmin(): User
     {
         return User::factory()->create([
@@ -109,5 +196,33 @@ class SuperAdminTicketsInboxTest extends TestCase
             'is_admin' => true,
             'email_verified_at' => now(),
         ]);
+    }
+
+    private function supportAgent(string $departmentSlug): User
+    {
+        $dept = Department::query()->firstOrCreate(
+            ['slug' => $departmentSlug],
+            ['name' => ucfirst($departmentSlug), 'sort_order' => 10]
+        );
+
+        $team = Team::query()->firstOrCreate(
+            ['slug' => $departmentSlug.'-desk'],
+            [
+                'name' => ucfirst($departmentSlug).' Desk',
+                'department_id' => $dept->id,
+                'is_active' => true,
+            ]
+        );
+
+        $agent = User::factory()->create([
+            'is_super_admin' => false,
+            'is_admin' => false,
+            'email_verified_at' => now(),
+            'email' => $departmentSlug.'.agent.'.uniqid().'@example.com',
+        ]);
+
+        $team->members()->syncWithoutDetaching([$agent->id]);
+
+        return $agent;
     }
 }

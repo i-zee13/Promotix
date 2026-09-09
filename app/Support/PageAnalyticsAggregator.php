@@ -16,7 +16,8 @@ class PageAnalyticsAggregator
      *   traffic_source?: string,
      *   campaign?: string,
      *   path?: string,
-     *   device?: string
+     *   device?: string,
+     *   granularity?: string
      * }  $filters
      * @param  array{clicks?:int,cost?:float,impressions?:int}|null  $adsTotals
      * @return array<string, mixed>
@@ -101,7 +102,17 @@ class PageAnalyticsAggregator
         $productViews = 0;
         $filtered = collect();
         $performanceBuckets = [];
-        $hourly = $from->toDateString() === $to->toDateString();
+        $sameDay = $from->toDateString() === $to->toDateString();
+        $daysInRange = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
+        $granularityFilter = strtolower(trim((string) ($filters['granularity'] ?? '')));
+        if (in_array($granularityFilter, ['hourly', 'hour'], true)) {
+            // Hourly densifies the chart; cap at 7 days to keep payloads reasonable.
+            $hourly = $daysInRange <= 7;
+        } elseif (in_array($granularityFilter, ['daily', 'day'], true)) {
+            $hourly = false;
+        } else {
+            $hourly = $sameDay;
+        }
 
         foreach ($rows as $row) {
             $gclid = property_exists($row, 'gclid') ? ($row->gclid ?? null) : null;
@@ -740,7 +751,9 @@ class PageAnalyticsAggregator
                 'paid' => 0,
             ];
             $hourly ? $cursor->addHour() : $cursor->addDay();
-            if (count($filled) > 48) {
+            // Hourly: up to 7 days (168 pts). Daily: up to ~3 months.
+            $maxBuckets = $hourly ? 168 : 92;
+            if (count($filled) >= $maxBuckets) {
                 break;
             }
         }
@@ -768,13 +781,16 @@ class PageAnalyticsAggregator
         $valid = [];
         $paid = [];
         $hasGoogleClicks = $googleClicksByDay !== [];
+        $sameDay = $from->toDateString() === $to->toDateString();
 
         foreach ($filled as $key => $row) {
             $dayKey = $hourly
                 ? Carbon::parse($key)->toDateString()
                 : (strlen($key) >= 10 ? substr($key, 0, 10) : $key);
             $labels[] = $hourly
-                ? Carbon::parse($key)->format('g A')
+                ? ($sameDay
+                    ? Carbon::parse($key)->format('g A')
+                    : Carbon::parse($key)->format('M j gA'))
                 : Carbon::parse($key)->format('M j');
             $visitors[] = (int) ($row['visitors'] ?? 0);
             // Prefer Google Ads reported clicks per day; fall back to paid visit clicks.

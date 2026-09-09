@@ -152,6 +152,13 @@
                                 <td><x-super-admin.status-pill :tone="$statusTone" :label="ucfirst(str_replace('_', ' ', $ticket->status ?? ''))" /></td>
                                 <td>
                                     <span class="figma-sa-subs-plan-tier">{{ $ticket->assignee?->name ?? 'Unassigned' }}</span>
+                                    @if (! $ticket->assigned_to_id)
+                                        <form method="POST" action="{{ route('super-admin.tickets.claim', $ticket) }}" class="mt-1">
+                                            @csrf
+                                            <input type="hidden" name="return" value="queue">
+                                            <button type="submit" class="text-[11px] font-semibold text-[#FF6600] hover:underline">Assign to me</button>
+                                        </form>
+                                    @endif
                                 </td>
                                 <td>
                                     <span class="figma-sa-subs-date">{{ $ticket->updated_at?->diffForHumans() }}</span>

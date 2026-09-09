@@ -60,6 +60,11 @@ class EnsureProtectionAccess
             return $next($request);
         }
 
+        // Support System (team/department agents + super admins): ticket desk is not gated by customer billing.
+        if ($user->canAccessSupportDesk() && $routeName && str_starts_with($routeName, 'super-admin.tickets.')) {
+            return $next($request);
+        }
+
         if (BillingAccess::hasProtectionAccess($user)) {
             return $next($request);
         }

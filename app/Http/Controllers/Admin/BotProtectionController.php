@@ -1722,6 +1722,7 @@ class BotProtectionController extends Controller
             'path' => trim((string) $request->query('path', '')),
             'device' => strtolower(trim((string) $request->query('device', ''))),
             'q' => trim((string) $request->query('q', '')),
+            'granularity' => strtolower(trim((string) $request->query('granularity', ''))),
         ];
     }
 

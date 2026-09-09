@@ -229,6 +229,11 @@ class User extends Authenticatable
             return 'super-admin.dashboard';
         }
 
+        // Team/department agents land on the ticket balance board.
+        if ($this->isSupportDeskStaff()) {
+            return 'super-admin.tickets.queue';
+        }
+
         if ($this->bypassesOnboarding()) {
             return 'dashboard';
         }
@@ -312,11 +317,53 @@ class User extends Authenticatable
     }
 
     /**
+     * True when this user is on an admin-panel support team (team_members).
+     */
+    public function isSupportDeskStaff(): bool
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('team_members')) {
+            return false;
+        }
+
+        return $this->teams()->exists();
+    }
+
+    /**
+     * Super admin or team/department staff can open Support System.
+     */
+    public function canAccessSupportDesk(): bool
+    {
+        return (bool) ($this->is_super_admin ?? false) || $this->isSupportDeskStaff();
+    }
+
+    /**
+     * Department slugs from teams this user belongs to (e.g. support, billing).
+     *
+     * @return list<string>
+     */
+    public function supportDepartmentSlugs(): array
+    {
+        if (! $this->isSupportDeskStaff()) {
+            return [];
+        }
+
+        return $this->teams()
+            ->with('department:id,slug')
+            ->get()
+            ->map(fn (Team $team) => $team->department?->slug)
+            ->filter(fn ($slug) => is_string($slug) && $slug !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
      * Admins skip email/plan onboarding gates (no plan selection required).
+     * Support desk team staff also skip — they are internal agents, not customers.
      */
     public function bypassesOnboarding(): bool
     {
-        return $this->bypassesPlanLimits();
+        return $this->bypassesPlanLimits() || $this->isSupportDeskStaff();
     }
 
     /**

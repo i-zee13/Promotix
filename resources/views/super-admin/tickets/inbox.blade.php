@@ -91,6 +91,12 @@
 
                 <aside class="ticket-inbox__assign">
                     <p class="ticket-inbox__assign-title">Assignment</p>
+                    @if (! empty($canClaim))
+                        <form method="POST" action="{{ route('super-admin.tickets.claim', $selected) }}" class="mb-3">
+                            @csrf
+                            <button type="submit" class="ticket-inbox__send w-full">Assign to me (from balance)</button>
+                        </form>
+                    @endif
                     <form method="POST" action="{{ route('super-admin.tickets.assign', $selected) }}" class="ticket-inbox__assign-form">
                         @csrf
                         <label class="ticket-inbox__label" for="assigned_to_id">Assignee</label>
