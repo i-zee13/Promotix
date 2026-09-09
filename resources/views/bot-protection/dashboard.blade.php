@@ -1644,7 +1644,9 @@ function botProtectionFigma(config = {}) {
                     body += `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.28"/><stop offset="100%" stop-color="${s.color}" stop-opacity="0"/></linearGradient></defs>`;
                     body += `<path d="${area}" fill="url(#${gradId})"/>`;
                     body += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
-                    pts.forEach(([x, y]) => {
+                    pts.forEach(([x, y], i) => {
+                        // Skip baseline clutter: no dots when the value is zero.
+                        if (Number((s.points || [])[i] || 0) <= 0) return;
                         body += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="#141414" stroke="${s.color}" stroke-width="2.25" vector-effect="non-scaling-stroke"/>`;
                     });
                 });
