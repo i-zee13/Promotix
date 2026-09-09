@@ -1597,14 +1597,11 @@
             { key: 'language', label: 'Language', primary: false, min: 64 },
             { key: 'visitor_timezone', label: 'Timezone', primary: false, min: 80 },
             { key: 'fingerprint_id', label: 'Fingerprint ID', primary: false, min: 112 },
-            { key: 'device_fingerprint', label: 'Fingerprint', primary: false, min: 100 },
             { key: 'domain', label: 'Domain', primary: false, min: 100 },
             { key: 'gbraid', label: 'GBRAID', primary: false, min: 110 },
             { key: 'wbraid', label: 'WBRAID', primary: false, min: 110 },
             { key: 'session_id', label: 'Session ID', primary: false, min: 100 },
             { key: 'last_click_label', label: 'Last Click (date)', primary: false, min: 76 },
-            { key: 'threat_group', label: 'Threat Group', primary: false, min: 84 },
-            { key: 'threat_type', label: 'Threat Type', primary: false, min: 76 },
             { key: 'cta_clicks', label: 'CTA Clicks', primary: false, min: 64 },
             { key: 'tel_clicks', label: 'Tel Clicks', primary: false, min: 64 },
             { key: 'page_changes', label: 'Page Changes', primary: false, min: 72 },
@@ -1612,35 +1609,22 @@
             { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
             { key: 'intel_region', label: 'Region', primary: false, min: 80 },
             { key: 'intel_city', label: 'City', primary: false, min: 80 },
-            { key: 'intel_latitude', label: 'Latitude', primary: false, min: 72 },
-            { key: 'intel_longitude', label: 'Longitude', primary: false, min: 72 },
             { key: 'intel_asn', label: 'ASN', primary: false, min: 64 },
             { key: 'intel_asn_org', label: 'ASN Organization', primary: false, min: 110 },
             { key: 'intel_isp', label: 'ISP', primary: false, min: 90 },
             { key: 'intel_network_range', label: 'Network Range', primary: false, min: 100 },
-            { key: 'intel_routed_prefix', label: 'Routed Prefix', primary: false, min: 100 },
             { key: 'intel_allocated_range', label: 'Allocated Range', primary: false, min: 100 },
-            { key: 'intel_range_note', label: 'Range Note', primary: false, min: 90 },
             { key: 'intel_vpn', label: 'VPN', primary: false, min: 48 },
             { key: 'intel_proxy', label: 'Proxy', primary: false, min: 48 },
             { key: 'intel_tor', label: 'Tor', primary: false, min: 48 },
             { key: 'intel_datacenter', label: 'Datacenter', primary: false, min: 72 },
-            { key: 'intel_confidence', label: 'Confidence', primary: false, min: 72 },
             { key: 'intel_evidence', label: 'Evidence', primary: false, min: 90 },
-            { key: 'intel_checked_at', label: 'Checked At', primary: false, min: 100 },
-            { key: 'intel_error', label: 'Error', primary: false, min: 56 },
             { key: 'intel_ip_need_blockation', label: 'IP Need Blockation', primary: false, min: 110 },
             { key: 'intel_blockation_type', label: 'Blockation Type', primary: false, min: 100 },
             { key: 'intel_block_reason', label: 'Block Reason', primary: false, min: 100 },
             { key: 'intel_device_action', label: 'Device Action', primary: false, min: 90 },
-            { key: 'intel_provider_type', label: 'Provider Type', primary: false, min: 90 },
-            { key: 'intel_matched_provider', label: 'Matched Provider', primary: false, min: 110 },
-            { key: 'intel_matched_dataset', label: 'Matched Dataset', primary: false, min: 110 },
-            { key: 'intel_cloud_provider', label: 'Cloud Provider', primary: false, min: 100 },
             { key: 'visitor_id', label: 'Visitor ID', primary: false, min: 100 },
             { key: 'browser_id', label: 'Browser ID', primary: false, min: 100 },
-            { key: 'paid_identity_id', label: 'Paid Identity ID', primary: false, min: 110 },
-            { key: 'identity_confidence', label: 'Identity Confidence', primary: false, min: 90 },
             { key: 'keyword', label: 'Keyword', primary: false, min: 90 },
             { key: 'ads_primary_rule', label: 'Primary Detection', primary: false, min: 120 },
             { key: 'block_status', label: 'Block Status', primary: false, min: 90 },
@@ -1650,7 +1634,7 @@
             {
                 id: 'paid_identity',
                 label: 'Paid Identity',
-                keys: ['ip', 'paid_identity_id', 'visitor_id', 'device_id', 'browser_id', 'fingerprint_id', 'device_fingerprint', 'session_id', 'identity_confidence'],
+                keys: ['ip', 'visitor_id', 'device_id', 'browser_id', 'fingerprint_id', 'session_id'],
             },
             {
                 id: 'attribution',
@@ -1665,12 +1649,12 @@
             {
                 id: 'ip_intelligence',
                 label: 'IP Intelligence',
-                keys: ['ip', 'country', 'intel_region', 'intel_city', 'intel_asn', 'intel_asn_org', 'intel_isp', 'intel_network_range', 'intel_routed_prefix', 'intel_allocated_range', 'intel_provider_type', 'intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_ip_need_blockation', 'intel_block_reason'],
+                keys: ['ip', 'country', 'intel_region', 'intel_city', 'intel_asn', 'intel_asn_org', 'intel_isp', 'intel_network_range', 'intel_allocated_range', 'intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter', 'intel_risk_score', 'intel_risk_level', 'intel_evidence', 'intel_ip_need_blockation', 'intel_block_reason'],
             },
             {
                 id: 'device_browser',
                 label: 'Device / Browser',
-                keys: ['ip', 'device', 'browser', 'browser_version', 'os', 'screen_resolution', 'language', 'visitor_timezone', 'device_fingerprint'],
+                keys: ['ip', 'device', 'browser', 'browser_version', 'os', 'screen_resolution', 'language', 'visitor_timezone'],
             },
             {
                 id: 'session_behavior',
@@ -1685,7 +1669,7 @@
             {
                 id: 'detection_scoring',
                 label: 'Detection / Scoring',
-                keys: ['ip', 'threat_group', 'threat_type', 'ads_primary_rule', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_block_reason'],
+                keys: ['ip', 'ads_primary_rule', 'intel_risk_score', 'intel_risk_level', 'intel_evidence', 'intel_block_reason'],
             },
             {
                 id: 'enforcement_review',
@@ -1695,13 +1679,13 @@
             {
                 id: 'repeat_click',
                 label: 'Repeat Click Detection',
-                keys: ['ip', 'visits', 'invalid_clicks', 'valid_clicks', 'threat_group', 'threat_type', 'ads_primary_rule', 'last_click_label', 'device_id', 'identity_confidence'],
+                keys: ['ip', 'visits', 'invalid_clicks', 'valid_clicks', 'ads_primary_rule', 'last_click_label', 'device_id'],
             },
         ];
 
         let savedOptional = [];
         try {
-            savedOptional = JSON.parse(localStorage.getItem('pm-adv-optional-columns-v2') || '[]');
+            savedOptional = JSON.parse(localStorage.getItem('pm-adv-optional-columns-v3') || '[]');
         } catch (e) {}
 
         return {
@@ -2286,7 +2270,7 @@
                     this.optionalColumnKeys = [...this.optionalColumnKeys, key];
                 }
                 try {
-                    localStorage.setItem('pm-adv-optional-columns-v2', JSON.stringify(this.optionalColumnKeys));
+                    localStorage.setItem('pm-adv-optional-columns-v3', JSON.stringify(this.optionalColumnKeys));
                 } catch (e) {}
             },
             applyColumnGroup(groupId) {
@@ -2299,7 +2283,7 @@
                 });
                 this.optionalColumnKeys = [...new Set(optional)];
                 try {
-                    localStorage.setItem('pm-adv-optional-columns-v2', JSON.stringify(this.optionalColumnKeys));
+                    localStorage.setItem('pm-adv-optional-columns-v3', JSON.stringify(this.optionalColumnKeys));
                     localStorage.setItem('pm-adv-active-column-group', groupId);
                 } catch (e) {}
             },

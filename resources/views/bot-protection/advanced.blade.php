@@ -1504,8 +1504,6 @@ function botProtectionAdvancedFigma(config = {}) {
         { key: 'status', label: 'Status', primary: true, min: 56 },
         { key: 'domain', label: 'Domain', primary: false, min: 100 },
         { key: 'path', label: 'Path', primary: false, min: 100 },
-        { key: 'threat_group', label: 'Threat Group', primary: false, min: 84 },
-        { key: 'threat_type', label: 'Threat Type', primary: false, min: 76 },
         { key: 'cta_clicks', label: 'CTA Clicks', primary: false, min: 64 },
         { key: 'tel_clicks', label: 'Tel Clicks', primary: false, min: 64 },
         { key: 'page_changes', label: 'Page Changes', primary: false, min: 72 },
@@ -1517,38 +1515,26 @@ function botProtectionAdvancedFigma(config = {}) {
         { key: 'utm_campaign', label: 'UTM Campaign', primary: false, min: 90 },
         { key: 'intel_region', label: 'Region', primary: false, min: 80 },
         { key: 'intel_city', label: 'City', primary: false, min: 80 },
-        { key: 'intel_latitude', label: 'Latitude', primary: false, min: 72 },
-        { key: 'intel_longitude', label: 'Longitude', primary: false, min: 72 },
         { key: 'intel_asn', label: 'ASN', primary: false, min: 64 },
         { key: 'intel_asn_org', label: 'ASN Organization', primary: false, min: 110 },
         { key: 'intel_isp', label: 'ISP', primary: false, min: 90 },
         { key: 'intel_network_range', label: 'Network Range', primary: false, min: 100 },
-        { key: 'intel_routed_prefix', label: 'Routed Prefix', primary: false, min: 100 },
         { key: 'intel_allocated_range', label: 'Allocated Range', primary: false, min: 100 },
-        { key: 'intel_range_note', label: 'Range Note', primary: false, min: 90 },
         { key: 'intel_vpn', label: 'VPN', primary: false, min: 48 },
         { key: 'intel_proxy', label: 'Proxy', primary: false, min: 48 },
         { key: 'intel_tor', label: 'Tor', primary: false, min: 48 },
         { key: 'intel_datacenter', label: 'Datacenter', primary: false, min: 72 },
-        { key: 'intel_confidence', label: 'Confidence', primary: false, min: 72 },
         { key: 'intel_evidence', label: 'Evidence', primary: false, min: 90 },
-        { key: 'intel_checked_at', label: 'Checked At', primary: false, min: 100 },
-        { key: 'intel_error', label: 'Error', primary: false, min: 56 },
         { key: 'intel_ip_need_blockation', label: 'IP Need Blockation', primary: false, min: 110 },
         { key: 'intel_blockation_type', label: 'Blockation Type', primary: false, min: 100 },
         { key: 'intel_block_reason', label: 'Block Reason', primary: false, min: 100 },
         { key: 'intel_device_action', label: 'Device Action', primary: false, min: 90 },
-        { key: 'intel_provider_type', label: 'Provider Type', primary: false, min: 90 },
-        { key: 'intel_matched_provider', label: 'Matched Provider', primary: false, min: 110 },
-        { key: 'intel_matched_dataset', label: 'Matched Dataset', primary: false, min: 110 },
-        { key: 'intel_cloud_provider', label: 'Cloud Provider', primary: false, min: 100 },
     ];
 
     const analyticsColumnCatalog = [
         // Required — always visible by default (mock Traffic Control body)
         { key: 'ip', label: 'Visitor IP', primary: true, min: 118 },
         { key: 'session_id', label: 'Session ID', primary: true, min: 118 },
-        { key: 'source_platform', label: 'Source / Platform', primary: true, min: 140 },
         { key: 'keyword', label: 'Keyword / Headline', primary: true, min: 130 },
         { key: 'landing_page', label: 'Landing Page', primary: true, min: 140 },
         { key: 'page_flow', label: 'Page Flow / Pages Visited', primary: true, min: 220 },
@@ -1588,7 +1574,7 @@ function botProtectionAdvancedFigma(config = {}) {
 
     const analyticsMode = Boolean(config.analyticsMode);
     const columnCatalog = analyticsMode ? analyticsColumnCatalog : fraudColumnCatalog;
-    const storageKey = analyticsMode ? 'bp-adv-analytics-columns-v4' : 'bp-adv-optional-columns-v2';
+    const storageKey = analyticsMode ? 'bp-adv-analytics-columns-v5' : 'bp-adv-optional-columns-v3';
 
     let savedOptional = [];
     try {
