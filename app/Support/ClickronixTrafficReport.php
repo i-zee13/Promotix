@@ -44,6 +44,25 @@ class ClickronixTrafficReport
         'google_verified_label' => 'Google Verified',
         'session_recording' => 'Recording',
         'status' => 'Status',
+        'landing_page' => 'Landing Page',
+        'page_flow' => 'Page Flow / Pages Visited',
+        'entry_time' => 'Entry Time',
+        'exit_time' => 'Exit Time',
+        'time_on_site' => 'Time on Site',
+        'event_actions' => 'Events / Actions',
+        'add_to_cart' => 'Add to Cart',
+        'checkout' => 'Checkout',
+        'purchase' => 'Purchase / Sale',
+        'revenue' => 'Revenue',
+        'crawler_score' => 'Crawler Score',
+        'automation_score' => 'Automation Score',
+        'malicious_score' => 'Malicious Activity Score',
+        'headline' => 'Headline',
+        'scroll_events' => 'Scroll Events',
+        'form_starts' => 'Form Starts',
+        'form_fills' => 'Form Fills',
+        'referrer' => 'Referrer URL',
+        'exit_page' => 'Exit Page',
         'intel_region' => 'Region',
         'intel_city' => 'City',
         'intel_latitude' => 'Latitude',
@@ -134,15 +153,25 @@ class ClickronixTrafficReport
         ],
         'session_behavior' => [
             'label' => 'Session / Behavior',
-            'keys' => ['ip', 'session_id', 'cta_clicks', 'tel_clicks', 'page_changes', 'session_recording', 'status'],
+            'keys' => ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
         ],
         'conversion_lead' => [
             'label' => 'Conversion / Lead',
-            'keys' => ['ip', 'cta_clicks', 'tel_clicks', 'google_verified_label', 'valid_clicks', 'invalid_clicks'],
+            'keys' => ['ip', 'cta_clicks', 'tel_clicks', 'add_to_cart', 'checkout', 'purchase', 'revenue', 'form_starts', 'form_fills', 'google_verified_label', 'valid_clicks', 'invalid_clicks'],
+        ],
+        'traffic_control' => [
+            'label' => 'Traffic Control',
+            'keys' => [
+                'ip', 'session_id', 'keyword', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'time_on_site',
+                'event_actions', 'cta_clicks', 'add_to_cart', 'checkout', 'purchase', 'revenue',
+                'device', 'browser', 'os', 'crawler_score', 'automation_score', 'malicious_score',
+                'fingerprint_id', 'campaign', 'headline', 'scroll_events', 'tel_clicks', 'form_starts', 'form_fills',
+                'country', 'intel_region', 'referrer', 'exit_page', 'session_recording',
+            ],
         ],
         'detection_scoring' => [
             'label' => 'Detection / Scoring',
-            'keys' => ['ip', 'threat_group', 'threat_type', 'ads_primary_rule', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_block_reason'],
+            'keys' => ['ip', 'threat_group', 'threat_type', 'ads_primary_rule', 'crawler_score', 'automation_score', 'malicious_score', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_block_reason'],
         ],
         'enforcement_review' => [
             'label' => 'Enforcement / Review',
@@ -387,7 +416,22 @@ class ClickronixTrafficReport
                 ?? ($row['risk_summary']['status'] ?? '');
         }
 
-        if (in_array($key, ['visits', 'invalid_clicks', 'valid_clicks', 'cta_clicks', 'tel_clicks', 'page_changes', 'intel_risk_score', 'intel_confidence'], true)) {
+        if ($key === 'event_actions') {
+            $actions = $row['event_actions'] ?? [];
+            if (! is_array($actions) || $actions === []) {
+                return '';
+            }
+
+            return implode(', ', array_map(static function ($ev) {
+                if (! is_array($ev)) {
+                    return (string) $ev;
+                }
+
+                return trim(($ev['key'] ?? 'event').' ('.((int) ($ev['count'] ?? 0)).')');
+            }, $actions));
+        }
+
+        if (in_array($key, ['visits', 'invalid_clicks', 'valid_clicks', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'form_starts', 'form_fills', 'add_to_cart', 'checkout', 'crawler_score', 'automation_score', 'malicious_score', 'intel_risk_score', 'intel_confidence'], true)) {
             $value = $row[$key] ?? 0;
 
             return is_numeric($value) ? $value + 0 : $value;

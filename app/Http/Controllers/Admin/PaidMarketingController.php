@@ -31,8 +31,10 @@ use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\IpListParser;
 use App\Support\PaidAdvertising\IpRowRiskScorer;
 use App\Support\RiskLabels;
+use App\Support\SessionBehaviorAnalyzer;
 use App\Support\SessionBehaviorTimeline;
 use App\Support\SessionRecordingNormalizer;
+use App\Support\TrafficSourceClassifier;
 use App\Support\UserTimezone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -1930,6 +1932,214 @@ class PaidMarketingController extends Controller
                 $intel,
             ),
             ...$intel,
+            ...$this->trafficControlFieldsForDetailedVisit(
+                $visit,
+                $recording,
+                $user,
+                $firstClickAt,
+                $lastClickAt,
+                $behaviorCounts,
+                $invalidClicks,
+                $firstClick,
+                $intel,
+            ),
+        ];
+    }
+
+    /**
+     * Traffic Control session/behavior fields for Paid Advanced View (unique keys only).
+     *
+     * @param  array<string, mixed>  $intel
+     * @return array<string, mixed>
+     */
+    private function trafficControlFieldsForDetailedVisit(
+        PaidMarketingVisit $visit,
+        ?object $recording,
+        ?\App\Models\User $user,
+        mixed $firstClickAt,
+        mixed $lastClickAt,
+        ?object $behaviorCounts,
+        int $invalidClicks,
+        mixed $firstClick,
+        array $intel,
+    ): array {
+        $events = [];
+        if ($recording && isset($recording->events)) {
+            $decoded = json_decode((string) $recording->events, true);
+            $events = is_array($decoded) ? $decoded : [];
+        }
+
+        $durationMs = (int) ($recording->duration_ms ?? 0);
+        $analysis = SessionBehaviorAnalyzer::analyze($events, $durationMs);
+
+        $pages = [];
+        foreach ($events as $ev) {
+            if (! is_array($ev)) {
+                continue;
+            }
+            $type = strtolower((string) ($ev['type'] ?? ''));
+            if (! in_array($type, ['page', 'page_view'], true)) {
+                continue;
+            }
+            $url = (string) ($ev['url'] ?? $ev['page_url'] ?? '');
+            if ($url === '') {
+                continue;
+            }
+            $pages[] = TrafficSourceClassifier::pathFromUrl($url);
+        }
+        $uniquePages = array_values(array_unique($pages));
+        $pageFlow = $uniquePages !== [] ? implode(' -> ', array_slice($uniquePages, 0, 8)) : null;
+
+        $landingFromPath = TrafficSourceClassifier::pathFromUrl((string) ($firstClick?->path ?? $visit->last_path ?? ''));
+        $landingPage = $uniquePages[0] ?? ($landingFromPath !== '' ? $landingFromPath : null);
+        $exitPage = $uniquePages !== []
+            ? $uniquePages[array_key_last($uniquePages)]
+            : (TrafficSourceClassifier::pathFromUrl((string) ($visit->last_path ?? '')) ?: null);
+
+        $ctaClicks = max((int) ($behaviorCounts?->cta_clicks ?? 0), (int) ($recording->cta_clicks ?? $analysis['cta_clicks'] ?? 0));
+        $telClicks = max((int) ($behaviorCounts?->tel_clicks ?? 0), (int) ($recording->tel_clicks ?? $analysis['tel_clicks'] ?? 0));
+        $pageChanges = max((int) ($behaviorCounts?->page_changes ?? 0), (int) ($recording->page_changes ?? $analysis['page_changes'] ?? 0), count($uniquePages));
+        $scrollEvents = max((int) ($recording->scroll_count ?? 0), (int) ($analysis['scroll_count'] ?? 0));
+        $formStarts = (int) ($analysis['form_starts'] ?? 0);
+        $formFills = (int) ($analysis['form_submits'] ?? 0);
+        $addToCart = (int) ($analysis['add_to_cart'] ?? 0);
+        $checkouts = (int) ($analysis['checkouts'] ?? 0);
+        $purchases = (int) ($analysis['purchases'] ?? 0);
+
+        $revenueRaw = 0.0;
+        foreach ($events as $ev) {
+            if (! is_array($ev)) {
+                continue;
+            }
+            if (in_array(strtolower((string) ($ev['type'] ?? '')), ['purchase', 'sale'], true)) {
+                $revenueRaw += (float) ($ev['revenue'] ?? $ev['value'] ?? 0);
+            }
+        }
+
+        $durationSec = $durationMs > 0
+            ? (int) floor($durationMs / 1000)
+            : 0;
+        if ($durationSec <= 0 && $firstClickAt && $lastClickAt) {
+            try {
+                $durationSec = max(0, (int) \Carbon\Carbon::parse($firstClickAt)->diffInSeconds(\Carbon\Carbon::parse($lastClickAt)));
+            } catch (\Throwable) {
+                $durationSec = 0;
+            }
+        }
+        $hours = intdiv($durationSec, 3600);
+        $mins = intdiv($durationSec % 3600, 60);
+        $secs = $durationSec % 60;
+
+        $threatScore = (int) ($visit->getAttribute('threat_score') ?? $intel['intel_risk_score'] ?? 0);
+        $topThreat = strtolower(trim((string) (
+            $visit->threat_group
+            ?: $visit->getAttribute('range_threat_group')
+            ?: ''
+        )));
+        $isCrawler = str_contains($topThreat, 'crawl') || str_contains($topThreat, 'bot');
+        $isInvalid = $invalidClicks > 0;
+        $crawlerScore = $isCrawler ? min(100, 40 + $threatScore) : max(0, 10 - min(10, $threatScore));
+        $automationScore = $isInvalid ? min(100, max($threatScore, 50)) : (int) max(0, intdiv($threatScore, 2));
+        $maliciousScore = ($isInvalid && in_array($topThreat, ['malicious', 'blocked'], true))
+            ? min(100, max($threatScore, 1))
+            : ($isInvalid ? min(100, $threatScore) : 0);
+
+        $eventActions = [];
+        if ($pageChanges > 0) {
+            $eventActions[] = ['key' => 'page_view', 'count' => $pageChanges];
+        }
+        if ($ctaClicks > 0) {
+            $eventActions[] = ['key' => 'cta_click', 'count' => $ctaClicks];
+        }
+        if ($addToCart > 0) {
+            $eventActions[] = ['key' => 'add_to_cart', 'count' => $addToCart];
+        }
+        if ($checkouts > 0) {
+            $eventActions[] = ['key' => 'checkout', 'count' => $checkouts];
+        }
+        if ($purchases > 0) {
+            $eventActions[] = ['key' => 'purchase', 'count' => $purchases];
+        }
+        if ($scrollEvents > 0) {
+            $eventActions[] = ['key' => 'scroll', 'count' => $scrollEvents];
+        }
+        if ($formStarts > 0) {
+            $eventActions[] = ['key' => 'form_start', 'count' => $formStarts];
+        }
+        if ($formFills > 0) {
+            $eventActions[] = ['key' => 'form_submit', 'count' => $formFills];
+        }
+        if ($telClicks > 0) {
+            $eventActions[] = ['key' => 'tel_click', 'count' => $telClicks];
+        }
+
+        $timeline = $analysis['timeline'] ?? [];
+        $byKind = [
+            'cta' => [],
+            'phone' => [],
+            'form' => [],
+            'commerce' => [],
+            'scroll' => [],
+        ];
+        foreach ($timeline as $item) {
+            $kind = (string) ($item['kind'] ?? '');
+            if ($kind === 'cta') {
+                $byKind['cta'][] = $item;
+            } elseif ($kind === 'phone') {
+                $byKind['phone'][] = $item;
+            } elseif ($kind === 'form') {
+                $byKind['form'][] = $item;
+            } elseif ($kind === 'commerce') {
+                $byKind['commerce'][] = $item;
+            } elseif ($kind === 'scroll') {
+                $byKind['scroll'][] = $item;
+            }
+        }
+
+        $headline = trim((string) ($firstClick?->keyword ?? ''));
+        if ($headline === '') {
+            $headline = trim((string) ($visit->campaign_name ?: $visit->campaign ?: ''));
+        }
+
+        $referrer = null;
+        if ($recording && isset($recording->referrer) && trim((string) $recording->referrer) !== '') {
+            $referrer = trim((string) $recording->referrer);
+        }
+
+        return [
+            'landing_page' => $landingPage ?: '—',
+            'page_flow' => $pageFlow ?: '—',
+            'pages' => $uniquePages,
+            'entry_time' => UserTimezone::formatForUser($firstClickAt, $user, 'm/d/y') ?? '',
+            'entry_clock' => UserTimezone::formatForUser($firstClickAt, $user, 'H:i') ?? '',
+            'exit_time' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y') ?? '',
+            'exit_clock' => UserTimezone::formatForUser($lastClickAt, $user, 'H:i') ?? '',
+            'time_on_site' => sprintf('%02d:%02d:%02d', $hours, $mins, $secs),
+            'event_actions' => $eventActions,
+            'event_detail' => [
+                'cta' => $byKind['cta'],
+                'tel' => $byKind['phone'],
+                'phone' => $byKind['phone'],
+                'form' => $byKind['form'],
+                'commerce' => $byKind['commerce'],
+                'scroll' => $byKind['scroll'],
+                'timeline' => $timeline,
+            ],
+            'add_to_cart' => $addToCart,
+            'checkout' => $checkouts,
+            'purchase' => $purchases > 0 ? 'Yes' : 'No',
+            'revenue' => '$'.number_format($revenueRaw, 2),
+            'crawler_score' => $crawlerScore,
+            'automation_score' => $automationScore,
+            'malicious_score' => $maliciousScore,
+            'headline' => $headline !== '' ? $headline : null,
+            'scroll_events' => $scrollEvents,
+            'form_starts' => $formStarts,
+            'form_fills' => $formFills,
+            'form_submits' => $formFills,
+            'referrer' => $referrer,
+            'exit_page' => $exitPage ?: '—',
+            'page_views' => $pageChanges,
         ];
     }
 

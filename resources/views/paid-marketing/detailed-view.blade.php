@@ -132,6 +132,36 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
+            .tc-flow-cell {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 2px 4px;
+                align-items: center;
+                line-height: 1.25;
+                white-space: normal;
+            }
+            .tc-flow-cell__seg { display: inline-flex; align-items: center; gap: 4px; }
+            .tc-flow-cell__path { word-break: break-all; }
+            .tc-flow-cell__arrow { color: rgba(255,255,255,0.45); font-size: 10px; }
+            .tc-events-cell {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                line-height: 1.25;
+                white-space: normal;
+            }
+            .tc-events-cell__row { white-space: nowrap; }
+            .tc-datetime-cell {
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
+                line-height: 1.2;
+                white-space: normal;
+            }
+            .tc-datetime-cell__date { color: inherit; }
+            .tc-datetime-cell__time { color: rgba(255,255,255,0.45); font-size: 10px; }
+            html.light-mode .tc-flow-cell__arrow,
+            html.light-mode .tc-datetime-cell__time { color: #8a8178; }
             .pm-adv-page-head {
                 display: flex;
                 flex-direction: column;
@@ -1607,6 +1637,26 @@
             { key: 'page_changes', label: 'Page Changes', primary: false, min: 72 },
             { key: 'google_verified_label', label: 'Google Verified', primary: false, min: 88 },
             { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
+            // Traffic Control fields (unique keys — no overlap with columns above)
+            { key: 'landing_page', label: 'Landing Page', primary: false, min: 140 },
+            { key: 'page_flow', label: 'Page Flow / Pages Visited', primary: false, min: 220 },
+            { key: 'entry_time', label: 'Entry Time', primary: false, min: 88 },
+            { key: 'exit_time', label: 'Exit Time', primary: false, min: 88 },
+            { key: 'time_on_site', label: 'Time on Site', primary: false, min: 88 },
+            { key: 'event_actions', label: 'Events / Actions', primary: false, min: 120 },
+            { key: 'add_to_cart', label: 'Add to Cart', primary: false, min: 80 },
+            { key: 'checkout', label: 'Checkout', primary: false, min: 72 },
+            { key: 'purchase', label: 'Purchase / Sale', primary: false, min: 88 },
+            { key: 'revenue', label: 'Revenue', primary: false, min: 80 },
+            { key: 'crawler_score', label: 'Crawler Score', primary: false, min: 88 },
+            { key: 'automation_score', label: 'Automation Score', primary: false, min: 100 },
+            { key: 'malicious_score', label: 'Malicious Activity Score', primary: false, min: 120 },
+            { key: 'headline', label: 'Headline', primary: false, min: 100 },
+            { key: 'scroll_events', label: 'Scroll Events', primary: false, min: 72 },
+            { key: 'form_starts', label: 'Form Starts', primary: false, min: 72 },
+            { key: 'form_fills', label: 'Form Fills', primary: false, min: 72 },
+            { key: 'referrer', label: 'Referrer URL', primary: false, min: 100 },
+            { key: 'exit_page', label: 'Exit Page', primary: false, min: 100 },
             { key: 'intel_region', label: 'Region', primary: false, min: 80 },
             { key: 'intel_city', label: 'City', primary: false, min: 80 },
             { key: 'intel_asn', label: 'ASN', primary: false, min: 64 },
@@ -1659,17 +1709,28 @@
             {
                 id: 'session_behavior',
                 label: 'Session / Behavior',
-                keys: ['ip', 'session_id', 'cta_clicks', 'tel_clicks', 'page_changes', 'session_recording', 'status'],
+                keys: ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
             },
             {
                 id: 'conversion_lead',
                 label: 'Conversion / Lead',
-                keys: ['ip', 'cta_clicks', 'tel_clicks', 'google_verified_label', 'valid_clicks', 'invalid_clicks'],
+                keys: ['ip', 'cta_clicks', 'tel_clicks', 'add_to_cart', 'checkout', 'purchase', 'revenue', 'form_starts', 'form_fills', 'google_verified_label', 'valid_clicks', 'invalid_clicks'],
+            },
+            {
+                id: 'traffic_control',
+                label: 'Traffic Control',
+                keys: [
+                    'ip', 'session_id', 'keyword', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'time_on_site',
+                    'event_actions', 'cta_clicks', 'add_to_cart', 'checkout', 'purchase', 'revenue',
+                    'device', 'browser', 'os', 'crawler_score', 'automation_score', 'malicious_score',
+                    'fingerprint_id', 'campaign', 'headline', 'scroll_events', 'tel_clicks', 'form_starts', 'form_fills',
+                    'country', 'intel_region', 'referrer', 'exit_page', 'session_recording',
+                ],
             },
             {
                 id: 'detection_scoring',
                 label: 'Detection / Scoring',
-                keys: ['ip', 'ads_primary_rule', 'intel_risk_score', 'intel_risk_level', 'intel_evidence', 'intel_block_reason'],
+                keys: ['ip', 'ads_primary_rule', 'crawler_score', 'automation_score', 'malicious_score', 'intel_risk_score', 'intel_risk_level', 'intel_evidence', 'intel_block_reason'],
             },
             {
                 id: 'enforcement_review',
@@ -1685,7 +1746,7 @@
 
         let savedOptional = [];
         try {
-            savedOptional = JSON.parse(localStorage.getItem('pm-adv-optional-columns-v3') || '[]');
+            savedOptional = JSON.parse(localStorage.getItem('pm-adv-optional-columns-v4') || '[]');
         } catch (e) {}
 
         return {
@@ -1730,7 +1791,8 @@
             sortDir: 'desc',
             sortNumericKeys: [
                 'visits', 'invalid_clicks', 'valid_clicks', 'vpn_hits', 'data_center_hits',
-                'cta_clicks', 'tel_clicks', 'page_changes',
+                'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'form_starts', 'form_fills',
+                'add_to_cart', 'checkout', 'crawler_score', 'automation_score', 'malicious_score',
                 'intel_risk_score', 'intel_confidence', 'intel_latitude', 'intel_longitude', 'ip_count',
             ],
             statCards: [],
@@ -2108,9 +2170,12 @@
             columnMinPx(col) {
                 const key = col.key;
                 if (key === 'session_recording') return 44;
-                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes'].includes(key)) {
+                if (['visits', 'invalid_clicks', 'valid_clicks', 'invalid_visits', 'valid_visits', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'form_starts', 'form_fills', 'add_to_cart', 'checkout', 'crawler_score', 'automation_score', 'malicious_score'].includes(key)) {
                     return 56;
                 }
+                if (key === 'page_flow' || key === 'event_actions') return 180;
+                if (key === 'landing_page' || key === 'exit_page' || key === 'referrer') return 140;
+                if (key === 'time_on_site' || key === 'entry_time' || key === 'exit_time' || key === 'revenue' || key === 'purchase') return 88;
                 if (['intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter'].includes(key)) return 72;
                 if (key === 'intel_risk_score' || key === 'intel_risk_level' || key === 'intel_confidence') return 88;
                 if (key === 'intel_evidence') return 96;
@@ -2270,7 +2335,7 @@
                     this.optionalColumnKeys = [...this.optionalColumnKeys, key];
                 }
                 try {
-                    localStorage.setItem('pm-adv-optional-columns-v3', JSON.stringify(this.optionalColumnKeys));
+                    localStorage.setItem('pm-adv-optional-columns-v4', JSON.stringify(this.optionalColumnKeys));
                 } catch (e) {}
             },
             applyColumnGroup(groupId) {
@@ -2283,7 +2348,7 @@
                 });
                 this.optionalColumnKeys = [...new Set(optional)];
                 try {
-                    localStorage.setItem('pm-adv-optional-columns-v3', JSON.stringify(this.optionalColumnKeys));
+                    localStorage.setItem('pm-adv-optional-columns-v4', JSON.stringify(this.optionalColumnKeys));
                     localStorage.setItem('pm-adv-active-column-group', groupId);
                 } catch (e) {}
             },
@@ -2324,10 +2389,40 @@
                     const label = visit.google_verified_label || '—';
                     return label;
                 }
+                if (key === 'form_fills') return visit.form_fills ?? visit.form_submits ?? 0;
+                if (key === 'event_actions') {
+                    const rows = this.eventActionRows(visit);
+                    return rows.length ? rows.map((ev) => `${ev.key} (${ev.count})`).join(', ') : '—';
+                }
+                if (key === 'page_flow') {
+                    const parts = this.pageFlowParts(visit);
+                    return parts.length ? parts.join(' -> ') : '—';
+                }
+                if (key === 'entry_clock' || key === 'exit_clock') {
+                    const value = visit[key];
+                    return value ? String(value) : '';
+                }
                 const value = visit[key];
                 if (value === 0) return '0';
                 if (value === null || value === undefined || value === '') return '—';
+                if (Array.isArray(value)) {
+                    return value.length ? value.map((ev) => (ev && ev.key ? `${ev.key} (${ev.count})` : String(ev))).join(', ') : '—';
+                }
                 return String(value);
+            },
+            openJourneyDrawer(visit) {
+                if (visit) this.openClicks(visit);
+            },
+            openEventDrilldown(visit, kind) {
+                if (!visit) return;
+                const key = String(kind || '');
+                const raw = key === 'form_fills' || key === 'form_submits'
+                    ? (visit.form_fills ?? visit.form_submits ?? 0)
+                    : visit[key];
+                const count = key === 'purchase'
+                    ? (String(raw || '').toLowerCase() === 'yes' ? 1 : Number(raw || 0))
+                    : Number(raw || 0);
+                if (count > 0) this.openClicks(visit);
             },
             selectCampaign(name) {
                 this.filters.campaign = name;
