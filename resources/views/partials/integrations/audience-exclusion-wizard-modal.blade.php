@@ -284,7 +284,7 @@
                 <span x-text="audienceWizard.step === 0 ? 'Cancel' : 'Back'"></span>
             </button>
             <div class="flex flex-wrap gap-[8px]">
-                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="openInstallTagsModal('gtm')">Connect GTM</button>
+                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="openInstallTagsFromWizard('gtm')">Connect GTM</button>
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[8px] text-[13px] font-semibold disabled:opacity-40"
                         x-show="audienceWizard.step < 3"
                         :disabled="audienceWizard.step === 0 && audienceWizard.source === 'ga4' && !wizardGtmConnected"

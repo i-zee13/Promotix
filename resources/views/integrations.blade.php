@@ -1536,6 +1536,7 @@ function platformIntegrations(config) {
             websiteName: 'Clickronix | Invalid Traffic | Google Ads',
             ga4ListId: '',
             websiteListId: '',
+            resumeAfterTags: false,
             stepLabels: ['Connections', 'GA4 route', 'Ads route', 'Verify & exclude'],
             titles: [
                 'Connect your platforms',
@@ -1903,11 +1904,22 @@ function platformIntegrations(config) {
             this.installTagsModal.open = true;
             document.documentElement.classList.add('pi-spec-modal-open');
         },
+        /** From Audience wizard: never stack two full-screen modals (blank screen / z-index fight). */
+        openInstallTagsFromWizard(tab = 'gtm') {
+            this.audienceWizard.resumeAfterTags = true;
+            this.audienceWizard.open = false;
+            this.openInstallTagsModal(tab);
+        },
         closeInstallTagsModal() {
             this.installTagsModal.open = false;
-            if (! this.connectGoogleModal.open) {
-                document.documentElement.classList.remove('pi-spec-modal-open');
+            if (this.audienceWizard.resumeAfterTags) {
+                this.audienceWizard.resumeAfterTags = false;
+                this.audienceWizard.open = true;
+                this.lockSpecModal();
+                this.checkGa4SiteStatus(false);
+                return;
             }
+            this.unlockSpecModal();
         },
         saveInstallTagsDraft() {
             if (this.installTagsModal.google_tag_id) {
@@ -2015,7 +2027,7 @@ function platformIntegrations(config) {
                 && !this.trackingTemplateModal.open && !this.testProtectionModal.open
                 && !this.protectionCenter.open && !this.audienceMethodModal.open
                 && !this.createAudienceModal.open && !this.applyAudienceModal.open
-                && !this.pixelGuardModal.open) {
+                && !this.pixelGuardModal.open && !this.audienceWizard?.open) {
                 document.documentElement.classList.remove('pi-spec-modal-open');
             }
         },
