@@ -1597,7 +1597,18 @@
                             @endif
 
                             @if (! empty($enabledTenantIntegrations['cross_domain']))
-                            <article class="figma-pac-card figma-pac-card--cross-domain" x-data="{ crossDomainOn: @js((bool) ($exclusionRules['cross_domain_enabled'] ?? false)) }">
+                            <article
+                                class="figma-pac-card figma-pac-card--cross-domain"
+                                x-data="detectionCrossDomainSimilarity(@js([
+                                    'enabled' => (bool) ($exclusionRules['cross_domain_enabled'] ?? false),
+                                    'mode' => $crossDomainMode,
+                                    'domainId' => (int) $domain->id,
+                                    'hostname' => (string) $domain->hostname,
+                                    'csrf' => csrf_token(),
+                                    'suggestionsUrl' => route('domains.similarity-suggestions'),
+                                    'applyUrl' => route('domains.apply-similarity-blocks', $domain),
+                                ]))"
+                            >
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M8 12h8M12 8v8"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/></svg>
@@ -1611,7 +1622,7 @@
                                             size="sm"
                                             label-on="On"
                                             label-off="Off"
-                                            @change="crossDomainOn = $event.target.checked"
+                                            @change="onToggle($event.target.checked)"
                                         />
                                     </div>
                                     </div>
@@ -1620,9 +1631,9 @@
                                     <p class="figma-pac-purpose"><span>Purpose</span> Queue cross-domain visitor IPs into Google Ads Exclusion Manager.</p>
                                     <div class="figma-pac-cross-mode">
                                         <span>Exclusion scope</span>
-                                        <select name="cross_domain_exclusion_mode" aria-label="Cross-domain exclusion scope">
-                                            <option value="all" @selected($crossDomainMode === 'all')>All</option>
-                                            <option value="domain_similarity" @selected($crossDomainMode === 'domain_similarity')>Similarity</option>
+                                        <select name="cross_domain_exclusion_mode" aria-label="Cross-domain exclusion scope" x-model="mode" @change="onModeChange()">
+                                            <option value="all">All</option>
+                                            <option value="domain_similarity">Similarity</option>
                                             </select>
                                         </div>
                                     <p class="figma-pac-cross-count">
@@ -1632,8 +1643,53 @@
                                             · {{ $crossDomainMatchCount }} match current scope
                                         @endif
                                     </p>
+                                    <p class="text-[10px] text-white/55" x-show="hint" x-text="hint" x-cloak></p>
                                 </div>
                                 <button type="button" class="figma-pac-card-btn" onclick="document.getElementById('detection-panel-google-exclusion')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Open Exclusion Manager →</button>
+
+                                <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/70 p-[16px]" x-show="open" x-cloak x-transition @click.self="closeModal()">
+                                    <div class="flex max-h-[min(88vh,720px)] w-full max-w-[640px] flex-col overflow-hidden rounded-[12px] bg-[var(--brand-primary,#FF6600)] text-white shadow-2xl" @click.stop>
+                                        <header class="border-b border-white/25 px-[22px] py-[16px]">
+                                            <h2 class="text-[18px] font-semibold">Similar-domain blocks</h2>
+                                            <p class="mt-[4px] text-[12px] text-white/90">
+                                                We found related domains for <span class="font-semibold" x-text="hostname"></span>. Apply their blocked IPs to this domain?
+                                            </p>
+                                        </header>
+                                        <div class="min-h-0 flex-1 space-y-[12px] overflow-y-auto px-[22px] py-[16px]">
+                                            <div class="rounded-[8px] border border-white/20 bg-black/20 px-[12px] py-[10px]">
+                                                <p class="text-[11px] font-semibold uppercase tracking-wide text-white/80">Related domains</p>
+                                                <div class="mt-[8px] flex flex-wrap gap-[6px]">
+                                                    <template x-for="d in similarDomains" :key="d.id">
+                                                        <span class="rounded-full bg-white/15 px-[10px] py-[4px] text-[11px]" x-text="d.hostname + ' · ' + d.similarity + '% ' + d.similarity_label"></span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center justify-between gap-[10px]">
+                                                <p class="text-[12px] font-semibold" x-text="suggestedIps.length + ' suggested blocked IP(s)'"></p>
+                                                <button type="button" class="text-[11px] font-semibold underline" @click="toggleAll()">Select all / none</button>
+                                            </div>
+                                            <div class="max-h-[280px] space-y-[6px] overflow-y-auto rounded-[8px] border border-white/15 bg-black/15 p-[8px]">
+                                                <template x-for="row in suggestedIps" :key="row.ip">
+                                                    <label class="flex cursor-pointer items-start gap-[10px] rounded-[6px] border border-white/10 bg-black/20 px-[10px] py-[8px] hover:bg-black/30">
+                                                        <input type="checkbox" class="mt-[3px] rounded border-white/40" :value="row.ip" x-model="selected">
+                                                        <span class="min-w-0 flex-1">
+                                                            <span class="block font-mono text-[12px] font-semibold" x-text="row.ip"></span>
+                                                            <span class="mt-[2px] block text-[10px] text-white/75" x-text="'From: ' + (row.from_domains || []).join(', ')"></span>
+                                                        </span>
+                                                        <span class="shrink-0 text-[10px] text-white/60" x-text="(row.hits || 0) + ' hits'"></span>
+                                                    </label>
+                                                </template>
+                                            </div>
+                                            <p class="text-[11px] text-white/80">Selected IPs go on this domain’s block list. If Google Ads is connected, they are also queued for Exclusion Manager. Save Detection settings to keep Cross-domain On.</p>
+                                        </div>
+                                        <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[22px] py-[14px]">
+                                            <button type="button" @click="closeModal()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Skip</button>
+                                            <button type="button" @click="apply()" :disabled="busy || !selected.length" class="rounded-[6px] bg-white px-[18px] py-[8px] text-[13px] font-semibold text-[var(--brand-primary,#FF6600)] disabled:opacity-50">
+                                                <span x-text="busy ? 'Applying…' : ('Apply ' + selected.length + ' IP(s)')"></span>
+                                            </button>
+                                        </footer>
+                                    </div>
+                                </div>
                             </article>
                             @endif
 
@@ -2642,6 +2698,102 @@ function googleExclusionPanel(config) {
         },
     };
 }
+</script>
+<script>
+window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(config) {
+    return {
+        enabled: Boolean(config.enabled),
+        mode: config.mode || 'all',
+        domainId: config.domainId,
+        hostname: config.hostname || '',
+        csrf: config.csrf,
+        suggestionsUrl: config.suggestionsUrl,
+        applyUrl: config.applyUrl,
+        open: false,
+        busy: false,
+        loading: false,
+        hint: '',
+        similarDomains: [],
+        suggestedIps: [],
+        selected: [],
+        onToggle(checked) {
+            this.enabled = Boolean(checked);
+            if (this.enabled && this.mode === 'domain_similarity') {
+                this.openSimilarityPrompt();
+            } else {
+                this.hint = '';
+            }
+        },
+        onModeChange() {
+            if (this.enabled && this.mode === 'domain_similarity') {
+                this.openSimilarityPrompt();
+            } else {
+                this.hint = '';
+            }
+        },
+        async openSimilarityPrompt() {
+            if (!this.hostname || this.loading) return;
+            this.loading = true;
+            this.hint = 'Looking up similar-domain blocks…';
+            try {
+                const res = await fetch(this.suggestionsUrl + '?hostname=' + encodeURIComponent(this.hostname), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const data = await res.json().catch(() => ({}));
+                const sim = data.similarity || {};
+                const ips = Array.isArray(sim.suggested_ips) ? sim.suggested_ips : [];
+                if (!ips.length) {
+                    this.hint = 'No similar-domain blocked IPs found for ' + this.hostname + '.';
+                    this.open = false;
+                    return;
+                }
+                this.similarDomains = Array.isArray(sim.similar_domains) ? sim.similar_domains : [];
+                this.suggestedIps = ips;
+                this.selected = ips.map((r) => r.ip);
+                this.hint = '';
+                this.open = true;
+            } catch (e) {
+                this.hint = 'Could not load similar-domain suggestions.';
+            } finally {
+                this.loading = false;
+            }
+        },
+        toggleAll() {
+            const all = this.suggestedIps.map((r) => r.ip);
+            this.selected = this.selected.length === all.length ? [] : all;
+        },
+        closeModal() {
+            this.open = false;
+        },
+        async apply() {
+            if (!this.selected.length || this.busy) return;
+            this.busy = true;
+            try {
+                const res = await fetch(this.applyUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ ips: this.selected }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    this.hint = data.message || 'Could not apply similar-domain blocks.';
+                    return;
+                }
+                this.hint = data.message || ('Applied ' + this.selected.length + ' IP(s). Save settings to keep Cross-domain On.');
+                this.open = false;
+            } catch (e) {
+                this.hint = 'Apply request failed.';
+            } finally {
+                this.busy = false;
+            }
+        },
+    };
+};
 </script>
 <script>
 window.detectionPageFilters = function detectionPageFilters(config) {
