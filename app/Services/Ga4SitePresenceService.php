@@ -144,44 +144,46 @@ class Ga4SitePresenceService
 
         $hasGa4 = $measurementIds !== [];
         $hasGtm = $gtmIds !== [];
-        $hasLiveSnippet = in_array('homepage_ga4_snippet', $signals, true)
-            || in_array('homepage_gtm_snippet', $signals, true)
-            || in_array('homepage_gtag_loader', $signals, true)
+        $hasLiveGa4 = in_array('homepage_ga4_snippet', $signals, true)
             || in_array('gtm_container_ga4_id', $signals, true);
-        $hasPortalProof = in_array('portal_gtm_container', $signals, true)
-            || in_array('linked_account_ga4_id', $signals, true)
-            || in_array('clickronix_tag_connected', $signals, true);
+        $hasLiveGtm = in_array('homepage_gtm_snippet', $signals, true);
+        $hasLiveGtagLoader = in_array('homepage_gtag_loader', $signals, true);
+        $hasPortalGtm = in_array('portal_gtm_container', $signals, true);
+        $hasLinkedGa4 = in_array('linked_account_ga4_id', $signals, true);
 
-        // Present when GA4 (G-) or GTM is on the site HTML, or strongly linked in portal
-        // (portal GTM / linked G- id). AW-only or Clickronix tag alone is not enough.
-        $present = $hasLiveSnippet
-            || $hasGa4
-            || $hasGtm;
+        // Attach gate: need real GA4 (G-…) and/or a live GTM container snippet.
+        // Do NOT enable on AW-only Google Ads tags, generic gtag.js, or portal GTM ID alone.
+        $present = $hasLiveGa4
+            || $hasLiveGtm
+            || ($hasGa4 && ($hasLiveGtm || $hasLiveGa4 || $hasLinkedGa4));
 
-        // If homepage fetch failed but portal has GTM/G-, still allow with medium confidence.
-        if (! $present && in_array('homepage_fetch_failed', $signals, true) && $hasPortalProof) {
-            $present = in_array('portal_gtm_container', $signals, true)
-                || in_array('linked_account_ga4_id', $signals, true);
-            if ($present) {
-                $signals[] = 'portal_fallback_after_fetch_fail';
-            }
+        // Homepage unreachable: only allow when a real G- measurement ID is linked (not AW / portal GTM alone).
+        if (! $present && in_array('homepage_fetch_failed', $signals, true) && $hasLinkedGa4) {
+            $present = true;
+            $signals[] = 'portal_fallback_after_fetch_fail';
         }
 
         $confidence = 'none';
-        if ($hasLiveSnippet && ($hasGa4 || $hasGtm)) {
+        if ($hasLiveGa4 && ($hasLiveGtm || $hasGtm)) {
             $confidence = 'high';
-        } elseif ($hasLiveSnippet || $hasGa4 || $hasGtm) {
+        } elseif ($hasLiveGa4 || $hasLiveGtm) {
             $confidence = 'medium';
-        } elseif ($hasPortalProof) {
+        } elseif ($hasGa4 || $hasLinkedGa4) {
             $confidence = 'low';
+        } elseif ($hasPortalGtm || $hasLiveGtagLoader || $awIds !== []) {
+            $confidence = 'none';
         }
 
         $message = $present
-            ? 'GA4/GTM detected on the website (or linked in portal). Audience exclusion can proceed.'
-            : 'GA4/GTM not detected on the website. Install GA4 (G-…) or GTM, then retry. Without it, Client ID events cannot populate the audience and Ads exclusions will not work as expected.';
+            ? 'GA4 detected (G-…) and/or live GTM on the website. Audience exclusion can proceed.'
+            : 'GA4 not detected on the website. A Google Ads tag (AW-…) or portal-only GTM ID is not enough — install GA4 (G-…) via GTM or direct, then retry.';
 
-        if ($hasGa4 && ! $hasGtm) {
-            $message = 'GA4 (G-) detected without GTM. GA4 audience route needs GTM as the delivery container. Use GTM + GA4 together, or use the Google Ads website audience route.';
+        if (! $present && ($hasPortalGtm || $hasGtm) && ! $hasGa4) {
+            $message = 'GTM is linked, but no GA4 measurement ID (G-…) was found on the site or in the published container. Add GA4 in GTM (or install G-…), then Detect again.';
+        } elseif (! $present && $awIds !== [] && ! $hasGa4) {
+            $message = 'Google Ads tag (AW-…) found, but GA4 (G-…) is not installed. Audience membership needs GA4 Client ID — install GA4 first.';
+        } elseif ($hasGa4 && ! $hasGtm && ! $hasLiveGtm) {
+            $message = 'GA4 (G-) detected without GTM. The GA4 audience route needs GTM as the delivery container. Use GTM + GA4 together, or use the Google Ads website audience route.';
         }
 
         return [

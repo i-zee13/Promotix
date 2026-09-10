@@ -99,9 +99,7 @@
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                     <div class="figma-filter-select-wrap">
                         <select id="traffic-source-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="google_ads" selected>Google Ads</option>
-                            <option value="meta_ads" disabled>Meta Ads</option>
-                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                            @include('partials.traffic-source-options')
                         </select>
                     </div>
                 </label>

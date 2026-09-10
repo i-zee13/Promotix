@@ -59,6 +59,14 @@
                     <p class="mt-[2px] font-mono text-[10px] text-white/45" x-text="trackingInstallation.gtm.id"></p>
                     <p class="mt-[4px] text-[10px] text-white/50">Publish your GTM changes.</p>
                 </div>
+                <div class="rounded-[8px] border border-white/10 bg-[#0d0d0d] px-[10px] py-[10px]">
+                    <div class="flex items-center justify-between gap-[6px]">
+                        <p class="text-[12px] font-semibold truncate">GA4</p>
+                        <span class="text-[10px] font-semibold" :class="trackingInstallation.ga4?.ok ? 'text-emerald-300' : 'text-rose-300'" x-text="trackingInstallation.ga4?.ok ? 'Detected' : 'Not detected'"></span>
+                    </div>
+                    <p class="mt-[2px] font-mono text-[10px] text-white/45" x-text="trackingInstallation.ga4?.id || '—'"></p>
+                    <p class="mt-[4px] text-[10px] text-white/50">Measurement ID (G-…).</p>
+                </div>
                 <p class="rounded-[8px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[8px] py-[8px] text-[10px] leading-relaxed text-[#ffd0b0]">
                     GTM installed does not automatically mean Google tag is installed.
                 </p>
@@ -123,6 +131,27 @@ window.dataLayer.push({
   traffic_status: 'invalid',
   risk_confidence: 'high'
 });</pre>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="installTagsModal.tab === 'ga4'">
+                    <div class="space-y-[12px]">
+                        <p class="text-[13px] text-white/80">Google Analytics 4 measurement ID (<span class="font-mono" x-text="trackingInstallation.ga4?.id || 'G-…'"></span>) powers the GA4 audience route with GTM.</p>
+                        <label class="block max-w-[320px]">
+                            <span class="mb-[4px] block text-[11px] font-semibold text-white/70">GA4 Measurement ID</span>
+                            <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[12px]" x-model="installTagsModal.ga4_id" placeholder="G-…">
+                        </label>
+                        <div class="flex flex-wrap items-center gap-[8px]">
+                            <button type="button"
+                                    class="pi-primary-btn"
+                                    :disabled="createAudienceModal.ga4Checking"
+                                    @click="checkGa4SiteStatus(false)">
+                                <span x-text="createAudienceModal.ga4Checking ? 'Detecting…' : 'Detect on website'"></span>
+                            </button>
+                            <span class="text-[11px]"
+                                  :class="trackingInstallation.ga4?.ok ? 'text-emerald-300' : 'text-white/50'"
+                                  x-text="createAudienceModal.ga4Message || (trackingInstallation.ga4?.ok ? 'Measurement ID detected.' : 'Scan the live site for a G- ID.')"></span>
                         </div>
                     </div>
                 </template>

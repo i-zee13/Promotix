@@ -166,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'setupProgressByDomain' => $setupProgressByDomain ?? [],
         'googleAdsSummary' => $googleAdsSummary ?? [],
         'trackingInstallation' => $trackingInstallation ?? [],
+        'trackingInstallationByDomain' => $trackingInstallationByDomain ?? [],
         'ipExclusionRows' => ($ipExclusionRows ?? collect())->values(),
         'accountsForConnect' => ($accounts ?? collect())->take(40)->map(fn ($a) => [
             'id' => $a->id,
@@ -973,6 +974,12 @@ document.addEventListener('DOMContentLoaded', () => {
         {{-- Setup Progress --}}
         <section class="pi-setup-card">
             <h2 class="pi-setup-title">Setup Progress</h2>
+            <p class="mb-[10px] text-[11px] text-white/50" x-show="!selectedDomainId">
+                All Domains view: Script/GTM is counted only when <strong class="text-white/70">every</strong> domain has its own install — connecting GTM on one domain does not cover the others.
+            </p>
+            <p class="mb-[10px] text-[11px] text-white/50" x-show="selectedDomainId" x-cloak>
+                Showing progress for the selected domain only. GTM and Clickronix script must be connected on this domain separately.
+            </p>
             <div class="pi-setup-track" :style="`--pi-setup-fill: ${setupProgressFill}`">
                 <div class="pi-setup-track__fill" aria-hidden="true"></div>
                 <template x-for="step in activeSetupProgress" :key="step.key">
@@ -1436,6 +1443,14 @@ function platformIntegrations(config) {
         trackingIds: config.trackingIds || [],
         setupProgressAll: config.setupProgress || [],
         setupProgressByDomain: config.setupProgressByDomain || {},
+        trackingInstallationAll: Object.assign({
+            google_tag: { id: '—', status: 'Not detected', ok: false },
+            gtm: { id: '—', status: 'Offline', ok: false, unpublished: false },
+            ga4: { id: '—', status: 'Not detected', ok: false },
+            script: { id: '—', status: 'Missing', ok: false },
+            setup_url: '#',
+        }, config.trackingInstallation || {}),
+        trackingInstallationByDomain: config.trackingInstallationByDomain || {},
         platformSearch: '',
         platformPage: 1,
         platformPerPage: 8,
@@ -1485,10 +1500,12 @@ function platformIntegrations(config) {
                 { id: 'script', label: 'Clickronix Script' },
                 { id: 'google_tag', label: 'Google Tag' },
                 { id: 'gtm', label: 'Google Tag Manager' },
+                { id: 'ga4', label: 'GA4' },
                 { id: 'direct', label: 'Direct Install' },
             ],
             google_tag_id: '',
             gtm_id: '',
+            ga4_id: '',
             workspace: 'Default Workspace',
             requiredTags: [
                 { name: 'Clickronix Collector', meta: 'Type: Custom HTML · All Pages' },
@@ -1610,6 +1627,15 @@ function platformIntegrations(config) {
             userListId: '',
             campaigns: [],
         },
+        createdAudienceLists: [],
+        get trackingInstallation() {
+            const id = String(this.selectedDomainId || '');
+            if (id && this.trackingInstallationByDomain[id]) {
+                return this.trackingInstallationByDomain[id];
+            }
+            // All Domains: never inherit one domain's GTM/script as "connected for everyone".
+            return this.trackingInstallationAll;
+        },
         pixelGuardModal: {
             open: false,
             tab: 'mapping',
@@ -1641,13 +1667,6 @@ function platformIntegrations(config) {
             getUrl: '/integrations/google/pixel-guard',
             saveUrl: '/integrations/google/pixel-guard',
         },
-        trackingInstallation: Object.assign({
-            google_tag: { id: '—', status: 'Not detected', ok: false },
-            gtm: { id: '—', status: 'Offline', ok: false, unpublished: false },
-            ga4: { id: '—', status: 'Not detected', ok: false },
-            script: { id: '—', status: 'Missing', ok: false },
-            setup_url: '#',
-        }, config.trackingInstallation || {}),
         ipExclusionsModal: {
             open: false,
             tab: 'active',
@@ -1920,7 +1939,7 @@ function platformIntegrations(config) {
             this.closeConnectGoogleModal();
         },
         openInstallTagsModal(tab) {
-            const map = { script: 'script', google_tag: 'google_tag', gtm: 'gtm', direct: 'direct' };
+            const map = { script: 'script', google_tag: 'google_tag', gtm: 'gtm', ga4: 'ga4', direct: 'direct' };
             this.installTagsModal.tab = map[tab] || 'gtm';
             this.installTagsModal.google_tag_id = this.trackingInstallation.google_tag?.id === '—'
                 ? ''
@@ -1928,8 +1947,14 @@ function platformIntegrations(config) {
             this.installTagsModal.gtm_id = this.trackingInstallation.gtm?.id === '—'
                 ? ''
                 : (this.trackingInstallation.gtm?.id || '');
+            this.installTagsModal.ga4_id = this.trackingInstallation.ga4?.id === '—'
+                ? ''
+                : (this.trackingInstallation.ga4?.id || '');
             this.installTagsModal.open = true;
             document.documentElement.classList.add('pi-spec-modal-open');
+            if (this.installTagsModal.tab === 'ga4') {
+                this.checkGa4SiteStatus(false).catch(() => {});
+            }
         },
         /** From Audience wizard: never stack two full-screen modals (blank screen / z-index fight). */
         openInstallTagsFromWizard(tab = 'gtm') {
@@ -1948,17 +1973,94 @@ function platformIntegrations(config) {
             }
             this.unlockSpecModal();
         },
-        saveInstallTagsDraft() {
+        async saveInstallTagsDraft() {
+            const domainId = String(this.selectedDomainId || '');
+            if (!domainId) {
+                this.showMenuToast('Select a domain first. GTM / tags are saved per domain — not shared across domains.', 'info');
+                return;
+            }
+            const target = this.trackingInstallationByDomain[domainId] || {
+                google_tag: { id: '—', status: 'Not detected', ok: false },
+                gtm: { id: '—', status: 'Offline', ok: false, unpublished: false },
+                ga4: { id: '—', status: 'Not detected', ok: false },
+                script: { id: '—', status: 'Missing', ok: false },
+                setup_url: '#',
+                domain_id: Number(domainId),
+            };
+
             if (this.installTagsModal.google_tag_id) {
-                this.trackingInstallation.google_tag.id = this.installTagsModal.google_tag_id;
+                target.google_tag = Object.assign({}, target.google_tag || {}, {
+                    id: this.installTagsModal.google_tag_id,
+                    status: 'Detected',
+                    ok: true,
+                });
             }
+            if (this.installTagsModal.ga4_id) {
+                const id = String(this.installTagsModal.ga4_id).trim().toUpperCase();
+                target.ga4 = Object.assign({}, target.ga4 || {}, {
+                    id: id || '—',
+                    status: id ? 'Detected' : 'Not detected',
+                    ok: Boolean(id),
+                });
+            }
+
             if (this.installTagsModal.gtm_id) {
-                this.trackingInstallation.gtm.id = this.installTagsModal.gtm_id;
-                this.trackingInstallation.gtm.status = 'Offline';
-                this.trackingInstallation.gtm.unpublished = true;
-                this.trackingInstallation.gtm.ok = false;
+                const gtmId = String(this.installTagsModal.gtm_id).trim().toUpperCase();
+                try {
+                    const res = await fetch(`/domains/${domainId}/gtm`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf || document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ gtm_container_id: gtmId }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        this.showMenuToast(data.message || 'Could not save GTM for this domain.', 'error');
+                        return;
+                    }
+                    const saved = String(data.gtm_container_id || gtmId).toUpperCase();
+                    target.gtm = Object.assign({}, target.gtm || {}, {
+                        id: saved || '—',
+                        status: saved ? 'Offline' : 'Offline',
+                        unpublished: Boolean(saved),
+                        ok: false,
+                    });
+                    const conn = (this.domainConnections || []).find((d) => String(d.id) === domainId);
+                    if (conn) {
+                        conn.gtm_container_id = saved;
+                        conn.gtm_connected = Boolean(saved);
+                    }
+                    // Refresh Setup Progress tracking detail for this domain only.
+                    const steps = this.setupProgressByDomain[domainId];
+                    if (Array.isArray(steps)) {
+                        const tracking = steps.find((s) => s.key === 'tracking');
+                        if (tracking) {
+                            tracking.gtm_done = Boolean(saved);
+                            tracking.gtm_id = saved || '';
+                            const crx = String(target.script?.id || '').replace(/^—$/, '');
+                            if (target.script?.ok && saved) {
+                                tracking.detail = (crx ? crx + ' · ' : '') + saved;
+                            } else if (target.script?.ok) {
+                                tracking.detail = (crx ? crx + ' · ' : '') + 'GTM needed for this domain';
+                            } else if (saved) {
+                                tracking.detail = saved + ' · Script needed';
+                            } else {
+                                tracking.detail = 'Install script + GTM on this domain';
+                            }
+                        }
+                    }
+                } catch (_) {
+                    this.showMenuToast('Could not save GTM for this domain.', 'error');
+                    return;
+                }
             }
-            this.showMenuToast('Draft saved. Publish in GTM, then run Full Test.', 'success');
+
+            this.trackingInstallationByDomain[domainId] = target;
+            this.showMenuToast('Saved for this domain only. Other domains still need their own GTM.', 'success');
             this.closeInstallTagsModal();
         },
         openTestModal() {
@@ -2307,19 +2409,41 @@ function platformIntegrations(config) {
                 this.createAudienceModal._measurementIds = Array.isArray(d.measurement_ids) ? d.measurement_ids : [];
                 this.createAudienceModal.ga4Message = message;
                 this.createAudienceModal.ga4Confidence = d.confidence || (present ? 'medium' : 'none');
-                if (this.createAudienceModal._gtmIds[0] && (!this.trackingInstallation.gtm?.id || this.trackingInstallation.gtm.id === '—')) {
-                    this.trackingInstallation.gtm = Object.assign({}, this.trackingInstallation.gtm || {}, {
-                        id: this.createAudienceModal._gtmIds[0],
-                        status: 'Detected',
-                        ok: true,
+                if (this.createAudienceModal._gtmIds[0] && this.selectedDomainId) {
+                    const domainId = String(this.selectedDomainId);
+                    const current = this.trackingInstallationByDomain[domainId] || {};
+                    this.trackingInstallationByDomain[domainId] = Object.assign({}, current, {
+                        gtm: Object.assign({}, current.gtm || {}, {
+                            id: this.createAudienceModal._gtmIds[0],
+                            status: 'Detected',
+                            ok: true,
+                        }),
                     });
                 }
-                if (this.createAudienceModal._measurementIds[0]) {
-                    this.trackingInstallation.ga4 = Object.assign({}, this.trackingInstallation.ga4 || {}, {
-                        id: this.createAudienceModal._measurementIds[0],
-                        status: 'Detected',
-                        ok: true,
+                if (this.createAudienceModal._measurementIds[0] && this.selectedDomainId) {
+                    const domainId = String(this.selectedDomainId);
+                    const current = this.trackingInstallationByDomain[domainId] || {};
+                    this.trackingInstallationByDomain[domainId] = Object.assign({}, current, {
+                        ga4: Object.assign({}, current.ga4 || {}, {
+                            id: this.createAudienceModal._measurementIds[0],
+                            status: 'Detected',
+                            ok: true,
+                        }),
                     });
+                    this.installTagsModal.ga4_id = this.createAudienceModal._measurementIds[0];
+                    // Refresh GA4 dropdown options with detected G- IDs only.
+                    const seen = new Set((this.createAudienceModal.ga4Options || []).map((p) => p.id));
+                    this.createAudienceModal._measurementIds.forEach((raw) => {
+                        const id = String(raw || '').trim().toUpperCase();
+                        if (!/^G-[A-Z0-9]+$/.test(id) || seen.has(id)) return;
+                        seen.add(id);
+                        this.createAudienceModal.ga4Options.push({ id, label: 'Site detect · ' + id });
+                    });
+                    if (!this.createAudienceModal.ga4_property && this.createAudienceModal.ga4Options[0]) {
+                        this.createAudienceModal.ga4_property = this.createAudienceModal.ga4Options[0].id;
+                    }
+                } else if (this.createAudienceModal._measurementIds[0]) {
+                    this.installTagsModal.ga4_id = this.createAudienceModal._measurementIds[0];
                 }
                 if (forApply) {
                     this.applyAudienceModal.ga4Present = present;
@@ -2378,24 +2502,22 @@ function platformIntegrations(config) {
                 this.createAudienceModal.ads_account = accounts[0].id;
             }
 
-            // Tag options only from linked accounts (not a long AW list).
+            // Only real GA4 measurement IDs (G-…) — never AW- Google Ads tags as "GA4 properties".
             this.createAudienceModal.ga4Options = [];
             const tagSeen = new Set();
-            accounts.forEach((a) => {
-                const tag = String(a.google_tag_id || '').trim();
-                if (!tag || tag === '—' || tagSeen.has(tag)) return;
-                tagSeen.add(tag);
+            const pushGa4 = (tag, labelPrefix = '') => {
+                const id = String(tag || '').trim().toUpperCase();
+                if (!id || id === '—' || tagSeen.has(id)) return;
+                if (!/^G-[A-Z0-9]+$/.test(id)) return;
+                tagSeen.add(id);
                 this.createAudienceModal.ga4Options.push({
-                    id: tag,
-                    label: (a.label ? a.label + ' · ' : '') + tag,
+                    id,
+                    label: (labelPrefix ? labelPrefix + ' · ' : '') + id,
                 });
-            });
-            if (!this.createAudienceModal.ga4Options.length) {
-                const gtag = this.trackingInstallation?.google_tag?.id;
-                if (gtag && String(gtag) !== '—') {
-                    this.createAudienceModal.ga4Options.push({ id: String(gtag), label: 'Linked tag ' + gtag });
-                }
-            }
+            };
+            accounts.forEach((a) => pushGa4(a.google_tag_id, a.label || ''));
+            pushGa4(this.trackingInstallation?.ga4?.id, 'Detected');
+            (this.createAudienceModal._measurementIds || []).forEach((id) => pushGa4(id, 'Site detect'));
             if (!this.createAudienceModal.ga4_property
                 || !this.createAudienceModal.ga4Options.find((p) => p.id === this.createAudienceModal.ga4_property)) {
                 this.createAudienceModal.ga4_property = this.createAudienceModal.ga4Options[0]?.id || '';
@@ -2484,11 +2606,22 @@ function platformIntegrations(config) {
                 this.createAudienceModal.step = 3;
                 this.applyAudienceModal.audienceName = data.user_list_name || this.createAudienceModal.name;
                 this.applyAudienceModal.userListId = data.user_list_id ? String(data.user_list_id) : '';
-                this.applyAudienceModal.status = 'Created in Google Ads — apply adds this list; does not replace old exclusions';
+                this.applyAudienceModal.status = data.created
+                    ? 'New list created in Google Ads — apply adds this list; does not replace old exclusions'
+                    : 'Created in Google Ads — apply adds this list; does not replace old exclusions';
                 this.applyAudienceModal.method = this.createAudienceModal.method || 'ga4';
                 this.applyAudienceModal.source = (this.createAudienceModal.method === 'website') ? 'Website segment' : 'GA4 event';
+                if (data.user_list_id) {
+                    this.createdAudienceLists = this.createdAudienceLists || [];
+                    this.createdAudienceLists.unshift({
+                        id: String(data.user_list_id),
+                        name: data.user_list_name || this.createAudienceModal.name,
+                        method: this.createAudienceModal.method || 'ga4',
+                        at: new Date().toISOString(),
+                    });
+                }
                 this.closeCreateAudienceModal();
-                this.showMenuToast(data.message || 'Audience created in Google Ads.', 'success');
+                this.showMenuToast(data.message || (data.created ? 'New audience list created in Google Ads.' : 'Audience ready in Google Ads.'), 'success');
                 this.openApplyAudienceModal();
             } catch (_) {
                 this.showMenuToast('Create audience request failed.', 'error');
@@ -2499,8 +2632,59 @@ function platformIntegrations(config) {
         get applyAudienceSelectedCount() {
             return (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect).length;
         },
+        get applyAudienceAttachBannerTitle() {
+            if (this.applyAudienceModal.method === 'website') {
+                return this.applyAudienceModal.ga4Present === false
+                    ? 'Website route — GA4 optional (recommended for Client ID quality)'
+                    : 'Website audience route — ready to attach';
+            }
+            if (this.applyAudienceModal.ga4Present === true) {
+                return 'GA4 on website — exclusion attach enabled';
+            }
+            if (this.applyAudienceModal.ga4Present === false) {
+                return 'GA4 missing on website — Apply is blocked';
+            }
+            return 'Checking GA4 on website…';
+        },
         get applyAudienceSearchBelowThreshold() {
             return false;
+        },
+        exportAudienceApplyPreview() {
+            const rows = (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect);
+            if (!rows.length) {
+                this.showMenuToast('Select at least one campaign to download.', 'info');
+                return;
+            }
+            const esc = (v) => {
+                const s = String(v ?? '');
+                return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+            };
+            const lines = [
+                ['Audience name', 'User list ID', 'Source', 'Scope', 'Campaign', 'Type', 'Eligibility', 'Current state'].map(esc).join(','),
+                ...rows.map((c) => [
+                    this.applyAudienceModal.audienceName,
+                    this.applyAudienceModal.userListId || '',
+                    this.applyAudienceModal.source,
+                    this.applyAudienceModal.scope,
+                    c.name,
+                    c.type,
+                    c.eligibility,
+                    c.state,
+                ].map(esc).join(',')),
+            ];
+            const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const safe = String(this.applyAudienceModal.audienceName || 'audience')
+                .replace(/[^\w\-]+/g, '_')
+                .slice(0, 48);
+            a.href = url;
+            a.download = `${safe || 'audience'}_exclusion_preview.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            this.showMenuToast('CSV downloaded — open in Google Sheets (File → Import).', 'success');
         },
         openApplyAudienceModal() {
             if (!this.applyAudienceModal.audienceName) {

@@ -67,6 +67,8 @@ class IntegrationsController extends Controller
             'hostname' => $d->hostname,
             // Tag script only — never treat as Google Ads API / OAuth.
             'tag_connected' => (bool) $d->tag_connected,
+            'gtm_container_id' => filled($d->gtm_container_id) ? strtoupper(trim((string) $d->gtm_container_id)) : '',
+            'gtm_connected' => filled($d->gtm_container_id),
             'google_connected' => false,
             'google_ads_connected' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0,
             'last_seen_at' => $d->last_seen_at
@@ -74,6 +76,7 @@ class IntegrationsController extends Controller
                 : null,
             'steps' => [
                 ['label' => 'Tag Manager', 'done' => (bool) $d->tag_connected],
+                ['label' => 'GTM', 'done' => filled($d->gtm_container_id)],
                 ['label' => 'Paid Marketing', 'done' => (bool) $d->paid_marketing_connected || $d->google_ads_account_id !== null],
                 ['label' => 'Analytics', 'done' => (bool) $d->tag_connected || (bool) $d->bot_mitigation_connected],
                 ['label' => 'Google Ads', 'done' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0],
@@ -176,6 +179,8 @@ class IntegrationsController extends Controller
             }
 
             $trackingDone = (bool) $domain->tag_connected;
+            $gtmId = strtoupper(trim((string) ($domain->gtm_container_id ?: '')));
+            $gtmDone = $gtmId !== '' && preg_match('/^GTM-[A-Z0-9]+$/', $gtmId);
             $visitCount = (int) ($domainVisitTotals[$domain->id] ?? 0);
             $clickDone = $visitCount > 0 || filled($domain->last_seen_at);
             $clickDetail = 'Waiting for traffic';
@@ -189,9 +194,16 @@ class IntegrationsController extends Controller
                 || (bool) $domain->paid_marketing_connected;
 
             $scriptKey = (string) ($domain->domain_key ?: '');
-            $scriptDetail = $trackingDone
-                ? ($scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : 'Active')
-                : 'Install Clickronix script';
+            $crx = $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '';
+            if ($trackingDone && $gtmDone) {
+                $scriptDetail = trim($crx.' · '.$gtmId);
+            } elseif ($trackingDone) {
+                $scriptDetail = ($crx !== '' ? $crx.' · ' : '').'GTM needed for this domain';
+            } elseif ($gtmDone) {
+                $scriptDetail = $gtmId.' · Script needed';
+            } else {
+                $scriptDetail = 'Install script + GTM on this domain';
+            }
 
             // Spec: Account Connected ≠ Protection Active. Protection only when policy modules are on.
             $protectionDetail = $protectionDone ? 'Active' : 'Action needed';
@@ -214,8 +226,11 @@ class IntegrationsController extends Controller
                 [
                     'key' => 'tracking',
                     'label' => 'Script Active',
+                    // Per-domain only — never inherit another domain's script/GTM.
                     'done' => $trackingDone,
                     'detail' => $scriptDetail,
+                    'gtm_done' => $gtmDone,
+                    'gtm_id' => $gtmDone ? $gtmId : '',
                 ],
                 [
                     'key' => 'click',
@@ -246,9 +261,23 @@ class IntegrationsController extends Controller
             fn (Domain $d) => (bool) $d->bot_mitigation_connected || (bool) $d->paid_marketing_connected
         );
         $scriptKey = (string) ($firstDomain?->domain_key ?: '');
+        $domainTotal = $manualDomains->count();
+        $domainsWithScript = $manualDomains->filter(fn (Domain $d) => (bool) $d->tag_connected)->count();
+        $domainsWithGtm = $manualDomains->filter(fn (Domain $d) => filled($d->gtm_container_id))->count();
+        // All Domains view: Script Active only when EVERY domain has its own script — not inherited.
+        $trackingDoneAll = $domainTotal > 0 && $domainsWithScript === $domainTotal;
+        $trackingAggregateDetail = 'Install Clickronix script';
+        if ($domainTotal > 0) {
+            if ($trackingDoneAll && $domainsWithGtm === $domainTotal) {
+                $trackingAggregateDetail = 'All domains · script + GTM';
+            } elseif ($trackingDoneAll) {
+                $trackingAggregateDetail = $domainsWithGtm.'/'.$domainTotal.' GTM — each domain needs its own GTM';
+            } else {
+                $trackingAggregateDetail = $domainsWithScript.'/'.$domainTotal.' domains tracked — GTM/script is per domain';
+            }
+        }
 
-        // "All Domains" = best available aggregate (any domain completing a step counts).
-        // Spec Image 1: 5-step derived sequence; Customer ID shown — not AW tag as account id.
+        // "All Domains" aggregate: Ads/Protection can be "any"; tracking must not inherit across domains.
         $setupProgress = [
             [
                 'key' => 'domain',
@@ -267,10 +296,8 @@ class IntegrationsController extends Controller
             [
                 'key' => 'tracking',
                 'label' => 'Script Active',
-                'done' => $tagReady,
-                'detail' => $tagReady
-                    ? ($scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : 'Active')
-                    : 'Install Clickronix script',
+                'done' => $trackingDoneAll,
+                'detail' => $trackingAggregateDetail,
             ],
             [
                 'key' => 'click',
@@ -440,50 +467,139 @@ class IntegrationsController extends Controller
         // Spec: one unique account/domain row — do not list separate GTM / Direct Ads rows.
         $platformRows = $platformRows->values();
 
-        $googleTagId = $firstAccount?->resolvedGoogleTagId() ?: '';
-        $gtmContainerId = (string) ($firstDomain?->gtm_container_id ?: '');
-        $clickronixScriptId = $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '';
+        $buildTrackingInstallationForDomain = function (?Domain $domain) use ($tagReady): array {
+            if (! $domain) {
+                return [
+                    'domain_id' => null,
+                    'hostname' => '',
+                    'google_tag' => ['id' => '—', 'status' => 'Not detected', 'ok' => false],
+                    'gtm' => ['id' => '—', 'status' => 'Offline', 'ok' => false, 'unpublished' => false],
+                    'script' => ['id' => '—', 'status' => 'Missing', 'ok' => false],
+                    'ga4' => ['id' => '—', 'status' => 'Not detected', 'ok' => false],
+                    'setup_url' => route('domains.index'),
+                ];
+            }
 
-        $googleAdsSummary = [
-            'connected' => $googleConnected,
-            'account_connected' => $adsAccountDone,
-            'protection_active' => $protectionActive,
-            'email' => $googleEmail,
-            'customer_id' => $adsCustomerId,
-            'google_tag_id' => $googleTagId !== '' ? $googleTagId : '—',
-            'label' => $firstAccount?->displayLabel() ?: 'Google Ads',
-            'oauth_url' => route('integrations.google.redirect'),
-            'sync_url' => $primary ? route('integrations.google.sync-accounts', $primary) : null,
-            'protection_url' => route('paid-marketing.detection-settings'),
-        ];
+            $domain->loadMissing(['googleAdsAccount', 'googleAdsMappings.account']);
+            $linkedAccounts = collect([$domain->googleAdsAccount])
+                ->merge($domain->googleAdsMappings->pluck('account'))
+                ->filter();
 
+            $googleTagId = '';
+            $ga4MeasurementId = '';
+            foreach ($linkedAccounts as $account) {
+                $tag = trim((string) ($account->resolvedGoogleTagId() ?: $account->google_tag_id ?: ''));
+                if ($tag === '') {
+                    continue;
+                }
+                if ($googleTagId === '' && preg_match('/^AW-/i', $tag)) {
+                    $googleTagId = strtoupper($tag);
+                }
+                if ($ga4MeasurementId === '' && preg_match('/^G-[A-Z0-9]+$/i', $tag)) {
+                    $ga4MeasurementId = strtoupper($tag);
+                }
+                if ($googleTagId === '' && ! preg_match('/^G-/i', $tag)) {
+                    $googleTagId = $tag;
+                }
+            }
+
+            $gtmContainerId = strtoupper(trim((string) ($domain->gtm_container_id ?: '')));
+            if ($gtmContainerId !== '' && ! preg_match('/^GTM-[A-Z0-9]+$/', $gtmContainerId)) {
+                $gtmContainerId = '';
+            }
+            $scriptKey = (string) ($domain->domain_key ?: '');
+            $clickronixScriptId = $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '';
+            $scriptOk = (bool) $domain->tag_connected;
+            $gtmOk = $gtmContainerId !== '';
+
+            return [
+                'domain_id' => $domain->id,
+                'hostname' => (string) $domain->hostname,
+                'google_tag' => [
+                    'id' => $googleTagId !== '' ? $googleTagId : '—',
+                    'status' => $googleTagId !== '' && $scriptOk ? 'Detected' : 'Not detected',
+                    'ok' => $googleTagId !== '' && $scriptOk,
+                ],
+                'gtm' => [
+                    'id' => $gtmOk ? $gtmContainerId : '—',
+                    'status' => $gtmOk ? ($scriptOk ? 'Connected' : 'Offline') : 'Offline',
+                    'ok' => $gtmOk && $scriptOk,
+                    'unpublished' => $gtmOk && ! $scriptOk,
+                ],
+                'script' => [
+                    'id' => $clickronixScriptId !== '' ? $clickronixScriptId : '—',
+                    'status' => $scriptOk ? 'Active' : 'Missing',
+                    'ok' => $scriptOk,
+                ],
+                'ga4' => [
+                    'id' => $ga4MeasurementId !== '' ? $ga4MeasurementId : '—',
+                    'status' => $ga4MeasurementId !== '' ? 'Detected' : 'Not detected',
+                    'ok' => $ga4MeasurementId !== '',
+                ],
+                'setup_url' => route('domains.setup', $domain),
+            ];
+        };
+
+        $trackingInstallationByDomain = [];
+        foreach ($manualDomains as $domain) {
+            $trackingInstallationByDomain[(string) $domain->id] = $buildTrackingInstallationForDomain($domain);
+        }
+
+        $domainsWithGtm = $manualDomains->filter(fn (Domain $d) => filled($d->gtm_container_id))->count();
+        $domainTotal = max(1, $manualDomains->count());
+        $allHaveGtm = $manualDomains->isNotEmpty() && $domainsWithGtm === $manualDomains->count();
+        $allHaveScript = $manualDomains->isNotEmpty()
+            && $manualDomains->every(fn (Domain $d) => (bool) $d->tag_connected);
+
+        // All Domains card: never show one domain's GTM as globally connected.
         $trackingInstallation = [
+            'domain_id' => null,
+            'hostname' => 'All Domains',
             'google_tag' => [
-                'id' => $googleTagId !== '' ? $googleTagId : '—',
-                'status' => $googleTagId !== '' && $tagReady ? 'Detected' : 'Not detected',
-                'ok' => $googleTagId !== '' && $tagReady,
+                'id' => '—',
+                'status' => $allHaveScript ? 'Per domain' : 'Not detected',
+                'ok' => false,
             ],
             'gtm' => [
-                'id' => $gtmContainerId !== '' ? $gtmContainerId : '—',
-                'status' => $gtmContainerId !== ''
-                    ? ($tagReady ? 'Connected' : 'Offline')
-                    : 'Offline',
-                'ok' => $gtmContainerId !== '' && $tagReady,
-                'unpublished' => $gtmContainerId !== '' && ! $tagReady,
+                'id' => '—',
+                'status' => $manualDomains->isEmpty()
+                    ? 'Offline'
+                    : ($allHaveGtm ? 'All domains' : ($domainsWithGtm.'/'.$manualDomains->count().' domains')),
+                'ok' => $allHaveGtm && $allHaveScript,
+                'unpublished' => $domainsWithGtm > 0 && ! $allHaveGtm,
             ],
             'script' => [
-                'id' => $clickronixScriptId !== '' ? $clickronixScriptId : '—',
-                'status' => $tagReady ? 'Active' : 'Missing',
-                'ok' => $tagReady,
+                'id' => '—',
+                'status' => $allHaveScript ? 'All domains' : ($manualDomains->filter(fn ($d) => $d->tag_connected)->count().'/'.$manualDomains->count().' domains'),
+                'ok' => $allHaveScript,
+            ],
+            'ga4' => [
+                'id' => '—',
+                'status' => 'Per domain',
+                'ok' => false,
             ],
             'setup_url' => $firstDomain
                 ? route('domains.setup', $firstDomain)
                 : route('domains.index'),
         ];
 
+        $firstAccountTag = $firstAccount?->resolvedGoogleTagId() ?: '';
+        $googleAdsSummary = [
+            'connected' => $googleConnected,
+            'account_connected' => $adsAccountDone,
+            'protection_active' => $protectionActive,
+            'email' => $googleEmail,
+            'customer_id' => $adsCustomerId,
+            'google_tag_id' => $firstAccountTag !== '' ? $firstAccountTag : '—',
+            'label' => $firstAccount?->displayLabel() ?: 'Google Ads',
+            'oauth_url' => route('integrations.google.redirect'),
+            'sync_url' => $primary ? route('integrations.google.sync-accounts', $primary) : null,
+            'protection_url' => route('paid-marketing.detection-settings'),
+        ];
+
         $connectionHealth['audience_protection'] = $protectionActive ? 'Active' : 'Not configured';
-        $connectionHealth['google_tag_ok'] = $googleTagId !== '' && $tagReady;
-        $connectionHealth['script_ok'] = $tagReady;
+        $connectionHealth['google_tag_ok'] = $allHaveScript;
+        $connectionHealth['script_ok'] = $allHaveScript;
         $connectionHealth['api_ok'] = $apiHealthy;
         $connectionHealth['sync_ok'] = filled($connectionHealth['last_sync_at'])
             && in_array((string) ($connectionHealth['last_sync_status'] ?? ''), ['ok', 'success', 'synced'], true);
@@ -610,6 +726,7 @@ class IntegrationsController extends Controller
             'tagSetupUrl',
             'googleAdsSummary',
             'trackingInstallation',
+            'trackingInstallationByDomain',
             'ipExclusionRows',
         ));
     }
@@ -1642,6 +1759,7 @@ class IntegrationsController extends Controller
             'event_name' => ['nullable', 'string', 'max:120'],
             'method' => ['nullable', 'string', 'in:ga4,website'],
             'google_ads_account_id' => ['nullable', 'integer'],
+            'force_reuse' => ['sometimes', 'boolean'],
             'skip_ga4_check' => ['sometimes', 'boolean'],
         ]);
 
@@ -1664,10 +1782,10 @@ class IntegrationsController extends Controller
         $method = (string) ($data['method'] ?? 'ga4');
         $detection = $ga4Presence->detect($domain);
         if ($method === 'ga4' && ! $request->boolean('skip_ga4_check')) {
-            if (! $detection['present']) {
+            if (! ($detection['has_ga4'] ?? false) || ! ($detection['present'] ?? false)) {
                 return response()->json([
                     'ok' => false,
-                    'message' => $detection['message'],
+                    'message' => $detection['message'] ?? 'GA4 (G-…) not detected on the website.',
                     'ga4_detection' => $detection,
                     'user_list_id' => null,
                     'user_list_name' => null,
@@ -1694,12 +1812,15 @@ class IntegrationsController extends Controller
             ? (string) $data['audience_name']
             : $defaultName;
 
+        // Always allow many lists: if name already exists, append a unique suffix unless force_reuse.
+        $forceReuse = $request->boolean('force_reuse');
         $result = $associations->createAudienceList(
             $domain,
             $audienceName,
             (string) ($data['duration'] ?? '30 days'),
             (string) ($data['event_name'] ?: \App\Services\AudienceSignalService::DEFAULT_EVENT),
             $method,
+            forceNew: ! $forceReuse,
         );
 
         return response()->json($result + ['ga4_detection' => $detection], $result['ok'] ? 200 : 422);
@@ -1755,17 +1876,18 @@ class IntegrationsController extends Controller
             ->firstOrFail();
 
         $detection = $ga4Presence->detect($domain);
-        if (! $detection['present']) {
+        $route = (string) ($data['route'] ?? $data['method'] ?? 'ga4');
+        // Website audience route does not require GA4. GA4 route needs a real G- measurement ID.
+        if ($route === 'ga4' && (! ($detection['present'] ?? false) || empty($detection['has_ga4']))) {
             return response()->json([
                 'ok' => false,
-                'message' => 'GA4/GTM not detected on the website — fix tracking first, then Apply exclusion. '.$detection['message'],
+                'message' => 'GA4 not detected on the website — install GA4 (G-…) first, then Apply exclusion. '.$detection['message'],
                 'attached' => [],
                 'failed' => [],
                 'ga4_detection' => $detection,
             ], 422);
         }
 
-        $route = (string) ($data['route'] ?? $data['method'] ?? 'ga4');
         $defaultName = $route === 'website'
             ? 'Clickronix | Invalid Traffic | Google Ads'
             : 'Clickronix | Invalid Traffic | GA4';

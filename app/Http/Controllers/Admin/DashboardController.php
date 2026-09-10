@@ -27,7 +27,10 @@ class DashboardController extends Controller
             ->orderBy('hostname')
             ->get(['id', 'hostname']);
 
-        return view('dashboard-figma', compact('domains'));
+        return view('dashboard-figma', [
+            'domains' => $domains,
+            'enabledAdPlatforms' => \App\Support\AdminIntegrationCatalog::enabledAdPlatforms(),
+        ]);
     }
 
     public function summary(Request $request): JsonResponse

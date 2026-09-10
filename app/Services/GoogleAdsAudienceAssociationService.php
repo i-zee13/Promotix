@@ -53,6 +53,7 @@ class GoogleAdsAudienceAssociationService
         string $durationLabel = '30 days',
         string $eventName = AudienceSignalService::DEFAULT_EVENT,
         string $method = 'ga4',
+        bool $forceNew = false,
     ): array {
         $method = $method === 'website' ? 'website' : 'ga4';
         $audienceName = trim($audienceName);
@@ -101,6 +102,7 @@ class GoogleAdsAudienceAssociationService
                 null,
                 $eventName,
                 $days,
+                $forceNew,
             );
             if (($resolved['id'] ?? null) !== null) {
                 $headers = $headersTry;
@@ -479,6 +481,7 @@ class GoogleAdsAudienceAssociationService
         ?string $preferredId,
         string $eventName,
         int $membershipDays = 30,
+        bool $forceNew = false,
     ): array {
         $lists = $this->fetchUserLists($customerId, $version, $headers);
         if ($lists === null) {
@@ -490,7 +493,7 @@ class GoogleAdsAudienceAssociationService
             ];
         }
 
-        if ($preferredId) {
+        if ($preferredId && ! $forceNew) {
             foreach ($lists as $row) {
                 if (($row['id'] ?? '') === $preferredId) {
                     return [
@@ -503,14 +506,30 @@ class GoogleAdsAudienceAssociationService
             }
         }
 
-        $match = $this->matchUserListByName($lists, $audienceName);
-        if ($match !== null) {
-            return [
-                'id' => $match['id'],
-                'name' => $match['name'],
-                'created' => false,
-                'error' => null,
-            ];
+        if (! $forceNew) {
+            $match = $this->matchUserListByName($lists, $audienceName);
+            if ($match !== null) {
+                return [
+                    'id' => $match['id'],
+                    'name' => $match['name'],
+                    'created' => false,
+                    'error' => null,
+                ];
+            }
+        } else {
+            // Unique list name so Create always adds another Ads audience (never silently reuses).
+            $base = $audienceName;
+            $candidate = $base;
+            $n = 2;
+            while ($this->matchUserListByName($lists, $candidate) !== null) {
+                $candidate = $base.' ('.$n.')';
+                $n++;
+                if ($n > 200) {
+                    $candidate = $base.' · '.now()->format('Y-m-d H:i');
+                    break;
+                }
+            }
+            $audienceName = $candidate;
         }
 
         $created = $this->createUserList($customerId, $version, $headers, $audienceName, $eventName, $membershipDays, $lists);

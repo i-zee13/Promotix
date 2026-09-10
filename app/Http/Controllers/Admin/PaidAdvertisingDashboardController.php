@@ -52,6 +52,7 @@ class PaidAdvertisingDashboardController extends Controller
             'googleAdsAccounts' => $googleAdsAccounts,
             'domainCatalog' => UserTimezone::domainCatalog($domains),
             'countryGetStarted' => $countryGetStarted,
+            'enabledAdPlatforms' => \App\Support\AdminIntegrationCatalog::enabledAdPlatforms(),
         ]);
     }
 
@@ -1811,7 +1812,7 @@ class PaidAdvertisingDashboardController extends Controller
      *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
-    public function ipInventory(Request $request, int $limit = 5000)
+    public function ipInventory(Request $request, int $limit = 5000, bool $withIdentityMeta = true)
     {
         [$metricFrom, $metricTo] = $this->calendarDateRange($request);
         $domainIds = $this->scopedDomainIds($request);
@@ -1819,7 +1820,7 @@ class PaidAdvertisingDashboardController extends Controller
             return collect();
         }
 
-        return $this->resolveIpRows($request, $domainIds, $metricFrom, $metricTo, $limit);
+        return $this->resolveIpRows($request, $domainIds, $metricFrom, $metricTo, $limit, $withIdentityMeta);
     }
 
     /**
@@ -1827,7 +1828,7 @@ class PaidAdvertisingDashboardController extends Controller
      *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
-    private function resolveIpRows(Request $request, $domainIds, string $fromDate, string $toDate, int $limit = 5000)
+    private function resolveIpRows(Request $request, $domainIds, string $fromDate, string $toDate, int $limit = 5000, bool $withIdentityMeta = true)
     {
         $cap = max(1, min($limit, 5000));
         $rows = $this->mergeIpRowSources(
@@ -1836,6 +1837,10 @@ class PaidAdvertisingDashboardController extends Controller
         );
 
         $formatted = $this->formatIpRows($rows, $request->user(), $this->resolveActiveAllowListIps($request));
+
+        if (! $withIdentityMeta) {
+            return $formatted->take($cap)->values();
+        }
 
         return $this->attachPaidIdentityMeta(
             $this->attachDeviceFingerprints($formatted, $domainIds),

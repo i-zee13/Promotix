@@ -23,12 +23,11 @@
                         : (applyAudienceModal.ga4Present === false
                             ? 'border-rose-400/35 bg-rose-500/10 text-rose-100'
                             : 'border-white/10 bg-[#0d0d0d] text-white/60')">
-                <p class="font-semibold" x-text="applyAudienceModal.ga4Present === true
-                    ? 'GA4/GTM on website — exclusion attach enabled'
-                    : (applyAudienceModal.ga4Present === false
-                        ? 'GA4/GTM missing on website — Apply is blocked'
-                        : 'Checking GA4/GTM on website…')"></p>
+                <p class="font-semibold" x-text="applyAudienceAttachBannerTitle"></p>
                 <p class="mt-[3px] text-[11px] opacity-90" x-show="applyAudienceModal.ga4Message" x-text="applyAudienceModal.ga4Message"></p>
+                <p class="mt-[6px] text-[10px] opacity-80" x-show="applyAudienceModal.method === 'ga4'">
+                    Enabled only when a real GA4 measurement ID (G-…) is detected on the site or inside published GTM — not from Google Ads AW- tags alone.
+                </p>
             </section>
 
             <section class="rounded-[10px] border border-white/10 bg-[#0d0d0d] p-[14px]">
@@ -123,13 +122,13 @@
         <footer class="flex shrink-0 flex-wrap items-center justify-between gap-[8px] border-t border-white/15 px-[22px] py-[14px]">
             <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="closeApplyAudienceModal()">Cancel</button>
             <div class="flex flex-wrap gap-[8px]">
-                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="showMenuToast('Export preview coming soon.', 'info')">Export preview</button>
+                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="exportAudienceApplyPreview()">Download Google Sheet</button>
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[8px] text-[13px] font-semibold text-white disabled:opacity-40"
-                        :disabled="applyAudienceSelectedCount < 1 || !applyAudienceModal.sourceLinked || applyAudienceModal.applying || applyAudienceModal.ga4Present === false"
+                        :disabled="applyAudienceSelectedCount < 1 || !applyAudienceModal.sourceLinked || applyAudienceModal.applying || (applyAudienceModal.method === 'ga4' && applyAudienceModal.ga4Present === false)"
                         @click="applyEligibleAudienceExclusion()">
                     <span x-text="applyAudienceModal.applying
                         ? 'Attaching in Google Ads…'
-                        : (applyAudienceModal.ga4Present === false ? 'Install GA4/GTM first' : 'Apply eligible exclusion')"></span>
+                        : ((applyAudienceModal.method === 'ga4' && applyAudienceModal.ga4Present === false) ? 'Install GA4 first' : 'Apply eligible exclusion')"></span>
                 </button>
             </div>
         </footer>

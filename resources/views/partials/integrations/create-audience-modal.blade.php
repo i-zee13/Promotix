@@ -57,13 +57,14 @@
                         </div>
                     </div>
                     <div class="grid gap-[10px] sm:grid-cols-2">
-                        <label class="block text-[11px]"><span class="mb-[4px] block text-white/60">GA4 property</span>
+                        <label class="block text-[11px]"><span class="mb-[4px] block text-white/60">GA4 measurement (G-…)</span>
                             <select class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="createAudienceModal.ga4_property">
-                                <option value="">Select GA4 property</option>
+                                <option value="">Select GA4 measurement ID</option>
                                 <template x-for="p in createAudienceModal.ga4Options" :key="p.id">
                                     <option :value="p.id" x-text="p.label"></option>
                                 </template>
                             </select>
+                            <span class="mt-[4px] block text-[10px] text-white/45" x-show="!createAudienceModal.ga4Options.length">No G-… ID found yet. Detect on website or install GA4 — AW- Ads tags are not GA4 properties.</span>
                         </label>
                         <label class="block text-[11px]"><span class="mb-[4px] block text-white/60">Linked Google Ads account</span>
                             <select class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="createAudienceModal.ads_account">
@@ -81,7 +82,7 @@
                     <p class="mb-[8px] text-[12px] font-semibold text-white">2. Audience details</p>
                     <label class="block text-[11px]"><span class="mb-[4px] block text-white/60">Audience name</span>
                         <input class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="createAudienceModal.name">
-                        <span class="mt-[4px] block text-[10px] text-white/45">Must be unique within this Google Ads account. Versionable: keep v1 / v2.</span>
+                        <span class="mt-[4px] block text-[10px] text-white/45">Each Create makes a new Google Ads list. Same name gets a suffix (2), (3)… — older lists stay.</span>
                     </label>
                 </section>
 

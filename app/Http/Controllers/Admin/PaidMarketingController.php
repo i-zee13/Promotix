@@ -78,6 +78,7 @@ class PaidMarketingController extends Controller
             'googleAccountTimezone' => $googleTz,
             'reportingMode' => UserTimezone::reportingMode($request->user()),
             'profileTimezone' => UserTimezone::forUser($request->user()),
+            'enabledAdPlatforms' => AdminIntegrationCatalog::enabledAdPlatforms(),
         ]);
     }
 
@@ -85,15 +86,18 @@ class PaidMarketingController extends Controller
     {
         [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
 
-        $visits = $this->collectDetailedVisitModels($request, 5000);
+        // List path: no nested clicks / identity bags — batch hydrate below (avoids N+1).
+        $visits = $this->collectDetailedVisitModels($request, 5000, withClicks: false, withIdentityMeta: false);
+
+        $ips = $visits->pluck('ip')->unique()->filter()->values();
 
         $ipLogs = IpLog::query()
-            ->whereIn('ip', $visits->pluck('ip')->unique()->filter()->values())
+            ->whereIn('ip', $ips)
             ->get()
             ->keyBy('ip');
 
-        $recordings = $this->latestRecordingsForIps($request, $visits->pluck('ip')->unique()->filter()->values());
-        $behaviorCounts = $this->behaviorClickCountsForIps($request, $visits->pluck('ip')->unique()->filter()->values());
+        $recordings = $this->latestRecordingsForIps($request, $ips);
+        $behaviorCounts = $this->behaviorClickCountsForIps($request, $ips);
 
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
@@ -112,9 +116,13 @@ class PaidMarketingController extends Controller
         );
 
         $preferDeviceId = $this->preferredDeviceIdFromRequest($request);
+        $sessionMetaByKey = $this->batchHydrateVisitSessionMeta($visits, $recordings, $preferDeviceId);
+        $clickIdsByKey = $this->batchHydrateGoogleClickIds($visits);
 
-        $rows = $visits->map(function (PaidMarketingVisit $visit) use ($request, $ipLogs, $recordings, $verificationLookup, $reportingTz, $behaviorCounts, $preferDeviceId) {
+        $rows = $visits->map(function (PaidMarketingVisit $visit) use ($request, $ipLogs, $recordings, $verificationLookup, $reportingTz, $behaviorCounts, $preferDeviceId, $sessionMetaByKey, $clickIdsByKey) {
             try {
+                $key = $this->detailedVisitMetaKey($visit);
+
                 return $this->formatDetailedVisit(
                     $visit,
                     $request->user(),
@@ -124,6 +132,9 @@ class PaidMarketingController extends Controller
                     $reportingTz,
                     $behaviorCounts->get($visit->ip),
                     $preferDeviceId,
+                    $sessionMetaByKey[$key] ?? null,
+                    $clickIdsByKey[$key] ?? null,
+                    false,
                 );
             } catch (\Throwable $e) {
                 report($e);
@@ -163,11 +174,9 @@ class PaidMarketingController extends Controller
             : null;
 
         $stats = $this->computeDetailedStatsFromArrays(collect($rows));
-        // KPI strip + Unique IPs chart must match Paid Dashboard summary (not table sample).
-        $dashboardSummary = $this->dashboardSummaryForAdvanced($request);
-        $stats['kpis'] = $this->kpisFromDashboardSummaryArray($dashboardSummary, collect($rows));
-        $uniqueIps = (int) ($dashboardSummary['unique_ips'] ?? 0);
-        if ($uniqueIps > 0 && isset($stats['charts']['risk'])) {
+        // KPIs come from the parallel /summary request on the frontend — skip nested summary() here.
+        if (isset($stats['charts']['risk'])) {
+            $uniqueIps = collect($rows)->count();
             $stats['charts']['risk']['total'] = $uniqueIps;
             $stats['charts']['risk']['total_label'] = number_format($uniqueIps);
         }
@@ -986,14 +995,18 @@ class PaidMarketingController extends Controller
      *
      * @return Collection<int, PaidMarketingVisit>
      */
-    private function collectDetailedVisitModels(Request $request, int $limit = 5000): Collection
-    {
+    private function collectDetailedVisitModels(
+        Request $request,
+        int $limit = 5000,
+        bool $withClicks = true,
+        bool $withIdentityMeta = true,
+    ): Collection {
         [$metricFrom, $metricTo, , $reportingTz] = $this->reportingWindow($request);
         $cap = max(1, min(max($limit, 1), 5000));
 
         // Same membership + totals as Dashboard export (`/paid-marketing/ips/export.csv`).
         $inventory = app(PaidAdvertisingDashboardController::class)
-            ->ipInventory($request, $cap);
+            ->ipInventory($request, $cap, $withIdentityMeta);
 
         if ($inventory->isEmpty()) {
             return collect();
@@ -1005,6 +1018,7 @@ class PaidMarketingController extends Controller
             $metricFrom,
             $metricTo,
             $reportingTz,
+            $withClicks,
         );
     }
 
@@ -1020,6 +1034,7 @@ class PaidMarketingController extends Controller
         string $metricFrom,
         string $metricTo,
         string $reportingTz,
+        bool $withClicks = true,
     ): Collection {
         $user = $request->user();
         $path = trim((string) $request->query('path', ''));
@@ -1028,18 +1043,20 @@ class PaidMarketingController extends Controller
 
         $pmByIp = collect();
         if ($ips->isNotEmpty() && $domainIds->isNotEmpty()) {
+            $with = ['domain'];
+            if ($withClicks) {
+                $with['clicks'] = function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user, $path): void {
+                    $clickQuery->orderBy('clicked_at');
+                    UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
+                    GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
+                    if ($path !== '') {
+                        $clickQuery->where('path', 'like', '%'.$path.'%');
+                    }
+                };
+            }
+
             $pmByIp = PaidMarketingVisit::query()
-                ->with([
-                    'domain',
-                    'clicks' => function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user, $path): void {
-                        $clickQuery->orderBy('clicked_at');
-                        UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
-                        GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
-                        if ($path !== '') {
-                            $clickQuery->where('path', 'like', '%'.$path.'%');
-                        }
-                    },
-                ])
+                ->with($with)
                 ->whereIn('domain_id', $domainIds->all())
                 ->whereIn('ip', $ips->all())
                 ->orderByDesc('last_click_at')
@@ -1669,6 +1686,9 @@ class PaidMarketingController extends Controller
         ?string $reportingTz = null,
         ?object $behaviorCounts = null,
         ?string $preferDeviceId = null,
+        ?array $sessionMeta = null,
+        ?array $clickIds = null,
+        bool $includeClicks = true,
     ): array {
         // Prefer live `visits` range stats (same source as Paid Dashboard Recent IPs).
         // Never fall back to lifetime paid_marketing_visits.visits — that inflates
@@ -1754,8 +1774,8 @@ class PaidMarketingController extends Controller
             : '—';
 
         $intel = $this->intelFieldsForVisit($visit, $ipLog, $user, $visit->domain);
-        $clickIds = $this->hydrateGoogleClickIds($visit, $clicks);
-        $sessionMeta = $this->hydrateVisitSessionMeta($visit, $preferDeviceId);
+        $clickIds = $clickIds ?? $this->hydrateGoogleClickIds($visit, $clicks);
+        $sessionMeta = $sessionMeta ?? $this->hydrateVisitSessionMeta($visit, $preferDeviceId);
         $deviceLabel = $this->normalizeDeviceLabel($visit->platform ?: ($sessionMeta['os'] ?? null));
         $reasons = [];
         if ($visit->manual_decision) {
@@ -1929,15 +1949,17 @@ class PaidMarketingController extends Controller
             'google_verified_label' => $googleVerifiedLabel,
             'has_session_recording' => $recording !== null,
             'session_recording_id' => $recording ? (int) $recording->id : null,
-            'clicks' => $this->formatDetailedClicks(
-                $visit,
-                $clicks,
-                $user,
-                $ipLog,
-                $deviceLabel,
-                $clickIds,
-                $intel,
-            ),
+            'clicks' => $includeClicks
+                ? $this->formatDetailedClicks(
+                    $visit,
+                    $clicks,
+                    $user,
+                    $ipLog,
+                    $deviceLabel,
+                    $clickIds,
+                    $intel,
+                )
+                : [],
             ...$intel,
             ...$this->trafficControlFieldsForDetailedVisit(
                 $visit,
@@ -2270,6 +2292,399 @@ class PaidMarketingController extends Controller
                 'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $threat),
             ];
         })->values()->all();
+    }
+
+    private function detailedVisitMetaKey(PaidMarketingVisit $visit): string
+    {
+        return ((int) $visit->domain_id).'|'.(string) $visit->ip;
+    }
+
+    /**
+     * Batch-load latest visit session meta for Advanced list (replaces per-row N+1).
+     *
+     * @param  Collection<int, PaidMarketingVisit>  $visits
+     * @param  Collection<string, object>  $recordings
+     * @return array<string, array<string, mixed>>
+     */
+    private function batchHydrateVisitSessionMeta(Collection $visits, Collection $recordings, ?string $preferDeviceId = null): array
+    {
+        $empty = $this->emptyVisitSessionMeta();
+        if ($visits->isEmpty() || ! Schema::hasTable('visits')) {
+            return [];
+        }
+
+        $domainIds = $visits->pluck('domain_id')->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        $ips = $visits->pluck('ip')->map(fn ($ip) => (string) $ip)->filter()->unique()->values();
+        if ($domainIds->isEmpty() || $ips->isEmpty()) {
+            return [];
+        }
+
+        $select = ['id', 'domain_id', 'ip', 'visited_at'];
+        foreach ([
+            'session_id',
+            'device',
+            'browser',
+            'browser_version',
+            'os',
+            'user_agent',
+            'language',
+            'timezone',
+            'screen_resolution',
+            'device_id',
+            'browser_id',
+            'visitor_id',
+            'fingerprint_id',
+            'fingerprint_signals',
+            'paid_identity_id',
+            'identity_confidence',
+            'ads_detections',
+            'action_taken',
+        ] as $col) {
+            if (Schema::hasColumn('visits', $col)) {
+                $select[] = $col;
+            }
+        }
+
+        $latestIds = DB::table('visits')
+            ->whereIn('domain_id', $domainIds->all())
+            ->whereIn('ip', $ips->all())
+            ->groupBy('domain_id', 'ip')
+            ->selectRaw('MAX(id) as id')
+            ->pluck('id');
+
+        $preferredIds = collect();
+        if ($preferDeviceId && Schema::hasColumn('visits', 'device_id')) {
+            $preferredIds = DB::table('visits')
+                ->whereIn('domain_id', $domainIds->all())
+                ->whereIn('ip', $ips->all())
+                ->where(function ($q) use ($preferDeviceId): void {
+                    $q->where('device_id', $preferDeviceId)
+                        ->orWhere('device_id', 'like', $preferDeviceId.'%');
+                })
+                ->groupBy('domain_id', 'ip')
+                ->selectRaw('MAX(id) as id')
+                ->pluck('id');
+        }
+
+        $idList = $latestIds->merge($preferredIds)->filter()->unique()->values();
+        if ($idList->isEmpty()) {
+            return [];
+        }
+
+        $visitRows = DB::table('visits')
+            ->whereIn('id', $idList->all())
+            ->orderByDesc('visited_at')
+            ->get($select);
+
+        $preferred = [];
+        $latest = [];
+        $preferredIdSet = array_flip($preferredIds->map(fn ($id) => (int) $id)->all());
+        foreach ($visitRows as $row) {
+            $key = ((int) $row->domain_id).'|'.(string) $row->ip;
+            if (! isset($latest[$key])) {
+                $latest[$key] = $row;
+            }
+            if (isset($preferredIdSet[(int) $row->id])) {
+                $preferred[$key] = $row;
+            }
+        }
+
+        $pids = collect($preferred + $latest)
+            ->map(fn ($row) => filled($row->paid_identity_id ?? null) ? (string) $row->paid_identity_id : null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $clicks60ByDomainIp = [];
+        $clicks60ByDomainPid = [];
+        if (Schema::hasTable('click_windows')) {
+            $windowRows = DB::table('click_windows')
+                ->whereIn('domain_id', $domainIds->all())
+                ->where('window_key', '60m')
+                ->where(function ($q) use ($ips, $pids): void {
+                    $q->where(function ($inner) use ($ips): void {
+                        $inner->where('entity_type', 'ip')->whereIn('entity_id', $ips->all());
+                    });
+                    if ($pids->isNotEmpty()) {
+                        $q->orWhere(function ($inner) use ($pids): void {
+                            $inner->where('entity_type', 'paid_identity')->whereIn('entity_id', $pids->all());
+                        });
+                    }
+                })
+                ->get(['domain_id', 'entity_type', 'entity_id', 'click_count']);
+
+            foreach ($windowRows as $window) {
+                $domainId = (int) $window->domain_id;
+                $count = (int) $window->click_count;
+                if ($window->entity_type === 'ip') {
+                    $key = $domainId.'|'.(string) $window->entity_id;
+                    $clicks60ByDomainIp[$key] = max($clicks60ByDomainIp[$key] ?? 0, $count);
+                } elseif ($window->entity_type === 'paid_identity') {
+                    $key = $domainId.'|'.(string) $window->entity_id;
+                    $clicks60ByDomainPid[$key] = max($clicks60ByDomainPid[$key] ?? 0, $count);
+                }
+            }
+        }
+
+        $out = [];
+        foreach ($visits as $visit) {
+            $key = $this->detailedVisitMetaKey($visit);
+            $row = $preferred[$key] ?? $latest[$key] ?? null;
+            $recording = $recordings->get((string) $visit->ip);
+            $fingerprint = filled($recording->behavior_fingerprint ?? null)
+                ? (string) $recording->behavior_fingerprint
+                : null;
+            $sessionIdOverride = filled($recording->session_id ?? null)
+                ? (string) $recording->session_id
+                : null;
+
+            if (! $row) {
+                $meta = $empty;
+                $meta['device_fingerprint'] = $fingerprint;
+                if ($sessionIdOverride) {
+                    $meta['session_id'] = $sessionIdOverride;
+                }
+                $out[$key] = $meta;
+
+                continue;
+            }
+
+            $pid = filled($row->paid_identity_id ?? null) ? (string) $row->paid_identity_id : null;
+            $clicks60 = max(
+                $clicks60ByDomainIp[$key] ?? 0,
+                $pid ? ($clicks60ByDomainPid[((int) $visit->domain_id).'|'.$pid] ?? 0) : 0,
+            );
+
+            $out[$key] = $this->sessionMetaFromVisitRow($row, $fingerprint, $sessionIdOverride, $clicks60);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  Collection<int, PaidMarketingVisit>  $visits
+     * @return array<string, array{gclid: ?string, gbraid: ?string, wbraid: ?string, google_click_id: ?string, google_click_type: ?string}>
+     */
+    private function batchHydrateGoogleClickIds(Collection $visits): array
+    {
+        $empty = [
+            'gclid' => null,
+            'gbraid' => null,
+            'wbraid' => null,
+            'google_click_id' => null,
+            'google_click_type' => null,
+        ];
+        if ($visits->isEmpty() || ! Schema::hasTable('visits') || ! Schema::hasColumn('visits', 'gclid')) {
+            return [];
+        }
+
+        $domainIds = $visits->pluck('domain_id')->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        $ips = $visits->pluck('ip')->map(fn ($ip) => (string) $ip)->filter()->unique()->values();
+        if ($domainIds->isEmpty() || $ips->isEmpty()) {
+            return [];
+        }
+
+        $select = ['domain_id', 'ip', 'visited_at', 'gclid'];
+        if (Schema::hasColumn('visits', 'gbraid')) {
+            $select[] = 'gbraid';
+        }
+        if (Schema::hasColumn('visits', 'wbraid')) {
+            $select[] = 'wbraid';
+        }
+        if (Schema::hasColumn('visits', 'google_click_type')) {
+            $select[] = 'google_click_type';
+        }
+
+        $latestIds = DB::table('visits')
+            ->whereIn('domain_id', $domainIds->all())
+            ->whereIn('ip', $ips->all())
+            ->where(function ($q): void {
+                $q->whereNotNull('gclid')->where('gclid', '!=', '');
+                if (Schema::hasColumn('visits', 'gbraid')) {
+                    $q->orWhere(function ($inner): void {
+                        $inner->whereNotNull('gbraid')->where('gbraid', '!=', '');
+                    });
+                }
+                if (Schema::hasColumn('visits', 'wbraid')) {
+                    $q->orWhere(function ($inner): void {
+                        $inner->whereNotNull('wbraid')->where('wbraid', '!=', '');
+                    });
+                }
+            })
+            ->groupBy('domain_id', 'ip')
+            ->selectRaw('MAX(id) as id')
+            ->pluck('id');
+
+        if ($latestIds->isEmpty()) {
+            $out = [];
+            foreach ($visits as $visit) {
+                $out[$this->detailedVisitMetaKey($visit)] = $empty;
+            }
+
+            return $out;
+        }
+
+        $rows = DB::table('visits')
+            ->whereIn('id', $latestIds->all())
+            ->get($select);
+
+        $out = [];
+        foreach ($rows as $row) {
+            $key = ((int) $row->domain_id).'|'.(string) $row->ip;
+            if (isset($out[$key])) {
+                continue;
+            }
+            $gclid = filled($row->gclid ?? null) ? (string) $row->gclid : null;
+            $gbraid = filled($row->gbraid ?? null) ? (string) $row->gbraid : null;
+            $wbraid = filled($row->wbraid ?? null) ? (string) $row->wbraid : null;
+            $type = filled($row->google_click_type ?? null)
+                ? (string) $row->google_click_type
+                : ($gclid ? 'gclid' : ($gbraid ? 'gbraid' : ($wbraid ? 'wbraid' : null)));
+
+            $out[$key] = [
+                'gclid' => $gclid,
+                'gbraid' => $gbraid,
+                'wbraid' => $wbraid,
+                'google_click_id' => $gclid ?: $gbraid ?: $wbraid,
+                'google_click_type' => $type,
+            ];
+        }
+
+        foreach ($visits as $visit) {
+            $key = $this->detailedVisitMetaKey($visit);
+            if (! isset($out[$key])) {
+                $out[$key] = $empty;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyVisitSessionMeta(): array
+    {
+        return [
+            'session_id' => null,
+            'device_fingerprint' => null,
+            'browser' => null,
+            'browser_version' => null,
+            'os' => null,
+            'screen' => null,
+            'language' => null,
+            'timezone' => null,
+            'device_id' => null,
+            'browser_id' => null,
+            'visitor_id' => null,
+            'fingerprint_id' => null,
+            'paid_identity_id' => null,
+            'identity_confidence' => null,
+            'identity_confidence_label' => 'Unknown',
+            'ads_detections' => [],
+            'primary_detection' => null,
+            'clicks_60m' => 0,
+            'paid_risk_score' => null,
+            'traffic_status' => null,
+            'block_scope' => null,
+            'ip_exclusion' => 'Not needed',
+            'action_taken' => null,
+            'fingerprint_signals' => [],
+            'fingerprint_scan' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sessionMetaFromVisitRow(object $row, ?string $fingerprint, ?string $sessionIdOverride, int $clicks60): array
+    {
+        $sessionId = filled($row->session_id ?? null) ? (string) $row->session_id : null;
+        if (! $sessionId && $sessionIdOverride) {
+            $sessionId = $sessionIdOverride;
+        }
+
+        $ads = $row->ads_detections ?? null;
+        if (is_string($ads)) {
+            $ads = json_decode($ads, true);
+        }
+        $ads = is_array($ads) ? array_values($ads) : [];
+        $primary = null;
+        $primaryPoints = -1;
+        $paidRisk = null;
+        foreach ($ads as $rule) {
+            if (! is_array($rule)) {
+                continue;
+            }
+            $code = (string) ($rule['rule_code'] ?? $rule['code'] ?? '');
+            $points = (int) ($rule['base_points'] ?? $rule['points'] ?? 0);
+            if ($code !== '' && $points >= $primaryPoints) {
+                $primaryPoints = $points;
+                $primary = $code;
+            }
+            $paidRisk = max((int) ($paidRisk ?? 0), $points);
+        }
+
+        $confidence = isset($row->identity_confidence) && is_numeric($row->identity_confidence)
+            ? (float) $row->identity_confidence
+            : null;
+
+        $actionTaken = filled($row->action_taken ?? null) ? (string) $row->action_taken : null;
+
+        $identityLabel = 'Unknown';
+        if ($confidence !== null) {
+            $identityLabel = match (true) {
+                $confidence >= 0.95 => 'Very High',
+                $confidence >= 0.85 => 'High',
+                $confidence >= 0.70 => 'Medium',
+                $confidence >= 0.40 => 'Low',
+                default => 'Unknown',
+            };
+        }
+
+        $trafficStatus = null;
+        if ($actionTaken === 'block' || ($paidRisk ?? 0) >= 85) {
+            $trafficStatus = 'invalid';
+        } elseif (($paidRisk ?? 0) >= 40 || $actionTaken === 'flag') {
+            $trafficStatus = 'suspicious';
+        } elseif ($paidRisk !== null || $primary) {
+            $trafficStatus = 'valid';
+        }
+
+        $fpSignals = [];
+        if (isset($row->fingerprint_signals)) {
+            $fpSignals = \App\Support\DeviceFingerprintCatalog::sanitize($row->fingerprint_signals);
+        }
+
+        return [
+            'session_id' => $sessionId,
+            'device_fingerprint' => $fingerprint
+                ? (string) $fingerprint
+                : (filled($row->user_agent ?? null) ? substr(hash('sha256', (string) $row->user_agent), 0, 16) : null),
+            'browser' => filled($row->browser ?? null) ? (string) $row->browser : null,
+            'browser_version' => filled($row->browser_version ?? null) ? (string) $row->browser_version : null,
+            'os' => filled($row->os ?? null) ? (string) $row->os : null,
+            'screen' => filled($row->screen_resolution ?? null) ? (string) $row->screen_resolution : null,
+            'language' => filled($row->language ?? null) ? (string) $row->language : null,
+            'timezone' => filled($row->timezone ?? null) ? (string) $row->timezone : null,
+            'device_id' => filled($row->device_id ?? null) ? (string) $row->device_id : null,
+            'browser_id' => filled($row->browser_id ?? null) ? (string) $row->browser_id : null,
+            'visitor_id' => filled($row->visitor_id ?? null) ? (string) $row->visitor_id : null,
+            'fingerprint_id' => filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null,
+            'paid_identity_id' => filled($row->paid_identity_id ?? null) ? (string) $row->paid_identity_id : null,
+            'identity_confidence' => $confidence,
+            'identity_confidence_label' => $identityLabel,
+            'ads_detections' => $ads,
+            'primary_detection' => $primary,
+            'clicks_60m' => $clicks60,
+            'paid_risk_score' => $paidRisk,
+            'traffic_status' => $trafficStatus,
+            'block_scope' => in_array(strtolower((string) $actionTaken), ['block', 'blocked'], true) ? 'Device' : null,
+            'ip_exclusion' => in_array(strtolower((string) $actionTaken), ['block', 'blocked'], true) ? 'Queued' : 'Not needed',
+            'action_taken' => $actionTaken,
+            'fingerprint_signals' => $fpSignals,
+            'fingerprint_scan' => \App\Support\DeviceFingerprintCatalog::rows($fpSignals),
+        ];
     }
 
     /**
@@ -3764,6 +4179,7 @@ class PaidMarketingController extends Controller
             'googleAdsAccounts' => $googleAdsAccounts,
             'planDetectionFeatures' => \App\Support\DetectionPlanFeatures::forUser($request->user()),
             'enabledTenantIntegrations' => AdminIntegrationCatalog::enabledTenantIntegrations(),
+            'enabledAdPlatforms' => AdminIntegrationCatalog::enabledAdPlatforms(),
         ]);
     }
 

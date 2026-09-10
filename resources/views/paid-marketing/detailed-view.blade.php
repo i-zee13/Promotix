@@ -773,9 +773,7 @@
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.traffic_source" @change="scheduleFetch(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="google_ads">Google Ads</option>
-                            <option value="meta_ads" disabled>Meta Ads</option>
-                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                            @include('partials.traffic-source-options')
                         </select>
                     </div>
                 </label>
@@ -1752,7 +1750,7 @@
         return {
             ...window.promotixAdvTableHelpers,
             debounceMs: window.PROMOTIX_FILTER_DEBOUNCE_MS || 1500,
-            staggerMs: 1000,
+            staggerMs: 0,
             fetchGeneration: 0,
             fetchTimer: null,
             loading: false,
@@ -2216,7 +2214,7 @@
                     this.filters.from = fmt(start);
                     this.filters.to = fmt(today);
                 }
-                // Progressive load: KPI summary → (+1s) table → (+1s) campaigns
+                // Parallel load: KPI summary + table; campaigns after paint
                 this.fetchNow();
                 window.addEventListener('promotix:date-range', () => {
                     this.syncHeaderDates();
@@ -2479,38 +2477,41 @@
                 const generation = ++this.fetchGeneration;
                 this.loading = true;
                 window.promotixPageLoader?.show('Loading Advanced View…');
-                    const qs = this.queryString();
+                const qs = this.queryString();
                 try {
-                    const stillCurrent = await this.runStaggered([
-                        async (gen) => {
+                    // Parallel: KPI summary + table. Campaigns load after paint (non-blocking).
+                    await Promise.all([
+                        (async () => {
                             const summary = await fetch(`/paid-marketing/summary?${qs}`, {
                                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                             }).then((r) => r.json());
-                            if (! this.isFetchCurrent(gen)) return;
+                            if (! this.isFetchCurrent(generation)) return;
                             this.kpiCards = this.kpiCardsFromSummary(summary || {});
                             if (summary?.timezone_context?.reporting_timezone) {
                                 this.reportingTimezone = summary.timezone_context.reporting_timezone;
                                 this.timezoneContext = summary.timezone_context;
                                 this.syncPaidTimezoneHeader();
                             }
-                        },
-                        async (gen) => {
-                    const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
-                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    });
-                            if (! this.isFetchCurrent(gen)) return;
+                        })(),
+                        (async () => {
+                            const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
+                                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            });
+                            if (! this.isFetchCurrent(generation)) return;
                             if (!res.ok) {
                                 const msg = res.status === 403
                                     ? 'Request blocked (403). Try a shorter date range — All time can be heavy.'
                                     : `Failed to load visits (${res.status}).`;
                                 throw new Error(msg);
                             }
-                    const data = await res.json();
-                            if (! this.isFetchCurrent(gen)) return;
-                    this.rows = data.rows || [];
+                            const data = await res.json();
+                            if (! this.isFetchCurrent(generation)) return;
+                            this.rows = data.rows || [];
                             this.page = 1;
-                    this.statCards = data.stats?.cards || [];
-                            this.kpiCards = data.stats?.kpis || this.kpiCards;
+                            this.statCards = data.stats?.cards || [];
+                            if (Array.isArray(data.stats?.kpis) && data.stats.kpis.length) {
+                                this.kpiCards = data.stats.kpis;
+                            }
                             const charts = data.stats?.charts || {};
                             this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
                             this.chartRisk = charts.risk || { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' };
@@ -2518,10 +2519,10 @@
                             this.highRiskIps = charts.high_risk_ips || [];
                             this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
                             this.timezoneContext = data.timezone_context || this.timezoneContext;
-                    if (this.timezoneContext?.reporting_timezone) {
-                        this.reportingTimezone = this.timezoneContext.reporting_timezone;
-                    }
-                    this.syncPaidTimezoneHeader();
+                            if (this.timezoneContext?.reporting_timezone) {
+                                this.reportingTimezone = this.timezoneContext.reporting_timezone;
+                            }
+                            this.syncPaidTimezoneHeader();
                             const rank = (r) => {
                                 let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
                                 if (score > 0 && score < 1) score *= 100;
@@ -2548,13 +2549,9 @@
                                 const visit = this.rows.find((r) => String(r.id) === String(this.highRiskIps[0].id));
                                 if (visit) this.publishInvestigation(visit);
                             }
-                        },
-                        async (gen) => {
-                            if (! this.isFetchCurrent(gen)) return;
-                            await this.loadCampaignsForDomain();
-                        },
-                    ], generation);
-                    if (! stillCurrent) return;
+                        })(),
+                    ]);
+                    if (! this.isFetchCurrent(generation)) return;
                 } catch (e) {
                     console.error(e);
                     if (this.isFetchCurrent(generation)) {
@@ -2563,8 +2560,9 @@
                     }
                 } finally {
                     if (this.isFetchCurrent(generation)) {
-                    this.loading = false;
-                    window.promotixPageLoader?.hide();
+                        this.loading = false;
+                        window.promotixPageLoader?.hide();
+                        this.loadCampaignsForDomain().catch(() => {});
                     }
                 }
             },
@@ -2600,12 +2598,44 @@
                     if (this.filters.domain_id) params.set('domain_id', this.filters.domain_id);
                     if (this.filters.from) params.set('from', this.filters.from);
                     if (this.filters.to) params.set('to', this.filters.to);
-                    const res = await fetch(`{{ route('paid-marketing.detailed-ip-timeline') }}?${params}`, {
-                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
+                    if (visit.device_id) params.set('device_id', visit.device_id);
+                    if (visit.paid_identity_id) params.set('paid_identity_id', visit.paid_identity_id);
+                    if (visit.visitor_id) params.set('visitor_id', visit.visitor_id);
+
+                    const [timelineRes, clicksRes] = await Promise.all([
+                        fetch(`{{ route('paid-marketing.detailed-ip-timeline') }}?${params}`, {
+                            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        }),
+                        this.modal.clicks.length
+                            ? Promise.resolve(null)
+                            : fetch(`/paid-marketing/ip-clicks?${params}`, {
+                                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            }),
+                    ]);
+
+                    if (timelineRes?.ok) {
+                        const data = await timelineRes.json();
                         this.modal.timeline = data.events || [];
+                    }
+                    if (clicksRes?.ok) {
+                        const clickRows = await clicksRes.json();
+                        this.modal.clicks = (Array.isArray(clickRows) ? clickRows : []).map((c, idx) => ({
+                            id: c.id ?? `ip-click-${idx}`,
+                            clicked_at: c.visited_at || c.clicked_at || null,
+                            last_click_at: c.visited_at || c.clicked_at || null,
+                            path: c.url || c.path || '',
+                            campaign: c.campaign || '',
+                            keyword: c.keyword || '',
+                            country: c.country || '',
+                            threat_group: c.threat_group || '',
+                            gclid: c.gclid || null,
+                            gbraid: c.gbraid || null,
+                            wbraid: c.wbraid || null,
+                            paid_id: c.paid_id || c.gclid || c.gbraid || c.wbraid || null,
+                            browser_name: c.browser || null,
+                            os: c.os || null,
+                            device: c.device || null,
+                        }));
                     }
                 } catch (e) {
                     console.error(e);

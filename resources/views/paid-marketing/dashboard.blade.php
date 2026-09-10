@@ -859,9 +859,7 @@
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                     <div class="figma-filter-select-wrap">
                         <select x-model="filters.traffic_source" @change="reload(false, true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="google_ads">Google Ads</option>
-                            <option value="meta_ads" disabled>Meta Ads</option>
-                            <option value="microsoft_ads" disabled>Microsoft Ads</option>
+                            @include('partials.traffic-source-options')
                         </select>
                     </div>
                 </label>
@@ -876,15 +874,16 @@
                         </select>
                     </div>
                 </label>
-                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="relative flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="campaignMenuOpen = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="filters.campaign" @change="onCampaignChange(); reload(false, true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All Campaigns</option>
-                            <template x-for="row in campaignOptions" :key="row.campaign + '-' + (row.campaign_id || '')">
-                                <option :value="row.campaign" x-text="row.campaign"></option>
-                            </template>
-                        </select>
+                    <button type="button" @click="campaignMenuOpen = !campaignMenuOpen" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
+                    </button>
+                    <div x-show="campaignMenuOpen" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto !min-w-[200px]">
+                        <button type="button" @click="selectCampaign('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">All Campaigns</button>
+                        <template x-for="row in campaignOptions" :key="row.campaign + '-' + (row.campaign_id || '')">
+                            <button type="button" @click="selectCampaign(row.campaign)" class="paid-advanced-campaign-option" :class="filters.campaign === row.campaign && 'is-active'" x-text="row.campaign"></button>
+                        </template>
                     </div>
                 </label>
                 <div class="paid-filter-secondary">
@@ -1599,6 +1598,7 @@ function paidAdvertisingFigma(config = {}) {
         reportingMode: config.reportingMode || 'profile',
         profileTimezone: config.profileTimezone || 'UTC',
         filters: { domain_id: '', google_ads_account_id: '', campaign: '', campaign_id: '', path: '', traffic_source: 'google_ads', window: 'weekly', from: '', to: '' },
+        campaignMenuOpen: false,
         trackingTemplate: '{lpurl}?gclid={gclid}&gbraid={gbraid}&wbraid={wbraid}&utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={keyword}&keyword={keyword}',
         summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, google_sync_error: null, google_needs_reconnect: false, google_reconnect_url: '', invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
         trends: { labels: [], datasets: [], invalid_daily: [] },
@@ -2072,6 +2072,12 @@ function paidAdvertisingFigma(config = {}) {
         },
         onCampaignChange() {
             this.syncCampaignFilter();
+        },
+        selectCampaign(name) {
+            this.filters.campaign = name || '';
+            this.campaignMenuOpen = false;
+            this.onCampaignChange();
+            this.reload(false, true);
         },
         reloadTimer: null,
         livePollTimer: null,

@@ -10,7 +10,7 @@
 @endsection
 
 @section('content')
-<div class="brand-page-bg analytics-skin min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma({ analyticsMode: @json($analyticsMode ?? false) })" x-init="init()">
+<div class="brand-page-bg analytics-skin min-h-[calc(100vh-49px)]" x-data="botProtectionAdvancedFigma({ analyticsMode: @json($analyticsMode ?? false), enabledAdPlatforms: @json($enabledAdPlatforms ?? ['meta' => false, 'microsoft' => false]) })" x-init="init()">
     <section class="mx-auto w-full min-w-0 px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
         @include('partials.advanced-view-pager-styles')
         <style>
@@ -1584,6 +1584,7 @@ function botProtectionAdvancedFigma(config = {}) {
     return {
         ...window.promotixAdvTableHelpers || {},
         analyticsMode,
+        enabledAdPlatforms: config.enabledAdPlatforms || { meta: false, microsoft: false },
         hasDomains: @json($domains->isNotEmpty()),
         loadError: '',
         columnCatalog,
@@ -1847,11 +1848,14 @@ function botProtectionAdvancedFigma(config = {}) {
                     { value: 'paid', label: 'Paid' },
                 ];
             }
-            return [
-                { value: 'google_ads', label: 'Google Ads' },
-                { value: 'meta_ads', label: 'Meta Ads', disabled: true },
-                { value: 'microsoft_ads', label: 'Microsoft Ads', disabled: true },
-            ];
+            const options = [{ value: 'google_ads', label: 'Google Ads' }];
+            if (this.enabledAdPlatforms?.meta) {
+                options.push({ value: 'meta_ads', label: 'Meta Ads' });
+            }
+            if (this.enabledAdPlatforms?.microsoft) {
+                options.push({ value: 'microsoft_ads', label: 'Microsoft Ads' });
+            }
+            return options;
         },
         fmt(n) { return new Intl.NumberFormat().format(Number(n || 0)); },
         qs(extra = {}) {

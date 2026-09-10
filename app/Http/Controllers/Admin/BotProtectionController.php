@@ -807,6 +807,7 @@ class BotProtectionController extends Controller
             // PDF §1: this page is Analytics → Traffic Control (visitor intelligence).
             // Fraud/IP blocking lives only under Paid Advertising → Advanced View.
             'analyticsMode' => true,
+            'enabledAdPlatforms' => \App\Support\AdminIntegrationCatalog::enabledAdPlatforms(),
         ]);
     }
 

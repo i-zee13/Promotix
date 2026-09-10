@@ -658,6 +658,38 @@ html.light-mode .figma-click-modal-sidebar {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+html.light-mode .paid-advanced-campaign-menu,
+.light-mode .paid-advanced-campaign-menu {
+    background: #ffffff;
+    border-color: var(--brand-tint-border, #e4dceb);
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--brand-primary, #FF6600) 12%, transparent);
+}
+
+html.light-mode .paid-advanced-campaign-option,
+.light-mode .paid-advanced-campaign-option {
+    color: #5c5470;
+}
+
+html.light-mode .paid-advanced-campaign-option:hover,
+html.light-mode .paid-advanced-campaign-option.is-active,
+.light-mode .paid-advanced-campaign-option:hover,
+.light-mode .paid-advanced-campaign-option.is-active {
+    background: var(--brand-primary, #FF6600);
+    color: #ffffff;
+}
+
+html.light-mode .paid-advanced-campaign-option + .paid-advanced-campaign-option,
+.light-mode .paid-advanced-campaign-option + .paid-advanced-campaign-option {
+    border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+html.light-mode .figma-filter-bar .figma-filter-select-wrap.flex,
+.light-mode .figma-filter-bar .figma-filter-select-wrap.flex {
+    background-color: #ffffff !important;
+    color: #2d2d3a !important;
+    border: 1px solid var(--brand-tint-border) !important;
+}
+
 .paid-advanced-columns-menu {
     position: absolute;
     top: calc(100% + 6px);

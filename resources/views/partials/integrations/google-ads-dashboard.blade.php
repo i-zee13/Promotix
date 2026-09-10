@@ -60,6 +60,7 @@
                         <button type="button" class="figma-platform-menu-item w-full text-left" @click="openInstallTagsModal('gtm')">Connect GTM</button>
                         <button type="button" class="figma-platform-menu-item w-full text-left" @click="openInstallTagsModal('script')">View Clickronix Script</button>
                         <button type="button" class="figma-platform-menu-item w-full text-left" @click="openInstallTagsModal('google_tag')">View Google Tag</button>
+                        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openInstallTagsModal('ga4')">View GA4</button>
                         <button type="button" class="figma-platform-menu-item w-full text-left" @click="openTrackingTemplateModal()">Tracking template</button>
                         <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'copy-tracking' })">Copy Tracking Link</button>
                         <a :href="trackingInstallation.setup_url || '#'" class="figma-platform-menu-item">Open tag setup</a>
@@ -98,6 +99,17 @@
                             <span x-text="trackingInstallation.script.status"></span>
                         </span>
                         <button type="button" class="pi-text-link shrink-0" @click="openInstallTagsModal('script')">View details</button>
+                    </div>
+                    <div class="pi-track-row">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[12px] font-medium text-white">GA4</p>
+                            <p class="truncate font-mono text-[10px] text-white/55" x-text="trackingInstallation.ga4?.id || '—'"></p>
+                        </div>
+                        <span class="pi-status-pill" :class="trackingInstallation.ga4?.ok ? 'is-on' : 'is-off'">
+                            <span class="pi-status-dot"></span>
+                            <span x-text="trackingInstallation.ga4?.status || 'Not detected'"></span>
+                        </span>
+                        <button type="button" class="pi-text-link shrink-0" @click="openInstallTagsModal('ga4')">View details</button>
                     </div>
                 </div>
                 <div class="mt-[12px]">
