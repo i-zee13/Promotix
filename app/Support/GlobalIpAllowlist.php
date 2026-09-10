@@ -83,6 +83,27 @@ class GlobalIpAllowlist
     }
 
     /**
+     * Resolve latest IpLog intel so enabled provider whitelist (ASN / ISP name) works
+     * even when callers only have an IP string.
+     */
+    public static function matchesIp(string $ip): bool
+    {
+        $ip = trim($ip);
+        if ($ip === '') {
+            return false;
+        }
+
+        $ipLog = IpLog::query()->where('ip', $ip)->orderByDesc('id')->first();
+
+        return self::matches($ip, [
+            'isp' => $ipLog?->intel_isp,
+            'org' => $ipLog?->intel_isp,
+            'asn' => $ipLog?->intel_asn ?? data_get($ipLog?->ipdetails_raw, 'asn'),
+            'raw' => $ipLog?->ipdetails_raw ?? [],
+        ], $ipLog);
+    }
+
+    /**
      * @return list<string>
      */
     public static function patterns(): array

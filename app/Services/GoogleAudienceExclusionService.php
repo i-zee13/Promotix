@@ -56,7 +56,7 @@ class GoogleAudienceExclusionService
             return false;
         }
 
-        if (GlobalIpAllowlist::matches($ip)) {
+        if (GlobalIpAllowlist::matchesIp($ip)) {
             return false;
         }
 

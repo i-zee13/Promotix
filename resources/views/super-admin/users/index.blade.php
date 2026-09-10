@@ -479,16 +479,21 @@
     </div>
 </x-super-admin.page>
 
-@if ($errors->any())
+@if ($errors->any() || request()->boolean('create'))
 <script>
     document.addEventListener('alpine:init', () => {
         const root = document.querySelector('.figma-sa-users');
         if (root && root._x_dataStack) {
+            @if ($errors->any())
             const isTeamFlow = @json((bool) old('workspace_owner_id') || (bool) old('team_id'));
             root._x_dataStack[0].inviteOpen = !isTeamFlow;
             root._x_dataStack[0].createTeamOpen = isTeamFlow && @json((bool) old('workspace_owner_id'));
             root._x_dataStack[0].createTeamModalOpen = @json($errors->has('name') && ! old('workspace_owner_id'));
             root._x_dataStack[0].inviteMode = @json($errors->has('password') || ($errors->has('name') && ! $errors->has('email')) ? 'create' : 'invite');
+            @else
+            root._x_dataStack[0].inviteOpen = true;
+            root._x_dataStack[0].inviteMode = 'create';
+            @endif
         }
     });
 </script>

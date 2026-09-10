@@ -1537,6 +1537,7 @@ function platformIntegrations(config) {
             ga4ListId: '',
             websiteListId: '',
             resumeAfterTags: false,
+            resumeAfterConnect: false,
             stepLabels: ['Connections', 'GA4 route', 'Ads route', 'Verify & exclude'],
             titles: [
                 'Connect your platforms',
@@ -1643,6 +1644,7 @@ function platformIntegrations(config) {
         trackingInstallation: Object.assign({
             google_tag: { id: '—', status: 'Not detected', ok: false },
             gtm: { id: '—', status: 'Offline', ok: false, unpublished: false },
+            ga4: { id: '—', status: 'Not detected', ok: false },
             script: { id: '—', status: 'Missing', ok: false },
             setup_url: '#',
         }, config.trackingInstallation || {}),
@@ -1842,9 +1844,34 @@ function platformIntegrations(config) {
         },
         closeConnectGoogleModal() {
             this.connectGoogleModal.open = false;
+            if (this.audienceWizard.resumeAfterConnect) {
+                this.audienceWizard.resumeAfterConnect = false;
+                this.audienceWizard.open = true;
+                this.lockSpecModal();
+                this.checkGa4SiteStatus(false);
+                return;
+            }
             if (! this.installTagsModal.open) {
                 document.documentElement.classList.remove('pi-spec-modal-open');
             }
+        },
+        openConnectGoogleFromWizard() {
+            this.audienceWizard.resumeAfterConnect = true;
+            this.audienceWizard.open = false;
+            this.openConnectGoogleModal();
+        },
+        async wizardConnectGa4() {
+            const present = await this.checkGa4SiteStatus(false);
+            if (this.wizardGa4Connected) {
+                this.showMenuToast('GA4 detected' + (this.wizardGa4Id ? (': ' + this.wizardGa4Id) : '') + '.', 'success');
+                return;
+            }
+            this.showMenuToast(
+                present
+                    ? 'GTM found, but no G- measurement ID yet. Add a GA4 Configuration tag in GTM, publish, then Detect again.'
+                    : 'GA4 not detected on the website. Install via GTM or publish a G- tag, then Detect again.',
+                'info'
+            );
         },
         async runPermissionTest() {
             this.connectGoogleModal.testing = true;
@@ -2099,6 +2126,11 @@ function platformIntegrations(config) {
             this.lockSpecModal();
             this.checkGa4SiteStatus(false);
         },
+        get wizardGa4StatusLabel() {
+            if (this.wizardGa4Connected) return 'Account connected';
+            if (this.createAudienceModal.ga4Checking) return 'Checking…';
+            return 'Not connected';
+        },
         closeAudienceWizard() {
             this.audienceWizard.open = false;
             this.unlockSpecModal();
@@ -2275,6 +2307,20 @@ function platformIntegrations(config) {
                 this.createAudienceModal._measurementIds = Array.isArray(d.measurement_ids) ? d.measurement_ids : [];
                 this.createAudienceModal.ga4Message = message;
                 this.createAudienceModal.ga4Confidence = d.confidence || (present ? 'medium' : 'none');
+                if (this.createAudienceModal._gtmIds[0] && (!this.trackingInstallation.gtm?.id || this.trackingInstallation.gtm.id === '—')) {
+                    this.trackingInstallation.gtm = Object.assign({}, this.trackingInstallation.gtm || {}, {
+                        id: this.createAudienceModal._gtmIds[0],
+                        status: 'Detected',
+                        ok: true,
+                    });
+                }
+                if (this.createAudienceModal._measurementIds[0]) {
+                    this.trackingInstallation.ga4 = Object.assign({}, this.trackingInstallation.ga4 || {}, {
+                        id: this.createAudienceModal._measurementIds[0],
+                        status: 'Detected',
+                        ok: true,
+                    });
+                }
                 if (forApply) {
                     this.applyAudienceModal.ga4Present = present;
                     this.applyAudienceModal.ga4Message = message;

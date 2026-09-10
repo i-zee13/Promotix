@@ -90,19 +90,52 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/', fn () => redirect()->route('super-admin.dashboard'))->name('home');
         Route::get('/users', [SuperAdminUsersController::class, 'index'])->name('users.index');
-        Route::get('/users/{user}/team-members', [SuperAdminUsersController::class, 'teamMembersJson'])->name('users.team-members');
-        Route::get('/users/{user}', [SuperAdminUsersController::class, 'show'])->name('users.show');
-        Route::post('/users/{user}/assign-plan', [SuperAdminUsersController::class, 'assignPlan'])->name('users.assign-plan');
-        Route::post('/users/{user}/assign-team', [SuperAdminUsersController::class, 'assignTeam'])->name('users.assign-team');
-        Route::patch('/users/{user}/workspace-role', [SuperAdminUsersController::class, 'updateWorkspaceRole'])->name('users.workspace-role');
-        Route::patch('/users/{user}/portal-members/{member}/role', [SuperAdminUsersController::class, 'updatePortalMemberRole'])->name('users.portal-members.update-role');
-        Route::delete('/users/{user}/portal-members/{member}', [SuperAdminUsersController::class, 'removePortalMember'])->name('users.portal-members.destroy');
-        Route::post('/users/{user}/transfer-ownership', [SuperAdminUsersController::class, 'transferOwnership'])->name('users.transfer-ownership');
-        Route::put('/users/{user}', [SuperAdminUsersController::class, 'update'])->name('users.update');
-        Route::patch('/users/{user}/status', [SuperAdminUsersController::class, 'status'])->name('users.status');
-        Route::post('/users/{user}/reset-password', [SuperAdminUsersController::class, 'resetPassword'])->name('users.reset-password');
-        Route::delete('/users/{user}', [SuperAdminUsersController::class, 'destroy'])->name('users.destroy');
-        Route::post('/users/{user}/impersonate', [SuperAdminUsersController::class, 'impersonate'])->name('users.impersonate');
+        Route::get('/users/create', function () {
+            return redirect()->route('super-admin.users.index', ['create' => 1]);
+        })->name('users.create');
+        Route::post('/users/invite', [SuperAdminUsersController::class, 'invite'])->name('users.invite');
+        Route::post('/users/create', [SuperAdminUsersController::class, 'store'])->name('users.store');
+        Route::get('/users/{user}/team-members', [SuperAdminUsersController::class, 'teamMembersJson'])
+            ->whereNumber('user')
+            ->name('users.team-members');
+        Route::get('/users/{user}', [SuperAdminUsersController::class, 'show'])
+            ->whereNumber('user')
+            ->name('users.show');
+        Route::post('/users/{user}/assign-plan', [SuperAdminUsersController::class, 'assignPlan'])
+            ->whereNumber('user')
+            ->name('users.assign-plan');
+        Route::post('/users/{user}/assign-team', [SuperAdminUsersController::class, 'assignTeam'])
+            ->whereNumber('user')
+            ->name('users.assign-team');
+        Route::patch('/users/{user}/workspace-role', [SuperAdminUsersController::class, 'updateWorkspaceRole'])
+            ->whereNumber('user')
+            ->name('users.workspace-role');
+        Route::patch('/users/{user}/portal-members/{member}/role', [SuperAdminUsersController::class, 'updatePortalMemberRole'])
+            ->whereNumber('user')
+            ->whereNumber('member')
+            ->name('users.portal-members.update-role');
+        Route::delete('/users/{user}/portal-members/{member}', [SuperAdminUsersController::class, 'removePortalMember'])
+            ->whereNumber('user')
+            ->whereNumber('member')
+            ->name('users.portal-members.destroy');
+        Route::post('/users/{user}/transfer-ownership', [SuperAdminUsersController::class, 'transferOwnership'])
+            ->whereNumber('user')
+            ->name('users.transfer-ownership');
+        Route::put('/users/{user}', [SuperAdminUsersController::class, 'update'])
+            ->whereNumber('user')
+            ->name('users.update');
+        Route::patch('/users/{user}/status', [SuperAdminUsersController::class, 'status'])
+            ->whereNumber('user')
+            ->name('users.status');
+        Route::post('/users/{user}/reset-password', [SuperAdminUsersController::class, 'resetPassword'])
+            ->whereNumber('user')
+            ->name('users.reset-password');
+        Route::delete('/users/{user}', [SuperAdminUsersController::class, 'destroy'])
+            ->whereNumber('user')
+            ->name('users.destroy');
+        Route::post('/users/{user}/impersonate', [SuperAdminUsersController::class, 'impersonate'])
+            ->whereNumber('user')
+            ->name('users.impersonate');
         Route::resource('roles', SuperAdminRolesController::class)->except(['show']);
         Route::resource('products', SuperAdminProductsController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::post('/products/{product}/duplicate', [SuperAdminProductsController::class, 'duplicate'])->name('products.duplicate');
@@ -118,8 +151,6 @@ Route::middleware(['auth', 'super-admin'])
         Route::post('/payments/{payment}/mark-failed', [SuperAdminPaymentsController::class, 'markFailed'])->name('payments.mark-failed');
         Route::get('/billing-automation', [BillingAutomationController::class, 'index'])->name('billing-automation.index');
         Route::post('/billing-automation', [BillingAutomationController::class, 'update'])->name('billing-automation.update');
-        Route::post('/users/invite', [SuperAdminUsersController::class, 'invite'])->name('users.invite');
-        Route::post('/users/create', [SuperAdminUsersController::class, 'store'])->name('users.store');
         Route::post('/teams', [SuperAdminTeamsController::class, 'store'])->name('teams.store');
         Route::post('/teams/{team}/assign-member', [SuperAdminTeamsController::class, 'assignMember'])->name('teams.assign-member');
         Route::put('/teams/{team}', [SuperAdminTeamsController::class, 'update'])->name('teams.update');
@@ -249,6 +280,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/toggle-row', [PaidMarketingController::class, 'toggleGoogleExclusionRow'])->name('paid-marketing.detection-settings.google-exclusion.toggle-row');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/push-bulk', [PaidMarketingController::class, 'pushGoogleExclusionBulk'])->name('paid-marketing.detection-settings.google-exclusion.push-bulk');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/sync', [PaidMarketingController::class, 'syncGoogleExclusionIps'])->name('paid-marketing.detection-settings.google-exclusion.sync');
+        Route::get('/paid-marketing/detection-settings/{domain}/google-exclusion/campaigns', [PaidMarketingController::class, 'googleExclusionCampaigns'])->name('paid-marketing.detection-settings.google-exclusion.campaigns');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/manager-enabled', [PaidMarketingController::class, 'setGoogleExclusionManagerEnabled'])->name('paid-marketing.detection-settings.google-exclusion.manager-enabled');
         Route::post('/paid-marketing/detection-settings/{domain}/google-exclusion/apply-audience', [PaidMarketingController::class, 'applyAudienceAndPushInvalidIps'])->name('paid-marketing.detection-settings.google-exclusion.apply-audience');
         Route::get('/paid-marketing/detection-settings', [PaidMarketingController::class, 'detectionSettings'])->name('paid-marketing.detection-settings');

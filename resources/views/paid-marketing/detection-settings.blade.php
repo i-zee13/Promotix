@@ -485,7 +485,18 @@
                 margin-top: 10px; background: none; border: 0; color: var(--brand-primary);
                 font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
             }
-            .figma-gaem-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+            .figma-gaem-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: flex-end; }
+            .figma-gaem-campaign-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 200px; flex: 1 1 220px; }
+            .figma-gaem-campaign-label { font-size: 10px; font-weight: 600; color: #6b6578; text-transform: uppercase; letter-spacing: 0.02em; }
+            .figma-gaem-campaign-select {
+                height: 34px;
+                border-radius: 6px;
+                border: 1px solid #e4dceb;
+                background: #fff;
+                color: #2d2d3a;
+                font-size: 12px;
+                padding: 0 10px;
+            }
             .figma-gaem-ip-input {
                 flex: 1 1 160px; height: 34px; border-radius: 8px;
                 border: 1px solid color-mix(in srgb, var(--brand-primary) 55%, transparent); background: var(--brand-primary);
@@ -1217,6 +1228,9 @@
                         <div class="figma-filter-select-wrap">
                             <select x-model="filters.campaign" @change="applyFilters()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                                 <option value="">All Campaigns</option>
+                                <template x-for="name in campaignOptions" :key="name">
+                                    <option :value="name" x-text="name"></option>
+                                </template>
                             </select>
                         </div>
                     </label>
@@ -1837,9 +1851,12 @@
                                 'toggleRowUrl' => route('paid-marketing.detection-settings.google-exclusion.toggle-row', $domain),
                                 'bulkUrl' => route('paid-marketing.detection-settings.google-exclusion.push-bulk', $domain),
                                 'syncUrl' => route('paid-marketing.detection-settings.google-exclusion.sync', $domain),
+                                'campaignsUrl' => route('paid-marketing.detection-settings.google-exclusion.campaigns', $domain),
                                 'csrf' => csrf_token(),
                                 'rows' => $ipExclusions,
                                 'adsConnected' => $domain->hasGoogleAdsConnection(),
+                                'domainId' => (string) $domain->id,
+                                'googleAdsAccountId' => (string) request('google_ads_account_id', $domain->google_ads_account_id ?? ''),
                             ]))"
                         >
                             <div class="figma-gaem-head">
@@ -1893,6 +1910,15 @@
                             </div>
 
                             <div class="figma-gaem-quick">
+                                <label class="figma-gaem-campaign-wrap">
+                                    <span class="figma-gaem-campaign-label">Campaign</span>
+                                    <select x-model="selectedCampaignId" class="figma-gaem-campaign-select" :disabled="loading || !adsConnected">
+                                        <option value="">All eligible campaigns</option>
+                                        <template x-for="c in campaignOptions" :key="c.id">
+                                            <option :value="c.id" x-text="c.name"></option>
+                                        </template>
+                                    </select>
+                                </label>
                                 <button type="button" class="figma-gaem-push-btn" :disabled="loading || !adsConnected" @click="syncPending()">Push all pending</button>
                                     </div>
 
@@ -2388,11 +2414,16 @@ function googleExclusionPanel(config) {
         bulkFileName: '',
         rows: config.rows || [],
         adsConnected: Boolean(config.adsConnected),
+        domainId: config.domainId || '',
+        googleAdsAccountId: config.googleAdsAccountId || '',
+        campaignOptions: [],
+        selectedCampaignId: '',
         pushUrl: config.pushUrl,
         pushRowUrl: config.pushRowUrl,
         toggleRowUrl: config.toggleRowUrl,
         bulkUrl: config.bulkUrl,
         syncUrl: config.syncUrl,
+        campaignsUrl: config.campaignsUrl || '',
         csrf: config.csrf,
         loading: false,
         pushingIp: '',
@@ -2407,6 +2438,37 @@ function googleExclusionPanel(config) {
             if (row.sync_status === 'failed') return 'Failed';
             if (row.sync_status === 'synced') return 'Applied';
             return row.sync_status || '—';
+        },
+        campaignPayload(extra = {}) {
+            const body = { ...extra };
+            if (this.selectedCampaignId) {
+                body.campaign_ids = [String(this.selectedCampaignId)];
+            }
+            return body;
+        },
+        async loadCampaigns() {
+            if (!this.adsConnected || !this.campaignsUrl) {
+                this.campaignOptions = [];
+                return;
+            }
+            try {
+                const rows = await fetch(this.campaignsUrl, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                }).then((r) => r.json());
+                const list = Array.isArray(rows) ? rows : (rows.campaigns || []);
+                this.campaignOptions = list
+                    .map((r) => ({
+                        id: String(r.id || r.campaign_id || '').replace(/\D+/g, ''),
+                        name: String(r.name || r.campaign || '').trim(),
+                    }))
+                    .filter((c) => c.id && c.name)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                if (this.selectedCampaignId && !this.campaignOptions.some((c) => c.id === this.selectedCampaignId)) {
+                    this.selectedCampaignId = '';
+                }
+            } catch (e) {
+                this.campaignOptions = [];
+            }
         },
         onBulkFile(event) {
             const file = event.target.files?.[0];
@@ -2424,6 +2486,9 @@ function googleExclusionPanel(config) {
                 }
                 if (this.bulkFile) {
                     form.append('file', this.bulkFile);
+                }
+                if (this.selectedCampaignId) {
+                    form.append('campaign_ids[]', String(this.selectedCampaignId));
                 }
                 const res = await fetch(this.bulkUrl, {
                     method: 'POST',
@@ -2464,7 +2529,7 @@ function googleExclusionPanel(config) {
                         'X-CSRF-TOKEN': this.csrf,
                         'X-Requested-With': 'XMLHttpRequest',
                     },
-                    body: JSON.stringify({ ip }),
+                    body: JSON.stringify(this.campaignPayload({ ip })),
                 });
                 const data = await res.json().catch(() => ({}));
                 this.ok = !!data.ok;
@@ -2492,7 +2557,7 @@ function googleExclusionPanel(config) {
                         'X-CSRF-TOKEN': this.csrf,
                         'X-Requested-With': 'XMLHttpRequest',
                     },
-                    body: JSON.stringify({ ip }),
+                    body: JSON.stringify(this.campaignPayload({ ip })),
                 });
                 const data = await res.json().catch(() => ({}));
                 this.ok = !!data.ok;
@@ -2523,7 +2588,7 @@ function googleExclusionPanel(config) {
                         'X-CSRF-TOKEN': this.csrf,
                         'X-Requested-With': 'XMLHttpRequest',
                     },
-                    body: JSON.stringify({ ip, active }),
+                    body: JSON.stringify(this.campaignPayload({ ip, active })),
                 });
                 const data = await res.json().catch(() => ({}));
                 this.ok = !!data.ok;
@@ -2559,7 +2624,7 @@ function googleExclusionPanel(config) {
                         'X-CSRF-TOKEN': this.csrf,
                         'X-Requested-With': 'XMLHttpRequest',
                     },
-                    body: JSON.stringify({ limit: 100 }),
+                    body: JSON.stringify(this.campaignPayload({ limit: 100 })),
                 });
                 const data = await res.json().catch(() => ({}));
                 this.ok = !!data.ok;
@@ -2571,6 +2636,9 @@ function googleExclusionPanel(config) {
             } finally {
                 this.loading = false;
             }
+        },
+        init() {
+            this.loadCampaigns();
         },
     };
 }
@@ -2584,6 +2652,27 @@ window.detectionPageFilters = function detectionPageFilters(config) {
             googleAdsAccountId: config.googleAdsAccountId || '',
             campaign: config.campaign || '',
             trafficSource: config.trafficSource || 'google_ads',
+        },
+        campaignOptions: [],
+        async init() {
+            await this.loadCampaigns();
+        },
+        async loadCampaigns() {
+            const params = new URLSearchParams();
+            if (this.filters.domainId) params.set('domain_id', this.filters.domainId);
+            if (this.filters.googleAdsAccountId) params.set('google_ads_account_id', this.filters.googleAdsAccountId);
+            try {
+                const rows = await fetch(`/paid-marketing/campaigns?${params}`, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                }).then((r) => r.json());
+                const list = Array.isArray(rows) ? rows : (rows.campaigns || []);
+                this.campaignOptions = [...new Set(list.map((r) => r.campaign).filter(Boolean))].sort();
+                if (this.filters.campaign && !this.campaignOptions.includes(this.filters.campaign)) {
+                    this.campaignOptions = [this.filters.campaign, ...this.campaignOptions];
+                }
+            } catch (e) {
+                this.campaignOptions = this.filters.campaign ? [this.filters.campaign] : [];
+            }
         },
         applyFilters() {
             window.promotixPageLoader?.show('Loading Detection…');

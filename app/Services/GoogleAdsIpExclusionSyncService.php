@@ -20,7 +20,10 @@ class GoogleAdsIpExclusionSyncService
     ) {
     }
 
-    public function syncPendingForDomain(Domain $domain, int $limit = 25): int
+    /**
+     * @param  list<string|int>  $onlyCampaignIds
+     */
+    public function syncPendingForDomain(Domain $domain, int $limit = 25, array $onlyCampaignIds = []): int
     {
         if (! Schema::hasTable('google_ads_ip_exclusions')) {
             return 0;
@@ -40,7 +43,7 @@ class GoogleAdsIpExclusionSyncService
 
         $synced = 0;
         foreach ($rows as $row) {
-            if ($this->syncRow($domain, (string) $row->ip, (int) $row->id)) {
+            if ($this->syncRow($domain, (string) $row->ip, (int) $row->id, $onlyCampaignIds)) {
                 $synced++;
             }
         }
@@ -48,7 +51,7 @@ class GoogleAdsIpExclusionSyncService
         return $synced;
     }
 
-    public function syncRow(Domain $domain, string $ip, ?int $rowId = null): bool
+    public function syncRow(Domain $domain, string $ip, ?int $rowId = null, array $onlyCampaignIds = []): bool
     {
         if (! Schema::hasTable('google_ads_ip_exclusions')) {
             return false;
@@ -96,6 +99,7 @@ class GoogleAdsIpExclusionSyncService
         $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
         $loginCustomerId = (string) ($headers['login-customer-id'] ?? '');
         $campaignIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
+        $campaignIds = $this->applyCampaignIdFilter($customerId, $campaignIds, $onlyCampaignIds, $version, $headers);
 
         $failures = [];
         $skipped = [];
@@ -167,7 +171,8 @@ class GoogleAdsIpExclusionSyncService
         $onCampaigns = $this->verifyIpOnCampaigns($domain, $googleIp);
         $onAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $googleIp);
 
-        if ($onCampaigns === [] && ! $onAccount) {
+        $forceCampaignOnly = $this->normalizeCampaignIdList($onlyCampaignIds) !== [];
+        if (! $forceCampaignOnly && $onCampaigns === [] && ! $onAccount) {
             $accountResult = $this->syncIpAtAccountLevel($customerId, $ip, $googleIp, $version, $headers);
             if ($accountResult['ok']) {
                 $onAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $googleIp);
@@ -303,9 +308,10 @@ class GoogleAdsIpExclusionSyncService
 
     /**
      * @param  list<string>  $ips
+     * @param  list<string|int>  $onlyCampaignIds
      * @return array{synced: int, failed: int, invalid: list<string>, errors: list<string>}
      */
-    public function syncManyIps(Domain $domain, array $ips, int $limit = 200): array
+    public function syncManyIps(Domain $domain, array $ips, int $limit = 200, array $onlyCampaignIds = []): array
     {
         $ips = array_values(array_unique(array_filter(array_map('trim', $ips))));
         $ips = array_slice($ips, 0, max(1, $limit));
@@ -322,7 +328,7 @@ class GoogleAdsIpExclusionSyncService
                 continue;
             }
 
-            if ($this->syncRow($domain, $ip)) {
+            if ($this->syncRow($domain, $ip, null, $onlyCampaignIds)) {
                 $synced++;
             } else {
                 $failed++;
@@ -337,6 +343,109 @@ class GoogleAdsIpExclusionSyncService
         }
 
         return compact('synced', 'failed', 'invalid', 'errors');
+    }
+
+    /**
+     * Eligible Search/Display campaigns for Exclusion Manager UI (id + name).
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function eligibleCampaignOptions(Domain $domain): array
+    {
+        $domain->loadMissing(['googleAdsAccount.connection', 'googleAdsMappings.account.connection']);
+        $account = $this->resolveAdsAccount($domain);
+        if (! $account || (bool) $account->is_manager) {
+            return [];
+        }
+
+        $headers = $this->headersForAccount($account);
+        if ($headers === null) {
+            return [];
+        }
+
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+        if ($customerId === '') {
+            return [];
+        }
+
+        $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
+        $preferredIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
+
+        $query = "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.status IN ('ENABLED', 'PAUSED')";
+        $response = Http::timeout(30)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if (! $response->successful()) {
+            return [];
+        }
+
+        $preferredLookup = array_fill_keys($preferredIds, true);
+        $preferred = [];
+        $others = [];
+
+        foreach ($this->parseRows($response->json()) as $row) {
+            $id = (string) ($row['campaign']['id'] ?? '');
+            $name = trim((string) ($row['campaign']['name'] ?? ''));
+            $channel = (string) ($row['campaign']['advertisingChannelType'] ?? $row['campaign']['advertising_channel_type'] ?? '');
+            if ($id === '' || $name === '' || $this->channelLikelyUnsupportedForIpBlock($channel)) {
+                continue;
+            }
+            $option = ['id' => $id, 'name' => $name];
+            if (isset($preferredLookup[$id])) {
+                $preferred[] = $option;
+            } else {
+                $others[] = $option;
+            }
+        }
+
+        $rows = $preferred !== [] ? $preferred : $others;
+        usort($rows, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        return array_values($rows);
+    }
+
+    /**
+     * @param  list<string|int>  $campaignIds
+     * @return list<string>
+     */
+    private function normalizeCampaignIdList(array $campaignIds): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            fn ($id) => preg_replace('/\D+/', '', (string) $id) ?: '',
+            $campaignIds,
+        ))));
+    }
+
+    /**
+     * When the UI selects specific campaigns, only push to those (still must be IP-exclusion eligible).
+     *
+     * @param  list<string>  $campaignIds
+     * @param  list<string|int>  $onlyCampaignIds
+     * @param  array<string, string>  $headers
+     * @return list<string>
+     */
+    private function applyCampaignIdFilter(
+        string $customerId,
+        array $campaignIds,
+        array $onlyCampaignIds,
+        string $version,
+        array $headers,
+    ): array {
+        $only = $this->normalizeCampaignIdList($onlyCampaignIds);
+
+        if ($only === []) {
+            return $campaignIds;
+        }
+
+        $intersect = array_values(array_intersect($campaignIds, $only));
+        if ($intersect !== []) {
+            return $intersect;
+        }
+
+        return $this->filterEligibleCampaignIds($customerId, $only, $version, $headers);
     }
 
     /**

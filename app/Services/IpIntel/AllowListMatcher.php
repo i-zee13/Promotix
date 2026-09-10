@@ -10,7 +10,12 @@ class AllowListMatcher
 {
     public static function isAllowListed(Domain $domain, string $ip): bool
     {
-        if (GlobalIpAllowlist::matches($ip)) {
+        $ip = trim($ip);
+        if ($ip === '') {
+            return false;
+        }
+
+        if (GlobalIpAllowlist::matchesIp($ip)) {
             return true;
         }
 

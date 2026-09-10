@@ -4037,12 +4037,27 @@ class PaidMarketingController extends Controller
             ->with('status', $status);
     }
 
+    public function googleExclusionCampaigns(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+
+        if (! $domain->hasGoogleAdsConnection()) {
+            return response()->json(['campaigns' => []]);
+        }
+
+        return response()->json([
+            'campaigns' => $sync->eligibleCampaignOptions($domain),
+        ]);
+    }
+
     public function pushGoogleExclusionIp(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
     {
         abort_unless($domain->user_id === $request->user()->id, 403);
 
         $data = $request->validate([
             'ip' => ['required', 'string', 'max:128'],
+            'campaign_ids' => ['nullable', 'array', 'max:50'],
+            'campaign_ids.*' => ['string', 'max:40'],
         ]);
 
         $ip = trim($data['ip']);
@@ -4050,7 +4065,7 @@ class PaidMarketingController extends Controller
             return response()->json(['ok' => false, 'message' => 'Enter a valid IP, CIDR range, or wildcard (e.g. 216.67.176.*).'], 422);
         }
 
-        return $this->pushGoogleExclusionIpsResponse($domain, $sync, [$ip], '');
+        return $this->pushGoogleExclusionIpsResponse($domain, $sync, [$ip], '', false, $this->normalizedExclusionCampaignIds($data['campaign_ids'] ?? []));
     }
 
     public function pushGoogleExclusionRow(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
@@ -4061,7 +4076,13 @@ class PaidMarketingController extends Controller
             return response()->json(['ok' => false, 'message' => 'Exclusion table not available.'], 503);
         }
 
-        $ip = trim($request->validate(['ip' => ['required', 'string', 'max:128']])['ip']);
+        $data = $request->validate([
+            'ip' => ['required', 'string', 'max:128'],
+            'campaign_ids' => ['nullable', 'array', 'max:50'],
+            'campaign_ids.*' => ['string', 'max:40'],
+        ]);
+        $ip = trim($data['ip']);
+        $campaignIds = $this->normalizedExclusionCampaignIds($data['campaign_ids'] ?? []);
         $normalized = GoogleIpBlockFormatter::normalize($ip);
         if ($normalized === null) {
             return response()->json(['ok' => false, 'message' => 'Invalid IP or range.'], 422);
@@ -4084,7 +4105,7 @@ class PaidMarketingController extends Controller
                 'updated_at' => now(),
             ]);
 
-        $synced = $sync->syncRow($domain, (string) $row->ip, (int) $row->id);
+        $synced = $sync->syncRow($domain, (string) $row->ip, (int) $row->id, $campaignIds);
         $row = DB::table('google_ads_ip_exclusions')->where('id', $row->id)->first();
         $detail = $row?->sync_error ? (string) $row->sync_error : null;
 
@@ -4109,9 +4130,12 @@ class PaidMarketingController extends Controller
         $data = $request->validate([
             'ip' => ['required', 'string', 'max:128'],
             'active' => ['required', 'boolean'],
+            'campaign_ids' => ['nullable', 'array', 'max:50'],
+            'campaign_ids.*' => ['string', 'max:40'],
         ]);
 
         $ip = trim($data['ip']);
+        $campaignIds = $this->normalizedExclusionCampaignIds($data['campaign_ids'] ?? []);
         $normalized = GoogleIpBlockFormatter::normalize($ip);
         if ($normalized === null) {
             return response()->json(['ok' => false, 'message' => 'Invalid IP or range.'], 422);
@@ -4137,7 +4161,7 @@ class PaidMarketingController extends Controller
             }
             DB::table('google_ads_ip_exclusions')->where('id', $row->id)->update($update);
 
-            $synced = $sync->syncRow($domain, (string) $row->ip, (int) $row->id);
+            $synced = $sync->syncRow($domain, (string) $row->ip, (int) $row->id, $campaignIds);
             $row = DB::table('google_ads_ip_exclusions')->where('id', $row->id)->first();
             $detail = $row?->sync_error ? (string) $row->sync_error : null;
 
@@ -4172,6 +4196,8 @@ class PaidMarketingController extends Controller
         $data = $request->validate([
             'ips' => ['nullable', 'string', 'max:100000'],
             'file' => ['nullable', 'file', 'mimes:txt,csv', 'max:5120'],
+            'campaign_ids' => ['nullable', 'array', 'max:50'],
+            'campaign_ids.*' => ['string', 'max:40'],
         ]);
 
         $raw = trim((string) ($data['ips'] ?? ''));
@@ -4194,16 +4220,25 @@ class PaidMarketingController extends Controller
             ], 422);
         }
 
-        return $this->pushGoogleExclusionIpsResponse($domain, $sync, $ips, '', isBulk: true);
+        return $this->pushGoogleExclusionIpsResponse(
+            $domain,
+            $sync,
+            $ips,
+            '',
+            true,
+            $this->normalizedExclusionCampaignIds($data['campaign_ids'] ?? []),
+        );
     }
 
     /** @param  list<string>  $ips */
+    /** @param  list<string>  $campaignIds */
     private function pushGoogleExclusionIpsResponse(
         Domain $domain,
         GoogleAdsIpExclusionSyncService $sync,
         array $ips,
         string $successMessage,
         bool $isBulk = false,
+        array $campaignIds = [],
     ): JsonResponse {
         if (! Schema::hasTable('google_ads_ip_exclusions')) {
             return response()->json(['ok' => false, 'message' => 'Exclusion table not available. Run migrations first.'], 503);
@@ -4232,7 +4267,7 @@ class PaidMarketingController extends Controller
         }
 
         if ($isBulk) {
-            $result = $sync->syncManyIps($domain, $ips, 200);
+            $result = $sync->syncManyIps($domain, $ips, 200, $campaignIds);
             $message = sprintf(
                 'Bulk upload: %d synced, %d failed, %d invalid skipped.',
                 $result['synced'],
@@ -4253,7 +4288,7 @@ class PaidMarketingController extends Controller
 
         $ip = $ips[0];
         $normalized = GoogleIpBlockFormatter::normalize($ip) ?? $ip;
-        $synced = $sync->syncRow($domain, $ip);
+        $synced = $sync->syncRow($domain, $ip, null, $campaignIds);
         $row = DB::table('google_ads_ip_exclusions')
             ->where('domain_id', $domain->id)
             ->where('ip', $normalized)
@@ -4275,6 +4310,19 @@ class PaidMarketingController extends Controller
     private function parseIpList(string $raw): array
     {
         return GoogleIpBlockFormatter::parseList($raw);
+    }
+
+    /** @return list<string> */
+    private function normalizedExclusionCampaignIds(mixed $campaignIds): array
+    {
+        if (! is_array($campaignIds)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            fn ($id) => preg_replace('/\D+/', '', (string) $id) ?: '',
+            $campaignIds,
+        ))));
     }
 
     public function syncGoogleExclusionIps(Request $request, Domain $domain, GoogleAdsIpExclusionSyncService $sync): JsonResponse
@@ -4306,7 +4354,8 @@ class PaidMarketingController extends Controller
         // Refresh queue from recent invalid/blocked paid visits, then push pending.
         $freshQueued = $exclusionService->queueRecentInvalidIpsForDomain($domain, 40);
         $limit = min(200, max(1, (int) $request->input('limit', 100)));
-        $synced = $sync->syncPendingForDomain($domain, $limit);
+        $campaignIds = $this->normalizedExclusionCampaignIds($request->input('campaign_ids', []));
+        $synced = $sync->syncPendingForDomain($domain, $limit, $campaignIds);
 
         $parts = [];
         if ($freshQueued > 0) {
@@ -4454,7 +4503,7 @@ class PaidMarketingController extends Controller
             ->orderByDesc('updated_at')
             ->limit(100)
             ->get()
-            ->filter(fn ($row) => ! GlobalIpAllowlist::matches((string) ($row->ip ?? '')))
+            ->filter(fn ($row) => ! GlobalIpAllowlist::matchesIp((string) ($row->ip ?? '')))
             ->filter(fn ($row) => GoogleAudienceExclusionService::isExclusionManagerRow(
                 (string) ($row->threat_group ?? ''),
                 (string) ($row->exclusion_mode ?? '')

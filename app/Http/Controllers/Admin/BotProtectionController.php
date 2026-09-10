@@ -1358,7 +1358,7 @@ class BotProtectionController extends Controller
         $isInvalid = $invalid > 0 || (bool) ($v->is_invalid_traffic ?? false);
         $isAllowListed = ($ip = (string) ($ipLog?->ip ?: $v->ip ?: '')) !== ''
             && (
-                GlobalIpAllowlist::matches($ip)
+                GlobalIpAllowlist::matchesIp($ip)
                 || ($domain !== null && AllowListMatcher::isAllowListed($domain, $ip))
             );
 
@@ -1437,7 +1437,7 @@ class BotProtectionController extends Controller
         $status = 'Valid';
         $isAllowListed = ($ip = (string) ($ipLog?->ip ?: $visit->ip ?: '')) !== ''
             && (
-                GlobalIpAllowlist::matches($ip)
+                GlobalIpAllowlist::matchesIp($ip)
                 || ($domain !== null && AllowListMatcher::isAllowListed($domain, $ip))
             );
 

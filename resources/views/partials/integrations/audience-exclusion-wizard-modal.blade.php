@@ -36,42 +36,87 @@
                     <h3 class="mb-[10px] text-[13px] font-semibold">1. Connect accounts</h3>
                     <div class="grid gap-[10px] sm:grid-cols-2">
                         <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[14px] py-[12px]">
-                            <div class="flex items-center justify-between gap-[8px]">
-                                <p class="text-[13px] font-semibold">Google Ads</p>
-                                <span class="rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
+                            <div class="flex items-start justify-between gap-[8px]">
+                                <div class="flex min-w-0 items-center gap-[10px]">
+                                    <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] bg-white/5 ring-1 ring-white/10">
+                                        <img src="{{ asset('images/google-ads.svg') }}" alt="" class="h-[20px] w-[20px]" width="20" height="20">
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="text-[13px] font-semibold">Google Ads</p>
+                                        <p class="mt-[4px] font-mono text-[11px] text-white/55 truncate" x-text="googleAdsSummary.customer_id || '—'"></p>
+                                    </div>
+                                </div>
+                                <span class="shrink-0 rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
                                       :class="wizardAdsConnected ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/10 text-white/55'"
                                       x-text="wizardAdsConnected ? 'Account connected' : 'Not connected'"></span>
                             </div>
-                            <p class="mt-[6px] font-mono text-[11px] text-white/55" x-text="googleAdsSummary.customer_id || '—'"></p>
+                            <button type="button" class="mt-[10px] rounded-[6px] border border-[var(--brand-primary)]/50 px-[10px] py-[5px] text-[11px] font-semibold text-[#ffd0b0] hover:bg-[var(--brand-primary)]/15"
+                                    x-show="!wizardAdsConnected"
+                                    @click="openConnectGoogleFromWizard()">Connect Google Ads</button>
                         </div>
                         <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[14px] py-[12px]">
-                            <div class="flex items-center justify-between gap-[8px]">
-                                <p class="text-[13px] font-semibold">Google Tag Manager</p>
-                                <span class="rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
+                            <div class="flex items-start justify-between gap-[8px]">
+                                <div class="flex min-w-0 items-center gap-[10px]">
+                                    <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] bg-white/5 ring-1 ring-white/10">
+                                        <img src="{{ asset('images/google-tag-manager.svg') }}" alt="" class="h-[20px] w-[20px]" width="20" height="20">
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="text-[13px] font-semibold">Google Tag Manager</p>
+                                        <p class="mt-[4px] font-mono text-[11px] text-white/55 truncate" x-text="wizardGtmId || '—'"></p>
+                                    </div>
+                                </div>
+                                <span class="shrink-0 rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
                                       :class="wizardGtmConnected ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/10 text-white/55'"
                                       x-text="wizardGtmConnected ? 'Account connected' : 'Not connected'"></span>
                             </div>
-                            <p class="mt-[6px] font-mono text-[11px] text-white/55" x-text="wizardGtmId || '—'"></p>
-                            <p class="mt-[4px] text-[10px] text-white/40">GTM is the container. GA4 route needs GTM + GA4 together.</p>
+                            <p class="mt-[6px] text-[10px] text-white/40">GTM is the container. GA4 route needs GTM + GA4 together.</p>
+                            <button type="button" class="mt-[8px] rounded-[6px] border border-[var(--brand-primary)]/50 px-[10px] py-[5px] text-[11px] font-semibold text-[#ffd0b0] hover:bg-[var(--brand-primary)]/15"
+                                    x-show="!wizardGtmConnected"
+                                    @click="openInstallTagsFromWizard('gtm')">Connect GTM</button>
                         </div>
                         <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[14px] py-[12px]">
-                            <div class="flex items-center justify-between gap-[8px]">
-                                <p class="text-[13px] font-semibold">Google Analytics 4</p>
-                                <span class="rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
-                                      :class="wizardGa4Connected ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/10 text-white/55'"
-                                      x-text="wizardGa4Connected ? 'Account connected' : 'Not connected'"></span>
+                            <div class="flex items-start justify-between gap-[8px]">
+                                <div class="flex min-w-0 items-center gap-[10px]">
+                                    <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] bg-white/5 ring-1 ring-white/10">
+                                        <img src="{{ asset('images/google-analytics-4.svg') }}" alt="" class="h-[20px] w-[20px]" width="20" height="20">
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="text-[13px] font-semibold">Google Analytics 4</p>
+                                        <p class="mt-[4px] font-mono text-[11px] text-white/55 truncate" x-text="wizardGa4Id || (createAudienceModal.ga4Checking ? 'Checking…' : '—')"></p>
+                                    </div>
+                                </div>
+                                <span class="shrink-0 rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
+                                      :class="wizardGa4Connected ? 'bg-emerald-500/20 text-emerald-200' : (createAudienceModal.ga4Checking ? 'bg-amber-500/20 text-amber-200' : 'bg-white/10 text-white/55')"
+                                      x-text="wizardGa4Connected ? 'Account connected' : (createAudienceModal.ga4Checking ? 'Checking…' : 'Not connected')"></span>
                             </div>
-                            <p class="mt-[6px] font-mono text-[11px] text-white/55" x-text="wizardGa4Id || '—'"></p>
                             <p class="mt-[4px] text-[10px] text-[#ffd0b0]" x-show="wizardGa4Connected && !wizardGtmConnected">GA4 alone cannot power the GA4 audience route without GTM.</p>
+                            <p class="mt-[4px] text-[10px] text-white/40" x-show="!wizardGa4Connected && wizardGtmConnected">If GA4 loads only through GTM, use Detect — we scan the published container for a G- ID.</p>
+                            <div class="mt-[8px] flex flex-wrap gap-[6px]" x-show="!wizardGa4Connected">
+                                <button type="button" class="rounded-[6px] border border-[var(--brand-primary)]/50 px-[10px] py-[5px] text-[11px] font-semibold text-[#ffd0b0] hover:bg-[var(--brand-primary)]/15"
+                                        :disabled="createAudienceModal.ga4Checking"
+                                        @click="wizardConnectGa4()">Detect GA4</button>
+                                <button type="button" class="rounded-[6px] border border-white/25 px-[10px] py-[5px] text-[11px] text-white/70 hover:bg-white/5"
+                                        @click="openInstallTagsFromWizard('gtm')">Install via GTM</button>
+                            </div>
                         </div>
                         <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[14px] py-[12px]">
-                            <div class="flex items-center justify-between gap-[8px]">
-                                <p class="text-[13px] font-semibold">Website script</p>
-                                <span class="rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
+                            <div class="flex items-start justify-between gap-[8px]">
+                                <div class="flex min-w-0 items-center gap-[10px]">
+                                    <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] bg-white/5 ring-1 ring-white/10 text-white/80">
+                                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 9l-3 3 3 3m8-6l3 3-3 3M13 5l-2 14"/></svg>
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="text-[13px] font-semibold">Website script</p>
+                                        <p class="mt-[4px] text-[11px] text-white/55 truncate" x-text="wizardWebsiteHost || '—'"></p>
+                                    </div>
+                                </div>
+                                <span class="shrink-0 rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
                                       :class="wizardScriptInstalled ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/10 text-white/55'"
                                       x-text="wizardScriptInstalled ? 'Installed' : 'Not installed'"></span>
                             </div>
-                            <p class="mt-[6px] text-[11px] text-white/55" x-text="wizardWebsiteHost || '—'"></p>
+                            <button type="button" class="mt-[10px] rounded-[6px] border border-[var(--brand-primary)]/50 px-[10px] py-[5px] text-[11px] font-semibold text-[#ffd0b0] hover:bg-[var(--brand-primary)]/15"
+                                    x-show="!wizardScriptInstalled"
+                                    @click="openInstallTagsFromWizard('script')">Install script</button>
                         </div>
                     </div>
                 </section>
@@ -120,14 +165,20 @@
                         <button type="button" class="rounded-[10px] border p-[14px] text-left"
                                 :class="audienceWizard.source === 'ga4' ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/10' : 'border-white/15 bg-[#0d0d0d]'"
                                 @click="audienceWizard.source = 'ga4'">
-                            <p class="text-[13px] font-semibold">GA4 audience</p>
+                            <div class="flex items-center gap-[8px]">
+                                <img src="{{ asset('images/google-analytics-4.svg') }}" alt="" class="h-[18px] w-[18px]" width="18" height="18">
+                                <p class="text-[13px] font-semibold">GA4 audience</p>
+                            </div>
                             <p class="mt-[6px] text-[11px] text-white/60">Use GA4 audience from your linked property. Requires GTM container + GA4.</p>
                             <p class="mt-[8px] text-[10px] text-rose-300" x-show="!wizardGtmConnected">Blocked until GTM is connected.</p>
                         </button>
                         <button type="button" class="rounded-[10px] border p-[14px] text-left"
                                 :class="audienceWizard.source === 'website' ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/10' : 'border-white/15 bg-[#0d0d0d]'"
                                 @click="audienceWizard.source = 'website'">
-                            <p class="text-[13px] font-semibold">Google Ads website audience</p>
+                            <div class="flex items-center gap-[8px]">
+                                <img src="{{ asset('images/google-ads.svg') }}" alt="" class="h-[18px] w-[18px]" width="18" height="18">
+                                <p class="text-[13px] font-semibold">Google Ads website audience</p>
+                            </div>
                             <p class="mt-[6px] text-[11px] text-white/60">Send fraud signals to Google Ads. Can also be delivered via GTM.</p>
                         </button>
                     </div>

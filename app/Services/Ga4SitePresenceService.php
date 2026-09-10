@@ -63,8 +63,19 @@ class Ga4SitePresenceService
         $checkedUrl = null;
         $host = strtolower(trim((string) $domain->hostname));
         if ($host !== '' && ! str_contains($host, 'localhost') && ! str_ends_with($host, '.test')) {
-            $checkedUrl = 'https://'.preg_replace('#^https?://#i', '', $host);
-            $html = $this->fetchHomepageHtml($checkedUrl);
+            $host = preg_replace('#^https?://#i', '', $host) ?: $host;
+            $candidates = array_values(array_unique([
+                'https://'.$host,
+                str_starts_with($host, 'www.') ? 'https://'.substr($host, 4) : 'https://www.'.$host,
+            ]));
+            $html = null;
+            foreach ($candidates as $candidate) {
+                $html = $this->fetchHomepageHtml($candidate);
+                if ($html !== null) {
+                    $checkedUrl = $candidate;
+                    break;
+                }
+            }
             if ($html !== null) {
                 foreach ($this->extractIdsFromHtml($html) as $kind => $ids) {
                     if ($kind === 'G') {
@@ -94,7 +105,35 @@ class Ga4SitePresenceService
                     $signals[] = 'homepage_gtag_loader';
                 }
             } else {
+                $checkedUrl = $candidates[0] ?? null;
                 $signals[] = 'homepage_fetch_failed';
+            }
+        }
+
+        $measurementIds = array_values(array_unique($measurementIds));
+        $gtmIds = array_values(array_unique($gtmIds));
+        $awIds = array_values(array_unique($awIds));
+
+        // GA4 is often only injected via GTM (not in static HTML). Pull G- IDs from published GTM JS.
+        if ($gtmIds !== []) {
+            foreach (array_slice($gtmIds, 0, 3) as $gtmId) {
+                foreach ($this->extractIdsFromGtmContainer($gtmId) as $kind => $ids) {
+                    if ($kind === 'G') {
+                        foreach ($ids as $id) {
+                            $measurementIds[] = $id;
+                        }
+                        if ($ids !== []) {
+                            $signals[] = 'gtm_container_ga4_id';
+                        }
+                    } elseif ($kind === 'AW') {
+                        foreach ($ids as $id) {
+                            $awIds[] = $id;
+                        }
+                        if ($ids !== []) {
+                            $signals[] = 'gtm_container_aw_id';
+                        }
+                    }
+                }
             }
         }
 
@@ -107,7 +146,8 @@ class Ga4SitePresenceService
         $hasGtm = $gtmIds !== [];
         $hasLiveSnippet = in_array('homepage_ga4_snippet', $signals, true)
             || in_array('homepage_gtm_snippet', $signals, true)
-            || in_array('homepage_gtag_loader', $signals, true);
+            || in_array('homepage_gtag_loader', $signals, true)
+            || in_array('gtm_container_ga4_id', $signals, true);
         $hasPortalProof = in_array('portal_gtm_container', $signals, true)
             || in_array('linked_account_ga4_id', $signals, true)
             || in_array('clickronix_tag_connected', $signals, true);
@@ -176,6 +216,36 @@ class Ga4SitePresenceService
             return Str::limit((string) $response->body(), 500_000, '');
         } catch (\Throwable) {
             return null;
+        }
+    }
+
+    /**
+     * Published GTM containers often embed GA4 measurement IDs that never appear in static homepage HTML.
+     *
+     * @return array{G?: list<string>, GTM?: list<string>, AW?: list<string>}
+     */
+    private function extractIdsFromGtmContainer(string $gtmId): array
+    {
+        $gtmId = strtoupper(trim($gtmId));
+        if (! preg_match('/^GTM-[A-Z0-9]+$/', $gtmId)) {
+            return [];
+        }
+
+        try {
+            $response = Http::timeout(8)
+                ->withHeaders([
+                    'User-Agent' => 'ClickronixGa4Detector/1.0',
+                    'Accept' => '*/*',
+                ])
+                ->get('https://www.googletagmanager.com/gtm.js', ['id' => $gtmId]);
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            return $this->extractIdsFromHtml(Str::limit((string) $response->body(), 800_000, ''));
+        } catch (\Throwable) {
+            return [];
         }
     }
 
