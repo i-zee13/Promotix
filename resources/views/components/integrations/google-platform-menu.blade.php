@@ -29,7 +29,7 @@
         Open Pixel Guard
     </button>
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openAudienceMethodModal()">
-        Open Audience Exclusion
+        Open Audience Exclusion / Connect platforms
     </button>
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openApplyAudienceModal()">
         Apply audience exclusion

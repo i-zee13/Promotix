@@ -111,7 +111,7 @@
                 <strong class="text-white" x-text="applyAudienceSelectedCount + ' exclusion will be added'"></strong>
                 · <span class="text-white/55">0 removed</span>
             </p>
-            <p class="text-[11px] text-white/45">Apply finds or creates the Google Ads audience (user list), then attaches it as a <strong class="text-white/70">negative exclusion</strong> on the selected campaigns so it appears under Audiences / Exclusions in Google Ads. Membership still comes from <code class="text-white/70">clickronix_invalid_traffic</code> + Client ID when GA4 is live.</p>
+            <p class="text-[11px] text-white/45">Apply finds or creates the Google Ads audience (user list), then <strong class="text-white/70">adds</strong> it as a negative exclusion on selected campaigns. Existing exclusion lists on those campaigns are left alone — we do not replace or override older lists. Membership still comes from <code class="text-white/70">clickronix_invalid_traffic</code> + Client ID when GA4/GTM is live.</p>
             <label class="block text-[12px]">
                 <span class="text-white/55">Google Ads user list ID (optional — leave blank to auto-find / create by audience name)</span>
                 <input type="text" x-model="applyAudienceModal.userListId"

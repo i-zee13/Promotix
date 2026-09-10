@@ -1663,20 +1663,40 @@ class IntegrationsController extends Controller
 
         $method = (string) ($data['method'] ?? 'ga4');
         $detection = $ga4Presence->detect($domain);
-        if ($method === 'ga4' && ! $detection['present'] && ! $request->boolean('skip_ga4_check')) {
-            return response()->json([
-                'ok' => false,
-                'message' => $detection['message'],
-                'ga4_detection' => $detection,
-                'user_list_id' => null,
-                'user_list_name' => null,
-                'created' => false,
-            ], 422);
+        if ($method === 'ga4' && ! $request->boolean('skip_ga4_check')) {
+            if (! $detection['present']) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $detection['message'],
+                    'ga4_detection' => $detection,
+                    'user_list_id' => null,
+                    'user_list_name' => null,
+                    'created' => false,
+                ], 422);
+            }
+            // GA4 route needs GTM as delivery container (GA4 alone is not enough).
+            if (empty($detection['has_gtm'])) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'GTM is required for the GA4 audience route. Connect a GTM container that fires GA4, or use the Google Ads website audience route instead.',
+                    'ga4_detection' => $detection,
+                    'user_list_id' => null,
+                    'user_list_name' => null,
+                    'created' => false,
+                ], 422);
+            }
         }
+
+        $defaultName = $method === 'website'
+            ? 'Clickronix | Invalid Traffic | Google Ads'
+            : 'Clickronix | Invalid Traffic | GA4';
+        $audienceName = trim((string) $data['audience_name']) !== ''
+            ? (string) $data['audience_name']
+            : $defaultName;
 
         $result = $associations->createAudienceList(
             $domain,
-            (string) $data['audience_name'],
+            $audienceName,
             (string) ($data['duration'] ?? '30 days'),
             (string) ($data['event_name'] ?: \App\Services\AudienceSignalService::DEFAULT_EVENT),
             $method,
@@ -1725,6 +1745,8 @@ class IntegrationsController extends Controller
             'audience_name' => ['nullable', 'string', 'max:255'],
             'user_list_id' => ['nullable', 'string', 'max:40'],
             'event_name' => ['nullable', 'string', 'max:120'],
+            'method' => ['nullable', 'string', 'in:ga4,website'],
+            'route' => ['nullable', 'string', 'in:ga4,website'],
         ]);
 
         $domain = Domain::query()
@@ -1743,14 +1765,20 @@ class IntegrationsController extends Controller
             ], 422);
         }
 
+        $route = (string) ($data['route'] ?? $data['method'] ?? 'ga4');
+        $defaultName = $route === 'website'
+            ? 'Clickronix | Invalid Traffic | Google Ads'
+            : 'Clickronix | Invalid Traffic | GA4';
+
         $result = $associations->applyToCampaigns(
             $domain,
             $data['campaign_ids'] ?? [],
-            (string) ($data['audience_name'] ?: 'Clickronix - Confirmed Invalid Traffic v1'),
+            (string) ($data['audience_name'] ?: $defaultName),
             $data['user_list_id'] ?? null,
             (string) ($data['event_name'] ?: \App\Services\AudienceSignalService::DEFAULT_EVENT),
             $data['ad_group_ids'] ?? [],
             (string) ($data['scope'] ?? 'campaign'),
+            $route,
         );
 
         return response()->json([

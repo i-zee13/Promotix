@@ -140,9 +140,15 @@ class Ga4SitePresenceService
             ? 'GA4/GTM detected on the website (or linked in portal). Audience exclusion can proceed.'
             : 'GA4/GTM not detected on the website. Install GA4 (G-…) or GTM, then retry. Without it, Client ID events cannot populate the audience and Ads exclusions will not work as expected.';
 
+        if ($hasGa4 && ! $hasGtm) {
+            $message = 'GA4 (G-) detected without GTM. GA4 audience route needs GTM as the delivery container. Use GTM + GA4 together, or use the Google Ads website audience route.';
+        }
+
         return [
             'present' => $present,
             'confidence' => $confidence,
+            'has_ga4' => $hasGa4,
+            'has_gtm' => $hasGtm,
             'measurement_ids' => $measurementIds,
             'gtm_ids' => $gtmIds,
             'aw_ids' => $awIds,

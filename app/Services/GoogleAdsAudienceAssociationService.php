@@ -54,9 +54,13 @@ class GoogleAdsAudienceAssociationService
         string $eventName = AudienceSignalService::DEFAULT_EVENT,
         string $method = 'ga4',
     ): array {
-        $audienceName = trim($audienceName) !== ''
-            ? trim($audienceName)
-            : 'Clickronix - Confirmed Invalid Traffic v1';
+        $method = $method === 'website' ? 'website' : 'ga4';
+        $audienceName = trim($audienceName);
+        if ($audienceName === '') {
+            $audienceName = $method === 'website'
+                ? 'Clickronix | Invalid Traffic | Google Ads'
+                : 'Clickronix | Invalid Traffic | GA4';
+        }
         $days = $this->parseMembershipDays($durationLabel);
 
         $account = $this->resolveAccount($domain);
@@ -129,7 +133,8 @@ class GoogleAdsAudienceAssociationService
             'user_list_name' => (string) ($resolved['name'] ?? $audienceName),
             'user_list_created' => (bool) ($resolved['created'] ?? false),
             'membership_days' => $days,
-            'method' => $method === 'website' ? 'website' : 'ga4',
+            'method' => $method,
+            'route' => $method,
             'desired' => true,
             'status' => 'created',
             'campaign_ids' => [],
@@ -235,12 +240,17 @@ class GoogleAdsAudienceAssociationService
         string $eventName = AudienceSignalService::DEFAULT_EVENT,
         array $adGroupIds = [],
         string $scope = 'campaign',
+        string $route = 'ga4',
     ): array {
         $campaignIds = $this->normalizeIds($campaignIds);
         $adGroupIds = $this->normalizeIds($adGroupIds);
-        $audienceName = trim($audienceName) !== ''
-            ? trim($audienceName)
-            : 'Clickronix - Confirmed Invalid Traffic v1';
+        $route = $route === 'website' ? 'website' : 'ga4';
+        $audienceName = trim($audienceName);
+        if ($audienceName === '') {
+            $audienceName = $route === 'website'
+                ? 'Clickronix | Invalid Traffic | Google Ads'
+                : 'Clickronix | Invalid Traffic | GA4';
+        }
 
         $stored = [
             'audience_name' => $audienceName,
@@ -249,6 +259,8 @@ class GoogleAdsAudienceAssociationService
             'campaign_ids' => $campaignIds,
             'ad_group_ids' => $adGroupIds,
             'scope' => $scope === 'adgroup' ? 'adgroup' : 'campaign',
+            'method' => $route,
+            'route' => $route,
             'desired' => true,
             'status' => 'queued',
             'updated_at' => now()->toIso8601String(),
@@ -934,7 +946,18 @@ class GoogleAdsAudienceAssociationService
         }
 
         $settings = is_array($mapping->settings) ? $mapping->settings : [];
+        // Never wipe other routes — GA4 + Website lists must coexist on campaigns.
+        $route = strtolower(trim((string) ($association['route'] ?? $association['method'] ?? 'default')));
+        if ($route === '') {
+            $route = 'default';
+        }
+        $association['route'] = $route;
         $settings['audience_association'] = $association;
+        $byRoute = is_array($settings['audience_associations'] ?? null)
+            ? $settings['audience_associations']
+            : [];
+        $byRoute[$route] = $association;
+        $settings['audience_associations'] = $byRoute;
         $mapping->audience_exclusion_enabled = true;
         $mapping->settings = $settings;
         $mapping->save();

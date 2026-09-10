@@ -111,8 +111,9 @@
                             </ul>
                         </div>
                         <div class="text-[12px] text-white/70">
-                            <p><span class="text-white/45">Trigger:</span> Initialization - All Pages</p>
+                            <p><span class="text-white/45">Trigger:</span> Custom Event — <code class="text-[#ffd0b0]">clickronix_invalid_traffic</code></p>
                             <p class="mt-[4px]"><span class="text-white/45">Consent:</span> Require ad_storage and analytics_storage</p>
+                            <p class="mt-[4px] text-[11px] text-white/45">Collector / Google tag can use All Pages. The Invalid Traffic GA4 (and Ads) event tags must fire only on this custom event — not on Initialization.</p>
                         </div>
                         <div>
                             <p class="mb-[6px] text-[11px] font-semibold text-white/55">Generated dataLayer signal (example)</p>
