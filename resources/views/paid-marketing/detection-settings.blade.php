@@ -486,7 +486,7 @@
                 font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
             }
             .figma-gaem-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: flex-end; }
-            .figma-gaem-campaign-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 200px; flex: 1 1 220px; }
+            .figma-gaem-campaign-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 220px; flex: 1 1 260px; }
             .figma-gaem-campaign-label { font-size: 10px; font-weight: 600; color: #6b6578; text-transform: uppercase; letter-spacing: 0.02em; }
             .figma-gaem-campaign-select {
                 height: 34px;
@@ -497,6 +497,26 @@
                 font-size: 12px;
                 padding: 0 10px;
             }
+            .figma-gaem-campaign-multi {
+                border: 1px solid #e4dceb;
+                border-radius: 6px;
+                background: #fff;
+                padding: 8px 10px;
+                max-height: 140px;
+                overflow: auto;
+            }
+            .figma-gaem-campaign-multi.is-disabled { opacity: 0.55; pointer-events: none; }
+            .figma-gaem-campaign-all,
+            .figma-gaem-campaign-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 11px;
+                color: #2d2d3a;
+                padding: 3px 0;
+            }
+            .figma-gaem-campaign-list { margin-top: 4px; border-top: 1px solid #eee; padding-top: 4px; }
+            .figma-gaem-campaign-empty { margin: 4px 0 0; font-size: 10px; color: #6b6578; }
             .figma-gaem-ip-input {
                 flex: 1 1 160px; height: 34px; border-radius: 8px;
                 border: 1px solid color-mix(in srgb, var(--brand-primary) 55%, transparent); background: var(--brand-primary);
@@ -1607,6 +1627,8 @@
                                     'csrf' => csrf_token(),
                                     'suggestionsUrl' => route('domains.similarity-suggestions'),
                                     'applyUrl' => route('domains.apply-similarity-blocks', $domain),
+                                    'campaignsUrl' => route('paid-marketing.detection-settings.google-exclusion.campaigns', $domain),
+                                    'adsConnected' => $domain->hasGoogleAdsConnection(),
                                 ]))"
                             >
                                 <div class="figma-pac-card-top">
@@ -1680,11 +1702,35 @@
                                                     </label>
                                                 </template>
                                             </div>
-                                            <p class="text-[11px] text-white/80">Selected IPs go on this domain’s block list. If Google Ads is connected, they are also queued for Exclusion Manager. Save Detection settings to keep Cross-domain On.</p>
+
+                                            <div class="rounded-[8px] border border-white/20 bg-black/20 px-[12px] py-[10px]" x-show="adsConnected">
+                                                <p class="text-[11px] font-semibold uppercase tracking-wide text-white/80">Google Ads campaigns</p>
+                                                <p class="mt-[4px] text-[11px] text-white/75">Which campaigns should these IPs be excluded on?</p>
+                                                <div class="mt-[8px] space-y-[6px] text-[12px]">
+                                                    <label class="flex cursor-pointer items-center gap-[8px]">
+                                                        <input type="radio" class="border-white/40" value="all" x-model="campaignScope">
+                                                        <span>All eligible campaigns on this domain</span>
+                                                    </label>
+                                                    <label class="flex cursor-pointer items-center gap-[8px]">
+                                                        <input type="radio" class="border-white/40" value="selected" x-model="campaignScope">
+                                                        <span>Select campaigns (multi-select)</span>
+                                                    </label>
+                                                </div>
+                                                <div class="mt-[8px] max-h-[160px] space-y-[4px] overflow-y-auto rounded-[6px] border border-white/15 bg-black/20 p-[8px]" x-show="campaignScope === 'selected'" x-cloak>
+                                                    <p class="text-[10px] text-white/60" x-show="!campaignOptions.length" x-text="campaignsLoading ? 'Loading campaigns…' : 'No eligible Search/Display campaigns found.'"></p>
+                                                    <template x-for="c in campaignOptions" :key="c.id">
+                                                        <label class="flex cursor-pointer items-center gap-[8px] rounded-[4px] px-[6px] py-[4px] hover:bg-black/25">
+                                                            <input type="checkbox" class="rounded border-white/40" :value="c.id" x-model="selectedCampaignIds">
+                                                            <span class="truncate text-[11px]" x-text="c.name"></span>
+                                                        </label>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <p class="text-[11px] text-white/80">Selected IPs go on this domain’s block list and into Exclusion Manager. With Google Ads connected they are pushed to the campaigns you choose. Save Detection settings to keep Cross-domain On.</p>
                                         </div>
                                         <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[22px] py-[14px]">
                                             <button type="button" @click="closeModal()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Skip</button>
-                                            <button type="button" @click="apply()" :disabled="busy || !selected.length" class="rounded-[6px] bg-white px-[18px] py-[8px] text-[13px] font-semibold text-[var(--brand-primary,#FF6600)] disabled:opacity-50">
+                                            <button type="button" @click="apply()" :disabled="busy || !selected.length || (adsConnected && campaignScope === 'selected' && !selectedCampaignIds.length)" class="rounded-[6px] bg-white px-[18px] py-[8px] text-[13px] font-semibold text-[var(--brand-primary,#FF6600)] disabled:opacity-50">
                                                 <span x-text="busy ? 'Applying…' : ('Apply ' + selected.length + ' IP(s)')"></span>
                                             </button>
                                         </footer>
@@ -1966,15 +2012,24 @@
                             </div>
 
                             <div class="figma-gaem-quick">
-                                <label class="figma-gaem-campaign-wrap">
-                                    <span class="figma-gaem-campaign-label">Campaign</span>
-                                    <select x-model="selectedCampaignId" class="figma-gaem-campaign-select" :disabled="loading || !adsConnected">
-                                        <option value="">All eligible campaigns</option>
-                                        <template x-for="c in campaignOptions" :key="c.id">
-                                            <option :value="c.id" x-text="c.name"></option>
-                                        </template>
-                                    </select>
-                                </label>
+                                <div class="figma-gaem-campaign-wrap">
+                                    <span class="figma-gaem-campaign-label">Campaigns</span>
+                                    <div class="figma-gaem-campaign-multi" :class="{ 'is-disabled': loading || !adsConnected }">
+                                        <label class="figma-gaem-campaign-all">
+                                            <input type="checkbox" :checked="selectedCampaignIds.length === 0" @change="toggleAllCampaigns($event.target.checked)" :disabled="loading || !adsConnected">
+                                            <span>All eligible campaigns</span>
+                                        </label>
+                                        <div class="figma-gaem-campaign-list" x-show="campaignOptions.length">
+                                            <template x-for="c in campaignOptions" :key="c.id">
+                                                <label class="figma-gaem-campaign-item">
+                                                    <input type="checkbox" :value="c.id" x-model="selectedCampaignIds" :disabled="loading || !adsConnected">
+                                                    <span x-text="c.name"></span>
+                                                </label>
+                                            </template>
+                                        </div>
+                                        <p class="figma-gaem-campaign-empty" x-show="adsConnected && !campaignOptions.length">No eligible Search/Display campaigns found.</p>
+                                    </div>
+                                </div>
                                 <button type="button" class="figma-gaem-push-btn" :disabled="loading || !adsConnected" @click="syncPending()">Push all pending</button>
                                     </div>
 
@@ -2473,7 +2528,7 @@ function googleExclusionPanel(config) {
         domainId: config.domainId || '',
         googleAdsAccountId: config.googleAdsAccountId || '',
         campaignOptions: [],
-        selectedCampaignId: '',
+        selectedCampaignIds: [],
         pushUrl: config.pushUrl,
         pushRowUrl: config.pushRowUrl,
         toggleRowUrl: config.toggleRowUrl,
@@ -2497,10 +2552,13 @@ function googleExclusionPanel(config) {
         },
         campaignPayload(extra = {}) {
             const body = { ...extra };
-            if (this.selectedCampaignId) {
-                body.campaign_ids = [String(this.selectedCampaignId)];
+            if (this.selectedCampaignIds.length) {
+                body.campaign_ids = this.selectedCampaignIds.map(String);
             }
             return body;
+        },
+        toggleAllCampaigns(checked) {
+            this.selectedCampaignIds = checked ? [] : this.campaignOptions.map((c) => c.id);
         },
         async loadCampaigns() {
             if (!this.adsConnected || !this.campaignsUrl) {
@@ -2519,9 +2577,7 @@ function googleExclusionPanel(config) {
                     }))
                     .filter((c) => c.id && c.name)
                     .sort((a, b) => a.name.localeCompare(b.name));
-                if (this.selectedCampaignId && !this.campaignOptions.some((c) => c.id === this.selectedCampaignId)) {
-                    this.selectedCampaignId = '';
-                }
+                this.selectedCampaignIds = this.selectedCampaignIds.filter((id) => this.campaignOptions.some((c) => c.id === id));
             } catch (e) {
                 this.campaignOptions = [];
             }
@@ -2543,8 +2599,8 @@ function googleExclusionPanel(config) {
                 if (this.bulkFile) {
                     form.append('file', this.bulkFile);
                 }
-                if (this.selectedCampaignId) {
-                    form.append('campaign_ids[]', String(this.selectedCampaignId));
+                if (this.selectedCampaignIds.length) {
+                    this.selectedCampaignIds.forEach((id) => form.append('campaign_ids[]', String(id)));
                 }
                 const res = await fetch(this.bulkUrl, {
                     method: 'POST',
@@ -2709,13 +2765,19 @@ window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(
         csrf: config.csrf,
         suggestionsUrl: config.suggestionsUrl,
         applyUrl: config.applyUrl,
+        campaignsUrl: config.campaignsUrl || '',
+        adsConnected: Boolean(config.adsConnected),
         open: false,
         busy: false,
         loading: false,
+        campaignsLoading: false,
         hint: '',
         similarDomains: [],
         suggestedIps: [],
         selected: [],
+        campaignOptions: [],
+        campaignScope: 'all',
+        selectedCampaignIds: [],
         onToggle(checked) {
             this.enabled = Boolean(checked);
             if (this.enabled && this.mode === 'domain_similarity') {
@@ -2729,6 +2791,29 @@ window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(
                 this.openSimilarityPrompt();
             } else {
                 this.hint = '';
+            }
+        },
+        async loadCampaigns() {
+            if (!this.adsConnected || !this.campaignsUrl) {
+                this.campaignOptions = [];
+                return;
+            }
+            this.campaignsLoading = true;
+            try {
+                const rows = await fetch(this.campaignsUrl, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                }).then((r) => r.json());
+                const list = Array.isArray(rows) ? rows : (rows.campaigns || []);
+                this.campaignOptions = list
+                    .map((r) => ({
+                        id: String(r.id || r.campaign_id || '').replace(/\D+/g, ''),
+                        name: String(r.name || r.campaign || '').trim(),
+                    }))
+                    .filter((c) => c.id && c.name);
+            } catch (e) {
+                this.campaignOptions = [];
+            } finally {
+                this.campaignsLoading = false;
             }
         },
         async openSimilarityPrompt() {
@@ -2750,8 +2835,11 @@ window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(
                 this.similarDomains = Array.isArray(sim.similar_domains) ? sim.similar_domains : [];
                 this.suggestedIps = ips;
                 this.selected = ips.map((r) => r.ip);
+                this.campaignScope = 'all';
+                this.selectedCampaignIds = [];
                 this.hint = '';
                 this.open = true;
+                this.loadCampaigns();
             } catch (e) {
                 this.hint = 'Could not load similar-domain suggestions.';
             } finally {
@@ -2767,8 +2855,17 @@ window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(
         },
         async apply() {
             if (!this.selected.length || this.busy) return;
+            if (this.adsConnected && this.campaignScope === 'selected' && !this.selectedCampaignIds.length) {
+                this.hint = 'Select at least one campaign, or choose All eligible campaigns.';
+                return;
+            }
             this.busy = true;
             try {
+                const body = {
+                    ips: this.selected,
+                    all_campaigns: this.campaignScope !== 'selected',
+                    campaign_ids: this.campaignScope === 'selected' ? this.selectedCampaignIds.map(String) : [],
+                };
                 const res = await fetch(this.applyUrl, {
                     method: 'POST',
                     headers: {
@@ -2777,7 +2874,7 @@ window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(
                         Accept: 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                     },
-                    body: JSON.stringify({ ips: this.selected }),
+                    body: JSON.stringify(body),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {

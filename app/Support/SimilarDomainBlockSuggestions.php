@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
+use App\Services\GoogleAdsIpExclusionSyncService;
 use App\Services\GoogleAudienceExclusionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -109,11 +110,14 @@ class SimilarDomainBlockSuggestions
 
     /**
      * Merge suggested IPs into the domain block list and queue Google exclusions.
+     * When Ads is connected, optionally push immediately to selected campaigns
+     * (empty $campaignIds = all eligible Search/Display on the domain account).
      *
      * @param  list<string>  $ips
-     * @return array{applied:int,queued:int,block_list_count:int}
+     * @param  list<string|int>  $campaignIds
+     * @return array{applied:int,queued:int,synced:int,failed:int,block_list_count:int}
      */
-    public function applyToDomain(Domain $domain, array $ips): array
+    public function applyToDomain(Domain $domain, array $ips, array $campaignIds = [], bool $pushNow = true): array
     {
         $clean = collect($ips)
             ->map(fn ($ip) => trim((string) $ip))
@@ -123,7 +127,7 @@ class SimilarDomainBlockSuggestions
             ->all();
 
         if ($clean === []) {
-            return ['applied' => 0, 'queued' => 0, 'block_list_count' => 0];
+            return ['applied' => 0, 'queued' => 0, 'synced' => 0, 'failed' => 0, 'block_list_count' => 0];
         }
 
         $settings = DomainDetectionSetting::query()->firstOrCreate(
@@ -159,6 +163,8 @@ class SimilarDomainBlockSuggestions
         ])->save();
 
         $queued = 0;
+        $synced = 0;
+        $failed = 0;
         if ($domain->hasGoogleAdsConnection()) {
             $exclusion = app(GoogleAudienceExclusionService::class);
             foreach ($clean as $ip) {
@@ -168,11 +174,24 @@ class SimilarDomainBlockSuggestions
                 $exclusion->queueIp($domain, $ip, 'cross_domain', $settings);
                 $queued++;
             }
+
+            if ($pushNow && $queued > 0) {
+                $onlyCampaignIds = array_values(array_unique(array_filter(array_map(
+                    fn ($id) => preg_replace('/\D+/', '', (string) $id) ?: '',
+                    $campaignIds,
+                ))));
+                $result = app(GoogleAdsIpExclusionSyncService::class)
+                    ->syncManyIps($domain, $clean, 200, $onlyCampaignIds);
+                $synced = (int) ($result['synced'] ?? 0);
+                $failed = (int) ($result['failed'] ?? 0);
+            }
         }
 
         return [
             'applied' => $added,
             'queued' => $queued,
+            'synced' => $synced,
+            'failed' => $failed,
             'block_list_count' => count($existing),
         ];
     }

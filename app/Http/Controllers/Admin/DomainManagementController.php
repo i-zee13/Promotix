@@ -167,15 +167,41 @@ class DomainManagementController extends Controller
         $data = $request->validate([
             'ips' => ['required', 'array', 'min:1'],
             'ips.*' => ['required', 'string', 'max:64'],
+            'campaign_ids' => ['nullable', 'array', 'max:100'],
+            'campaign_ids.*' => ['string', 'max:40'],
+            'all_campaigns' => ['nullable', 'boolean'],
         ]);
 
-        $result = app(SimilarDomainBlockSuggestions::class)->applyToDomain($domain, $data['ips']);
+        $campaignIds = ! empty($data['all_campaigns'])
+            ? []
+            : array_values(array_filter(array_map('strval', $data['campaign_ids'] ?? [])));
+
+        $result = app(SimilarDomainBlockSuggestions::class)->applyToDomain(
+            $domain,
+            $data['ips'],
+            $campaignIds,
+            true,
+        );
+
+        $parts = [];
+        if ($result['applied'] > 0) {
+            $parts[] = "Applied {$result['applied']} similar-domain block(s) to {$domain->hostname}";
+        } else {
+            $parts[] = 'Those IPs were already on the block list';
+        }
+        if (($result['queued'] ?? 0) > 0) {
+            $parts[] = "{$result['queued']} queued in Exclusion Manager";
+        }
+        if (($result['synced'] ?? 0) > 0) {
+            $parts[] = "{$result['synced']} pushed to Google Ads campaigns";
+        }
+        if (($result['failed'] ?? 0) > 0) {
+            $parts[] = "{$result['failed']} push failed";
+        }
 
         return response()->json([
             'ok' => true,
-            'message' => $result['applied'] > 0
-                ? "Applied {$result['applied']} similar-domain block(s) to {$domain->hostname}."
-                : 'Those IPs were already on the block list.',
+            'message' => implode('. ', $parts).'.',
             ...$result,
         ]);
     }
