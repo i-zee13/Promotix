@@ -4,20 +4,28 @@ namespace App\Jobs;
 
 use App\Models\Domain;
 use App\Services\GoogleAdsIpExclusionSyncService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
-class SyncGoogleAdsIpExclusionJob implements ShouldQueue
+class SyncGoogleAdsIpExclusionJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 
     public int $tries = 3;
 
+    public int $uniqueFor = 120;
+
     public function __construct(
         public int $domainId,
         public string $ip,
     ) {
+    }
+
+    public function uniqueId(): string
+    {
+        return $this->domainId.':'.$this->ip;
     }
 
     public function handle(GoogleAdsIpExclusionSyncService $sync): void

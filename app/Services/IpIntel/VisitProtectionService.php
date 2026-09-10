@@ -139,6 +139,16 @@ class VisitProtectionService
         if ($detection['action_taken'] === 'block' && ! AllowListMatcher::reasonsIndicateAllowList($detection['reasons'])) {
             $ipLog->is_blocked = true;
             $ipLog->save();
+
+            if ($isPaidTraffic) {
+                app(\App\Services\GoogleAudienceExclusionService::class)->queueBlockedIpIfEligible(
+                    $domain,
+                    $ipLog->ip,
+                    $detection['threat_group'] ?? 'blocked',
+                    $settings,
+                    true,
+                );
+            }
         } elseif ($ipLog->is_blocked) {
             // Prior sticky block no longer matches current rules — clear so UI/pipeline stay in sync.
             $ipLog->is_blocked = false;

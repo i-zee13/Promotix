@@ -122,36 +122,9 @@ class GoogleAudienceExclusionService
         $domainId = (int) $domain->id;
         $queuedIp = $ip;
 
-        // Keep unit tests deterministic (row stays pending; job can be Bus::fake'd).
-        if (app()->environment('testing')) {
-            SyncGoogleAdsIpExclusionJob::dispatch($domainId, $queuedIp);
-
-            return;
-        }
-
-        // Push to Google after the HTTP response so Exclusion Manager "auto" works
-        // without a queue worker. Job is a retry fallback if the push fails.
-        dispatch(function () use ($domainId, $queuedIp): void {
-            $domain = Domain::query()->find($domainId);
-            if (! $domain) {
-                return;
-            }
-
-            $ok = false;
-            try {
-                $ok = app(GoogleAdsIpExclusionSyncService::class)->syncRow($domain, $queuedIp);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('Immediate Google Ads IP exclusion sync failed', [
-                    'domain_id' => $domainId,
-                    'ip' => $queuedIp,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            if (! $ok) {
-                SyncGoogleAdsIpExclusionJob::dispatch($domainId, $queuedIp);
-            }
-        })->afterResponse();
+        // Always enqueue a queue job. Tracking-pixel requests often disconnect before
+        // afterResponse callbacks run, which left rows stuck as "pending"/"failed".
+        SyncGoogleAdsIpExclusionJob::dispatch($domainId, $queuedIp);
     }
 
     /**
@@ -187,16 +160,25 @@ class GoogleAudienceExclusionService
         }
 
         if (\Illuminate\Support\Facades\Schema::hasColumn('visits', 'action_taken')) {
-            $query->where('action_taken', 'block');
+            $query->where(function ($q): void {
+                $q->where('action_taken', 'block')
+                    ->orWhere(function ($inner): void {
+                        $inner->where('is_invalid_traffic', true)
+                            ->whereIn('action_taken', ['block', 'flag']);
+                    });
+            });
         } elseif (\Illuminate\Support\Facades\Schema::hasColumn('visits', 'is_invalid_traffic')) {
             $query->where('is_invalid_traffic', true);
         }
 
         $queued = 0;
         $seen = [];
-        foreach ($query->get(['ip', 'threat_group']) as $row) {
+        foreach ($query->get(['ip', 'threat_group', 'action_taken']) as $row) {
             $ip = trim((string) ($row->ip ?? ''));
             if ($ip === '' || isset($seen[$ip])) {
+                continue;
+            }
+            if (GlobalIpAllowlist::matchesIp($ip)) {
                 continue;
             }
             $seen[$ip] = true;
@@ -204,6 +186,11 @@ class GoogleAudienceExclusionService
             $threat = (string) ($row->threat_group ?? 'blocked');
             if ($threat === '') {
                 $threat = 'blocked';
+            }
+            // Only auto-queue true blocks into Google exclusions.
+            $action = strtolower((string) ($row->action_taken ?? 'block'));
+            if ($action !== 'block' && $action !== '') {
+                continue;
             }
             if (! $this->shouldQueue($threat, 'block', $settings)) {
                 continue;

@@ -20,6 +20,17 @@ Schedule::command('google-ads:sync-all --days=30')
     ->hourly()
     ->appendOutputTo(storage_path('logs/cron.log'));
 
+// Push pending Exclusion Manager IPs to Google Ads frequently (do not wait for hourly metrics sync).
+Schedule::command('google-ads:sync-ip-exclusions --limit=100')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/cron.log'));
+
+Schedule::command('google-ads:sync-ip-exclusions --retry-failed --limit=100')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/cron.log'));
+
 Schedule::command('session-recordings:purge')
     ->dailyAt('03:15')
     ->appendOutputTo(storage_path('logs/cron.log'));
