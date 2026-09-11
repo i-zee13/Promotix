@@ -172,6 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'id' => $a->id,
             'label' => $a->displayLabel(),
             'customer_id' => $a->formattedCustomerId() ?: ($a->display_customer_id ?: $a->customer_id),
+            'currency_code' => \App\Support\AccountCurrency::normalize((string) ($a->currency_code ?: 'USD')),
+            'currency_label' => \App\Support\AccountCurrency::label(\App\Support\AccountCurrency::normalize((string) ($a->currency_code ?: 'USD'))),
             'google_tag_id' => $a->resolvedGoogleTagId() ?: $a->google_tag_id,
         ])->values(),
         'audienceCampaignsUrl' => route('integrations.google.audience-campaigns'),
@@ -212,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ->values();
                             @endphp
                             @foreach ($linkedFilterAccounts as $row)
-                                <option value="{{ $row['account_id'] }}">{{ $row['label'] }}</option>
+                                <option value="{{ $row['account_id'] }}">{{ $row['label'] }}{{ ! empty($row['currency_code']) ? ' · '.$row['currency_code'] : '' }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -975,7 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <section class="pi-setup-card">
             <h2 class="pi-setup-title">Setup Progress</h2>
             <p class="mb-[10px] text-[11px] text-white/50" x-show="!selectedDomainId">
-                All Domains view: Script/GTM is counted only when <strong class="text-white/70">every</strong> domain has its own install — connecting GTM on one domain does not cover the others.
+                All Domains view: Script/GTM/GA4 is counted only when <strong class="text-white/70">every</strong> domain has its own install — connecting on one domain does not cover the others.
             </p>
             <p class="mb-[10px] text-[11px] text-white/50" x-show="selectedDomainId" x-cloak>
                 Showing progress for the selected domain only. GTM and Clickronix script must be connected on this domain separately.
@@ -1089,6 +1091,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     @if (! empty($row['customer_id']) && ($row['customer_id'] ?? '') !== '—')
                                         <div class="truncate font-mono text-[10px] text-black/45">{{ $row['customer_id'] }}</div>
                                     @endif
+                                    @if (! empty($row['currency_code']))
+                                        <div class="truncate text-[10px] text-black/45">Currency: {{ $row['currency_label'] ?? $row['currency_code'] }}</div>
+                                    @endif
                                 </td>
                                 <td>
                                     <span class="{{ ! empty($row['api_ok']) ? 'pi-status-connected' : 'pi-status-pending' }}">{{ $row['api_status'] ?? '—' }}</span>
@@ -1191,6 +1196,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <p class="truncate text-[11px] text-white/55">
                                     <span x-text="'Domain: ' + (row.domain || '—')"></span>
                                     <span x-text="' · Customer: ' + (row.customer_id || '—')"></span>
+                                    <span x-show="row.currency_code" x-text="' · Currency: ' + (row.currency_label || row.currency_code)"></span>
                                 </p>
                             </div>
                             <div class="flex items-center gap-[8px]">
@@ -1520,6 +1526,8 @@ function platformIntegrations(config) {
             protection_active: false,
             email: '',
             customer_id: '',
+            currency_code: '',
+            currency_label: '',
             google_tag_id: '',
             label: 'Google Ads',
             oauth_url: '',
@@ -1635,6 +1643,16 @@ function platformIntegrations(config) {
             }
             // All Domains: never inherit one domain's GTM/script as "connected for everyone".
             return this.trackingInstallationAll;
+        },
+        get adsAccountCurrencyLabel() {
+            const accountId = String(this.selectedAdsAccountId || '');
+            if (accountId) {
+                const row = (this.trackingIds || []).find((t) => String(t.account_id) === accountId);
+                if (row?.currency_label || row?.currency_code) {
+                    return row.currency_label || row.currency_code;
+                }
+            }
+            return this.googleAdsSummary.currency_label || this.googleAdsSummary.currency_code || '';
         },
         pixelGuardModal: {
             open: false,
@@ -1996,11 +2014,13 @@ function platformIntegrations(config) {
                 });
             }
             if (this.installTagsModal.ga4_id) {
+                // Saving a typed G- ID is a draft hint only — Detect on website still required for "ok".
                 const id = String(this.installTagsModal.ga4_id).trim().toUpperCase();
+                const alreadyOk = Boolean(target.ga4?.ok);
                 target.ga4 = Object.assign({}, target.ga4 || {}, {
                     id: id || '—',
-                    status: id ? 'Detected' : 'Not detected',
-                    ok: Boolean(id),
+                    status: alreadyOk && id ? 'Detected' : 'Not detected',
+                    ok: alreadyOk && Boolean(id),
                 });
             }
 
@@ -2193,14 +2213,16 @@ function platformIntegrations(config) {
             return /^GTM-/i.test(id);
         },
         get wizardGa4Id() {
-            const fromDetect = (this.createAudienceModal._measurementIds || [])[0];
-            if (fromDetect) return fromDetect;
-            const linked = String(this.trackingInstallation?.ga4?.id || this.trackingInstallation?.measurement_id || '').trim();
-            return (linked && linked !== '—') ? linked : '';
+            if (this.createAudienceModal.ga4HasGa4 === true) {
+                const fromDetect = (this.createAudienceModal._measurementIds || [])[0];
+                if (fromDetect) return fromDetect;
+            }
+            const linked = String(this.trackingInstallation?.ga4?.id || '').trim();
+            return (this.trackingInstallation?.ga4?.ok && linked && linked !== '—') ? linked : '';
         },
         get wizardGa4Connected() {
-            if (this.createAudienceModal.ga4HasGa4 === true) return true;
-            return /^G-/i.test(String(this.wizardGa4Id || ''));
+            return this.createAudienceModal.ga4HasGa4 === true
+                || Boolean(this.trackingInstallation?.ga4?.ok);
         },
         get wizardScriptInstalled() {
             return Boolean(this.googleAdsSummary?.protection_active || this.trackingInstallation?.script?.installed || this.wizardWebsiteHost);
@@ -2284,7 +2306,7 @@ function platformIntegrations(config) {
                     const present = this.createAudienceModal.ga4Present === true
                         ? true
                         : await this.checkGa4SiteStatus(false);
-                    if (!present || this.createAudienceModal.ga4HasGtm === false) {
+                    if (!present || this.createAudienceModal.ga4HasGa4 === false || this.createAudienceModal.ga4HasGtm === false) {
                         this.showMenuToast(this.createAudienceModal.ga4Message || 'GTM + GA4 required for this route.', 'error');
                         return;
                     }
@@ -2379,6 +2401,15 @@ function platformIntegrations(config) {
             return domainId ? String(domainId) : '';
         },
         async checkGa4SiteStatus(forApply = false) {
+            // Install Tags: never fall back to "first domain" — that made All Domains look connected.
+            if (this.installTagsModal?.open && ! this.selectedDomainId) {
+                this.createAudienceModal.ga4Present = false;
+                this.createAudienceModal.ga4HasGa4 = false;
+                this.createAudienceModal.ga4Message = 'Select a domain first to check GA4 on that website.';
+                this.createAudienceModal.ga4Confidence = 'none';
+                this.installTagsModal.ga4_id = '';
+                return false;
+            }
             const domainId = this.resolveAudienceDomainId();
             const url = this.createAudienceModal.ga4StatusUrl;
             if (!domainId || !url) {
@@ -2399,20 +2430,21 @@ function platformIntegrations(config) {
                 const data = await res.json().catch(() => ({}));
                 const d = data.detection || {};
                 const present = Boolean(d.present);
-                const message = d.message || (present
-                    ? 'GA4/GTM detected on the website.'
-                    : 'GA4/GTM not detected on the website.');
+                const hasGa4 = Boolean(d.has_ga4);
+                const message = d.message || (hasGa4
+                    ? 'GA4 detected on the website.'
+                    : 'GA4 not detected on the website.');
                 this.createAudienceModal.ga4Present = present;
                 this.createAudienceModal.ga4HasGtm = Boolean(d.has_gtm);
-                this.createAudienceModal.ga4HasGa4 = Boolean(d.has_ga4);
+                this.createAudienceModal.ga4HasGa4 = hasGa4;
                 this.createAudienceModal._gtmIds = Array.isArray(d.gtm_ids) ? d.gtm_ids : [];
                 this.createAudienceModal._measurementIds = Array.isArray(d.measurement_ids) ? d.measurement_ids : [];
                 this.createAudienceModal.ga4Message = message;
                 this.createAudienceModal.ga4Confidence = d.confidence || (present ? 'medium' : 'none');
                 if (this.createAudienceModal._gtmIds[0] && this.selectedDomainId) {
-                    const domainId = String(this.selectedDomainId);
-                    const current = this.trackingInstallationByDomain[domainId] || {};
-                    this.trackingInstallationByDomain[domainId] = Object.assign({}, current, {
+                    const scopedId = String(this.selectedDomainId);
+                    const current = this.trackingInstallationByDomain[scopedId] || {};
+                    this.trackingInstallationByDomain[scopedId] = Object.assign({}, current, {
                         gtm: Object.assign({}, current.gtm || {}, {
                             id: this.createAudienceModal._gtmIds[0],
                             status: 'Detected',
@@ -2420,18 +2452,19 @@ function platformIntegrations(config) {
                         }),
                     });
                 }
-                if (this.createAudienceModal._measurementIds[0] && this.selectedDomainId) {
-                    const domainId = String(this.selectedDomainId);
-                    const current = this.trackingInstallationByDomain[domainId] || {};
-                    this.trackingInstallationByDomain[domainId] = Object.assign({}, current, {
+                // Only mark this domain's GA4 Detected when live has_ga4 is true — not Ads-linked G- alone.
+                if (hasGa4 && this.createAudienceModal._measurementIds[0] && this.selectedDomainId) {
+                    const scopedId = String(this.selectedDomainId);
+                    const liveId = String(this.createAudienceModal._measurementIds[0]).trim().toUpperCase();
+                    const current = this.trackingInstallationByDomain[scopedId] || {};
+                    this.trackingInstallationByDomain[scopedId] = Object.assign({}, current, {
                         ga4: Object.assign({}, current.ga4 || {}, {
-                            id: this.createAudienceModal._measurementIds[0],
+                            id: liveId || '—',
                             status: 'Detected',
                             ok: true,
                         }),
                     });
-                    this.installTagsModal.ga4_id = this.createAudienceModal._measurementIds[0];
-                    // Refresh GA4 dropdown options with detected G- IDs only.
+                    this.installTagsModal.ga4_id = liveId;
                     const seen = new Set((this.createAudienceModal.ga4Options || []).map((p) => p.id));
                     this.createAudienceModal._measurementIds.forEach((raw) => {
                         const id = String(raw || '').trim().toUpperCase();
@@ -2442,8 +2475,17 @@ function platformIntegrations(config) {
                     if (!this.createAudienceModal.ga4_property && this.createAudienceModal.ga4Options[0]) {
                         this.createAudienceModal.ga4_property = this.createAudienceModal.ga4Options[0].id;
                     }
-                } else if (this.createAudienceModal._measurementIds[0]) {
-                    this.installTagsModal.ga4_id = this.createAudienceModal._measurementIds[0];
+                } else if (this.selectedDomainId) {
+                    const scopedId = String(this.selectedDomainId);
+                    const current = this.trackingInstallationByDomain[scopedId] || {};
+                    this.trackingInstallationByDomain[scopedId] = Object.assign({}, current, {
+                        ga4: Object.assign({}, current.ga4 || {}, {
+                            id: '—',
+                            status: 'Not detected',
+                            ok: false,
+                        }),
+                    });
+                    this.installTagsModal.ga4_id = '';
                 }
                 if (forApply) {
                     this.applyAudienceModal.ga4Present = present;
@@ -2480,14 +2522,20 @@ function platformIntegrations(config) {
                 seen.add(id);
                 const cid = String(t.customer_id || '').trim();
                 const name = String(t.label || '').trim();
+                const currency = String(t.currency_code || '').trim();
                 let label = name || cid || ('Account ' + id);
                 if (name && cid && name !== cid && !name.includes(cid)) {
                     label = name + ' (' + cid + ')';
+                }
+                if (currency) {
+                    label = label + ' · ' + currency;
                 }
                 accounts.push({
                     id,
                     label,
                     customer_id: cid,
+                    currency_code: currency,
+                    currency_label: t.currency_label || currency,
                     google_tag_id: t.google_tag_id || '',
                     domain_id: t.domain_id,
                     domain: t.domain || '',
@@ -2562,8 +2610,8 @@ function platformIntegrations(config) {
                 const present = this.createAudienceModal.ga4Present === true
                     ? true
                     : await this.checkGa4SiteStatus(false);
-                if (!present) {
-                    this.showMenuToast(this.createAudienceModal.ga4Message || 'GA4/GTM not detected on the website. Install tracking first.', 'error');
+                if (!present || this.createAudienceModal.ga4HasGa4 === false) {
+                    this.showMenuToast(this.createAudienceModal.ga4Message || 'GA4 not detected on the website. Install tracking first.', 'error');
                     return;
                 }
                 if (this.createAudienceModal.ga4HasGtm === false) {
@@ -2787,11 +2835,16 @@ function platformIntegrations(config) {
                 this.showMenuToast('Select a domain first, then apply the audience to campaigns.', 'info');
                 return;
             }
-            const ga4Ok = this.applyAudienceModal.ga4Present === true
+            const method = this.applyAudienceModal.method || this.createAudienceModal.method || 'ga4';
+            const present = this.applyAudienceModal.ga4Present === true
                 ? true
                 : await this.checkGa4SiteStatus(true);
-            if (!ga4Ok) {
+            if (!present) {
                 this.showMenuToast(this.applyAudienceModal.ga4Message || 'GA4/GTM not detected — fix tracking before Apply exclusion.', 'error');
+                return;
+            }
+            if (method === 'ga4' && this.createAudienceModal.ga4HasGa4 === false) {
+                this.showMenuToast(this.createAudienceModal.ga4Message || this.applyAudienceModal.ga4Message || 'GA4 (G-…) not detected on this domain — install GA4 before Apply.', 'error');
                 return;
             }
 

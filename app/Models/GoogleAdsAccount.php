@@ -101,6 +101,50 @@ class GoogleAdsAccount extends Model
         return self::formatCustomerId((string) $this->customer_id);
     }
 
+    /**
+     * Unique Ads accounts for filter dropdowns (label + Customer ID / currency subheading).
+     *
+     * @return list<array{id: string, label: string, sub: string, currency_code: string, currency_label: string, is_manager: bool}>
+     */
+    public static function filterOptionsForUser(\App\Models\User $user): array
+    {
+        return self::query()
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $user->id))
+            ->synced()
+            ->orderBy('account_name')
+            ->orderBy('customer_id')
+            ->get(['id', 'account_name', 'customer_id', 'display_customer_id', 'is_manager', 'manager_customer_id', 'currency_code'])
+            ->unique('id')
+            ->values()
+            ->map(function (self $account): array {
+                $cid = $account->formattedCustomerId();
+                $currencyCode = \App\Support\AccountCurrency::normalize((string) ($account->currency_code ?: 'USD'));
+                $subParts = [];
+                if ($cid !== '') {
+                    $subParts[] = 'Customer ID '.$cid;
+                }
+                $subParts[] = 'Currency '.$currencyCode;
+                if ($account->is_manager) {
+                    $subParts[] = 'Manager account';
+                } elseif (filled($account->manager_customer_id)) {
+                    $mcc = self::formatCustomerId((string) $account->manager_customer_id);
+                    if ($mcc !== '') {
+                        $subParts[] = 'Under MCC '.$mcc;
+                    }
+                }
+
+                return [
+                    'id' => (string) $account->id,
+                    'label' => $account->displayLabel(),
+                    'sub' => implode(' · ', $subParts),
+                    'currency_code' => $currencyCode,
+                    'currency_label' => \App\Support\AccountCurrency::label($currencyCode),
+                    'is_manager' => (bool) $account->is_manager,
+                ];
+            })
+            ->all();
+    }
+
     /** Spec: Google Tag ID is AW-… — separate from Customer ID */
     public function resolvedGoogleTagId(): string
     {

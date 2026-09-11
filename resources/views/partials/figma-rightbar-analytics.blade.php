@@ -9,12 +9,6 @@
     $analyticsJourneysRoute = Route::has('analytics.journeys')
         ? route('analytics.journeys')
         : $analyticsDashRoute.'#journey';
-    $analyticsSourcesRoute = Route::has('analytics.sources')
-        ? route('analytics.sources')
-        : $analyticsDashRoute.'#sources';
-    $analyticsSalesRoute = Route::has('analytics.sales')
-        ? route('analytics.sales')
-        : $analyticsDashRoute.'#sales';
 @endphp
 <div class="figma-rightbar-center mt-[8px] border-t-2 border-[#FF6600]/50 pt-[14px] pa-analytics-rightbar">
     <h2 class="mb-[10px] w-full max-w-[168px] text-[16px] font-bold text-[#a9a9a9]">Quick Actions</h2>
@@ -30,14 +24,6 @@
         <a href="{{ $analyticsJourneysRoute }}" class="paid-quick-action pa-quick-action" title="Journeys">
             @include('partials.sidebar-icon', ['name' => 'repeat', 'class' => 'h-[16px] w-[16px]'])
             <span>Journeys</span>
-        </a>
-        <a href="{{ $analyticsSourcesRoute }}" class="paid-quick-action pa-quick-action" title="Sources">
-            @include('partials.sidebar-icon', ['name' => 'globe', 'class' => 'h-[16px] w-[16px]'])
-            <span>Sources</span>
-        </a>
-        <a href="{{ $analyticsSalesRoute }}" class="paid-quick-action pa-quick-action" title="Sales">
-            @include('partials.sidebar-icon', ['name' => 'card', 'class' => 'h-[16px] w-[16px]'])
-            <span>Sales</span>
         </a>
         <button
             type="button"

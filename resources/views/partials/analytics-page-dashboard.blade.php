@@ -2,19 +2,19 @@
 @php
     $analyticsFocus = $analyticsFocus ?? 'dashboard';
     $showAll = $analyticsFocus === 'dashboard';
-    $showKpis = $showAll || in_array($analyticsFocus, ['sources', 'sales'], true);
+    $showKpis = $showAll;
     $showPerformanceBlock = $showAll;
-    $showSourcesBlock = $analyticsFocus === 'sources';
+    $showSourcesBlock = false;
     $showJourneyBlock = $showAll || $analyticsFocus === 'journeys';
     $showTopPagesBlock = $showAll || $analyticsFocus === 'journeys';
-    $showFunnelBlock = $showAll || $analyticsFocus === 'sales';
-    $showReferrersBlock = $analyticsFocus === 'sources';
-    $showKeywordsBlock = $showAll || $analyticsFocus === 'sources';
-    $showGeoBlock = $showAll || $analyticsFocus === 'sources';
-    $showDeviceBlock = $showAll || $analyticsFocus === 'sources';
-    $showCostBlock = $showAll || $analyticsFocus === 'sales';
-    $showSalesBlock = $analyticsFocus === 'sales';
-    $showQualityBlock = $analyticsFocus === 'sales';
+    $showFunnelBlock = $showAll;
+    $showReferrersBlock = false;
+    $showKeywordsBlock = $showAll;
+    $showGeoBlock = $showAll;
+    $showDeviceBlock = $showAll;
+    $showCostBlock = $showAll;
+    $showSalesBlock = false;
+    $showQualityBlock = false;
 @endphp
 <div class="pa-dash" data-analytics-focus="{{ $analyticsFocus }}">
     <style>

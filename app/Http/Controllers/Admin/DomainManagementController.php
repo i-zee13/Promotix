@@ -185,7 +185,7 @@ class DomainManagementController extends Controller
 
         $parts = [];
         if ($result['applied'] > 0) {
-            $parts[] = "Applied {$result['applied']} similar-domain block(s) to {$domain->hostname}";
+            $parts[] = "Applied {$result['applied']} IP(s) to {$domain->hostname}";
         } else {
             $parts[] = 'Those IPs were already on the block list';
         }
@@ -199,9 +199,39 @@ class DomainManagementController extends Controller
             $parts[] = "{$result['failed']} push failed";
         }
 
+        $rows = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('google_ads_ip_exclusions')) {
+            $rows = \Illuminate\Support\Facades\DB::table('google_ads_ip_exclusions')
+                ->where('domain_id', $domain->id)
+                ->orderByDesc('updated_at')
+                ->limit(50)
+                ->get()
+                ->map(static function ($row): array {
+                    $threat = strtolower(trim((string) ($row->threat_group ?? '')));
+                    $reason = match ($threat) {
+                        'cross_domain' => 'Cross-domain',
+                        'manual' => 'Manual',
+                        default => $threat !== '' ? ucfirst(str_replace('_', ' ', $threat)) : 'Detected block',
+                    };
+
+                    return [
+                        'ip' => (string) ($row->ip ?? ''),
+                        'threat_group' => (string) ($row->threat_group ?? ''),
+                        'reason_label' => $reason,
+                        'sync_status' => (string) ($row->sync_status ?? 'pending'),
+                        'is_active' => (bool) ($row->is_active ?? true),
+                        'updated_at' => (string) ($row->updated_at ?? ''),
+                    ];
+                })
+                ->filter(fn ($r) => $r['ip'] !== '')
+                ->values()
+                ->all();
+        }
+
         return response()->json([
             'ok' => true,
             'message' => implode('. ', $parts).'.',
+            'rows' => $rows,
             ...$result,
         ]);
     }

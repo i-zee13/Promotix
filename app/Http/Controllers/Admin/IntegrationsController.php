@@ -16,6 +16,7 @@ use App\Models\IntegrationSyncLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\AdminIntegrationCatalog;
+use App\Support\AccountCurrency;
 use App\Support\AudienceExclusionAudiences;
 use App\Support\GoogleAdsApiHealth;
 use App\Support\UserTimezone;
@@ -348,6 +349,8 @@ class IntegrationsController extends Controller
                 'account_primary' => $mapping->account?->displayLabel() ?: ($domain?->hostname ?: 'Google Ads'),
                 'account_secondary' => $domain?->hostname ?: '—',
                 'customer_id' => $customerId !== '' ? $customerId : '—',
+                'currency_code' => AccountCurrency::normalize((string) ($mapping->account?->currency_code ?: 'USD')),
+                'currency_label' => AccountCurrency::label(AccountCurrency::normalize((string) ($mapping->account?->currency_code ?: 'USD'))),
                 'google_tag_id' => $googleTagId !== '' ? $googleTagId : '—',
                 'gtm_id' => $gtmId !== '' ? $gtmId : '—',
                 'script_id' => $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '—',
@@ -425,6 +428,8 @@ class IntegrationsController extends Controller
                 'account_primary' => $account->displayLabel() ?: $domain->hostname,
                 'account_secondary' => $domain->hostname,
                 'customer_id' => $customerId !== '' ? $customerId : '—',
+                'currency_code' => AccountCurrency::normalize((string) ($account->currency_code ?: 'USD')),
+                'currency_label' => AccountCurrency::label(AccountCurrency::normalize((string) ($account->currency_code ?: 'USD'))),
                 'google_tag_id' => $googleTagId !== '' ? $googleTagId : '—',
                 'gtm_id' => $gtmId !== '' ? $gtmId : '—',
                 'script_id' => $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '—',
@@ -486,7 +491,6 @@ class IntegrationsController extends Controller
                 ->filter();
 
             $googleTagId = '';
-            $ga4MeasurementId = '';
             foreach ($linkedAccounts as $account) {
                 $tag = trim((string) ($account->resolvedGoogleTagId() ?: $account->google_tag_id ?: ''));
                 if ($tag === '') {
@@ -494,9 +498,6 @@ class IntegrationsController extends Controller
                 }
                 if ($googleTagId === '' && preg_match('/^AW-/i', $tag)) {
                     $googleTagId = strtoupper($tag);
-                }
-                if ($ga4MeasurementId === '' && preg_match('/^G-[A-Z0-9]+$/i', $tag)) {
-                    $ga4MeasurementId = strtoupper($tag);
                 }
                 if ($googleTagId === '' && ! preg_match('/^G-/i', $tag)) {
                     $googleTagId = $tag;
@@ -512,6 +513,9 @@ class IntegrationsController extends Controller
             $scriptOk = (bool) $domain->tag_connected;
             $gtmOk = $gtmContainerId !== '';
 
+            // GA4 must never be "Detected" from a linked Ads account G- ID alone —
+            // that ID is shared across domains and is not proof the site has GA4.
+            // Status flips to Detected only after per-domain website Detect (frontend) or live scan.
             return [
                 'domain_id' => $domain->id,
                 'hostname' => (string) $domain->hostname,
@@ -532,9 +536,9 @@ class IntegrationsController extends Controller
                     'ok' => $scriptOk,
                 ],
                 'ga4' => [
-                    'id' => $ga4MeasurementId !== '' ? $ga4MeasurementId : '—',
-                    'status' => $ga4MeasurementId !== '' ? 'Detected' : 'Not detected',
-                    'ok' => $ga4MeasurementId !== '',
+                    'id' => '—',
+                    'status' => 'Not detected',
+                    'ok' => false,
                 ],
                 'setup_url' => route('domains.setup', $domain),
             ];
@@ -551,7 +555,12 @@ class IntegrationsController extends Controller
         $allHaveScript = $manualDomains->isNotEmpty()
             && $manualDomains->every(fn (Domain $d) => (bool) $d->tag_connected);
 
-        // All Domains card: never show one domain's GTM as globally connected.
+        $domainsWithGa4 = collect($trackingInstallationByDomain)
+            ->filter(fn (array $row) => (bool) ($row['ga4']['ok'] ?? false))
+            ->count();
+        $allHaveGa4 = $manualDomains->isNotEmpty() && $domainsWithGa4 === $manualDomains->count();
+
+        // All Domains card: never show one domain's GTM/GA4 as globally connected.
         $trackingInstallation = [
             'domain_id' => null,
             'hostname' => 'All Domains',
@@ -575,8 +584,10 @@ class IntegrationsController extends Controller
             ],
             'ga4' => [
                 'id' => '—',
-                'status' => 'Per domain',
-                'ok' => false,
+                'status' => $manualDomains->isEmpty()
+                    ? 'Not detected'
+                    : ($allHaveGa4 ? 'All domains' : ($domainsWithGa4.'/'.$manualDomains->count().' domains')),
+                'ok' => $allHaveGa4,
             ],
             'setup_url' => $firstDomain
                 ? route('domains.setup', $firstDomain)
@@ -584,12 +595,15 @@ class IntegrationsController extends Controller
         ];
 
         $firstAccountTag = $firstAccount?->resolvedGoogleTagId() ?: '';
+        $firstAccountCurrency = AccountCurrency::normalize((string) ($firstAccount?->currency_code ?: 'USD'));
         $googleAdsSummary = [
             'connected' => $googleConnected,
             'account_connected' => $adsAccountDone,
             'protection_active' => $protectionActive,
             'email' => $googleEmail,
             'customer_id' => $adsCustomerId,
+            'currency_code' => $firstAccountCurrency,
+            'currency_label' => AccountCurrency::label($firstAccountCurrency),
             'google_tag_id' => $firstAccountTag !== '' ? $firstAccountTag : '—',
             'label' => $firstAccount?->displayLabel() ?: 'Google Ads',
             'oauth_url' => route('integrations.google.redirect'),
@@ -614,14 +628,17 @@ class IntegrationsController extends Controller
                 ->values();
 
             foreach ($linkedAccounts as $account) {
+                $currencyCode = AccountCurrency::normalize((string) ($account->currency_code ?: 'USD'));
                 $trackingIds->push([
                     'id' => $account->id.'-'.$domain->id,
                     'account_id' => $account->id,
                     'domain_id' => $domain->id,
                     'domain' => $domain->hostname,
-            'label' => $account->displayLabel(),
-            'customer_id' => $account->formattedCustomerId(),
-            'google_tag_id' => $account->resolvedGoogleTagId(),
+                    'label' => $account->displayLabel(),
+                    'customer_id' => $account->formattedCustomerId(),
+                    'currency_code' => $currencyCode,
+                    'currency_label' => AccountCurrency::label($currencyCode),
+                    'google_tag_id' => $account->resolvedGoogleTagId(),
                 ]);
             }
         }

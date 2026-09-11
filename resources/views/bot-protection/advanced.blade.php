@@ -1043,7 +1043,18 @@
                         <select x-model="filters.google_ads_account_id" @change="reload(true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
                             <option value="">All Accounts</option>
                             @foreach (($googleAdsAccounts ?? []) as $account)
-                                <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
+                                @php
+                                    if (is_array($account)) {
+                                        $accId = $account['id'] ?? '';
+                                        $accLabel = $account['label'] ?? 'Account';
+                                        $accCurrency = $account['currency_code'] ?? '';
+                                    } else {
+                                        $accId = $account->id;
+                                        $accLabel = $account->displayLabel();
+                                        $accCurrency = \App\Support\AccountCurrency::normalize((string) ($account->currency_code ?: 'USD'));
+                                    }
+                                @endphp
+                                <option value="{{ $accId }}">{{ $accLabel }}{{ $accCurrency !== '' ? ' · '.$accCurrency : '' }}</option>
                             @endforeach
                         </select>
                     </div>

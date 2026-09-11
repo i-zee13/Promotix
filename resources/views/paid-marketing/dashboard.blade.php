@@ -834,6 +834,13 @@
     'domainCatalog' => $domainCatalog ?? [],
     'reportingMode' => \App\Support\UserTimezone::reportingMode(auth()->user()),
     'profileTimezone' => \App\Support\UserTimezone::forUser(auth()->user()),
+    'domainOptions' => collect($domains ?? [])->map(fn ($d) => ['id' => (string) $d->id, 'label' => $d->hostname])->values()->all(),
+    'accountOptions' => $googleAdsAccounts ?? [],
+    'trafficSourceOptions' => array_values(array_filter([
+        ['value' => 'google_ads', 'label' => 'Google Ads'],
+        ! empty(($enabledAdPlatforms ?? [])['meta']) ? ['value' => 'meta_ads', 'label' => 'Meta Ads'] : null,
+        ! empty(($enabledAdPlatforms ?? [])['microsoft']) ? ['value' => 'microsoft_ads', 'label' => 'Microsoft Ads'] : null,
+    ])),
 ]))" x-init="init()">
     <section class="paid-dashboard-page mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
         <div class="mb-[23px] bp-adv-page-head">
@@ -844,45 +851,66 @@
             </div>
 
             <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--paid ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
-                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="relative flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="filterMenus.domain = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="filters.domain_id" @change="onDomainChange()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All Domains</option>
-                            @foreach ($domains as $domain)
-                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                            @endforeach
-                        </select>
+                    <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="domainFilterLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto">
+                        <button type="button" @click="selectDomainFilter('')" class="paid-advanced-campaign-option" :class="!filters.domain_id && 'is-active'">
+                            <span class="paid-advanced-campaign-option__label">All Domains</span>
+                        </button>
+                        <template x-for="d in domainOptions" :key="'dom-' + d.id">
+                            <button type="button" @click="selectDomainFilter(d.id)" class="paid-advanced-campaign-option" :class="String(filters.domain_id) === String(d.id) && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="d.label"></span>
+                            </button>
+                        </template>
                     </div>
                 </label>
-                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="relative flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="filterMenus.traffic = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="filters.traffic_source" @change="reload(false, true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            @include('partials.traffic-source-options')
-                        </select>
+                    <button type="button" @click="toggleFilterMenu('traffic')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="trafficFilterLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.traffic" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto">
+                        <template x-for="opt in trafficSourceOptions" :key="'ts-' + opt.value">
+                            <button type="button" @click="selectTrafficFilter(opt.value)" class="paid-advanced-campaign-option" :class="filters.traffic_source === opt.value && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>
+                            </button>
+                        </template>
                     </div>
                 </label>
-                <label class="flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="relative flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="filterMenus.account = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="filters.google_ads_account_id" @change="reload(false, true)" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All Accounts</option>
-                            @foreach (($googleAdsAccounts ?? []) as $account)
-                                <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
-                            @endforeach
-                        </select>
+                    <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="accountFilterLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.account" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto !min-w-[240px]">
+                        <button type="button" @click="selectAccountFilter('')" class="paid-advanced-campaign-option" :class="!filters.google_ads_account_id && 'is-active'">
+                            <span class="paid-advanced-campaign-option__label">All Accounts</span>
+                        </button>
+                        <template x-for="a in accountOptions" :key="'acc-' + a.id">
+                            <button type="button" @click="selectAccountFilter(a.id)" class="paid-advanced-campaign-option" :class="String(filters.google_ads_account_id) === String(a.id) && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="a.label"></span>
+                                <span class="paid-advanced-campaign-option__sub" x-show="a.sub" x-text="a.sub"></span>
+                            </button>
+                        </template>
                     </div>
                 </label>
-                <label class="relative flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="campaignMenuOpen = false">
+                <label class="relative flex flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="filterMenus.campaign = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
-                    <button type="button" @click="campaignMenuOpen = !campaignMenuOpen" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                    <button type="button" @click="toggleFilterMenu('campaign')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                         <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
                     </button>
-                    <div x-show="campaignMenuOpen" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto !min-w-[200px]">
-                        <button type="button" @click="selectCampaign('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">All Campaigns</button>
+                    <div x-show="filterMenus.campaign" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto !min-w-[220px]">
+                        <button type="button" @click="selectCampaign('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">
+                            <span class="paid-advanced-campaign-option__label">All Campaigns</span>
+                        </button>
                         <template x-for="row in campaignOptions" :key="row.campaign + '-' + (row.campaign_id || '')">
-                            <button type="button" @click="selectCampaign(row.campaign)" class="paid-advanced-campaign-option" :class="filters.campaign === row.campaign && 'is-active'" x-text="row.campaign"></button>
+                            <button type="button" @click="selectCampaign(row.campaign)" class="paid-advanced-campaign-option" :class="filters.campaign === row.campaign && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="row.campaign"></span>
+                                <span class="paid-advanced-campaign-option__sub" x-show="row.account_label || row.account_sub" x-text="[row.account_label, row.account_sub].filter(Boolean).join(' · ')"></span>
+                            </button>
                         </template>
                     </div>
                 </label>
@@ -1598,7 +1626,10 @@ function paidAdvertisingFigma(config = {}) {
         reportingMode: config.reportingMode || 'profile',
         profileTimezone: config.profileTimezone || 'UTC',
         filters: { domain_id: '', google_ads_account_id: '', campaign: '', campaign_id: '', path: '', traffic_source: 'google_ads', window: 'weekly', from: '', to: '' },
-        campaignMenuOpen: false,
+        filterMenus: { domain: false, traffic: false, account: false, campaign: false },
+        domainOptions: config.domainOptions || [],
+        accountOptions: config.accountOptions || [],
+        trafficSourceOptions: config.trafficSourceOptions || [{ value: 'google_ads', label: 'Google Ads' }],
         trackingTemplate: '{lpurl}?gclid={gclid}&gbraid={gbraid}&wbraid={wbraid}&utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={keyword}&keyword={keyword}',
         summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, google_sync_error: null, google_needs_reconnect: false, google_reconnect_url: '', invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
         trends: { labels: [], datasets: [], invalid_daily: [] },
@@ -1840,6 +1871,14 @@ function paidAdvertisingFigma(config = {}) {
         },
         activeCurrencySymbol() {
             if (this.summary?.currency_symbol) return this.summary.currency_symbol;
+            const accountId = String(this.filters.google_ads_account_id || '');
+            if (accountId) {
+                const account = (this.accountOptions || []).find((a) => String(a.id) === accountId);
+                if (account?.currency_code) {
+                    const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: '₨', AED: 'د.إ' };
+                    return map[account.currency_code] || `${account.currency_code} `;
+                }
+            }
             const id = String(this.filters.domain_id || '');
             const entry = id ? this.domainCatalog[id] : null;
             if (entry?.currency_code) {
@@ -2073,9 +2112,47 @@ function paidAdvertisingFigma(config = {}) {
         onCampaignChange() {
             this.syncCampaignFilter();
         },
+        toggleFilterMenu(key) {
+            const next = !this.filterMenus[key];
+            this.filterMenus = { domain: false, traffic: false, account: false, campaign: false };
+            this.filterMenus[key] = next;
+        },
+        closeFilterMenus() {
+            this.filterMenus = { domain: false, traffic: false, account: false, campaign: false };
+        },
+        domainFilterLabel() {
+            if (!this.filters.domain_id) return 'All Domains';
+            const hit = (this.domainOptions || []).find((d) => String(d.id) === String(this.filters.domain_id));
+            return hit?.label || 'All Domains';
+        },
+        trafficFilterLabel() {
+            const hit = (this.trafficSourceOptions || []).find((o) => o.value === this.filters.traffic_source);
+            return hit?.label || 'Google Ads';
+        },
+        accountFilterLabel() {
+            if (!this.filters.google_ads_account_id) return 'All Accounts';
+            const hit = (this.accountOptions || []).find((a) => String(a.id) === String(this.filters.google_ads_account_id));
+            if (!hit) return 'All Accounts';
+            return hit.currency_code ? `${hit.label} · ${hit.currency_code}` : hit.label;
+        },
+        selectDomainFilter(id) {
+            this.filters.domain_id = id ? String(id) : '';
+            this.closeFilterMenus();
+            this.onDomainChange();
+        },
+        selectTrafficFilter(value) {
+            this.filters.traffic_source = value || 'google_ads';
+            this.closeFilterMenus();
+            this.reload(false, true);
+        },
+        selectAccountFilter(id) {
+            this.filters.google_ads_account_id = id ? String(id) : '';
+            this.closeFilterMenus();
+            this.reload(false, true);
+        },
         selectCampaign(name) {
             this.filters.campaign = name || '';
-            this.campaignMenuOpen = false;
+            this.closeFilterMenus();
             this.onCampaignChange();
             this.reload(false, true);
         },

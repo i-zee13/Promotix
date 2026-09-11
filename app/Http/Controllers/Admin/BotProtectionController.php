@@ -37,16 +37,6 @@ class BotProtectionController extends Controller
         return $this->analyticsPage($request, 'journeys');
     }
 
-    public function sources(Request $request): View
-    {
-        return $this->analyticsPage($request, 'sources');
-    }
-
-    public function sales(Request $request): View
-    {
-        return $this->analyticsPage($request, 'sales');
-    }
-
     private function analyticsPage(Request $request, string $focus): View
     {
         $domains = Domain::query()
@@ -64,8 +54,6 @@ class BotProtectionController extends Controller
         $titles = [
             'dashboard' => 'Dashboard',
             'journeys' => 'Journeys',
-            'sources' => 'Sources',
-            'sales' => 'Sales & Conversions',
         ];
 
         return view('bot-protection.dashboard', [
@@ -97,13 +85,23 @@ class BotProtectionController extends Controller
                 (int) $request->query('domain_id', 0) ?: null,
                 $domainIds,
             );
+            [$reportFrom, $reportTo] = UserTimezone::calendarDateRangeFromRequest(
+                $request,
+                $request->user(),
+                6,
+                $reportingTz,
+            );
+            $filters['metric_from'] = $reportFrom;
+            $filters['metric_to'] = $reportTo;
+            $filters['reporting_tz'] = $reportingTz;
+
             $adsTotals = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
             if ($domainIds !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
                 $adsTotals = app(GoogleAdsDomainMetricsSync::class)
                     ->clickTotalsForDomainsReporting(
                         $domainIds,
-                        $from->toDateString(),
-                        $to->toDateString(),
+                        $reportFrom,
+                        $reportTo,
                         $reportingTz,
                         $domains,
                     );
@@ -113,18 +111,25 @@ class BotProtectionController extends Controller
             $payload = $aggregator->build($domainIds, $from, $to, null, $filters, $currencyCode, $adsTotals);
 
             if ($domainIds !== [] && Schema::hasTable('visits')) {
+                $prevDays = max(1, Carbon::parse($reportFrom)->diffInDays(Carbon::parse($reportTo)) + 1);
+                $prevReportTo = Carbon::parse($reportFrom)->subDay()->toDateString();
+                $prevReportFrom = Carbon::parse($prevReportTo)->subDays($prevDays - 1)->toDateString();
+                $prevFilters = array_merge($filters, [
+                    'metric_from' => $prevReportFrom,
+                    'metric_to' => $prevReportTo,
+                ]);
                 $prevAds = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
                 if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
                     $prevAds = app(GoogleAdsDomainMetricsSync::class)
                         ->clickTotalsForDomainsReporting(
                             $domainIds,
-                            $prevFrom->toDateString(),
-                            $prevTo->toDateString(),
+                            $prevReportFrom,
+                            $prevReportTo,
                             $reportingTz,
                             $domains,
                         );
                 }
-                $prevPayload = $aggregator->build($domainIds, $prevFrom, $prevTo, null, $filters, $currencyCode, $prevAds);
+                $prevPayload = $aggregator->build($domainIds, $prevFrom, $prevTo, null, $prevFilters, $currencyCode, $prevAds);
                 $prevKpis = $prevPayload['kpis'] ?? [];
                 $prevCost = (float) (($prevPayload['cost']['cost_per_conversion'] ?? 0));
                 $payload['kpis']['deltas'] = [

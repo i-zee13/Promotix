@@ -50,8 +50,6 @@ return [
                 // canAccess() checks the slug, not the route.
                 'bot-protection-advanced-alias' => ['route' => 'analytics.traffic-control', 'label' => 'Traffic Control', 'icon' => 'eye', 'permission' => 'bot-protection'],
                 'bot-protection-journeys-alias' => ['route' => 'analytics.journeys', 'label' => 'Journeys', 'icon' => 'repeat', 'permission' => 'bot-protection'],
-                'bot-protection-sources-alias' => ['route' => 'analytics.sources', 'label' => 'Sources', 'icon' => 'globe', 'permission' => 'bot-protection'],
-                'bot-protection-sales-alias' => ['route' => 'analytics.sales', 'label' => 'Sales', 'icon' => 'card', 'permission' => 'bot-protection'],
             ],
         ],
         [
@@ -117,8 +115,6 @@ return [
         'bot-protection.export' => 'bot-protection',
         'analytics.dashboard' => 'bot-protection',
         'analytics.journeys' => 'bot-protection',
-        'analytics.sources' => 'bot-protection',
-        'analytics.sales' => 'bot-protection',
         'analytics.traffic-control' => 'bot-protection',
         'domains.index'     => 'domain-management',
         'domains.store'     => 'domain-management',

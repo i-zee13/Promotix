@@ -292,8 +292,8 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::get('/bot-protection/advanced', [BotProtectionController::class, 'advancedView'])->name('bot-protection.advanced');
         Route::get('/analytics/dashboard', [BotProtectionController::class, 'dashboard'])->name('analytics.dashboard');
         Route::get('/analytics/journeys', [BotProtectionController::class, 'journeys'])->name('analytics.journeys');
-        Route::get('/analytics/sources', [BotProtectionController::class, 'sources'])->name('analytics.sources');
-        Route::get('/analytics/sales', [BotProtectionController::class, 'sales'])->name('analytics.sales');
+        Route::redirect('/analytics/sources', '/analytics/dashboard');
+        Route::redirect('/analytics/sales', '/analytics/dashboard');
         Route::get('/analytics/traffic-control', [BotProtectionController::class, 'advancedView'])->name('analytics.traffic-control');
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/security-logs', [SecurityLogsController::class, 'index'])->name('security-logs');

@@ -57,11 +57,7 @@ class PaidMarketingController extends Controller
             ->orderBy('hostname')
             ->get(['id', 'hostname', 'google_ads_account_id']);
 
-        $googleAdsAccounts = GoogleAdsAccount::query()
-            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
-            ->synced()
-            ->orderBy('account_name')
-            ->get();
+        $googleAdsAccounts = GoogleAdsAccount::filterOptionsForUser($request->user());
 
         $domainId = (int) $request->query('domain_id', 0);
         $googleTz = UserTimezone::resolveGoogleAccountTimezone(
@@ -4156,11 +4152,7 @@ class PaidMarketingController extends Controller
                 ->get();
         }
 
-        $googleAdsAccounts = GoogleAdsAccount::query()
-            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
-            ->synced()
-            ->orderBy('account_name')
-            ->get();
+        $googleAdsAccounts = GoogleAdsAccount::filterOptionsForUser($request->user());
 
         return view('paid-marketing.detection-settings', [
             'domains' => $domains,

@@ -102,11 +102,21 @@ class PageAnalyticsAggregator
         $productViews = 0;
         $filtered = collect();
         $performanceBuckets = [];
-        $sameDay = $from->toDateString() === $to->toDateString();
-        $daysInRange = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
+        $reportingTz = trim((string) ($filters['reporting_tz'] ?? ''));
+        if ($reportingTz === '' || ! UserTimezone::isValid($reportingTz)) {
+            $reportingTz = (string) config('app.timezone', 'UTC');
+        }
+        $metricFrom = trim((string) ($filters['metric_from'] ?? ''));
+        $metricTo = trim((string) ($filters['metric_to'] ?? ''));
+        if ($metricFrom === '' || $metricTo === '') {
+            $metricFrom = $from->copy()->timezone($reportingTz)->toDateString();
+            $metricTo = $to->copy()->timezone($reportingTz)->toDateString();
+        }
+        $sameDay = $metricFrom === $metricTo;
+        $daysInRange = max(1, Carbon::parse($metricFrom)->diffInDays(Carbon::parse($metricTo)) + 1);
         $granularityFilter = strtolower(trim((string) ($filters['granularity'] ?? '')));
         if (in_array($granularityFilter, ['hourly', 'hour'], true)) {
-            // Hourly densifies the chart; cap at 7 days to keep payloads reasonable.
+            // Hourly densifies the chart; cap at 7 calendar days to keep payloads reasonable.
             $hourly = $daysInRange <= 7;
         } elseif (in_array($granularityFilter, ['daily', 'day'], true)) {
             $hourly = false;
@@ -198,9 +208,10 @@ class PageAnalyticsAggregator
 
             $visitedAt = $this->parseInstant($row->visited_at);
             if ($visitedAt) {
+                $localAt = $visitedAt->copy()->timezone($reportingTz);
                 $bucketKey = $hourly
-                    ? $visitedAt->format('Y-m-d H:00:00')
-                    : $visitedAt->toDateString();
+                    ? $localAt->format('Y-m-d H:00:00')
+                    : $localAt->toDateString();
                 if (! isset($performanceBuckets[$bucketKey])) {
                     $performanceBuckets[$bucketKey] = [
                         'visitors' => 0,
@@ -419,7 +430,8 @@ class PageAnalyticsAggregator
             if (! $at) {
                 continue;
             }
-            $bucketKey = $hourly ? $at->format('Y-m-d H:00:00') : $at->toDateString();
+            $localAt = $at->copy()->timezone($reportingTz);
+            $bucketKey = $hourly ? $localAt->format('Y-m-d H:00:00') : $localAt->toDateString();
             if (! isset($performanceBuckets[$bucketKey])) {
                 $performanceBuckets[$bucketKey] = [
                     'visitors' => 0,
@@ -495,6 +507,8 @@ class PageAnalyticsAggregator
                 'product_views' => $productViewCount,
                 'purchases' => $purchases,
                 'tel' => $telClicks,
+                'forms' => $formFills,
+                'cta' => $ctaClicks,
             ])),
             'conversion_summary' => [
                 'rate' => number_format($conversionRate, 2).'%',
@@ -523,13 +537,25 @@ class PageAnalyticsAggregator
             ],
             'performance' => [
                 'granularity' => $hourly ? 'hourly' : 'daily',
-                'labels' => array_values(array_keys($this->sortedPerformanceBuckets($performanceBuckets, $from, $to, $hourly))),
+                'labels' => array_values(array_keys($this->sortedPerformanceBuckets(
+                    $performanceBuckets,
+                    $from,
+                    $to,
+                    $hourly,
+                    $reportingTz,
+                    $metricFrom,
+                    $metricTo,
+                ))),
                 'series' => $this->buildPerformanceSeries(
                     $performanceBuckets,
                     $from,
                     $to,
                     $hourly,
-                    $this->googleClicksByDay($domainIds, $from, $to),
+                    $this->googleClicksByDay($domainIds, $metricFrom, $metricTo),
+                    $reportingTz,
+                    $sameDay,
+                    $metricFrom,
+                    $metricTo,
                 ),
             ],
             'referrers' => $this->chartRows(collect($platforms)->map(fn ($v, $k) => [
@@ -735,11 +761,25 @@ class PageAnalyticsAggregator
      * @param  array<string, array<string, int>>  $buckets
      * @return array<string, array<string, int>>
      */
-    private function sortedPerformanceBuckets(array $buckets, Carbon $from, Carbon $to, bool $hourly): array
-    {
+    private function sortedPerformanceBuckets(
+        array $buckets,
+        Carbon $from,
+        Carbon $to,
+        bool $hourly,
+        string $reportingTz = 'UTC',
+        ?string $metricFrom = null,
+        ?string $metricTo = null,
+    ): array {
         $filled = [];
-        $cursor = $hourly ? $from->copy()->startOfHour() : $from->copy()->startOfDay();
-        $end = $hourly ? $to->copy()->endOfHour() : $to->copy()->endOfDay();
+        if ($hourly) {
+            $cursor = $from->copy()->timezone($reportingTz)->startOfHour();
+            $end = $to->copy()->timezone($reportingTz)->endOfHour();
+        } else {
+            $startDate = $metricFrom ?: $from->copy()->timezone($reportingTz)->toDateString();
+            $endDate = $metricTo ?: $to->copy()->timezone($reportingTz)->toDateString();
+            $cursor = Carbon::parse($startDate, $reportingTz)->startOfDay();
+            $end = Carbon::parse($endDate, $reportingTz)->endOfDay();
+        }
 
         while ($cursor <= $end) {
             $key = $hourly ? $cursor->format('Y-m-d H:00:00') : $cursor->toDateString();
@@ -772,20 +812,78 @@ class PageAnalyticsAggregator
         Carbon $to,
         bool $hourly,
         array $googleClicksByDay = [],
+        string $reportingTz = 'UTC',
+        bool $sameDay = false,
+        ?string $metricFrom = null,
+        ?string $metricTo = null,
     ): array {
-        $filled = $this->sortedPerformanceBuckets($buckets, $from, $to, $hourly);
+        $filled = $this->sortedPerformanceBuckets(
+            $buckets,
+            $from,
+            $to,
+            $hourly,
+            $reportingTz,
+            $metricFrom,
+            $metricTo,
+        );
         $labels = [];
         $visitors = [];
         $clicks = [];
         $conversions = [];
         $valid = [];
-        $paid = [];
         $hasGoogleClicks = $googleClicksByDay !== [];
-        $sameDay = $from->toDateString() === $to->toDateString();
+
+        // Precompute hourly Google click allocation so totals match Ads day totals.
+        $hourlyClickMap = [];
+        if ($hourly && $hasGoogleClicks) {
+            $hoursByDay = [];
+            foreach ($filled as $key => $row) {
+                $dayKey = strlen($key) >= 10 ? substr($key, 0, 10) : Carbon::parse($key)->toDateString();
+                $hoursByDay[$dayKey][$key] = [
+                    'paid' => (int) ($row['paid'] ?? 0),
+                    'visitors' => (int) ($row['visitors'] ?? 0),
+                    'clicks' => (int) ($row['clicks'] ?? 0),
+                ];
+            }
+            foreach ($hoursByDay as $dayKey => $hours) {
+                $dayTotal = (int) ($googleClicksByDay[$dayKey] ?? 0);
+                if ($dayTotal <= 0) {
+                    continue;
+                }
+                $hourKeys = array_keys($hours);
+                $dayPaid = array_sum(array_column($hours, 'paid'));
+                if ($dayPaid > 0) {
+                    $assigned = 0;
+                    $last = count($hourKeys) - 1;
+                    foreach ($hourKeys as $i => $hk) {
+                        $share = $i === $last
+                            ? max(0, $dayTotal - $assigned)
+                            : (int) round($dayTotal * ($hours[$hk]['paid'] / $dayPaid));
+                        $hourlyClickMap[$hk] = max(0, $share);
+                        $assigned += $hourlyClickMap[$hk];
+                    }
+                } else {
+                    // Ads has clicks but visits aren't marked paid — spread across active hours.
+                    $active = array_values(array_filter(
+                        $hourKeys,
+                        static fn ($hk) => ($hours[$hk]['visitors'] ?? 0) > 0
+                    ));
+                    if ($active === []) {
+                        $active = $hourKeys;
+                    }
+                    $n = count($active);
+                    $base = intdiv($dayTotal, $n);
+                    $rem = $dayTotal % $n;
+                    foreach ($active as $i => $hk) {
+                        $hourlyClickMap[$hk] = $base + ($i < $rem ? 1 : 0);
+                    }
+                }
+            }
+        }
 
         foreach ($filled as $key => $row) {
             $dayKey = $hourly
-                ? Carbon::parse($key)->toDateString()
+                ? (strlen($key) >= 10 ? substr($key, 0, 10) : Carbon::parse($key)->toDateString())
                 : (strlen($key) >= 10 ? substr($key, 0, 10) : $key);
             $labels[] = $hourly
                 ? ($sameDay
@@ -793,28 +891,15 @@ class PageAnalyticsAggregator
                     : Carbon::parse($key)->format('M j gA'))
                 : Carbon::parse($key)->format('M j');
             $visitors[] = (int) ($row['visitors'] ?? 0);
-            // Prefer Google Ads reported clicks per day; fall back to paid visit clicks.
             if ($hasGoogleClicks && ! $hourly) {
                 $clicks[] = (int) ($googleClicksByDay[$dayKey] ?? 0);
             } elseif ($hasGoogleClicks && $hourly) {
-                // Spread the day's Google clicks across hours proportional to paid activity.
-                $dayTotal = (int) ($googleClicksByDay[$dayKey] ?? 0);
-                $dayPaid = 0;
-                foreach ($filled as $k2 => $r2) {
-                    if (Carbon::parse($k2)->toDateString() === $dayKey) {
-                        $dayPaid += (int) ($r2['paid'] ?? 0);
-                    }
-                }
-                $hourPaid = (int) ($row['paid'] ?? 0);
-                $clicks[] = ($dayPaid > 0 && $dayTotal > 0)
-                    ? (int) round($dayTotal * ($hourPaid / $dayPaid))
-                    : (int) ($row['clicks'] ?? 0);
+                $clicks[] = (int) ($hourlyClickMap[$key] ?? $row['clicks'] ?? 0);
             } else {
                 $clicks[] = (int) ($row['clicks'] ?? 0);
             }
             $conversions[] = (int) ($row['conversions'] ?? 0);
             $valid[] = (int) ($row['valid'] ?? 0);
-            $paid[] = (int) ($row['paid'] ?? 0);
         }
 
         return [
@@ -830,15 +915,18 @@ class PageAnalyticsAggregator
      * @param  list<int>  $domainIds
      * @return array<string, int>
      */
-    private function googleClicksByDay(array $domainIds, Carbon $from, Carbon $to): array
+    private function googleClicksByDay(array $domainIds, string $fromDate, string $toDate): array
     {
         if ($domainIds === [] || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            return [];
+        }
+        if ($fromDate === '' || $toDate === '') {
             return [];
         }
 
         $rows = DB::table('google_ads_campaign_daily_metrics')
             ->whereIn('domain_id', $domainIds)
-            ->whereBetween('metric_date', [$from->toDateString(), $to->toDateString()])
+            ->whereBetween('metric_date', [$fromDate, $toDate])
             ->when(
                 Schema::hasColumn('google_ads_campaign_daily_metrics', 'clicks'),
                 fn ($q) => $q->selectRaw('metric_date, SUM(clicks) as clicks'),
@@ -932,6 +1020,28 @@ class PageAnalyticsAggregator
             $defaults['product_views'] = (int) ($sums->pages ?? 0);
         }
 
+        // Prefer typed behavior events when available (covers all sessions, not just last N recordings).
+        if (Schema::hasTable('visit_behavior_events')) {
+            $eventCounts = DB::table('visit_behavior_events')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('occurred_at', [$from, $to])
+                ->whereIn('event_type', [
+                    'form_submit', 'cta_click', 'phone_click',
+                    'add_to_cart', 'checkout', 'purchase',
+                ])
+                ->selectRaw('event_type, COUNT(*) as total')
+                ->groupBy('event_type')
+                ->pluck('total', 'event_type');
+
+            $defaults['forms'] = max($defaults['forms'], (int) ($eventCounts['form_submit'] ?? 0));
+            $defaults['cta'] = max($defaults['cta'], (int) ($eventCounts['cta_click'] ?? 0));
+            $defaults['tel'] = max($defaults['tel'], (int) ($eventCounts['phone_click'] ?? 0));
+            $defaults['carts'] = max($defaults['carts'], (int) ($eventCounts['add_to_cart'] ?? 0));
+            $defaults['checkouts'] = max($defaults['checkouts'], (int) ($eventCounts['checkout'] ?? 0));
+            $defaults['purchases'] = max($defaults['purchases'], (int) ($eventCounts['purchase'] ?? 0));
+            $defaults['transactions'] = max($defaults['transactions'], $defaults['purchases']);
+        }
+
         $cols = ['events', 'duration_ms', 'created_at'];
         if (Schema::hasColumn('visit_session_recordings', 'ip')) {
             $cols[] = 'ip';
@@ -945,7 +1055,7 @@ class PageAnalyticsAggregator
 
         $recordings = (clone $query)
             ->orderByDesc('id')
-            ->limit(500)
+            ->limit(2000)
             ->get($cols);
 
         $revenue = 0.0;
@@ -1005,12 +1115,12 @@ class PageAnalyticsAggregator
         $defaults['high_value_sessions'] = array_slice($highValue, 0, 5);
 
         ksort($trendBuckets);
-        $defaults['forms'] = $forms;
-        $defaults['carts'] = $carts;
-        $defaults['checkouts'] = $checkouts;
-        $defaults['purchases'] = $purchases;
-        $defaults['transactions'] = $purchases;
-        $defaults['revenue'] = round($revenue, 2);
+        $defaults['forms'] = max($defaults['forms'], $forms);
+        $defaults['carts'] = max($defaults['carts'], $carts);
+        $defaults['checkouts'] = max($defaults['checkouts'], $checkouts);
+        $defaults['purchases'] = max($defaults['purchases'], $purchases);
+        $defaults['transactions'] = max($defaults['transactions'], $defaults['purchases']);
+        $defaults['revenue'] = round(max((float) $defaults['revenue'], $revenue), 2);
         $defaults['trend'] = array_values($trendBuckets);
 
         return $defaults;

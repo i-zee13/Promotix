@@ -37,12 +37,7 @@ class PaidAdvertisingDashboardController extends Controller
             ->orderBy('hostname')
             ->get(['id', 'hostname', 'paid_marketing_connected', 'source', 'google_ads_account_id']);
 
-        $googleAdsAccounts = GoogleAdsAccount::query()
-            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
-            ->synced()
-            ->orderBy('account_name')
-            ->orderBy('customer_id')
-            ->get(['id', 'account_name', 'customer_id', 'display_customer_id']);
+        $googleAdsAccounts = GoogleAdsAccount::filterOptionsForUser($request->user());
 
         $countryGetStarted = $domains->isEmpty()
             || ! $domains->contains(fn (Domain $d) => $d->hasPaidAdvertisingFromAds());
@@ -553,8 +548,15 @@ class PaidAdvertisingDashboardController extends Controller
                 ->with('googleAdsAccount.connection')
                 ->first();
 
-            $merged = $merged->merge($this->resolveGoogleCampaignRowsForDomain($domain, $metricFrom, $metricTo, $forceGoogleSync));
-            $merged = $merged->merge($this->metricCampaignRows($domainId, $metricFrom, $metricTo));
+            $accountMeta = $this->campaignAccountMeta($domain);
+            $merged = $merged->merge(
+                collect($this->resolveGoogleCampaignRowsForDomain($domain, $metricFrom, $metricTo, $forceGoogleSync))
+                    ->map(fn (array $row) => $row + $accountMeta)
+            );
+            $merged = $merged->merge(
+                collect($this->metricCampaignRows($domainId, $metricFrom, $metricTo))
+                    ->map(fn (array $row) => $row + $accountMeta)
+            );
         } else {
             $domains = Domain::query()
                 ->where('user_id', $request->user()->id)
@@ -563,8 +565,15 @@ class PaidAdvertisingDashboardController extends Controller
                 ->get();
 
             foreach ($domains as $domain) {
-                $merged = $merged->merge($this->resolveGoogleCampaignRowsForDomain($domain, $metricFrom, $metricTo, $forceGoogleSync));
-                $merged = $merged->merge($this->metricCampaignRows($domain->id, $metricFrom, $metricTo));
+                $accountMeta = $this->campaignAccountMeta($domain);
+                $merged = $merged->merge(
+                    collect($this->resolveGoogleCampaignRowsForDomain($domain, $metricFrom, $metricTo, $forceGoogleSync))
+                        ->map(fn (array $row) => $row + $accountMeta)
+                );
+                $merged = $merged->merge(
+                    collect($this->metricCampaignRows($domain->id, $metricFrom, $metricTo))
+                        ->map(fn (array $row) => $row + $accountMeta)
+                );
             }
         }
 
@@ -586,6 +595,8 @@ class PaidAdvertisingDashboardController extends Controller
                 return [
                     'campaign' => $campaign,
                     'campaign_id' => $best['campaign_id'] ?? null,
+                    'account_label' => $best['account_label'] ?? null,
+                    'account_sub' => $best['account_sub'] ?? null,
                     'total' => $total,
                     'invalid' => $invalid,
                     'valid' => (int) ($best['valid'] ?? max(0, $total - $invalid)),
@@ -725,6 +736,31 @@ class PaidAdvertisingDashboardController extends Controller
                 'source' => 'paid_marketing_visits',
             ])
             ->all();
+    }
+
+    /**
+     * @return array{account_label: ?string, account_sub: ?string}
+     */
+    private function campaignAccountMeta(?Domain $domain): array
+    {
+        $account = $domain?->googleAdsAccount;
+        if (! $account) {
+            return ['account_label' => null, 'account_sub' => null];
+        }
+        $cid = $account->formattedCustomerId();
+        $currency = AccountCurrency::normalize((string) ($account->currency_code ?: ''));
+        $subParts = [];
+        if ($cid !== '') {
+            $subParts[] = 'Customer ID '.$cid;
+        }
+        if ($currency !== '') {
+            $subParts[] = 'Currency '.$currency;
+        }
+
+        return [
+            'account_label' => $account->displayLabel(),
+            'account_sub' => $subParts !== [] ? implode(' · ', $subParts) : null,
+        ];
     }
 
     /**

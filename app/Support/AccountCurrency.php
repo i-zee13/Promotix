@@ -26,6 +26,16 @@ class AccountCurrency
     public static function resolveForRequest(Request $request, iterable $domains): string
     {
         $domains = $domains instanceof Collection ? $domains : collect($domains);
+
+        $accountId = (int) $request->query('google_ads_account_id', 0);
+        if ($accountId > 0) {
+            $account = \App\Models\GoogleAdsAccount::query()->find($accountId);
+            $fromAccount = trim((string) ($account?->currency_code ?? ''));
+            if ($fromAccount !== '') {
+                return self::normalize($fromAccount);
+            }
+        }
+
         $selectedId = (int) $request->query('domain_id', 0);
 
         if ($selectedId > 0) {

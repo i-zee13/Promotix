@@ -66,6 +66,13 @@
          'googleAdsAccountId' => (string) request('google_ads_account_id', ''),
          'campaign' => (string) request('campaign', ''),
          'trafficSource' => (string) request('traffic_source', 'google_ads'),
+         'domainOptions' => collect($domains ?? [])->map(fn ($d) => ['id' => (string) $d->id, 'label' => $d->hostname])->values()->all(),
+         'accountOptions' => $googleAdsAccounts ?? [],
+         'trafficSourceOptions' => array_values(array_filter([
+             ['value' => 'google_ads', 'label' => 'Google Ads'],
+             ! empty(($enabledAdPlatforms ?? [])['meta']) ? ['value' => 'meta_ads', 'label' => 'Meta Ads'] : null,
+             ! empty(($enabledAdPlatforms ?? [])['microsoft']) ? ['value' => 'microsoft_ads', 'label' => 'Microsoft Ads'] : null,
+         ])),
      ]))"
      x-init="window.promotixPageLoader?.hide()"
 >
@@ -486,6 +493,8 @@
                 font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
             }
             .figma-gaem-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: flex-end; }
+            .figma-gaem-quick .figma-gaem-ghost-btn,
+            .figma-gaem-quick .figma-gaem-push-btn { align-self: flex-end; }
             .figma-gaem-campaign-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 220px; flex: 1 1 260px; }
             .figma-gaem-campaign-label { font-size: 10px; font-weight: 600; color: #6b6578; text-transform: uppercase; letter-spacing: 0.02em; }
             .figma-gaem-campaign-select {
@@ -1211,45 +1220,57 @@
 
             @if ($domains->isNotEmpty())
                 <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--detection ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                    <label class="flex w-[140px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="relative flex w-[140px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.domain = false">
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
-                        <div class="figma-filter-select-wrap">
-                            <select x-model="filters.domainId" @change="applyFilters()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                                <option value="">All Domains</option>
-                            @foreach ($domains as $d)
-                                    <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                            @endforeach
-                        </select>
+                        <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                            <span class="truncate" x-text="domainFilterLabel()"></span>
+                        </button>
+                        <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto">
+                            <button type="button" @click="selectDomainFilter('')" class="paid-advanced-campaign-option" :class="!filters.domainId && 'is-active'"><span class="paid-advanced-campaign-option__label">All Domains</span></button>
+                            <template x-for="d in domainOptions" :key="'dom-' + d.id">
+                                <button type="button" @click="selectDomainFilter(d.id)" class="paid-advanced-campaign-option" :class="String(filters.domainId) === String(d.id) && 'is-active'"><span class="paid-advanced-campaign-option__label" x-text="d.label"></span></button>
+                            </template>
                         </div>
                     </label>
-                    <label class="flex w-[118px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="relative flex w-[118px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.traffic = false">
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
-                        <div class="figma-filter-select-wrap">
-                            <select x-model="filters.trafficSource" @change="applyFilters()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                                @include('partials.traffic-source-options')
-                            </select>
+                        <button type="button" @click="toggleFilterMenu('traffic')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                            <span class="truncate" x-text="trafficFilterLabel()"></span>
+                        </button>
+                        <div x-show="filterMenus.traffic" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto">
+                            <template x-for="opt in trafficSourceOptions" :key="'ts-' + opt.value">
+                                <button type="button" @click="selectTrafficFilter(opt.value)" class="paid-advanced-campaign-option" :class="filters.trafficSource === opt.value && 'is-active'"><span class="paid-advanced-campaign-option__label" x-text="opt.label"></span></button>
+                            </template>
                         </div>
                     </label>
-                    <label class="flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="relative flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.account = false">
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
-                        <div class="figma-filter-select-wrap">
-                            <select x-model="filters.googleAdsAccountId" @change="applyFilters()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                                <option value="">All Accounts</option>
-                                @foreach (($googleAdsAccounts ?? []) as $account)
-                                    <option value="{{ $account->id }}">{{ $account->displayLabel() }}</option>
-                                @endforeach
-                            </select>
+                        <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                            <span class="truncate" x-text="accountFilterLabel()"></span>
+                        </button>
+                        <div x-show="filterMenus.account" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !min-w-[220px]">
+                            <button type="button" @click="selectAccountFilter('')" class="paid-advanced-campaign-option" :class="!filters.googleAdsAccountId && 'is-active'"><span class="paid-advanced-campaign-option__label">All Accounts</span></button>
+                            <template x-for="a in accountOptions" :key="'acc-' + a.id">
+                                <button type="button" @click="selectAccountFilter(a.id)" class="paid-advanced-campaign-option" :class="String(filters.googleAdsAccountId) === String(a.id) && 'is-active'">
+                                    <span class="paid-advanced-campaign-option__label" x-text="a.label"></span>
+                                    <span class="paid-advanced-campaign-option__sub" x-show="a.sub" x-text="a.sub"></span>
+                                </button>
+                            </template>
                         </div>
                     </label>
-                    <label class="flex w-[130px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="relative flex w-[130px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.campaign = false">
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
-                        <div class="figma-filter-select-wrap">
-                            <select x-model="filters.campaign" @change="applyFilters()" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                                <option value="">All Campaigns</option>
-                                <template x-for="name in campaignOptions" :key="name">
-                                    <option :value="name" x-text="name"></option>
-                                </template>
-                            </select>
+                        <button type="button" @click="toggleFilterMenu('campaign')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                            <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
+                        </button>
+                        <div x-show="filterMenus.campaign" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !min-w-[200px]">
+                            <button type="button" @click="selectCampaignFilter('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'"><span class="paid-advanced-campaign-option__label">All Campaigns</span></button>
+                            <template x-for="row in campaignOptions" :key="(row.campaign || row) + '-' + (row.campaign_id || '')">
+                                <button type="button" @click="selectCampaignFilter(row.campaign || row)" class="paid-advanced-campaign-option" :class="filters.campaign === (row.campaign || row) && 'is-active'">
+                                    <span class="paid-advanced-campaign-option__label" x-text="row.campaign || row"></span>
+                                    <span class="paid-advanced-campaign-option__sub" x-show="row.account_label || row.account_sub" x-text="[row.account_label, row.account_sub].filter(Boolean).join(' · ')"></span>
+                                </button>
+                            </template>
                         </div>
                     </label>
                     <label class="flex w-[128px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
@@ -1627,6 +1648,13 @@
                                     'applyUrl' => route('domains.apply-similarity-blocks', $domain),
                                     'campaignsUrl' => route('paid-marketing.detection-settings.google-exclusion.campaigns', $domain),
                                     'adsConnected' => $domain->hasGoogleAdsConnection(),
+                                    'rows' => collect($crossDomainRows)->map(static fn (array $r): array => [
+                                        'ip' => (string) ($r['ip'] ?? ''),
+                                        'hits' => (int) ($r['hits'] ?? 0),
+                                        'domains' => array_values($r['domains'] ?? []),
+                                        'domain_similarity' => (int) ($r['domain_similarity'] ?? 0),
+                                        'domain_similarity_label' => (string) ($r['domain_similarity_label'] ?? '—'),
+                                    ])->values()->all(),
                                 ]))"
                             >
                                 <div class="figma-pac-card-top">
@@ -1670,38 +1698,40 @@
                                 <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/70 p-[16px]" x-show="open" x-cloak x-transition @click.self="closeModal()">
                                     <div class="flex max-h-[min(88vh,720px)] w-full max-w-[640px] flex-col overflow-hidden rounded-[12px] bg-[var(--brand-primary,#FF6600)] text-white shadow-2xl" @click.stop>
                                         <header class="border-b border-white/25 px-[22px] py-[16px]">
-                                            <h2 class="text-[18px] font-semibold">Similar-domain blocks</h2>
+                                            <h2 class="text-[18px] font-semibold" x-text="mode === 'domain_similarity' ? 'Cross-domain · Similarity IPs' : 'Cross-domain IPs'"></h2>
                                             <p class="mt-[4px] text-[12px] text-white/90">
-                                                We found related domains for <span class="font-semibold" x-text="hostname"></span>. Apply their blocked IPs to this domain?
+                                                Review visitor IPs seen across domains for <span class="font-semibold" x-text="hostname"></span>, then apply them to Exclusion Manager.
                                             </p>
                                         </header>
                                         <div class="min-h-0 flex-1 space-y-[12px] overflow-y-auto px-[22px] py-[16px]">
-                                            <div class="rounded-[8px] border border-white/20 bg-black/20 px-[12px] py-[10px]">
-                                                <p class="text-[11px] font-semibold uppercase tracking-wide text-white/80">Related domains</p>
+                                            <div class="rounded-[8px] border border-white/20 bg-black/20 px-[12px] py-[10px]" x-show="relatedDomainTags.length">
+                                                <p class="text-[11px] font-semibold uppercase tracking-wide text-white/80">Domains in this set</p>
                                                 <div class="mt-[8px] flex flex-wrap gap-[6px]">
-                                                    <template x-for="d in similarDomains" :key="d.id">
-                                                        <span class="rounded-full bg-white/15 px-[10px] py-[4px] text-[11px]" x-text="d.hostname + ' · ' + d.similarity + '% ' + d.similarity_label"></span>
+                                                    <template x-for="tag in relatedDomainTags" :key="tag">
+                                                        <span class="rounded-full bg-white/15 px-[10px] py-[4px] text-[11px]" x-text="tag"></span>
                                                     </template>
                                                 </div>
                                             </div>
                                             <div class="flex items-center justify-between gap-[10px]">
-                                                <p class="text-[12px] font-semibold" x-text="suggestedIps.length + ' suggested blocked IP(s)'"></p>
-                                                <button type="button" class="text-[11px] font-semibold underline" @click="toggleAll()">Select all / none</button>
+                                                <p class="text-[12px] font-semibold" x-text="suggestedIps.length + ' cross-domain IP(s)'"></p>
+                                                <button type="button" class="text-[11px] font-semibold underline" @click="toggleAll()" x-show="suggestedIps.length">Select all / none</button>
                                             </div>
                                             <div class="max-h-[280px] space-y-[6px] overflow-y-auto rounded-[8px] border border-white/15 bg-black/15 p-[8px]">
+                                                <p class="px-[6px] py-[10px] text-[12px] text-white/75" x-show="!suggestedIps.length">No cross-domain IPs match the current scope yet.</p>
                                                 <template x-for="row in suggestedIps" :key="row.ip">
                                                     <label class="flex cursor-pointer items-start gap-[10px] rounded-[6px] border border-white/10 bg-black/20 px-[10px] py-[8px] hover:bg-black/30">
                                                         <input type="checkbox" class="mt-[3px] rounded border-white/40" :value="row.ip" x-model="selected">
                                                         <span class="min-w-0 flex-1">
                                                             <span class="block font-mono text-[12px] font-semibold" x-text="row.ip"></span>
-                                                            <span class="mt-[2px] block text-[10px] text-white/75" x-text="'From: ' + (row.from_domains || []).join(', ')"></span>
+                                                            <span class="mt-[2px] block text-[10px] text-white/75" x-text="'Seen on: ' + (row.from_domains || []).join(', ')"></span>
+                                                            <span class="mt-[2px] block text-[10px] text-white/60" x-show="row.similarity_label && row.similarity_label !== '—'" x-text="'Similarity: ' + (row.similarity_label || '') + (row.similarity ? (' · ' + row.similarity + '%') : '')"></span>
                                                         </span>
                                                         <span class="shrink-0 text-[10px] text-white/60" x-text="(row.hits || 0) + ' hits'"></span>
                                                     </label>
                                                 </template>
                                             </div>
 
-                                            <div class="rounded-[8px] border border-white/20 bg-black/20 px-[12px] py-[10px]" x-show="adsConnected">
+                                            <div class="rounded-[8px] border border-white/20 bg-black/20 px-[12px] py-[10px]" x-show="adsConnected && suggestedIps.length">
                                                 <p class="text-[11px] font-semibold uppercase tracking-wide text-white/80">Google Ads campaigns</p>
                                                 <p class="mt-[4px] text-[11px] text-white/75">Which campaigns should these IPs be excluded on?</p>
                                                 <div class="mt-[8px] space-y-[6px] text-[12px]">
@@ -1957,6 +1987,17 @@
                                 'adsConnected' => $domain->hasGoogleAdsConnection(),
                                 'domainId' => (string) $domain->id,
                                 'googleAdsAccountId' => (string) request('google_ads_account_id', $domain->google_ads_account_id ?? ''),
+                                'crossDomainEnabled' => ! empty($enabledTenantIntegrations['cross_domain']),
+                                'crossDomainApplyUrl' => route('domains.apply-similarity-blocks', $domain),
+                                'crossDomainMode' => $crossDomainMode,
+                                'crossDomainRows' => collect($crossDomainRows)->map(static fn (array $r): array => [
+                                    'ip' => (string) ($r['ip'] ?? ''),
+                                    'hits' => (int) ($r['hits'] ?? 0),
+                                    'domains' => array_values($r['domains'] ?? []),
+                                    'domain_similarity' => (int) ($r['domain_similarity'] ?? 0),
+                                    'domain_similarity_label' => (string) ($r['domain_similarity_label'] ?? '—'),
+                                ])->values()->all(),
+                                'hostname' => (string) $domain->hostname,
                             ]))"
                         >
                             <div class="figma-gaem-head">
@@ -2028,6 +2069,7 @@
                                         <p class="figma-gaem-campaign-empty" x-show="adsConnected && !campaignOptions.length">No eligible Search/Display campaigns found.</p>
                                     </div>
                                 </div>
+                                <button type="button" class="figma-gaem-ghost-btn" x-show="crossDomainEnabled" x-cloak :disabled="loading" @click="openCrossDomainModal()">Cross domain</button>
                                 <button type="button" class="figma-gaem-push-btn" :disabled="loading || !adsConnected" @click="syncPending()">Push all pending</button>
                                     </div>
 
@@ -2082,6 +2124,73 @@
                                 </table>
                             </div>
                             <button type="button" class="figma-bip-view-all" @click="showAllExclusions = !showAllExclusions" x-show="rows.length > 5" x-text="showAllExclusions ? 'Show less' : 'View All Exclusions →'"></button>
+
+                            {{-- Cross-domain IP picker (Exclusion Manager) --}}
+                            <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/70 p-[16px]" x-show="crossDomainOpen" x-cloak x-transition @click.self="closeCrossDomainModal()">
+                                <div class="flex max-h-[min(88vh,720px)] w-full max-w-[640px] flex-col overflow-hidden rounded-[12px] bg-[var(--brand-primary,#FF6600)] text-white shadow-2xl" @click.stop>
+                                    <header class="border-b border-white/25 px-[22px] py-[16px]">
+                                        <h2 class="text-[18px] font-semibold">Cross-domain IPs</h2>
+                                        <p class="mt-[4px] text-[12px] text-white/90">
+                                            Select IPs for <span class="font-semibold" x-text="hostname || 'this domain'"></span>, then add them to All eligible campaigns or choose specific ones.
+                                        </p>
+                                    </header>
+                                    <div class="min-h-0 flex-1 space-y-[12px] overflow-y-auto px-[22px] py-[16px]">
+                                        <div class="flex flex-wrap items-center gap-[8px]">
+                                            <span class="text-[11px] font-semibold uppercase tracking-wide text-white/80">Scope</span>
+                                            <select class="rounded-[6px] border border-white/30 bg-black/25 px-[10px] py-[6px] text-[12px] text-white" x-model="crossDomainMode" @change="rebuildCrossDomainList()">
+                                                <option value="all">All cross-domain</option>
+                                                <option value="domain_similarity">Similarity only</option>
+                                            </select>
+                                            <button type="button" class="ml-auto text-[11px] font-semibold underline" @click="toggleCrossDomainIps()" x-show="crossDomainIps.length">Select all / none</button>
+                                        </div>
+                                        <p class="text-[12px] font-semibold" x-text="crossDomainIps.length + ' IP(s) · ' + crossDomainSelected.length + ' selected'"></p>
+                                        <div class="max-h-[260px] space-y-[6px] overflow-y-auto rounded-[8px] border border-white/15 bg-black/15 p-[8px]">
+                                            <p class="px-[6px] py-[10px] text-[12px] text-white/75" x-show="!crossDomainIps.length">No cross-domain IPs match this scope yet.</p>
+                                            <template x-for="row in crossDomainIps" :key="row.ip">
+                                                <label class="flex cursor-pointer items-start gap-[10px] rounded-[6px] border border-white/10 bg-black/20 px-[10px] py-[8px] hover:bg-black/30">
+                                                    <input type="checkbox" class="mt-[3px] rounded border-white/40" :value="row.ip" x-model="crossDomainSelected">
+                                                    <span class="min-w-0 flex-1">
+                                                        <span class="block font-mono text-[12px] font-semibold" x-text="row.ip"></span>
+                                                        <span class="mt-[2px] block text-[10px] text-white/75" x-text="'Seen on: ' + (row.from_domains || []).join(', ')"></span>
+                                                        <span class="mt-[2px] block text-[10px] text-white/60" x-show="row.similarity_label && row.similarity_label !== '—'" x-text="'Similarity: ' + row.similarity_label + (row.similarity ? (' · ' + row.similarity + '%') : '')"></span>
+                                                    </span>
+                                                    <span class="shrink-0 text-[10px] text-white/60" x-text="(row.hits || 0) + ' hits'"></span>
+                                                </label>
+                                            </template>
+                                        </div>
+
+                                        <div class="rounded-[8px] border border-white/20 bg-black/20 px-[12px] py-[10px]" x-show="adsConnected">
+                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-white/80">Google Ads campaigns</p>
+                                            <div class="mt-[8px] space-y-[6px] text-[12px]">
+                                                <label class="flex cursor-pointer items-center gap-[8px]">
+                                                    <input type="radio" class="border-white/40" value="all" x-model="crossDomainCampaignScope">
+                                                    <span>All eligible campaigns</span>
+                                                </label>
+                                                <label class="flex cursor-pointer items-center gap-[8px]">
+                                                    <input type="radio" class="border-white/40" value="selected" x-model="crossDomainCampaignScope">
+                                                    <span>Select campaigns</span>
+                                                </label>
+                                            </div>
+                                            <div class="mt-[8px] max-h-[160px] space-y-[4px] overflow-y-auto rounded-[6px] border border-white/15 bg-black/20 p-[8px]" x-show="crossDomainCampaignScope === 'selected'" x-cloak>
+                                                <p class="text-[10px] text-white/60" x-show="!campaignOptions.length">No eligible Search/Display campaigns found.</p>
+                                                <template x-for="c in campaignOptions" :key="'xd-' + c.id">
+                                                    <label class="flex cursor-pointer items-center gap-[8px] rounded-[4px] px-[6px] py-[4px] hover:bg-black/25">
+                                                        <input type="checkbox" class="rounded border-white/40" :value="c.id" x-model="crossDomainCampaignIds">
+                                                        <span class="truncate text-[11px]" x-text="c.name"></span>
+                                                    </label>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <p class="text-[11px] text-white/80">Selected IPs are queued as cross-domain exclusions and pushed to the campaigns you choose.</p>
+                                    </div>
+                                    <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[22px] py-[14px]">
+                                        <button type="button" @click="closeCrossDomainModal()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Cancel</button>
+                                        <button type="button" @click="applyCrossDomainIps()" :disabled="loading || !crossDomainSelected.length || (adsConnected && crossDomainCampaignScope === 'selected' && !crossDomainCampaignIds.length)" class="rounded-[6px] bg-white px-[18px] py-[8px] text-[13px] font-semibold text-[var(--brand-primary,#FF6600)] disabled:opacity-50">
+                                            <span x-text="loading ? 'Adding…' : ('Add ' + crossDomainSelected.length + ' IP(s)')"></span>
+                                        </button>
+                                    </footer>
+                                </div>
+                            </div>
                         </section>
                     </div>
 
@@ -2525,6 +2634,7 @@ function googleExclusionPanel(config) {
         adsConnected: Boolean(config.adsConnected),
         domainId: config.domainId || '',
         googleAdsAccountId: config.googleAdsAccountId || '',
+        hostname: config.hostname || '',
         campaignOptions: [],
         selectedCampaignIds: [],
         pushUrl: config.pushUrl,
@@ -2541,6 +2651,15 @@ function googleExclusionPanel(config) {
         ok: true,
         showBulk: false,
         showAllExclusions: false,
+        crossDomainEnabled: Boolean(config.crossDomainEnabled),
+        crossDomainApplyUrl: config.crossDomainApplyUrl || '',
+        crossDomainMode: config.crossDomainMode || 'all',
+        crossDomainRows: Array.isArray(config.crossDomainRows) ? config.crossDomainRows : [],
+        crossDomainOpen: false,
+        crossDomainIps: [],
+        crossDomainSelected: [],
+        crossDomainCampaignScope: 'all',
+        crossDomainCampaignIds: [],
         statusLabel(row) {
             if (row.sync_status === 'disabled' || row.is_active === false) return 'Off';
             if (row.sync_status === 'pending') return 'Pending';
@@ -2557,6 +2676,88 @@ function googleExclusionPanel(config) {
         },
         toggleAllCampaigns(checked) {
             this.selectedCampaignIds = checked ? [] : this.campaignOptions.map((c) => c.id);
+        },
+        filteredCrossDomainRows() {
+            const mode = this.crossDomainMode || 'all';
+            return (this.crossDomainRows || []).filter((row) => {
+                if (!row || !row.ip) return false;
+                if (mode === 'domain_similarity') {
+                    return row.domain_similarity_label === 'High' || row.domain_similarity_label === 'Medium';
+                }
+                return true;
+            });
+        },
+        rebuildCrossDomainList() {
+            this.crossDomainIps = this.filteredCrossDomainRows().map((r) => ({
+                ip: String(r.ip),
+                hits: Number(r.hits || 0),
+                from_domains: Array.isArray(r.domains) ? r.domains : [],
+                similarity: Number(r.domain_similarity || 0),
+                similarity_label: String(r.domain_similarity_label || '—'),
+            }));
+            this.crossDomainSelected = this.crossDomainIps.map((r) => r.ip);
+        },
+        openCrossDomainModal() {
+            if (!this.crossDomainEnabled) return;
+            this.rebuildCrossDomainList();
+            this.crossDomainCampaignScope = this.selectedCampaignIds.length ? 'selected' : 'all';
+            this.crossDomainCampaignIds = [...this.selectedCampaignIds];
+            this.crossDomainOpen = true;
+            if (!this.campaignOptions.length) {
+                this.loadCampaigns();
+            }
+        },
+        closeCrossDomainModal() {
+            this.crossDomainOpen = false;
+        },
+        toggleCrossDomainIps() {
+            const all = this.crossDomainIps.map((r) => r.ip);
+            this.crossDomainSelected = this.crossDomainSelected.length === all.length ? [] : all;
+        },
+        async applyCrossDomainIps() {
+            if (!this.crossDomainSelected.length || this.loading || !this.crossDomainApplyUrl) return;
+            if (this.adsConnected && this.crossDomainCampaignScope === 'selected' && !this.crossDomainCampaignIds.length) {
+                this.ok = false;
+                this.message = 'Select at least one campaign, or choose All eligible campaigns.';
+                return;
+            }
+            this.loading = true;
+            this.message = '';
+            try {
+                const body = {
+                    ips: this.crossDomainSelected,
+                    all_campaigns: this.crossDomainCampaignScope !== 'selected',
+                    campaign_ids: this.crossDomainCampaignScope === 'selected'
+                        ? this.crossDomainCampaignIds.map(String)
+                        : [],
+                };
+                const res = await fetch(this.crossDomainApplyUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json().catch(() => ({}));
+                this.ok = !!res.ok && data.ok !== false;
+                this.message = data.message || (this.ok
+                    ? ('Added ' + this.crossDomainSelected.length + ' cross-domain IP(s).')
+                    : 'Could not add cross-domain IPs.');
+                if (this.ok) {
+                    this.crossDomainOpen = false;
+                    if (Array.isArray(data.rows)) {
+                        this.rows = data.rows;
+                    }
+                }
+            } catch (e) {
+                this.ok = false;
+                this.message = 'Cross-domain apply request failed.';
+            } finally {
+                this.loading = false;
+            }
         },
         async loadCampaigns() {
             if (!this.adsConnected || !this.campaignsUrl) {
@@ -2765,12 +2966,13 @@ window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(
         applyUrl: config.applyUrl,
         campaignsUrl: config.campaignsUrl || '',
         adsConnected: Boolean(config.adsConnected),
+        rows: Array.isArray(config.rows) ? config.rows : [],
         open: false,
         busy: false,
         loading: false,
         campaignsLoading: false,
         hint: '',
-        similarDomains: [],
+        relatedDomainTags: [],
         suggestedIps: [],
         selected: [],
         campaignOptions: [],
@@ -2778,18 +2980,29 @@ window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(
         selectedCampaignIds: [],
         onToggle(checked) {
             this.enabled = Boolean(checked);
-            if (this.enabled && this.mode === 'domain_similarity') {
-                this.openSimilarityPrompt();
+            if (this.enabled) {
+                this.openIpPopup();
             } else {
+                this.open = false;
                 this.hint = '';
             }
         },
         onModeChange() {
-            if (this.enabled && this.mode === 'domain_similarity') {
-                this.openSimilarityPrompt();
+            if (this.enabled) {
+                this.openIpPopup();
             } else {
                 this.hint = '';
             }
+        },
+        filteredRows() {
+            const mode = this.mode || 'all';
+            return (this.rows || []).filter((row) => {
+                if (!row || !row.ip) return false;
+                if (mode === 'domain_similarity') {
+                    return row.domain_similarity_label === 'High' || row.domain_similarity_label === 'Medium';
+                }
+                return true;
+            });
         },
         async loadCampaigns() {
             if (!this.adsConnected || !this.campaignsUrl) {
@@ -2814,35 +3027,37 @@ window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(
                 this.campaignsLoading = false;
             }
         },
-        async openSimilarityPrompt() {
-            if (!this.hostname || this.loading) return;
-            this.loading = true;
-            this.hint = 'Looking up similar-domain blocks…';
-            try {
-                const res = await fetch(this.suggestionsUrl + '?hostname=' + encodeURIComponent(this.hostname), {
-                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                });
-                const data = await res.json().catch(() => ({}));
-                const sim = data.similarity || {};
-                const ips = Array.isArray(sim.suggested_ips) ? sim.suggested_ips : [];
-                if (!ips.length) {
-                    this.hint = 'No similar-domain blocked IPs found for ' + this.hostname + '.';
-                    this.open = false;
-                    return;
-                }
-                this.similarDomains = Array.isArray(sim.similar_domains) ? sim.similar_domains : [];
-                this.suggestedIps = ips;
-                this.selected = ips.map((r) => r.ip);
-                this.campaignScope = 'all';
-                this.selectedCampaignIds = [];
+        openIpPopup() {
+            const rows = this.filteredRows();
+            this.suggestedIps = rows.map((r) => ({
+                ip: String(r.ip),
+                hits: Number(r.hits || 0),
+                from_domains: Array.isArray(r.domains) ? r.domains : [],
+                similarity: Number(r.domain_similarity || 0),
+                similarity_label: String(r.domain_similarity_label || '—'),
+            }));
+            const tags = new Set();
+            this.suggestedIps.forEach((r) => (r.from_domains || []).forEach((d) => {
+                const name = String(d || '').trim();
+                if (name) tags.add(name);
+            }));
+            this.relatedDomainTags = Array.from(tags).slice(0, 24);
+            this.selected = this.suggestedIps.map((r) => r.ip);
+            this.campaignScope = 'all';
+            this.selectedCampaignIds = [];
+            this.open = true;
+            if (!this.suggestedIps.length) {
+                this.hint = this.mode === 'domain_similarity'
+                    ? 'No Medium/High similarity cross-domain IPs yet for this workspace.'
+                    : 'No cross-domain visitor IPs found yet in this workspace.';
+            } else {
                 this.hint = '';
-                this.open = true;
                 this.loadCampaigns();
-            } catch (e) {
-                this.hint = 'Could not load similar-domain suggestions.';
-            } finally {
-                this.loading = false;
             }
+        },
+        /** @deprecated kept for older bindings */
+        openSimilarityPrompt() {
+            this.openIpPopup();
         },
         toggleAll() {
             const all = this.suggestedIps.map((r) => r.ip);
@@ -2876,7 +3091,7 @@ window.detectionCrossDomainSimilarity = function detectionCrossDomainSimilarity(
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
-                    this.hint = data.message || 'Could not apply similar-domain blocks.';
+                    this.hint = data.message || 'Could not apply cross-domain IPs.';
                     return;
                 }
                 this.hint = data.message || ('Applied ' + this.selected.length + ' IP(s). Save settings to keep Cross-domain On.');
@@ -2900,9 +3115,54 @@ window.detectionPageFilters = function detectionPageFilters(config) {
             campaign: config.campaign || '',
             trafficSource: config.trafficSource || 'google_ads',
         },
+        filterMenus: { domain: false, traffic: false, account: false, campaign: false },
+        domainOptions: config.domainOptions || [],
+        accountOptions: config.accountOptions || [],
+        trafficSourceOptions: config.trafficSourceOptions || [{ value: 'google_ads', label: 'Google Ads' }],
         campaignOptions: [],
         async init() {
             await this.loadCampaigns();
+        },
+        toggleFilterMenu(key) {
+            const next = !this.filterMenus[key];
+            this.filterMenus = { domain: false, traffic: false, account: false, campaign: false };
+            this.filterMenus[key] = next;
+        },
+        closeFilterMenus() {
+            this.filterMenus = { domain: false, traffic: false, account: false, campaign: false };
+        },
+        domainFilterLabel() {
+            if (!this.filters.domainId) return 'All Domains';
+            return (this.domainOptions || []).find((d) => String(d.id) === String(this.filters.domainId))?.label || 'All Domains';
+        },
+        trafficFilterLabel() {
+            return (this.trafficSourceOptions || []).find((o) => o.value === this.filters.trafficSource)?.label || 'Google Ads';
+        },
+        accountFilterLabel() {
+            if (!this.filters.googleAdsAccountId) return 'All Accounts';
+            const hit = (this.accountOptions || []).find((a) => String(a.id) === String(this.filters.googleAdsAccountId));
+            if (!hit) return 'All Accounts';
+            return hit.currency_code ? `${hit.label} · ${hit.currency_code}` : hit.label;
+        },
+        selectDomainFilter(id) {
+            this.filters.domainId = id ? String(id) : '';
+            this.closeFilterMenus();
+            this.applyFilters();
+        },
+        selectTrafficFilter(value) {
+            this.filters.trafficSource = value || 'google_ads';
+            this.closeFilterMenus();
+            this.applyFilters();
+        },
+        selectAccountFilter(id) {
+            this.filters.googleAdsAccountId = id ? String(id) : '';
+            this.closeFilterMenus();
+            this.applyFilters();
+        },
+        selectCampaignFilter(name) {
+            this.filters.campaign = name || '';
+            this.closeFilterMenus();
+            this.applyFilters();
         },
         async loadCampaigns() {
             const params = new URLSearchParams();
@@ -2913,12 +3173,27 @@ window.detectionPageFilters = function detectionPageFilters(config) {
                     headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 }).then((r) => r.json());
                 const list = Array.isArray(rows) ? rows : (rows.campaigns || []);
-                this.campaignOptions = [...new Set(list.map((r) => r.campaign).filter(Boolean))].sort();
-                if (this.filters.campaign && !this.campaignOptions.includes(this.filters.campaign)) {
-                    this.campaignOptions = [this.filters.campaign, ...this.campaignOptions];
+                const seen = new Set();
+                this.campaignOptions = list
+                    .filter((r) => r && r.campaign)
+                    .filter((r) => {
+                        const key = String(r.campaign);
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    })
+                    .map((r) => ({
+                        campaign: r.campaign,
+                        campaign_id: r.campaign_id || null,
+                        account_label: r.account_label || null,
+                        account_sub: r.account_sub || null,
+                    }))
+                    .sort((a, b) => String(a.campaign).localeCompare(String(b.campaign)));
+                if (this.filters.campaign && !this.campaignOptions.some((r) => r.campaign === this.filters.campaign)) {
+                    this.campaignOptions = [{ campaign: this.filters.campaign }, ...this.campaignOptions];
                 }
             } catch (e) {
-                this.campaignOptions = this.filters.campaign ? [this.filters.campaign] : [];
+                this.campaignOptions = this.filters.campaign ? [{ campaign: this.filters.campaign }] : [];
             }
         },
         applyFilters() {

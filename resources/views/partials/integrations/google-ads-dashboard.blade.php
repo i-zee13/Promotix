@@ -33,6 +33,9 @@
                             <p class="mt-[8px] truncate font-mono text-[11px] text-white/70" x-show="googleAdsSummary.customer_id">
                                 Customer ID: <span class="text-white/90" x-text="googleAdsSummary.customer_id"></span>
                             </p>
+                            <p class="mt-[4px] truncate text-[11px] text-white/70" x-show="adsAccountCurrencyLabel">
+                                Currency: <span class="text-white/90" x-text="adsAccountCurrencyLabel"></span>
+                            </p>
                             <p class="mt-[4px] truncate text-[11px] text-white/55" x-show="googleAdsSummary.email" x-text="googleAdsSummary.email"></p>
                         </div>
                     </div>

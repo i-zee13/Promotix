@@ -26,7 +26,8 @@ class Ga4SitePresenceService
      */
     public function detect(Domain $domain): array
     {
-        $measurementIds = [];
+        $linkedMeasurementIds = [];
+        $liveMeasurementIds = [];
         $gtmIds = [];
         $awIds = [];
         $signals = [];
@@ -48,7 +49,7 @@ class Ga4SitePresenceService
                 continue;
             }
             if (preg_match('/^G-[A-Z0-9]+$/i', $tag)) {
-                $measurementIds[] = strtoupper($tag);
+                $linkedMeasurementIds[] = strtoupper($tag);
                 $signals[] = 'linked_account_ga4_id';
             } elseif (preg_match('/^AW-/i', $tag)) {
                 $awIds[] = strtoupper($tag);
@@ -80,7 +81,7 @@ class Ga4SitePresenceService
                 foreach ($this->extractIdsFromHtml($html) as $kind => $ids) {
                     if ($kind === 'G') {
                         foreach ($ids as $id) {
-                            $measurementIds[] = $id;
+                            $liveMeasurementIds[] = $id;
                         }
                         if ($ids !== []) {
                             $signals[] = 'homepage_ga4_snippet';
@@ -110,7 +111,6 @@ class Ga4SitePresenceService
             }
         }
 
-        $measurementIds = array_values(array_unique($measurementIds));
         $gtmIds = array_values(array_unique($gtmIds));
         $awIds = array_values(array_unique($awIds));
 
@@ -120,7 +120,7 @@ class Ga4SitePresenceService
                 foreach ($this->extractIdsFromGtmContainer($gtmId) as $kind => $ids) {
                     if ($kind === 'G') {
                         foreach ($ids as $id) {
-                            $measurementIds[] = $id;
+                            $liveMeasurementIds[] = $id;
                         }
                         if ($ids !== []) {
                             $signals[] = 'gtm_container_ga4_id';
@@ -137,12 +137,14 @@ class Ga4SitePresenceService
             }
         }
 
-        $measurementIds = array_values(array_unique($measurementIds));
+        $linkedMeasurementIds = array_values(array_unique($linkedMeasurementIds));
+        $liveMeasurementIds = array_values(array_unique($liveMeasurementIds));
+        // Live IDs first so UI never stamps a linked-only G- as "Detected" for this domain.
+        $measurementIds = array_values(array_unique(array_merge($liveMeasurementIds, $linkedMeasurementIds)));
         $gtmIds = array_values(array_unique($gtmIds));
         $awIds = array_values(array_unique($awIds));
         $signals = array_values(array_unique($signals));
 
-        $hasGa4 = $measurementIds !== [];
         $hasGtm = $gtmIds !== [];
         $hasLiveGa4 = in_array('homepage_ga4_snippet', $signals, true)
             || in_array('gtm_container_ga4_id', $signals, true);
@@ -151,38 +153,44 @@ class Ga4SitePresenceService
         $hasPortalGtm = in_array('portal_gtm_container', $signals, true);
         $hasLinkedGa4 = in_array('linked_account_ga4_id', $signals, true);
 
-        // Attach gate: need real GA4 (G-…) and/or a live GTM container snippet.
-        // Do NOT enable on AW-only Google Ads tags, generic gtag.js, or portal GTM ID alone.
-        $present = $hasLiveGa4
-            || $hasLiveGtm
-            || ($hasGa4 && ($hasLiveGtm || $hasLiveGa4 || $hasLinkedGa4));
+        // Attach / Tracking Installation: require live site or published GTM evidence.
+        // A G- ID stored on a linked Ads account alone must NOT mark every domain "connected".
+        $present = $hasLiveGa4 || $hasLiveGtm;
 
-        // Homepage unreachable: only allow when a real G- measurement ID is linked (not AW / portal GTM alone).
+        // Homepage unreachable: soft-allow only when a real G- is linked (not AW / portal GTM alone).
         if (! $present && in_array('homepage_fetch_failed', $signals, true) && $hasLinkedGa4) {
             $present = true;
             $signals[] = 'portal_fallback_after_fetch_fail';
         }
+
+        // has_ga4 = live G- (or soft fallback). Linked-only IDs stay in measurement_ids for hints, not as connected.
+        $hasGa4 = $hasLiveGa4
+            || in_array('portal_fallback_after_fetch_fail', $signals, true);
 
         $confidence = 'none';
         if ($hasLiveGa4 && ($hasLiveGtm || $hasGtm)) {
             $confidence = 'high';
         } elseif ($hasLiveGa4 || $hasLiveGtm) {
             $confidence = 'medium';
-        } elseif ($hasGa4 || $hasLinkedGa4) {
+        } elseif ($hasLinkedGa4) {
             $confidence = 'low';
         } elseif ($hasPortalGtm || $hasLiveGtagLoader || $awIds !== []) {
             $confidence = 'none';
         }
 
         $message = $present
-            ? 'GA4 detected (G-…) and/or live GTM on the website. Audience exclusion can proceed.'
-            : 'GA4 not detected on the website. A Google Ads tag (AW-…) or portal-only GTM ID is not enough — install GA4 (G-…) via GTM or direct, then retry.';
+            ? ($hasGa4
+                ? 'GA4 detected (G-…) on the website. Audience exclusion can proceed.'
+                : 'Live GTM found, but no GA4 measurement ID (G-…) yet. Add a GA4 Configuration tag in GTM, publish, then Detect again.')
+            : 'GA4 not detected on the website. A Google Ads tag (AW-…), portal GTM ID, or Ads-linked G- ID alone is not enough — install GA4 (G-…) via GTM or direct, then retry.';
 
         if (! $present && ($hasPortalGtm || $hasGtm) && ! $hasGa4) {
-            $message = 'GTM is linked, but no GA4 measurement ID (G-…) was found on the site or in the published container. Add GA4 in GTM (or install G-…), then Detect again.';
+            $message = 'GTM is linked in the portal, but no live GA4 (G-…) was found on the site or in the published container. Publish GTM with a GA4 tag, then Detect again.';
+        } elseif (! $present && $hasLinkedGa4 && ! $hasLiveGa4) {
+            $message = 'A G- ID is saved on a linked Ads account, but it was not found on this domain’s website. Install GA4 on the site (or in GTM), then Detect again.';
         } elseif (! $present && $awIds !== [] && ! $hasGa4) {
             $message = 'Google Ads tag (AW-…) found, but GA4 (G-…) is not installed. Audience membership needs GA4 Client ID — install GA4 first.';
-        } elseif ($hasGa4 && ! $hasGtm && ! $hasLiveGtm) {
+        } elseif ($hasLiveGa4 && ! $hasGtm && ! $hasLiveGtm) {
             $message = 'GA4 (G-) detected without GTM. The GA4 audience route needs GTM as the delivery container. Use GTM + GA4 together, or use the Google Ads website audience route.';
         }
 
