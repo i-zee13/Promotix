@@ -62,7 +62,7 @@
         'ANALYTICS' => [
             ['label' => 'Dashboard', 'route' => 'analytics.dashboard', 'icon' => 'home', 'permission' => 'bot-protection'],
             ['label' => 'Traffic Control', 'route' => 'analytics.traffic-control', 'icon' => 'eye', 'permission' => 'bot-protection'],
-            ['label' => 'Journeys', 'route' => 'analytics.journeys', 'icon' => 'repeat', 'permission' => 'bot-protection'],
+            ['label' => 'Visitor Journey', 'route' => 'analytics.journeys', 'icon' => 'repeat', 'permission' => 'bot-protection'],
         ],
         'SITE MANAGEMENT' => [
             ['label' => 'Domains', 'route' => 'domains.index', 'icon' => 'globe', 'permission' => 'domain-management'],

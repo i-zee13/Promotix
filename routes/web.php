@@ -392,6 +392,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/bot-protection/page-analytics', [BotProtectionController::class, 'pageAnalytics']);
     Route::get('/bot-protection/page-analytics/export', [BotProtectionController::class, 'pageAnalyticsExport']);
     Route::get('/bot-protection/traffic-control/sessions', [BotProtectionController::class, 'trafficControlSessions']);
+    Route::get('/bot-protection/traffic-control/intelligence', [BotProtectionController::class, 'trafficControlIntelligence']);
+    Route::get('/bot-protection/traffic-control/export.csv', [BotProtectionController::class, 'trafficControlExport'])->name('bot-protection.traffic-control.export');
+    Route::get('/bot-protection/visitor-journey/intelligence', [BotProtectionController::class, 'visitorJourneyIntelligence']);
     Route::get('/bot-protection/summary', [BotProtectionController::class, 'summary']);
     Route::get('/bot-protection/traffic-breakdown', [BotProtectionController::class, 'trafficBreakdown']);
     Route::get('/bot-protection/invalid-traffic-trends', [BotProtectionController::class, 'invalidTrafficTrends']);

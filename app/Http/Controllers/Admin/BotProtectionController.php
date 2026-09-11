@@ -13,6 +13,8 @@ use App\Support\GlobalIpAllowlist;
 use App\Support\CountryFlag;
 use App\Support\GoogleClickAttribution;
 use App\Support\PageAnalyticsAggregator;
+use App\Support\VisitorJourneyIntelligence;
+use App\Support\TrafficControlIntelligence;
 use App\Support\TrafficControlSessionQuery;
 use App\Support\TrafficSourceClassifier;
 use App\Support\UserTimezone;
@@ -34,7 +36,48 @@ class BotProtectionController extends Controller
 
     public function journeys(Request $request): View
     {
-        return $this->analyticsPage($request, 'journeys');
+        $domains = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forBotProtection()
+            ->orderBy('hostname')
+            ->get(['id', 'hostname']);
+
+        $googleAdsAccounts = GoogleAdsAccount::query()
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->synced()
+            ->orderBy('account_name')
+            ->get();
+
+        return view('bot-protection.journeys', [
+            'domains' => $domains,
+            'googleAdsAccounts' => $googleAdsAccounts,
+        ]);
+    }
+
+    public function visitorJourneyIntelligence(Request $request): JsonResponse
+    {
+        try {
+            $domainIds = $this->scopedDomainIds($request);
+            [$from, $to] = $this->dateRange($request);
+            $payload = app(VisitorJourneyIntelligence::class)->build($domainIds, $from, $to, $request, [
+                'campaign' => trim((string) $request->query('campaign', '')),
+                'device' => trim((string) $request->query('device', '')),
+                'path' => trim((string) $request->query('path', '')),
+                'q' => trim((string) $request->query('q', '')),
+                'sample' => filter_var($request->query('sample', false), FILTER_VALIDATE_BOOLEAN),
+            ]);
+
+            return response()->json($payload);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'error' => 'Could not load visitor journeys.',
+                'kpis' => [],
+                'sessions' => [],
+                'flow' => ['columns' => [], 'links' => []],
+            ], 500);
+        }
     }
 
     private function analyticsPage(Request $request, string $focus): View
@@ -806,14 +849,62 @@ class BotProtectionController extends Controller
             ->orderBy('account_name')
             ->get();
 
-        return view('bot-protection.advanced', [
+        return view('bot-protection.traffic-control', [
             'domains' => $domains,
             'googleAdsAccounts' => $googleAdsAccounts,
-            // PDF §1: this page is Analytics → Traffic Control (visitor intelligence).
-            // Fraud/IP blocking lives only under Paid Advertising → Advanced View.
-            'analyticsMode' => true,
             'enabledAdPlatforms' => \App\Support\AdminIntegrationCatalog::enabledAdPlatforms(),
         ]);
+    }
+
+    public function trafficControlIntelligence(Request $request): JsonResponse
+    {
+        try {
+            $domainIds = $this->scopedDomainIds($request);
+            [$from, $to] = $this->dateRange($request);
+            $payload = app(TrafficControlIntelligence::class)->build($domainIds, $from, $to, [
+                'campaign' => trim((string) $request->query('campaign', '')),
+                'path' => trim((string) $request->query('path', '')),
+                'q' => trim((string) $request->query('q', '')),
+            ]);
+
+            return response()->json($payload);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'error' => 'Could not load traffic intelligence.',
+                ...app(TrafficControlIntelligence::class)->build([], now()->subDay(), now(), []),
+            ], 500);
+        }
+    }
+
+    public function trafficControlExport(Request $request): StreamedResponse
+    {
+        $domainIds = $this->scopedDomainIds($request);
+        [$from, $to] = $this->dateRange($request);
+        $payload = app(TrafficControlIntelligence::class)->build($domainIds, $from, $to, [
+            'campaign' => trim((string) $request->query('campaign', '')),
+            'path' => trim((string) $request->query('path', '')),
+            'q' => trim((string) $request->query('q', '')),
+        ]);
+        $filename = 'traffic-control-'.$from->toDateString().'-'.$to->toDateString().'.csv';
+
+        return response()->streamDownload(function () use ($payload): void {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Device ID', 'IPs Used', 'IP Changes', 'Google Ads Clicks', 'Risk Score', 'Last Seen', 'Status']);
+            foreach (($payload['devices'] ?? []) as $row) {
+                fputcsv($out, [
+                    $row['device_id'] ?? '',
+                    implode('; ', $row['ips'] ?? []),
+                    $row['ip_changes'] ?? 0,
+                    $row['clicks'] ?? 0,
+                    $row['risk_score'] ?? 0,
+                    $row['last_seen'] ?? '',
+                    $row['status'] ?? '',
+                ]);
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function botStats(Request $request): JsonResponse

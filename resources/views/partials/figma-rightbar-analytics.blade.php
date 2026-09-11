@@ -23,7 +23,7 @@
         </a>
         <a href="{{ $analyticsJourneysRoute }}" class="paid-quick-action pa-quick-action" title="Journeys">
             @include('partials.sidebar-icon', ['name' => 'repeat', 'class' => 'h-[16px] w-[16px]'])
-            <span>Journeys</span>
+            <span>Visitor Journey</span>
         </a>
         <button
             type="button"

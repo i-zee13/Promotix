@@ -49,7 +49,7 @@ return [
                 // Traffic Control shares the bot-protection permission slug — duplicate is OK because
                 // canAccess() checks the slug, not the route.
                 'bot-protection-advanced-alias' => ['route' => 'analytics.traffic-control', 'label' => 'Traffic Control', 'icon' => 'eye', 'permission' => 'bot-protection'],
-                'bot-protection-journeys-alias' => ['route' => 'analytics.journeys', 'label' => 'Journeys', 'icon' => 'repeat', 'permission' => 'bot-protection'],
+                'bot-protection-journeys-alias' => ['route' => 'analytics.journeys', 'label' => 'Visitor Journey', 'icon' => 'repeat', 'permission' => 'bot-protection'],
             ],
         ],
         [
