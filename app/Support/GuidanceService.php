@@ -95,7 +95,7 @@ class GuidanceService
             'image_url' => method_exists($best, 'imageUrl') ? $best->imageUrl() : null,
             'confidence' => round(min(1.0, $bestScore), 2),
             'article_id' => (int) $best->id,
-            'offer_ticket' => $bestScore < 0.45,
+            'offer_ticket' => false,
             'source' => 'guidance_article',
         ];
     }

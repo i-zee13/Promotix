@@ -512,23 +512,27 @@ class IntegrationsController extends Controller
             $clickronixScriptId = $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '';
             $scriptOk = (bool) $domain->tag_connected;
             $gtmOk = $gtmContainerId !== '';
+            $installMethod = strtolower(trim((string) ($domain->tag_install_method ?? '')));
+            // GTM / Google Tag must not inherit "Connected/Detected" from Direct or WordPress script installs.
+            $gtmLive = $gtmOk && $scriptOk && $installMethod === 'gtm';
 
             // GA4 must never be "Detected" from a linked Ads account G- ID alone —
             // that ID is shared across domains and is not proof the site has GA4.
             // Status flips to Detected only after per-domain website Detect (frontend) or live scan.
+            // Google Tag (AW-…) similarly: account ID on file ≠ installed on the website.
             return [
                 'domain_id' => $domain->id,
                 'hostname' => (string) $domain->hostname,
                 'google_tag' => [
                     'id' => $googleTagId !== '' ? $googleTagId : '—',
-                    'status' => $googleTagId !== '' && $scriptOk ? 'Detected' : 'Not detected',
-                    'ok' => $googleTagId !== '' && $scriptOk,
+                    'status' => 'Not detected',
+                    'ok' => false,
                 ],
                 'gtm' => [
                     'id' => $gtmOk ? $gtmContainerId : '—',
-                    'status' => $gtmOk ? ($scriptOk ? 'Connected' : 'Offline') : 'Offline',
-                    'ok' => $gtmOk && $scriptOk,
-                    'unpublished' => $gtmOk && ! $scriptOk,
+                    'status' => $gtmLive ? 'Connected' : 'Offline',
+                    'ok' => $gtmLive,
+                    'unpublished' => $gtmOk && ! $gtmLive,
                 ],
                 'script' => [
                     'id' => $clickronixScriptId !== '' ? $clickronixScriptId : '—',
@@ -550,8 +554,12 @@ class IntegrationsController extends Controller
         }
 
         $domainsWithGtm = $manualDomains->filter(fn (Domain $d) => filled($d->gtm_container_id))->count();
-        $domainTotal = max(1, $manualDomains->count());
-        $allHaveGtm = $manualDomains->isNotEmpty() && $domainsWithGtm === $manualDomains->count();
+        $domainsWithGtmLive = $manualDomains->filter(function (Domain $d) {
+            return filled($d->gtm_container_id)
+                && (bool) $d->tag_connected
+                && (string) ($d->tag_install_method ?? '') === 'gtm';
+        })->count();
+        $allHaveGtmLive = $manualDomains->isNotEmpty() && $domainsWithGtmLive === $manualDomains->count();
         $allHaveScript = $manualDomains->isNotEmpty()
             && $manualDomains->every(fn (Domain $d) => (bool) $d->tag_connected);
 
@@ -566,16 +574,16 @@ class IntegrationsController extends Controller
             'hostname' => 'All Domains',
             'google_tag' => [
                 'id' => '—',
-                'status' => $allHaveScript ? 'Per domain' : 'Not detected',
+                'status' => 'Not detected',
                 'ok' => false,
             ],
             'gtm' => [
                 'id' => '—',
                 'status' => $manualDomains->isEmpty()
                     ? 'Offline'
-                    : ($allHaveGtm ? 'All domains' : ($domainsWithGtm.'/'.$manualDomains->count().' domains')),
-                'ok' => $allHaveGtm && $allHaveScript,
-                'unpublished' => $domainsWithGtm > 0 && ! $allHaveGtm,
+                    : ($allHaveGtmLive ? 'All domains' : ($domainsWithGtmLive.'/'.$manualDomains->count().' domains')),
+                'ok' => $allHaveGtmLive,
+                'unpublished' => $domainsWithGtm > 0 && ! $allHaveGtmLive,
             ],
             'script' => [
                 'id' => '—',
@@ -612,7 +620,7 @@ class IntegrationsController extends Controller
         ];
 
         $connectionHealth['audience_protection'] = $protectionActive ? 'Active' : 'Not configured';
-        $connectionHealth['google_tag_ok'] = $allHaveScript;
+        $connectionHealth['google_tag_ok'] = false;
         $connectionHealth['script_ok'] = $allHaveScript;
         $connectionHealth['api_ok'] = $apiHealthy;
         $connectionHealth['sync_ok'] = filled($connectionHealth['last_sync_at'])

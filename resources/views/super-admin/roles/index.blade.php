@@ -33,6 +33,7 @@
                     <thead>
                         <tr>
                             <th>Role</th>
+                            <th>Portal</th>
                             <th>Permissions</th>
                             <th>Users</th>
                             <th class="text-right">Actions</th>
@@ -40,15 +41,14 @@
                     </thead>
                     <tbody>
                         @forelse ($roles as $role)
-                            <tr data-role-row data-search="{{ strtolower($role->name.' '.$role->slug.' '.($role->description ?? '')) }}">
+                            <tr data-role-row data-search="{{ strtolower($role->name.' '.$role->slug.' '.($role->portal ?? '').' '.($role->description ?? '')) }}">
                                 <td>
                                     <div class="figma-sa-products-usercell">
-                                        <span class="figma-sa-roles-icon" aria-hidden="true">
+                                        <span class="figma-sa-roles-icon" aria-hidden="true" @if($role->color) style="--role-color: {{ $role->color }}" @endif>
                                             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <rect width="40" height="40" rx="8" fill="#fff4ee"/>
-                                                <path d="M12 28c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="#FF6600" stroke-width="2" stroke-linecap="round"/>
-                                                <circle cx="20" cy="14" r="5" stroke="#FF6600" stroke-width="2"/>
-                                                <path d="M26 16l4-2v6l-4-2" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M12 28c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="{{ $role->color ?: '#FF6600' }}" stroke-width="2" stroke-linecap="round"/>
+                                                <circle cx="20" cy="14" r="5" stroke="{{ $role->color ?: '#FF6600' }}" stroke-width="2"/>
                                             </svg>
                                         </span>
                                         <span>
@@ -59,6 +59,11 @@
                                             @endif
                                         </span>
                                     </div>
+                                </td>
+                                <td>
+                                    <span class="figma-sa-roles-count-badge figma-sa-roles-count-badge--muted">
+                                        {{ ($role->portal ?? 'user') === 'admin' ? 'Admin' : 'User' }}
+                                    </span>
                                 </td>
                                 <td>
                                     <div class="figma-sa-roles-count-cell">
@@ -79,9 +84,20 @@
                                     <div class="figma-sa-roles-actions">
                                         <a href="{{ route('super-admin.roles.edit', $role) }}" class="figma-sa-roles-action-btn">Edit</a>
                                         @if ($role->slug !== 'super-admin')
-                                            <form method="POST" action="{{ route('super-admin.roles.destroy', $role) }}" class="inline" onsubmit="return confirm('Delete this role? Users with this role will have no role.');">
+                                            <form method="POST" action="{{ route('super-admin.roles.destroy', $role) }}" class="inline-flex flex-wrap items-center gap-2"
+                                                  onsubmit="return confirm(@json($role->users_count > 0 ? 'Reassign members then delete this role?' : 'Delete this role?'));">
                                                 @csrf
                                                 @method('DELETE')
+                                                @if ($role->users_count > 0)
+                                                    <select name="reassign_role_id" required class="figma-input !w-auto !py-1 text-[11px]" title="Reassign members to">
+                                                        <option value="">Reassign to…</option>
+                                                        @foreach ($allRolesForReassign as $other)
+                                                            @if ($other->id !== $role->id)
+                                                                <option value="{{ $other->id }}">{{ $other->name }}</option>
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                @endif
                                                 <button type="submit" class="figma-sa-roles-action-btn figma-sa-roles-action-btn--danger">Delete</button>
                                             </form>
                                         @else
@@ -92,7 +108,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="figma-sa-products-empty">No roles yet. Click <strong>New role</strong> to add one.</td>
+                                <td colspan="5" class="figma-sa-products-empty">No roles yet. Click <strong>New role</strong> to add one.</td>
                             </tr>
                         @endforelse
                     </tbody>

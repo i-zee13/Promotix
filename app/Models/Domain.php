@@ -31,6 +31,7 @@ class Domain extends Model
         'gtm_container_id',
         'tracking_params',
         'tag_connected',
+        'tag_install_method',
         'paid_marketing_connected',
         'bot_mitigation_connected',
         'monitoring_only_mode',

@@ -68,18 +68,19 @@
             </a>
         @endif
 
-        <a
-            href="{{ route('profile.edit') }}"
+        <button
+            type="button"
             class="figma-rightbar-icon-btn"
-            title="More"
-            aria-label="More options"
+            title="Settings"
+            aria-label="Open Settings"
+            onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings'))"
         >
             <svg class="h-[16px] w-[16px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="5" r="1.8"/>
                 <circle cx="12" cy="12" r="1.8"/>
                 <circle cx="12" cy="19" r="1.8"/>
             </svg>
-        </a>
+        </button>
     </div>
 
     <div

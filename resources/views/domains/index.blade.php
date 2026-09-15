@@ -654,7 +654,7 @@ function siteManagementFigma() {
                         'X-CSRF-TOKEN': this.csrf,
                         Accept: 'application/json',
                     },
-                    body: JSON.stringify({}),
+                    body: JSON.stringify({ install_source: 'wordpress' }),
                 });
                 const data = await res.json();
                 this.showToast(data.verified ? 'Installation verified — reload page' : (data.message || 'Not verified'));

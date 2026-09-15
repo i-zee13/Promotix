@@ -97,11 +97,11 @@
                 @include('partials.portal-switch')
             @endif
             @include('partials.header-timezone')
-            <div class="figma-header-userchip flex h-[34px] max-w-[60vw] items-center overflow-hidden rounded-[4px] border border-[#6400B2] bg-[#0D0D0D] text-[13px] leading-none text-white sm:max-w-none">
-                <span class="figma-header-avatar flex h-full w-[36px] shrink-0 items-center justify-center overflow-hidden border-r border-[#6400B2] bg-white/10">
-                    @include('partials.user-avatar', ['avatarUser' => $user])
+            <div class="figma-header-userchip flex h-[36px] max-w-[60vw] items-center overflow-hidden rounded-[4px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] leading-none text-white sm:max-w-none">
+                <span class="figma-header-avatar flex h-full w-[34px] shrink-0 items-center justify-center overflow-hidden bg-white/10">
+                    @include('partials.user-avatar', ['avatarUser' => $user, 'avatarTextClass' => 'text-[11px] font-semibold leading-none text-white/90'])
                 </span>
-                <button type="button" @click="userMenuOpen = ! userMenuOpen" class="inline-flex h-full items-center truncate px-[12px] text-left leading-none sm:px-[16px]">{{ $user?->name ?: $user?->email }}</button>
+                <button type="button" @click="userMenuOpen = ! userMenuOpen" class="inline-flex h-full items-center truncate px-[10px] pl-[4px] text-left text-[11px] font-medium leading-none sm:pr-[12px]">{{ $user?->name ?: $user?->email }}</button>
             </div>
             <div x-show="userMenuOpen" x-cloak class="figma-user-menu absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#6400B2]/60 bg-[#111111] py-1 shadow-card-lg">
                 @if ($user?->is_super_admin)

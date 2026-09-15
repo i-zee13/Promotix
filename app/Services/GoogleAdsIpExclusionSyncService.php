@@ -31,18 +31,28 @@ class GoogleAdsIpExclusionSyncService
 
         $rows = DB::table('google_ads_ip_exclusions')
             ->where('domain_id', $domain->id)
-            ->where('sync_status', 'pending');
+            ->whereIn('sync_status', ['pending', 'failed', 'skipped']);
 
         if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
             $rows->where('is_active', true);
         }
 
-        $rows = $rows->orderBy('id')
+        $rows = $rows->orderByRaw("CASE sync_status WHEN 'pending' THEN 0 WHEN 'failed' THEN 1 ELSE 2 END")
+            ->orderBy('id')
             ->limit($limit)
             ->get();
 
         $synced = 0;
         foreach ($rows as $row) {
+            if (($row->sync_status ?? '') !== 'pending') {
+                DB::table('google_ads_ip_exclusions')
+                    ->where('id', $row->id)
+                    ->update([
+                        'sync_status' => 'pending',
+                        'sync_error' => null,
+                        'updated_at' => now(),
+                    ]);
+            }
             if ($this->syncRow($domain, (string) $row->ip, (int) $row->id, $onlyCampaignIds)) {
                 $synced++;
             }
@@ -77,7 +87,7 @@ class GoogleAdsIpExclusionSyncService
         $domain->loadMissing(['googleAdsAccount.connection', 'googleAdsMappings.account.connection']);
         $account = $this->resolveAdsAccount($domain);
         if (! $account || (bool) $account->is_manager) {
-            $this->markRow($domain->id, $ip, 'skipped', 'Domain has no linked Google Ads customer account.', null, $rowId);
+            $this->markRow($domain->id, $ip, 'failed', 'Domain has no linked Google Ads customer account.', null, $rowId);
 
             return false;
         }

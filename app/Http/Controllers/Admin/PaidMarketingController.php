@@ -4841,10 +4841,11 @@ class PaidMarketingController extends Controller
         }
 
         $detection = $ga4Presence->detect($domain);
-        if (! $detection['present']) {
+        $route = (string) ($request->input('route', $request->input('method', 'ga4')));
+        if ($route === 'ga4' && (! ($detection['present'] ?? false) || empty($detection['has_ga4']))) {
             return response()->json([
                 'ok' => false,
-                'message' => 'GA4/GTM not detected on the website — fix tracking first, then Apply exclusion. '.$detection['message'],
+                'message' => 'GA4 not detected on the website — install GA4 (G-…) first, then Apply exclusion. '.$detection['message'],
                 'attached' => [],
                 'failed' => [],
                 'ga4_detection' => $detection,
@@ -4854,12 +4855,14 @@ class PaidMarketingController extends Controller
         $result = $associations->applyToCampaigns(
             $domain,
             is_array($campaignIds) ? $campaignIds : [],
-            (string) $request->input('audience_name', 'Clickronix | Invalid Traffic | GA4'),
+            (string) $request->input('audience_name', $route === 'website'
+                ? 'Clickronix | Invalid Traffic | Google Ads'
+                : 'Clickronix | Invalid Traffic | GA4'),
             $request->input('user_list_id'),
             (string) $request->input('event_name', \App\Services\AudienceSignalService::DEFAULT_EVENT),
             is_array($request->input('ad_group_ids')) ? $request->input('ad_group_ids') : [],
             (string) $request->input('scope', 'campaign'),
-            (string) $request->input('route', $request->input('method', 'ga4')),
+            $route,
         );
 
         return response()->json([

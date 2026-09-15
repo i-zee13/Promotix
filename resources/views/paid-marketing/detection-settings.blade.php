@@ -2061,7 +2061,7 @@
                                         <div class="figma-gaem-campaign-list" x-show="campaignOptions.length">
                                             <template x-for="c in campaignOptions" :key="c.id">
                                                 <label class="figma-gaem-campaign-item">
-                                                    <input type="checkbox" :value="c.id" x-model="selectedCampaignIds" :disabled="loading || !adsConnected">
+                                                    <input type="checkbox" :checked="isCampaignSelected(c.id)" @change="toggleCampaign(c.id, $event.target.checked)" :disabled="loading || !adsConnected">
                                                     <span x-text="c.name"></span>
                                                 </label>
                                             </template>
@@ -2100,15 +2100,15 @@
                                                             'is-pending': row.sync_status === 'pending',
                                                             'is-sent': row.sync_status === 'synced' && row.is_active !== false,
                                                             'is-applied': row.sync_status === 'synced' && row.is_active !== false,
-                                                            'is-failed': row.sync_status === 'failed',
+                                                            'is-failed': row.sync_status === 'failed' || row.sync_status === 'skipped',
                                                             'is-off': row.sync_status === 'disabled' || row.is_active === false,
                                                         }"
                                                         x-text="statusLabel(row)"
                                                     ></span>
                                                 </td>
                                                 <td class="figma-gaem-actions-cell">
-                                                    <template x-if="row.sync_status === 'pending' || row.sync_status === 'failed'">
-                                                        <button type="button" class="figma-gaem-row-btn figma-gaem-row-btn--primary" :disabled="loading" @click="pushRow(row.ip)" x-text="row.sync_status === 'failed' ? 'Retry' : 'Push'"></button>
+                                                    <template x-if="row.sync_status === 'pending' || row.sync_status === 'failed' || row.sync_status === 'skipped'">
+                                                        <button type="button" class="figma-gaem-row-btn figma-gaem-row-btn--primary" :disabled="loading || !adsConnected" @click="pushRow(row.ip)" x-text="row.sync_status === 'pending' ? 'Push' : 'Retry'"></button>
                                                     </template>
                                                     <template x-if="row.sync_status === 'synced' && row.is_active !== false">
                                                         <button type="button" class="figma-gaem-row-btn" disabled>Applied</button>
@@ -2663,7 +2663,7 @@ function googleExclusionPanel(config) {
         statusLabel(row) {
             if (row.sync_status === 'disabled' || row.is_active === false) return 'Off';
             if (row.sync_status === 'pending') return 'Pending';
-            if (row.sync_status === 'failed') return 'Failed';
+            if (row.sync_status === 'failed' || row.sync_status === 'skipped') return 'Failed';
             if (row.sync_status === 'synced') return 'Applied';
             return row.sync_status || '—';
         },
@@ -2675,7 +2675,20 @@ function googleExclusionPanel(config) {
             return body;
         },
         toggleAllCampaigns(checked) {
-            this.selectedCampaignIds = checked ? [] : this.campaignOptions.map((c) => c.id);
+            this.selectedCampaignIds = checked ? [] : this.campaignOptions.map((c) => String(c.id));
+        },
+        toggleCampaign(id, checked) {
+            const value = String(id);
+            if (checked) {
+                if (!this.selectedCampaignIds.includes(value)) {
+                    this.selectedCampaignIds = [...this.selectedCampaignIds, value];
+                }
+            } else {
+                this.selectedCampaignIds = this.selectedCampaignIds.filter((x) => String(x) !== value);
+            }
+        },
+        isCampaignSelected(id) {
+            return this.selectedCampaignIds.map(String).includes(String(id));
         },
         filteredCrossDomainRows() {
             const mode = this.crossDomainMode || 'all';
@@ -2776,7 +2789,9 @@ function googleExclusionPanel(config) {
                     }))
                     .filter((c) => c.id && c.name)
                     .sort((a, b) => a.name.localeCompare(b.name));
-                this.selectedCampaignIds = this.selectedCampaignIds.filter((id) => this.campaignOptions.some((c) => c.id === id));
+                this.selectedCampaignIds = this.selectedCampaignIds
+                    .map(String)
+                    .filter((id) => this.campaignOptions.some((c) => c.id === id));
             } catch (e) {
                 this.campaignOptions = [];
             }
@@ -2924,6 +2939,11 @@ function googleExclusionPanel(config) {
         },
         async syncPending() {
             if (this.loading) return;
+            if (!this.adsConnected) {
+                this.ok = false;
+                this.message = 'Connect Google Ads for this domain first.';
+                return;
+            }
             this.loading = true;
             this.message = '';
             try {
@@ -2939,7 +2959,7 @@ function googleExclusionPanel(config) {
                 });
                 const data = await res.json().catch(() => ({}));
                 this.ok = !!data.ok;
-                this.message = data.message || 'Sync finished.';
+                this.message = data.message || (this.ok ? 'Sync finished.' : 'Could not push pending exclusions to Google Ads.');
                 if (Array.isArray(data.rows)) this.rows = data.rows;
             } catch (e) {
                 this.ok = false;

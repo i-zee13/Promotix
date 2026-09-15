@@ -101,15 +101,15 @@
                         <p class="text-[11px] uppercase tracking-wide text-white/55">Website tracking tag — not Google Ads</p>
                         <div class="mt-[6px] flex flex-wrap items-center gap-[10px]">
                             <h2 class="text-[18px] font-semibold text-white">Google Tag Manager</h2>
-                            @php($tagStatus = \App\Support\DomainTagStatus::forDomain($domain))
-                            <span class="figma-domain-setup__badge">{{ $tagStatus['label'] }}</span>
-                            <span class="text-[11px] text-white/60">Last seen: {{ $tagStatus['last_seen_human'] }}</span>
+                            @php($tagStatusGtm = \App\Support\DomainTagStatus::forDomain($domain, 'gtm'))
+                            <span class="figma-domain-setup__badge">{{ $tagStatusGtm['label'] }}</span>
+                            <span class="text-[11px] text-white/60">Last seen: {{ $tagStatusGtm['last_seen_human'] }}</span>
                         </div>
                         <p class="mt-[10px] text-[12px] leading-relaxed text-white/70">
                             This tag records website visits on <strong class="text-white/90">Analytics</strong> and marks Tag Manager as installed.
                             It does not need a Google Ads click (<code class="text-white/80">gclid</code>). Paid Ads is a separate step.
                         </p>
-                        <button type="button" class="figma-domain-setup__btn-primary mt-[18px]" @click="verifyInstallation('{{ $domain->id }}')">
+                        <button type="button" class="figma-domain-setup__btn-primary mt-[18px]" @click="verifyInstallation('{{ $domain->id }}', 'gtm')">
                             Verify installation
                         </button>
                     </div>
@@ -156,10 +156,10 @@
             </div>
             @include('partials.domain-installation-keys', ['domain' => $domain, 'showHeading' => true])
             <div class="mt-[20px] flex flex-wrap items-center gap-[12px]">
-                @php($tagStatus = \App\Support\DomainTagStatus::forDomain($domain))
-                <span class="figma-domain-setup__badge">{{ $tagStatus['label'] }}</span>
-                <span class="text-[11px] text-white/60">Last seen: {{ $tagStatus['last_seen_human'] }}</span>
-                <button type="button" class="figma-domain-setup__btn-primary" @click="verifyInstallation('{{ $domain->id }}')">Verify installation</button>
+                @php($tagStatusWp = \App\Support\DomainTagStatus::forDomain($domain))
+                <span class="figma-domain-setup__badge">{{ $tagStatusWp['label'] }}</span>
+                <span class="text-[11px] text-white/60">Last seen: {{ $tagStatusWp['last_seen_human'] }}</span>
+                <button type="button" class="figma-domain-setup__btn-primary" @click="verifyInstallation('{{ $domain->id }}', 'wordpress')">Verify installation</button>
             </div>
         </div>
 
@@ -183,8 +183,11 @@
                 Copy
             </button>
             <p class="mt-[12px] text-[10px] text-white/50">After saving, clear any cache (LiteSpeed, WP Rocket, Hostinger, etc.), open your homepage, then verify below.</p>
-            <div class="mt-[20px]">
-                <button type="button" class="figma-domain-setup__btn-primary" @click="verifyInstallation('{{ $domain->id }}')">Verify installation</button>
+            <div class="mt-[20px] flex flex-wrap items-center gap-[12px]">
+                @php($tagStatusManual = \App\Support\DomainTagStatus::forDomain($domain))
+                <span class="figma-domain-setup__badge">{{ $tagStatusManual['label'] }}</span>
+                <span class="text-[11px] text-white/60">Last seen: {{ $tagStatusManual['last_seen_human'] }}</span>
+                <button type="button" class="figma-domain-setup__btn-primary" @click="verifyInstallation('{{ $domain->id }}', 'manual')">Verify installation</button>
             </div>
         </div>
 
@@ -367,7 +370,7 @@ function domainSetup(keys = {}) {
             });
             if (res.ok) this.showToast('Instructions emailed');
         },
-        async verifyInstallation(domainId) {
+        async verifyInstallation(domainId, installSource = 'manual') {
             const res = await fetch(`/domains/${domainId}/verify-wordpress`, {
                 method: 'POST',
                 headers: {
@@ -375,7 +378,7 @@ function domainSetup(keys = {}) {
                     'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify({}),
+                body: JSON.stringify({ install_source: installSource }),
             });
             const data = await res.json();
             this.showToast(data.message || (data.verified ? 'Verified' : 'Not verified'));

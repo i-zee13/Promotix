@@ -180,6 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
         'ga4StatusUrl' => route('integrations.google.ga4-status'),
         'createAudienceUrl' => route('integrations.google.create-audience'),
         'applyAudienceUrl' => route('integrations.google.apply-audience'),
+        'domainFilterOptions' => collect($manualDomains ?? [])->map(fn ($d) => [
+            'id' => (string) $d->id,
+            'label' => $d->hostname,
+        ])->values(),
+        'adsAccountFilterOptions' => collect($trackingIds ?? [])->unique('account_id')->values()->map(fn ($row) => [
+            'id' => (string) ($row['account_id'] ?? ''),
+            'label' => ($row['label'] ?? 'Account') . (! empty($row['currency_code']) ? ' · '.$row['currency_code'] : ''),
+        ])->filter(fn ($row) => $row['id'] !== '')->values(),
     ]))"
     @platform-menu.window="handlePlatformMenu($event.detail)"
 >
@@ -192,39 +200,47 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--pi ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
-                <label class="flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="relative flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="filterMenus.domain = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="selectedDomainId" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All Domains</option>
-                            @foreach ($manualDomains as $domain)
-                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                            @endforeach
-                        </select>
+                    <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="domainFilterLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto">
+                        <button type="button" @click="selectDomainFilter('')" class="paid-advanced-campaign-option" :class="!selectedDomainId && 'is-active'">
+                            <span class="paid-advanced-campaign-option__label">All Domains</span>
+                        </button>
+                        <template x-for="d in domainFilterOptions" :key="'pi-dom-' + d.id">
+                            <button type="button" @click="selectDomainFilter(d.id)" class="paid-advanced-campaign-option" :class="String(selectedDomainId) === String(d.id) && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="d.label"></span>
+                            </button>
+                        </template>
                     </div>
                 </label>
-                <label class="flex w-[170px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="relative flex w-[170px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="filterMenus.account = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="selectedAdsAccountId" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All Accounts</option>
-                            @php
-                                $linkedFilterAccounts = collect($trackingIds ?? [])
-                                    ->unique('account_id')
-                                    ->values();
-                            @endphp
-                            @foreach ($linkedFilterAccounts as $row)
-                                <option value="{{ $row['account_id'] }}">{{ $row['label'] }}{{ ! empty($row['currency_code']) ? ' · '.$row['currency_code'] : '' }}</option>
-                            @endforeach
-                        </select>
+                    <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="adsAccountFilterLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.account" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto !min-w-[220px]">
+                        <button type="button" @click="selectAdsAccountFilter('')" class="paid-advanced-campaign-option" :class="!selectedAdsAccountId && 'is-active'">
+                            <span class="paid-advanced-campaign-option__label">All Accounts</span>
+                        </button>
+                        <template x-for="a in adsAccountFilterOptions" :key="'pi-acc-' + a.id">
+                            <button type="button" @click="selectAdsAccountFilter(a.id)" class="paid-advanced-campaign-option" :class="String(selectedAdsAccountId) === String(a.id) && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="a.label"></span>
+                            </button>
+                        </template>
                     </div>
                 </label>
-                <label class="flex w-[140px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+                <label class="relative flex w-[140px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="filterMenus.landing = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
-                    <div class="figma-filter-select-wrap">
-                        <select x-model="selectedLandingPage" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All Pages</option>
-                        </select>
+                    <button type="button" @click="toggleFilterMenu('landing')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="landingPageFilterLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.landing" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto">
+                        <button type="button" @click="selectLandingPageFilter('')" class="paid-advanced-campaign-option" :class="!selectedLandingPage && 'is-active'">
+                            <span class="paid-advanced-campaign-option__label">All Pages</span>
+                        </button>
                     </div>
                 </label>
                 @include('partials.figma-filter-date-fields')
@@ -1463,6 +1479,42 @@ function platformIntegrations(config) {
         selectedDomainId: '',
         selectedAdsAccountId: '',
         selectedLandingPage: '',
+        filterMenus: { domain: false, account: false, landing: false },
+        domainFilterOptions: config.domainFilterOptions || [],
+        adsAccountFilterOptions: config.adsAccountFilterOptions || [],
+        toggleFilterMenu(key) {
+            const next = !this.filterMenus[key];
+            this.filterMenus = { domain: false, account: false, landing: false };
+            this.filterMenus[key] = next;
+        },
+        closeFilterMenus() {
+            this.filterMenus = { domain: false, account: false, landing: false };
+        },
+        domainFilterLabel() {
+            if (!this.selectedDomainId) return 'All Domains';
+            const hit = (this.domainFilterOptions || []).find((d) => String(d.id) === String(this.selectedDomainId));
+            return hit ? hit.label : 'All Domains';
+        },
+        adsAccountFilterLabel() {
+            if (!this.selectedAdsAccountId) return 'All Accounts';
+            const hit = (this.adsAccountFilterOptions || []).find((a) => String(a.id) === String(this.selectedAdsAccountId));
+            return hit ? hit.label : 'All Accounts';
+        },
+        landingPageFilterLabel() {
+            return this.selectedLandingPage || 'All Pages';
+        },
+        selectDomainFilter(id) {
+            this.selectedDomainId = String(id || '');
+            this.closeFilterMenus();
+        },
+        selectAdsAccountFilter(id) {
+            this.selectedAdsAccountId = String(id || '');
+            this.closeFilterMenus();
+        },
+        selectLandingPageFilter(value) {
+            this.selectedLandingPage = String(value || '');
+            this.closeFilterMenus();
+        },
         keysModal: {
             open: false,
             id: null,
@@ -2836,16 +2888,18 @@ function platformIntegrations(config) {
                 return;
             }
             const method = this.applyAudienceModal.method || this.createAudienceModal.method || 'ga4';
-            const present = this.applyAudienceModal.ga4Present === true
-                ? true
-                : await this.checkGa4SiteStatus(true);
-            if (!present) {
-                this.showMenuToast(this.applyAudienceModal.ga4Message || 'GA4/GTM not detected — fix tracking before Apply exclusion.', 'error');
-                return;
-            }
-            if (method === 'ga4' && this.createAudienceModal.ga4HasGa4 === false) {
-                this.showMenuToast(this.createAudienceModal.ga4Message || this.applyAudienceModal.ga4Message || 'GA4 (G-…) not detected on this domain — install GA4 before Apply.', 'error');
-                return;
+            if (method !== 'website') {
+                const present = this.applyAudienceModal.ga4Present === true
+                    ? true
+                    : await this.checkGa4SiteStatus(true);
+                if (!present) {
+                    this.showMenuToast(this.applyAudienceModal.ga4Message || 'GA4/GTM not detected — fix tracking before Apply exclusion.', 'error');
+                    return;
+                }
+                if (this.createAudienceModal.ga4HasGa4 === false) {
+                    this.showMenuToast(this.createAudienceModal.ga4Message || this.applyAudienceModal.ga4Message || 'GA4 (G-…) not detected on this domain — install GA4 before Apply.', 'error');
+                    return;
+                }
             }
 
             const selected = (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect);
@@ -3325,7 +3379,7 @@ function platformIntegrations(config) {
                         'X-CSRF-TOKEN': config.csrf,
                         Accept: 'application/json',
                     },
-                    body: JSON.stringify({}),
+                    body: JSON.stringify({ install_source: 'wordpress' }),
                 });
                 const data = await res.json();
                 this.showMenuToast(data.verified ? 'Installation verified — reload page' : (data.message || 'Not verified'), data.verified ? 'success' : 'error');

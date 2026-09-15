@@ -118,10 +118,12 @@
                 </template>
                 <template x-if="offerTicket">
                     <div class="rounded-[8px] border border-amber-400/30 bg-amber-500/10 p-3 text-[11px] text-amber-50">
-                        <p class="mb-2 font-medium">Low confidence — open a ticket?</p>
-                        <input type="text" x-model="ticketSubject" placeholder="Subject" class="mb-2 h-[32px] w-full rounded border border-white/15 bg-[#0d0d0d] px-2 text-[12px] text-white">
-                        <textarea x-model="ticketBody" rows="3" placeholder="Describe the issue" class="mb-2 w-full rounded border border-white/15 bg-[#0d0d0d] px-2 py-1 text-[12px] text-white"></textarea>
-                        <button type="button" @click="createTicket()" class="rounded bg-[#FF6600] px-3 py-1.5 text-[11px] font-semibold text-white" :disabled="ticketBusy">
+                        <p class="mb-1 font-medium">No match in the knowledge bank — open a ticket?</p>
+                        <p class="mb-2 text-[10px] text-amber-100/70">Include the page/domain, what you expected, and what happened. “Hi” or short greetings are not accepted.</p>
+                        <input type="text" x-model="ticketSubject" placeholder="Subject (e.g. Tag not detecting on example.com)" class="mb-2 h-[32px] w-full rounded border border-white/15 bg-[#0d0d0d] px-2 text-[12px] text-white">
+                        <textarea x-model="ticketBody" rows="4" placeholder="Describe the issue in detail (what you tried, errors, screenshots description…)" class="mb-2 w-full rounded border border-white/15 bg-[#0d0d0d] px-2 py-1 text-[12px] text-white"></textarea>
+                        <p x-show="ticketError" x-text="ticketError" class="mb-2 text-[10px] text-rose-300"></p>
+                        <button type="button" @click="createTicket()" class="rounded bg-[#FF6600] px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50" :disabled="ticketBusy">
                             <span x-text="ticketBusy ? 'Creating…' : 'Create support ticket'"></span>
                         </button>
                     </div>
@@ -185,6 +187,7 @@ function liveAgentChat(config) {
         offerTicket: false,
         ticketSubject: '',
         ticketBody: '',
+        ticketError: '',
         ticketDepartment: 'support',
         ticketBusy: false,
         lastActivityAt: Date.now(),
@@ -270,6 +273,7 @@ function liveAgentChat(config) {
             this.ticketMessages = [];
             this.ticketDraft = '';
             this.offerTicket = false;
+            this.ticketError = '';
             this.messages = [{ from: 'agent', text: this.welcome }];
             this.bumpActivity();
             this.$nextTick(() => this.scrollMessages());
@@ -369,9 +373,8 @@ function liveAgentChat(config) {
             this.typing = false;
             if (errMsg) {
                 this.messages.push({ from: 'agent', text: errMsg });
-                this.offerTicket = true;
-                this.ticketSubject = text.slice(0, 120);
-                this.ticketBody = text;
+                // Service errors can escalate — but never prefill with a greeting.
+                this.openTicketOffer(text);
             } else {
                 if (payload.session_id) this.sessionId = payload.session_id;
                 this.messages.push({
@@ -381,20 +384,66 @@ function liveAgentChat(config) {
                     image_url: payload.image_url || null,
                 });
                 this.ticketDepartment = payload.department || 'support';
-                if (payload.offer_ticket || (payload.confidence !== undefined && payload.confidence < 0.35)) {
-                    this.offerTicket = true;
-                    this.ticketSubject = text.slice(0, 120);
-                    this.ticketBody = text;
+                const source = String(payload.source || '');
+                const shouldOffer = Boolean(payload.offer_ticket)
+                    && source !== 'clarifying'
+                    && source !== 'knowledge_bank'
+                    && source !== 'guidance_article';
+                if (shouldOffer) {
+                    this.openTicketOffer(text);
                 }
             }
             this.bumpActivity();
             this.$nextTick(() => this.scrollMessages());
         },
+        openTicketOffer(userMessage) {
+            this.offerTicket = true;
+            this.ticketError = '';
+            const msg = String(userMessage || '').trim();
+            // Only prefill when the message already looks like a real issue.
+            if (this.isSubstantialTicketText(msg)) {
+                this.ticketSubject = msg.slice(0, 120);
+                this.ticketBody = msg;
+            } else {
+                this.ticketSubject = '';
+                this.ticketBody = '';
+            }
+        },
+        isSubstantialTicketText(text) {
+            const t = String(text || '').trim().toLowerCase();
+            if (t.length < 40) return false;
+            const trivial = ['hi', 'hii', 'hello', 'hey', 'ok', 'test', 'help', 'thanks', 'thank you'];
+            const flat = t.replace(/[!?.]+$/g, '');
+            if (trivial.includes(flat)) return false;
+            const words = t.split(/\W+/).filter((w) => w.length > 2);
+            return words.length >= 6;
+        },
+        ticketDraftError(subject, body) {
+            const s = String(subject || '').trim();
+            const b = String(body || '').trim();
+            if (s.length < 8) return 'Subject needs at least 8 characters.';
+            if (b.length < 40) return 'Description needs at least 40 characters with real detail.';
+            const trivial = ['hi', 'hii', 'hello', 'hey', 'ok', 'test', 'help', 'thanks'];
+            const flatS = s.toLowerCase().replace(/[!?.]+$/g, '');
+            const flatB = b.toLowerCase().replace(/[!?.]+$/g, '');
+            if (trivial.includes(flatS) || trivial.includes(flatB)) {
+                return 'A greeting is not enough — describe the product issue.';
+            }
+            if (flatS === flatB && b.split(/\s+/).length < 12) {
+                return 'Expand the description beyond the subject line.';
+            }
+            return '';
+        },
         async createTicket() {
             if (this.ticketBusy) return;
-            const subject = String(this.ticketSubject || '').trim() || 'Guidance chat follow-up';
+            const subject = String(this.ticketSubject || '').trim();
             const body = String(this.ticketBody || '').trim();
-            if (!body) return;
+            const err = this.ticketDraftError(subject, body);
+            if (err) {
+                this.ticketError = err;
+                return;
+            }
+            this.ticketError = '';
             this.ticketBusy = true;
             try {
                 const res = await fetch(config.ticketUrl, {
@@ -417,9 +466,11 @@ function liveAgentChat(config) {
                     this.loadTickets();
                     if (data.ticket_id) this.openTicket(data.ticket_id);
                 } else {
+                    this.ticketError = data.message || 'Could not create ticket.';
                     this.messages.push({ from: 'agent', text: data.message || 'Could not create ticket.' });
                 }
             } catch (e) {
+                this.ticketError = 'Ticket request failed.';
                 this.messages.push({ from: 'agent', text: 'Ticket request failed.' });
             }
             this.ticketBusy = false;

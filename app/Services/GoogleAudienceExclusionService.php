@@ -173,7 +173,11 @@ class GoogleAudienceExclusionService
 
         $queued = 0;
         $seen = [];
-        foreach ($query->get(['ip', 'threat_group', 'action_taken']) as $row) {
+        $select = ['ip', 'threat_group', 'action_taken'];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('visits', 'is_invalid_traffic')) {
+            $select[] = 'is_invalid_traffic';
+        }
+        foreach ($query->get($select) as $row) {
             $ip = trim((string) ($row->ip ?? ''));
             if ($ip === '' || isset($seen[$ip])) {
                 continue;
@@ -187,9 +191,12 @@ class GoogleAudienceExclusionService
             if ($threat === '') {
                 $threat = 'blocked';
             }
-            // Only auto-queue true blocks into Google exclusions.
-            $action = strtolower((string) ($row->action_taken ?? 'block'));
-            if ($action !== 'block' && $action !== '') {
+            // Queue blocks and invalid flagged visits into Google exclusions.
+            $action = strtolower(trim((string) ($row->action_taken ?? 'block')));
+            if ($action === 'flag' && empty($row->is_invalid_traffic)) {
+                continue;
+            }
+            if (! in_array($action, ['block', 'flag', ''], true)) {
                 continue;
             }
             if (! $this->shouldQueue($threat, 'block', $settings)) {

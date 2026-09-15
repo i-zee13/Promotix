@@ -76,7 +76,8 @@ class ClickronixKnowledgeBank
                 'image_url' => null,
                 'confidence' => 0.2,
                 'article_id' => null,
-                'offer_ticket' => true,
+                // Greetings / vague pings are not ticket-worthy — ask for detail first.
+                'offer_ticket' => false,
                 'department' => 'General Support',
                 'source' => 'clarifying',
             ];
@@ -112,7 +113,8 @@ class ClickronixKnowledgeBank
             'image_url' => null,
             'confidence' => round(min(1.0, $bestScore / 4), 2),
             'article_id' => null,
-            'offer_ticket' => $bestScore < 1.2,
+            // Knowledge bank hit → never push ticket create; tickets only when KB misses.
+            'offer_ticket' => false,
             'department' => $best['department'] ?? null,
             'source' => 'knowledge_bank',
         ];

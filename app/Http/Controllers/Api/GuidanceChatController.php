@@ -108,6 +108,17 @@ class GuidanceChatController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
 
+        $draftCheck = \App\Support\SupportTicketDraft::validate(
+            (string) $data['subject'],
+            (string) $data['body']
+        );
+        if (! $draftCheck['ok']) {
+            return response()->json([
+                'ok' => false,
+                'message' => $draftCheck['message'],
+            ], 422);
+        }
+
         $priority = $data['priority'] ?? 'normal';
         if ($priority === 'emergency') {
             $priority = 'urgent';

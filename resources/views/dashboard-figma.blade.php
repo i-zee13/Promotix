@@ -80,28 +80,96 @@
     }
 </script>
 <div class="brand-page-bg min-h-[calc(100vh-49px)]">
-    <section id="ov-page" class="ov-page ov-page--booting mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[18px] sm:px-[18px] xl:max-w-none xl:px-[22px] xl:pt-[20px]">
-        <div class="mb-[12px] flex flex-col gap-[10px] xl:flex-row xl:items-start xl:justify-between">
-            <h1 class="text-[28px] font-normal leading-none text-white sm:text-[31px]">Overview</h1>
-            <div class="figma-filter-bar figma-filter-bar--overview ov-filter-bar flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                <label class="flex w-[180px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]">
+    <section id="ov-page" class="ov-page ov-page--booting mx-auto w-full max-w-[1120px] px-[12px] pb-[22px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[25px] xl:pt-[68px]">
+        <div class="mb-[23px] bp-adv-page-head flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-wrap items-center gap-[12px] shrink-0">
+                <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Overview</h1>
+                <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
+                <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Dashboard</span>
+            </div>
+            @php
+                $ovAdPlatforms = $enabledAdPlatforms ?? \App\Support\AdminIntegrationCatalog::enabledAdPlatforms();
+                $ovTrafficOptions = array_values(array_filter([
+                    ['value' => 'google_ads', 'label' => 'Google Ads'],
+                    ! empty($ovAdPlatforms['meta']) ? ['value' => 'meta_ads', 'label' => 'Meta Ads'] : null,
+                    ! empty($ovAdPlatforms['microsoft']) ? ['value' => 'microsoft_ads', 'label' => 'Microsoft Ads'] : null,
+                ]));
+                $ovDomainOptions = $domains->map(fn ($d) => ['id' => (string) $d->id, 'label' => $d->hostname])->values()->all();
+            @endphp
+            <div
+                class="figma-filter-bar figma-filter-bar--overview ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]"
+                x-data="{
+                    filterMenus: { domain: false, traffic: false },
+                    domainId: @js((string) request('domain_id', '')),
+                    trafficSource: 'google_ads',
+                    domains: @js($ovDomainOptions),
+                    trafficOptions: @js($ovTrafficOptions),
+                    toggle(key) {
+                        const next = !this.filterMenus[key];
+                        this.filterMenus = { domain: false, traffic: false };
+                        this.filterMenus[key] = next;
+                    },
+                    closeAll() { this.filterMenus = { domain: false, traffic: false }; },
+                    domainLabel() {
+                        if (!this.domainId) return 'All Domains';
+                        const hit = this.domains.find((d) => String(d.id) === String(this.domainId));
+                        return hit ? hit.label : 'All Domains';
+                    },
+                    trafficLabel() {
+                        const hit = this.trafficOptions.find((o) => o.value === this.trafficSource);
+                        return hit ? hit.label : 'Google Ads';
+                    },
+                    pickDomain(id) {
+                        this.domainId = String(id || '');
+                        this.closeAll();
+                        const el = document.getElementById('domain-filter');
+                        if (el) { el.value = this.domainId; el.dispatchEvent(new Event('change', { bubbles: true })); }
+                    },
+                    pickTraffic(value) {
+                        this.trafficSource = value;
+                        this.closeAll();
+                        const el = document.getElementById('traffic-source-filter');
+                        if (el) { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); }
+                    },
+                }"
+            >
+                <label class="relative flex w-[180px] shrink-0 flex-col justify-center border-r border-black/20 px-[10px] py-[6px]" @click.outside="filterMenus.domain = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
-                    <div class="figma-filter-select-wrap">
-                        <select id="domain-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            <option value="">All Domains</option>
-                            @foreach ($domains as $domain)
-                                <option value="{{ $domain->id }}" @selected((string) request('domain_id') === (string) $domain->id)>{{ $domain->hostname }}</option>
-                            @endforeach
-                        </select>
+                    <button type="button" @click="toggle('domain')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="domainLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[10px] !right-auto">
+                        <button type="button" @click="pickDomain('')" class="paid-advanced-campaign-option" :class="!domainId && 'is-active'">
+                            <span class="paid-advanced-campaign-option__label">All Domains</span>
+                        </button>
+                        <template x-for="d in domains" :key="'ov-dom-' + d.id">
+                            <button type="button" @click="pickDomain(d.id)" class="paid-advanced-campaign-option" :class="String(domainId) === String(d.id) && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="d.label"></span>
+                            </button>
+                        </template>
                     </div>
+                    <select id="domain-filter" class="hidden" tabindex="-1" aria-hidden="true">
+                        <option value="">All Domains</option>
+                        @foreach ($domains as $domain)
+                            <option value="{{ $domain->id }}" @selected((string) request('domain_id') === (string) $domain->id)>{{ $domain->hostname }}</option>
+                        @endforeach
+                    </select>
                 </label>
-                <label class="ov-filter-traffic flex w-[118px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                <label class="ov-filter-traffic relative flex w-[118px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.traffic = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
-                    <div class="figma-filter-select-wrap">
-                        <select id="traffic-source-filter" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[11px] text-[#8c8787] focus:ring-0">
-                            @include('partials.traffic-source-options')
-                        </select>
+                    <button type="button" @click="toggle('traffic')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="trafficLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.traffic" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto">
+                        <template x-for="opt in trafficOptions" :key="'ov-ts-' + opt.value">
+                            <button type="button" @click="pickTraffic(opt.value)" class="paid-advanced-campaign-option" :class="trafficSource === opt.value && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>
+                            </button>
+                        </template>
                     </div>
+                    <select id="traffic-source-filter" class="hidden" tabindex="-1" aria-hidden="true">
+                        @include('partials.traffic-source-options')
+                    </select>
                 </label>
                 <label class="ov-filter-pages flex w-[128px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>

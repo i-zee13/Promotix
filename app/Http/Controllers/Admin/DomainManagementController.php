@@ -468,6 +468,10 @@ class DomainManagementController extends Controller
         $verified = false;
         $message = 'Could not verify tag installation.';
         $method = null;
+        $installSource = strtolower(trim((string) $request->input('install_source', '')));
+        if (! in_array($installSource, ['gtm', 'wordpress', 'manual'], true)) {
+            $installSource = '';
+        }
 
         $wpResult = $this->verifyWordpressPlugin($domain);
         if ($wpResult['verified']) {
@@ -501,6 +505,14 @@ class DomainManagementController extends Controller
         if ($verified) {
             $domain->tag_connected = true;
             $domain->status = 'connected';
+            // Prefer the setup-tab source so Direct/WP verification never marks GTM as installed.
+            if ($installSource !== '') {
+                $domain->tag_install_method = $installSource;
+            } elseif ($method === 'wordpress') {
+                $domain->tag_install_method = 'wordpress';
+            } elseif (in_array($method, ['html', 'activity'], true) && blank($domain->tag_install_method)) {
+                $domain->tag_install_method = 'manual';
+            }
             $domain->save();
         }
 
@@ -508,6 +520,7 @@ class DomainManagementController extends Controller
             'verified' => $verified,
             'message' => $message,
             'method' => $method,
+            'install_source' => $domain->tag_install_method,
         ]);
     }
 

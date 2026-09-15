@@ -4720,20 +4720,32 @@ select.figma-sa-subs-status-pill {
 .figma-header .figma-header-userchip {
     display: flex !important;
     align-items: center !important;
-    height: 34px !important;
-    font-size: 13px;
+    height: 36px !important;
+    font-size: 11px;
     line-height: 1 !important;
     border-radius: 4px;
     box-sizing: border-box !important;
+    gap: 0;
 }
 
 .figma-header .figma-header-userchip .figma-header-avatar {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 36px;
+    width: 34px !important;
     height: 100% !important;
-    padding: 0 !important;
+    padding: 3px !important;
+    border-right: 0 !important;
+}
+
+.figma-header .figma-header-userchip .figma-header-avatar .promotix-user-avatar-img,
+.figma-header .figma-header-userchip .figma-header-avatar .promotix-user-avatar-fallback {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: 999px;
+    font-size: 11px !important;
 }
 
 .figma-header .figma-header-userchip button.truncate,
@@ -4741,9 +4753,11 @@ select.figma-sa-subs-status-pill {
     display: inline-flex !important;
     align-items: center !important;
     height: 100% !important;
-    padding: 0 16px !important;
+    padding: 0 10px 0 4px !important;
     margin: 0 !important;
     line-height: 1 !important;
+    font-size: 11px !important;
+    font-weight: 500;
 }
 
 /* Shared customer-portal canvas: typography, page inset, legacy token harmonization */

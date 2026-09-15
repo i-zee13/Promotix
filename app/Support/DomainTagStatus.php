@@ -16,9 +16,10 @@ class DomainTagStatus
     public const NOT_DETECTED = 'Not detected';
 
     /**
+     * @param  'gtm'|'wordpress'|'manual'|null  $channel  When `gtm`, Installed only if verified via GTM (not Direct/WP).
      * @return array{status: string, label: string, last_seen_at: ?string, last_seen_human: string, installed: bool}
      */
-    public static function forDomain(?Domain $domain): array
+    public static function forDomain(?Domain $domain, ?string $channel = null): array
     {
         $raw = $domain?->getAttributes()['last_seen_at'] ?? null;
         $lastSeen = null;
@@ -36,6 +37,10 @@ class DomainTagStatus
         if ($domain !== null) {
             $attrs = $domain->getAttributes();
             $installed = (bool) ($attrs['tag_connected'] ?? false);
+            // GTM tab must not inherit Installed from Direct / WordPress verification.
+            if ($installed && $channel === 'gtm') {
+                $installed = (($attrs['tag_install_method'] ?? null) === 'gtm');
+            }
         }
 
         return self::describe(
