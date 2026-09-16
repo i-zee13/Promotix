@@ -47,6 +47,47 @@ class GoogleAdsAudienceAssociationService
      *   method: string
      * }
      */
+    /**
+     * Stored GA4 / website audience list ids for a domain (from mapping settings).
+     *
+     * @return array{
+     *   ga4: array{user_list_id: string, user_list_name: string}|null,
+     *   website: array{user_list_id: string, user_list_name: string}|null
+     * }
+     */
+    public function storedAssociationsForDomain(Domain $domain): array
+    {
+        $mapping = DomainGoogleAdsMapping::query()
+            ->where('domain_id', $domain->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $byRoute = is_array($mapping?->settings['audience_associations'] ?? null)
+            ? $mapping->settings['audience_associations']
+            : [];
+
+        $pick = function (string $route) use ($byRoute): ?array {
+            $row = is_array($byRoute[$route] ?? null) ? $byRoute[$route] : null;
+            if (! $row) {
+                return null;
+            }
+            $id = trim((string) ($row['user_list_id'] ?? ''));
+            if ($id === '') {
+                return null;
+            }
+
+            return [
+                'user_list_id' => $id,
+                'user_list_name' => (string) ($row['user_list_name'] ?? $row['audience_name'] ?? ''),
+            ];
+        };
+
+        return [
+            'ga4' => $pick('ga4'),
+            'website' => $pick('website'),
+        ];
+    }
+
     public function createAudienceList(
         Domain $domain,
         string $audienceName,

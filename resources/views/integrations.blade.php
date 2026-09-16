@@ -180,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'ga4StatusUrl' => route('integrations.google.ga4-status'),
         'createAudienceUrl' => route('integrations.google.create-audience'),
         'applyAudienceUrl' => route('integrations.google.apply-audience'),
+        'audienceAssociationsByDomain' => $audienceAssociationsByDomain ?? [],
         'domainFilterOptions' => collect($manualDomains ?? [])->map(fn ($d) => [
             'id' => (string) $d->id,
             'label' => $d->hostname,
@@ -1752,7 +1753,7 @@ function platformIntegrations(config) {
                 'Account access and event delivery are verified separately.',
                 'GTM sends the event to GA4. GTM container is required for this route.',
                 'Send fraud signals directly to Google Ads. Creates a separate list.',
-                'Confirm both audience sources and apply exclusions without replacing old lists.',
+                'Confirm the selected route list, then apply exclusions without replacing old lists.',
             ],
         },
         createAudienceModal: {
@@ -1814,6 +1815,7 @@ function platformIntegrations(config) {
             campaigns: [],
         },
         createdAudienceLists: [],
+        audienceAssociationsByDomain: config.audienceAssociationsByDomain || {},
         get trackingInstallation() {
             const id = String(this.selectedDomainId || '');
             if (id && this.trackingInstallationByDomain[id]) {
@@ -2445,15 +2447,59 @@ function platformIntegrations(config) {
             if (this.audienceWizard.step === 0) {
                 return this.audienceWizard.source === 'website' ? 'Configure Ads route →' : 'Configure GA4 route →';
             }
-            if (this.audienceWizard.step === 1) return 'Continue to Ads route →';
-            if (this.audienceWizard.step === 2) return 'Continue to Verify →';
+            if (this.audienceWizard.step === 1) {
+                return this.audienceWizard.ga4ListId ? 'Continue to Verify →' : 'Create GA4 list & verify →';
+            }
+            if (this.audienceWizard.step === 2) {
+                return this.audienceWizard.websiteListId ? 'Continue to Verify →' : 'Create Ads list & verify →';
+            }
             return 'Done';
+        },
+        hydrateWizardAudienceLists(fromServer) {
+            const domainId = this.resolveAudienceDomainId();
+            const fromConfig = domainId
+                ? (this.audienceAssociationsByDomain[domainId] || this.audienceAssociationsByDomain[String(domainId)] || null)
+                : null;
+            const lists = fromServer && typeof fromServer === 'object' ? fromServer : fromConfig;
+            if (!lists || typeof lists !== 'object') {
+                return;
+            }
+            const ga4 = lists.ga4 || null;
+            const website = lists.website || null;
+            if (ga4?.user_list_id && !this.audienceWizard.ga4ListId) {
+                this.audienceWizard.ga4ListId = String(ga4.user_list_id);
+                if (ga4.user_list_name) this.audienceWizard.ga4Name = String(ga4.user_list_name);
+            }
+            if (website?.user_list_id && !this.audienceWizard.websiteListId) {
+                this.audienceWizard.websiteListId = String(website.user_list_id);
+                if (website.user_list_name) this.audienceWizard.websiteName = String(website.user_list_name);
+            }
+            if (domainId && lists) {
+                this.audienceAssociationsByDomain[domainId] = {
+                    ga4: this.audienceWizard.ga4ListId
+                        ? { user_list_id: this.audienceWizard.ga4ListId, user_list_name: this.audienceWizard.ga4Name }
+                        : (ga4 || null),
+                    website: this.audienceWizard.websiteListId
+                        ? { user_list_id: this.audienceWizard.websiteListId, user_list_name: this.audienceWizard.websiteName }
+                        : (website || null),
+                };
+            }
+        },
+        wizardRouteStatus(route) {
+            const selected = this.audienceWizard.source === route
+                || (route === 'ga4' && this.audienceWizard.source !== 'website' && this.audienceWizard.ga4ListId)
+                || (route === 'website' && this.audienceWizard.source === 'website');
+            const listId = route === 'website' ? this.audienceWizard.websiteListId : this.audienceWizard.ga4ListId;
+            if (listId) return { label: 'Created', tone: 'ok', selected: true };
+            if (this.audienceWizard.source === route) return { label: 'Missing', tone: 'bad', selected: true };
+            return { label: 'Not selected', tone: 'muted', selected: false };
         },
         openAudienceWizard() {
             this.audienceWizard.step = 0;
             this.audienceWizard.source = 'ga4';
             this.audienceWizard.open = true;
             this.lockSpecModal();
+            this.hydrateWizardAudienceLists();
             this.checkGa4SiteStatus(false);
         },
         get wizardGa4StatusLabel() {
@@ -2468,7 +2514,7 @@ function platformIntegrations(config) {
         wizardGoToStep(step) {
             this.audienceWizard.step = Math.max(0, Math.min(3, Number(step) || 0));
         },
-        wizardNextStep() {
+        async wizardNextStep() {
             if (this.audienceWizard.step === 0) {
                 if (this.audienceWizard.source === 'ga4') {
                     if (!this.wizardGtmConnected) {
@@ -2482,18 +2528,31 @@ function platformIntegrations(config) {
                 return;
             }
             if (this.audienceWizard.step === 1) {
-                this.wizardGoToStep(2);
+                // GA4 route → create GA4 Ads list (if needed), then Verify. Skip Ads route.
+                this.audienceWizard.source = 'ga4';
+                if (!this.audienceWizard.ga4ListId) {
+                    const ok = await this.wizardCreateAudience('ga4', { stayOnStep: true });
+                    if (!ok) return;
+                }
+                this.wizardGoToStep(3);
                 return;
             }
             if (this.audienceWizard.step === 2) {
+                // Ads / website segment route → create website list, then Verify.
+                this.audienceWizard.source = 'website';
+                if (!this.audienceWizard.websiteListId) {
+                    const ok = await this.wizardCreateAudience('website', { stayOnStep: true });
+                    if (!ok) return;
+                }
                 this.wizardGoToStep(3);
             }
         },
-        async wizardCreateAudience(method) {
+        async wizardCreateAudience(method, options = {}) {
+            const stayOnStep = Boolean(options.stayOnStep);
             const route = method === 'website' ? 'website' : 'ga4';
             if (route === 'ga4' && !this.wizardGtmConnected) {
                 this.showMenuToast('GTM is required for the GA4 audience route.', 'error');
-                return;
+                return false;
             }
             this.createAudienceModal.method = route;
             this.createAudienceModal.name = route === 'website'
@@ -2502,11 +2561,10 @@ function platformIntegrations(config) {
             this.createAudienceModal.duration = this.audienceWizard.duration || '30 days';
             this.audienceWizard.creating = true;
             try {
-                // Reuse create API without auto-opening old apply modal flow.
                 const domainId = this.resolveAudienceDomainId();
                 if (!domainId || !this.createAudienceModal.createUrl) {
                     this.showMenuToast('Select a domain first, then Create audience.', 'error');
-                    return;
+                    return false;
                 }
                 if (route === 'ga4') {
                     const present = this.createAudienceModal.ga4Present === true
@@ -2514,7 +2572,7 @@ function platformIntegrations(config) {
                         : await this.checkGa4SiteStatus(false);
                     if (!present || this.createAudienceModal.ga4HasGa4 === false || this.createAudienceModal.ga4HasGtm === false) {
                         this.showMenuToast(this.createAudienceModal.ga4Message || 'GTM + GA4 required for this route.', 'error');
-                        return;
+                        return false;
                     }
                 }
                 const adsId = this.createAudienceModal.ads_account;
@@ -2524,6 +2582,7 @@ function platformIntegrations(config) {
                     duration: this.createAudienceModal.duration || '30 days',
                     event_name: this.audienceWizard.eventName || 'clickronix_invalid_traffic',
                     method: route,
+                    force_reuse: true,
                 };
                 if (adsId && adsId !== 'summary' && /^\d+$/.test(String(adsId))) {
                     body.google_ads_account_id = Number(adsId);
@@ -2549,35 +2608,55 @@ function platformIntegrations(config) {
                 }
                 if (!data.ok) {
                     this.showMenuToast(data.message || 'Could not create audience in Google Ads.', 'error');
-                    return;
+                    return false;
                 }
                 const listId = data.user_list_id ? String(data.user_list_id) : '';
                 if (route === 'website') {
                     this.audienceWizard.websiteListId = listId;
                     this.audienceWizard.websiteName = data.user_list_name || this.audienceWizard.websiteName;
+                    this.audienceWizard.source = 'website';
                 } else {
                     this.audienceWizard.ga4ListId = listId;
                     this.audienceWizard.ga4Name = data.user_list_name || this.audienceWizard.ga4Name;
+                    this.audienceWizard.source = 'ga4';
                 }
+                this.hydrateWizardAudienceLists({
+                    ga4: this.audienceWizard.ga4ListId
+                        ? { user_list_id: this.audienceWizard.ga4ListId, user_list_name: this.audienceWizard.ga4Name }
+                        : null,
+                    website: this.audienceWizard.websiteListId
+                        ? { user_list_id: this.audienceWizard.websiteListId, user_list_name: this.audienceWizard.websiteName }
+                        : null,
+                });
                 this.showMenuToast((data.message || 'Audience created') + ' — separate list; old exclusions are not replaced.', 'success');
-                if (route === 'ga4') this.wizardGoToStep(2);
-                else this.wizardGoToStep(3);
+                if (!stayOnStep) {
+                    this.wizardGoToStep(3);
+                }
+                return Boolean(listId);
             } catch (_) {
                 this.showMenuToast('Create audience request failed.', 'error');
+                return false;
             } finally {
                 this.audienceWizard.creating = false;
             }
         },
         wizardOpenApply() {
             const preferWebsite = this.audienceWizard.source === 'website' && this.audienceWizard.websiteListId;
-            const route = preferWebsite ? 'website' : (this.audienceWizard.ga4ListId ? 'ga4' : 'website');
+            const route = preferWebsite
+                ? 'website'
+                : (this.audienceWizard.ga4ListId ? 'ga4' : (this.audienceWizard.websiteListId ? 'website' : 'ga4'));
+            const listId = route === 'website'
+                ? this.audienceWizard.websiteListId
+                : this.audienceWizard.ga4ListId;
+            if (!listId) {
+                this.showMenuToast('Create the selected route audience list first.', 'error');
+                return;
+            }
             this.applyAudienceModal.method = route;
             this.applyAudienceModal.audienceName = route === 'website'
                 ? this.audienceWizard.websiteName
                 : this.audienceWizard.ga4Name;
-            this.applyAudienceModal.userListId = route === 'website'
-                ? this.audienceWizard.websiteListId
-                : this.audienceWizard.ga4ListId;
+            this.applyAudienceModal.userListId = listId;
             this.applyAudienceModal.source = route === 'website' ? 'Website segment' : 'GA4 event';
             this.applyAudienceModal.status = 'Ready to apply (adds list; does not replace old exclusions)';
             this.closeAudienceWizard();
@@ -2634,6 +2713,9 @@ function platformIntegrations(config) {
                     headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 });
                 const data = await res.json().catch(() => ({}));
+                if (data.audience_lists) {
+                    this.hydrateWizardAudienceLists(data.audience_lists);
+                }
                 const d = data.detection || {};
                 const present = Boolean(d.present);
                 const hasGa4 = Boolean(d.has_ga4);

@@ -21,7 +21,13 @@
             <ol class="flex flex-wrap gap-[8px] text-[11px]">
                 <template x-for="(label, idx) in audienceWizard.stepLabels" :key="'wiz-'+label">
                     <li class="inline-flex items-center gap-[6px] rounded-full px-[10px] py-[4px]"
-                        :class="audienceWizard.step === idx ? 'bg-[var(--brand-primary)] text-white' : (audienceWizard.step > idx ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/5 text-white/55')">
+                        :class="audienceWizard.step === idx
+                            ? 'bg-[var(--brand-primary)] text-white'
+                            : (idx === 1 && audienceWizard.source === 'website'
+                                ? 'bg-white/5 text-white/40'
+                                : (idx === 2 && audienceWizard.source === 'ga4' && audienceWizard.step === 3
+                                    ? 'bg-white/5 text-white/40'
+                                    : (audienceWizard.step > idx ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/5 text-white/55')))">
                         <span class="font-semibold" x-text="String(idx + 1).padStart(2, '0')"></span>
                         <span x-text="label"></span>
                     </li>
@@ -274,27 +280,27 @@
             {{-- STEP 04: Verify & exclude --}}
             <div x-show="audienceWizard.step === 3" class="space-y-[16px]">
                 <div class="grid gap-[8px] sm:grid-cols-4">
-                    <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
+                    <div class="rounded-[10px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[12px] py-[10px] text-[12px]">
                         <p class="text-white/50">Account access</p>
                         <p class="mt-[4px] font-semibold" :class="wizardAdsConnected ? 'text-emerald-300' : 'text-white/60'" x-text="wizardAdsConnected ? 'Connected' : 'Pending'"></p>
                     </div>
-                    <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
+                    <div class="rounded-[10px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[12px] py-[10px] text-[12px]">
                         <p class="text-white/50">Audience lists</p>
                         <p class="mt-[4px] font-semibold text-white" x-text="wizardListCount + ' found'"></p>
                     </div>
-                    <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
+                    <div class="rounded-[10px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[12px] py-[10px] text-[12px]">
                         <p class="text-white/50">GA4 list</p>
                         <p class="mt-[4px] font-mono text-[11px]" x-text="audienceWizard.ga4ListId ? ('List ' + audienceWizard.ga4ListId) : '—'"></p>
                     </div>
-                    <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
+                    <div class="rounded-[10px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[12px] py-[10px] text-[12px]">
                         <p class="text-white/50">Website list</p>
                         <p class="mt-[4px] font-mono text-[11px]" x-text="audienceWizard.websiteListId ? ('List ' + audienceWizard.websiteListId) : '—'"></p>
                     </div>
                 </div>
 
                 <div class="overflow-x-auto rounded-[10px] border border-white/12">
-                    <table class="min-w-full text-left text-[12px]">
-                        <thead class="bg-white/5 text-white/55">
+                    <table class="ae-verify-table min-w-full text-left text-[12px]">
+                        <thead class="bg-[var(--brand-primary)]/10 text-white/70">
                             <tr>
                                 <th class="px-[12px] py-[8px] font-medium">Source</th>
                                 <th class="px-[12px] py-[8px] font-medium">Audience</th>
@@ -302,18 +308,26 @@
                                 <th class="px-[12px] py-[8px] font-medium">Status</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr class="border-t border-white/10">
+                        <tbody class="text-white/85">
+                            <tr class="border-t border-white/10" x-show="audienceWizard.source === 'ga4' || audienceWizard.ga4ListId">
                                 <td class="px-[12px] py-[10px]">GA4</td>
                                 <td class="px-[12px] py-[10px]" x-text="audienceWizard.ga4Name"></td>
                                 <td class="px-[12px] py-[10px] font-mono" x-text="audienceWizard.ga4ListId ? ('List ' + audienceWizard.ga4ListId) : '—'"></td>
-                                <td class="px-[12px] py-[10px]" :class="audienceWizard.ga4ListId ? 'text-emerald-300' : 'text-white/45'" x-text="audienceWizard.ga4ListId ? 'Created' : 'Missing'"></td>
+                                <td class="px-[12px] py-[10px]">
+                                    <span class="inline-flex rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
+                                          :class="audienceWizard.ga4ListId ? 'bg-emerald-500/20 text-emerald-200' : 'bg-rose-500/20 text-rose-200'"
+                                          x-text="audienceWizard.ga4ListId ? 'Created' : 'Missing'"></span>
+                                </td>
                             </tr>
-                            <tr class="border-t border-white/10">
+                            <tr class="border-t border-white/10" x-show="audienceWizard.source === 'website' || audienceWizard.websiteListId">
                                 <td class="px-[12px] py-[10px]">Google Ads website</td>
                                 <td class="px-[12px] py-[10px]" x-text="audienceWizard.websiteName"></td>
                                 <td class="px-[12px] py-[10px] font-mono" x-text="audienceWizard.websiteListId ? ('List ' + audienceWizard.websiteListId) : '—'"></td>
-                                <td class="px-[12px] py-[10px]" :class="audienceWizard.websiteListId ? 'text-emerald-300' : 'text-white/45'" x-text="audienceWizard.websiteListId ? 'Created' : 'Missing'"></td>
+                                <td class="px-[12px] py-[10px]">
+                                    <span class="inline-flex rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
+                                          :class="audienceWizard.websiteListId ? 'bg-emerald-500/20 text-emerald-200' : 'bg-rose-500/20 text-rose-200'"
+                                          x-text="audienceWizard.websiteListId ? 'Created' : 'Missing'"></span>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -321,9 +335,17 @@
 
                 <p class="text-[11px] text-white/55">Apply adds the selected list as a <strong class="text-white/80">new</strong> campaign exclusion. Existing exclusion lists on the campaign stay in place — nothing is overridden.</p>
                 <div class="flex flex-wrap gap-[8px]">
-                    <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[16px] py-[8px] text-[13px] font-semibold"
-                            :disabled="!audienceWizard.ga4ListId && !audienceWizard.websiteListId"
+                    <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[16px] py-[8px] text-[13px] font-semibold disabled:opacity-40"
+                            :disabled="audienceWizard.source === 'website' ? !audienceWizard.websiteListId : !audienceWizard.ga4ListId"
                             @click="wizardOpenApply()">Apply exclusions on campaigns →</button>
+                    <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]"
+                            :disabled="audienceWizard.creating"
+                            x-show="audienceWizard.source === 'ga4' && !audienceWizard.ga4ListId"
+                            @click="wizardCreateAudience('ga4')">Create GA4 list</button>
+                    <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]"
+                            :disabled="audienceWizard.creating"
+                            x-show="audienceWizard.source === 'website' && !audienceWizard.websiteListId"
+                            @click="wizardCreateAudience('website')">Create Ads list</button>
                     <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="checkGa4SiteStatus(false)">Refresh status</button>
                 </div>
             </div>
@@ -331,16 +353,16 @@
 
         <footer class="flex shrink-0 flex-wrap items-center justify-between gap-[8px] border-t border-white/15 px-[22px] py-[14px]">
             <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]"
-                    @click="audienceWizard.step === 0 ? closeAudienceWizard() : audienceWizard.step--">
+                    @click="audienceWizard.step === 0 ? closeAudienceWizard() : (audienceWizard.step === 3 ? wizardGoToStep(audienceWizard.source === 'website' ? 2 : 1) : audienceWizard.step--)">
                 <span x-text="audienceWizard.step === 0 ? 'Cancel' : 'Back'"></span>
             </button>
             <div class="flex flex-wrap gap-[8px]">
                 <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="openInstallTagsFromWizard('gtm')">Connect GTM</button>
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[8px] text-[13px] font-semibold disabled:opacity-40"
                         x-show="audienceWizard.step < 3"
-                        :disabled="audienceWizard.step === 0 && audienceWizard.source === 'ga4' && !wizardGtmConnected"
+                        :disabled="audienceWizard.creating || (audienceWizard.step === 0 && audienceWizard.source === 'ga4' && !wizardGtmConnected)"
                         @click="wizardNextStep()">
-                    <span x-text="wizardPrimaryCta"></span>
+                    <span x-text="audienceWizard.creating ? 'Creating…' : wizardPrimaryCta"></span>
                 </button>
                 <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]"
                         x-show="audienceWizard.step === 0"

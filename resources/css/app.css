@@ -5842,20 +5842,20 @@ html.light-mode {
 .light-mode .figma-rightbar {
     background: #ffffff !important;
     border-color: color-mix(in srgb, var(--brand-primary) 35%, #e8e4ef) !important;
-    color: #a9a9a9 !important;
+    color: #5c5470 !important;
 }
 
-/* Sidebar: use theme lite muted gray (#a9a9a9), not near-black */
+/* Sidebar: readable muted slate (not near-black, not washed-out #a9a9a9) */
 .light-mode .figma-sidebar-brand-text,
 .light-mode .figma-nav-label,
 .light-mode .figma-sidebar-theme-label,
 .light-mode .figma-sidebar .text-\[\#a9a9a9\],
 .light-mode .figma-sidebar [class*="text-[#a9a9a9]"] {
-    color: #a9a9a9 !important;
+    color: #6b6578 !important;
 }
 
 .light-mode .figma-nav-link:not(.is-active) {
-    color: #a9a9a9 !important;
+    color: #3d3848 !important;
 }
 
 .light-mode .figma-nav-link:not(.is-active) svg,
@@ -5865,7 +5865,7 @@ html.light-mode {
 .light-mode .figma-sidebar .text-white\/70,
 .light-mode .figma-sidebar .text-white\/50,
 .light-mode .figma-sidebar [class*="text-white/"] {
-    color: #a9a9a9 !important;
+    color: #5c5470 !important;
 }
 
 .light-mode .figma-nav-link:not(.is-active):hover {
@@ -5890,7 +5890,7 @@ html.light-mode {
 .light-mode .figma-sidebar-search {
     background: color-mix(in srgb, var(--brand-primary) 6%, #ffffff) !important;
     border-color: color-mix(in srgb, var(--brand-primary) 35%, #e8e4ef) !important;
-    color: #5c5470 !important;
+    color: #3d3848 !important;
     box-shadow: none !important;
 }
 
@@ -5899,11 +5899,11 @@ html.light-mode {
 }
 
 .light-mode .figma-sidebar-search::placeholder {
-    color: #a9a9a9 !important;
+    color: #8a8299 !important;
 }
 
 .light-mode .figma-sidebar-search-icon {
-    color: #a9a9a9 !important;
+    color: #5c5470 !important;
 }
 
 .light-mode .figma-add-domain-btn {
@@ -11663,8 +11663,19 @@ html.light-mode .pi-spec-modal-panel [class*="bg-white/5"] {
 html.light-mode .pi-spec-modal-panel [class*="border-white"] {
     border-color: #e8d4c4 !important;
 }
-html.light-mode .pi-spec-modal-body {
-    scrollbar-color: rgba(255, 102, 0, 0.55) #f4f2f7;
+html.light-mode .pi-spec-modal-panel .ae-verify-table,
+html.light-mode .pi-spec-modal-panel .ae-verify-table td,
+html.light-mode .pi-spec-modal-panel .ae-verify-table th {
+    color: #3d3848 !important;
+}
+html.light-mode .pi-spec-modal-panel .ae-verify-table thead {
+    background-color: rgba(255, 102, 0, 0.1) !important;
+}
+html.light-mode .pi-spec-modal-body [class*="border-[var(--brand-primary)]"] {
+    border-color: rgba(255, 102, 0, 0.35) !important;
+}
+html.light-mode .pi-spec-modal-body [class*="bg-[var(--brand-primary)]/10"] {
+    background-color: rgba(255, 102, 0, 0.08) !important;
 }
 .light-mode .text-gray-400,
 .light-mode .text-gray-300,

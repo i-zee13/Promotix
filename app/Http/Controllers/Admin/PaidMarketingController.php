@@ -3412,28 +3412,28 @@ class PaidMarketingController extends Controller
                 'label' => 'Valid Clicks',
                 'value' => number_format($valid),
                 'sub' => number_format($validPct, 1).'% of tracked clicks',
-                'tone' => 'green',
+                'tone' => 'purple',
             ],
             [
                 'key' => 'invalid',
                 'label' => 'Invalid Clicks',
                 'value' => number_format($invalid),
                 'sub' => number_format($invalidPct, 1).'% of tracked clicks',
-                'tone' => 'rose',
+                'tone' => 'purple',
             ],
             [
                 'key' => 'blocked',
                 'label' => 'Blocked Clicks',
                 'value' => number_format($blocked),
                 'sub' => 'Blocked by protection',
-                'tone' => 'rose',
+                'tone' => 'purple',
             ],
             [
                 'key' => 'waste',
                 'label' => 'Estimated Waste Prevented',
                 'value' => AccountCurrency::formatAmount($costSaved, $currencyCode),
                 'sub' => 'Saved from invalid traffic',
-                'tone' => 'green',
+                'tone' => 'purple',
             ],
             [
                 'key' => 'risk',
@@ -3442,7 +3442,7 @@ class PaidMarketingController extends Controller
                 'sub' => $avgRisk > 0
                     ? ('Avg risk '.$avgRisk.'/100')
                     : ('Tracked clicks '.$tracked),
-                'tone' => 'amber',
+                'tone' => 'purple',
             ],
         ];
     }
@@ -3687,35 +3687,35 @@ class PaidMarketingController extends Controller
                     'label' => 'Valid Clicks',
                     'value' => number_format($validClicks),
                     'sub' => number_format($validPct, 1).'% of total clicks',
-                    'tone' => 'green',
+                    'tone' => 'purple',
                 ],
                 [
                     'key' => 'invalid',
                     'label' => 'Invalid Clicks',
                     'value' => number_format($invalidClicks),
                     'sub' => number_format($invalidPct, 1).'% of total clicks',
-                    'tone' => 'rose',
+                    'tone' => 'purple',
                 ],
                 [
                     'key' => 'blocked',
                     'label' => 'Blocked Clicks',
                     'value' => number_format($blockedClicks),
                     'sub' => 'Blocked by protection',
-                    'tone' => 'rose',
+                    'tone' => 'purple',
                 ],
                 [
                     'key' => 'waste',
                     'label' => 'Estimated Waste Prevented',
                     'value' => '$'.number_format($wastePrevented, 2),
                     'sub' => 'Saved from invalid traffic',
-                    'tone' => 'green',
+                    'tone' => 'purple',
                 ],
                 [
                     'key' => 'risk',
                     'label' => 'Avg. Risk Score',
                     'value' => (string) $avgRisk,
                     'sub' => 'Out of 100',
-                    'tone' => 'amber',
+                    'tone' => 'purple',
                 ],
             ],
             'charts' => [

@@ -60,10 +60,13 @@
                 border-radius: 7px;
                 margin-bottom: 10px;
             }
-            .pm-adv-kpi-card__icon.is-purple { background: rgba(255, 102, 0, 0.28); color: #FFB380; }
-            .pm-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.18); color: #86efac; }
-            .pm-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.18); color: #fda4af; }
-            .pm-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+            .pm-adv-kpi-card__icon.is-purple,
+            .pm-adv-kpi-card__icon.is-green,
+            .pm-adv-kpi-card__icon.is-rose,
+            .pm-adv-kpi-card__icon.is-amber {
+                background: rgba(255, 102, 0, 0.28);
+                color: #FFB380;
+            }
             .pm-adv-kpi-card__label {
                 font-size: 11px;
                 font-weight: 600;
@@ -683,10 +686,13 @@
             html.light-mode .pm-adv-country-row__meta {
                 color: #1a1a1a;
             }
-            html.light-mode .pm-adv-kpi-card__icon.is-purple { background: rgba(255, 102, 0, 0.12); color: #FF6600; }
-            html.light-mode .pm-adv-kpi-card__icon.is-green { background: rgba(34, 197, 94, 0.14); color: #15803d; }
-            html.light-mode .pm-adv-kpi-card__icon.is-rose { background: rgba(244, 63, 94, 0.12); color: #be123c; }
-            html.light-mode .pm-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+            html.light-mode .pm-adv-kpi-card__icon.is-purple,
+            html.light-mode .pm-adv-kpi-card__icon.is-green,
+            html.light-mode .pm-adv-kpi-card__icon.is-rose,
+            html.light-mode .pm-adv-kpi-card__icon.is-amber {
+                background: rgba(255, 102, 0, 0.12);
+                color: #FF6600;
+            }
             html.light-mode .pm-adv-donut__inner {
                 background: #ffffff;
             }
@@ -2309,11 +2315,11 @@
                         show_reconnect: googleNeedsReconnect,
                         reconnect_url: reconnectUrl,
                     },
-                    { key: 'valid', label: 'Valid Clicks', value: fmt(valid), sub: `${validPct}% of tracked clicks`, tone: 'green' },
-                    { key: 'invalid', label: 'Invalid Clicks', value: fmt(invalid), sub: `${invalidPct}% of tracked clicks`, tone: 'rose' },
-                    { key: 'blocked', label: 'Blocked Clicks', value: fmt(blocked), sub: 'Blocked by protection', tone: 'rose' },
-                    { key: 'waste', label: 'Estimated Waste Prevented', value: summary?.cost_saved_label || `${currencySymbol}${Number(costSaved || 0).toFixed(2)}`, sub: 'Saved from invalid traffic', tone: 'green' },
-                    { key: 'risk', label: 'Tracking Accuracy', value: `${trackingAccuracy}%`, sub: `Tracked clicks ${tracked}`, tone: 'amber' },
+                    { key: 'valid', label: 'Valid Clicks', value: fmt(valid), sub: `${validPct}% of tracked clicks`, tone: 'purple' },
+                    { key: 'invalid', label: 'Invalid Clicks', value: fmt(invalid), sub: `${invalidPct}% of tracked clicks`, tone: 'purple' },
+                    { key: 'blocked', label: 'Blocked Clicks', value: fmt(blocked), sub: 'Blocked by protection', tone: 'purple' },
+                    { key: 'waste', label: 'Estimated Waste Prevented', value: summary?.cost_saved_label || `${currencySymbol}${Number(costSaved || 0).toFixed(2)}`, sub: 'Saved from invalid traffic', tone: 'purple' },
+                    { key: 'risk', label: 'Tracking Accuracy', value: `${trackingAccuracy}%`, sub: `Tracked clicks ${tracked}`, tone: 'purple' },
                 ];
             },
             syncHeaderDates() {

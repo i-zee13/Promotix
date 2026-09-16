@@ -745,6 +745,30 @@ class IntegrationsController extends Controller
             })->values();
         }
 
+        $audienceAssociationsByDomain = [];
+        foreach ($mappings as $mapping) {
+            $domainId = (string) ($mapping->domain_id ?? '');
+            if ($domainId === '') {
+                continue;
+            }
+            $byRoute = is_array($mapping->settings['audience_associations'] ?? null)
+                ? $mapping->settings['audience_associations']
+                : [];
+            $current = $audienceAssociationsByDomain[$domainId] ?? ['ga4' => null, 'website' => null];
+            foreach (['ga4', 'website'] as $route) {
+                $row = is_array($byRoute[$route] ?? null) ? $byRoute[$route] : null;
+                $id = trim((string) ($row['user_list_id'] ?? ''));
+                if ($id === '' || ! empty($current[$route]['user_list_id'])) {
+                    continue;
+                }
+                $current[$route] = [
+                    'user_list_id' => $id,
+                    'user_list_name' => (string) ($row['user_list_name'] ?? $row['audience_name'] ?? ''),
+                ];
+            }
+            $audienceAssociationsByDomain[$domainId] = $current;
+        }
+
         return view('integrations', compact(
             'connections',
             'domains',
@@ -773,6 +797,7 @@ class IntegrationsController extends Controller
             'trackingInstallation',
             'trackingInstallationByDomain',
             'ipExclusionRows',
+            'audienceAssociationsByDomain',
         ));
     }
 
@@ -1874,8 +1899,11 @@ class IntegrationsController extends Controller
     /**
      * Live GA4/GTM presence check for a domain (Create audience gate).
      */
-    public function ga4SiteStatus(Request $request, \App\Services\Ga4SitePresenceService $ga4Presence): JsonResponse
-    {
+    public function ga4SiteStatus(
+        Request $request,
+        \App\Services\Ga4SitePresenceService $ga4Presence,
+        \App\Services\GoogleAdsAudienceAssociationService $associations,
+    ): JsonResponse {
         $data = $request->validate([
             'domain_id' => ['required', 'integer'],
         ]);
@@ -1886,6 +1914,7 @@ class IntegrationsController extends Controller
             ->firstOrFail();
 
         $detection = $ga4Presence->detect($domain);
+        $audienceLists = $associations->storedAssociationsForDomain($domain);
         $signals = is_array($detection['signals'] ?? null) ? $detection['signals'] : [];
         $hasGa4 = (bool) ($detection['has_ga4'] ?? false);
         $hasLiveGtm = (bool) ($detection['has_live_gtm'] ?? false)
@@ -2006,6 +2035,7 @@ class IntegrationsController extends Controller
             'ga4_detected' => filled($domain->ga4_detected_at),
             'gtm_detected' => filled($domain->gtm_detected_at),
             'google_tag_detected' => filled($domain->google_tag_detected_at),
+            'audience_lists' => $audienceLists,
         ]);
     }
 
