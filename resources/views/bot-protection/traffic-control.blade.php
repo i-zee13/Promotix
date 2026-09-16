@@ -96,105 +96,6 @@
                 }
             }
 
-            /* Light mode — same Figma bar chrome as Overview / Paid */
-            html.light-mode .tc-page { color: #1a1a1a; }
-            html.light-mode .tc-title { color: #121212; }
-            html.light-mode .tc-title__muted { color: #6b6578; }
-            html.light-mode .tc-title__pipe { color: rgba(0,0,0,.25); }
-            html.light-mode .tc-subtitle { color: #6b6578; }
-            html.light-mode .figma-filter-bar--tc {
-                background: #fff4eb !important;
-                border-color: rgba(255, 102, 0, 0.45) !important;
-                box-shadow: 0 2px 10px rgba(255, 102, 0, 0.12) !important;
-                color: #1a1a1a !important;
-            }
-            html.light-mode .figma-filter-bar--tc .figma-filter-label {
-                color: #5c5470 !important;
-            }
-            html.light-mode .figma-filter-bar--tc .figma-filter-control {
-                background: #101010 !important;
-                color: #8c8787 !important;
-                border: 0 !important;
-                box-shadow: none !important;
-            }
-            html.light-mode .figma-filter-bar--tc .figma-filter-control::placeholder {
-                color: #8c8787 !important;
-            }
-            html.light-mode .figma-filter-bar--tc .figma-filter-select-wrap::after {
-                background-color: #101010;
-                border-color: rgba(255,255,255,.2);
-            }
-            html.light-mode .figma-filter-bar--tc .figma-filter-calendar-btn {
-                background: #101010 !important;
-                border: 1.5px solid #FF6600 !important;
-                color: #FF6600 !important;
-            }
-            html.light-mode .figma-filter-bar--tc .tc-export-btn {
-                background: #FF6600 !important;
-                border-color: #FF6600 !important;
-                color: #fff !important;
-            }
-            html.light-mode .figma-filter-bar--tc .tc-f-actions,
-            html.light-mode .figma-filter-bar--tc .figma-filter-calendar-host,
-            html.light-mode .figma-filter-bar--tc .tc-f-export,
-            html.light-mode .figma-filter-bar--tc > label {
-                border-color: rgba(0,0,0,.14) !important;
-            }
-            html.light-mode .tc-kpi,
-            html.light-mode .tc-card,
-            html.light-mode .tc-detail,
-            html.light-mode .tc-chart {
-                background: #ffffff !important;
-                border-color: rgba(255, 102, 0, 0.28) !important;
-                color: #1a1a1a;
-            }
-            html.light-mode .tc-kpi__label,
-            html.light-mode .tc-kpi__delta-vs,
-            html.light-mode .tc-subtitle,
-            html.light-mode .tc-empty,
-            html.light-mode .tc-card__title,
-            html.light-mode .tc-chart__title,
-            html.light-mode .tc-detail__title,
-            html.light-mode .tc-sec-title,
-            html.light-mode .tc-foot { color: #5c5470 !important; }
-            html.light-mode .tc-kpi__value,
-            html.light-mode .tc-detail__top .font-mono,
-            html.light-mode .tc-table th { color: #121212 !important; }
-            html.light-mode .tc-table td { color: #2d2d3a !important; }
-            html.light-mode .tc-tab {
-                color: #5c5470;
-                border-color: rgba(0,0,0,.12);
-                background: #fff;
-            }
-            html.light-mode .tc-tab.is-active {
-                background: #FF6600;
-                border-color: #FF6600;
-                color: #fff;
-            }
-            html.light-mode .tc-search {
-                background: #fff;
-                border-color: rgba(255, 102, 0, 0.28);
-            }
-            html.light-mode .tc-search input { color: #1a1a1a; }
-            html.light-mode .tc-table-export {
-                border-color: #FF6600;
-                color: #FF6600;
-                background: #fff;
-            }
-            html.light-mode .tc-table-wrap {
-                scrollbar-color: #FF6600 transparent;
-            }
-            html.light-mode .tc-hbar,
-            html.light-mode .tc-legend,
-            html.light-mode .tc-legend-meta,
-            html.light-mode .tc-axis { color: #5c5470 !important; }
-            html.light-mode .tc-donut__hole { background: #ffffff !important; }
-            html.light-mode .tc-status.is-watch { color: #b45309; }
-            html.light-mode .tc-ip-pill {
-                background: rgba(255, 102, 0, 0.08);
-                color: #9a3412;
-            }
-
             .tc-kpi-grid {
                 display: grid; grid-template-columns: repeat(2, minmax(0,1fr));
                 gap: 12px; margin-bottom: 16px;
@@ -438,6 +339,152 @@
             .tc-legend-swatch { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
             .tc-legend-meta { margin-left: auto; color: rgba(255,255,255,.4); white-space: nowrap; }
             .tc-empty { padding: 28px 16px; text-align: center; color: rgba(255,255,255,.4); font-size: 13px; }
+
+            /* —— Lite / light-mode (last: beats base + global app.css flips) —— */
+            html.light-mode .tc-page { color: #1a1a1a !important; }
+            html.light-mode .tc-title,
+            html.light-mode .tc-title > span { color: #121212 !important; }
+            html.light-mode .tc-title__muted { color: #6b6578 !important; }
+            html.light-mode .tc-title__pipe { color: rgba(0,0,0,.25) !important; }
+            html.light-mode .tc-subtitle { color: #6b6578 !important; }
+
+            html.light-mode .figma-filter-bar--tc {
+                background: #fff4eb !important;
+                background-color: #fff4eb !important;
+                border-color: rgba(255, 102, 0, 0.45) !important;
+                box-shadow: 0 2px 10px rgba(255, 102, 0, 0.12) !important;
+                color: #1a1a1a !important;
+            }
+            html.light-mode .figma-filter-bar--tc .figma-filter-label { color: #5c5470 !important; }
+            html.light-mode .figma-filter-bar--tc .figma-filter-control,
+            html.light-mode .figma-filter-bar--tc select.figma-filter-control,
+            html.light-mode .figma-filter-bar--tc input.figma-filter-control,
+            html.light-mode .figma-filter-bar--tc [class*='bg-[#101010]'] {
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                color: #2d2d3a !important;
+                border: 1px solid rgba(255, 102, 0, 0.28) !important;
+                box-shadow: none !important;
+            }
+            html.light-mode .figma-filter-bar--tc .figma-filter-control::placeholder {
+                color: #8a8299 !important;
+            }
+            /* Dropdown chevron: no black circle — soft peach + orange arrow */
+            html.light-mode .figma-filter-bar--tc .figma-filter-select-wrap::after {
+                background-color: #fff4eb !important;
+                border: 1px solid rgba(255, 102, 0, 0.4) !important;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%23FF6600' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+                background-repeat: no-repeat !important;
+                background-position: center !important;
+                background-size: 10px !important;
+            }
+            html.light-mode .figma-filter-bar--tc .figma-filter-path-icon {
+                color: #8a8299 !important;
+            }
+            /* Calendar: white + orange border (not black tile) */
+            html.light-mode .figma-filter-bar--tc .figma-filter-calendar-btn,
+            html.light-mode .figma-filter-bar--tc .figma-filter-calendar-btn--responsive {
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                border: 1.5px solid #FF6600 !important;
+                color: #FF6600 !important;
+            }
+            html.light-mode .figma-filter-bar--tc .tc-export-btn {
+                background: #FF6600 !important;
+                border-color: #FF6600 !important;
+                color: #fff !important;
+            }
+            html.light-mode .figma-filter-bar--tc .tc-f-actions,
+            html.light-mode .figma-filter-bar--tc .figma-filter-calendar-host,
+            html.light-mode .figma-filter-bar--tc .tc-f-export,
+            html.light-mode .figma-filter-bar--tc > label {
+                border-color: rgba(0,0,0,.12) !important;
+            }
+
+            html.light-mode .tc-kpi,
+            html.light-mode .tc-card,
+            html.light-mode .tc-detail,
+            html.light-mode .tc-chart {
+                background: #ffffff !important;
+                border-color: rgba(255, 102, 0, 0.28) !important;
+                color: #1a1a1a !important;
+            }
+            html.light-mode .tc-kpi__label,
+            html.light-mode .tc-kpi__delta-vs,
+            html.light-mode .tc-empty,
+            html.light-mode .tc-card__title,
+            html.light-mode .tc-chart__title,
+            html.light-mode .tc-detail__title,
+            html.light-mode .tc-sec-title,
+            html.light-mode .tc-foot,
+            html.light-mode .tc-hbar,
+            html.light-mode .tc-legend,
+            html.light-mode .tc-legend-meta,
+            html.light-mode .tc-axis { color: #5c5470 !important; }
+            html.light-mode .tc-kpi__value,
+            html.light-mode .tc-detail__top .font-mono { color: #121212 !important; }
+            html.light-mode .tc-card__title svg { color: #8a8299 !important; }
+
+            html.light-mode .tc-tab {
+                color: #5c5470 !important;
+                border-color: rgba(0,0,0,.12) !important;
+                background: #fff !important;
+            }
+            html.light-mode .tc-tab.is-active {
+                background: #FF6600 !important;
+                border-color: #FF6600 !important;
+                color: #fff !important;
+            }
+
+            /* Table search: white field, not black */
+            html.light-mode .tc-search {
+                background: transparent !important;
+            }
+            html.light-mode .tc-search input {
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                border: 1px solid rgba(255, 102, 0, 0.3) !important;
+                color: #1a1a1a !important;
+            }
+            html.light-mode .tc-search input::placeholder { color: #8a8299 !important; }
+            html.light-mode .tc-search svg { color: #8a8299 !important; }
+            html.light-mode .tc-table-export {
+                border-color: #FF6600 !important;
+                color: #FF6600 !important;
+                background: #fff !important;
+            }
+
+            /* Table header: light purple (not black bar) */
+            html.light-mode .tc-table thead th {
+                background: #e8e0f0 !important;
+                background-color: #e8e0f0 !important;
+                color: #5c5470 !important;
+            }
+            html.light-mode .tc-table td {
+                background: #fff7f0 !important;
+                color: #2d2d3a !important;
+                border-color: rgba(255, 102, 0, 0.12) !important;
+            }
+            html.light-mode .tc-table tr td:first-child,
+            html.light-mode .tc-table tr td:last-child {
+                border-color: rgba(255, 102, 0, 0.12) !important;
+            }
+            html.light-mode .tc-table tr.is-selected td {
+                background: #ffedd5 !important;
+                border-color: rgba(255, 102, 0, 0.35) !important;
+            }
+            html.light-mode .tc-table-wrap { scrollbar-color: #FF6600 transparent; }
+            html.light-mode .tc-donut__hole { background: #ffffff !important; }
+            html.light-mode .tc-status.is-watch { color: #b45309 !important; }
+            html.light-mode .tc-ip-pill {
+                background: rgba(255, 102, 0, 0.08) !important;
+                color: #9a3412 !important;
+                border-color: rgba(255, 102, 0, 0.25) !important;
+            }
+            html.light-mode .tc-level.is-Low {
+                color: #5c5470 !important;
+                background: #f3f0f7 !important;
+            }
         </style>
 
         <div class="tc-page">

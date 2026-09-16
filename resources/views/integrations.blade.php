@@ -853,6 +853,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 border-color: var(--brand-tint-border);
                 box-shadow: 0 1px 10px color-mix(in srgb, var(--brand-primary) 8%, transparent);
             }
+            /* Orange brand panels: keep white type (global .light-mode .text-white flips to black) */
+            html.light-mode .pi-panel {
+                background: var(--brand-primary) !important;
+                border-color: rgba(255, 255, 255, 0.22) !important;
+                color: #ffffff !important;
+            }
+            html.light-mode .pi-panel .text-white,
+            html.light-mode .pi-panel [class*="text-white"],
+            html.light-mode .pi-panel h3,
+            html.light-mode .pi-panel .pi-text-link {
+                color: #ffffff !important;
+            }
+            html.light-mode .pi-panel .text-white\/90 {
+                color: rgba(255, 255, 255, 0.92) !important;
+            }
+            html.light-mode .pi-panel .text-white\/70 {
+                color: rgba(255, 255, 255, 0.72) !important;
+            }
+            html.light-mode .pi-panel .text-white\/55 {
+                color: rgba(255, 255, 255, 0.58) !important;
+            }
+            html.light-mode .pi-panel .pi-text-link:hover {
+                color: rgba(255, 255, 255, 0.82) !important;
+            }
+            html.light-mode .pi-track-row {
+                background: rgba(0, 0, 0, 0.28) !important;
+                border-color: rgba(255, 255, 255, 0.18) !important;
+            }
+            html.light-mode .pi-panel .pi-status-pill.is-on {
+                background: rgba(255, 255, 255, 0.94) !important;
+                color: #166534 !important;
+            }
+            html.light-mode .pi-panel .pi-status-pill.is-warn {
+                background: rgba(255, 255, 255, 0.94) !important;
+                color: #9a3412 !important;
+            }
+            html.light-mode .pi-panel .pi-status-pill.is-off {
+                background: rgba(255, 255, 255, 0.94) !important;
+                color: #4b5563 !important;
+            }
             html.light-mode .pi-section-title {
                 color: #2d2d3a;
             }

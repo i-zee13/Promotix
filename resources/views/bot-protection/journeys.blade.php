@@ -114,28 +114,28 @@
             }
             .vj-tab.is-active { background:#FF6600; border-color:#FF6600; color:#fff; }
 
-            .vj-flow { position:relative; min-height:320px; overflow-x:auto; }
+            .vj-flow { position:relative; min-height:280px; overflow-x:auto; }
             .vj-flow__cols {
-                display:grid; grid-template-columns:repeat(4, minmax(0, 138px));
-                justify-content:space-between; column-gap:56px; row-gap:0;
-                position:relative; z-index:1; min-width:760px; padding:0 4px;
+                display:grid; grid-template-columns:repeat(4, minmax(0, 1fr));
+                gap: 28px;
+                position:relative; z-index:1; min-width:680px; padding:0 4px;
             }
-            .vj-flow__col { min-width:0; width:100%; max-width:138px; }
+            .vj-flow__col { min-width:0; width:100%; }
             .vj-flow__col-label {
                 font-size:10px; font-weight:650; letter-spacing:.04em; text-transform:uppercase;
-                color:rgba(255,255,255,.4); margin-bottom:10px;
+                color:rgba(255,255,255,.4); margin-bottom:8px;
             }
             .vj-node {
                 border-radius:10px; border:1px solid rgba(255,102,0,.45); background:#0f0f0f;
-                padding:8px 10px; margin-bottom:10px; min-height:48px;
-                width:100%; max-width:138px; box-sizing:border-box;
+                padding:8px 10px; margin-bottom:8px; min-height:44px;
+                width:100%; box-sizing:border-box;
             }
             .vj-node.is-exit { border-color:rgba(239,68,68,.55); }
             .vj-node.is-lead { border-color:rgba(34,197,94,.55); }
             .vj-node.is-pending { border-color:rgba(234,179,8,.55); }
             .vj-node.is-action { border-color:rgba(255,102,0,.7); }
             .vj-node.is-form { border-color:rgba(34,197,94,.45); }
-            .vj-node__label { font-size:12px; font-weight:650; color:#fff; margin-bottom:4px; word-break:break-word; }
+            .vj-node__label { font-size:12px; font-weight:650; color:#fff; margin-bottom:3px; word-break:break-word; }
             .vj-node__meta { font-size:11px; color:rgba(255,255,255,.45); }
             .vj-node__link {
                 display:inline-flex; align-items:center; gap:5px; max-width:100%;
@@ -168,8 +168,8 @@
                 overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
             }
             .vj-flow__svg {
-                position:absolute; inset:28px 0 0 0; width:100%; height:calc(100% - 28px);
-                pointer-events:none; z-index:0; min-width:760px;
+                position:absolute; inset:26px 0 0 0; width:100%; height:calc(100% - 26px);
+                pointer-events:none; z-index:0; min-width:680px;
             }
 
             .vj-detail { border-radius:12px; border:1px solid rgba(255,102,0,.22); background:#121212; padding:14px; position:sticky; top:72px; }
@@ -484,29 +484,39 @@
             html.light-mode .figma-filter-bar--vj select.figma-filter-control,
             html.light-mode .analytics-skin .figma-filter-bar--vj [class*='bg-[#101010]'],
             html.light-mode .figma-filter-bar--vj [class*='bg-[#101010]'] {
-                background: #101010 !important;
-                background-color: #101010 !important;
-                color: #8c8787 !important;
-                border: 0 !important;
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                color: #2d2d3a !important;
+                border: 1px solid rgba(255, 102, 0, 0.28) !important;
                 box-shadow: none !important;
             }
-            html.light-mode .figma-filter-bar--vj .figma-filter-select-wrap::after {
-                background-color: #101010 !important;
-                border-color: rgba(255,255,255,.2) !important;
+            html.light-mode .figma-filter-bar--vj .figma-filter-control::placeholder {
+                color: #8a8299 !important;
             }
-            html.light-mode .figma-filter-bar--vj .figma-filter-calendar-btn {
-                background: #101010 !important;
+            html.light-mode .figma-filter-bar--vj .figma-filter-select-wrap::after {
+                background-color: #fff4eb !important;
+                border: 1px solid rgba(255, 102, 0, 0.4) !important;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%23FF6600' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+                background-repeat: no-repeat !important;
+                background-position: center !important;
+                background-size: 10px !important;
+            }
+            html.light-mode .figma-filter-bar--vj .figma-filter-calendar-btn,
+            html.light-mode .figma-filter-bar--vj .figma-filter-calendar-btn--responsive {
+                background: #ffffff !important;
+                background-color: #ffffff !important;
                 border: 1.5px solid #FF6600 !important;
                 color: #FF6600 !important;
             }
             html.light-mode .figma-filter-bar--vj .vj-sample-row {
-                background: #101010 !important;
-                color: #8c8787 !important;
+                background: #ffffff !important;
+                color: #5c5470 !important;
+                border: 1px solid rgba(255, 102, 0, 0.22);
             }
             html.light-mode .figma-filter-bar--vj .vj-f-actions,
             html.light-mode .figma-filter-bar--vj .figma-filter-calendar-host,
             html.light-mode .figma-filter-bar--vj > label {
-                border-color: rgba(0,0,0,.14) !important;
+                border-color: rgba(0,0,0,.12) !important;
             }
 
             html.light-mode .analytics-skin .vj-kpi,
@@ -556,7 +566,7 @@
                 border-color: #FF6600 !important;
                 color: #fff !important;
             }
-            /* Flow nodes: dark + white text (same as dark mode), light-purple accents */
+            /* Flow nodes: light purple/white cards + dark text */
             html.light-mode .vj-flow {
                 background: #f3eef8 !important;
                 border: 1px solid rgba(167, 139, 250, 0.28);
@@ -571,29 +581,30 @@
                 display: inline-block;
             }
             html.light-mode .vj-node {
-                background: #1a1524 !important;
-                background-color: #1a1524 !important;
-                border-color: rgba(167, 139, 250, 0.45) !important;
-                color: #ffffff !important;
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                border-color: rgba(167, 139, 250, 0.4) !important;
+                color: #1a1a1a !important;
+                box-shadow: 0 1px 4px rgba(100, 80, 140, 0.08);
             }
-            html.light-mode .vj-node.is-exit { border-color: rgba(248, 113, 113, 0.7) !important; }
+            html.light-mode .vj-node.is-exit { border-color: rgba(220, 38, 38, 0.55) !important; }
             html.light-mode .vj-node.is-lead,
-            html.light-mode .vj-node.is-form { border-color: rgba(74, 222, 128, 0.7) !important; }
-            html.light-mode .vj-node.is-pending { border-color: rgba(250, 204, 21, 0.75) !important; }
-            html.light-mode .vj-node.is-action { border-color: rgba(255, 102, 0, 0.8) !important; }
+            html.light-mode .vj-node.is-form { border-color: rgba(22, 163, 74, 0.55) !important; }
+            html.light-mode .vj-node.is-pending { border-color: rgba(202, 138, 4, 0.6) !important; }
+            html.light-mode .vj-node.is-action { border-color: rgba(255, 102, 0, 0.65) !important; }
             html.light-mode .vj-node__label,
-            html.light-mode .vj-node__label span { color: #ffffff !important; }
+            html.light-mode .vj-node__label span { color: #121212 !important; }
             html.light-mode .vj-node__meta,
-            html.light-mode .vj-node .vj-path-meta { color: rgba(255, 255, 255, 0.5) !important; }
+            html.light-mode .vj-node .vj-path-meta { color: #6b6578 !important; }
             html.light-mode .vj-node__link,
             html.light-mode .vj-path-link,
             html.light-mode .vj-hbar__path {
-                color: #c4b5fd !important;
-                text-decoration-color: rgba(196, 181, 253, 0.55) !important;
+                color: #6d28d9 !important;
+                text-decoration-color: rgba(109, 40, 217, 0.4) !important;
             }
             html.light-mode .vj-node__link:hover {
-                color: #e9d5ff !important;
-                text-decoration-color: #e9d5ff !important;
+                color: #5b21b6 !important;
+                text-decoration-color: #5b21b6 !important;
             }
             html.light-mode .vj-donut__hole {
                 background: #ffffff !important;
@@ -1630,17 +1641,17 @@ function visitorJourneyPage() {
             const cols = this.flow.columns || [];
             const links = this.flow.links || [];
             if (!cols.length || !links.length) return '';
-            // Narrower boxes + wider gutters (4 cols in 1000 viewBox).
-            const colX = [70, 340, 610, 880];
-            const half = 48;
+            // 4 equal columns — tighter vertical rhythm for compact nodes.
+            const colX = [125, 375, 625, 875];
+            const half = 72;
             const light = document.documentElement.classList.contains('light-mode');
-            const stroke = light ? 'rgba(255,102,0,0.42)' : 'rgba(255,102,0,0.28)';
+            const stroke = light ? 'rgba(255,102,0,0.4)' : 'rgba(255,102,0,0.28)';
             const positions = {};
             cols.forEach((col, ci) => {
                 const nodes = col.nodes || [];
                 nodes.forEach((node, ni) => {
-                    const y = 40 + ni * 90 + 26;
-                    positions[node.id] = { x: colX[ci] ?? 70, y };
+                    const y = 34 + ni * 62 + 20;
+                    positions[node.id] = { x: colX[ci] ?? 125, y };
                 });
             });
             const maxLink = Math.max(1, ...links.map((l) => Number(l.value || 0)));
@@ -1649,7 +1660,7 @@ function visitorJourneyPage() {
                 const b = positions[link.target];
                 if (!a || !b) return '';
                 const mid = (a.x + b.x) / 2;
-                const w = Math.max(2, (Number(link.value || 0) / maxLink) * 18);
+                const w = Math.max(2, (Number(link.value || 0) / maxLink) * 16);
                 const d = `M ${a.x + half} ${a.y} C ${mid} ${a.y}, ${mid} ${b.y}, ${b.x - half} ${b.y}`;
                 return `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${w}" />`;
             }).join('');
