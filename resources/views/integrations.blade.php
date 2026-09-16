@@ -2583,6 +2583,53 @@ function platformIntegrations(config) {
                         this.installTagsModal.gtm_id = this.createAudienceModal._gtmIds[0];
                     }
                 }
+
+                // Google Tag (AW-…): Detected only when live site/GTM evidence exists.
+                const hasLiveAw = Boolean(d.has_live_aw)
+                    || signals.includes('homepage_aw_snippet')
+                    || signals.includes('gtm_container_aw_id');
+                const liveAwIds = Array.isArray(d.live_aw_ids) && d.live_aw_ids.length
+                    ? d.live_aw_ids
+                    : (Array.isArray(d.aw_ids) ? d.aw_ids : []);
+                if (this.selectedDomainId) {
+                    const scopedId = String(this.selectedDomainId);
+                    const current = this.trackingInstallationByDomain[scopedId] || {};
+                    const prevAw = String(current.google_tag?.id || this.installTagsModal.google_tag_id || '').trim().toUpperCase();
+                    const linkedAw = /^AW-\d{5,}$/.test(prevAw) ? prevAw : '';
+                    let liveAw = '';
+                    liveAwIds.forEach((raw) => {
+                        const id = String(raw || '').trim().toUpperCase();
+                        if (!/^AW-\d{5,}$/.test(id)) return;
+                        if (linkedAw && id === linkedAw) liveAw = id;
+                        else if (!liveAw) liveAw = id;
+                    });
+                    if (hasLiveAw && (liveAw || linkedAw)) {
+                        const showId = (linkedAw && liveAwIds.map((x) => String(x).toUpperCase()).includes(linkedAw))
+                            ? linkedAw
+                            : (liveAw || linkedAw);
+                        this.trackingInstallationByDomain[scopedId] = Object.assign({}, current, {
+                            google_tag: Object.assign({}, current.google_tag || {}, {
+                                id: showId || '—',
+                                status: 'Detected',
+                                ok: true,
+                                linked: Boolean(linkedAw || showId),
+                            }),
+                        });
+                        if (showId && !this.installTagsModal.google_tag_id) {
+                            this.installTagsModal.google_tag_id = showId;
+                        }
+                    } else if (linkedAw) {
+                        this.trackingInstallationByDomain[scopedId] = Object.assign({}, current, {
+                            google_tag: Object.assign({}, current.google_tag || {}, {
+                                id: linkedAw,
+                                status: 'Not detected',
+                                ok: false,
+                                linked: true,
+                            }),
+                        });
+                    }
+                }
+
                 // Only mark this domain's GA4 Detected when live has_ga4 is true — not Ads-linked G- alone.
                 if (hasGa4 && liveGa4Ids[0] && this.selectedDomainId) {
                     const scopedId = String(this.selectedDomainId);

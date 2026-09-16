@@ -695,45 +695,45 @@
             }
             html.light-mode .pm-adv-hip__btn {
                 background: #ffffff;
-                border-color: #d4c4e8;
+                border-color: rgba(255, 102, 0, 0.28);
                 color: #5c5470;
             }
             html.light-mode .pm-adv-hip__btn:hover {
-                background: #f0ecf5;
+                background: #fff4eb;
                 color: #FF6600;
-                border-color: #c9b8dc;
+                border-color: rgba(255, 102, 0, 0.45);
             }
             html.light-mode .pm-adv-hip-card:hover {
                 border-color: #FF6600;
-                background: #faf8fc;
+                background: #fffaf5;
             }
             html.light-mode .pm-adv-hip-card__badge {
-                background: #f0ecf5;
-                border-color: #e5ddf0;
+                background: #ffe8d6;
+                border-color: rgba(255, 102, 0, 0.28);
             }
             html.light-mode .pm-adv-hip__empty {
                 background: #ffffff;
-                border-color: #d4c4e8;
+                border-color: rgba(255, 102, 0, 0.28);
                 color: #6b6280;
             }
             html.light-mode .pm-adv-main-card {
                 background: #ffffff;
-                border-color: #c9b8dc;
+                border-color: rgba(255, 102, 0, 0.28);
                 box-shadow: 0 1px 0 rgba(255, 102, 0, 0.05);
             }
             html.light-mode .pm-adv-main-card .pm-adv-table-grid--head {
-                background: #f0ecf5;
-                color: #5c5470;
+                background: #ffe8d6;
+                color: #9a3412;
             }
             html.light-mode .pm-adv-main-card .pm-adv-table-body-scroll {
                 background: #ffffff;
             }
             html.light-mode .pm-adv-main-card .pm-adv-table-grid--row {
-                background: #f4f2f7;
+                background: #fff7f0;
                 color: #1a1a1a;
             }
             html.light-mode .pm-adv-main-card .pm-adv-table-grid--row:hover {
-                background: #ebe6f2;
+                background: #ffedd5;
             }
             html.light-mode .pm-adv-main-card .text-\[\#a9a9a9\] {
                 color: #6b6280 !important;

@@ -225,12 +225,15 @@
                 font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             }
             .tc-risk-ring {
-                width: 34px; height: 34px; border-radius: 999px; display: grid; place-items: center;
+                width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center;
                 position: relative;
+                box-sizing: border-box;
             }
             .tc-risk-ring__inner {
-                width: 26px; height: 26px; border-radius: 999px; background: #181818;
+                width: 30px; height: 30px; border-radius: 999px; background: #121212;
                 display: grid; place-items: center; font-size: 11px; font-weight: 750; z-index: 1;
+                box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+                letter-spacing: -0.02em;
             }
             .tc-status {
                 display: inline-flex; align-items: center; border-radius: 999px;
@@ -259,10 +262,12 @@
             .tc-detail__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
             .tc-gauge {
                 width: 112px; height: 112px; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0;
+                box-sizing: border-box;
             }
             .tc-gauge__inner {
-                width: 82px; height: 82px; border-radius: 999px; background: #121212;
+                width: 84px; height: 84px; border-radius: 999px; background: #121212;
                 display: grid; place-items: center; text-align: center; z-index: 1;
+                box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
             }
             .tc-gauge__score { font-size: 26px; font-weight: 750; line-height: 1; }
             .tc-gauge__max { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 2px; }
@@ -408,6 +413,7 @@
                 background: #ffffff !important;
                 border-color: rgba(255, 102, 0, 0.28) !important;
                 color: #1a1a1a !important;
+                box-shadow: none !important;
             }
             html.light-mode .tc-kpi__label,
             html.light-mode .tc-kpi__delta-vs,
@@ -426,9 +432,9 @@
             html.light-mode .tc-card__title svg { color: #8a8299 !important; }
 
             html.light-mode .tc-tab {
-                color: #5c5470 !important;
-                border-color: rgba(0,0,0,.12) !important;
-                background: #fff !important;
+                color: #ffffff !important;
+                border-color: #101010 !important;
+                background: #101010 !important;
             }
             html.light-mode .tc-tab.is-active {
                 background: #FF6600 !important;
@@ -454,36 +460,68 @@
                 background: #fff !important;
             }
 
-            /* Table header: light purple (not black bar) */
+            /* Table header: light orange (not black / purple bar) */
             html.light-mode .tc-table thead th {
-                background: #e8e0f0 !important;
-                background-color: #e8e0f0 !important;
-                color: #5c5470 !important;
+                background: #ffe8d6 !important;
+                background-color: #ffe8d6 !important;
+                color: #9a3412 !important;
             }
             html.light-mode .tc-table td {
-                background: #fff7f0 !important;
+                background: #ffffff !important;
                 color: #2d2d3a !important;
-                border-color: rgba(255, 102, 0, 0.12) !important;
+                border-color: rgba(255, 102, 0, 0.22) !important;
+                box-shadow: none !important;
             }
             html.light-mode .tc-table tr td:first-child,
             html.light-mode .tc-table tr td:last-child {
-                border-color: rgba(255, 102, 0, 0.12) !important;
+                border-color: rgba(255, 102, 0, 0.22) !important;
             }
             html.light-mode .tc-table tr.is-selected td {
                 background: #ffedd5 !important;
-                border-color: rgba(255, 102, 0, 0.35) !important;
+                border-color: rgba(255, 102, 0, 0.45) !important;
             }
             html.light-mode .tc-table-wrap { scrollbar-color: #FF6600 transparent; }
             html.light-mode .tc-donut__hole { background: #ffffff !important; }
-            html.light-mode .tc-status.is-watch { color: #b45309 !important; }
-            html.light-mode .tc-ip-pill {
-                background: rgba(255, 102, 0, 0.08) !important;
-                color: #9a3412 !important;
-                border-color: rgba(255, 102, 0, 0.25) !important;
+            html.light-mode .tc-status.is-watch {
+                color: #b45309 !important;
+                background: rgba(255, 102, 0, 0.1) !important;
             }
+            html.light-mode .tc-ip-count { color: #6b6578 !important; }
+            html.light-mode .tc-ip-pill {
+                background: #fff4eb !important;
+                color: #9a3412 !important;
+                border-color: rgba(255, 102, 0, 0.35) !important;
+            }
+            html.light-mode .tc-risk-ring__inner,
+            html.light-mode .tc-gauge__inner {
+                background: #ffffff !important;
+                box-shadow: inset 0 0 0 1px rgba(15, 17, 38, 0.08);
+            }
+            html.light-mode .tc-gauge__max { color: #8a8299 !important; }
+            html.light-mode .tc-reason__icon {
+                background: rgba(255, 102, 0, 0.12) !important;
+                color: #FF6600 !important;
+            }
+            html.light-mode .tc-reason {
+                color: #2d2d3a !important;
+                border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+            }
+            html.light-mode .tc-history-item {
+                border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+            }
+            html.light-mode .tc-table td.text-white\/55,
+            html.light-mode .tc-table .text-white\/55 {
+                color: #6b6578 !important;
+            }
+            html.light-mode .tc-table .text-rose-300 { color: #e11d48 !important; }
+            html.light-mode .tc-table .text-emerald-300 { color: #059669 !important; }
+            html.light-mode .tc-table .text-amber-300 { color: #d97706 !important; }
             html.light-mode .tc-level.is-Low {
                 color: #5c5470 !important;
                 background: #f3f0f7 !important;
+            }
+            html.light-mode .tc-hbar__track {
+                background: rgba(15, 17, 38, 0.08) !important;
             }
         </style>
 
@@ -603,9 +641,10 @@
                         <table class="tc-table">
                             <thead>
                                 <tr>
-                                    <th x-text="activeTab === 'reputation' ? 'IP Address' : 'Device ID'"></th>
+                                    <th x-text="(activeTab === 'reputation' || activeTab === 'ip_changes') ? 'IP Address' : 'Device ID'"></th>
+                                    <th x-show="activeTab === 'ip_changes'">Device ID</th>
                                     <th>Paid Clicks</th>
-                                    <th>IPs</th>
+                                    <th x-show="activeTab !== 'ip_changes'">IPs</th>
                                     <th>IP Changes</th>
                                     <th>Conversions</th>
                                     <th>Confidence</th>
@@ -616,11 +655,12 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <template x-for="row in tableRows" :key="(row.device_key || row.device_id) + '-' + (row.ips?.[0] || '')">
+                                <template x-for="row in tableRows" :key="(row.device_key || row.device_id) + '-' + (row.ip || row.ips?.[0] || '')">
                                     <tr :class="{ 'is-selected': isRowSelected(row) }">
-                                        <td class="font-mono text-[11px]" x-text="activeTab === 'reputation' ? (row.ips?.[0] || '—') : row.device_id"></td>
+                                        <td class="font-mono text-[11px]" x-text="(activeTab === 'reputation' || activeTab === 'ip_changes') ? (row.ip || row.ips?.[0] || '—') : row.device_id"></td>
+                                        <td class="font-mono text-[11px]" x-show="activeTab === 'ip_changes'" x-text="row.device_id || '—'"></td>
                                         <td x-text="fmtNum(row.clicks || 0)"></td>
-                                        <td>
+                                        <td x-show="activeTab !== 'ip_changes'">
                                             <div class="flex flex-wrap items-center">
                                                 <span class="tc-ip-count" x-text="(row.ip_count || 0) + ' IPs'"></span>
                                                 <template x-for="(ip, idx) in (row.ips || []).slice(0, 2)" :key="ip + idx">
@@ -747,7 +787,7 @@
             {{-- Charts — no “What Traffic Control Detects” --}}
             <div class="tc-charts">
                 <div class="tc-chart">
-                    <div class="tc-chart__title">IP Changes per Device</div>
+                    <div class="tc-chart__title">IP Changes per IP</div>
                     <div class="tc-chart__scroll" x-show="(charts.ip_changes_per_device || []).length">
                         <template x-for="item in (charts.ip_changes_per_device || [])" :key="item.label">
                             <div class="tc-hbar">
@@ -956,15 +996,18 @@ function trafficControlIntel() {
         selectRow(row) { this.selected = row; },
         isRowSelected(row) {
             if (!this.selected) return false;
-            if (this.activeTab === 'reputation') {
-                return (this.selected.ips?.[0] || this.selected.ip) === (row.ips?.[0] || row.ip);
+            if (this.activeTab === 'reputation' || this.activeTab === 'ip_changes') {
+                return (this.selected.ips?.[0] || this.selected.ip) === (row.ips?.[0] || row.ip)
+                    && (this.selected.device_key || this.selected.device_id) === (row.device_key || row.device_id);
             }
             return this.selected.device_key === row.device_key;
         },
         footerLabel() {
             const n = this.tableRows.length;
             const total = this.activeTab === 'devices' ? Math.max(this.metaTotal, n) : n;
-            const noun = this.activeTab === 'reputation' ? 'IPs' : 'suspicious devices';
+            const noun = (this.activeTab === 'reputation' || this.activeTab === 'ip_changes')
+                ? 'IPs'
+                : 'suspicious devices';
             return `Showing ${n} of ${total} ${noun}`;
         },
         copyId(id) {
@@ -1014,15 +1057,22 @@ function trafficControlIntel() {
             if (s >= 45) return '#FF6600';
             return '#EAB308';
         },
+        gaugeTrack() {
+            return document.documentElement.classList.contains('light-mode')
+                ? 'rgba(15,17,38,.10)'
+                : 'rgba(255,255,255,.10)';
+        },
         gaugeStyle(score) {
             const s = Math.max(0, Math.min(100, Number(score || 0)));
             const color = this.riskColor(s);
-            return `background: conic-gradient(${color} 0% ${s}%, rgba(255,255,255,.08) ${s}% 100%)`;
+            const track = this.gaugeTrack();
+            return `background: conic-gradient(${color} 0% ${s}%, ${track} ${s}% 100%)`;
         },
         miniGauge(score) {
             const s = Math.max(0, Math.min(100, Number(score || 0)));
             const color = this.riskColor(s);
-            return `background: conic-gradient(${color} 0% ${s}%, rgba(255,255,255,.1) ${s}% 100%)`;
+            const track = this.gaugeTrack();
+            return `background: conic-gradient(${color} 0% ${s}%, ${track} ${s}% 100%)`;
         },
         kpiIcon(key) {
             const common = 'width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"';

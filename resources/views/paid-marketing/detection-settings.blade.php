@@ -596,10 +596,10 @@
                 border-color: var(--brand-tint-border) !important;
             }
             html.light-mode .figma-detection-geo-rule-row {
-                color: #2d2d3a;
+                color: #ffffff;
             }
             html.light-mode .figma-detection-geo-empty {
-                color: #8a8399;
+                color: rgba(255, 255, 255, 0.55);
             }
             html.light-mode .figma-ads-more .text-\[\#a9a9a9\] {
                 color: #6b6578 !important;
@@ -692,7 +692,7 @@
                 border-color: var(--brand-primary) !important;
             }
             .figma-rule-editors .figma-geo-combobox-label { color: rgba(255,255,255,.75); }
-            html.light-mode .figma-rule-editors .figma-geo-combobox-label { color: #6b6578; }
+            html.light-mode .figma-rule-editors .figma-geo-combobox-label { color: rgba(255,255,255,.85); }
             html.light-mode .figma-rule-editors .figma-geo-combobox-trigger {
                 background: var(--brand-primary) !important;
                 color: #fff !important;
@@ -1206,7 +1206,8 @@
             }
             html.light-mode .figma-rule-editor {
                 background: #fff;
-                border-color: #e4dceb;
+                border-color: rgba(255, 102, 0, 0.28);
+                box-shadow: none !important;
             }
             html.light-mode .figma-rule-editor-title { color: #2d2d3a; }
         </style>

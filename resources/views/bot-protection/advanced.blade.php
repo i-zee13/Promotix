@@ -320,8 +320,8 @@
                 border-color: rgba(255, 102, 0, 0.4) !important;
             }
             html.light-mode .analytics-skin .pm-adv-table-grid--head {
-                background: #141414 !important;
-                color: rgba(255, 255, 255, 0.72) !important;
+                background: #ffe8d6 !important;
+                color: #9a3412 !important;
             }
             html.light-mode .analytics-skin .pm-adv-table-grid--row {
                 background: #fff7f0 !important;

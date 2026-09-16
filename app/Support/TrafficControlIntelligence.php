@@ -101,9 +101,7 @@ class TrafficControlIntelligence
             $deviceRaw = $hasDevice ? trim((string) ($visit->device_id ?? '')) : '';
             $fpRaw = $hasFingerprint ? trim((string) ($visit->fingerprint_id ?? '')) : '';
             $deviceKey = $deviceRaw !== '' ? $deviceRaw : ($fpRaw !== '' ? $fpRaw : 'ip:'.$ip);
-            $deviceLabel = $deviceRaw !== ''
-                ? $deviceRaw
-                : ($fpRaw !== '' ? $fpRaw : 'unknown_'.$this->shortHash($ip));
+            $deviceLabel = $this->formatDeviceLabel($deviceRaw, $fpRaw, $ip);
 
             $isPaid = $hasPaid && (bool) ($visit->is_paid_traffic ?? false);
             $hasClick = $hasGclid && filled($visit->gclid ?? null);
@@ -248,11 +246,24 @@ class TrafficControlIntelligence
         $ipChangesChart = collect($deviceRows)
             ->filter(fn ($r) => ($r['ip_changes'] ?? 0) > 0)
             ->sortByDesc('ip_changes')
-            ->take(6)
-            ->map(fn ($r) => [
-                'label' => $this->shortDevice($r['device_id']),
-                'value' => (int) $r['ip_changes'],
-            ])
+            ->take(8)
+            ->flatMap(function ($r) {
+                $device = $this->shortDevice((string) $r['device_id']);
+                $ips = array_values($r['ips'] ?? []);
+                if ($ips === []) {
+                    return [[
+                        'label' => $device,
+                        'value' => (int) $r['ip_changes'],
+                    ]];
+                }
+
+                return collect($ips)->map(fn ($ip) => [
+                    'label' => $ip.' · '.$device,
+                    'value' => (int) $r['ip_changes'],
+                ])->all();
+            })
+            ->unique('label')
+            ->take(8)
             ->values()
             ->all();
 
@@ -349,7 +360,7 @@ class TrafficControlIntelligence
         return [
             'kpis' => $kpis,
             'devices' => array_slice($deviceRows, 0, 100),
-            'ip_changes' => array_values(array_filter($deviceRows, fn ($r) => ($r['ip_changes'] ?? 0) > 0)),
+            'ip_changes' => $this->ipChangeRows($deviceRows),
             'reputation_rows' => $this->reputationRows($deviceRows, $ipLogs),
             'charts' => [
                 'ip_changes_per_device' => $ipChangesChart,
@@ -686,6 +697,38 @@ class TrafficControlIntelligence
     }
 
     /**
+     * IP Changes tab: one row per IP, then device (IP-first).
+     *
+     * @param  list<array<string, mixed>>  $deviceRows
+     * @return list<array<string, mixed>>
+     */
+    private function ipChangeRows(array $deviceRows): array
+    {
+        $rows = [];
+        foreach ($deviceRows as $device) {
+            if ((int) ($device['ip_changes'] ?? 0) < 1) {
+                continue;
+            }
+            $ips = array_values($device['ips'] ?? []);
+            if ($ips === []) {
+                $rows[] = $device;
+                continue;
+            }
+            foreach ($ips as $ip) {
+                $rows[] = array_merge($device, [
+                    'ip' => $ip,
+                    'ips' => [$ip],
+                    'ip_count' => 1,
+                    'device_key' => ($device['device_key'] ?? $device['device_id']).'|'.$ip,
+                ]);
+            }
+        }
+        usort($rows, static fn ($a, $b) => ($b['ip_changes'] <=> $a['ip_changes']) ?: ($b['risk_score'] <=> $a['risk_score']));
+
+        return array_slice($rows, 0, 100);
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $deviceRows
      * @param  array<string, IpLog>  $ipLogs
      * @return list<array<string, mixed>>
@@ -743,8 +786,30 @@ class TrafficControlIntelligence
         return substr($id, 0, 10).'…';
     }
 
-    private function shortHash(string $value): string
+    /**
+     * Prefer real DEV_ tokens; never surface unknown_* placeholders in the UI.
+     */
+    private function formatDeviceLabel(string $deviceRaw, string $fpRaw, string $ip): string
     {
-        return substr(sha1($value), 0, 8);
+        if ($deviceRaw !== '') {
+            if (str_starts_with($deviceRaw, 'unknown_')) {
+                return 'DEV_'.strtoupper(substr(hash('sha256', $deviceRaw), 0, 12));
+            }
+
+            return $deviceRaw;
+        }
+
+        if ($fpRaw !== '') {
+            if (str_starts_with($fpRaw, 'DEV_')) {
+                return $fpRaw;
+            }
+            if (str_starts_with($fpRaw, 'FP_')) {
+                return 'DEV_'.substr($fpRaw, 3);
+            }
+
+            return 'DEV_'.strtoupper(substr(hash('sha256', $fpRaw), 0, 12));
+        }
+
+        return 'DEV_'.strtoupper(substr(hash('sha256', 'ip|'.$ip), 0, 12));
     }
 }

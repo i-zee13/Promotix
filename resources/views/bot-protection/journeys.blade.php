@@ -566,16 +566,16 @@
                 border-color: #FF6600 !important;
                 color: #fff !important;
             }
-            /* Flow nodes: light purple/white cards + dark text */
+            /* Flow nodes: light orange/white cards + dark text */
             html.light-mode .vj-flow {
-                background: #f3eef8 !important;
-                border: 1px solid rgba(167, 139, 250, 0.28);
+                background: #fff4eb !important;
+                border: 1px solid rgba(255, 102, 0, 0.28);
                 border-radius: 10px;
                 padding: 10px 8px 8px;
             }
             html.light-mode .vj-flow__col-label {
-                color: #6b5b7a !important;
-                background: #e8e0f0 !important;
+                color: #9a3412 !important;
+                background: #ffe8d6 !important;
                 border-radius: 6px;
                 padding: 4px 8px;
                 display: inline-block;
@@ -583,9 +583,9 @@
             html.light-mode .vj-node {
                 background: #ffffff !important;
                 background-color: #ffffff !important;
-                border-color: rgba(167, 139, 250, 0.4) !important;
+                border-color: rgba(255, 102, 0, 0.35) !important;
                 color: #1a1a1a !important;
-                box-shadow: 0 1px 4px rgba(100, 80, 140, 0.08);
+                box-shadow: 0 1px 4px rgba(255, 102, 0, 0.08);
             }
             html.light-mode .vj-node.is-exit { border-color: rgba(220, 38, 38, 0.55) !important; }
             html.light-mode .vj-node.is-lead,
@@ -610,7 +610,10 @@
                 background: #ffffff !important;
                 color: #121212 !important;
             }
-            html.light-mode .vj-table th { color: #5c5470 !important; }
+            html.light-mode .vj-table th {
+                color: #9a3412 !important;
+                background: #ffe8d6 !important;
+            }
             html.light-mode .vj-table td {
                 background: #fff7f0 !important;
                 color: #1a1a1a !important;

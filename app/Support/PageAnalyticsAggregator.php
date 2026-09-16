@@ -907,7 +907,7 @@ class PageAnalyticsAggregator
             ['key' => 'visitors', 'label' => 'Visitors', 'color' => '#EA4335', 'scheme' => 'red', 'total' => array_sum($visitors), 'points' => $visitors, 'labels' => $labels],
             ['key' => 'conversions', 'label' => 'Conversions', 'color' => '#FF6600', 'scheme' => 'orange', 'total' => array_sum($conversions), 'points' => $conversions, 'labels' => $labels],
             // White card in UI; chart stroke stays light-gray so it remains visible on dark canvas.
-            ['key' => 'valid', 'label' => 'Valid Users', 'color' => '#CBD5E1', 'scheme' => 'white', 'total' => array_sum($valid), 'points' => $valid, 'labels' => $labels],
+            ['key' => 'valid', 'label' => 'Valid Users', 'color' => '#64748B', 'scheme' => 'white', 'total' => array_sum($valid), 'points' => $valid, 'labels' => $labels],
         ];
     }
 

@@ -30,6 +30,7 @@ class Domain extends Model
         'authentication_key',
         'gtm_container_id',
         'gtm_detected_at',
+        'google_tag_detected_at',
         'ga4_measurement_id',
         'ga4_api_secret',
         'ga4_detected_at',
@@ -54,6 +55,7 @@ class Domain extends Model
             'ads_synced_at' => 'datetime',
             'ga4_detected_at' => 'datetime',
             'gtm_detected_at' => 'datetime',
+            'google_tag_detected_at' => 'datetime',
         ];
     }
 

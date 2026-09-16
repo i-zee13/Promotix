@@ -48,7 +48,7 @@
             min-height: 148px;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+            box-shadow: none;
         }
         .pa-dash .pa-kpi__top {
             display: flex;
@@ -322,23 +322,39 @@
             color: rgba(255, 255, 255, 0.45);
         }
         html.light-mode .pa-dash .pa-kh-toggle {
-            background: #fff4eb !important;
-            border-color: rgba(255, 102, 0, 0.4) !important;
+            background: #101010 !important;
+            border-color: #101010 !important;
         }
         html.light-mode .pa-dash .pa-kh-toggle__btn {
-            color: #5c5470 !important;
-            background: transparent !important;
-        }
-        html.light-mode .pa-dash .pa-kh-toggle__btn.is-active {
-            background: #FF6600 !important;
             color: #ffffff !important;
+            background: transparent !important;
+            opacity: 1 !important;
         }
-        html.light-mode .pa-dash .pa-kh-toggle__btn:disabled {
-            opacity: 0.45;
-            color: #9a93a8 !important;
+        html.light-mode .pa-dash .pa-kh-toggle__btn.is-active,
+        html.light-mode .pa-dash .pa-kh-toggle__btn.is-active:disabled {
+            background: #FF6600 !important;
+            background-color: #FF6600 !important;
+            color: #ffffff !important;
+            opacity: 1 !important;
+        }
+        html.light-mode .pa-dash .pa-kh-toggle__btn:disabled:not(.is-active) {
+            opacity: 0.5;
+            color: rgba(255, 255, 255, 0.55) !important;
+            background: transparent !important;
         }
         html.light-mode .pa-dash .pa-kh-toggle__hint {
             color: #6b6578 !important;
+        }
+        html.light-mode .pa-dash .pa-perf__sub,
+        html.light-mode .pa-dash .pa-empty {
+            color: #6b6578 !important;
+        }
+        html.light-mode .pa-dash .pa-card__title {
+            color: #121212 !important;
+        }
+        html.light-mode .pa-dash .pa-perf__chart {
+            background: #fffaf5 !important;
+            border-color: rgba(255, 102, 0, 0.25) !important;
         }
         .pa-dash .pa-kh-combo-title {
             margin: 0 0 8px;
@@ -1019,6 +1035,8 @@
             color: #c2410c !important;
         }
         html.light-mode .pa-dash .pa-legend__pct,
+        html.light-mode .pa-dash .pa-legend__row,
+        html.light-mode .pa-dash .pa-legend__label,
         html.light-mode .pa-dash .pa-bar-row__label,
         html.light-mode .pa-dash .pa-bar-row__meta,
         html.light-mode .pa-dash .pa-list-item,
@@ -1029,6 +1047,28 @@
         html.light-mode .pa-dash .pa-geo__legend,
         html.light-mode .pa-dash .pa-donut__hole span {
             color: #5c5470 !important;
+        }
+        html.light-mode .pa-dash .pa-legend__label {
+            color: #2d2d3a !important;
+        }
+        html.light-mode .pa-dash .pa-donut__hole strong {
+            color: #1a1a1a !important;
+        }
+        html.light-mode .pa-dash .pa-card,
+        html.light-mode .pa-dash .pa-kpi {
+            background: #ffffff !important;
+            border-color: rgba(255, 102, 0, 0.4) !important;
+            color: #1a1a1a !important;
+            box-shadow: none !important;
+        }
+        html.light-mode .pa-dash .pa-perf {
+            border-color: rgba(255, 102, 0, 0.45) !important;
+            box-shadow: none !important;
+        }
+        html.light-mode .pa-dash .pa-kh-toggle__btn:not(.is-active) {
+            background: #101010 !important;
+            color: #ffffff !important;
+            border-color: #101010 !important;
         }
         html.light-mode .pa-dash .pa-geo__map {
             border: none !important;

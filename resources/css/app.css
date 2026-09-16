@@ -954,8 +954,8 @@ html.light-mode .figma-filter-bar .figma-filter-select-wrap.flex,
 }
 
 html.light-mode .pm-adv-table-grid--head {
-    background: #f5f0ec;
-    color: #5c5470;
+    background: #ffe8d6;
+    color: #9a3412;
 }
 
 html.light-mode .pm-adv-table-body-scroll {
@@ -963,12 +963,12 @@ html.light-mode .pm-adv-table-body-scroll {
 }
 
 html.light-mode .pm-adv-table-grid--row {
-    background: #f4f2f7;
+    background: #fff7f0;
     color: #1a1a1a;
 }
 
 html.light-mode .pm-adv-table-grid--row:hover {
-    background: #ebe6f2;
+    background: #ffedd5;
 }
 
 .risk-badge {
@@ -6477,6 +6477,7 @@ html.light-mode .figma-rightbar-billing__cols {
 
 /* Selected chips/tabs/toggles: orange fill so white label stays readable */
 html.light-mode .pa-kh-toggle__btn.is-active,
+html.light-mode .pa-kh-toggle__btn.is-active:disabled,
 html.light-mode .tc-tab.is-active,
 html.light-mode .vj-tab.is-active,
 html.light-mode .adv-pager__btn.is-active,
@@ -6487,6 +6488,7 @@ html.light-mode .pmx-security-tabs__button.is-active,
 html.light-mode .figma-sa-tab.is-active,
 html.light-mode .figma-sa-settings-modal-tab.is-active,
 .light-mode .pa-kh-toggle__btn.is-active,
+.light-mode .pa-kh-toggle__btn.is-active:disabled,
 .light-mode .tc-tab.is-active,
 .light-mode .vj-tab.is-active,
 .light-mode .adv-pager__btn.is-active {
@@ -6494,6 +6496,7 @@ html.light-mode .figma-sa-settings-modal-tab.is-active,
     background-color: var(--brand-primary, #FF6600) !important;
     border-color: var(--brand-primary, #FF6600) !important;
     color: #ffffff !important;
+    opacity: 1 !important;
 }
 
 /* Inactive segment labels on soft bars */
@@ -10875,13 +10878,29 @@ html.light-mode .ov-page .ov-suite-stat__vs {
     color: #ffffff !important;
 }
 
-/* Keep geo inset panels dark inside detection cards (light theme) */
+/* Keep geo inset panels solid black inside detection cards (light theme) */
 .light-mode .figma-detection-card-inset,
 .light-mode .figma-detection-left .figma-detection-card-inset,
-.light-mode .figma-detection-right .figma-detection-card-inset {
-    background-color: rgba(0, 0, 0, 0.32) !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
-    color: #d9d9d9 !important;
+.light-mode .figma-detection-right .figma-detection-card-inset,
+html.light-mode .figma-detection-card-inset {
+    background-color: #101010 !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+.light-mode .figma-detection-card-inset .figma-geo-combobox-label,
+html.light-mode .figma-detection-card-inset .figma-geo-combobox-label,
+html.light-mode .figma-rule-editors .figma-detection-card-inset .figma-geo-combobox-label {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+.light-mode .figma-detection-card-inset .figma-detection-geo-empty,
+html.light-mode .figma-detection-card-inset .figma-detection-geo-empty {
+    color: rgba(255, 255, 255, 0.55) !important;
+}
+.light-mode .figma-detection-card-inset .figma-detection-geo-rule-row,
+html.light-mode .figma-detection-card-inset .figma-detection-geo-rule-row {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
 }
 
 .light-mode .figma-detection-advanced {
@@ -16731,8 +16750,8 @@ html.light-mode .figma-main .analytics-skin .figma-filter-control {
 }
 html.light-mode .analytics-skin .pm-adv-table-grid--head,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-grid--head {
-    background: #141414 !important;
-    color: rgba(255, 255, 255, 0.72) !important;
+    background: #ffe8d6 !important;
+    color: #9a3412 !important;
 }
 html.light-mode .analytics-skin .pm-adv-table-grid--row,
 html.light-mode .figma-main .analytics-skin .pm-adv-table-grid--row {
@@ -16833,6 +16852,7 @@ html.light-mode .pa-dash .pa-kpi {
     background: #fff;
     border-color: rgba(255, 102, 0, 0.4) !important;
     color: #1a1a1a;
+    box-shadow: none !important;
 }
 
 /* Analytics pages: shell chrome follows Super Admin branding */
@@ -16915,6 +16935,8 @@ html.light-mode .pa-dash .pa-quality__badge span {
     color: #c2410c !important;
 }
 html.light-mode .pa-dash .pa-legend__pct,
+html.light-mode .pa-dash .pa-legend__row,
+html.light-mode .pa-dash .pa-legend__label,
 html.light-mode .pa-dash .pa-bar-row__label,
 html.light-mode .pa-dash .pa-bar-row__meta,
 html.light-mode .pa-dash .pa-list-item,
@@ -16925,6 +16947,9 @@ html.light-mode .pa-dash .pa-geo__meta,
 html.light-mode .pa-dash .pa-geo__legend,
 html.light-mode .pa-dash .pa-donut__hole span {
     color: #5c5470 !important;
+}
+html.light-mode .pa-dash .pa-legend__label {
+    color: #2d2d3a !important;
 }
 html.light-mode .pa-dash .pa-geo__map {
     background:

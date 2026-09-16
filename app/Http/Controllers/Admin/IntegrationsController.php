@@ -524,15 +524,19 @@ class IntegrationsController extends Controller
             $ga4Linked = $ga4MeasurementId !== '';
             $ga4LiveDetected = filled($domain->ga4_detected_at) && $ga4Linked;
 
+            $awLinked = $googleTagId !== '';
+            $awLiveDetected = filled($domain->google_tag_detected_at);
+
             // GA4 must never be "Detected" from a linked Ads account G- ID alone.
-            // Google Tag (AW-…) similarly: account ID on file ≠ installed on the website.
+            // Google Tag (AW-…): account ID on file ≠ installed — need live Detect (site/GTM).
             return [
                 'domain_id' => $domain->id,
                 'hostname' => (string) $domain->hostname,
                 'google_tag' => [
-                    'id' => $googleTagId !== '' ? $googleTagId : '—',
-                    'status' => 'Not detected',
-                    'ok' => false,
+                    'id' => $awLinked ? $googleTagId : '—',
+                    'status' => $awLiveDetected ? 'Detected' : ($awLinked ? 'Not detected' : 'Not detected'),
+                    'ok' => $awLiveDetected,
+                    'linked' => $awLinked,
                 ],
                 'gtm' => [
                     'id' => $gtmOk ? $gtmContainerId : '—',
@@ -575,14 +579,23 @@ class IntegrationsController extends Controller
             ->count();
         $allHaveGa4 = $manualDomains->isNotEmpty() && $domainsWithGa4 === $manualDomains->count();
 
+        $domainsWithGoogleTag = collect($trackingInstallationByDomain)
+            ->filter(fn (array $row) => (bool) ($row['google_tag']['ok'] ?? false))
+            ->count();
+        $allHaveGoogleTag = $manualDomains->isNotEmpty() && $domainsWithGoogleTag === $manualDomains->count();
+
         // All Domains card: never show one domain's GTM/GA4 as globally connected.
         $trackingInstallation = [
             'domain_id' => null,
             'hostname' => 'All Domains',
             'google_tag' => [
                 'id' => '—',
-                'status' => 'Not detected',
-                'ok' => false,
+                'status' => $manualDomains->isEmpty()
+                    ? 'Not detected'
+                    : ($allHaveGoogleTag ? 'All domains' : ($domainsWithGoogleTag.'/'.$manualDomains->count().' domains')),
+                'ok' => $allHaveGoogleTag,
+                'linked' => $domainsWithGoogleTag > 0 || collect($trackingInstallationByDomain)
+                    ->contains(fn (array $row) => (bool) ($row['google_tag']['linked'] ?? false)),
             ],
             'gtm' => [
                 'id' => '—',
@@ -627,7 +640,7 @@ class IntegrationsController extends Controller
         ];
 
         $connectionHealth['audience_protection'] = $protectionActive ? 'Active' : 'Not configured';
-        $connectionHealth['google_tag_ok'] = false;
+        $connectionHealth['google_tag_ok'] = $allHaveGoogleTag;
         $connectionHealth['script_ok'] = $allHaveScript;
         $connectionHealth['api_ok'] = $apiHealthy;
         $connectionHealth['sync_ok'] = filled($connectionHealth['last_sync_at'])
@@ -1937,6 +1950,48 @@ class IntegrationsController extends Controller
             $dirty = true;
         }
 
+        // Persist Google Ads tag (AW-…) only from live site / published GTM evidence.
+        $hasLiveAw = (bool) ($detection['has_live_aw'] ?? false)
+            || in_array('homepage_aw_snippet', $signals, true)
+            || in_array('gtm_container_aw_id', $signals, true);
+        if ($hasLiveAw) {
+            $liveAwIds = $detection['live_aw_ids'] ?? [];
+            if (! is_array($liveAwIds) || $liveAwIds === []) {
+                $liveAwIds = is_array($detection['aw_ids'] ?? null) ? $detection['aw_ids'] : [];
+            }
+            $linkedAw = '';
+            $domain->loadMissing(['googleAdsAccount', 'googleAdsMappings.account']);
+            foreach (collect([$domain->googleAdsAccount])->merge($domain->googleAdsMappings->pluck('account'))->filter() as $account) {
+                $tag = strtoupper(trim((string) ($account->resolvedGoogleTagId() ?: $account->google_tag_id ?: '')));
+                if (preg_match('/^AW-\d{5,}$/', $tag)) {
+                    $linkedAw = $tag;
+                    break;
+                }
+            }
+            $pickedAw = '';
+            foreach ($liveAwIds as $aw) {
+                $aw = strtoupper(trim((string) $aw));
+                if (! preg_match('/^AW-\d{5,}$/', $aw)) {
+                    continue;
+                }
+                if ($linkedAw !== '' && $aw === $linkedAw) {
+                    $pickedAw = $aw;
+                    break;
+                }
+                if ($pickedAw === '') {
+                    $pickedAw = $aw;
+                }
+            }
+            if ($pickedAw !== '' && $linkedAw !== '' && $pickedAw !== $linkedAw) {
+                // Live AW differs from account key — still count as detected (site has an Ads tag).
+                $pickedAw = $pickedAw;
+            }
+            if ($pickedAw !== '' || $linkedAw !== '') {
+                $domain->google_tag_detected_at = now();
+                $dirty = true;
+            }
+        }
+
         if ($dirty) {
             $domain->save();
         }
@@ -1950,6 +2005,7 @@ class IntegrationsController extends Controller
             'gtm_container_id' => $domain->gtm_container_id,
             'ga4_detected' => filled($domain->ga4_detected_at),
             'gtm_detected' => filled($domain->gtm_detected_at),
+            'google_tag_detected' => filled($domain->google_tag_detected_at),
         ]);
     }
 

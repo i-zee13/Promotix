@@ -30,6 +30,7 @@ class Ga4SitePresenceService
         $liveMeasurementIds = [];
         $gtmIds = [];
         $awIds = [];
+        $liveAwIds = [];
         $signals = [];
 
         $gtmStored = strtoupper(trim((string) ($domain->gtm_container_id ?? '')));
@@ -96,6 +97,7 @@ class Ga4SitePresenceService
                     } elseif ($kind === 'AW') {
                         foreach ($ids as $id) {
                             $awIds[] = $id;
+                            $liveAwIds[] = $id;
                         }
                         if ($ids !== []) {
                             $signals[] = 'homepage_aw_snippet';
@@ -128,6 +130,7 @@ class Ga4SitePresenceService
                     } elseif ($kind === 'AW') {
                         foreach ($ids as $id) {
                             $awIds[] = $id;
+                            $liveAwIds[] = $id;
                         }
                         if ($ids !== []) {
                             $signals[] = 'gtm_container_aw_id';
@@ -143,12 +146,15 @@ class Ga4SitePresenceService
         $measurementIds = array_values(array_unique(array_merge($liveMeasurementIds, $linkedMeasurementIds)));
         $gtmIds = array_values(array_unique($gtmIds));
         $awIds = array_values(array_unique($awIds));
+        $liveAwIds = array_values(array_unique($liveAwIds));
         $signals = array_values(array_unique($signals));
 
         $hasGtm = $gtmIds !== [];
         $hasLiveGa4 = in_array('homepage_ga4_snippet', $signals, true)
             || in_array('gtm_container_ga4_id', $signals, true);
         $hasLiveGtm = in_array('homepage_gtm_snippet', $signals, true);
+        $hasLiveAw = in_array('homepage_aw_snippet', $signals, true)
+            || in_array('gtm_container_aw_id', $signals, true);
         $hasLiveGtagLoader = in_array('homepage_gtag_loader', $signals, true);
         $hasPortalGtm = in_array('portal_gtm_container', $signals, true);
         $hasLinkedGa4 = in_array('linked_account_ga4_id', $signals, true);
@@ -208,10 +214,12 @@ class Ga4SitePresenceService
             'has_gtm' => $hasGtm,
             'has_live_gtm' => $hasLiveGtm,
             'has_live_ga4' => $hasLiveGa4,
+            'has_live_aw' => $hasLiveAw,
             'measurement_ids' => $measurementIds,
             'live_measurement_ids' => $liveIds,
             'gtm_ids' => $gtmIds,
             'aw_ids' => $awIds,
+            'live_aw_ids' => $liveAwIds,
             'signals' => $signals,
             'message' => $message,
             'checked_url' => $checkedUrl,

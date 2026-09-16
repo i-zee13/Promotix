@@ -44,7 +44,7 @@
                 <div class="rounded-[8px] border border-white/10 bg-[#0d0d0d] px-[10px] py-[10px]">
                     <div class="flex items-center justify-between gap-[6px]">
                         <p class="text-[12px] font-semibold truncate">Google Tag</p>
-                        <span class="text-[10px] font-semibold" :class="trackingInstallation.google_tag.ok ? 'text-emerald-300' : 'text-rose-300'" x-text="trackingInstallation.google_tag.ok ? 'Detected' : 'Missing'"></span>
+                        <span class="text-[10px] font-semibold" :class="trackingInstallation.google_tag.ok ? 'text-emerald-300' : 'text-rose-300'" x-text="trackingInstallation.google_tag.ok ? 'Detected' : (trackingInstallation.google_tag.linked || (trackingInstallation.google_tag.id && trackingInstallation.google_tag.id !== '—') ? 'Not detected' : 'Missing')"></span>
                     </div>
                     <p class="mt-[2px] font-mono text-[10px] text-white/45" x-text="trackingInstallation.google_tag.id"></p>
                     <p class="mt-[4px] text-[10px] text-white/50">Install via GTM or direct.</p>
@@ -84,7 +84,7 @@
 
                 <template x-if="installTagsModal.tab === 'google_tag'">
                     <div class="space-y-[12px]">
-                        <p class="text-[13px] text-white/80">Google Tag (<span class="font-mono" x-text="trackingInstallation.google_tag.id"></span>) is the Ads website data destination. Detect it on the production page before claiming protection.</p>
+                        <p class="text-[13px] text-white/80">Google Tag (<span class="font-mono" x-text="trackingInstallation.google_tag.id"></span>) is the <strong class="text-white/90">Ads</strong> destination (<span class="font-mono">AW-…</span>). A GTM “Google Tag” with only a GA4 <span class="font-mono">G-…</span> ID does not count. Publish an Ads Google Tag with this AW ID, then run Detect on the website.</p>
                         <label class="block max-w-[320px]">
                             <span class="mb-[4px] block text-[11px] font-semibold text-white/70">Google Tag ID</span>
                             <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px] text-[12px]" x-model="installTagsModal.google_tag_id" placeholder="AW-…">
