@@ -697,6 +697,62 @@
         stroke: var(--brand-secondary, var(--brand-primary)) !important;
         color: var(--brand-secondary, var(--brand-primary)) !important;
     }
+
+    /* Orange KPI cards: keep white type (global .text-white flip turns Cost Saved / % black) */
+    html.light-mode .paid-dashboard-card,
+    html.light-mode .paid-dashboard-card.paid-kpi-card {
+        background: var(--brand-primary, #FF6600) !important;
+        color: #ffffff !important;
+        border-color: rgba(255, 255, 255, 0.35) !important;
+        box-shadow: none !important;
+    }
+    html.light-mode .paid-dashboard-card .text-white,
+    html.light-mode .paid-dashboard-card [class*="text-white"],
+    html.light-mode .paid-dashboard-card__title,
+    html.light-mode .paid-dashboard-card__icon-btn,
+    html.light-mode .paid-kpi-card__big,
+    html.light-mode .paid-kpi-card__mid,
+    html.light-mode .paid-kpi-card__link,
+    html.light-mode .paid-traffic-metrics__label,
+    html.light-mode .paid-traffic-metrics__value,
+    html.light-mode .paid-traffic-metrics__hint,
+    html.light-mode .paid-blocking-row,
+    html.light-mode .paid-campaign-table,
+    html.light-mode .paid-campaign-table th,
+    html.light-mode .paid-campaign-table td {
+        color: #ffffff !important;
+    }
+    html.light-mode .paid-dashboard-card .text-white\/90 {
+        color: rgba(255, 255, 255, 0.92) !important;
+    }
+    html.light-mode .paid-dashboard-card .text-white\/70 {
+        color: rgba(255, 255, 255, 0.78) !important;
+    }
+    html.light-mode .paid-dashboard-card .text-white\/55,
+    html.light-mode .paid-dashboard-card .text-white\/45 {
+        color: rgba(255, 255, 255, 0.7) !important;
+    }
+    html.light-mode .paid-dashboard-card .text-emerald-300 {
+        color: #bbf7d0 !important;
+    }
+    html.light-mode .paid-dashboard-card .text-rose-300 {
+        color: #fecaca !important;
+    }
+    html.light-mode .paid-dashboard-card .text-amber-200\/90,
+    html.light-mode .paid-dashboard-card .text-amber-200 {
+        color: #fde68a !important;
+    }
+    html.light-mode .paid-metric-bar {
+        background: rgba(0, 0, 0, 0.28) !important;
+    }
+    html.light-mode .paid-metric-bar__fill.is-accuracy {
+        background: #ffffff !important;
+    }
+    html.light-mode .paid-kpi-card__link:hover {
+        color: #ffffff !important;
+        opacity: 0.92;
+    }
+
     .paid-traffic-head {
         display: flex;
         flex-wrap: wrap;

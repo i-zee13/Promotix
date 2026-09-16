@@ -188,8 +188,8 @@
             border-radius: 10px;
             background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 40%);
             border: 1px solid rgba(255,255,255,0.05);
-            padding: 8px 8px 0;
-            overflow: hidden;
+            padding: 4px 4px 2px;
+            overflow: visible;
             box-sizing: border-box;
         }
         .pa-dash .pa-perf__chart svg {
@@ -1133,8 +1133,7 @@
                         type="button"
                         class="pa-kh-toggle__btn"
                         :class="perfGranularity === 'hourly' ? 'is-active' : ''"
-                        :disabled="!canUseHourlyPerf()"
-                        :title="canUseHourlyPerf() ? 'Hourly points' : 'Hourly available for ranges up to 7 days'"
+                        title="Hourly points (ranges longer than 7 days use the last 7 days)"
                         @click="setPerfGranularity('hourly')"
                     >Hourly</button>
                     <button
@@ -1172,8 +1171,11 @@
                 </template>
             </div>
         </div>
-        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode, (perfActiveSeries || []).join(',') + '|' + (perfChartNonce || 0))"></div>
+        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode, (perfActiveSeries || []).join(',') + '|' + (perfGranularity || 'daily') + '|' + (pagePerformance()?.granularity || '') + '|' + ((pagePerformanceSeries()[0]?.points || []).length) + '|' + ((pagePerformanceSeries()[0]?.labels || [])[0] || '') + '|' + (perfChartNonce || 0))"></div>
         <p x-show="!(pagePerformanceSeries() || []).length" class="pa-empty">No performance data in this window.</p>
+        <p class="pa-perf__sub" style="margin-top:8px" x-show="perfGranularity === 'hourly'" x-cloak>
+            Showing hourly analytics for this range (up to 7 days).
+        </p>
     </section>
     @endif
 

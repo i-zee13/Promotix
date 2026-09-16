@@ -771,15 +771,11 @@ class PageAnalyticsAggregator
         ?string $metricTo = null,
     ): array {
         $filled = [];
-        if ($hourly) {
-            $cursor = $from->copy()->timezone($reportingTz)->startOfHour();
-            $end = $to->copy()->timezone($reportingTz)->endOfHour();
-        } else {
-            $startDate = $metricFrom ?: $from->copy()->timezone($reportingTz)->toDateString();
-            $endDate = $metricTo ?: $to->copy()->timezone($reportingTz)->toDateString();
-            $cursor = Carbon::parse($startDate, $reportingTz)->startOfDay();
-            $end = Carbon::parse($endDate, $reportingTz)->endOfDay();
-        }
+        // Always fill from reporting-calendar metric dates so hourly/daily align with the UI range.
+        $startDate = $metricFrom ?: $from->copy()->timezone($reportingTz)->toDateString();
+        $endDate = $metricTo ?: $to->copy()->timezone($reportingTz)->toDateString();
+        $cursor = Carbon::parse($startDate, $reportingTz)->startOfDay();
+        $end = Carbon::parse($endDate, $reportingTz)->endOfDay();
 
         while ($cursor <= $end) {
             $key = $hourly ? $cursor->format('Y-m-d H:00:00') : $cursor->toDateString();
@@ -888,7 +884,7 @@ class PageAnalyticsAggregator
             $labels[] = $hourly
                 ? ($sameDay
                     ? Carbon::parse($key)->format('g A')
-                    : Carbon::parse($key)->format('M j gA'))
+                    : Carbon::parse($key)->format('M j, gA'))
                 : Carbon::parse($key)->format('M j');
             $visitors[] = (int) ($row['visitors'] ?? 0);
             if ($hasGoogleClicks && ! $hourly) {

@@ -14,7 +14,7 @@
     <div class="pi-spec-modal-panel relative z-[1] flex w-full max-w-[980px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#121212] text-white shadow-2xl" @click.stop>
         <header class="flex shrink-0 items-start justify-between gap-[12px] border-b border-white/15 bg-[#121212] px-[22px] pb-[14px] pt-[22px]">
             <div>
-                <h2 class="text-[18px] font-semibold">Install tracking and audience tags</h2>
+                <h2 class="text-[18px] font-semibold text-white">Install tracking and audience tags</h2>
                 <p class="mt-[4px] text-[12px] text-white/60">Clickronix Script, Google Tag, and GTM publication are separate. GTM connected ≠ Google tag installed.</p>
             </div>
             <button type="button" class="rounded p-[6px] text-white/60 hover:bg-white/10 hover:text-white" @click="closeInstallTagsModal()" aria-label="Close">
@@ -36,14 +36,14 @@
             <aside class="space-y-[10px] border-b border-white/10 bg-[#161616] px-[16px] py-[16px] lg:border-b-0 lg:border-r">
                 <div class="rounded-[8px] border border-white/10 bg-[#0d0d0d] px-[10px] py-[10px]">
                     <div class="flex items-center justify-between gap-[6px]">
-                        <p class="text-[12px] font-semibold">Clickronix Script</p>
+                        <p class="text-[12px] font-semibold text-white">Clickronix Script</p>
                         <span class="text-[10px] font-semibold" :class="trackingInstallation.script.ok ? 'text-emerald-300' : 'text-rose-300'" x-text="trackingInstallation.script.ok ? 'Active' : 'Missing'"></span>
                     </div>
                     <p class="mt-[4px] text-[10px] text-white/50" x-text="trackingInstallation.script.ok ? 'Installed and running.' : 'Install collector first.'"></p>
                 </div>
                 <div class="rounded-[8px] border border-white/10 bg-[#0d0d0d] px-[10px] py-[10px]">
                     <div class="flex items-center justify-between gap-[6px]">
-                        <p class="text-[12px] font-semibold truncate">Google Tag</p>
+                        <p class="text-[12px] font-semibold truncate text-white">Google Tag</p>
                         <span class="text-[10px] font-semibold" :class="trackingInstallation.google_tag.ok ? 'text-emerald-300' : 'text-rose-300'" x-text="trackingInstallation.google_tag.ok ? 'Detected' : (trackingInstallation.google_tag.linked || (trackingInstallation.google_tag.id && trackingInstallation.google_tag.id !== '—') ? 'Not detected' : 'Missing')"></span>
                     </div>
                     <p class="mt-[2px] font-mono text-[10px] text-white/45" x-text="trackingInstallation.google_tag.id"></p>
@@ -51,7 +51,7 @@
                 </div>
                 <div class="rounded-[8px] border border-white/10 bg-[#0d0d0d] px-[10px] py-[10px]">
                     <div class="flex items-center justify-between gap-[6px]">
-                        <p class="text-[12px] font-semibold truncate">Google Tag Manager</p>
+                        <p class="text-[12px] font-semibold truncate text-white">Google Tag Manager</p>
                         <span class="text-[10px] font-semibold"
                               :class="trackingInstallation.gtm.ok ? 'text-emerald-300' : (trackingInstallation.gtm.unpublished || trackingInstallation.gtm.status === 'Saved' ? 'text-amber-300' : 'text-rose-300')"
                               x-text="trackingInstallation.gtm.ok ? 'Connected' : (trackingInstallation.gtm.unpublished || trackingInstallation.gtm.status === 'Saved' ? 'Saved' : 'Offline')"></span>
@@ -61,7 +61,7 @@
                 </div>
                 <div class="rounded-[8px] border border-white/10 bg-[#0d0d0d] px-[10px] py-[10px]">
                     <div class="flex items-center justify-between gap-[6px]">
-                        <p class="text-[12px] font-semibold truncate">GA4</p>
+                        <p class="text-[12px] font-semibold truncate text-white">GA4</p>
                         <span class="text-[10px] font-semibold"
                               :class="trackingInstallation.ga4?.ok ? 'text-emerald-300' : (trackingInstallation.ga4?.linked || (trackingInstallation.ga4?.status === 'Linked') ? 'text-amber-300' : 'text-rose-300')"
                               x-text="trackingInstallation.ga4?.ok ? 'Detected' : (trackingInstallation.ga4?.linked || trackingInstallation.ga4?.status === 'Linked' ? 'Linked' : 'Not detected')"></span>
@@ -168,8 +168,8 @@ window.dataLayer.push({
         </div>
 
         <footer class="flex shrink-0 flex-wrap items-center justify-end gap-[8px] border-t border-white/15 bg-[#121212] px-[22px] py-[14px]">
-            <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="closeInstallTagsModal()">Cancel</button>
-            <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="saveInstallTagsDraft()">Save draft</button>
+            <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px] text-white" @click="closeInstallTagsModal()">Cancel</button>
+            <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px] text-white" @click="saveInstallTagsDraft()">Save draft</button>
             <a href="https://tagmanager.google.com/" target="_blank" rel="noopener noreferrer" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[8px] text-[13px] font-semibold text-white no-underline">Preview in GTM</a>
         </footer>
     </div>

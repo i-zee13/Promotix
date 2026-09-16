@@ -431,6 +431,79 @@
             html.light-mode .tc-detail__top .font-mono { color: #121212 !important; }
             html.light-mode .tc-card__title svg { color: #8a8299 !important; }
 
+            /* Selected Device Intelligence — labels/values readable on light */
+            html.light-mode .tc-detail,
+            html.light-mode .tc-detail * {
+                color: #1a1a1a;
+            }
+            html.light-mode .tc-detail,
+            html.light-mode .tc-detail__title,
+            html.light-mode .tc-detail .font-mono,
+            html.light-mode .tc-detail .font-semibold,
+            html.light-mode .tc-detail .text-white,
+            html.light-mode .tc-detail [class*="text-white"] {
+                color: #121212 !important;
+            }
+            html.light-mode .tc-detail .text-white\/40,
+            html.light-mode .tc-detail .text-white\/35,
+            html.light-mode .tc-detail .text-white\/55,
+            html.light-mode .tc-detail .text-\[10px\],
+            html.light-mode .tc-detail .uppercase.tracking-wide,
+            html.light-mode .tc-detail .tc-gauge__max,
+            html.light-mode .tc-sec-title {
+                color: #6b6578 !important;
+            }
+            html.light-mode .tc-detail .tc-status.is-high {
+                color: #dc2626 !important;
+                background: rgba(239, 68, 68, 0.12) !important;
+            }
+            html.light-mode .tc-detail .tc-status.is-suspicious {
+                color: #c2410c !important;
+                background: rgba(255, 102, 0, 0.12) !important;
+            }
+            html.light-mode .tc-detail .tc-status.is-watch,
+            html.light-mode .tc-detail .tc-status.is-medium {
+                color: #a16207 !important;
+                background: rgba(234, 179, 8, 0.14) !important;
+            }
+            html.light-mode .tc-detail .hover\:text-white:hover {
+                color: #FF6600 !important;
+            }
+            html.light-mode .tc-history-item {
+                border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+            }
+            html.light-mode .tc-history-item .font-mono,
+            html.light-mode .tc-history-item .text-white {
+                color: #121212 !important;
+            }
+            html.light-mode .tc-history-item .text-white\/40 {
+                color: #6b6578 !important;
+            }
+            html.light-mode .tc-gauge__inner {
+                background: #ffffff !important;
+                box-shadow: inset 0 0 0 1px rgba(15, 17, 38, 0.08) !important;
+            }
+            html.light-mode .tc-reason {
+                color: #3d3848 !important;
+                border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+            }
+            html.light-mode .tc-reason__icon {
+                background: rgba(255, 102, 0, 0.12) !important;
+                color: #FF6600 !important;
+            }
+            html.light-mode .tc-level.is-High {
+                color: #dc2626 !important;
+                background: rgba(239, 68, 68, 0.1) !important;
+            }
+            html.light-mode .tc-level.is-Medium {
+                color: #c2410c !important;
+                background: rgba(255, 102, 0, 0.1) !important;
+            }
+            html.light-mode .tc-level.is-Low {
+                color: #6b6578 !important;
+                background: rgba(0, 0, 0, 0.05) !important;
+            }
+
             html.light-mode .tc-tab {
                 color: #ffffff !important;
                 border-color: #101010 !important;

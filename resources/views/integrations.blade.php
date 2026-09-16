@@ -286,6 +286,84 @@ document.addEventListener('DOMContentLoaded', () => {
                 max-height: min(80vh, 720px) !important;
                 overflow: hidden;
             }
+            /* Light mode: full light surfaces for install / connect modals */
+            html.light-mode .pi-spec-modal-panel,
+            html.light-mode .pi-spec-modal-panel.text-white {
+                background: #ffffff !important;
+                color: #1a1a1a !important;
+                border-color: #e8d4c4 !important;
+            }
+            html.light-mode .pi-spec-modal-panel header,
+            html.light-mode .pi-spec-modal-panel footer,
+            html.light-mode .pi-spec-modal-panel aside,
+            html.light-mode .pi-spec-modal-panel .pi-spec-modal-body {
+                background-color: #ffffff !important;
+                color: #1a1a1a !important;
+                border-color: #e8d4c4 !important;
+            }
+            html.light-mode .pi-spec-modal-panel aside {
+                background-color: #faf8f6 !important;
+            }
+            html.light-mode .pi-spec-modal-panel .text-white,
+            html.light-mode .pi-spec-modal-panel [class*="text-white"],
+            html.light-mode .pi-spec-modal-panel h2,
+            html.light-mode .pi-spec-modal-panel h3,
+            html.light-mode .pi-spec-modal-panel p,
+            html.light-mode .pi-spec-modal-panel span,
+            html.light-mode .pi-spec-modal-panel label,
+            html.light-mode .pi-spec-modal-panel li {
+                color: #1a1a1a !important;
+            }
+            html.light-mode .pi-spec-modal-panel .text-white\/90,
+            html.light-mode .pi-spec-modal-panel .text-white\/80,
+            html.light-mode .pi-spec-modal-panel .text-white\/70,
+            html.light-mode .pi-spec-modal-panel .text-white\/60,
+            html.light-mode .pi-spec-modal-panel .text-white\/55,
+            html.light-mode .pi-spec-modal-panel .text-white\/50,
+            html.light-mode .pi-spec-modal-panel .text-white\/45,
+            html.light-mode .pi-spec-modal-panel .text-white\/40 {
+                color: #5c5470 !important;
+            }
+            html.light-mode .pi-spec-modal-panel .text-emerald-300,
+            html.light-mode .pi-spec-modal-panel .text-emerald-200 { color: #047857 !important; }
+            html.light-mode .pi-spec-modal-panel .text-rose-300 { color: #e11d48 !important; }
+            html.light-mode .pi-spec-modal-panel .text-amber-300,
+            html.light-mode .pi-spec-modal-panel .text-amber-200 { color: #b45309 !important; }
+            html.light-mode .pi-spec-modal-panel [class*="text-[#ffd0b0]"] { color: #c2410c !important; }
+            html.light-mode .pi-spec-modal-panel footer button {
+                color: #1a1a1a !important;
+                border-color: #d4c4b0 !important;
+                background: #ffffff !important;
+            }
+            html.light-mode .pi-spec-modal-panel footer a[class*="bg-[var(--brand-primary)]"],
+            html.light-mode .pi-spec-modal-panel .pi-primary-btn {
+                background: var(--brand-primary, #FF6600) !important;
+                color: #ffffff !important;
+                border-color: transparent !important;
+            }
+            html.light-mode .pi-spec-modal-panel aside .font-semibold:not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-amber"]) {
+                color: #1a1a1a !important;
+            }
+            html.light-mode .pi-spec-modal-panel [class*="bg-[#121212]"],
+            html.light-mode .pi-spec-modal-panel [class*="bg-[#161616]"],
+            html.light-mode .pi-spec-modal-panel [class*="bg-[#0d0d0d]"],
+            html.light-mode .pi-spec-modal-panel [class*="bg-[#0a0a0a]"] {
+                background-color: #ffffff !important;
+            }
+            html.light-mode .pi-spec-modal-panel [class*="border-white"] {
+                border-color: #e8d4c4 !important;
+            }
+            html.light-mode .pi-spec-modal-panel .ae-field,
+            html.light-mode .pi-spec-modal-panel input,
+            html.light-mode .pi-spec-modal-panel select {
+                background: #ffffff !important;
+                color: #1a1a1a !important;
+                border-color: #d4c4b0 !important;
+            }
+            html.light-mode .pi-spec-modal-panel pre {
+                background: #f4f2f7 !important;
+                border-color: #e8d4c4 !important;
+            }
             .pi-spec-modal-body {
                 flex: 1 1 auto;
                 min-height: 0;
@@ -853,11 +931,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 border-color: var(--brand-tint-border);
                 box-shadow: 0 1px 10px color-mix(in srgb, var(--brand-primary) 8%, transparent);
             }
-            /* Orange brand panels: keep white type (global .light-mode .text-white flips to black) */
             html.light-mode .pi-panel {
                 background: var(--brand-primary) !important;
                 border-color: rgba(255, 255, 255, 0.22) !important;
                 color: #ffffff !important;
+            }
+            html.light-mode .pi-panel .figma-platform-kebab {
+                color: #ffffff !important;
+                border: 0 !important;
+                outline: none !important;
+                box-shadow: none !important;
+            }
+            html.light-mode .pi-panel .figma-platform-kebab:hover {
+                background: rgba(0, 0, 0, 0.18) !important;
             }
             html.light-mode .pi-panel .text-white,
             html.light-mode .pi-panel [class*="text-white"],

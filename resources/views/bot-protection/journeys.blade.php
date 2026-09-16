@@ -141,12 +141,12 @@
                 display:inline-flex; align-items:center; gap:5px; max-width:100%;
                 font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
                 font-size:12px; font-weight:600; line-height:1.35;
-                color:#7dd3fc; text-decoration:underline; text-underline-offset:2px;
-                text-decoration-color:rgba(125,211,252,.55);
+                color:#FF6600; text-decoration:underline; text-underline-offset:2px;
+                text-decoration-color:rgba(255,102,0,.55);
                 word-break:break-all; cursor:default;
             }
             .vj-node__link:hover {
-                color:#bae6fd; text-decoration-color:#bae6fd;
+                color:#ff8533; text-decoration-color:#ff8533;
             }
             .vj-node__link-ico {
                 flex-shrink:0; width:11px; height:11px; opacity:.85;
@@ -156,15 +156,15 @@
             }
             .vj-path-link {
                 display:inline; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size:12px; font-weight:600; color:#7dd3fc;
+                font-size:12px; font-weight:600; color:#FF6600;
                 text-decoration:underline; text-underline-offset:2px;
-                text-decoration-color:rgba(125,211,252,.5);
+                text-decoration-color:rgba(255,102,0,.5);
             }
             .vj-hbar__path {
                 font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size:12px; font-weight:600; color:#7dd3fc;
+                font-size:12px; font-weight:600; color:#FF6600;
                 text-decoration:underline; text-underline-offset:2px;
-                text-decoration-color:rgba(125,211,252,.45);
+                text-decoration-color:rgba(255,102,0,.45);
                 overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
             }
             .vj-flow__svg {
@@ -207,15 +207,15 @@
             .vj-path-meta { color:rgba(255,255,255,.4); white-space:nowrap; font-size:11px; }
             .vj-path-link {
                 display:inline; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size:12px; font-weight:600; color:#7dd3fc;
+                font-size:12px; font-weight:600; color:#FF6600;
                 text-decoration:underline; text-underline-offset:2px;
-                text-decoration-color:rgba(125,211,252,.5);
+                text-decoration-color:rgba(255,102,0,.5);
             }
             .vj-hbar__path {
                 font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size:12px; font-weight:600; color:#7dd3fc;
+                font-size:12px; font-weight:600; color:#FF6600;
                 text-decoration:underline; text-underline-offset:2px;
-                text-decoration-color:rgba(125,211,252,.45);
+                text-decoration-color:rgba(255,102,0,.45);
                 overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
             }
             .vj-hbar { display:grid; grid-template-columns:78px 1fr 34px; gap:8px; align-items:center; margin-bottom:10px; font-size:11px; color:rgba(255,255,255,.65); }
@@ -664,6 +664,22 @@
             html.light-mode .vj-sj-body__title,
             html.light-mode .vj-sd-sec__title,
             html.light-mode .vj-seq-title { color: #121212 !important; }
+            html.light-mode .vj-sd-sec__title { color: #6b6578 !important; }
+            html.light-mode .vj-meta-row {
+                color: #5c5470 !important;
+            }
+            html.light-mode .vj-meta-row span {
+                color: #5c5470 !important;
+            }
+            html.light-mode .vj-meta-row strong,
+            html.light-mode .vj-meta-row strong span {
+                color: #121212 !important;
+            }
+            html.light-mode .vj-meta-row .text-white\/35,
+            html.light-mode .vj-meta-row .text-white\/40,
+            html.light-mode .vj-meta-row [class*='text-white'] {
+                color: #8a8299 !important;
+            }
             html.light-mode .vj-sj-body__page,
             html.light-mode .vj-sj-time,
             html.light-mode .vj-sj__stats { color: #5c5470 !important; }
@@ -705,12 +721,12 @@
             html.light-mode .vj-node__link,
             html.light-mode .vj-path-link,
             html.light-mode .vj-hbar__path {
-                color: #6d28d9 !important;
-                text-decoration-color: rgba(109, 40, 217, 0.4) !important;
+                color: #FF6600 !important;
+                text-decoration-color: rgba(255, 102, 0, 0.5) !important;
             }
             html.light-mode .vj-node__link:hover {
-                color: #5b21b6 !important;
-                text-decoration-color: #5b21b6 !important;
+                color: #ea580c !important;
+                text-decoration-color: #ea580c !important;
             }
             html.light-mode .vj-donut__hole {
                 background: #ffffff !important;

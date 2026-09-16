@@ -1524,27 +1524,54 @@ function botProtectionFigma(config = {}) {
         isPerfSeriesActive(key) {
             return (this.perfActiveSeries || []).includes(key);
         },
-        canUseHourlyPerf() {
+        daysInPerfRange() {
             const from = this.filters?.from;
             const to = this.filters?.to;
-            if (!from || !to) return true;
+            if (!from || !to) return 1;
             try {
                 const a = new Date(from + 'T00:00:00');
                 const b = new Date(to + 'T00:00:00');
-                const days = Math.round((b - a) / 86400000) + 1;
-                return days <= 7;
+                return Math.max(1, Math.round((b - a) / 86400000) + 1);
             } catch (e) {
+                return 1;
+            }
+        },
+        canUseHourlyPerf() {
+            // Always allow the control; long ranges auto-narrow to the last 7 days on click.
+            return true;
+        },
+        narrowRangeForHourly() {
+            const to = this.filters?.to;
+            if (!to || this.daysInPerfRange() <= 7) return false;
+            try {
+                const end = new Date(to + 'T00:00:00');
+                const start = new Date(end.getTime() - 6 * 86400000);
+                const iso = (d) => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                };
+                this.filters.from = iso(start);
+                this.filters.to = iso(end);
+                try {
+                    localStorage.setItem('promotix-date-range', JSON.stringify({
+                        from: this.filters.from,
+                        to: this.filters.to,
+                    }));
+                } catch (e) {}
+                // Do not dispatch promotix:date-range here — setPerfGranularity reloads once.
                 return true;
+            } catch (e) {
+                return false;
             }
         },
         setPerfGranularity(mode) {
             const next = mode === 'hourly' ? 'hourly' : 'daily';
-            if (next === 'hourly' && !this.canUseHourlyPerf()) {
-                this.perfGranularity = 'daily';
-                return;
-            }
-            if (this.perfGranularity === next) return;
+            const narrowed = next === 'hourly' ? this.narrowRangeForHourly() : false;
+            if (this.perfGranularity === next && !narrowed) return;
             this.perfGranularity = next;
+            this.perfChartNonce = (this.perfChartNonce || 0) + 1;
             this.reload();
         },
         togglePerfSeries(key) {
@@ -1570,16 +1597,19 @@ function botProtectionFigma(config = {}) {
                 }
             } catch (e) {}
             const padL = 48;
-            const padR = 16;
-            const padT = 20;
-            const padB = 34;
+            const padR = 18;
+            const padT = 18;
+            const padB = 44;
             const innerW = Math.max(80, width - padL - padR);
             const innerH = height - padT - padB;
             const light = document.documentElement.classList.contains('light-mode');
-            const axisFill = light ? 'rgba(92,84,112,0.75)' : 'rgba(255,255,255,0.35)';
-            const labelFill = light ? 'rgba(92,84,112,0.7)' : 'rgba(255,255,255,0.45)';
+            const axisFill = light ? 'rgba(55,48,68,0.85)' : 'rgba(255,255,255,0.45)';
+            const labelFill = light ? 'rgba(55,48,68,0.8)' : 'rgba(255,255,255,0.55)';
             const gridStroke = light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
             const dotFill = light ? '#ffffff' : '#141414';
+            const isHourly = this.perfGranularity === 'hourly'
+                || this.pagePerformance()?.granularity === 'hourly'
+                || (series[0]?.points || []).length > 24;
             const seriesStroke = (color) => {
                 const c = String(color || '#FF6600').toUpperCase();
                 if (!light) return color || '#FF6600';
@@ -1668,13 +1698,14 @@ function botProtectionFigma(config = {}) {
                 });
             }
 
-            // Show denser X labels: all days when ≤14; otherwise ~10 ticks. Hourly: ~12 ticks.
-            const maxLabels = (this.perfGranularity === 'hourly' || (series[0].points || []).length > 24) ? 12 : 14;
+            // Hourly needs fewer ticks (labels are longer); daily can show denser dates.
+            const maxLabels = isHourly ? 8 : 14;
             const labelStep = Math.max(1, Math.ceil(labels.length / maxLabels));
             labels.forEach((label, i) => {
                 if (i % labelStep !== 0 && i !== labels.length - 1) return;
                 const safe = String(label).replace(/[<>&"]/g, '');
-                body += `<text x="${xAt(i).toFixed(1)}" y="${height - 10}" text-anchor="middle" fill="${labelFill}" font-size="10">${safe}</text>`;
+                const anchor = i === 0 ? 'start' : (i === labels.length - 1 ? 'end' : 'middle');
+                body += `<text x="${xAt(i).toFixed(1)}" y="${height - 12}" text-anchor="${anchor}" fill="${labelFill}" font-size="${isHourly ? 9 : 10}" font-weight="500">${safe}</text>`;
             });
             // none is safe when viewBox width ≈ container width — fills edge-to-edge without oval stretch.
             return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">${body}</svg>`;
@@ -1986,10 +2017,12 @@ function botProtectionFigma(config = {}) {
             window.dispatchEvent(new CustomEvent('promotix:date-range', {
                 detail: { from: this.filters.from, to: this.filters.to },
             }));
-            // Same-day → hourly denser points; multi-day → daily (user can still switch to Hourly ≤7d).
+            // Same-day → hourly denser points; multi-day → keep hourly only if ≤7d, else daily.
             if (this.filters.from === this.filters.to) {
                 this.perfGranularity = 'hourly';
-            } else if (!this.canUseHourlyPerf() || this.perfGranularity !== 'hourly') {
+            } else if (this.perfGranularity === 'hourly' && this.daysInPerfRange() > 7) {
+                this.narrowRangeForHourly();
+            } else if (this.perfGranularity !== 'hourly') {
                 this.perfGranularity = 'daily';
             }
             this.reload();

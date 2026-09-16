@@ -7899,6 +7899,30 @@ html.light-mode .figma-geo-combobox-label {
     color: #fff;
 }
 
+/* Orange KPI cards stay brand orange with white type in lite mode */
+html.light-mode .paid-dashboard-card {
+    background: var(--brand-primary, #FF6600) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+html.light-mode .paid-dashboard-card .text-white,
+html.light-mode .paid-dashboard-card [class*="text-white"],
+html.light-mode .paid-dashboard-card__title,
+html.light-mode .paid-traffic-metrics__label,
+html.light-mode .paid-traffic-metrics__value {
+    color: #ffffff !important;
+}
+html.light-mode .paid-dashboard-card .text-white\/70 {
+    color: rgba(255, 255, 255, 0.78) !important;
+}
+html.light-mode .paid-dashboard-card .text-white\/45,
+html.light-mode .paid-dashboard-card .text-white\/55 {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+html.light-mode .paid-metric-bar__fill.is-accuracy {
+    background: #ffffff !important;
+}
+
 /* Compact Paid Traffic metrics (same purple card, tighter layout) */
 .paid-traffic-metrics {
     display: grid;
@@ -8598,6 +8622,41 @@ html.light-mode .adv-pager select {
 .figma-platform-menu-item--muted {
     opacity: 0.45;
     font-size: 12px;
+}
+
+html.light-mode .figma-platform-menu-item,
+.light-mode .figma-platform-menu-item {
+    color: #1a1a1a !important;
+}
+
+html.light-mode .figma-platform-menu-item:hover,
+.light-mode .figma-platform-menu-item:hover {
+    background: rgba(255, 102, 0, 0.16) !important;
+    color: #9a3412 !important;
+}
+
+html.light-mode .figma-platform-menu-item--danger,
+.light-mode .figma-platform-menu-item--danger {
+    color: #b91c1c !important;
+}
+
+html.light-mode .figma-platform-menu-item--danger:hover,
+.light-mode .figma-platform-menu-item--danger:hover {
+    background: rgba(185, 28, 28, 0.12) !important;
+    color: #991b1b !important;
+}
+
+html.light-mode .figma-platform-menu-item--muted,
+.light-mode .figma-platform-menu-item--muted {
+    color: #6b6578 !important;
+    opacity: 1;
+}
+
+html.light-mode .figma-sa-dash-dropdown-menu:has(.figma-platform-menu-item),
+.light-mode .figma-sa-dash-dropdown-menu:has(.figma-platform-menu-item) {
+    background: #ffffff !important;
+    border-color: #e8d4c4 !important;
+    box-shadow: 0 12px 28px rgba(61, 56, 72, 0.15) !important;
 }
 
 .figma-sa-dash-dropdown-menu:has(.figma-platform-menu-item) {
@@ -11447,6 +11506,123 @@ html.light-mode .figma-detection-card-inset .figma-detection-geo-rule-row {
 .light-mode .bg-dark { background: #ffffff !important; color: #0F1126 !important; }
 .light-mode .border-dark-border { border-color: #E5E6F2 !important; }
 .light-mode .text-white { color: #0F1126 !important; }
+.light-mode .text-white\/90 { color: rgba(15, 17, 38, 0.9) !important; }
+.light-mode .text-white\/85 { color: rgba(15, 17, 38, 0.85) !important; }
+.light-mode .text-white\/80 { color: rgba(15, 17, 38, 0.8) !important; }
+.light-mode .text-white\/70 { color: rgba(15, 17, 38, 0.7) !important; }
+.light-mode .text-white\/65 { color: rgba(15, 17, 38, 0.65) !important; }
+.light-mode .text-white\/60 { color: rgba(15, 17, 38, 0.6) !important; }
+.light-mode .text-white\/55 { color: rgba(92, 84, 112, 0.95) !important; }
+.light-mode .text-white\/50 { color: rgba(92, 84, 112, 0.9) !important; }
+.light-mode .text-white\/45 { color: rgba(92, 84, 112, 0.85) !important; }
+.light-mode .text-white\/40 { color: rgba(92, 84, 112, 0.8) !important; }
+.light-mode .text-white\/35 { color: rgba(92, 84, 112, 0.75) !important; }
+/* Spec modals — full light surfaces in lite mode (avoid white header + dark body clash) */
+html.light-mode .pi-spec-modal-panel,
+html.light-mode .pi-spec-modal-panel.text-white {
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+    border-color: #e8d4c4 !important;
+}
+html.light-mode .pi-spec-modal-panel header,
+html.light-mode .pi-spec-modal-panel footer,
+html.light-mode .pi-spec-modal-panel aside,
+html.light-mode .pi-spec-modal-panel .pi-spec-modal-body,
+html.light-mode .pi-spec-modal-panel [class*="bg-[#121212]"],
+html.light-mode .pi-spec-modal-panel [class*="bg-[#161616]"],
+html.light-mode .pi-spec-modal-panel [class*="bg-[#0d0d0d]"],
+html.light-mode .pi-spec-modal-panel [class*="bg-[#0a0a0a]"],
+html.light-mode .pi-spec-modal-panel [class*="bg-[#0D0D0D]"] {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #1a1a1a !important;
+    border-color: #e8d4c4 !important;
+}
+html.light-mode .pi-spec-modal-panel aside {
+    background: #faf8f6 !important;
+    background-color: #faf8f6 !important;
+}
+html.light-mode .pi-spec-modal-panel .text-white,
+html.light-mode .pi-spec-modal-panel [class*="text-white"],
+html.light-mode .pi-spec-modal-panel h2,
+html.light-mode .pi-spec-modal-panel h3,
+html.light-mode .pi-spec-modal-panel p,
+html.light-mode .pi-spec-modal-panel span,
+html.light-mode .pi-spec-modal-panel label,
+html.light-mode .pi-spec-modal-panel li,
+html.light-mode .pi-spec-modal-panel button:not(.bg-\[var\(--brand-primary\)\]):not([class*="bg-[var(--brand-primary)]"]) {
+    color: #1a1a1a !important;
+}
+html.light-mode .pi-spec-modal-panel .text-white\/90,
+html.light-mode .pi-spec-modal-panel .text-white\/80,
+html.light-mode .pi-spec-modal-panel .text-white\/70,
+html.light-mode .pi-spec-modal-panel .text-white\/60,
+html.light-mode .pi-spec-modal-panel .text-white\/55,
+html.light-mode .pi-spec-modal-panel .text-white\/50,
+html.light-mode .pi-spec-modal-panel .text-white\/45,
+html.light-mode .pi-spec-modal-panel .text-white\/40,
+html.light-mode .pi-spec-modal-panel .text-white\/35 {
+    color: #5c5470 !important;
+}
+html.light-mode .pi-spec-modal-panel .text-emerald-300,
+html.light-mode .pi-spec-modal-panel .text-emerald-200 {
+    color: #047857 !important;
+}
+html.light-mode .pi-spec-modal-panel .text-rose-300 {
+    color: #e11d48 !important;
+}
+html.light-mode .pi-spec-modal-panel .text-amber-300,
+html.light-mode .pi-spec-modal-panel .text-amber-200 {
+    color: #b45309 !important;
+}
+html.light-mode .pi-spec-modal-panel .text-\[\#ffd0b0\],
+html.light-mode .pi-spec-modal-panel [class*="text-[#ffd0b0]"] {
+    color: #c2410c !important;
+}
+html.light-mode .pi-spec-modal-panel .ae-field,
+html.light-mode .pi-spec-modal-panel input,
+html.light-mode .pi-spec-modal-panel select,
+html.light-mode .pi-spec-modal-panel textarea {
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+    border-color: #d4c4b0 !important;
+}
+html.light-mode .pi-spec-modal-panel pre {
+    background: #f4f2f7 !important;
+    color: #047857 !important;
+    border-color: #e8d4c4 !important;
+}
+html.light-mode .pi-spec-modal-panel footer button {
+    color: #1a1a1a !important;
+    border-color: #d4c4b0 !important;
+    background: #ffffff !important;
+}
+html.light-mode .pi-spec-modal-panel a.bg-\[var\(--brand-primary\)\],
+html.light-mode .pi-spec-modal-panel [class*="bg-[var(--brand-primary)]"],
+html.light-mode .pi-spec-modal-panel .pi-primary-btn,
+html.light-mode .pi-spec-modal-panel button.bg-\[var\(--brand-primary\)\] {
+    background: var(--brand-primary, #FF6600) !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+}
+html.light-mode .pi-spec-modal-panel [class*="bg-[var(--brand-primary)]"] *,
+html.light-mode .pi-spec-modal-panel .pi-primary-btn *,
+html.light-mode .pi-spec-modal-panel a[class*="bg-[var(--brand-primary)]"] * {
+    color: #ffffff !important;
+}
+html.light-mode .pi-spec-modal-panel [class*="bg-emerald-500/20"] {
+    background-color: rgba(16, 185, 129, 0.14) !important;
+}
+html.light-mode .pi-spec-modal-panel [class*="bg-white/10"],
+html.light-mode .pi-spec-modal-panel [class*="bg-white/5"] {
+    background-color: rgba(255, 102, 0, 0.06) !important;
+}
+html.light-mode .pi-spec-modal-panel [class*="border-white"] {
+    border-color: #e8d4c4 !important;
+}
+html.light-mode .pi-spec-modal-body {
+    scrollbar-color: rgba(255, 102, 0, 0.55) #f4f2f7;
+}
 .light-mode .text-gray-400,
 .light-mode .text-gray-300,
 .light-mode .text-gray-500 { color: #52557E !important; }
