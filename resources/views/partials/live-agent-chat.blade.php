@@ -36,6 +36,31 @@
     color: #fff;
 }
 .copilot-ticket-chip--new { max-width: none; }
+
+/* Keep orange header + white status in light mode (global `header` / `.text-white` flips break this) */
+html.light-mode .copilot-panel > header.copilot-header,
+.light-mode .copilot-panel > header.copilot-header {
+    background: #FF6600 !important;
+    background-color: #FF6600 !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+html.light-mode .copilot-panel > header.copilot-header .copilot-title,
+html.light-mode .copilot-panel > header.copilot-header .copilot-status,
+html.light-mode .copilot-panel > header.copilot-header .copilot-close,
+.light-mode .copilot-panel > header.copilot-header .copilot-title,
+.light-mode .copilot-panel > header.copilot-header .copilot-status,
+.light-mode .copilot-panel > header.copilot-header .copilot-close,
+html.light-mode .copilot-panel > header.copilot-header [class*='text-white'],
+.light-mode .copilot-panel > header.copilot-header [class*='text-white'] {
+    color: #ffffff !important;
+}
+.copilot-status {
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 10px;
+    line-height: 1.3;
+    margin-top: 2px;
+}
 </style>
 <div
     x-data="liveAgentChat({
@@ -62,18 +87,18 @@
         x-transition:enter="transition ease-out duration-200"
         x-transition:enter-start="translate-y-4 opacity-0"
         x-transition:enter-end="translate-y-0 opacity-100"
-        class="fixed bottom-[20px] right-[20px] z-[310] flex h-[min(560px,88vh)] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden rounded-[12px] border border-[#FF6600]/45 bg-[#0F0F10] shadow-[0_16px_48px_rgba(0,0,0,.55)]"
+        class="copilot-panel fixed bottom-[20px] right-[20px] z-[310] flex h-[min(560px,88vh)] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden rounded-[12px] border border-[#FF6600]/45 bg-[#0F0F10] shadow-[0_16px_48px_rgba(0,0,0,.55)]"
         role="dialog"
         aria-label="Live agent chat"
         @mousemove="bumpActivity()"
         @keydown="bumpActivity()"
     >
-        <header class="flex items-center justify-between border-b border-white/10 bg-[#FF6600] px-[14px] py-[12px]">
+        <header class="copilot-header flex items-center justify-between border-b border-white/10 bg-[#FF6600] px-[14px] py-[12px]">
             <div>
-                <p class="text-[13px] font-semibold text-white">{{ \App\Support\PortalBrand::name() }} Copilot</p>
-                <p class="text-[10px] text-white/90" x-text="mode === 'ticket' ? (activeTicketSubject || 'Support ticket') : (typing ? 'Typing…' : (agentOnline ? 'Online' : 'Connecting…'))"></p>
+                <p class="copilot-title text-[13px] font-semibold text-white">{{ \App\Support\PortalBrand::name() }} Copilot</p>
+                <p class="copilot-status" x-text="mode === 'ticket' ? (activeTicketSubject || 'Support ticket') : (typing ? 'Typing…' : (agentOnline ? 'Online' : 'Connecting…'))"></p>
             </div>
-            <button type="button" @click="closePanel()" class="rounded p-1 text-white/80 hover:bg-white/10" aria-label="Close chat">
+            <button type="button" @click="closePanel()" class="copilot-close rounded p-1 text-white/80 hover:bg-white/10" aria-label="Close chat">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </header>

@@ -116,16 +116,19 @@
 
             .vj-flow { position:relative; min-height:320px; overflow-x:auto; }
             .vj-flow__cols {
-                display:grid; grid-template-columns:repeat(4, minmax(140px, 1fr)); gap:18px;
-                position:relative; z-index:1; min-width:640px;
+                display:grid; grid-template-columns:repeat(4, minmax(0, 138px));
+                justify-content:space-between; column-gap:56px; row-gap:0;
+                position:relative; z-index:1; min-width:760px; padding:0 4px;
             }
+            .vj-flow__col { min-width:0; width:100%; max-width:138px; }
             .vj-flow__col-label {
                 font-size:10px; font-weight:650; letter-spacing:.04em; text-transform:uppercase;
                 color:rgba(255,255,255,.4); margin-bottom:10px;
             }
             .vj-node {
                 border-radius:10px; border:1px solid rgba(255,102,0,.45); background:#0f0f0f;
-                padding:10px 12px; margin-bottom:10px; min-height:52px;
+                padding:8px 10px; margin-bottom:10px; min-height:48px;
+                width:100%; max-width:138px; box-sizing:border-box;
             }
             .vj-node.is-exit { border-color:rgba(239,68,68,.55); }
             .vj-node.is-lead { border-color:rgba(34,197,94,.55); }
@@ -166,7 +169,7 @@
             }
             .vj-flow__svg {
                 position:absolute; inset:28px 0 0 0; width:100%; height:calc(100% - 28px);
-                pointer-events:none; z-index:0; min-width:640px;
+                pointer-events:none; z-index:0; min-width:760px;
             }
 
             .vj-detail { border-radius:12px; border:1px solid rgba(255,102,0,.22); background:#121212; padding:14px; position:sticky; top:72px; }
@@ -452,6 +455,197 @@
                 color:#FF6600; font-size:12px; font-weight:650;
             }
             .vj-export:hover { background:rgba(255,102,0,.12); }
+
+            /* —— Lite / light-mode (must stay last to beat base + app.css) —— */
+            html.light-mode .analytics-skin .vj-page,
+            html.light-mode .vj-page { color: #1a1a1a !important; }
+            html.light-mode .analytics-skin .vj-title,
+            html.light-mode .vj-title,
+            html.light-mode .analytics-skin .vj-title > span,
+            html.light-mode .vj-title > span { color: #121212 !important; }
+            html.light-mode .analytics-skin .vj-title__muted,
+            html.light-mode .vj-title__muted { color: #6b6578 !important; }
+            html.light-mode .analytics-skin .vj-title__pipe,
+            html.light-mode .vj-title__pipe { color: rgba(0,0,0,.25) !important; }
+
+            html.light-mode .analytics-skin .figma-filter-bar--vj,
+            html.light-mode .figma-filter-bar--vj {
+                background: #fff4eb !important;
+                background-color: #fff4eb !important;
+                border-color: rgba(255, 102, 0, 0.45) !important;
+                box-shadow: 0 2px 10px rgba(255, 102, 0, 0.12) !important;
+                color: #1a1a1a !important;
+            }
+            html.light-mode .analytics-skin .figma-filter-bar--vj .figma-filter-label,
+            html.light-mode .figma-filter-bar--vj .figma-filter-label { color: #5c5470 !important; }
+            html.light-mode .analytics-skin .figma-filter-bar--vj .figma-filter-control,
+            html.light-mode .figma-filter-bar--vj .figma-filter-control,
+            html.light-mode .analytics-skin .figma-filter-bar--vj select.figma-filter-control,
+            html.light-mode .figma-filter-bar--vj select.figma-filter-control,
+            html.light-mode .analytics-skin .figma-filter-bar--vj [class*='bg-[#101010]'],
+            html.light-mode .figma-filter-bar--vj [class*='bg-[#101010]'] {
+                background: #101010 !important;
+                background-color: #101010 !important;
+                color: #8c8787 !important;
+                border: 0 !important;
+                box-shadow: none !important;
+            }
+            html.light-mode .figma-filter-bar--vj .figma-filter-select-wrap::after {
+                background-color: #101010 !important;
+                border-color: rgba(255,255,255,.2) !important;
+            }
+            html.light-mode .figma-filter-bar--vj .figma-filter-calendar-btn {
+                background: #101010 !important;
+                border: 1.5px solid #FF6600 !important;
+                color: #FF6600 !important;
+            }
+            html.light-mode .figma-filter-bar--vj .vj-sample-row {
+                background: #101010 !important;
+                color: #8c8787 !important;
+            }
+            html.light-mode .figma-filter-bar--vj .vj-f-actions,
+            html.light-mode .figma-filter-bar--vj .figma-filter-calendar-host,
+            html.light-mode .figma-filter-bar--vj > label {
+                border-color: rgba(0,0,0,.14) !important;
+            }
+
+            html.light-mode .analytics-skin .vj-kpi,
+            html.light-mode .vj-kpi,
+            html.light-mode .analytics-skin .vj-card,
+            html.light-mode .vj-card,
+            html.light-mode .analytics-skin .vj-detail,
+            html.light-mode .vj-detail,
+            html.light-mode .analytics-skin .vj-widget,
+            html.light-mode .vj-widget,
+            html.light-mode .analytics-skin .vj-table-card,
+            html.light-mode .vj-table-card {
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                border-color: rgba(255, 102, 0, 0.28) !important;
+                color: #1a1a1a !important;
+            }
+            html.light-mode .vj-kpi__label,
+            html.light-mode .vj-kpi__delta-vs,
+            html.light-mode .vj-card__title,
+            html.light-mode .vj-widget__title,
+            html.light-mode .vj-detail__title,
+            html.light-mode .vj-flow__col-label,
+            html.light-mode .vj-empty,
+            html.light-mode .vj-path-meta,
+            html.light-mode .vj-legend,
+            html.light-mode .vj-is__count,
+            html.light-mode .vj-sj__stats,
+            html.light-mode .vj-sj-time,
+            html.light-mode .vj-sj-body__page,
+            html.light-mode .vj-sd-sec__title,
+            html.light-mode .vj-ev-legend,
+            html.light-mode .vj-tl-meta { color: #5c5470 !important; }
+            html.light-mode .vj-kpi__value,
+            html.light-mode .vj-tl-label,
+            html.light-mode .vj-is__title,
+            html.light-mode .vj-sj__title,
+            html.light-mode .vj-sj-body__title,
+            html.light-mode .vj-card__title-row { color: #121212 !important; }
+            html.light-mode .vj-tab {
+                color: #5c5470 !important;
+                border-color: rgba(0,0,0,.12) !important;
+                background: #fff !important;
+            }
+            html.light-mode .vj-tab.is-active {
+                background: #FF6600 !important;
+                border-color: #FF6600 !important;
+                color: #fff !important;
+            }
+            /* Flow nodes: dark + white text (same as dark mode), light-purple accents */
+            html.light-mode .vj-flow {
+                background: #f3eef8 !important;
+                border: 1px solid rgba(167, 139, 250, 0.28);
+                border-radius: 10px;
+                padding: 10px 8px 8px;
+            }
+            html.light-mode .vj-flow__col-label {
+                color: #6b5b7a !important;
+                background: #e8e0f0 !important;
+                border-radius: 6px;
+                padding: 4px 8px;
+                display: inline-block;
+            }
+            html.light-mode .vj-node {
+                background: #1a1524 !important;
+                background-color: #1a1524 !important;
+                border-color: rgba(167, 139, 250, 0.45) !important;
+                color: #ffffff !important;
+            }
+            html.light-mode .vj-node.is-exit { border-color: rgba(248, 113, 113, 0.7) !important; }
+            html.light-mode .vj-node.is-lead,
+            html.light-mode .vj-node.is-form { border-color: rgba(74, 222, 128, 0.7) !important; }
+            html.light-mode .vj-node.is-pending { border-color: rgba(250, 204, 21, 0.75) !important; }
+            html.light-mode .vj-node.is-action { border-color: rgba(255, 102, 0, 0.8) !important; }
+            html.light-mode .vj-node__label,
+            html.light-mode .vj-node__label span { color: #ffffff !important; }
+            html.light-mode .vj-node__meta,
+            html.light-mode .vj-node .vj-path-meta { color: rgba(255, 255, 255, 0.5) !important; }
+            html.light-mode .vj-node__link,
+            html.light-mode .vj-path-link,
+            html.light-mode .vj-hbar__path {
+                color: #c4b5fd !important;
+                text-decoration-color: rgba(196, 181, 253, 0.55) !important;
+            }
+            html.light-mode .vj-node__link:hover {
+                color: #e9d5ff !important;
+                text-decoration-color: #e9d5ff !important;
+            }
+            html.light-mode .vj-donut__hole {
+                background: #ffffff !important;
+                color: #121212 !important;
+            }
+            html.light-mode .vj-table th { color: #5c5470 !important; }
+            html.light-mode .vj-table td {
+                background: #fff7f0 !important;
+                color: #1a1a1a !important;
+                border-color: rgba(255, 102, 0, 0.16) !important;
+            }
+            html.light-mode .vj-is {
+                border-color: rgba(255, 102, 0, 0.16) !important;
+            }
+            html.light-mode .vj-is__pane + .vj-is__pane {
+                border-color: rgba(255, 102, 0, 0.16) !important;
+            }
+            html.light-mode .vj-session-row,
+            html.light-mode .vj-seq-item,
+            html.light-mode .vj-sj-footer,
+            html.light-mode .vj-sj-item {
+                border-color: rgba(255, 102, 0, 0.12) !important;
+            }
+            html.light-mode .vj-sj-node { border-color: #ffffff !important; }
+            html.light-mode .vj-sj-tag,
+            html.light-mode .vj-mini-filters select,
+            html.light-mode .vj-is__search,
+            html.light-mode .vj-is__search input,
+            html.light-mode .vj-is select {
+                background: #fff7f0 !important;
+                border-color: rgba(255, 102, 0, 0.28) !important;
+                color: #2d2d3a !important;
+            }
+            html.light-mode .vj-sj-alert {
+                color: #5c5470 !important;
+                background: rgba(255, 102, 0, 0.06) !important;
+            }
+            html.light-mode .vj-page .text-white,
+            html.light-mode .vj-page .text-white\/35,
+            html.light-mode .vj-page .text-white\/40,
+            html.light-mode .vj-page .text-white\/45,
+            html.light-mode .vj-page .text-white\/55,
+            html.light-mode .vj-page [class*='text-white'] {
+                color: #5c5470 !important;
+            }
+            html.light-mode .vj-page .font-semibold.text-white,
+            html.light-mode .vj-page .font-bold.text-white,
+            html.light-mode .vj-donut__hole .text-white,
+            html.light-mode .vj-donut__hole [class*='text-white'] {
+                color: #121212 !important;
+            }
+            html.light-mode .vj-page .hover\:text-white:hover { color: #FF6600 !important; }
         </style>
 
         <div class="vj-page">
@@ -574,7 +768,7 @@
                             <svg class="vj-flow__svg" x-html="flowSvg()"></svg>
                             <div class="vj-flow__cols">
                                 <template x-for="col in (flow.columns || [])" :key="col.key">
-                                    <div>
+                                    <div class="vj-flow__col">
                                         <div class="vj-flow__col-label" x-text="col.label"></div>
                                         <template x-for="node in (col.nodes || [])" :key="node.id">
                                             <div class="vj-node" :class="nodeToneClass(node.tone)" :data-node-id="node.id">
@@ -1436,14 +1630,17 @@ function visitorJourneyPage() {
             const cols = this.flow.columns || [];
             const links = this.flow.links || [];
             if (!cols.length || !links.length) return '';
-            // Approximate node centers in a 1000x420 viewBox (4 columns).
-            const colX = [90, 340, 590, 840];
+            // Narrower boxes + wider gutters (4 cols in 1000 viewBox).
+            const colX = [70, 340, 610, 880];
+            const half = 48;
+            const light = document.documentElement.classList.contains('light-mode');
+            const stroke = light ? 'rgba(255,102,0,0.42)' : 'rgba(255,102,0,0.28)';
             const positions = {};
             cols.forEach((col, ci) => {
                 const nodes = col.nodes || [];
                 nodes.forEach((node, ni) => {
                     const y = 40 + ni * 90 + 26;
-                    positions[node.id] = { x: colX[ci] ?? 90, y };
+                    positions[node.id] = { x: colX[ci] ?? 70, y };
                 });
             });
             const maxLink = Math.max(1, ...links.map((l) => Number(l.value || 0)));
@@ -1453,8 +1650,8 @@ function visitorJourneyPage() {
                 if (!a || !b) return '';
                 const mid = (a.x + b.x) / 2;
                 const w = Math.max(2, (Number(link.value || 0) / maxLink) * 18);
-                const d = `M ${a.x + 55} ${a.y} C ${mid} ${a.y}, ${mid} ${b.y}, ${b.x - 55} ${b.y}`;
-                return `<path d="${d}" fill="none" stroke="rgba(255,102,0,0.28)" stroke-width="${w}" />`;
+                const d = `M ${a.x + half} ${a.y} C ${mid} ${a.y}, ${mid} ${b.y}, ${b.x - half} ${b.y}`;
+                return `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${w}" />`;
             }).join('');
         },
     };
