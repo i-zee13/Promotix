@@ -999,48 +999,67 @@
                     </h1>
                 </div>
                 <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--vj ov-filter-bar flex min-h-[54px] max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                    <label class="vj-f-account flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="vj-f-account relative flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.account = false">
                         <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Google Ads Account</span>
-                        <div class="figma-filter-select-wrap">
-                            <select class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0" x-model="filters.google_ads_account_id" @change="reload()">
-                                <option value="">All Accounts</option>
-                                @foreach (($googleAdsAccounts ?? []) as $account)
-                                    <option value="{{ $account->id }}">{{ method_exists($account, 'displayLabel') ? $account->displayLabel() : ($account->account_name ?: 'Account') }}</option>
-                                @endforeach
-                            </select>
+                        <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
+                            <span class="truncate" x-text="accountFilterLabel()"></span>
+                        </button>
+                        <div x-show="filterMenus.account" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !min-w-[240px] !z-[80]">
+                            <button type="button" @click="pickAccountFilter('')" class="paid-advanced-campaign-option" :class="!filters.google_ads_account_id && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label">All Accounts</span>
+                            </button>
+                            <template x-for="a in accountOptions" :key="'vj-acc-' + a.id">
+                                <button type="button" @click="pickAccountFilter(a.id)" class="paid-advanced-campaign-option" :class="String(filters.google_ads_account_id) === String(a.id) && 'is-active'">
+                                    <span class="paid-advanced-campaign-option__label" x-text="a.label"></span>
+                                    <span class="paid-advanced-campaign-option__sub" x-show="a.sub" x-text="a.sub"></span>
+                                </button>
+                            </template>
+                            <p class="px-[10px] py-[8px] text-[10px] text-white/40" x-show="!accountOptions.length">No connected Ads accounts.</p>
                         </div>
                     </label>
-                    <label class="vj-f-domain flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="vj-f-domain relative flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.domain = false">
                         <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Domain</span>
-                        <div class="figma-filter-select-wrap">
-                            <select class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0" x-model="filters.domain_id" @change="reload()">
-                                <option value="">All Domains</option>
-                                @foreach ($domains as $d)
-                                    <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                                @endforeach
-                            </select>
+                        <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
+                            <span class="truncate" x-text="domainFilterLabel()"></span>
+                        </button>
+                        <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !z-[80]">
+                            <button type="button" @click="pickDomainFilter('')" class="paid-advanced-campaign-option" :class="!filters.domain_id && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label">All Domains</span>
+                            </button>
+                            <template x-for="d in domainOptions" :key="'vj-dom-' + d.id">
+                                <button type="button" @click="pickDomainFilter(d.id)" class="paid-advanced-campaign-option" :class="String(filters.domain_id) === String(d.id) && 'is-active'">
+                                    <span class="paid-advanced-campaign-option__label" x-text="d.label"></span>
+                                </button>
+                            </template>
                         </div>
                     </label>
-                    <label class="vj-f-campaign flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="vj-f-campaign relative flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.campaign = false">
                         <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Campaign</span>
-                        <div class="figma-filter-select-wrap">
-                            <select class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0" x-model="filters.campaign" @change="reload()">
-                                <option value="">All Campaigns</option>
-                                <template x-for="c in campaignOptions" :key="'c-'+c">
-                                    <option :value="c" x-text="c"></option>
-                                </template>
-                            </select>
+                        <button type="button" @click="toggleFilterMenu('campaign')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
+                            <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
+                        </button>
+                        <div x-show="filterMenus.campaign" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !min-w-[200px] !z-[80]">
+                            <button type="button" @click="pickCampaignFilter('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label">All Campaigns</span>
+                            </button>
+                            <template x-for="c in campaignOptions" :key="'vj-c-' + c">
+                                <button type="button" @click="pickCampaignFilter(c)" class="paid-advanced-campaign-option" :class="filters.campaign === c && 'is-active'">
+                                    <span class="paid-advanced-campaign-option__label" x-text="c"></span>
+                                </button>
+                            </template>
                         </div>
                     </label>
-                    <label class="vj-f-device flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="vj-f-device relative flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.device = false">
                         <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Device</span>
-                        <div class="figma-filter-select-wrap">
-                            <select class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0" x-model="filters.device" @change="reload()">
-                                <option value="">All Devices</option>
-                                <option value="mobile">Mobile</option>
-                                <option value="desktop">Desktop</option>
-                                <option value="tablet">Tablet</option>
-                            </select>
+                        <button type="button" @click="toggleFilterMenu('device')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
+                            <span class="truncate" x-text="deviceFilterLabel()"></span>
+                        </button>
+                        <div x-show="filterMenus.device" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !z-[80]">
+                            <template x-for="opt in deviceOptions" :key="'vj-dev-' + opt.value">
+                                <button type="button" @click="pickDeviceFilter(opt.value)" class="paid-advanced-campaign-option" :class="filters.device === opt.value && 'is-active'">
+                                    <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>
+                                </button>
+                            </template>
                         </div>
                     </label>
                     <label class="vj-f-sample flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
@@ -1612,6 +1631,27 @@ function visitorJourneyPage() {
             from: '',
             to: '',
         },
+        filterMenus: { account: false, domain: false, campaign: false, device: false },
+        accountOptions: @js(collect($googleAdsAccounts ?? [])->map(function ($account) {
+            $cid = method_exists($account, 'formattedCustomerId') ? $account->formattedCustomerId() : '';
+            $currency = \App\Support\AccountCurrency::normalize((string) ($account->currency_code ?: 'USD'));
+
+            return [
+                'id' => (string) $account->id,
+                'label' => method_exists($account, 'displayLabel') ? $account->displayLabel() : (string) ($account->account_name ?: 'Account'),
+                'sub' => trim(($cid !== '' ? 'Customer ID '.$cid.' · ' : '').'Currency '.$currency),
+            ];
+        })->values()->all()),
+        domainOptions: @js(($domains ?? collect())->map(fn ($d) => [
+            'id' => (string) $d->id,
+            'label' => $d->hostname,
+        ])->values()->all()),
+        deviceOptions: [
+            { value: '', label: 'All Devices' },
+            { value: 'mobile', label: 'Mobile' },
+            { value: 'desktop', label: 'Desktop' },
+            { value: 'tablet', label: 'Tablet' },
+        ],
         flowTab: 'paths',
         eventFilter: 'all',
         timeScale: '30',
@@ -1632,6 +1672,46 @@ function visitorJourneyPage() {
         selected: null,
         timeline: [],
         campaignOptions: [],
+
+        toggleFilterMenu(key) {
+            const next = !this.filterMenus[key];
+            this.filterMenus = { account: false, domain: false, campaign: false, device: false };
+            this.filterMenus[key] = next;
+        },
+        accountFilterLabel() {
+            if (!this.filters.google_ads_account_id) return 'All Accounts';
+            const hit = (this.accountOptions || []).find((a) => String(a.id) === String(this.filters.google_ads_account_id));
+            return hit ? hit.label : 'All Accounts';
+        },
+        domainFilterLabel() {
+            if (!this.filters.domain_id) return 'All Domains';
+            const hit = (this.domainOptions || []).find((d) => String(d.id) === String(this.filters.domain_id));
+            return hit ? hit.label : 'All Domains';
+        },
+        deviceFilterLabel() {
+            const hit = (this.deviceOptions || []).find((o) => o.value === this.filters.device);
+            return hit ? hit.label : 'All Devices';
+        },
+        pickAccountFilter(id) {
+            this.filters.google_ads_account_id = String(id || '');
+            this.filterMenus.account = false;
+            this.reload();
+        },
+        pickDomainFilter(id) {
+            this.filters.domain_id = String(id || '');
+            this.filterMenus.domain = false;
+            this.reload();
+        },
+        pickCampaignFilter(value) {
+            this.filters.campaign = String(value || '');
+            this.filterMenus.campaign = false;
+            this.reload();
+        },
+        pickDeviceFilter(value) {
+            this.filters.device = String(value || '');
+            this.filterMenus.device = false;
+            this.reload();
+        },
 
         get timelineSessions() {
             return (this.sessions || []).slice(0, 8);

@@ -1065,6 +1065,24 @@
                         </template>
                     </div>
                 </label>
+                <label class="bp-adv-f-account relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[7px] py-[6px]" @click.outside="filterMenus.account = false">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
+                    <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="accountFilterLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.account" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !min-w-[240px]">
+                        <button type="button" @click="pickAccountFilter('')" class="paid-advanced-campaign-option" :class="!filters.google_ads_account_id && 'is-active'">
+                            <span class="paid-advanced-campaign-option__label">All Accounts</span>
+                        </button>
+                        <template x-for="a in accountOptions" :key="'tc-acc-' + a.id">
+                            <button type="button" @click="pickAccountFilter(a.id)" class="paid-advanced-campaign-option" :class="String(filters.google_ads_account_id) === String(a.id) && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="a.label"></span>
+                                <span class="paid-advanced-campaign-option__sub" x-show="a.sub || a.currency" x-text="a.sub || a.currency"></span>
+                            </button>
+                        </template>
+                        <p class="px-[10px] py-[8px] text-[10px] text-white/40" x-show="!accountOptions.length">No connected Ads accounts.</p>
+                    </div>
+                </label>
                 <label class="bp-adv-f-traffic relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[7px] py-[6px]" @click.outside="filterMenus.traffic = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Source</span>
                     <button type="button" @click="toggleFilterMenu('traffic')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">

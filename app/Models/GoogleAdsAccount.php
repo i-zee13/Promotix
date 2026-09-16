@@ -67,16 +67,46 @@ class GoogleAdsAccount extends Model
      */
     public function scopeLinkedToUserDomains($query, \App\Models\User $user)
     {
+        $accountIds = self::connectedAccountIdsForUser($user);
+        if ($accountIds === []) {
+            return $query->whereRaw('0 = 1');
+        }
+
         return $query
             ->whereHas('connection', fn ($q) => $q->where('user_id', $user->id))
             ->synced()
             ->where(function ($q) {
                 $q->where('is_manager', false)->orWhereNull('is_manager');
             })
-            ->where(function ($q) use ($user) {
-                $q->whereHas('linkedDomains', fn ($d) => $d->where('user_id', $user->id))
-                    ->orWhereHas('domainMappings.domain', fn ($d) => $d->where('user_id', $user->id));
-            });
+            ->whereIn('id', $accountIds);
+    }
+
+    /**
+     * Same source as Integrations “connected” Ads accounts: domain FK + explicit mappings only.
+     *
+     * @return list<int>
+     */
+    public static function connectedAccountIdsForUser(\App\Models\User $user): array
+    {
+        $domains = Domain::query()
+            ->where('user_id', $user->id)
+            ->with(['googleAdsAccount', 'googleAdsMappings.account'])
+            ->get(['id', 'google_ads_account_id']);
+
+        return $domains
+            ->flatMap(function (Domain $domain) {
+                return collect([$domain->googleAdsAccount])
+                    ->merge($domain->googleAdsMappings->pluck('account'));
+            })
+            ->filter(fn ($account) => $account instanceof self
+                && ! (bool) $account->is_manager
+                && (bool) $account->is_active
+                && filled($account->account_name))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function displayLabel(): string
