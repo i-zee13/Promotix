@@ -121,12 +121,12 @@ class PaidMarketingController extends Controller
                 $key = $this->detailedVisitMetaKey($visit);
 
                 return $this->formatDetailedVisit(
-                    $visit,
-                    $request->user(),
-                    $ipLogs->get($visit->ip),
-                    $recordings->get($visit->ip),
-                    $verificationLookup,
-                    $reportingTz,
+            $visit,
+            $request->user(),
+            $ipLogs->get($visit->ip),
+            $recordings->get($visit->ip),
+            $verificationLookup,
+            $reportingTz,
                     $behaviorCounts->get($visit->ip),
                     $preferDeviceId,
                     $sessionMetaByKey[$key] ?? null,
@@ -536,7 +536,7 @@ class PaidMarketingController extends Controller
                 fputcsv($handle, $exportKeys !== null
                     ? ClickronixTrafficReport::valuesForKeys($row, $exportKeys)
                     : ClickronixTrafficReport::valuesFromDetailedVisit($row));
-            });
+                });
 
             fclose($handle);
         }, $filename, [
@@ -1473,12 +1473,12 @@ class PaidMarketingController extends Controller
 
                 // Legacy: paid_marketing_clicks inside the selected calendar range.
                 $activity->whereHas('clicks', function ($clickQuery) use ($metricFrom, $metricTo, $reportingTz, $user, $path): void {
-                    UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
-                    GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
+                UserTimezone::applyCalendarDateRangeFilter($clickQuery, 'clicked_at', $metricFrom, $metricTo, $user, $reportingTz);
+                GoogleClickAttribution::applyPaidClickIdFilter($clickQuery, 'paid_id');
 
                     if ($path !== '') {
-                        $clickQuery->where('path', 'like', '%' . $path . '%');
-                    }
+                    $clickQuery->where('path', 'like', '%' . $path . '%');
+                }
                 });
 
                 // Same source as Dashboard Recent IP Activity (`visits.visited_at`).
@@ -1705,9 +1705,9 @@ class PaidMarketingController extends Controller
 
         $vpnHits = (int) ($visit->getAttribute('range_vpn_hits') ?? 0);
         if ($vpnHits === 0) {
-            $vpnHits = $clicks->filter(
+        $vpnHits = $clicks->filter(
                 fn ($c) => in_array(strtolower((string) $c->threat_group), ['vpn', 'proxy'], true)
-            )->count();
+        )->count();
         }
         if ($vpnHits === 0 && in_array(strtolower((string) ($visit->threat_group ?: $visit->getAttribute('range_threat_group'))), ['vpn', 'proxy'], true)) {
             $vpnHits = max($vpnHits, $invalidClicks > 0 ? $invalidClicks : 0);
@@ -1715,9 +1715,9 @@ class PaidMarketingController extends Controller
 
         $dataCenterHits = (int) ($visit->getAttribute('range_data_center_hits') ?? 0);
         if ($dataCenterHits === 0) {
-            $dataCenterHits = $clicks->filter(
-                fn ($c) => in_array(strtolower((string) $c->threat_group), ['data_center', 'datacenter'], true)
-            )->count();
+        $dataCenterHits = $clicks->filter(
+            fn ($c) => in_array(strtolower((string) $c->threat_group), ['data_center', 'datacenter'], true)
+        )->count();
         }
         if ($dataCenterHits === 0 && in_array(strtolower((string) ($visit->threat_group ?: $visit->getAttribute('range_threat_group'))), ['data_center', 'datacenter'], true)) {
             $dataCenterHits = max($dataCenterHits, $invalidClicks > 0 ? $invalidClicks : 0);
@@ -2177,29 +2177,29 @@ class PaidMarketingController extends Controller
                 }
 
                 return [
-                    'id' => $c->id,
+                'id' => $c->id,
                     'source' => 'paid_click',
-                    'clicked_at' => UserTimezone::isoForUser($clickedAt, $user),
-                    'last_click_at' => UserTimezone::isoForUser($lastClick, $user),
-                    'ip' => $c->ip,
-                    'country' => $c->country,
+                'clicked_at' => UserTimezone::isoForUser($clickedAt, $user),
+                'last_click_at' => UserTimezone::isoForUser($lastClick, $user),
+                'ip' => $c->ip,
+                'country' => $c->country,
                     'threat_group' => $c->threat_group ?: $visit->threat_group,
                     'threat_type' => $visit->threat_type,
                     'campaign' => $campaign !== '' ? $campaign : null,
-                    'paid_id' => $c->paid_id,
-                    'gclid' => $typed['gclid'] ?: ($clickIds['gclid'] ?? null),
-                    'gbraid' => $typed['gbraid'] ?: ($clickIds['gbraid'] ?? null),
-                    'wbraid' => $typed['wbraid'] ?: ($clickIds['wbraid'] ?? null),
-                    'path' => $c->path,
+                'paid_id' => $c->paid_id,
+                'gclid' => $typed['gclid'] ?: ($clickIds['gclid'] ?? null),
+                'gbraid' => $typed['gbraid'] ?: ($clickIds['gbraid'] ?? null),
+                'wbraid' => $typed['wbraid'] ?: ($clickIds['wbraid'] ?? null),
+                'path' => $c->path,
                     'keyword' => $keyword !== '' ? $keyword : null,
-                    'browser_name' => $c->browser_name,
-                    'browser_version' => $c->browser_version,
-                    'os' => $c->os,
-                    'device' => $deviceLabel,
+                'browser_name' => $c->browser_name,
+                'browser_version' => $c->browser_version,
+                'os' => $c->os,
+                'device' => $deviceLabel,
                     'asn' => $intel['intel_asn'] ?? null,
-                    'risk_decision' => $risk,
-                    'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
-                ];
+                'risk_decision' => $risk,
+                'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
+            ];
             })->values()->all();
         }
 
@@ -3092,8 +3092,8 @@ class PaidMarketingController extends Controller
                     $q->where('device_id', $preferDeviceId)
                         ->orWhere('device_id', 'like', $preferDeviceId.'%');
                 })
-                ->orderByDesc('visited_at')
-                ->first($select);
+            ->orderByDesc('visited_at')
+            ->first($select);
         }
 
         if (! $row) {

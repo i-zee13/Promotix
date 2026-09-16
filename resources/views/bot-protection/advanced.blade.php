@@ -1110,7 +1110,7 @@
                     </div>
                 </label>
                 <div class="bp-adv-f-actions">
-                    @include('partials.figma-filter-date-fields')
+                @include('partials.figma-filter-date-fields')
                     <div class="bp-adv-f-export">
                         <a :href="csvHref()" class="bp-adv-export-btn" title="Download CSV" aria-label="Download CSV">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

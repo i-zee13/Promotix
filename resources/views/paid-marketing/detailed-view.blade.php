@@ -2559,7 +2559,7 @@
                 const generation = ++this.fetchGeneration;
                 this.loading = true;
                 window.promotixPageLoader?.show('Loading Advanced View…');
-                const qs = this.queryString();
+                    const qs = this.queryString();
                 try {
                     // Parallel: KPI summary + table. Campaigns load after paint (non-blocking).
                     await Promise.all([
@@ -2576,9 +2576,9 @@
                             }
                         })(),
                         (async () => {
-                            const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
-                                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                            });
+                    const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
                             if (! this.isFetchCurrent(generation)) return;
                             if (!res.ok) {
                                 const msg = res.status === 403
@@ -2586,11 +2586,11 @@
                                     : `Failed to load visits (${res.status}).`;
                                 throw new Error(msg);
                             }
-                            const data = await res.json();
+                    const data = await res.json();
                             if (! this.isFetchCurrent(generation)) return;
-                            this.rows = data.rows || [];
+                    this.rows = data.rows || [];
                             this.page = 1;
-                            this.statCards = data.stats?.cards || [];
+                    this.statCards = data.stats?.cards || [];
                             if (Array.isArray(data.stats?.kpis) && data.stats.kpis.length) {
                                 this.kpiCards = data.stats.kpis;
                             }
@@ -2601,10 +2601,10 @@
                             this.highRiskIps = charts.high_risk_ips || [];
                             this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
                             this.timezoneContext = data.timezone_context || this.timezoneContext;
-                            if (this.timezoneContext?.reporting_timezone) {
-                                this.reportingTimezone = this.timezoneContext.reporting_timezone;
-                            }
-                            this.syncPaidTimezoneHeader();
+                    if (this.timezoneContext?.reporting_timezone) {
+                        this.reportingTimezone = this.timezoneContext.reporting_timezone;
+                    }
+                    this.syncPaidTimezoneHeader();
                             const rank = (r) => {
                                 let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
                                 if (score > 0 && score < 1) score *= 100;
@@ -2642,8 +2642,8 @@
                     }
                 } finally {
                     if (this.isFetchCurrent(generation)) {
-                        this.loading = false;
-                        window.promotixPageLoader?.hide();
+                    this.loading = false;
+                    window.promotixPageLoader?.hide();
                         this.loadCampaignsForDomain().catch(() => {});
                     }
                 }
@@ -2686,7 +2686,7 @@
 
                     const [timelineRes, clicksRes] = await Promise.all([
                         fetch(`{{ route('paid-marketing.detailed-ip-timeline') }}?${params}`, {
-                            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                         }),
                         this.modal.clicks.length
                             ? Promise.resolve(null)

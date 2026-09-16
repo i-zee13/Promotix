@@ -4685,9 +4685,13 @@ select.figma-sa-subs-status-pill {
     font-size: 13px;
     line-height: 1;
     border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid var(--brand-primary, #FF6600);
+    background: #0d0d0d;
 }
 
-.figma-header .figma-portal-switch a {
+.figma-header .figma-portal-switch a,
+.figma-portal-switch__seg {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -4696,6 +4700,38 @@ select.figma-sa-subs-status-pill {
     margin: 0 !important;
     line-height: 1 !important;
     box-sizing: border-box !important;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+@media (min-width: 640px) {
+    .figma-header .figma-portal-switch a,
+    .figma-portal-switch__seg {
+        font-size: 13px;
+        padding: 0 14px !important;
+    }
+}
+
+.figma-portal-switch__seg.is-on {
+    background: var(--brand-primary, #FF6600) !important;
+    color: #ffffff !important;
+}
+
+.figma-portal-switch__seg.is-off {
+    background: transparent !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.figma-portal-switch__seg.is-off:hover {
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 28%, transparent) !important;
+    color: #ffffff !important;
+}
+
+.figma-portal-switch__seg + .figma-portal-switch__seg {
+    border-left: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 55%, transparent);
 }
 
 .figma-header .figma-header-timezone {
@@ -5929,20 +5965,45 @@ html.light-mode {
 
 .light-mode .figma-header .text-white\/85,
 .light-mode .figma-header button,
-.light-mode .figma-header a {
+.light-mode .figma-header a:not(.figma-portal-switch__seg) {
     color: #4a4458 !important;
 }
 
 .light-mode .figma-header button:hover,
-.light-mode .figma-header a:hover {
+.light-mode .figma-header a:not(.figma-portal-switch__seg):hover {
     background: color-mix(in srgb, var(--brand-primary) 8%, transparent) !important;
 }
 
-.light-mode .figma-header .bg-\[\#0D0D0D\],
-.light-mode .figma-header .border-\[\#6400B2\] {
+.light-mode .figma-header .bg-\[\#0D0D0D\] {
     background: var(--brand-tint-soft) !important;
     border-color: var(--brand-tint-border) !important;
     color: #2d2d2d !important;
+}
+
+/* Portal switch: selected = orange + white (never peach + white) */
+html.light-mode .figma-portal-switch,
+.light-mode .figma-portal-switch {
+    background: #fff4eb !important;
+    border-color: var(--brand-primary, #FF6600) !important;
+}
+html.light-mode .figma-header .figma-portal-switch__seg.is-on,
+html.light-mode .figma-portal-switch__seg.is-on,
+.light-mode .figma-header .figma-portal-switch__seg.is-on,
+.light-mode .figma-portal-switch__seg.is-on {
+    background: var(--brand-primary, #FF6600) !important;
+    color: #ffffff !important;
+}
+html.light-mode .figma-header .figma-portal-switch__seg.is-off,
+html.light-mode .figma-portal-switch__seg.is-off,
+.light-mode .figma-header .figma-portal-switch__seg.is-off,
+.light-mode .figma-portal-switch__seg.is-off {
+    background: transparent !important;
+    color: #4a4458 !important;
+}
+html.light-mode .figma-header .figma-portal-switch__seg.is-off:hover,
+.light-mode .figma-portal-switch__seg.is-off:hover {
+    background: color-mix(in srgb, var(--brand-primary, #FF6600) 12%, #ffffff) !important;
+    color: #1a1a1a !important;
 }
 
 .light-mode .figma-rightbar .text-\[\#a9a9a9\],
@@ -6405,13 +6466,40 @@ html.light-mode .figma-rightbar-billing__cols {
     color: #3d3848 !important;
 }
 
-/* Keep white text on purple surfaces in light mode */
+/* Keep white text on purple / brand surfaces in light mode */
 .light-mode .bg-\[\#6400B2\] .text-white,
 .light-mode .bg-\[\#6400B2\].text-white,
 .light-mode [class*='bg-[var(--brand-primary, #FF6600)]'] .text-white,
 .light-mode .is-active,
 .light-mode .is-active span {
     color: #ffffff !important;
+}
+
+/* Selected chips/tabs/toggles: orange fill so white label stays readable */
+html.light-mode .pa-kh-toggle__btn.is-active,
+html.light-mode .tc-tab.is-active,
+html.light-mode .vj-tab.is-active,
+html.light-mode .adv-pager__btn.is-active,
+html.light-mode .figma-click-modal-tab.is-active,
+html.light-mode .pmx-settings__chip-btn.is-active,
+html.light-mode .pmx-settings__appear.is-active,
+html.light-mode .pmx-security-tabs__button.is-active,
+html.light-mode .figma-sa-tab.is-active,
+html.light-mode .figma-sa-settings-modal-tab.is-active,
+.light-mode .pa-kh-toggle__btn.is-active,
+.light-mode .tc-tab.is-active,
+.light-mode .vj-tab.is-active,
+.light-mode .adv-pager__btn.is-active {
+    background: var(--brand-primary, #FF6600) !important;
+    background-color: var(--brand-primary, #FF6600) !important;
+    border-color: var(--brand-primary, #FF6600) !important;
+    color: #ffffff !important;
+}
+
+/* Inactive segment labels on soft bars */
+html.light-mode .pa-kh-toggle__btn:not(.is-active),
+.light-mode .pa-kh-toggle__btn:not(.is-active) {
+    color: #5c5470 !important;
 }
 
 /* ---------- Browser autofill: keep designed field colors (all inputs) ---------- */

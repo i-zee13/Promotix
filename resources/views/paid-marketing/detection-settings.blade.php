@@ -1516,12 +1516,12 @@
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.8 3.8 5.8 3.8 9s-1.3 6.2-3.8 9c-2.5-2.8-3.8-5.8-3.8-9s1.3-6.2 3.8-9z"/></svg>
-                                    </div>
+                    </div>
                                     <div class="figma-pac-card-heading">
                                         <h3 class="figma-pac-card-title">Geo Targeting Rules</h3>
                                         <x-figma-toggle name="out_of_geo_enabled" value="1" :checked="$settings->out_of_geo_enabled" size="sm" label-on="On" label-off="Off" />
-                                    </div>
                                 </div>
+                            </div>
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Allowed Countries ({{ $allowedCountriesPreview->count() }})</p>
                                     @if ($allowedCountriesPreview->isEmpty())
@@ -1547,11 +1547,11 @@
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3z"/><path d="M9.5 12.5l1.8 1.8 3.7-3.8"/></svg>
-                    </div>
+                                </div>
                                     <div class="figma-pac-card-heading">
                                         <h3 class="figma-pac-card-title">Blocked Countries</h3>
                                         <x-figma-toggle name="google_geo_block_enabled" value="1" :checked="$settings->google_geo_block_enabled" size="sm" label-on="On" label-off="Off" />
-                                    </div>
+                            </div>
                                 </div>
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Blocked Countries ({{ $blockedCountriesPreview->count() }})</p>
@@ -1578,12 +1578,12 @@
                                 <div class="figma-pac-card-top">
                                     <div class="figma-pac-card-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3z"/><path d="M9.5 12.5l1.8 1.8 3.7-3.8"/></svg>
-                                </div>
+                                    </div>
                                     <div class="figma-pac-card-heading">
                                         <h3 class="figma-pac-card-title">Whitelist IP Addresses</h3>
                                         <x-figma-toggle name="allow_list_enabled" value="1" :checked="$settings->allow_list_enabled" size="sm" label-on="On" label-off="Off" />
-                            </div>
-                                </div>
+                                    </div>
+                                        </div>
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Whitelisted IPs ({{ $allowIpsPreview->count() }})</p>
                                     @if ($allowIpsPreview->isEmpty())
@@ -1592,7 +1592,7 @@
                                         <ul class="figma-pac-list">
                                             @foreach ($allowIpsPreview->take(3) as $ip)
                                                 <li><span class="figma-pac-dot figma-pac-dot--allow-ip"></span><code>{{ $ip }}</code></li>
-                                            @endforeach
+                                    @endforeach
                                         </ul>
                                         @if ($allowIpsPreview->count() > 3)
                                             <p class="figma-pac-more">+{{ $allowIpsPreview->count() - 3 }} more</p>
@@ -1663,16 +1663,16 @@
                                     </div>
                                     <div class="figma-pac-card-heading">
                                         <h3 class="figma-pac-card-title">Cross-domain intelligence</h3>
-                                        <x-figma-toggle
+                                            <x-figma-toggle
                                             name="cross_domain_exclusion_enabled"
-                                            value="1"
+                                                value="1"
                                             :checked="(bool) ($exclusionRules['cross_domain_enabled'] ?? false)"
                                             size="sm"
-                                            label-on="On"
-                                            label-off="Off"
+                                                label-on="On"
+                                                label-off="Off"
                                             @change="onToggle($event.target.checked)"
-                                        />
-                                    </div>
+                                            />
+                                        </div>
                                     </div>
                                 <div class="figma-pac-card-body">
                                     <p class="figma-pac-list-label">Visitor linking across domains</p>
@@ -1683,7 +1683,7 @@
                                             <option value="all">All</option>
                                             <option value="domain_similarity">Similarity</option>
                                             </select>
-                                        </div>
+                                    </div>
                                     <p class="figma-pac-cross-count">
                                         {{ $crossDomainAllCount }} cross-domain IP(s) in workspace ·
                                         {{ $crossDomainSimilarityCount }} with domain similarity
@@ -1710,12 +1710,12 @@
                                                     <template x-for="tag in relatedDomainTags" :key="tag">
                                                         <span class="rounded-full bg-white/15 px-[10px] py-[4px] text-[11px]" x-text="tag"></span>
                                                     </template>
-                                                </div>
-                                            </div>
+                                    </div>
+                                        </div>
                                             <div class="flex items-center justify-between gap-[10px]">
                                                 <p class="text-[12px] font-semibold" x-text="suggestedIps.length + ' cross-domain IP(s)'"></p>
                                                 <button type="button" class="text-[11px] font-semibold underline" @click="toggleAll()" x-show="suggestedIps.length">Select all / none</button>
-                                            </div>
+                                                    </div>
                                             <div class="max-h-[280px] space-y-[6px] overflow-y-auto rounded-[8px] border border-white/15 bg-black/15 p-[8px]">
                                                 <p class="px-[6px] py-[10px] text-[12px] text-white/75" x-show="!suggestedIps.length">No cross-domain IPs match the current scope yet.</p>
                                                 <template x-for="row in suggestedIps" :key="row.ip">
@@ -1751,11 +1751,11 @@
                                                             <input type="checkbox" class="rounded border-white/40" :value="c.id" x-model="selectedCampaignIds">
                                                             <span class="truncate text-[11px]" x-text="c.name"></span>
                                                         </label>
-                                                    </template>
-                                                </div>
-                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
                                             <p class="text-[11px] text-white/80">Selected IPs go on this domain’s block list and into Exclusion Manager. With Google Ads connected they are pushed to the campaigns you choose. Save Detection settings to keep Cross-domain On.</p>
-                                        </div>
+                            </div>
                                         <footer class="flex flex-wrap justify-end gap-[10px] border-t border-white/25 px-[22px] py-[14px]">
                                             <button type="button" @click="closeModal()" class="rounded-[6px] border border-white px-[16px] py-[8px] text-[13px] text-white">Skip</button>
                                             <button type="button" @click="apply()" :disabled="busy || !selected.length || (adsConnected && campaignScope === 'selected' && !selectedCampaignIds.length)" class="rounded-[6px] bg-white px-[18px] py-[8px] text-[13px] font-semibold text-[var(--brand-primary,#FF6600)] disabled:opacity-50">
@@ -1767,25 +1767,25 @@
                             </article>
                             @endif
 
-                            </div>
+                        </div>
                     </section>
 
                     {{-- Detection Engine Modules (old Suspicious Activity matrix) --}}
                     <section class="figma-dem" aria-labelledby="figma-dem-heading">
                         <div class="figma-dem-head">
-                            <div>
+                                <div>
                                 <h2 id="figma-dem-heading" class="figma-dem-title">Detection Engine Modules</h2>
                                 <p class="figma-dem-lead">All modules are active and running in real-time.</p>
                             </div>
-                                    <x-figma-toggle
+                                            <x-figma-toggle
                                 name="suspicious_enabled"
-                                        value="1"
+                                                value="1"
                                 :checked="$settings->suspicious_enabled"
                                 size="sm"
-                                        label-on="On"
-                                        label-off="Off"
-                                    />
-                                </div>
+                                                label-on="On"
+                                                label-off="Off"
+                                            />
+                                        </div>
                         <div class="figma-dem-grid">
                             @foreach ($detectionModules as $mod)
                                 @php
@@ -1823,7 +1823,7 @@
                                             @else
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2.6 17.2A2 2 0 004.3 20h15.4a2 2 0 001.7-2.8L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
                                             @endif
-                            </div>
+                                    </div>
                                         <div class="figma-dem-card-heading">
                                             <h3 class="figma-dem-card-title">{{ $mod['title'] }}</h3>
                                             @if (!empty($mod['toggle']))
@@ -1836,7 +1836,7 @@
                                                     <span class="figma-toggle-label figma-toggle-label--off">Off</span>
                                                 </label>
                                             @endif
-                                        </div>
+                                </div>
                                     </div>
                                     <div class="figma-dem-card-meta">
                                         <div class="figma-dem-meta-row">
@@ -1854,7 +1854,7 @@
                                             @else
                                                 <strong>{{ $actionLabel($modAction) }}</strong>
                                             @endif
-                                        </div>
+                                                    </div>
                                         <div class="figma-dem-meta-row">
                                             <span>Risk:</span>
                                             @if (!empty($mod['field']))
@@ -1870,11 +1870,11 @@
                                             @else
                                                 <strong class="figma-dem-risk figma-dem-risk--{{ strtolower($modRisk) }}">{{ $modRisk }}</strong>
                                             @endif
-                                        </div>
+                                            </div>
                                     </div>
                                 </article>
                             @endforeach
-                        </div>
+                                    </div>
                     </section>
 
                     {{-- Block IP + Google Ads Exclusion Manager --}}
@@ -1902,7 +1902,7 @@
                                         Upload File
                                             </label>
                                         </div>
-                                    </div>
+                                </div>
 
                             <div class="figma-bip-add">
                                 <label class="figma-bip-field figma-bip-field--grow">
@@ -1918,11 +1918,11 @@
                                         <option value="7d">7 Days</option>
                                         <option value="permanent">Permanent</option>
                                     </select>
-                                </label>
+                                            </label>
                                 <label class="figma-bip-field figma-bip-field--grow">
                                     <span>Reason (Optional)</span>
                                     <input type="text" x-model="draftReason" placeholder="e.g., Repeated clicks" @keydown.enter.prevent="addRow()">
-                                </label>
+                                            </label>
                                 <button type="button" class="figma-bip-add-btn" @click="addRow()">Add IP</button>
                             </div>
 
@@ -1959,13 +1959,13 @@
                                                         <span class="figma-toggle-track pointer-events-none" aria-hidden="true"><span class="figma-toggle-thumb"></span></span>
                                                         <span class="figma-toggle-label figma-toggle-label--on">On</span>
                                                         <span class="figma-toggle-label figma-toggle-label--off">Off</span>
-                                                    </label>
+                                            </label>
                                                 </td>
                                             </tr>
                                         </template>
                                     </tbody>
                                 </table>
-                                    </div>
+                                        </div>
                             <button type="button" class="figma-bip-view-all" x-show="rows.length > 5" @click="showAll = !showAll" x-text="showAll ? 'Show less' : 'View All Blocked IPs →'"></button>
                         </section>
 
@@ -1975,15 +1975,15 @@
                             @if (! $pdf(\App\Support\DetectionPlanFeatures::GOOGLE_EXCLUSION))
                                 style="display:none"
                             @endif
-                            x-data="googleExclusionPanel(@js([
-                                'pushUrl' => route('paid-marketing.detection-settings.google-exclusion.push', $domain),
-                                'pushRowUrl' => route('paid-marketing.detection-settings.google-exclusion.push-row', $domain),
-                                'toggleRowUrl' => route('paid-marketing.detection-settings.google-exclusion.toggle-row', $domain),
-                                'bulkUrl' => route('paid-marketing.detection-settings.google-exclusion.push-bulk', $domain),
-                                'syncUrl' => route('paid-marketing.detection-settings.google-exclusion.sync', $domain),
+                                        x-data="googleExclusionPanel(@js([
+                                            'pushUrl' => route('paid-marketing.detection-settings.google-exclusion.push', $domain),
+                                            'pushRowUrl' => route('paid-marketing.detection-settings.google-exclusion.push-row', $domain),
+                                            'toggleRowUrl' => route('paid-marketing.detection-settings.google-exclusion.toggle-row', $domain),
+                                            'bulkUrl' => route('paid-marketing.detection-settings.google-exclusion.push-bulk', $domain),
+                                            'syncUrl' => route('paid-marketing.detection-settings.google-exclusion.sync', $domain),
                                 'campaignsUrl' => route('paid-marketing.detection-settings.google-exclusion.campaigns', $domain),
-                                'csrf' => csrf_token(),
-                                'rows' => $ipExclusions,
+                                            'csrf' => csrf_token(),
+                                            'rows' => $ipExclusions,
                                 'adsConnected' => $domain->hasGoogleAdsConnection(),
                                 'domainId' => (string) $domain->id,
                                 'googleAdsAccountId' => (string) request('google_ads_account_id', $domain->google_ads_account_id ?? ''),
@@ -1998,13 +1998,13 @@
                                     'domain_similarity_label' => (string) ($r['domain_similarity_label'] ?? '—'),
                                 ])->values()->all(),
                                 'hostname' => (string) $domain->hostname,
-                            ]))"
-                        >
+                                        ]))"
+                                    >
                             <div class="figma-gaem-head">
                                 <div>
                                     <h2 class="figma-gaem-title">Google Ads Exclusion Manager</h2>
                                     <p class="figma-gaem-lead">Detected blocks and cross-domain IPs queued for Google Ads.</p>
-                                </div>
+                                        </div>
                                 <div class="figma-gaem-head-actions" x-data="{
                                     saving: false,
                                     async setEnabled(checked) {
@@ -2057,7 +2057,7 @@
                                         <label class="figma-gaem-campaign-all">
                                             <input type="checkbox" :checked="selectedCampaignIds.length === 0" @change="toggleAllCampaigns($event.target.checked)" :disabled="loading || !adsConnected">
                                             <span>All eligible campaigns</span>
-                                        </label>
+                                                </label>
                                         <div class="figma-gaem-campaign-list" x-show="campaignOptions.length">
                                             <template x-for="c in campaignOptions" :key="c.id">
                                                 <label class="figma-gaem-campaign-item">
@@ -2065,9 +2065,9 @@
                                                     <span x-text="c.name"></span>
                                                 </label>
                                             </template>
-                                        </div>
+                                            </div>
                                         <p class="figma-gaem-campaign-empty" x-show="adsConnected && !campaignOptions.length">No eligible Search/Display campaigns found.</p>
-                                    </div>
+                                        </div>
                                 </div>
                                 <button type="button" class="figma-gaem-ghost-btn" x-show="crossDomainEnabled" x-cloak :disabled="loading" @click="openCrossDomainModal()">Cross domain</button>
                                 <button type="button" class="figma-gaem-push-btn" :disabled="loading || !adsConnected" @click="syncPending()">Push all pending</button>
@@ -2083,20 +2083,20 @@
                                             <th>Reason</th>
                                             <th>Status</th>
                                             <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-if="!rows.length">
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template x-if="!rows.length">
                                             <tr><td colspan="4" class="figma-bip-empty" x-text="adsConnected ? 'No detected blocks or cross-domain IPs queued yet. Turn Manager On or Push after blocks appear.' : 'Link Google Ads on this domain (Integrations), then Push pending IPs to campaign exclusions.'"></td></tr>
-                                        </template>
+                                                    </template>
                                         <template x-for="row in rows.slice(0, showAllExclusions ? rows.length : 5)" :key="row.ip + row.updated_at">
                                             <tr>
                                                 <td class="font-mono" x-text="row.ip"></td>
                                                 <td x-text="row.reason_label || row.threat_group || 'Detected block'"></td>
                                                 <td>
-                                                    <span
+                                                                <span
                                                         class="figma-gaem-status"
-                                                        :class="{
+                                                                    :class="{
                                                             'is-pending': row.sync_status === 'pending',
                                                             'is-sent': row.sync_status === 'synced' && row.is_active !== false,
                                                             'is-applied': row.sync_status === 'synced' && row.is_active !== false,
@@ -2104,8 +2104,8 @@
                                                             'is-off': row.sync_status === 'disabled' || row.is_active === false,
                                                         }"
                                                         x-text="statusLabel(row)"
-                                                    ></span>
-                                                </td>
+                                                                ></span>
+                                                            </td>
                                                 <td class="figma-gaem-actions-cell">
                                                     <template x-if="row.sync_status === 'pending' || row.sync_status === 'failed' || row.sync_status === 'skipped'">
                                                         <button type="button" class="figma-gaem-row-btn figma-gaem-row-btn--primary" :disabled="loading || !adsConnected" @click="pushRow(row.ip)" x-text="row.sync_status === 'pending' ? 'Push' : 'Retry'"></button>
@@ -2116,13 +2116,13 @@
                                                     <label class="figma-toggle figma-toggle--sm figma-toggle--no-labels" :title="row.is_active === false ? 'Enable' : 'Disable'">
                                                         <input type="checkbox" class="figma-toggle-input" :checked="row.is_active !== false" :disabled="loading || togglingIp === row.ip" @change="toggleRow(row, $event.target.checked)">
                                                         <span class="figma-toggle-track pointer-events-none" aria-hidden="true"><span class="figma-toggle-thumb"></span></span>
-                                                    </label>
-                                                </td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                            </div>
+                                                                </label>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
                             <button type="button" class="figma-bip-view-all" @click="showAllExclusions = !showAllExclusions" x-show="rows.length > 5" x-text="showAllExclusions ? 'Show less' : 'View All Exclusions →'"></button>
 
                             {{-- Cross-domain IP picker (Exclusion Manager) --}}
@@ -2142,7 +2142,7 @@
                                                 <option value="domain_similarity">Similarity only</option>
                                             </select>
                                             <button type="button" class="ml-auto text-[11px] font-semibold underline" @click="toggleCrossDomainIps()" x-show="crossDomainIps.length">Select all / none</button>
-                                        </div>
+                                    </div>
                                         <p class="text-[12px] font-semibold" x-text="crossDomainIps.length + ' IP(s) · ' + crossDomainSelected.length + ' selected'"></p>
                                         <div class="max-h-[260px] space-y-[6px] overflow-y-auto rounded-[8px] border border-white/15 bg-black/15 p-[8px]">
                                             <p class="px-[6px] py-[10px] text-[12px] text-white/75" x-show="!crossDomainIps.length">No cross-domain IPs match this scope yet.</p>
@@ -2157,7 +2157,7 @@
                                                     <span class="shrink-0 text-[10px] text-white/60" x-text="(row.hits || 0) + ' hits'"></span>
                                                 </label>
                                             </template>
-                                        </div>
+                                </div>
 
                                         <div class="rounded-[8px] border border-white/20 bg-black/20 px-[12px] py-[10px]" x-show="adsConnected">
                                             <p class="text-[11px] font-semibold uppercase tracking-wide text-white/80">Google Ads campaigns</p>
@@ -2192,7 +2192,7 @@
                                 </div>
                             </div>
                         </section>
-                    </div>
+                                </div>
 
                     {{-- Persist fields from removed old panels + compact editors for Manage buttons --}}
                     <div class="sr-only" aria-hidden="true">
@@ -2211,8 +2211,8 @@
                             @if ($exOn)
                                 <input type="hidden" name="{{ $exName }}" value="1">
                             @endif
-                        @endforeach
-                    </div>
+                                                    @endforeach
+                                        </div>
 
                     <div class="figma-rule-editors mb-[18px]">
                         <div class="figma-rule-editors-geo">
@@ -2223,14 +2223,14 @@
                                         <div class="flex flex-wrap items-end gap-[8px]">
                                             @include('paid-marketing.partials.geo-audience-comboboxes')
                                             <button type="button" @click="addRule()" class="figma-detection-geo-add-btn">Add</button>
-                                        </div>
+                                    </div>
                                         <template x-if="rules.length">
                                             <div class="space-y-[4px]">
                                                 <template x-for="(rule, idx) in rules" :key="idx">
                                                     <div class="figma-detection-geo-rule-row">
                                                         <span x-text="ruleLabel(rule)"></span>
                                                         <button type="button" class="text-white/60 hover:text-white" @click="removeRule(idx)" aria-label="Remove">×</button>
-                                                    </div>
+                            </div>
                                                 </template>
                                             </div>
                                         </template>
@@ -2271,7 +2271,7 @@
                                         </div>
                             <textarea id="allow_list_ips" name="allow_list_ips" rows="3" placeholder="Add IPs or ranges (e.g. 103.207.87.2 or 216.67.176.*)" class="figma-textarea text-[11px]">{{ $settings->allow_list_ips }}</textarea>
                                     </div>
-                                </div>
+                    </div>
 
                     @php
                         $thr = $settings->detection_thresholds ?? [];
@@ -2328,7 +2328,7 @@
                         <div class="figma-ads-head">
                             <h2 class="figma-ads-title">Advanced Detection Settings</h2>
                             <p class="figma-ads-lead">Configure how PromoTix detects and protects your traffic.</p>
-                        </div>
+                                            </div>
 
                         <div class="figma-ads-card">
                             @if ($pdf(\App\Support\DetectionPlanFeatures::RAPID_CLICK))
@@ -2345,8 +2345,8 @@
                                 <label class="figma-ads-custom" x-show="rapidPreset === 'custom'" x-cloak>
                                     <span>Custom window (sec)</span>
                                     <input type="number" min="10" max="600" x-model.number="rapidCustom">
-                                            </label>
-                                        </div>
+                                    </label>
+                            </div>
                             @else
                                 <input type="hidden" name="rapid_window_seconds" value="{{ (int) ($thr['rapid_window_seconds'] ?? 120) }}">
                             @endif
@@ -2369,7 +2369,7 @@
                                             >
                                             <span class="figma-ads-limit-suffix">Clicks</span>
                                         </div>
-                                            </label>
+                                </label>
                                     <label class="figma-ads-limit-field">
                                         <span>Daily Limit</span>
                                         <div class="figma-ads-limit-input">

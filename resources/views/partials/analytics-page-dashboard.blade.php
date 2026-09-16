@@ -321,6 +321,25 @@
             font-size: 10px;
             color: rgba(255, 255, 255, 0.45);
         }
+        html.light-mode .pa-dash .pa-kh-toggle {
+            background: #fff4eb !important;
+            border-color: rgba(255, 102, 0, 0.4) !important;
+        }
+        html.light-mode .pa-dash .pa-kh-toggle__btn {
+            color: #5c5470 !important;
+            background: transparent !important;
+        }
+        html.light-mode .pa-dash .pa-kh-toggle__btn.is-active {
+            background: #FF6600 !important;
+            color: #ffffff !important;
+        }
+        html.light-mode .pa-dash .pa-kh-toggle__btn:disabled {
+            opacity: 0.45;
+            color: #9a93a8 !important;
+        }
+        html.light-mode .pa-dash .pa-kh-toggle__hint {
+            color: #6b6578 !important;
+        }
         .pa-dash .pa-kh-combo-title {
             margin: 0 0 8px;
             font-size: 11px;

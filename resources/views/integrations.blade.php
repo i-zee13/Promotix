@@ -1063,13 +1063,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             <template x-if="step.key !== 'domain' && !step.done">
                                 <span class="h-[8px] w-[8px] rounded-full bg-white/40"></span>
                             </template>
-            </div>
+                            </div>
                         <div class="pi-setup-label" x-text="step.label"></div>
                         <div class="pi-setup-detail" :title="step.detail || ''" x-text="step.detail || '—'"></div>
-                    </div>
+                        </div>
                 </template>
-            </div>
-        </section>
+                </div>
+            </section>
 
         {{-- Connected Platforms --}}
         <section id="connected-platforms" class="pi-platforms-card">
@@ -1083,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <li>Tag must match the hostname on the mapping; mismatch fails Save validation.</li>
                             <li>Prerequisite: tracking tag installed + Google Ads OAuth connected for Pixel Guard protection type.</li>
                         </ul>
-                    </div>
+                            </div>
                     <div>
                         <p class="font-semibold" style="color:color-mix(in srgb, var(--brand-primary) 70%, white)">Audience Exclusion</p>
                         <ul class="mt-[6px] list-disc space-y-1 pl-[16px]">
@@ -1092,14 +1092,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             <li>Use <strong class="text-white/90">Connect Additional audience</strong> for more conversion mappings. Save validates required fields.</li>
                             <li>Open from Google platform menu → Set Up Audience Exclusion. IP push rules remain in Detection Panel.</li>
                         </ul>
-                    </div>
-                </div>
+                        </div>
+                            </div>
             </details>
             <div class="pi-platforms-head">
                 <div>
                     <h2>Connected Platforms</h2>
                     <p>Linked Google Ads accounts</p>
-                </div>
+                        </div>
                 <div class="pi-platforms-tools">
                     <label class="pi-search">
                         <svg class="h-[14px] w-[14px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -1112,10 +1112,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M5 13a7 7 0 0112.2-4.5L20 11M4 13l2.8 2.5A7 7 0 0019 13"/>
                         </svg>
                         Refresh
-                    </button>
+                            </button>
                     <button type="button" class="pi-add-btn" @click="openConnectGoogleModal()">+ Add Connection</button>
-                </div>
             </div>
+        </div>
 
             <div class="pi-table-wrap">
                 <table class="pi-table">
@@ -1137,9 +1137,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <span class="pi-plat-name">
                                         <span class="pi-plat-logo">
                                             @include('partials.icons.google', ['class' => 'h-[16px] w-[16px]'])
-                                        </span>
-                                        <span>{{ $row['platform'] }}</span>
                                     </span>
+                                        <span>{{ $row['platform'] }}</span>
+                                        </span>
                                 </td>
                                 <td>
                                     <div class="pi-acct-primary truncate" title="{{ $row['account_primary'] }}">{{ $row['account_primary'] }}</div>
