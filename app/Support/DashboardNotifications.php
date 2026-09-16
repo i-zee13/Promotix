@@ -58,16 +58,14 @@ class DashboardNotifications
         $manualDomains = Domain::query()->where('user_id', $userId)->forBotProtection()->get();
         $paidDomains = Domain::query()->where('user_id', $userId)->forPaidMarketing()->get();
 
-        $botReady = $manualDomains->contains(
-            fn (Domain $d) => (bool) $d->tag_connected || (bool) $d->bot_mitigation_connected
-        );
+        $botReady = $manualDomains->contains(fn (Domain $d) => (bool) $d->bot_mitigation_connected);
         $paidReady = $paidDomains->isNotEmpty();
         $platformReady = $botReady && $paidReady;
 
         $pendingDomains = 0;
         if (! $botReady) {
             $pendingDomains += $manualDomains->filter(
-                fn (Domain $d) => ! $d->tag_connected && ! $d->bot_mitigation_connected
+                fn (Domain $d) => ! $d->bot_mitigation_connected
             )->count();
         }
         if (! $paidReady) {

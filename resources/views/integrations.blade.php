@@ -1850,14 +1850,20 @@ function platformIntegrations(config) {
         },
         get tagManagerConnected() {
             if (this.activeDomainStatus) {
-                return Boolean(this.activeDomainStatus.tag_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
+                return Boolean(
+                    this.activeDomainStatus.tag_connected
+                    || this.activeDomainStatus.steps?.find((s) => s.label === 'Clickronix Script' || s.label === 'Tag Manager')?.done
+                );
             }
             return Boolean(this.tagReady);
         },
         get trackingScriptOk() {
             // Tag script only — not Google Ads OAuth/API.
             if (this.activeDomainStatus) {
-                return Boolean(this.activeDomainStatus.tag_connected || this.activeDomainStatus.steps?.find((s) => s.label === 'Tag Manager')?.done);
+                return Boolean(
+                    this.activeDomainStatus.tag_connected
+                    || this.activeDomainStatus.steps?.find((s) => s.label === 'Clickronix Script' || s.label === 'Tag Manager')?.done
+                );
             }
             return Boolean(this.tagReady);
         },
@@ -2059,10 +2065,12 @@ function platformIntegrations(config) {
             };
 
             if (this.installTagsModal.google_tag_id) {
+                // Draft ID only — never mark Google Tag as connected without live site detect.
+                const id = String(this.installTagsModal.google_tag_id).trim().toUpperCase();
                 target.google_tag = Object.assign({}, target.google_tag || {}, {
-                    id: this.installTagsModal.google_tag_id,
-                    status: 'Detected',
-                    ok: true,
+                    id: id || '—',
+                    status: 'Not detected',
+                    ok: false,
                 });
             }
             if (this.installTagsModal.ga4_id) {
@@ -2086,8 +2094,9 @@ function platformIntegrations(config) {
                     const saved = String(data.ga4_measurement_id || id).toUpperCase();
                     target.ga4 = Object.assign({}, target.ga4 || {}, {
                         id: saved || '—',
-                        status: saved ? 'Linked' : 'Not detected',
-                        ok: Boolean(saved),
+                        status: 'Linked',
+                        ok: false,
+                        linked: Boolean(saved),
                     });
                 } catch (_) {
                     this.showMenuToast('Could not save GA4 Measurement ID for this domain.', 'error');
@@ -2296,7 +2305,7 @@ function platformIntegrations(config) {
                 || Boolean(this.trackingInstallation?.ga4?.ok);
         },
         get wizardScriptInstalled() {
-            return Boolean(this.googleAdsSummary?.protection_active || this.trackingInstallation?.script?.installed || this.wizardWebsiteHost);
+            return Boolean(this.trackingInstallation?.script?.ok || this.trackingInstallation?.script?.installed);
         },
         get wizardWebsiteHost() {
             const rows = Array.isArray(this.trackingIds) ? this.trackingIds : [];
@@ -2512,32 +2521,44 @@ function platformIntegrations(config) {
                 this.createAudienceModal._measurementIds = Array.isArray(d.measurement_ids) ? d.measurement_ids : [];
                 this.createAudienceModal.ga4Message = message;
                 this.createAudienceModal.ga4Confidence = d.confidence || (present ? 'medium' : 'none');
-                if (this.createAudienceModal._gtmIds[0] && this.selectedDomainId) {
+                const signals = Array.isArray(d.signals) ? d.signals : [];
+                const hasLiveGtm = Boolean(d.has_live_gtm) || signals.includes('homepage_gtm_snippet');
+                const liveGa4Ids = Array.isArray(d.live_measurement_ids) && d.live_measurement_ids.length
+                    ? d.live_measurement_ids
+                    : (hasGa4 ? (this.createAudienceModal._measurementIds || []) : []);
+
+                // GTM Connected only with live homepage evidence — not portal-saved ID alone.
+                if (hasLiveGtm && this.createAudienceModal._gtmIds[0] && this.selectedDomainId) {
                     const scopedId = String(this.selectedDomainId);
                     const current = this.trackingInstallationByDomain[scopedId] || {};
                     this.trackingInstallationByDomain[scopedId] = Object.assign({}, current, {
                         gtm: Object.assign({}, current.gtm || {}, {
                             id: this.createAudienceModal._gtmIds[0],
-                            status: 'Detected',
+                            status: 'Connected',
                             ok: true,
+                            unpublished: false,
                         }),
                     });
+                    if (!this.installTagsModal.gtm_id) {
+                        this.installTagsModal.gtm_id = this.createAudienceModal._gtmIds[0];
+                    }
                 }
                 // Only mark this domain's GA4 Detected when live has_ga4 is true — not Ads-linked G- alone.
-                if (hasGa4 && this.createAudienceModal._measurementIds[0] && this.selectedDomainId) {
+                if (hasGa4 && liveGa4Ids[0] && this.selectedDomainId) {
                     const scopedId = String(this.selectedDomainId);
-                    const liveId = String(this.createAudienceModal._measurementIds[0]).trim().toUpperCase();
+                    const liveId = String(liveGa4Ids[0]).trim().toUpperCase();
                     const current = this.trackingInstallationByDomain[scopedId] || {};
                     this.trackingInstallationByDomain[scopedId] = Object.assign({}, current, {
                         ga4: Object.assign({}, current.ga4 || {}, {
                             id: liveId || '—',
                             status: 'Detected',
                             ok: true,
+                            linked: true,
                         }),
                     });
                     this.installTagsModal.ga4_id = liveId;
                     const seen = new Set((this.createAudienceModal.ga4Options || []).map((p) => p.id));
-                    this.createAudienceModal._measurementIds.forEach((raw) => {
+                    liveGa4Ids.forEach((raw) => {
                         const id = String(raw || '').trim().toUpperCase();
                         if (!/^G-[A-Z0-9]+$/.test(id) || seen.has(id)) return;
                         seen.add(id);
@@ -2547,16 +2568,20 @@ function platformIntegrations(config) {
                         this.createAudienceModal.ga4_property = this.createAudienceModal.ga4Options[0].id;
                     }
                 } else if (this.selectedDomainId) {
+                    // Failed live detect: keep Linked ID if present — do not wipe.
                     const scopedId = String(this.selectedDomainId);
                     const current = this.trackingInstallationByDomain[scopedId] || {};
+                    const prevId = String(current.ga4?.id || this.installTagsModal.ga4_id || '').trim().toUpperCase();
+                    const linked = /^G-[A-Z0-9]+$/.test(prevId);
                     this.trackingInstallationByDomain[scopedId] = Object.assign({}, current, {
                         ga4: Object.assign({}, current.ga4 || {}, {
-                            id: '—',
-                            status: 'Not detected',
+                            id: linked ? prevId : '—',
+                            status: linked ? 'Linked' : 'Not detected',
                             ok: false,
+                            linked,
                         }),
                     });
-                    this.installTagsModal.ga4_id = '';
+                    if (!linked) this.installTagsModal.ga4_id = '';
                 }
                 if (forApply) {
                     this.applyAudienceModal.ga4Present = present;
@@ -3285,9 +3310,12 @@ function platformIntegrations(config) {
             return this.domainConnections.some((d) => d.google_ads_connected);
         },
         get requirementSteps() {
-            const labels = ['Tag Manager', 'Paid Marketing', 'Bot Protection', 'Google Ads'];
+            const labels = ['Clickronix Script', 'Paid Marketing', 'Bot Protection', 'Google Ads'];
             if (this.activeDomainStatus) {
-                return this.activeDomainStatus.steps || [];
+                // Prefer canonical product steps; keep GTM as optional detail only.
+                const steps = Array.isArray(this.activeDomainStatus.steps) ? this.activeDomainStatus.steps : [];
+                const byLabel = Object.fromEntries(steps.map((s) => [s.label, s]));
+                return labels.map((label) => byLabel[label] || { label, done: false });
             }
             return labels.map((label) => ({
                 label,
@@ -3362,7 +3390,7 @@ function platformIntegrations(config) {
 
             const label = step.label;
 
-            if (label === 'Tag Manager') {
+            if (label === 'Clickronix Script' || label === 'Tag Manager') {
                 window.location.href = `/domains/${domain.id}/setup`;
                 return;
             }

@@ -370,15 +370,30 @@ class TrackingController extends Controller
         // Log IP and run fraud protection (sync intel + block repeat offenders).
         $protection = app(VisitProtectionService::class);
         $ipLog = $protection->touchIpLog($ip, $ua, $data['path'] ?? null, $data['referrer'] ?? null);
+        $botEnabled = (bool) ($domain->bot_mitigation_connected ?? false);
+        $paidEnabled = (bool) ($domain->paid_marketing_connected ?? false) || $domain->hasGoogleAdsConnection();
         $assessment = $protection->assess($domain, $ipLog, $country, $sessionId, $isCrawler, $isPaidTraffic, $visitedAt);
         $ipLog = $assessment['ipLog'];
         $detection = $assessment['detection'];
-        $enforceBlock = $assessment['enforce_block'];
-        $captchaRequired = $protection->shouldEnforceCaptcha($domain, $detection, $ip);
+        // Bot Protection product off → never block/captcha (Google Tag / Ads-only must not activate bot).
+        $enforceBlock = $botEnabled
+            ? $assessment['enforce_block']
+            : false;
+        $captchaRequired = $botEnabled
+            ? $protection->shouldEnforceCaptcha($domain, $detection, $ip)
+            : false;
+        if (! $botEnabled) {
+            $detection = array_merge($detection, [
+                'action_taken' => 'allow',
+                'threat_score' => 0,
+                'threat_group' => null,
+                'reasons' => ['bot_protection_off'],
+            ]);
+        }
         $skipVisitLog = $protection->shouldSkipOrganicRepeatVisit($domain, $sessionId, $isPaidTraffic, $visitedAt);
 
         $paidId = (string) ($googleClick['id'] ?? '');
-        $priorPaidClick = ($isPaidTraffic && $paidId !== '')
+        $priorPaidClick = ($isPaidTraffic && $paidEnabled && $paidId !== '')
             ? $this->findPaidClickById($domain->id, $paidId)
             : null;
         // Same Google click often lands twice: /click server ingest, then website tag.
@@ -391,7 +406,7 @@ class TrackingController extends Controller
         $paidIdentity = null;
         $adsDetections = [];
         $ipExclusionEligible = false;
-        if ($isPaidTraffic && ! $allowListedIp) {
+        if ($isPaidTraffic && $paidEnabled && ! $allowListedIp) {
             try {
                 $pipeline = app(PaidAdvertisingPipeline::class);
                 $clientFp = (string) ($data['fingerprint'] ?? $request->input('fingerprint') ?: (
@@ -445,10 +460,10 @@ class TrackingController extends Controller
         $domain->last_seen_at = UserTimezone::nowUtc();
         $domain->tag_connected = true;
         $domain->status = 'connected';
-        // Website tag / Tag Manager visit — Analytics is receiving traffic.
-        // Do not require a Google Ads click ID (gclid) for this flag.
-        $domain->bot_mitigation_connected = true;
-        if ($isPaidTraffic) {
+        // Clickronix script only. Do NOT imply Bot Protection or Paid Marketing from a tag ping.
+        // Bot Protection: domains toggle / detection setup sets bot_mitigation_connected.
+        // Paid Marketing: Ads link or /click tracker — never a lone organic tag hit.
+        if ($isPaidTraffic && $domain->hasGoogleAdsConnection()) {
             $domain->paid_marketing_connected = true;
         }
         $domain->save();
@@ -486,9 +501,11 @@ class TrackingController extends Controller
             $trackingConfidence,
             $paidIdentity,
             $adsDetections,
+            $paidEnabled,
+            $botEnabled,
         ): void {
-        if ($isPaidTraffic) {
-            // Paid marketing funnel: Google click IDs (gclid / gbraid / wbraid) only.
+        if ($isPaidTraffic && $paidEnabled) {
+            // Paid marketing funnel only when Ads/paid product is connected for this domain.
             // Skip a second paid_marketing_clicks row for the same click id (server→tag is one click).
             $skipPaidClickRow = $priorPaidClick !== null;
 
@@ -566,7 +583,8 @@ class TrackingController extends Controller
 
             // Whitelist / Google IPs: never force invalid from click-id dedupe.
             // Same server→tag click: not fraud, keep valid.
-            $markInvalid = ! $allowListedIp && (
+            // Bot Protection off → never mark invalid from protection scores.
+            $markInvalid = $botEnabled && ! $allowListedIp && (
                 $detection['action_taken'] !== 'allow' || $duplicatePaidClick
             );
 
@@ -842,9 +860,9 @@ class TrackingController extends Controller
                 'gbraid' => $data['gbraid'] ?? null,
                 'wbraid' => $data['wbraid'] ?? null,
                 'ip' => $ip,
-                // Count unique paid entries only (server→tag continuation must not double-count).
-                'is_paid' => $isPaidTraffic && $priorPaidClick === null,
-                'is_invalid' => $isPaidTraffic && ($detection['action_taken'] !== 'allow') && ! $allowListedIp && ! $sameClickContinuation,
+                // Count unique paid entries only when Paid Marketing is connected for this domain.
+                'is_paid' => $paidEnabled && $isPaidTraffic && $priorPaidClick === null,
+                'is_invalid' => $botEnabled && $paidEnabled && $isPaidTraffic && ($detection['action_taken'] !== 'allow') && ! $allowListedIp && ! $sameClickContinuation,
                 'landing_page' => $data['url'] ?? $data['path'] ?? null,
                 'session_id' => $sessionId,
                 'automation' => str_contains($threatGroup, 'bot') || str_contains($threatGroup, 'automat'),

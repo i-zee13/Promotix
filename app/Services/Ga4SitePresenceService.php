@@ -192,14 +192,24 @@ class Ga4SitePresenceService
             $message = 'Google Ads tag (AW-…) found, but GA4 (G-…) is not installed. Audience membership needs GA4 Client ID — install GA4 first.';
         } elseif ($hasLiveGa4 && ! $hasGtm && ! $hasLiveGtm) {
             $message = 'GA4 (G-) detected without GTM. The GA4 audience route needs GTM as the delivery container. Use GTM + GA4 together, or use the Google Ads website audience route.';
+        } elseif (in_array('homepage_fetch_failed', $signals, true) && ! $present) {
+            $message = 'Could not fetch the website homepage to detect tags. Check the domain is public/HTTPS and not blocking scanners, then Detect again.';
         }
+
+        // Prefer live G- IDs for "Detected" stamping (exclude Ads-linked-only when live exists).
+        $liveIds = $liveMeasurementIds !== [] ? $liveMeasurementIds : (
+            $hasGa4 ? array_values(array_filter($measurementIds, fn ($id) => str_starts_with((string) $id, 'G-'))) : []
+        );
 
         return [
             'present' => $present,
             'confidence' => $confidence,
             'has_ga4' => $hasGa4,
             'has_gtm' => $hasGtm,
+            'has_live_gtm' => $hasLiveGtm,
+            'has_live_ga4' => $hasLiveGa4,
             'measurement_ids' => $measurementIds,
+            'live_measurement_ids' => $liveIds,
             'gtm_ids' => $gtmIds,
             'aw_ids' => $awIds,
             'signals' => $signals,
@@ -211,10 +221,12 @@ class Ga4SitePresenceService
     private function fetchHomepageHtml(string $url): ?string
     {
         try {
-            $response = Http::timeout(8)
+            $response = Http::timeout(10)
                 ->withHeaders([
-                    'User-Agent' => 'ClickronixGa4Detector/1.0',
-                    'Accept' => 'text/html,application/xhtml+xml',
+                    // Browser-like UA — custom bots are often blocked by WAF/CDN.
+                    'User-Agent' => 'Mozilla/5.0 (compatible; ClickronixBot/1.0; +https://clickronix.com)',
+                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language' => 'en-US,en;q=0.9',
                 ])
                 ->withOptions(['allow_redirects' => true])
                 ->get($url);
@@ -242,9 +254,9 @@ class Ga4SitePresenceService
         }
 
         try {
-            $response = Http::timeout(8)
+            $response = Http::timeout(10)
                 ->withHeaders([
-                    'User-Agent' => 'ClickronixGa4Detector/1.0',
+                    'User-Agent' => 'Mozilla/5.0 (compatible; ClickronixBot/1.0; +https://clickronix.com)',
                     'Accept' => '*/*',
                 ])
                 ->get('https://www.googletagmanager.com/gtm.js', ['id' => $gtmId]);

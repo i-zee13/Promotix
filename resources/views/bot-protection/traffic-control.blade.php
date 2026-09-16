@@ -39,43 +39,62 @@
                 margin-top: 10px; max-width: 560px;
                 font-size: 13px; line-height: 1.45; color: rgba(255,255,255,.45);
             }
-            .tc-filters {
-                display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px;
+
+            /* Shared Figma filter bar (same as Overview / Bot Protection) */
+            .figma-filter-bar--tc.ov-filter-bar,
+            .figma-filter-bar--tc {
+                width: 100%;
+                max-width: 720px;
+                min-height: 54px;
+                border-color: rgba(255, 102, 0, 0.55) !important;
+                box-shadow: 0 0 0 1px rgba(255, 102, 0, 0.12);
             }
-            .tc-filter {
-                position: relative; min-width: 132px;
+            @media (min-width: 1100px) {
+                .figma-filter-bar--tc { width: fit-content; margin-left: auto; }
             }
-            .tc-filter__select,
-            .tc-filter__date {
-                appearance: none; -webkit-appearance: none;
-                height: 38px; width: 100%;
-                border-radius: 8px;
-                border: 1px solid rgba(255,255,255,.16);
-                background: #101010;
-                color: rgba(255,255,255,.82);
-                font-size: 12px; font-weight: 500;
-                padding: 0 32px 0 12px;
-                outline: none;
+            .figma-filter-bar--tc > label {
+                min-width: 0 !important;
             }
-            .tc-filter__select:focus,
-            .tc-filter__date:focus { border-color: rgba(255,102,0,.55); }
-            .tc-filter__chev {
-                pointer-events: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-                width: 12px; height: 12px; color: rgba(255,255,255,.45);
+            .figma-filter-bar--tc > label.tc-f-domain { width: 148px !important; flex: 1 1 148px !important; }
+            .figma-filter-bar--tc > label.tc-f-campaign { width: 140px !important; flex: 1 1 140px !important; }
+            .figma-filter-bar--tc > label.tc-f-path { width: 148px !important; flex: 1.2 1 148px !important; }
+            .figma-filter-bar--tc .tc-f-actions {
+                display: flex; align-items: stretch; flex-shrink: 0;
+                margin-left: auto;
             }
-            .tc-filter__date-wrap { position: relative; min-width: 168px; }
-            .tc-filter__date {
-                display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding-right: 12px;
-                white-space: nowrap;
+            .figma-filter-bar--tc .figma-filter-calendar-host {
+                border-left: 1px solid rgba(0,0,0,.2);
+                min-height: 100%;
             }
-            .tc-filter__date svg { width: 14px; height: 14px; color: rgba(255,255,255,.5); margin-left: auto; }
-            .tc-export {
-                display: inline-flex; align-items: center; gap: 8px;
-                height: 38px; padding: 0 14px; border-radius: 8px;
-                border: 1.5px solid #FF6600; background: transparent;
-                color: #FF6600; font-size: 12px; font-weight: 650; white-space: nowrap;
+            .figma-filter-bar--tc .tc-f-export {
+                display: flex; align-items: center; justify-content: center;
+                border-left: 1px solid rgba(0,0,0,.2);
+                padding: 0 10px;
             }
-            .tc-export:hover { background: rgba(255,102,0,.12); }
+            .figma-filter-bar--tc .tc-export-btn {
+                display: inline-flex; align-items: center; justify-content: center;
+                width: 34px; height: 34px; border-radius: 8px;
+                border: 1.5px solid #FF6600; background: #101010; color: #FF6600;
+            }
+            .figma-filter-bar--tc .tc-export-btn:hover { filter: brightness(1.08); }
+            .figma-filter-bar--tc .tc-export-btn svg { width: 15px; height: 15px; }
+            @media (max-width: 720px) {
+                .figma-filter-bar--tc {
+                    flex-wrap: wrap !important;
+                    width: 100% !important;
+                    max-width: none !important;
+                }
+                .figma-filter-bar--tc > label {
+                    flex: 1 1 46% !important;
+                    width: auto !important;
+                    border-bottom: 1px solid rgba(0,0,0,.12);
+                }
+                .figma-filter-bar--tc .tc-f-actions {
+                    width: 100%;
+                    border-top: 1px solid rgba(0,0,0,.12);
+                    justify-content: flex-end;
+                }
+            }
 
             .tc-kpi-grid {
                 display: grid; grid-template-columns: repeat(2, minmax(0,1fr));
@@ -279,8 +298,24 @@
             .tc-chart {
                 border-radius: 12px; border: 1px solid rgba(255,102,0,.28);
                 background: #121212; padding: 14px; min-height: 250px;
+                display: flex; flex-direction: column;
             }
-            .tc-chart__title { font-size: 13px; font-weight: 650; color: #fff; margin-bottom: 14px; }
+            .tc-chart__title { font-size: 13px; font-weight: 650; color: #fff; margin-bottom: 14px; flex-shrink: 0; }
+            .tc-chart__scroll {
+                max-height: 220px;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding-right: 4px;
+                margin-right: -2px;
+                scrollbar-width: thin;
+                scrollbar-color: var(--brand-primary, #FF6600) transparent;
+            }
+            .tc-chart__scroll::-webkit-scrollbar { width: 5px; }
+            .tc-chart__scroll::-webkit-scrollbar-thumb {
+                background: var(--brand-primary, #FF6600);
+                border-radius: 999px;
+            }
+            .tc-chart__scroll::-webkit-scrollbar-track { background: transparent; }
             .tc-hbar {
                 display: grid; grid-template-columns: 92px 1fr 28px; gap: 8px; align-items: center;
                 margin-bottom: 10px; font-size: 11px; color: rgba(255,255,255,.65);
@@ -320,50 +355,60 @@
                     <p class="tc-subtitle">Detect repeated devices, IP rotation and suspicious network activity from Google Ads.</p>
                 </div>
 
-                <div class="tc-filters">
-                    <div class="tc-filter" style="min-width:140px">
-                        <select x-model="filters.domain_id" @change="reload()" class="tc-filter__select">
-                            <option value="">All Domains</option>
-                            @foreach ($domains as $d)
-                                <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                            @endforeach
-                        </select>
-                        <svg class="tc-filter__chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--tc ov-filter-bar flex min-h-[54px] max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                    <label class="tc-f-domain flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                        <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Domain</span>
+                        <div class="figma-filter-select-wrap">
+                            <select x-model="filters.domain_id" @change="reload()" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0">
+                                <option value="">All Domains</option>
+                                @foreach ($domains as $d)
+                                    <option value="{{ $d->id }}">{{ $d->hostname }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </label>
+                    <label class="tc-f-campaign flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                        <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Campaign</span>
+                        <div class="figma-filter-select-wrap">
+                            <select x-model="filters.campaign" @change="reload()" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0">
+                                <option value="">All Campaigns</option>
+                                <template x-for="c in campaignOptions" :key="'camp-' + c">
+                                    <option :value="c" x-text="c"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </label>
+                    <label class="tc-f-path flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                        <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Landing Page</span>
+                        <div class="figma-filter-path-wrap">
+                            <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <input
+                                type="search"
+                                x-model="filters.path"
+                                @input="schedulePathFilter()"
+                                list="tc-path-options"
+                                placeholder="All Pages"
+                                class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0"
+                            >
+                            <datalist id="tc-path-options">
+                                <template x-for="p in pathOptions" :key="'path-dl-' + p">
+                                    <option :value="p"></option>
+                                </template>
+                            </datalist>
+                        </div>
+                    </label>
+                    <div class="tc-f-actions">
+                        @include('partials.figma-filter-date-fields')
+                        <div class="tc-f-export">
+                            <button type="button" class="tc-export-btn" @click="exportReport()" title="Export Report" aria-label="Export Report">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M12 3v12"/>
+                                    <path d="M7 10l5 5 5-5"/>
+                                    <path d="M5 21h14"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    <div class="tc-filter" style="min-width:148px">
-                        <select x-model="filters.campaign" @change="reload()" class="tc-filter__select">
-                            <option value="">All Campaigns</option>
-                            <template x-for="c in campaignOptions" :key="'camp-' + c">
-                                <option :value="c" x-text="c"></option>
-                            </template>
-                        </select>
-                        <svg class="tc-filter__chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </div>
-                    <div class="tc-filter" style="min-width:132px">
-                        <select x-model="filters.path" @change="reload()" class="tc-filter__select">
-                            <option value="">All Landing Pages</option>
-                            <template x-for="p in pathOptions" :key="'path-' + p">
-                                <option :value="p" x-text="p"></option>
-                            </template>
-                        </select>
-                        <svg class="tc-filter__chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </div>
-                    <div
-                        class="tc-filter__date-wrap"
-                        x-data="figmaDateRangePicker"
-                        x-init="init()"
-                        @click.outside="if (calendarOpen && !isMobile()) cancelCalendar()"
-                    >
-                        <button type="button" class="tc-filter__date" @click="toggleCalendar()" :aria-expanded="calendarOpen">
-                            <span x-text="$root.prettyRange()"></span>
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" stroke-width="1.6"/><path stroke-width="1.6" stroke-linecap="round" d="M8 3v3M16 3v3M4 10h16"/></svg>
-                        </button>
-                        @include('partials.figma-date-range-popover')
-                    </div>
-                    <button type="button" class="tc-export" @click="exportReport()">
-                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
-                        Export Report
-                    </button>
                 </div>
             </div>
 
@@ -557,13 +602,15 @@
             <div class="tc-charts">
                 <div class="tc-chart">
                     <div class="tc-chart__title">IP Changes per Device</div>
-                    <template x-for="item in (charts.ip_changes_per_device || [])" :key="item.label">
-                        <div class="tc-hbar">
-                            <div class="truncate" x-text="item.label"></div>
-                            <div class="tc-hbar__track"><div class="tc-hbar__fill bg-[#FF6600]" :style="'width:' + barPct(item.value, maxIpChanges) + '%'"></div></div>
-                            <div class="text-right text-white/55" x-text="item.value"></div>
-                        </div>
-                    </template>
+                    <div class="tc-chart__scroll" x-show="(charts.ip_changes_per_device || []).length">
+                        <template x-for="item in (charts.ip_changes_per_device || [])" :key="item.label">
+                            <div class="tc-hbar">
+                                <div class="truncate font-mono text-[10px]" x-text="item.label" :title="item.label"></div>
+                                <div class="tc-hbar__track"><div class="tc-hbar__fill bg-[#FF6600]" :style="'width:' + barPct(item.value, maxIpChanges) + '%'"></div></div>
+                                <div class="text-right text-white/55" x-text="item.value"></div>
+                            </div>
+                        </template>
+                    </div>
                     <div class="tc-axis" x-show="(charts.ip_changes_per_device || []).length">
                         <span>0</span><span x-text="Math.round(maxIpChanges/2)"></span><span x-text="maxIpChanges"></span>
                     </div>
@@ -629,6 +676,7 @@ function trafficControlIntel() {
     return {
         loading: false,
         searchTimer: null,
+        pathTimer: null,
         filters: { domain_id: '', campaign: '', path: '', q: '', from: '', to: '' },
         tabs: [
             { key: 'devices', label: 'Repeated Devices' },
@@ -754,6 +802,10 @@ function trafficControlIntel() {
         scheduleSearch() {
             clearTimeout(this.searchTimer);
             this.searchTimer = setTimeout(() => this.reload(), 350);
+        },
+        schedulePathFilter() {
+            clearTimeout(this.pathTimer);
+            this.pathTimer = setTimeout(() => this.reload(), 350);
         },
         selectRow(row) { this.selected = row; },
         isRowSelected(row) {

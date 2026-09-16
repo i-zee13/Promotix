@@ -53,8 +53,8 @@
                     <div class="flex items-center justify-between gap-[6px]">
                         <p class="text-[12px] font-semibold truncate">Google Tag Manager</p>
                         <span class="text-[10px] font-semibold"
-                              :class="trackingInstallation.gtm.ok ? 'text-emerald-300' : (trackingInstallation.gtm.unpublished ? 'text-amber-300' : 'text-rose-300')"
-                              x-text="trackingInstallation.gtm.ok ? 'Connected' : (trackingInstallation.gtm.unpublished ? 'Unpublished' : 'Offline')"></span>
+                              :class="trackingInstallation.gtm.ok ? 'text-emerald-300' : (trackingInstallation.gtm.unpublished || trackingInstallation.gtm.status === 'Saved' ? 'text-amber-300' : 'text-rose-300')"
+                              x-text="trackingInstallation.gtm.ok ? 'Connected' : (trackingInstallation.gtm.unpublished || trackingInstallation.gtm.status === 'Saved' ? 'Saved' : 'Offline')"></span>
                     </div>
                     <p class="mt-[2px] font-mono text-[10px] text-white/45" x-text="trackingInstallation.gtm.id"></p>
                     <p class="mt-[4px] text-[10px] text-white/50">Publish your GTM changes.</p>
@@ -62,10 +62,12 @@
                 <div class="rounded-[8px] border border-white/10 bg-[#0d0d0d] px-[10px] py-[10px]">
                     <div class="flex items-center justify-between gap-[6px]">
                         <p class="text-[12px] font-semibold truncate">GA4</p>
-                        <span class="text-[10px] font-semibold" :class="trackingInstallation.ga4?.ok ? 'text-emerald-300' : 'text-rose-300'" x-text="trackingInstallation.ga4?.ok ? 'Detected' : 'Not detected'"></span>
+                        <span class="text-[10px] font-semibold"
+                              :class="trackingInstallation.ga4?.ok ? 'text-emerald-300' : (trackingInstallation.ga4?.linked || (trackingInstallation.ga4?.status === 'Linked') ? 'text-amber-300' : 'text-rose-300')"
+                              x-text="trackingInstallation.ga4?.ok ? 'Detected' : (trackingInstallation.ga4?.linked || trackingInstallation.ga4?.status === 'Linked' ? 'Linked' : 'Not detected')"></span>
                     </div>
                     <p class="mt-[2px] font-mono text-[10px] text-white/45" x-text="trackingInstallation.ga4?.id || '—'"></p>
-                    <p class="mt-[4px] text-[10px] text-white/50">Measurement ID (G-…).</p>
+                    <p class="mt-[4px] text-[10px] text-white/50">Live Detect required for Detected.</p>
                 </div>
                 <p class="rounded-[8px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[8px] py-[8px] text-[10px] leading-relaxed text-[#ffd0b0]">
                     GTM installed does not automatically mean Google tag is installed.

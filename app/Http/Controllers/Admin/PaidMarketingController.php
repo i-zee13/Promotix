@@ -5040,6 +5040,12 @@ class PaidMarketingController extends Controller
             ]
         );
 
+        // Saving bot detection rules opts the domain into Bot Protection (separate from Paid Marketing).
+        if (! $domain->bot_mitigation_connected) {
+            $domain->bot_mitigation_connected = true;
+            $domain->save();
+        }
+
         return response()->json(['ok' => true]);
     }
 

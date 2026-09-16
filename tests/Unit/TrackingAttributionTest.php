@@ -117,8 +117,9 @@ class TrackingAttributionTest extends TestCase
             (new \ReflectionClass(\App\Http\Controllers\TrackingController::class))->getFileName()
         );
         $this->assertMatchesRegularExpression(
-            '/tag_connected = true;[\s\S]*bot_mitigation_connected = true;[\s\S]*if \(\$isPaidTraffic\)/',
+            '/tag_connected = true;[\s\S]*Do NOT imply Bot Protection[\s\S]*if \(\$isPaidTraffic && \$domain->hasGoogleAdsConnection\(\)\)/',
             $tracking
         );
+        $this->assertStringNotContainsString('bot_mitigation_connected = true;', $tracking);
     }
 }

@@ -51,7 +51,7 @@ class IntegrationsController extends Controller
 
         $paidMarketingDomains = Domain::query()
             ->where('user_id', $user->id)
-            ->manual()
+            ->forPaidMarketing()
             ->orderBy('hostname')
             ->get();
 
@@ -72,14 +72,16 @@ class IntegrationsController extends Controller
             'gtm_connected' => filled($d->gtm_container_id),
             'google_connected' => false,
             'google_ads_connected' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0,
+            'paid_marketing_connected' => (bool) $d->paid_marketing_connected || $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0,
+            'bot_mitigation_connected' => (bool) $d->bot_mitigation_connected,
             'last_seen_at' => $d->last_seen_at
                 ? \Illuminate\Support\Carbon::parse((string) $d->last_seen_at)->toIso8601String()
                 : null,
             'steps' => [
-                ['label' => 'Tag Manager', 'done' => (bool) $d->tag_connected],
+                ['label' => 'Clickronix Script', 'done' => (bool) $d->tag_connected],
                 ['label' => 'GTM', 'done' => filled($d->gtm_container_id)],
-                ['label' => 'Paid Marketing', 'done' => (bool) $d->paid_marketing_connected || $d->google_ads_account_id !== null],
-                ['label' => 'Analytics', 'done' => (bool) $d->tag_connected || (bool) $d->bot_mitigation_connected],
+                ['label' => 'Paid Marketing', 'done' => (bool) $d->paid_marketing_connected || $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0],
+                ['label' => 'Bot Protection', 'done' => (bool) $d->bot_mitigation_connected],
                 ['label' => 'Google Ads', 'done' => $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0],
             ],
         ])->values()->all();
@@ -103,16 +105,15 @@ class IntegrationsController extends Controller
             ->get();
 
         $tagReady = $manualDomains->contains(fn (Domain $d) => (bool) $d->tag_connected);
-        $paidReady = $paidMarketingDomains->isNotEmpty();
-        $botReady = $manualDomains->contains(
-            fn (Domain $d) => (bool) $d->tag_connected || (bool) $d->bot_mitigation_connected
-        );
+        $paidReady = $paidMarketingDomains->isNotEmpty()
+            || $manualDomains->contains(fn (Domain $d) => (bool) $d->paid_marketing_connected);
+        $botReady = $manualDomains->contains(fn (Domain $d) => (bool) $d->bot_mitigation_connected);
         $platformReady = $botReady && $paidReady;
 
         $requirementSteps = [
-            ['label' => 'Tag Manager', 'done' => $tagReady],
+            ['label' => 'Clickronix Script', 'done' => $tagReady],
             ['label' => 'Paid Marketing', 'done' => $paidReady],
-            ['label' => 'Analytics', 'done' => $botReady],
+            ['label' => 'Bot Protection', 'done' => $botReady],
             ['label' => 'Google Ads', 'done' => $connections->isNotEmpty() && $accounts->isNotEmpty()],
         ];
 
@@ -191,8 +192,7 @@ class IntegrationsController extends Controller
                     : number_format($visitCount).' clicks';
             }
 
-            $protectionDone = (bool) $domain->bot_mitigation_connected
-                || (bool) $domain->paid_marketing_connected;
+            $protectionDone = (bool) $domain->bot_mitigation_connected;
 
             $scriptKey = (string) ($domain->domain_key ?: '');
             $crx = $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '';
@@ -206,7 +206,7 @@ class IntegrationsController extends Controller
                 $scriptDetail = 'Install script + GTM on this domain';
             }
 
-            // Spec: Account Connected ≠ Protection Active. Protection only when policy modules are on.
+            // Spec: Account Connected ≠ Protection Active. Protection only when Bot Protection is enabled.
             $protectionDetail = $protectionDone ? 'Active' : 'Action needed';
 
             return [
@@ -259,7 +259,7 @@ class IntegrationsController extends Controller
             )
         );
         $protectionActive = $manualDomains->contains(
-            fn (Domain $d) => (bool) $d->bot_mitigation_connected || (bool) $d->paid_marketing_connected
+            fn (Domain $d) => (bool) $d->bot_mitigation_connected
         );
         $scriptKey = (string) ($firstDomain?->domain_key ?: '');
         $domainTotal = $manualDomains->count();
@@ -330,7 +330,7 @@ class IntegrationsController extends Controller
             $scriptActive = (bool) ($domain?->tag_connected);
             $gtmId = (string) ($domain?->gtm_container_id ?: '');
             $scriptKey = (string) ($domain?->domain_key ?: '');
-            $protectionDone = (bool) ($domain?->bot_mitigation_connected || $domain?->paid_marketing_connected);
+            $protectionDone = filled($mapping->protection_type);
             $protectionLabel = $protectionDone
                 ? ($mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion')
                 : 'Not configured';
@@ -412,7 +412,7 @@ class IntegrationsController extends Controller
             $gtmId = (string) ($domain->gtm_container_id ?: '');
             $scriptKey = (string) ($domain->domain_key ?: '');
             $scriptActive = (bool) $domain->tag_connected;
-            $protectionDone = (bool) $domain->bot_mitigation_connected || (bool) $domain->paid_marketing_connected;
+            $protectionDone = false;
             $clicks = (int) ($domainVisitCounts[$domain->id] ?? 0);
             $lastSyncAt = $account->connection?->last_sync_at;
             $lastEventAt = $domain->last_seen_at
@@ -517,12 +517,14 @@ class IntegrationsController extends Controller
             $scriptOk = (bool) $domain->tag_connected;
             $gtmOk = $gtmContainerId !== '';
             $installMethod = strtolower(trim((string) ($domain->tag_install_method ?? '')));
-            // GTM / Google Tag must not inherit "Connected/Detected" from Direct or WordPress script installs.
-            $gtmLive = $gtmOk && $scriptOk && $installMethod === 'gtm';
+            $gtmLiveDetected = filled($domain->gtm_detected_at);
+            // Connected = container saved + live Detect evidence (or verified GTM install method with script).
+            $gtmLive = $gtmOk && ($gtmLiveDetected || ($scriptOk && $installMethod === 'gtm'));
 
-            // GA4 must never be "Detected" from a linked Ads account G- ID alone —
-            // that ID is shared across domains and is not proof the site has GA4.
-            // Status flips to Detected only after per-domain website Detect (frontend) or live scan.
+            $ga4Linked = $ga4MeasurementId !== '';
+            $ga4LiveDetected = filled($domain->ga4_detected_at) && $ga4Linked;
+
+            // GA4 must never be "Detected" from a linked Ads account G- ID alone.
             // Google Tag (AW-…) similarly: account ID on file ≠ installed on the website.
             return [
                 'domain_id' => $domain->id,
@@ -534,7 +536,7 @@ class IntegrationsController extends Controller
                 ],
                 'gtm' => [
                     'id' => $gtmOk ? $gtmContainerId : '—',
-                    'status' => $gtmLive ? 'Connected' : 'Offline',
+                    'status' => $gtmLive ? 'Connected' : ($gtmOk ? 'Saved' : 'Offline'),
                     'ok' => $gtmLive,
                     'unpublished' => $gtmOk && ! $gtmLive,
                 ],
@@ -544,9 +546,10 @@ class IntegrationsController extends Controller
                     'ok' => $scriptOk,
                 ],
                 'ga4' => [
-                    'id' => $ga4MeasurementId !== '' ? $ga4MeasurementId : '—',
-                    'status' => $ga4MeasurementId !== '' ? 'Linked' : 'Not detected',
-                    'ok' => $ga4MeasurementId !== '',
+                    'id' => $ga4Linked ? $ga4MeasurementId : '—',
+                    'status' => $ga4LiveDetected ? 'Detected' : ($ga4Linked ? 'Linked' : 'Not detected'),
+                    'ok' => $ga4LiveDetected,
+                    'linked' => $ga4Linked,
                 ],
                 'setup_url' => route('domains.setup', $domain),
             ];
@@ -560,8 +563,8 @@ class IntegrationsController extends Controller
         $domainsWithGtm = $manualDomains->filter(fn (Domain $d) => filled($d->gtm_container_id))->count();
         $domainsWithGtmLive = $manualDomains->filter(function (Domain $d) {
             return filled($d->gtm_container_id)
-                && (bool) $d->tag_connected
-                && (string) ($d->tag_install_method ?? '') === 'gtm';
+                && (filled($d->gtm_detected_at)
+                    || ((bool) $d->tag_connected && (string) ($d->tag_install_method ?? '') === 'gtm'));
         })->count();
         $allHaveGtmLive = $manualDomains->isNotEmpty() && $domainsWithGtmLive === $manualDomains->count();
         $allHaveScript = $manualDomains->isNotEmpty()
@@ -1870,27 +1873,71 @@ class IntegrationsController extends Controller
             ->firstOrFail();
 
         $detection = $ga4Presence->detect($domain);
+        $signals = is_array($detection['signals'] ?? null) ? $detection['signals'] : [];
+        $hasGa4 = (bool) ($detection['has_ga4'] ?? false);
+        $hasLiveGtm = (bool) ($detection['has_live_gtm'] ?? false)
+            || in_array('homepage_gtm_snippet', $signals, true);
 
-        $measurementIds = $detection['measurement_ids'] ?? ($detection['ids'] ?? []);
-        if (! is_array($measurementIds)) {
-            $measurementIds = [];
-        }
-        $firstG = '';
-        foreach ($measurementIds as $mid) {
-            $mid = strtoupper(trim((string) $mid));
-            if (preg_match('/^G-[A-Z0-9]+$/', $mid)) {
-                $firstG = $mid;
-                break;
+        $dirty = false;
+
+        // Persist GA4 only from live detection — never Ads-linked-only G- IDs.
+        if ($hasGa4) {
+            $liveIds = $detection['live_measurement_ids'] ?? ($detection['measurement_ids'] ?? []);
+            if (! is_array($liveIds)) {
+                $liveIds = [];
+            }
+            $firstG = '';
+            foreach ($liveIds as $mid) {
+                $mid = strtoupper(trim((string) $mid));
+                if (preg_match('/^G-[A-Z0-9]+$/', $mid)) {
+                    $firstG = $mid;
+                    break;
+                }
+            }
+            if ($firstG !== '') {
+                if ((string) ($domain->ga4_measurement_id ?? '') !== $firstG) {
+                    $domain->ga4_measurement_id = $firstG;
+                    $dirty = true;
+                }
+                $domain->ga4_detected_at = now();
+                $dirty = true;
             }
         }
-        if ($firstG === '' && ! empty($detection['has_ga4'])) {
-            $candidate = strtoupper(trim((string) ($detection['measurement_id'] ?? $detection['ga4_id'] ?? '')));
-            if (preg_match('/^G-[A-Z0-9]+$/', $candidate)) {
-                $firstG = $candidate;
+
+        // Persist live GTM container + mark install method so Connected survives refresh.
+        if ($hasLiveGtm) {
+            $gtmIds = is_array($detection['gtm_ids'] ?? null) ? $detection['gtm_ids'] : [];
+            $liveGtm = '';
+            foreach ($gtmIds as $gid) {
+                $gid = strtoupper(trim((string) $gid));
+                if (preg_match('/^GTM-[A-Z0-9]+$/', $gid) && $gid !== strtoupper(trim((string) ($domain->gtm_container_id ?? '')))) {
+                    // Prefer homepage-live ID; portal-only IDs stay unless empty.
+                    if (in_array('homepage_gtm_snippet', $signals, true) || ! filled($domain->gtm_container_id)) {
+                        $liveGtm = $gid;
+                        break;
+                    }
+                }
+                if ($liveGtm === '' && preg_match('/^GTM-[A-Z0-9]+$/', $gid)) {
+                    $liveGtm = $gid;
+                }
             }
+            if ($liveGtm !== '' && (string) ($domain->gtm_container_id ?? '') !== $liveGtm) {
+                $domain->gtm_container_id = $liveGtm;
+                $dirty = true;
+            }
+            $domain->gtm_detected_at = now();
+            if ((bool) $domain->tag_connected && (string) ($domain->tag_install_method ?? '') !== 'gtm') {
+                $domain->tag_install_method = 'gtm';
+                $dirty = true;
+            } elseif (! filled($domain->tag_install_method)) {
+                // Live GTM on site without Clickronix script yet — still record method for status.
+                $domain->tag_install_method = 'gtm';
+                $dirty = true;
+            }
+            $dirty = true;
         }
-        if ($firstG !== '' && (string) ($domain->ga4_measurement_id ?? '') !== $firstG) {
-            $domain->ga4_measurement_id = $firstG;
+
+        if ($dirty) {
             $domain->save();
         }
 
@@ -1900,6 +1947,9 @@ class IntegrationsController extends Controller
             'hostname' => $domain->hostname,
             'detection' => $detection,
             'ga4_measurement_id' => $domain->ga4_measurement_id,
+            'gtm_container_id' => $domain->gtm_container_id,
+            'ga4_detected' => filled($domain->ga4_detected_at),
+            'gtm_detected' => filled($domain->gtm_detected_at),
         ]);
     }
 
