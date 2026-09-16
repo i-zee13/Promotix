@@ -114,7 +114,30 @@
             }
             .vj-tab.is-active { background:#FF6600; border-color:#FF6600; color:#fff; }
 
-            .vj-flow { position:relative; min-height:280px; overflow-x:auto; }
+            /* Shared body for Page Paths / Event Timeline / Individual Sessions */
+            .vj-tab-body {
+                height: 380px;
+                max-height: 380px;
+                min-height: 380px;
+                overflow: auto;
+                min-width: 0;
+                position: relative;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(255,102,0,.45) transparent;
+            }
+            .vj-tab-body--sessions {
+                overflow: hidden;
+                padding: 0;
+            }
+            .vj-tab-body--sessions .vj-is {
+                border-top: 0;
+            }
+            .vj-tab-body::-webkit-scrollbar { width: 6px; height: 6px; }
+            .vj-tab-body::-webkit-scrollbar-thumb {
+                background: rgba(255,102,0,.45); border-radius: 999px;
+            }
+
+            .vj-flow { position:relative; min-height:100%; height:100%; overflow:visible; }
             .vj-flow__cols {
                 display:grid; grid-template-columns:repeat(4, minmax(0, 1fr));
                 gap: 28px;
@@ -172,7 +195,7 @@
                 pointer-events:none; z-index:0; min-width:680px;
             }
 
-            .vj-detail { border-radius:12px; border:1px solid rgba(255,102,0,.22); background:#121212; padding:14px; position:sticky; top:72px; }
+            .vj-detail { border-radius:12px; border:1px solid rgba(255,102,0,.22); background:#121212; padding:14px; position:sticky; top:72px; max-height: calc(380px + 120px); overflow:auto; }
             .vj-detail__head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
             .vj-detail__title { font-size:14px; font-weight:650; color:#fff; }
             .vj-meta-grid { display:grid; gap:8px; margin-bottom:14px; font-size:12px; }
@@ -193,11 +216,28 @@
             .vj-tl-kind { font-size:10px; color:rgba(255,255,255,.45); margin-left:6px; font-weight:500; }
             .vj-tl-note { font-size:11px; color:rgba(255,255,255,.4); margin-top:4px; }
 
-            .vj-widgets { display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:16px; }
+            .vj-widgets {
+                display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:16px;
+                align-items: stretch;
+            }
             @media (min-width:900px){ .vj-widgets{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
             @media (min-width:1280px){ .vj-widgets{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
-            .vj-widget { border-radius:12px; border:1px solid rgba(255,102,0,.22); background:#121212; padding:14px; min-height:220px; }
-            .vj-widget__title { font-size:13px; font-weight:650; color:#fff; margin-bottom:12px; }
+            .vj-widget {
+                border-radius:12px; border:1px solid rgba(255,102,0,.22); background:#121212;
+                padding:14px; min-width:0;
+                height: 260px; max-height: 260px;
+                display: flex; flex-direction: column;
+            }
+            .vj-widget__title { font-size:13px; font-weight:650; color:#fff; margin-bottom:12px; flex-shrink:0; }
+            .vj-widget__body {
+                flex: 1 1 auto; min-height: 0; overflow-y: auto;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(255,102,0,.45) transparent;
+            }
+            .vj-widget__body::-webkit-scrollbar { width: 5px; }
+            .vj-widget__body::-webkit-scrollbar-thumb {
+                background: rgba(255,102,0,.45); border-radius: 999px;
+            }
             .vj-path-row { display:flex; gap:8px; align-items:flex-start; margin-bottom:10px; font-size:12px; }
             .vj-path-rank {
                 width:18px; height:18px; border-radius:999px; background:rgba(255,102,0,.18); color:#FF6600;
@@ -273,9 +313,17 @@
             }
             .vj-ev-legend__item { display:inline-flex; align-items:center; gap:6px; }
             .vj-axis-label { font-size:10px; color:rgba(255,255,255,.35); margin-bottom:6px; }
-            .vj-et { overflow-x:auto; min-height:280px; }
+            .vj-et { overflow: visible; min-height: 0; }
             .vj-et__axis {
                 display:grid; grid-template-columns:118px 1fr; gap:0; margin-bottom:4px; min-width:720px;
+                position: sticky; top: 0; background: #121212; z-index: 3;
+            }
+            html.light-mode .vj-et__axis {
+                background: #ffffff;
+            }
+            html.light-mode .vj-tab-body {
+                border: 1px solid rgba(255, 102, 0, 0.18);
+                border-radius: 10px;
             }
             .vj-et__ticks {
                 display:flex; justify-content:space-between; padding:0 8px 6px;
@@ -310,7 +358,7 @@
             }
             .vj-ev-icon.is-page { width:10px; height:10px; border-radius:999px; background:#FF6600; }
             .vj-ev-icon.is-scroll {
-                width:10px; height:10px; background:#A855F7; transform:rotate(45deg); border-radius:1px;
+                width:10px; height:10px; background:#FF6600; transform:rotate(45deg); border-radius:1px;
             }
             .vj-ev-icon.is-cta {
                 width:10px; height:10px; background:#EAB308; transform:rotate(45deg); border-radius:1px;
@@ -344,12 +392,25 @@
             .vj-main.is-sessions { grid-template-columns: minmax(0,1fr) !important; }
             .vj-is {
                 display:grid; grid-template-columns:minmax(0,1fr); gap:0;
-                border-top:1px solid rgba(255,255,255,.06); min-height:520px;
+                border-top:1px solid rgba(255,255,255,.06);
+                height: 100%;
+                min-height: 0;
             }
             @media (min-width:1100px) {
                 .vj-is { grid-template-columns: 280px minmax(0,1fr) 280px; }
             }
-            .vj-is__pane { min-width:0; padding:12px; }
+            .vj-is__pane {
+                min-width:0; padding:12px;
+                height: 100%;
+                max-height: 100%;
+                overflow: auto;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(255,102,0,.45) transparent;
+            }
+            .vj-is__pane::-webkit-scrollbar { width: 5px; }
+            .vj-is__pane::-webkit-scrollbar-thumb {
+                background: rgba(255,102,0,.45); border-radius: 999px;
+            }
             .vj-is__pane + .vj-is__pane { border-left:1px solid rgba(255,255,255,.08); }
             .vj-is__head {
                 display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;
@@ -1044,7 +1105,8 @@
                             <button type="button" class="vj-tab" :class="{ 'is-active': flowTab === 'sessions' }" @click="setFlowTab('sessions')">Individual Sessions</button>
                         </div>
 
-                        <div class="vj-flow" x-show="flowTab === 'paths'" x-ref="flowBox">
+                        <div class="vj-tab-body" x-show="flowTab === 'paths'">
+                        <div class="vj-flow" x-ref="flowBox">
                             <svg class="vj-flow__svg" x-html="flowSvg()"></svg>
                             <div class="vj-flow__cols">
                                 <template x-for="col in (flow.columns || [])" :key="col.key">
@@ -1069,9 +1131,10 @@
                             </div>
                             <div class="vj-empty" x-show="!(flow.columns || []).length && !loading">No journey flow for this range.</div>
                         </div>
+                        </div>
 
                         {{-- Event Timeline (multi-session lanes) --}}
-                        <div x-show="flowTab === 'timeline'">
+                        <div class="vj-tab-body" x-show="flowTab === 'timeline'">
                             <div class="vj-ev-legend">
                                 <span class="vj-ev-legend__item"><span class="vj-ev-icon is-page"></span> Page view</span>
                                 <span class="vj-ev-legend__item"><span class="vj-ev-icon is-scroll"></span> Scroll</span>
@@ -1119,7 +1182,7 @@
                             </div>
                         </div>
 
-                        <div x-show="flowTab === 'sessions'">
+                        <div class="vj-tab-body vj-tab-body--sessions" x-show="flowTab === 'sessions'">
                             <div class="vj-is">
                                 {{-- Left: sessions list --}}
                                 <div class="vj-is__pane">
@@ -1429,6 +1492,7 @@
             <div class="vj-widgets">
                 <div class="vj-widget">
                     <div class="vj-widget__title">Common Journey Paths</div>
+                    <div class="vj-widget__body">
                     <template x-for="row in commonPaths" :key="row.rank + row.path">
                         <div class="vj-path-row">
                             <div class="vj-path-rank" x-text="row.rank"></div>
@@ -1437,9 +1501,11 @@
                         </div>
                     </template>
                     <div class="vj-empty" x-show="!commonPaths.length">No common paths yet.</div>
+                    </div>
                 </div>
                 <div class="vj-widget">
                     <div class="vj-widget__title">Top Landing Pages</div>
+                    <div class="vj-widget__body">
                     <template x-for="row in landingPages" :key="'l'+row.label">
                         <div class="vj-hbar">
                             <div class="vj-hbar__path" :title="row.label" x-text="row.label"></div>
@@ -1448,9 +1514,11 @@
                         </div>
                     </template>
                     <div class="vj-empty" x-show="!landingPages.length">No landing pages.</div>
+                    </div>
                 </div>
                 <div class="vj-widget">
                     <div class="vj-widget__title">Top Exit Pages</div>
+                    <div class="vj-widget__body">
                     <template x-for="row in exitPages" :key="'e'+row.label">
                         <div class="vj-hbar">
                             <div class="vj-hbar__path" :title="row.label" x-text="row.label"></div>
@@ -1459,9 +1527,11 @@
                         </div>
                     </template>
                     <div class="vj-empty" x-show="!exitPages.length">No exit pages.</div>
+                    </div>
                 </div>
                 <div class="vj-widget">
                     <div class="vj-widget__title">Journey Outcomes</div>
+                    <div class="vj-widget__body">
                     <div class="vj-donut-wrap">
                         <div class="vj-donut" :style="donutStyle">
                             <div class="vj-donut__hole">
@@ -1478,6 +1548,7 @@
                                 </div>
                             </template>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>
