@@ -533,6 +533,7 @@
                 background-color: #ffffff !important;
                 border-color: rgba(255, 102, 0, 0.28) !important;
                 color: #1a1a1a !important;
+                box-shadow: none !important;
             }
             html.light-mode .vj-kpi__label,
             html.light-mode .vj-kpi__delta-vs,
@@ -544,27 +545,132 @@
             html.light-mode .vj-path-meta,
             html.light-mode .vj-legend,
             html.light-mode .vj-is__count,
-            html.light-mode .vj-sj__stats,
-            html.light-mode .vj-sj-time,
-            html.light-mode .vj-sj-body__page,
-            html.light-mode .vj-sd-sec__title,
             html.light-mode .vj-ev-legend,
             html.light-mode .vj-tl-meta { color: #5c5470 !important; }
             html.light-mode .vj-kpi__value,
             html.light-mode .vj-tl-label,
             html.light-mode .vj-is__title,
-            html.light-mode .vj-sj__title,
-            html.light-mode .vj-sj-body__title,
             html.light-mode .vj-card__title-row { color: #121212 !important; }
             html.light-mode .vj-tab {
-                color: #5c5470 !important;
-                border-color: rgba(0,0,0,.12) !important;
-                background: #fff !important;
+                color: #ffffff !important;
+                border-color: #101010 !important;
+                background: #101010 !important;
             }
             html.light-mode .vj-tab.is-active {
                 background: #FF6600 !important;
                 border-color: #FF6600 !important;
                 color: #fff !important;
+            }
+
+            /* Event Timeline — readable on light bg */
+            html.light-mode .vj-et__ticks,
+            html.light-mode .vj-axis-label {
+                color: #8a8299 !important;
+                border-bottom-color: rgba(255, 102, 0, 0.18) !important;
+            }
+            html.light-mode .vj-et__row.is-active {
+                background: #fff4eb !important;
+                box-shadow: inset 0 0 0 1px rgba(255, 102, 0, 0.35);
+            }
+            html.light-mode .vj-et__row:hover { background: #fffaf5 !important; }
+            html.light-mode .vj-et__row.is-active:hover { background: #ffedd5 !important; }
+            html.light-mode .vj-et__sid {
+                color: #121212 !important;
+            }
+            html.light-mode .vj-et__sid small {
+                color: #6b6578 !important;
+            }
+            html.light-mode .vj-et__track {
+                border-bottom-color: rgba(255, 102, 0, 0.28) !important;
+            }
+            html.light-mode .vj-et__m-label {
+                color: #2d2d3a !important;
+            }
+            html.light-mode .vj-et__m-time {
+                color: #6b6578 !important;
+            }
+            html.light-mode .vj-ev-icon.is-exit {
+                background: #6b6578 !important;
+            }
+            html.light-mode .vj-mini-filters select {
+                background: #101010 !important;
+                border-color: #101010 !important;
+                color: #ffffff !important;
+            }
+            html.light-mode .vj-tooltip {
+                background: #101010 !important;
+                color: #ffffff !important;
+                box-shadow: none !important;
+            }
+
+            /* Individual Sessions — black cards, selected readable */
+            html.light-mode .vj-scard {
+                background: #101010 !important;
+                border-color: #101010 !important;
+                color: #ffffff !important;
+                box-shadow: none !important;
+            }
+            html.light-mode .vj-scard.is-active {
+                background: #fff4eb !important;
+                border-color: #FF6600 !important;
+                color: #121212 !important;
+            }
+            html.light-mode .vj-scard .vj-scard__sid { color: #ffffff !important; }
+            html.light-mode .vj-scard .vj-scard__did,
+            html.light-mode .vj-scard .vj-scard__src,
+            html.light-mode .vj-scard .vj-scard__meta { color: rgba(255, 255, 255, 0.65) !important; }
+            html.light-mode .vj-scard .vj-scard__icon {
+                background: rgba(255, 255, 255, 0.1) !important;
+                color: #ffffff !important;
+            }
+            html.light-mode .vj-scard.is-active .vj-scard__sid { color: #121212 !important; }
+            html.light-mode .vj-scard.is-active .vj-scard__did,
+            html.light-mode .vj-scard.is-active .vj-scard__src,
+            html.light-mode .vj-scard.is-active .vj-scard__meta { color: #5c5470 !important; }
+            html.light-mode .vj-scard.is-active .vj-scard__icon {
+                background: rgba(255, 102, 0, 0.12) !important;
+                color: #FF6600 !important;
+            }
+            html.light-mode .vj-scard .vj-pill.is-none {
+                color: rgba(255, 255, 255, 0.75) !important;
+                background: rgba(255, 255, 255, 0.1) !important;
+                border-color: rgba(255, 255, 255, 0.2) !important;
+            }
+            html.light-mode .vj-scard.is-active .vj-pill.is-none {
+                color: #5c5470 !important;
+                background: rgba(0, 0, 0, 0.06) !important;
+                border-color: rgba(0, 0, 0, 0.12) !important;
+            }
+            html.light-mode .vj-is__search input,
+            html.light-mode .vj-is__tools select {
+                background: #101010 !important;
+                border-color: #101010 !important;
+                color: #ffffff !important;
+            }
+            html.light-mode .vj-is__search input::placeholder { color: rgba(255, 255, 255, 0.45) !important; }
+            html.light-mode .vj-is__search svg { color: rgba(255, 255, 255, 0.45) !important; }
+            html.light-mode .vj-pager { color: #6b6578 !important; }
+            html.light-mode .vj-pager button {
+                background: #101010 !important;
+                border-color: #101010 !important;
+                color: #ffffff !important;
+            }
+            html.light-mode .vj-pager button.is-on {
+                background: #FF6600 !important;
+                border-color: #FF6600 !important;
+                color: #fff !important;
+            }
+            html.light-mode .vj-sj__title,
+            html.light-mode .vj-sj-body__title,
+            html.light-mode .vj-sd-sec__title,
+            html.light-mode .vj-seq-title { color: #121212 !important; }
+            html.light-mode .vj-sj-body__page,
+            html.light-mode .vj-sj-time,
+            html.light-mode .vj-sj__stats { color: #5c5470 !important; }
+            html.light-mode .vj-sj-rail::before { background: rgba(255, 102, 0, 0.45) !important; }
+            html.light-mode .vj-sj-node { box-shadow: 0 0 0 2px #ffffff !important; }
+            html.light-mode .vj-node {
+                box-shadow: none !important;
             }
             /* Flow nodes: light orange/white cards + dark text */
             html.light-mode .vj-flow {
@@ -585,7 +691,7 @@
                 background-color: #ffffff !important;
                 border-color: rgba(255, 102, 0, 0.35) !important;
                 color: #1a1a1a !important;
-                box-shadow: 0 1px 4px rgba(255, 102, 0, 0.08);
+                box-shadow: none !important;
             }
             html.light-mode .vj-node.is-exit { border-color: rgba(220, 38, 38, 0.55) !important; }
             html.light-mode .vj-node.is-lead,
@@ -632,14 +738,19 @@
                 border-color: rgba(255, 102, 0, 0.12) !important;
             }
             html.light-mode .vj-sj-node { border-color: #ffffff !important; }
-            html.light-mode .vj-sj-tag,
-            html.light-mode .vj-mini-filters select,
-            html.light-mode .vj-is__search,
-            html.light-mode .vj-is__search input,
-            html.light-mode .vj-is select {
+            html.light-mode .vj-sj-tag {
                 background: #fff7f0 !important;
                 border-color: rgba(255, 102, 0, 0.28) !important;
                 color: #2d2d3a !important;
+            }
+            html.light-mode .vj-mini-filters select,
+            html.light-mode .vj-is__search,
+            html.light-mode .vj-is__search input,
+            html.light-mode .vj-is select,
+            html.light-mode .vj-is__tools select {
+                background: #101010 !important;
+                border-color: #101010 !important;
+                color: #ffffff !important;
             }
             html.light-mode .vj-sj-alert {
                 color: #5c5470 !important;
@@ -653,6 +764,10 @@
             html.light-mode .vj-page [class*='text-white'] {
                 color: #5c5470 !important;
             }
+            html.light-mode .vj-scard:not(.is-active) [class*='text-white'],
+            html.light-mode .vj-scard:not(.is-active) .text-white {
+                color: rgba(255, 255, 255, 0.75) !important;
+            }
             html.light-mode .vj-page .font-semibold.text-white,
             html.light-mode .vj-page .font-bold.text-white,
             html.light-mode .vj-donut__hole .text-white,
@@ -660,6 +775,11 @@
                 color: #121212 !important;
             }
             html.light-mode .vj-page .hover\:text-white:hover { color: #FF6600 !important; }
+            html.light-mode .vj-seq-item,
+            html.light-mode .vj-tl-item .vj-tl-label { color: #121212 !important; }
+            html.light-mode .vj-tl-time,
+            html.light-mode .vj-tl-kind,
+            html.light-mode .vj-tl-note { color: #6b6578 !important; }
         </style>
 
         <div class="vj-page">

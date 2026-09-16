@@ -264,13 +264,20 @@ class VisitorJourneyIntelligence
 
         $durationLabel = $this->friendlyDuration((string) ($row['time_on_site'] ?? '00:00:00'));
         $sessionId = (string) ($row['session_id'] ?? $row['session_key'] ?? '');
-        $deviceId = (string) ($row['fingerprint_id'] ?? '');
-        if ($deviceId === '') {
-            $deviceId = 'dev_'.substr(sha1($sessionId !== '' ? $sessionId : (string) ($row['ip'] ?? 'x')), 0, 8);
-        } elseif (! str_starts_with($deviceId, 'dev_')) {
-            $deviceId = 'dev_'.substr($deviceId, 0, 10);
+        $deviceRaw = trim((string) ($row['device_id'] ?? ''));
+        $fpRaw = trim((string) ($row['fingerprint_id'] ?? ''));
+        $deviceId = $deviceRaw !== '' ? $deviceRaw : $fpRaw;
+        if ($deviceId === '' || str_starts_with($deviceId, 'unknown_')) {
+            $basis = $sessionId !== '' ? $sessionId : (string) ($row['ip'] ?? 'x');
+            $deviceId = 'DEV_'.strtoupper(substr(hash('sha256', $basis), 0, 12));
+        } elseif (str_starts_with($deviceId, 'FP_')) {
+            $deviceId = 'DEV_'.substr($deviceId, 3);
+        } elseif (! str_starts_with($deviceId, 'DEV_') && ! str_starts_with($deviceId, 'dev_')) {
+            $deviceId = 'DEV_'.strtoupper(substr(hash('sha256', $deviceId), 0, 12));
         }
-        if ($sessionId !== '' && ! str_starts_with($sessionId, 'ses_') && strlen($sessionId) > 12) {
+        if ($sessionId !== '' && str_starts_with($sessionId, 'unknown_')) {
+            $sessionId = 'ses_'.substr(sha1($sessionId), 0, 6);
+        } elseif ($sessionId !== '' && ! str_starts_with($sessionId, 'ses_') && strlen($sessionId) > 12) {
             $sessionId = 'ses_'.substr(sha1($sessionId), 0, 6);
         } elseif ($sessionId === '') {
             $sessionId = 'ses_'.substr(sha1((string) ($row['ip'] ?? 'x')), 0, 6);
