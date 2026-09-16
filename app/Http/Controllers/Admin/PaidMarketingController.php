@@ -19,6 +19,7 @@ use App\Services\GoogleAdsLocationExclusionSyncService;
 use App\Services\GoogleAudienceExclusionService;
 use App\Support\DetectionProfiles;
 use App\Support\DetectionReasonLabels;
+use App\Support\CampaignAttributionResolver;
 use App\Support\ClickronixTrafficReport;
 use App\Support\AdminIntegrationCatalog;
 use App\Support\CrossDomainIntel;
@@ -1835,6 +1836,21 @@ class PaidMarketingController extends Controller
             $intel['intel_risk_score'] = $intel['intel_risk_score'] ?? 0;
         }
 
+        $campaignLabel = $visit->campaign_name
+            ?: $visit->campaign
+            ?: ($visit->getAttribute('range_campaign') ?: null)
+            ?: $this->campaignFromPath((string) ($visit->last_path ?? ''));
+        $campaignId = preg_replace('/\D+/', '', (string) ($visit->google_campaign_id ?? $firstClick?->google_campaign_id ?? '')) ?: '';
+        if ($campaignId === '' && is_string($campaignLabel) && preg_match('/^\d{6,}$/', trim($campaignLabel))) {
+            $campaignId = trim($campaignLabel);
+        }
+        if (($campaignLabel === null || $campaignLabel === '' || preg_match('/^\d{6,}$/', (string) $campaignLabel)) && $campaignId !== '') {
+            $named = CampaignAttributionResolver::lookupCampaignName((int) $visit->domain_id, $campaignId);
+            if ($named) {
+                $campaignLabel = $named;
+            }
+        }
+
         return [
             'id' => $visit->id,
             'click_id' => 'CK-' . str_pad((string) $visit->id, 6, '0', STR_PAD_LEFT),
@@ -1843,10 +1859,7 @@ class PaidMarketingController extends Controller
             'ip_count' => max(count($ipParts), 1),
             'visits' => $clickCount,
             'domain' => $visit->domain?->hostname,
-            'campaign' => $visit->campaign_name
-                ?: $visit->campaign
-                ?: ($visit->getAttribute('range_campaign') ?: null)
-                ?: $this->campaignFromPath((string) ($visit->last_path ?? '')),
+            'campaign' => $campaignLabel,
             'keyword' => $firstClick?->keyword
                 ?: $this->keywordFromPath((string) ($firstClick?->path ?? $visit->last_path ?? '')),
             'ads_primary_rule' => $sessionMeta['primary_detection'],
@@ -4061,11 +4074,19 @@ class PaidMarketingController extends Controller
         }
 
         parse_str($query, $params);
-        foreach (['utm_campaign', 'campaign', 'gad_campaignid', 'campaign_id', 'campaignid'] as $key) {
-            $value = trim((string) ($params[$key] ?? ''));
-            if ($value !== '') {
-                return $value;
+        $utm = trim((string) ($params['utm_campaign'] ?? $params['campaign'] ?? ''));
+        if ($utm !== '') {
+            return $utm;
+        }
+
+        foreach (['gad_campaignid', 'campaign_id', 'campaignid'] as $key) {
+            $raw = trim((string) ($params[$key] ?? ''));
+            $id = preg_replace('/\D+/', '', $raw) ?: '';
+            if ($id === '') {
+                continue;
             }
+            // Prefer human name from synced Google Ads metrics when we only have an ID.
+            return $id;
         }
 
         return null;
@@ -4119,7 +4140,12 @@ class PaidMarketingController extends Controller
             ->get();
 
         $selectedDomainId = (int) $request->integer('domain_id');
-        $domain = $domains->firstWhere('id', $selectedDomainId) ?? $domains->first();
+        $domain = $domains->firstWhere('id', $selectedDomainId);
+        if (! $domain) {
+            // Prefer a Google Ads–linked domain so Exclusion Manager is usable by default.
+            $domains->loadMissing('googleAdsMappings');
+            $domain = $domains->first(fn (Domain $d) => $d->hasGoogleAdsConnection()) ?? $domains->first();
+        }
 
         $settings = null;
         if ($domain) {
@@ -4450,11 +4476,19 @@ class PaidMarketingController extends Controller
         abort_unless($domain->user_id === $request->user()->id, 403);
 
         if (! $domain->hasGoogleAdsConnection()) {
-            return response()->json(['campaigns' => []]);
+            return response()->json([
+                'campaigns' => [],
+                'message' => 'Connect Google Ads for this domain first.',
+            ]);
         }
 
+        $campaigns = $sync->eligibleCampaignOptions($domain);
+
         return response()->json([
-            'campaigns' => $sync->eligibleCampaignOptions($domain),
+            'campaigns' => $campaigns,
+            'message' => $campaigns === []
+                ? 'No eligible Search/Display campaigns found on the linked Google Ads account. Confirm Integrations links the same Ads customer that owns your Search campaigns (PMax/Video cannot take IP exclusions).'
+                : null,
         ]);
     }
 
@@ -4769,8 +4803,11 @@ class PaidMarketingController extends Controller
         if ($freshQueued > 0) {
             $parts[] = "Queued {$freshQueued} recent invalid IP(s)";
         }
+        $campaignNote = $campaignIds !== []
+            ? ' to '.count($campaignIds).' selected campaign(s)'
+            : ' to eligible Search/Display campaigns';
         $parts[] = $synced > 0
-            ? "pushed {$synced} IP(s) to Google Ads campaign exclusions"
+            ? "pushed {$synced} IP(s){$campaignNote}"
             : 'no pending IPs pushed (check Search/Display campaigns + Google permissions)';
 
         return response()->json([
@@ -4778,6 +4815,7 @@ class PaidMarketingController extends Controller
             'message' => ucfirst(implode('; ', $parts)).'.',
             'synced' => $synced,
             'queued' => $freshQueued,
+            'campaign_ids' => $campaignIds,
             'rows' => $this->googleExclusionRowsForDomain($domain->id),
         ], ($synced > 0 || $freshQueued > 0) ? 200 : 422);
     }
@@ -4886,7 +4924,7 @@ class PaidMarketingController extends Controller
         }
 
         $domain = Domain::query()->find($domainId);
-        if (! $domain || ! $domain->hasGoogleAdsConnection()) {
+        if (! $domain) {
             return [];
         }
 

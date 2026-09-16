@@ -376,14 +376,20 @@ class TrackingController extends Controller
         $skipVisitLog = $protection->shouldSkipOrganicRepeatVisit($domain, $sessionId, $isPaidTraffic, $visitedAt);
 
         $paidId = (string) ($googleClick['id'] ?? '');
-        $duplicatePaidClick = $isPaidTraffic
-            && $paidId !== ''
-            && $this->paidClickIdExists($domain->id, $paidId);
+        $priorPaidClick = ($isPaidTraffic && $paidId !== '')
+            ? $this->findPaidClickById($domain->id, $paidId)
+            : null;
+        // Same Google click often lands twice: /click server ingest, then website tag.
+        // That is NOT click-id fraud — only treat as ADS_GCLID_DUP when it looks like a real replay.
+        $sameClickContinuation = $priorPaidClick !== null
+            && $this->isSamePaidClickContinuation($priorPaidClick, $ip, (string) ($data['click_source'] ?? 'tag'), $visitedAt);
+        $duplicatePaidClick = $priorPaidClick !== null && ! $sameClickContinuation;
+        $allowListedIp = $protection->isAllowListed($domain, $ip);
 
         $paidIdentity = null;
         $adsDetections = [];
         $ipExclusionEligible = false;
-        if ($isPaidTraffic) {
+        if ($isPaidTraffic && ! $allowListedIp) {
             try {
                 $pipeline = app(PaidAdvertisingPipeline::class);
                 $clientFp = (string) ($data['fingerprint'] ?? $request->input('fingerprint') ?: (
@@ -470,6 +476,9 @@ class TrackingController extends Controller
             $campaignAttribution,
             $paidId,
             $duplicatePaidClick,
+            $sameClickContinuation,
+            $priorPaidClick,
+            $allowListedIp,
             $enforceBlock,
             $trackingConfidence,
             $paidIdentity,
@@ -477,7 +486,8 @@ class TrackingController extends Controller
         ): void {
         if ($isPaidTraffic) {
             // Paid marketing funnel: Google click IDs (gclid / gbraid / wbraid) only.
-            $skipPaidClickRow = $duplicatePaidClick;
+            // Skip a second paid_marketing_clicks row for the same click id (server→tag is one click).
+            $skipPaidClickRow = $priorPaidClick !== null;
 
             $visit = PaidMarketingVisit::firstOrNew([
                 'domain_id' => $domain->id,
@@ -542,6 +552,12 @@ class TrackingController extends Controller
                 $reasons = array_values(array_unique($reasons));
             }
 
+            // Whitelist / Google IPs: never force invalid from click-id dedupe.
+            // Same server→tag click: not fraud, keep valid.
+            $markInvalid = ! $allowListedIp && (
+                $detection['action_taken'] !== 'allow' || $duplicatePaidClick
+            );
+
             $visitPayload = [
                 'domain_id' => $domain->id,
                 'session_id' => $sessionId,
@@ -557,7 +573,7 @@ class TrackingController extends Controller
                 'utm_campaign' => $data['utm_campaign'] ?? null,
                 'utm_term' => $data['utm_term'] ?? ($data['keyword'] ?? null),
                 'is_paid_traffic' => $isPaidTraffic,
-                'is_invalid_traffic' => $detection['action_taken'] !== 'allow' || $duplicatePaidClick,
+                'is_invalid_traffic' => $markInvalid,
                 'visited_at' => $visitedAt,
                 'created_at' => UserTimezone::nowUtc(),
                 'updated_at' => UserTimezone::nowUtc(),
@@ -593,7 +609,7 @@ class TrackingController extends Controller
             if (Schema::hasColumn('visits', 'threat_score')) {
                 $visitPayload['threat_score'] = $detection['threat_score'];
                 $visitPayload['threat_group'] = $detection['threat_group'];
-                $visitPayload['action_taken'] = $duplicatePaidClick && $detection['action_taken'] === 'allow'
+                $visitPayload['action_taken'] = ($duplicatePaidClick && ! $allowListedIp && $detection['action_taken'] === 'allow')
                     ? 'flag'
                     : $detection['action_taken'];
                 $visitPayload['detection_reasons'] = json_encode($reasons);
@@ -1126,15 +1142,74 @@ class TrackingController extends Controller
 
     private function paidClickIdExists(int $domainId, string $paidId): bool
     {
+        return $this->findPaidClickById($domainId, $paidId) !== null;
+    }
+
+    /**
+     * @return object{paid_id: string, ip: ?string, clicked_at: mixed, click_source: ?string}|null
+     */
+    private function findPaidClickById(int $domainId, string $paidId): ?object
+    {
         if ($paidId === '' || ! Schema::hasTable('paid_marketing_clicks')) {
-            return false;
+            return null;
         }
 
-        return DB::table('paid_marketing_clicks as pc')
+        $select = ['pc.paid_id', 'pc.ip', 'pc.clicked_at'];
+        if (Schema::hasColumn('paid_marketing_clicks', 'click_source')) {
+            $select[] = 'pc.click_source';
+        }
+
+        $row = DB::table('paid_marketing_clicks as pc')
             ->join('paid_marketing_visits as pv', 'pv.id', '=', 'pc.paid_marketing_visit_id')
             ->where('pv.domain_id', $domainId)
             ->where('pc.paid_id', $paidId)
-            ->exists();
+            ->orderByDesc('pc.id')
+            ->first($select);
+
+        return $row ?: null;
+    }
+
+    /**
+     * Server /click ingest then website tag (or quick same-IP reload) is one Google click, not replay fraud.
+     */
+    private function isSamePaidClickContinuation(
+        object $prior,
+        string $ip,
+        string $currentSource,
+        Carbon $visitedAt,
+    ): bool {
+        try {
+            $priorAt = $prior->clicked_at
+                ? Carbon::parse((string) $prior->clicked_at)
+                : null;
+        } catch (\Throwable) {
+            $priorAt = null;
+        }
+
+        if ($priorAt === null) {
+            return false;
+        }
+
+        $ageMinutes = $priorAt->diffInMinutes($visitedAt, false);
+        if ($ageMinutes < 0 || $ageMinutes > 60) {
+            return false;
+        }
+
+        $priorSource = strtolower(trim((string) ($prior->click_source ?? '')));
+        $currentSource = strtolower(trim($currentSource));
+
+        // Canonical path: Google Ads redirect (/click, click_source=server) → landing tag.
+        if ($priorSource === 'server' && in_array($currentSource, ['tag', '', 'pixel', 'noscript'], true)) {
+            return true;
+        }
+
+        // Same IP within 2 minutes (reload / double pixel) — still one click.
+        $priorIp = trim((string) ($prior->ip ?? ''));
+        if ($priorIp !== '' && $priorIp === $ip && $ageMinutes <= 2) {
+            return true;
+        }
+
+        return false;
     }
 
     private function resolveTrackingConfidence(string $clickSource): string

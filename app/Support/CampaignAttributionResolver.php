@@ -15,14 +15,38 @@ final class CampaignAttributionResolver
     public static function resolve(Domain $domain, array $data): array
     {
         $utmCampaign = trim((string) ($data['utm_campaign'] ?? ''));
+        if ($utmCampaign === '') {
+            $utmCampaign = self::queryParamFromUrl((string) ($data['url'] ?? $data['path'] ?? ''), 'utm_campaign');
+        }
+
+        $campaignId = self::extractGoogleCampaignId($data);
+        $campaignName = $utmCampaign !== '' ? $utmCampaign : null;
+
+        if ($campaignName === null && $campaignId !== '') {
+            $campaignName = self::lookupCampaignName($domain->id, $campaignId);
+        }
 
         return [
-            // Tracking does not read campaign_id / gad_campaignid from URLs.
-            // A paid click is defined only by gclid, gbraid, or wbraid.
-            'google_campaign_id' => null,
-            'campaign_name' => $utmCampaign !== '' ? $utmCampaign : null,
-            'campaign' => $utmCampaign !== '' ? $utmCampaign : null,
+            'google_campaign_id' => $campaignId !== '' ? $campaignId : null,
+            'campaign_name' => $campaignName,
+            'campaign' => $campaignName,
         ];
+    }
+
+    private static function queryParamFromUrl(string $urlOrPath, string $key): string
+    {
+        if ($urlOrPath === '') {
+            return '';
+        }
+
+        $queryString = (string) parse_url($urlOrPath, PHP_URL_QUERY);
+        if ($queryString === '') {
+            return '';
+        }
+
+        parse_str($queryString, $query);
+
+        return trim((string) ($query[$key] ?? ''));
     }
 
     /**
@@ -61,17 +85,25 @@ final class CampaignAttributionResolver
 
     public static function lookupCampaignName(int $domainId, string $campaignId): ?string
     {
-        if ($campaignId === '' || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+        if ($campaignId === '') {
             return null;
         }
 
-        $name = DB::table('google_ads_campaign_daily_metrics')
-            ->where('domain_id', $domainId)
-            ->where('campaign_id', $campaignId)
-            ->orderByDesc('metric_date')
-            ->value('campaign_name');
+        try {
+            if (! Schema::hasTable('google_ads_campaign_daily_metrics')) {
+                return null;
+            }
 
-        return filled($name) ? (string) $name : null;
+            $name = DB::table('google_ads_campaign_daily_metrics')
+                ->where('domain_id', $domainId)
+                ->where('campaign_id', $campaignId)
+                ->orderByDesc('metric_date')
+                ->value('campaign_name');
+
+            return filled($name) ? (string) $name : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

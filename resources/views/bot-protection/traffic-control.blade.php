@@ -145,7 +145,7 @@
                 font-size: 12px; font-weight: 600; padding: 7px 12px; white-space: nowrap;
             }
             .tc-tab.is-active { background: #FF6600; border-color: #FF6600; color: #fff; }
-            .tc-search { margin-left: auto; min-width: 210px; max-width: 280px; flex: 1 1 210px; position: relative; }
+            .tc-search { min-width: 180px; max-width: 260px; flex: 1 1 180px; position: relative; }
             .tc-search input {
                 width: 100%; height: 34px; border-radius: 8px;
                 border: 1px solid rgba(255,255,255,.14); background: #0b0b0b;
@@ -155,8 +155,36 @@
                 position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
                 width: 14px; height: 14px; color: rgba(255,255,255,.4);
             }
-            .tc-table-wrap { overflow-x: auto; padding: 0 10px 8px; }
+            .tc-tabs-actions {
+                display: inline-flex; align-items: center; gap: 8px;
+                margin-left: auto; flex-wrap: wrap; justify-content: flex-end;
+            }
+            .tc-table-export {
+                display: inline-flex; align-items: center; gap: 6px;
+                height: 34px; padding: 0 12px; border-radius: 8px;
+                border: 1.5px solid #FF6600; background: transparent;
+                color: #FF6600; font-size: 11px; font-weight: 650; white-space: nowrap;
+            }
+            .tc-table-export:hover { background: rgba(255,102,0,.12); }
+            .tc-table-export:disabled { opacity: .45; cursor: not-allowed; }
+            .tc-table-wrap {
+                overflow-x: auto;
+                overflow-y: auto;
+                max-height: min(420px, 52vh);
+                padding: 0 10px 8px;
+                scrollbar-width: thin;
+                scrollbar-color: var(--brand-primary, #FF6600) transparent;
+            }
+            .tc-table-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+            .tc-table-wrap::-webkit-scrollbar-thumb {
+                background: var(--brand-primary, #FF6600);
+                border-radius: 4px;
+            }
             .tc-table { width: 100%; border-collapse: separate; border-spacing: 0 6px; min-width: 1020px; }
+            .tc-table thead th {
+                position: sticky; top: 0; z-index: 2;
+                background: #121212;
+            }
             .tc-table th {
                 text-align: left; font-size: 10px; font-weight: 650; letter-spacing: .04em;
                 text-transform: uppercase; color: rgba(255,255,255,.42); padding: 8px 10px; white-space: nowrap;
@@ -368,9 +396,15 @@
                         <template x-for="tab in tabs" :key="tab.key">
                             <button type="button" class="tc-tab" :class="{ 'is-active': activeTab === tab.key }" @click="activeTab = tab.key" x-text="tab.label"></button>
                         </template>
-                        <div class="tc-search">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            <input type="search" x-model="filters.q" @input="scheduleSearch()" placeholder="Search Device ID or IP...">
+                        <div class="tc-tabs-actions">
+                            <div class="tc-search">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                <input type="search" x-model="filters.q" @input="scheduleSearch()" placeholder="Search Device ID or IP...">
+                            </div>
+                            <button type="button" class="tc-table-export" @click="exportReport()" :disabled="loading" title="Download CSV for current tab and filters">
+                                <svg class="h-[13px] w-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+                                Export
+                            </button>
                         </div>
                     </div>
 
@@ -660,6 +694,11 @@ function trafficControlIntel() {
             if (this.filters.to) p.set('to', this.filters.to);
             return p;
         },
+        exportReport() {
+            const p = this.queryParams();
+            p.set('tab', this.activeTab || 'devices');
+            window.location.href = '/bot-protection/traffic-control/export.csv?' + p.toString();
+        },
         async reload() {
             this.loading = true;
             try {
@@ -706,9 +745,6 @@ function trafficControlIntel() {
             const total = this.activeTab === 'devices' ? Math.max(this.metaTotal, n) : n;
             const noun = this.activeTab === 'reputation' ? 'IPs' : 'suspicious devices';
             return `Showing ${n} of ${total} ${noun}`;
-        },
-        exportReport() {
-            window.location.href = '/bot-protection/traffic-control/export.csv?' + this.queryParams().toString();
         },
         copyId(id) {
             if (!id || !navigator.clipboard) return;

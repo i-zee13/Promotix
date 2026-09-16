@@ -32,13 +32,13 @@
             }
             .figma-filter-bar--bp-adv.ov-filter-bar,
             .figma-filter-bar--bp-adv {
-                width: fit-content !important;
+                width: 100% !important;
                 max-width: 100% !important;
                 min-width: 0 !important;
                 margin-left: auto !important;
-                align-self: flex-end;
-                flex: 0 0 auto !important;
-                display: inline-flex !important;
+                align-self: stretch;
+                flex: 1 1 auto !important;
+                display: flex !important;
                 flex-wrap: nowrap !important;
                 align-items: stretch;
                 gap: 0 !important;
@@ -46,16 +46,24 @@
                 box-sizing: border-box;
             }
             .figma-filter-bar--bp-adv > label {
-                flex: 0 0 auto !important;
+                flex: 1 1 auto !important;
                 margin: 0 !important;
-                padding-left: 6px !important;
-                padding-right: 6px !important;
+                min-width: 0 !important;
+                padding-left: 7px !important;
+                padding-right: 7px !important;
             }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-domain { width: 128px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-traffic { width: 108px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-account { width: 128px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-campaign { width: 118px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-path { width: 112px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-search { width: 140px !important; flex: 1.2 1 140px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-domain { width: 118px !important; flex: 1 1 118px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-traffic { width: 108px !important; flex: 1 1 108px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-campaign { width: 118px !important; flex: 1 1 118px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-device { width: 100px !important; flex: 1 1 100px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-path { width: 120px !important; flex: 1 1 120px !important; }
+            .figma-filter-bar--bp-adv .bp-adv-f-actions {
+                display: flex !important;
+                flex: 0 0 auto !important;
+                align-items: stretch;
+                margin-left: auto;
+            }
             .figma-filter-bar--bp-adv .figma-filter-calendar-host {
                 display: flex !important;
                 flex: 0 0 auto !important;
@@ -66,6 +74,26 @@
                 padding: 6px 8px !important;
                 margin: 0 !important;
             }
+            .figma-filter-bar--bp-adv .bp-adv-f-export {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                align-self: stretch;
+                border-left: 1px solid rgba(0, 0, 0, 0.2);
+                padding: 6px 8px;
+            }
+            .figma-filter-bar--bp-adv .bp-adv-export-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 30px;
+                height: 30px;
+                border-radius: 6px;
+                background: var(--brand-primary, #FF6600);
+                color: #fff;
+            }
+            .figma-filter-bar--bp-adv .bp-adv-export-btn:hover { filter: brightness(1.06); }
+            .figma-filter-bar--bp-adv .bp-adv-export-btn svg { width: 15px; height: 15px; }
             @media (max-width: 900px) {
                 .figma-filter-bar--bp-adv {
                     width: 100% !important;
@@ -79,10 +107,8 @@
                     width: auto !important;
                 }
                 .figma-filter-bar--bp-adv .figma-filter-calendar-host {
-                    flex: 1 1 100% !important;
+                    flex: 0 0 auto !important;
                     justify-content: flex-start;
-                    border-left: 0;
-                    border-top: 1px solid rgba(0, 0, 0, 0.12);
                 }
             }
             .bp-adv-kpi-grid {
@@ -1015,13 +1041,20 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Traffic Control</span>
             </div>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-adv ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
-                <label class="bp-adv-f-domain relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]" @click.outside="filterMenus.domain = false">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-adv ov-filter-bar ml-auto flex min-h-[54px] w-full max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
+                <label class="bp-adv-f-search relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[7px] py-[6px]">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Search</span>
+                    <div class="figma-filter-path-wrap">
+                        <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input x-model="filters.ip" @input="scheduleReload(true)" :placeholder="analyticsMode ? 'Search sessions, IP…' : 'Search pages, keywords…'" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                    </div>
+                </label>
+                <label class="bp-adv-f-domain relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[7px] py-[6px]" @click.outside="filterMenus.domain = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                     <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                         <span class="truncate" x-text="domainFilterLabel()"></span>
                     </button>
-                    <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[6px] !right-auto">
+                    <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto">
                         <button type="button" @click="pickDomainFilter('')" class="paid-advanced-campaign-option" :class="!filters.domain_id && 'is-active'">
                             <span class="paid-advanced-campaign-option__label">All Domains</span>
                         </button>
@@ -1032,12 +1065,12 @@
                         </template>
                     </div>
                 </label>
-                <label class="bp-adv-f-traffic relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]" @click.outside="filterMenus.traffic = false">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
+                <label class="bp-adv-f-traffic relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[7px] py-[6px]" @click.outside="filterMenus.traffic = false">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Source</span>
                     <button type="button" @click="toggleFilterMenu('traffic')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                         <span class="truncate" x-text="trafficFilterLabel()"></span>
                     </button>
-                    <div x-show="filterMenus.traffic" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[6px] !right-auto">
+                    <div x-show="filterMenus.traffic" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto">
                         <template x-for="opt in trafficSourceOptions()" :key="'tc-ts-' + opt.value">
                             <button type="button" @click="pickTrafficFilter(opt.value)" class="paid-advanced-campaign-option" :class="filters.traffic_source === opt.value && 'is-active'" :disabled="opt.disabled || false">
                                 <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>
@@ -1045,42 +1078,49 @@
                         </template>
                     </div>
                 </label>
-                <label x-show="!analyticsMode" class="bp-adv-f-account relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]" @click.outside="filterMenus.account = false">
-                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
-                    <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
-                        <span class="truncate" x-text="accountFilterLabel()"></span>
-                    </button>
-                    <div x-show="filterMenus.account" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[6px] !right-auto !min-w-[220px]">
-                        <button type="button" @click="pickAccountFilter('')" class="paid-advanced-campaign-option" :class="!filters.google_ads_account_id && 'is-active'">
-                            <span class="paid-advanced-campaign-option__label">All Accounts</span>
-                        </button>
-                        <template x-for="a in accountOptions" :key="'tc-acc-' + a.id">
-                            <button type="button" @click="pickAccountFilter(a.id)" class="paid-advanced-campaign-option" :class="String(filters.google_ads_account_id) === String(a.id) && 'is-active'">
-                                <span class="paid-advanced-campaign-option__label" x-text="a.label"></span>
-                                <span class="paid-advanced-campaign-option__sub" x-show="a.sub" x-text="a.sub"></span>
-                            </button>
-                        </template>
-                    </div>
-                </label>
-                <label class="bp-adv-f-campaign relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]" @click.outside="filterMenus.campaign = false">
+                <label class="bp-adv-f-campaign relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[7px] py-[6px]" @click.outside="filterMenus.campaign = false">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
                     <button type="button" @click="toggleFilterMenu('campaign')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                         <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
                     </button>
-                    <div x-show="filterMenus.campaign" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[6px] !right-auto !min-w-[200px]">
+                    <div x-show="filterMenus.campaign" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !min-w-[200px]">
                         <button type="button" @click="pickCampaignFilter('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">
                             <span class="paid-advanced-campaign-option__label">All Campaigns</span>
                         </button>
                     </div>
                 </label>
-                <label class="bp-adv-f-path flex shrink-0 flex-col justify-center border-r border-black/20 px-[6px] py-[6px]">
+                <label class="bp-adv-f-device relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[7px] py-[6px]" @click.outside="filterMenus.device = false">
+                    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Device</span>
+                    <button type="button" @click="toggleFilterMenu('device')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                        <span class="truncate" x-text="deviceFilterLabel()"></span>
+                    </button>
+                    <div x-show="filterMenus.device" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto">
+                        <template x-for="opt in deviceOptions" :key="'tc-dev-' + opt.value">
+                            <button type="button" @click="pickDeviceFilter(opt.value)" class="paid-advanced-campaign-option" :class="filters.device === opt.value && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                </label>
+                <label class="bp-adv-f-path flex shrink-0 flex-col justify-center border-r border-black/20 px-[7px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input x-model="filters.path" @input="scheduleReload(true)" placeholder="All Pages" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                     </div>
                 </label>
-                @include('partials.figma-filter-date-fields')
+                <div class="bp-adv-f-actions">
+                    @include('partials.figma-filter-date-fields')
+                    <div class="bp-adv-f-export">
+                        <a :href="csvHref()" class="bp-adv-export-btn" title="Download CSV" aria-label="Download CSV">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3v12"/>
+                                <path d="M7 10l5 5 5-5"/>
+                                <path d="M5 21h14"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1621,10 +1661,10 @@ function botProtectionAdvancedFigma(config = {}) {
                 'sub' => $accCurrency !== '' ? $accCurrency : '',
             ];
         })->filter(fn ($a) => $a['id'] !== '')->values()->all()),
-        filterMenus: { domain: false, traffic: false, account: false, campaign: false },
+        filterMenus: { domain: false, traffic: false, account: false, campaign: false, device: false },
         toggleFilterMenu(key) {
             const next = !this.filterMenus[key];
-            this.filterMenus = { domain: false, traffic: false, account: false, campaign: false };
+            this.filterMenus = { domain: false, traffic: false, account: false, campaign: false, device: false };
             this.filterMenus[key] = next;
         },
         domainFilterLabel() {
@@ -1640,6 +1680,16 @@ function botProtectionAdvancedFigma(config = {}) {
             if (!this.filters.google_ads_account_id) return 'All Accounts';
             const hit = this.accountOptions.find((a) => String(a.id) === String(this.filters.google_ads_account_id));
             return hit ? hit.label : 'All Accounts';
+        },
+        deviceOptions: [
+            { value: '', label: 'All Devices' },
+            { value: 'mobile', label: 'Mobile' },
+            { value: 'desktop', label: 'Desktop' },
+            { value: 'tablet', label: 'Tablet' },
+        ],
+        deviceFilterLabel() {
+            const hit = this.deviceOptions.find((o) => o.value === this.filters.device);
+            return hit ? hit.label : 'All Devices';
         },
         pickDomainFilter(id) {
             this.filters.domain_id = String(id || '');
@@ -1659,6 +1709,11 @@ function botProtectionAdvancedFigma(config = {}) {
         pickCampaignFilter(value) {
             this.filters.campaign = String(value || '');
             this.filterMenus.campaign = false;
+            this.reload(true);
+        },
+        pickDeviceFilter(value) {
+            this.filters.device = String(value || '');
+            this.filterMenus.device = false;
             this.reload(true);
         },
         loadError: '',
@@ -1923,7 +1978,10 @@ function botProtectionAdvancedFigma(config = {}) {
                     { value: 'paid', label: 'Paid' },
                 ];
             }
-            const options = [{ value: 'google_ads', label: 'Google Ads' }];
+            const options = [
+                { value: '', label: 'All Sources' },
+                { value: 'google_ads', label: 'Google Ads' },
+            ];
             if (this.enabledAdPlatforms?.meta) {
                 options.push({ value: 'meta_ads', label: 'Meta Ads' });
             }

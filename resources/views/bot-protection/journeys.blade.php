@@ -101,6 +101,36 @@
             .vj-node.is-form { border-color:rgba(34,197,94,.45); }
             .vj-node__label { font-size:12px; font-weight:650; color:#fff; margin-bottom:4px; word-break:break-word; }
             .vj-node__meta { font-size:11px; color:rgba(255,255,255,.45); }
+            .vj-node__link {
+                display:inline-flex; align-items:center; gap:5px; max-width:100%;
+                font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size:12px; font-weight:600; line-height:1.35;
+                color:#7dd3fc; text-decoration:underline; text-underline-offset:2px;
+                text-decoration-color:rgba(125,211,252,.55);
+                word-break:break-all; cursor:default;
+            }
+            .vj-node__link:hover {
+                color:#bae6fd; text-decoration-color:#bae6fd;
+            }
+            .vj-node__link-ico {
+                flex-shrink:0; width:11px; height:11px; opacity:.85;
+            }
+            .vj-path-body {
+                min-width:0; flex:1; word-break:break-word;
+            }
+            .vj-path-link {
+                display:inline; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size:12px; font-weight:600; color:#7dd3fc;
+                text-decoration:underline; text-underline-offset:2px;
+                text-decoration-color:rgba(125,211,252,.5);
+            }
+            .vj-hbar__path {
+                font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size:12px; font-weight:600; color:#7dd3fc;
+                text-decoration:underline; text-underline-offset:2px;
+                text-decoration-color:rgba(125,211,252,.45);
+                overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+            }
             .vj-flow__svg {
                 position:absolute; inset:28px 0 0 0; width:100%; height:calc(100% - 28px);
                 pointer-events:none; z-index:0; min-width:640px;
@@ -137,8 +167,21 @@
                 width:18px; height:18px; border-radius:999px; background:rgba(255,102,0,.18); color:#FF6600;
                 display:grid; place-items:center; font-size:10px; font-weight:700; flex-shrink:0; margin-top:1px;
             }
-            .vj-path-body { min-width:0; flex:1; color:rgba(255,255,255,.75); word-break:break-word; }
+            .vj-path-body { min-width:0; flex:1; word-break:break-word; }
             .vj-path-meta { color:rgba(255,255,255,.4); white-space:nowrap; font-size:11px; }
+            .vj-path-link {
+                display:inline; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size:12px; font-weight:600; color:#7dd3fc;
+                text-decoration:underline; text-underline-offset:2px;
+                text-decoration-color:rgba(125,211,252,.5);
+            }
+            .vj-hbar__path {
+                font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size:12px; font-weight:600; color:#7dd3fc;
+                text-decoration:underline; text-underline-offset:2px;
+                text-decoration-color:rgba(125,211,252,.45);
+                overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+            }
             .vj-hbar { display:grid; grid-template-columns:78px 1fr 34px; gap:8px; align-items:center; margin-bottom:10px; font-size:11px; color:rgba(255,255,255,.65); }
             .vj-hbar__track { height:8px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; }
             .vj-hbar__fill { height:100%; border-radius:999px; background:#FF6600; }
@@ -500,7 +543,15 @@
                                         <div class="vj-flow__col-label" x-text="col.label"></div>
                                         <template x-for="node in (col.nodes || [])" :key="node.id">
                                             <div class="vj-node" :class="nodeToneClass(node.tone)" :data-node-id="node.id">
-                                                <div class="vj-node__label" x-text="node.label"></div>
+                                                <div class="vj-node__label" x-show="!isUrlPathLabel(node.label, col.key)" x-text="node.label"></div>
+                                                <div class="vj-node__label" x-show="isUrlPathLabel(node.label, col.key)" x-cloak>
+                                                    <span class="vj-node__link" :title="node.label">
+                                                        <svg class="vj-node__link-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                                        </svg>
+                                                        <span x-text="node.label"></span>
+                                                    </span>
+                                                </div>
                                                 <div class="vj-node__meta" x-text="node.value + ' (' + Number(node.pct||0).toFixed(1) + '%)'"></div>
                                             </div>
                                         </template>
@@ -872,7 +923,7 @@
                     <template x-for="row in commonPaths" :key="row.rank + row.path">
                         <div class="vj-path-row">
                             <div class="vj-path-rank" x-text="row.rank"></div>
-                            <div class="vj-path-body" x-text="row.path"></div>
+                            <div class="vj-path-body"><span class="vj-path-link" x-text="row.path"></span></div>
                             <div class="vj-path-meta" x-text="row.value + ' (' + Number(row.pct||0).toFixed(1) + '%)'"></div>
                         </div>
                     </template>
@@ -882,7 +933,7 @@
                     <div class="vj-widget__title">Top Landing Pages</div>
                     <template x-for="row in landingPages" :key="'l'+row.label">
                         <div class="vj-hbar">
-                            <div class="truncate" x-text="row.label"></div>
+                            <div class="vj-hbar__path" :title="row.label" x-text="row.label"></div>
                             <div class="vj-hbar__track"><div class="vj-hbar__fill" :style="'width:' + barPct(row.value, maxLanding) + '%'"></div></div>
                             <div class="text-right text-white/45" x-text="row.value"></div>
                         </div>
@@ -1311,6 +1362,17 @@ function visitorJourneyPage() {
             if (tone === 'action') return 'is-action';
             if (tone === 'form') return 'is-form';
             return '';
+        },
+        isUrlPathLabel(label, colKey) {
+            const text = String(label || '').trim();
+            if (!text) return false;
+            const pathCols = ['landing', 'landing_page', 'next', 'next_page', 'page', 'pages'];
+            const key = String(colKey || '').toLowerCase();
+            if (pathCols.includes(key) || key.includes('landing') || key.includes('next') || key.includes('page')) {
+                if (/^(exit|no action|call button|form |lead |awaiting)/i.test(text)) return false;
+                return text.startsWith('/') || text.startsWith('http') || text.includes('.');
+            }
+            return text.startsWith('/') || /^https?:\/\//i.test(text);
         },
         sparkSvg(values) {
             const vals = (values || []).map((v) => Number(v || 0));

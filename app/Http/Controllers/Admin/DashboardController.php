@@ -602,16 +602,19 @@ class DashboardController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         if (Schema::hasTable('visits')) {
+            $hasPaid = Schema::hasColumn('visits', 'is_paid_traffic');
+            $paidCase = $hasPaid ? 'visits.is_paid_traffic = 1' : '1=1';
             $select = [
                 'domains.hostname',
                 'domains.tag_connected',
                 'domains.status',
-                DB::raw('COUNT(visits.id) as visits_count'),
-                DB::raw('COUNT(DISTINCT visits.ip) as visitors_count'),
-                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as threat_visits_count'),
+                // "Clicks" = Google Ads paid clicks only (gclid/gbraid/wbraid), not every page visit.
+                DB::raw("SUM(CASE WHEN {$paidCase} THEN 1 ELSE 0 END) as visits_count"),
+                DB::raw("COUNT(DISTINCT CASE WHEN {$paidCase} THEN visits.ip END) as visitors_count"),
+                DB::raw("SUM(CASE WHEN {$paidCase} AND visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as threat_visits_count"),
             ];
             if (Schema::hasColumn('visits', 'threat_score')) {
-                $select[] = DB::raw('AVG(CASE WHEN visits.threat_score IS NOT NULL THEN visits.threat_score END) as avg_risk');
+                $select[] = DB::raw("AVG(CASE WHEN {$paidCase} AND visits.threat_score IS NOT NULL THEN visits.threat_score END) as avg_risk");
             } else {
                 $select[] = DB::raw('NULL as avg_risk');
             }

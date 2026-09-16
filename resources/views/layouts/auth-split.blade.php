@@ -200,12 +200,16 @@
 
         .auth-accent-mark {
             display: block;
-            width: 1.1rem;
-            height: 1.1rem;
-            margin: 0 auto 0.85rem;
-            color: var(--brand-primary, #FF6600);
+            height: 36px;
+            width: auto;
+            max-width: 140px;
+            margin: 0 auto 0.95rem;
+            object-fit: contain;
         }
-        html:not(.light-mode) .auth-accent-mark { display: none; }
+        .auth-accent-mark--on-dark { display: block; }
+        .auth-accent-mark--on-light { display: none; }
+        html.light-mode .auth-accent-mark--on-dark { display: none; }
+        html.light-mode .auth-accent-mark--on-light { display: block; }
 
         .auth-login-title {
             margin: 0 0 0.4rem;

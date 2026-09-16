@@ -2087,7 +2087,7 @@
                                     </thead>
                                     <tbody>
                                         <template x-if="!rows.length">
-                                            <tr><td colspan="4" class="figma-bip-empty" x-text="adsConnected ? 'No detected blocks or cross-domain IPs queued yet.' : 'Connect Google Ads to queue campaign exclusions.'"></td></tr>
+                                            <tr><td colspan="4" class="figma-bip-empty" x-text="adsConnected ? 'No detected blocks or cross-domain IPs queued yet. Turn Manager On or Push after blocks appear.' : 'Link Google Ads on this domain (Integrations), then Push pending IPs to campaign exclusions.'"></td></tr>
                                         </template>
                                         <template x-for="row in rows.slice(0, showAllExclusions ? rows.length : 5)" :key="row.ip + row.updated_at">
                                             <tr>
@@ -2792,6 +2792,10 @@ function googleExclusionPanel(config) {
                 this.selectedCampaignIds = this.selectedCampaignIds
                     .map(String)
                     .filter((id) => this.campaignOptions.some((c) => c.id === id));
+                if (!this.campaignOptions.length && rows && rows.message) {
+                    this.ok = false;
+                    this.message = String(rows.message);
+                }
             } catch (e) {
                 this.campaignOptions = [];
             }
@@ -2941,7 +2945,7 @@ function googleExclusionPanel(config) {
             if (this.loading) return;
             if (!this.adsConnected) {
                 this.ok = false;
-                this.message = 'Connect Google Ads for this domain first.';
+                this.message = 'Link Google Ads on this domain first (Integrations → Google Ads).';
                 return;
             }
             this.loading = true;
@@ -2959,7 +2963,12 @@ function googleExclusionPanel(config) {
                 });
                 const data = await res.json().catch(() => ({}));
                 this.ok = !!data.ok;
-                this.message = data.message || (this.ok ? 'Sync finished.' : 'Could not push pending exclusions to Google Ads.');
+                const scope = this.selectedCampaignIds.length
+                    ? (this.selectedCampaignIds.length + ' selected campaign(s)')
+                    : 'all eligible campaigns';
+                this.message = data.message || (this.ok
+                    ? ('Pushed pending IPs to ' + scope + '.')
+                    : 'Could not push pending exclusions to Google Ads.');
                 if (Array.isArray(data.rows)) this.rows = data.rows;
             } catch (e) {
                 this.ok = false;

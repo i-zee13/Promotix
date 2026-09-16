@@ -887,14 +887,44 @@ class BotProtectionController extends Controller
             'path' => trim((string) $request->query('path', '')),
             'q' => trim((string) $request->query('q', '')),
         ]);
-        $filename = 'traffic-control-'.$from->toDateString().'-'.$to->toDateString().'.csv';
+        $tab = strtolower(trim((string) $request->query('tab', 'devices')));
+        if (! in_array($tab, ['devices', 'ip_changes', 'reputation', 'ranges'], true)) {
+            $tab = 'devices';
+        }
+        $filename = 'traffic-control-'.$tab.'-'.$from->toDateString().'-'.$to->toDateString().'.csv';
 
-        return response()->streamDownload(function () use ($payload): void {
+        return response()->streamDownload(function () use ($payload, $tab): void {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Device ID', 'IPs Used', 'IP Changes', 'Google Ads Clicks', 'Risk Score', 'Last Seen', 'Status']);
-            foreach (($payload['devices'] ?? []) as $row) {
+
+            if ($tab === 'ranges') {
+                fputcsv($out, ['IP Range', 'Hits']);
+                foreach (($payload['charts']['suspicious_ranges'] ?? []) as $row) {
+                    fputcsv($out, [
+                        $row['label'] ?? '',
+                        $row['value'] ?? 0,
+                    ]);
+                }
+                fclose($out);
+
+                return;
+            }
+
+            if ($tab === 'reputation') {
+                fputcsv($out, ['IP Address', 'IPs Used', 'IP Changes', 'Google Ads Clicks', 'Risk Score', 'Last Seen', 'Status']);
+                $rows = $payload['reputation_rows'] ?? [];
+            } elseif ($tab === 'ip_changes') {
+                fputcsv($out, ['Device ID', 'IPs Used', 'IP Changes', 'Google Ads Clicks', 'Risk Score', 'Last Seen', 'Status']);
+                $rows = $payload['ip_changes'] ?? [];
+            } else {
+                fputcsv($out, ['Device ID', 'IPs Used', 'IP Changes', 'Google Ads Clicks', 'Risk Score', 'Last Seen', 'Status']);
+                $rows = $payload['devices'] ?? [];
+            }
+
+            foreach ($rows as $row) {
                 fputcsv($out, [
-                    $row['device_id'] ?? '',
+                    $tab === 'reputation'
+                        ? (($row['ips'][0] ?? $row['ip'] ?? '') ?: '')
+                        : ($row['device_id'] ?? ''),
                     implode('; ', $row['ips'] ?? []),
                     $row['ip_changes'] ?? 0,
                     $row['clicks'] ?? 0,

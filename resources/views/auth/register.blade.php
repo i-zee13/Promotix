@@ -8,9 +8,24 @@
         Back
     </a>
 
-    <svg class="auth-accent-mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M12 2l1.4 6.1L20 8l-5.2 3.2L16.5 18 12 14.4 7.5 18l1.7-6.8L4 8l6.6-.1L12 2z"/>
-    </svg>
+@php
+    $accentLogoDark = \App\Support\Branding::logoAsset('dark');
+    $accentLogoLight = \App\Support\Branding::logoAsset('light');
+@endphp
+<img
+    src="{{ $accentLogoDark }}"
+    alt="{{ \App\Support\PortalBrand::name() }}"
+    class="auth-accent-mark auth-accent-mark--on-light"
+    width="120"
+    height="40"
+>
+<img
+    src="{{ $accentLogoLight }}"
+    alt="{{ \App\Support\PortalBrand::name() }}"
+    class="auth-accent-mark auth-accent-mark--on-dark"
+    width="120"
+    height="40"
+>
     <h1 class="auth-login-title">Create your account</h1>
     <p class="auth-login-sub">Enter your personal data to create an account.</p>
 

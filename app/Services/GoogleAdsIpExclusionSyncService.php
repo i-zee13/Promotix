@@ -14,6 +14,11 @@ use Illuminate\Support\Str;
 
 class GoogleAdsIpExclusionSyncService
 {
+    private ?string $lastSearchError = null;
+
+    /** @var array<string, string>|null */
+    private ?array $lastWorkingHeaders = null;
+
     public function __construct(
         private readonly GoogleAdsConnectionService $connectionApi,
         private readonly GoogleAdsMetricsService $metrics,
@@ -34,7 +39,9 @@ class GoogleAdsIpExclusionSyncService
             ->whereIn('sync_status', ['pending', 'failed', 'skipped']);
 
         if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
-            $rows->where('is_active', true);
+            $rows->where(function ($q): void {
+                $q->where('is_active', true)->orWhereNull('is_active');
+            });
         }
 
         $rows = $rows->orderByRaw("CASE sync_status WHEN 'pending' THEN 0 WHEN 'failed' THEN 1 ELSE 2 END")
@@ -85,7 +92,10 @@ class GoogleAdsIpExclusionSyncService
         }
 
         $domain->loadMissing(['googleAdsAccount.connection', 'googleAdsMappings.account.connection']);
-        $account = $this->resolveAdsAccount($domain);
+        $preferredAccountId = $domain->google_ads_account_id !== null
+            ? (int) $domain->google_ads_account_id
+            : null;
+        $account = $this->resolveAdsAccount($domain, $preferredAccountId);
         if (! $account || (bool) $account->is_manager) {
             $this->markRow($domain->id, $ip, 'failed', 'Domain has no linked Google Ads customer account.', null, $rowId);
 
@@ -108,6 +118,14 @@ class GoogleAdsIpExclusionSyncService
 
         $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
         $loginCustomerId = (string) ($headers['login-customer-id'] ?? '');
+        $headerVariants = $this->headerVariantsForAccount($account);
+        if ($headerVariants === []) {
+            $headerVariants = [$headers];
+        }
+        // Prefer the first working header set for both search + mutate.
+        $headers = $this->pickWorkingHeaders($customerId, $version, $headerVariants) ?? $headers;
+        $loginCustomerId = (string) ($headers['login-customer-id'] ?? '');
+
         $campaignIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
         $campaignIds = $this->applyCampaignIdFilter($customerId, $campaignIds, $onlyCampaignIds, $version, $headers);
 
@@ -116,7 +134,10 @@ class GoogleAdsIpExclusionSyncService
         $successes = 0;
 
         if ($campaignIds === []) {
-            $skipped[] = 'No eligible Search/Display campaigns on this domain\'s linked Google Ads account (PMax/Video/Demand Gen cannot take campaign IP exclusions).';
+            $apiHint = $this->lastSearchError !== null ? ' API: '.$this->lastSearchError : '';
+            $skipped[] = 'No eligible Search/Display campaigns on this domain\'s linked Google Ads account (PMax/Video/Demand Gen cannot take campaign IP exclusions).'
+                .' Check Integrations → linked Ads customer matches the Search campaign account (e.g. Limo Service).'
+                .$apiHint;
         }
 
         foreach ($campaignIds as $campaignId) {
@@ -178,10 +199,20 @@ class GoogleAdsIpExclusionSyncService
             $failures[] = "campaign {$campaignId}: " . Str::limit($error, 300);
         }
 
-        $onCampaigns = $this->verifyIpOnCampaigns($domain, $googleIp);
+        $forceCampaignOnly = $this->normalizeCampaignIdList($onlyCampaignIds) !== [];
+
+        $onCampaigns = [];
+        foreach ($campaignIds as $campaignId) {
+            if ($this->ipAlreadyBlockedOnCampaign($customerId, $campaignId, $version, $headers, $googleIp)) {
+                $onCampaigns[] = ['campaign_id' => (string) $campaignId, 'ip_address' => $googleIp];
+            }
+        }
+        // Fallback: domain-wide verify (covers account-level / lag on filtered campaigns).
+        if ($onCampaigns === [] && ! $forceCampaignOnly) {
+            $onCampaigns = $this->verifyIpOnCampaigns($domain, $googleIp);
+        }
         $onAccount = $this->ipAlreadyBlockedOnAccount($customerId, $version, $headers, $googleIp);
 
-        $forceCampaignOnly = $this->normalizeCampaignIdList($onlyCampaignIds) !== [];
         if (! $forceCampaignOnly && $onCampaigns === [] && ! $onAccount) {
             $accountResult = $this->syncIpAtAccountLevel($customerId, $ip, $googleIp, $version, $headers);
             if ($accountResult['ok']) {
@@ -205,6 +236,20 @@ class GoogleAdsIpExclusionSyncService
 
         if ($onAccount) {
             $note = 'Confirmed at Google Ads account level (not in campaign list — campaign may be full at 500/500 or unsupported type).';
+            $extra = array_merge($skipped, $failures);
+            if ($extra !== []) {
+                $note .= ' | ' . implode(' | ', $extra);
+            }
+            $this->markRow($domain->id, $ip, 'synced', $note, now(), $rowId);
+
+            return true;
+        }
+
+        // Mutate accepted by Google but read-back lag — still treat as synced so Push is not a false fail.
+        if ($successes > 0) {
+            $note = $forceCampaignOnly
+                ? "Pushed to {$successes} selected campaign(s). Google list confirmation may lag a few seconds."
+                : "Pushed to {$successes} campaign(s). Google list confirmation may lag a few seconds.";
             $extra = array_merge($skipped, $failures);
             if ($extra !== []) {
                 $note .= ' | ' . implode(' | ', $extra);
@@ -379,16 +424,23 @@ class GoogleAdsIpExclusionSyncService
         }
 
         $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
+        $headerVariants = $this->headerVariantsForAccount($account);
+        if ($headerVariants === []) {
+            $headerVariants = [$headers];
+        }
+        $headers = $this->pickWorkingHeaders($customerId, $version, $headerVariants) ?? $headers;
         $preferredIds = $this->resolveCampaignIds($domain, $account, $customerId, $version, $headers);
 
         $query = "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.status IN ('ENABLED', 'PAUSED')";
-        $response = Http::timeout(30)
-            ->withHeaders($headers)
-            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
-                'query' => $query,
+        $response = $this->searchStreamWithHeaderVariants($customerId, $version, $query, $headerVariants);
+
+        if ($response === null || ! $response->successful()) {
+            Log::warning('Google Ads eligibleCampaignOptions search failed', [
+                'domain_id' => $domain->id,
+                'customer_id' => $customerId,
+                'error' => $this->lastSearchError,
             ]);
 
-        if (! $response->successful()) {
             return [];
         }
 
@@ -539,13 +591,9 @@ class GoogleAdsIpExclusionSyncService
     ): array {
         $query = "SELECT campaign.id, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.status IN ('ENABLED', 'PAUSED')";
 
-        $response = Http::timeout(30)
-            ->withHeaders($headers)
-            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
-                'query' => $query,
-            ]);
+        $response = $this->searchStream($customerId, $version, $query, $headers);
 
-        if (! $response->successful()) {
+        if ($response === null || ! $response->successful()) {
             return [];
         }
 
@@ -590,13 +638,9 @@ class GoogleAdsIpExclusionSyncService
             $inList = implode(',', array_map('intval', $chunk));
             $query = "SELECT campaign.id, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.id IN ({$inList}) AND campaign.status IN ('ENABLED', 'PAUSED')";
 
-            $response = Http::timeout(30)
-                ->withHeaders($headers)
-                ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
-                    'query' => $query,
-                ]);
+            $response = $this->searchStream($customerId, $version, $query, $headers);
 
-            if (! $response->successful()) {
+            if ($response === null || ! $response->successful()) {
                 continue;
             }
 
@@ -693,10 +737,27 @@ class GoogleAdsIpExclusionSyncService
     }
 
     /** Prefer direct domain FK, then first mapped Ads account. */
-    private function resolveAdsAccount(Domain $domain): ?GoogleAdsAccount
+    private function resolveAdsAccount(Domain $domain, ?int $preferredAccountId = null): ?GoogleAdsAccount
     {
+        $domain->loadMissing(['googleAdsAccount.connection', 'googleAdsMappings.account.connection']);
+
+        if ($preferredAccountId) {
+            $preferred = $domain->googleAdsMappings
+                ->pluck('account')
+                ->filter(fn ($a) => $a instanceof GoogleAdsAccount && (int) $a->id === $preferredAccountId && ! (bool) $a->is_manager)
+                ->first();
+            if ($preferred instanceof GoogleAdsAccount) {
+                return $preferred;
+            }
+            if ($domain->googleAdsAccount
+                && (int) $domain->googleAdsAccount->id === $preferredAccountId
+                && ! (bool) $domain->googleAdsAccount->is_manager) {
+                return $domain->googleAdsAccount;
+            }
+        }
+
         $account = $domain->googleAdsAccount;
-        if ($account instanceof GoogleAdsAccount) {
+        if ($account instanceof GoogleAdsAccount && ! (bool) $account->is_manager) {
             return $account;
         }
 
@@ -711,32 +772,157 @@ class GoogleAdsIpExclusionSyncService
     /** @return array<string, string>|null */
     private function headersForAccount(GoogleAdsAccount $account): ?array
     {
+        $variants = $this->headerVariantsForAccount($account);
+
+        return $variants[0] ?? null;
+    }
+
+    /**
+     * Try MCC login ids + direct access (same pattern as audience exclusion).
+     *
+     * @return list<array<string, string>>
+     */
+    private function headerVariantsForAccount(GoogleAdsAccount $account): array
+    {
         $connection = $account->connection;
         if (! $connection) {
-            return null;
+            return [];
         }
 
         $this->connectionApi->refreshAccessToken($connection);
         $connection->refresh();
 
-        $headers = $this->connectionApi->apiHeaders($connection, forceRefresh: true);
-        if (! $headers) {
-            return null;
+        $base = $this->connectionApi->apiHeaders($connection, forceRefresh: true);
+        if (! $base) {
+            return [];
         }
 
-        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
-        // Prefer the MCC stored on this linked account. Env fallback is last resort only.
-        $loginId = preg_replace('/\D+/', '', (string) ($account->manager_customer_id ?: ''));
-        if ($loginId === '') {
-            $loginId = preg_replace('/\D+/', '', (string) $this->connectionApi->loginCustomerId());
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id) ?: '';
+        $candidates = [];
+        $manager = preg_replace('/\D+/', '', (string) ($account->manager_customer_id ?: '')) ?: '';
+        $root = preg_replace('/\D+/', '', (string) $this->connectionApi->loginCustomerId()) ?: '';
+        if ($manager !== '' && $manager !== $customerId) {
+            $candidates[] = $manager;
+        }
+        if ($root !== '' && $root !== $customerId && $root !== $manager) {
+            $candidates[] = $root;
+        }
+        $candidates[] = ''; // direct / no MCC header
+
+        $out = [];
+        $seen = [];
+        foreach ($candidates as $loginId) {
+            $headers = $base;
+            unset($headers['login-customer-id']);
+            if ($loginId !== '') {
+                $headers['login-customer-id'] = $loginId;
+            }
+            $key = $loginId === '' ? '_none' : $loginId;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $headers;
         }
 
-        // login-customer-id must be the manager (MCC), not the client itself.
-        if ($loginId !== '' && $loginId !== $customerId) {
-            $headers['login-customer-id'] = $loginId;
+        return $out;
+    }
+
+    /**
+     * @param  list<array<string, string>>  $headerVariants
+     * @return array<string, string>|null
+     */
+    private function pickWorkingHeaders(string $customerId, string $version, array $headerVariants): ?array
+    {
+        $probe = "SELECT campaign.id FROM campaign WHERE campaign.status IN ('ENABLED', 'PAUSED') LIMIT 1";
+        $response = $this->searchStreamWithHeaderVariants($customerId, $version, $probe, $headerVariants);
+        if ($response === null || ! $response->successful()) {
+            return $headerVariants[0] ?? null;
         }
 
-        return $headers;
+        // Recover which variant succeeded by matching Authorization + login header used last.
+        // searchStreamWithHeaderVariants stores working headers on last success via side channel.
+        return $this->lastWorkingHeaders ?? ($headerVariants[0] ?? null);
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function searchStream(
+        string $customerId,
+        string $version,
+        string $query,
+        array $headers,
+    ): ?\Illuminate\Http\Client\Response {
+        return $this->searchStreamWithHeaderVariants($customerId, $version, $query, [$headers]);
+    }
+
+    /**
+     * @param  list<array<string, string>>  $headerVariants
+     */
+    private function searchStreamWithHeaderVariants(
+        string $customerId,
+        string $version,
+        string $query,
+        array $headerVariants,
+    ): ?\Illuminate\Http\Client\Response {
+        $this->lastSearchError = null;
+        $last = null;
+
+        foreach ($headerVariants as $headers) {
+            $response = Http::timeout(30)
+                ->withHeaders($headers)
+                ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                    'query' => $query,
+                ]);
+            $last = $response;
+
+            if ($response->successful()) {
+                $this->lastWorkingHeaders = $headers;
+                $this->lastSearchError = null;
+
+                return $response;
+            }
+
+            $error = $this->extractErrorMessage((string) $response->body());
+            $this->lastSearchError = Str::limit($error, 280);
+
+            // Try next variant on permission / auth style failures.
+            if (! $this->isPermissionError($error) && ! $this->isAuthOrAccessError($error)) {
+                break;
+            }
+        }
+
+        if ($last !== null && ! $last->successful()) {
+            Log::warning('Google Ads IP exclusion campaign search failed', [
+                'customer_id' => $customerId,
+                'error' => $this->lastSearchError,
+                'variants_tried' => count($headerVariants),
+            ]);
+        }
+
+        return $last;
+    }
+
+    private function isAuthOrAccessError(string $error): bool
+    {
+        $needles = [
+            'login-customer-id',
+            'LOGIN_CUSTOMER_ID',
+            'CUSTOMER_NOT_ENABLED',
+            'NOT_ADS_USER',
+            'access customer',
+            'Cannot access',
+            'unauthorized',
+            'UNAUTHENTICATED',
+        ];
+        foreach ($needles as $needle) {
+            if (stripos($error, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
