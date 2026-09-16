@@ -29,6 +29,8 @@ class Domain extends Model
         'secret_key',
         'authentication_key',
         'gtm_container_id',
+        'ga4_measurement_id',
+        'ga4_api_secret',
         'tracking_params',
         'tag_connected',
         'tag_install_method',

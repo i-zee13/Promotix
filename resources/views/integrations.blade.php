@@ -2066,14 +2066,33 @@ function platformIntegrations(config) {
                 });
             }
             if (this.installTagsModal.ga4_id) {
-                // Saving a typed G- ID is a draft hint only — Detect on website still required for "ok".
                 const id = String(this.installTagsModal.ga4_id).trim().toUpperCase();
-                const alreadyOk = Boolean(target.ga4?.ok);
-                target.ga4 = Object.assign({}, target.ga4 || {}, {
-                    id: id || '—',
-                    status: alreadyOk && id ? 'Detected' : 'Not detected',
-                    ok: alreadyOk && Boolean(id),
-                });
+                try {
+                    const res = await fetch(`/domains/${domainId}/ga4`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf || document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ ga4_measurement_id: id }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        this.showMenuToast(data.message || 'Could not save GA4 Measurement ID for this domain.', 'error');
+                        return;
+                    }
+                    const saved = String(data.ga4_measurement_id || id).toUpperCase();
+                    target.ga4 = Object.assign({}, target.ga4 || {}, {
+                        id: saved || '—',
+                        status: saved ? 'Linked' : 'Not detected',
+                        ok: Boolean(saved),
+                    });
+                } catch (_) {
+                    this.showMenuToast('Could not save GA4 Measurement ID for this domain.', 'error');
+                    return;
+                }
             }
 
             if (this.installTagsModal.gtm_id) {

@@ -200,6 +200,10 @@ class TrafficControlIntelligence
                 'ip_changes' => $ipChanges,
                 'clicks' => (int) $row['clicks'],
                 'visits' => (int) $row['visits'],
+                'conversions' => 0,
+                'device_confidence' => null,
+                'exclusion_candidate' => false,
+                'action_label' => null,
                 'risk_score' => $risk,
                 'status' => $status,
                 'status_tone' => $risk >= 75 ? 'high' : ($risk >= 45 ? 'suspicious' : 'watch'),
@@ -209,6 +213,8 @@ class TrafficControlIntelligence
                 'reasons' => $reasons,
             ];
         }
+
+        $deviceRows = $this->enrichFromClickronixDevices($domainIds, $deviceRows);
 
         usort($deviceRows, static fn ($a, $b) => ($b['risk_score'] <=> $a['risk_score']) ?: ($b['ip_changes'] <=> $a['ip_changes']));
 
@@ -602,6 +608,81 @@ class TrafficControlIntelligence
         }
 
         return $out;
+    }
+
+    /**
+     * Merge clickronix_devices intelligence (paid clicks, conversions, confidence, exclusion action).
+     *
+     * @param  list<int>  $domainIds
+     * @param  list<array<string, mixed>>  $deviceRows
+     * @return list<array<string, mixed>>
+     */
+    private function enrichFromClickronixDevices(array $domainIds, array $deviceRows): array
+    {
+        if ($deviceRows === [] || ! Schema::hasTable('clickronix_devices')) {
+            return $deviceRows;
+        }
+
+        $ids = [];
+        foreach ($deviceRows as $row) {
+            $did = trim((string) ($row['device_id'] ?? ''));
+            if ($did !== '' && str_starts_with($did, 'DEV_')) {
+                $ids[$did] = true;
+            }
+        }
+        if ($ids === []) {
+            return $deviceRows;
+        }
+
+        $profiles = DB::table('clickronix_devices')
+            ->whereIn('domain_id', $domainIds)
+            ->whereIn('device_id', array_keys($ids))
+            ->get()
+            ->keyBy('device_id');
+
+        foreach ($deviceRows as &$row) {
+            $did = (string) ($row['device_id'] ?? '');
+            $profile = $profiles[$did] ?? null;
+            if (! $profile) {
+                continue;
+            }
+            $paid = (int) ($profile->paid_click_count ?? 0);
+            if ($paid > (int) ($row['clicks'] ?? 0)) {
+                $row['clicks'] = $paid;
+            }
+            $row['conversions'] = (int) ($profile->conversion_count ?? 0);
+            $row['device_confidence'] = is_numeric($profile->device_confidence ?? null)
+                ? (int) round(((float) $profile->device_confidence) * 100)
+                : null;
+            $row['exclusion_candidate'] = (bool) ($profile->exclusion_candidate ?? false);
+            if ((int) ($profile->risk_score ?? 0) > (int) ($row['risk_score'] ?? 0)) {
+                $row['risk_score'] = (int) $profile->risk_score;
+            }
+            if (filled($profile->risk_label ?? null)) {
+                $row['status'] = (string) $profile->risk_label;
+                $row['status_tone'] = $row['exclusion_candidate']
+                    ? 'high'
+                    : (((int) $row['risk_score'] >= 45) ? 'suspicious' : 'watch');
+            }
+            if ($row['exclusion_candidate']) {
+                $row['action_label'] = 'Excluded';
+            } elseif ((int) ($row['conversions'] ?? 0) > 0) {
+                $row['action_label'] = 'Allow';
+            } elseif ((int) ($row['clicks'] ?? 0) >= 2) {
+                $row['action_label'] = 'Monitor';
+            } else {
+                $row['action_label'] = 'Allow';
+            }
+            if ((int) ($profile->ip_change_count ?? 0) > (int) ($row['ip_changes'] ?? 0)) {
+                $row['ip_changes'] = (int) $profile->ip_change_count;
+            }
+            if ((int) ($profile->ip_count ?? 0) > (int) ($row['ip_count'] ?? 0)) {
+                $row['ip_count'] = (int) $profile->ip_count;
+            }
+        }
+        unset($row);
+
+        return $deviceRows;
     }
 
     /**

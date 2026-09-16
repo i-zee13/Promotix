@@ -58,6 +58,7 @@ class PaidAdvertisingPipeline
             $ip,
             $sessionId,
             $clientFingerprint,
+            trim((string) ($attribution['device_token'] ?? $request->input('device_token') ?: '')),
         );
 
         $snapshot = $this->windows->snapshot(

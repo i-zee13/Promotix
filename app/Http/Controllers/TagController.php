@@ -237,6 +237,9 @@ class TagController extends Controller
     if (resp.fire_audience_event) {
       fireInvalidAudienceEvent(resp);
     }
+    if (resp.fire_exclude_event) {
+      fireExcludeAudienceEvent(resp);
+    }
     if (resp.blocked) {
       applyBlockResponse(resp);
       return;
@@ -247,6 +250,63 @@ class TagController extends Controller
     if (resp.record_session) {
       startSessionRecording(resp);
     }
+  }
+
+  /** Spec §9: Clickronix → GA4 clickronix_exclude (GA4 client_id; never upload DEV_ to Ads Device IDs). */
+  function fireExcludeAudienceEvent(resp){
+    try {
+      if (!resp || !resp.fire_exclude_event) return;
+      if (consentRequired && !hasConsent()) return;
+      var eventName = String(resp.exclude_event || 'clickronix_exclude');
+      var reason = String(resp.exclude_reason || 'repeat_nonconverter');
+      var conf = resp.device_confidence ? Math.round(Number(resp.device_confidence) * 100) : null;
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: eventName,
+        reason: reason,
+        device_confidence: conf,
+        clickronix_source: 'exclusion_engine'
+      });
+      function pushGtag(){
+        try {
+          if (typeof gtag !== 'function') return;
+          var payload = { reason: reason, engagement_time_msec: 1 };
+          if (conf) payload.device_confidence = conf;
+          var sendTo = String(resp.google_tag_id || '');
+          if (sendTo) payload.send_to = sendTo;
+          gtag('event', eventName, payload);
+        } catch (e) {}
+      }
+      readGa4ClientId(resp).then(function(){ pushGtag(); }).catch(function(){ pushGtag(); });
+    } catch (e) {}
+  }
+
+  function readGa4ClientId(resp){
+    return new Promise(function(resolve){
+      try {
+        var ids = [];
+        try {
+          if (window.__gtag_measurement_ids && window.__gtag_measurement_ids.length) {
+            ids = window.__gtag_measurement_ids.slice();
+          }
+        } catch (e0) {}
+        if (resp && resp.google_tag_id) ids.unshift(String(resp.google_tag_id));
+        var mid = null;
+        for (var i = 0; i < ids.length; i++) {
+          if (String(ids[i]).indexOf('G-') === 0) { mid = String(ids[i]); break; }
+        }
+        if (mid && typeof gtag === 'function') {
+          var done = false;
+          gtag('get', mid, 'client_id', function(cid){
+            done = true;
+            resolve(cid ? String(cid) : null);
+          });
+          setTimeout(function(){ if (!done) resolve(null); }, 1200);
+          return;
+        }
+      } catch (e) {}
+      resolve(null);
+    });
   }
 
   /** Populate GA4/GTM Invalid Traffic audience via Client ID + event (not IP). */
@@ -747,6 +807,7 @@ class TagController extends Controller
         credentials: 'omit',
         keepalive: true
       }).then(function(r){ return r.json(); }).then(function(resp){
+        persistDeviceFromResponse(resp);
         applyProtection(resp);
         if (done) done(resp);
       }).catch(function(){
@@ -781,6 +842,55 @@ class TagController extends Controller
     } catch (e) {
       return 'v_' + Date.now();
     }
+  }
+
+  /** Persistent Clickronix device token (cookie + localStorage). Not the fingerprint. */
+  function deviceToken(){
+    var lsKey = 'cx_did_' + domainKey;
+    var cookieName = 'cx_did';
+    function readCookie(name){
+      try {
+        var parts = String(document.cookie || '').split(';');
+        for (var i = 0; i < parts.length; i++) {
+          var p = parts[i].replace(/^\s+/, '');
+          if (p.indexOf(name + '=') === 0) {
+            return decodeURIComponent(p.slice(name.length + 1));
+          }
+        }
+      } catch (e) {}
+      return null;
+    }
+    function writeCookie(name, value){
+      try {
+        var maxAge = 60 * 60 * 24 * 400;
+        document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; max-age=' + maxAge + '; SameSite=Lax';
+      } catch (e) {}
+    }
+    try {
+      var existing = localStorage.getItem(lsKey) || readCookie(cookieName);
+      if (existing && String(existing).length >= 8) {
+        localStorage.setItem(lsKey, existing);
+        writeCookie(cookieName, existing);
+        return String(existing);
+      }
+      var id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('d_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12));
+      localStorage.setItem(lsKey, id);
+      writeCookie(cookieName, id);
+      return id;
+    } catch (e) {
+      return 'd_' + Date.now();
+    }
+  }
+
+  function persistDeviceFromResponse(resp){
+    try {
+      if (!resp) return;
+      if (resp.device_token) {
+        var lsKey = 'cx_did_' + domainKey;
+        localStorage.setItem(lsKey, String(resp.device_token));
+        document.cookie = 'cx_did=' + encodeURIComponent(String(resp.device_token)) + '; path=/; max-age=' + (60*60*24*400) + '; SameSite=Lax';
+      }
+    } catch (e) {}
   }
 
   // Stable browser fingerprint (NOT cookies). Device ID on server hashes this.
@@ -1190,6 +1300,7 @@ class TagController extends Controller
       path: String(location.pathname || ''),
       referrer: String(document.referrer || ''),
       session_id: sessionId(),
+      device_token: deviceToken(),
       ts: Date.now()
     };
     try {
@@ -1221,13 +1332,19 @@ class TagController extends Controller
       };
     } catch (e) {}
 
+    function finishSend(fp){
+      payload.fingerprint = fp && fp.id ? fp.id : deviceFingerprint();
+      if (fp && fp.signals) payload.fingerprint_signals = fp.signals;
+      readGa4ClientId({}).then(function(cid){
+        if (cid) payload.ga4_client_id = cid;
+        send(payload);
+      }).catch(function(){ send(payload); });
+    }
+
     collectDeviceFingerprint().then(function(fp){
-      payload.fingerprint = fp.id;
-      payload.fingerprint_signals = fp.signals || {};
-      send(payload);
+      finishSend(fp);
     }).catch(function(){
-      payload.fingerprint = deviceFingerprint();
-      send(payload);
+      finishSend(null);
     });
   }
 

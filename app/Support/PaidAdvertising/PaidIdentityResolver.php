@@ -26,6 +26,7 @@ class PaidIdentityResolver
         string $ip,
         ?string $sessionId = null,
         ?string $clientFingerprint = null,
+        ?string $deviceToken = null,
     ): ResolvedPaidIdentity {
         $visitorId = $this->readOrCreateCookieId($request, self::COOKIE_VISITOR);
         $browserId = $this->readOrCreateCookieId($request, self::COOKIE_BROWSER);
@@ -35,7 +36,8 @@ class PaidIdentityResolver
             $request->userAgent(),
             $request->header('Accept-Language'),
         );
-        $deviceId = PaidDeviceFingerprinter::deviceId($fingerprintId, $request->userAgent());
+        $token = trim((string) ($deviceToken ?: $request->input('device_token') ?: $request->cookie('cx_did', '')));
+        $deviceId = PaidDeviceFingerprinter::deviceId($fingerprintId, $request->userAgent(), $token !== '' ? $token : null, $domainId);
 
         [$confidence, $band] = $this->confidence($visitorId, $browserId, $fingerprintId, $clientFingerprint);
         $fpSimilarity = 1.0;
@@ -108,11 +110,12 @@ class PaidIdentityResolver
     public function cookiesToQueue(ResolvedPaidIdentity $identity): array
     {
         $year = 60 * 24 * 365;
-
-        return [
+        $cookies = [
             ['name' => self::COOKIE_VISITOR, 'value' => (string) $identity->visitorId, 'minutes' => $year],
             ['name' => self::COOKIE_BROWSER, 'value' => (string) $identity->browserId, 'minutes' => $year],
         ];
+
+        return $cookies;
     }
 
     private function readOrCreateCookieId(Request $request, string $name): string

@@ -94,8 +94,10 @@
             letter-spacing: -0.02em;
         }
         .auth-card-brand img {
-            height: 28px;
+            height: 44px;
             width: auto;
+            max-width: 200px;
+            object-fit: contain;
         }
         .auth-brand-logo--on-light { display: none !important; }
         html.light-mode .auth-brand-logo--on-dark { display: none !important; }
@@ -200,10 +202,10 @@
 
         .auth-accent-mark {
             display: block;
-            height: 36px;
+            height: 56px;
             width: auto;
-            max-width: 140px;
-            margin: 0 auto 0.95rem;
+            max-width: 240px;
+            margin: 0 auto 1.15rem;
             object-fit: contain;
         }
         .auth-accent-mark--on-dark { display: block; }
@@ -445,16 +447,16 @@
 
     @php
         $brandName = \App\Support\PortalBrand::name();
-        $logoDarkPanel = \App\Support\Branding::logoAsset('light'); // light logo on dark/amber panel
-        $logoLightPanel = \App\Support\Branding::logoAsset('dark');
+        // Panel: dark theme uses dark logo (white wordmark); light theme uses light logo.
+        $logoDarkPanel = \App\Support\Branding::logoAsset('dark');
+        $logoLightPanel = \App\Support\Branding::logoAsset('light');
     @endphp
 
     <div class="auth-card">
         <aside class="auth-card-visual" aria-hidden="false">
             <div class="auth-card-brand">
-                <img src="{{ $logoDarkPanel }}" alt="" class="auth-brand-logo auth-brand-logo--on-dark">
-                <img src="{{ $logoLightPanel }}" alt="" class="auth-brand-logo auth-brand-logo--on-light" hidden>
-                <span>{{ $brandName }}</span>
+                <img src="{{ $logoDarkPanel }}" alt="{{ $brandName }}" class="auth-brand-logo auth-brand-logo--on-dark">
+                <img src="{{ $logoLightPanel }}" alt="{{ $brandName }}" class="auth-brand-logo auth-brand-logo--on-light" hidden>
             </div>
             <div class="auth-card-visual-copy">
                 <p class="auth-card-visual-eyebrow">You can easily</p>

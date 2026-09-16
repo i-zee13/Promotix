@@ -4,22 +4,23 @@
 
 @section('content')
 @php
-    $accentLogoDark = \App\Support\Branding::logoAsset('dark');   // for light form
-    $accentLogoLight = \App\Support\Branding::logoAsset('light'); // for dark form
+    // light.png = dark text (for light form); dark.png = white text (for dark form)
+    $accentLogoOnLight = \App\Support\Branding::logoAsset('light');
+    $accentLogoOnDark = \App\Support\Branding::logoAsset('dark');
 @endphp
 <img
-    src="{{ $accentLogoDark }}"
+    src="{{ $accentLogoOnLight }}"
     alt="{{ \App\Support\PortalBrand::name() }}"
     class="auth-accent-mark auth-accent-mark--on-light"
-    width="120"
-    height="40"
+    width="220"
+    height="64"
 >
 <img
-    src="{{ $accentLogoLight }}"
+    src="{{ $accentLogoOnDark }}"
     alt="{{ \App\Support\PortalBrand::name() }}"
     class="auth-accent-mark auth-accent-mark--on-dark"
-    width="120"
-    height="40"
+    width="220"
+    height="64"
 >
     <h1 class="auth-login-title">Log in</h1>
     <p class="auth-login-sub">Enter your credentials to access your workspace.</p>

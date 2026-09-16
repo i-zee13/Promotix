@@ -910,13 +910,13 @@ class BotProtectionController extends Controller
             }
 
             if ($tab === 'reputation') {
-                fputcsv($out, ['IP Address', 'IPs Used', 'IP Changes', 'Google Ads Clicks', 'Risk Score', 'Last Seen', 'Status']);
+                fputcsv($out, ['IP Address', 'Paid Clicks', 'IPs Used', 'IP Changes', 'Conversions', 'Confidence', 'Risk Score', 'Last Seen', 'Status', 'Action']);
                 $rows = $payload['reputation_rows'] ?? [];
             } elseif ($tab === 'ip_changes') {
-                fputcsv($out, ['Device ID', 'IPs Used', 'IP Changes', 'Google Ads Clicks', 'Risk Score', 'Last Seen', 'Status']);
+                fputcsv($out, ['Device ID', 'Paid Clicks', 'IPs Used', 'IP Changes', 'Conversions', 'Confidence', 'Risk Score', 'Last Seen', 'Status', 'Action']);
                 $rows = $payload['ip_changes'] ?? [];
             } else {
-                fputcsv($out, ['Device ID', 'IPs Used', 'IP Changes', 'Google Ads Clicks', 'Risk Score', 'Last Seen', 'Status']);
+                fputcsv($out, ['Device ID', 'Paid Clicks', 'IPs Used', 'IP Changes', 'Conversions', 'Confidence', 'Risk Score', 'Last Seen', 'Status', 'Action']);
                 $rows = $payload['devices'] ?? [];
             }
 
@@ -925,12 +925,15 @@ class BotProtectionController extends Controller
                     $tab === 'reputation'
                         ? (($row['ips'][0] ?? $row['ip'] ?? '') ?: '')
                         : ($row['device_id'] ?? ''),
+                    $row['clicks'] ?? 0,
                     implode('; ', $row['ips'] ?? []),
                     $row['ip_changes'] ?? 0,
-                    $row['clicks'] ?? 0,
+                    $row['conversions'] ?? 0,
+                    $row['device_confidence'] ?? '',
                     $row['risk_score'] ?? 0,
                     $row['last_seen'] ?? '',
                     $row['status'] ?? '',
+                    $row['action_label'] ?? '',
                 ]);
             }
             fclose($out);

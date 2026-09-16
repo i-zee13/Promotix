@@ -262,7 +262,7 @@
     </header>
 
     <form method="POST" :action="storeUrl" @submit="onSubmit" id="create-role-form">
-        @csrf
+                @csrf
         <input type="hidden" name="slug" :value="form.slug">
         <input type="hidden" name="portal" :value="form.portal">
         <input type="hidden" name="color" :value="form.color">
@@ -552,8 +552,8 @@
                                 · Role color: <span class="crw-dot align-middle" :style="'background:' + form.color"></span>
                                 <span x-text="colorLabel()"></span>
                             </span>
-                        </div>
-                    </div>
+                                    </div>
+                                </div>
 
                     <div class="crw-stats">
                         <div class="crw-stat"><strong x-text="grantedPageCount()"></strong><span>User Portal pages</span></div>
@@ -588,7 +588,7 @@
                                 </ul>
                                 <p class="text-[11px] text-white/40" x-show="!form.abilities.length">None selected</p>
                             </div>
-                        </div>
+                                </div>
 
                         <div class="crw-card">
                             <h3>Security review</h3>
@@ -645,8 +645,8 @@
                 <button type="button" class="crw-btn crw-btn-primary" x-show="step < 4" @click="next" x-text="continueLabel"></button>
                 <button type="button" class="crw-btn crw-btn-primary" x-show="step === 4" x-cloak @click="submitFromHeader()" :disabled="!form.confirm_review">Create role &gt;</button>
             </aside>
-        </div>
-    </form>
+                </div>
+            </form>
 
     <div class="crw-foot">
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-width="1.8" d="M12 11c1.7 0 3-1.3 3-3S13.7 5 12 5 9 6.3 9 8s1.3 3 3 3zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/><rect x="5" y="11" width="14" height="10" rx="2" stroke-width="1.8"/></svg>

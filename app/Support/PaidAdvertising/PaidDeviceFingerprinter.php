@@ -32,13 +32,26 @@ final class PaidDeviceFingerprinter
         return 'FP_'.strtoupper(substr(hash('sha256', $basis), 0, 12));
     }
 
-    public static function deviceId(string $fingerprintId, ?string $userAgent): string
+    /**
+     * Stable Clickronix Device ID.
+     *
+     * Prefer first-party device_token (cookie/localStorage) so:
+     * - IP changes do not mint a new DEV_
+     * - Fingerprint collisions do not merge unrelated people
+     * Fingerprint alone is only a fallback signal.
+     */
+    public static function deviceId(string $fingerprintId, ?string $userAgent, ?string $deviceToken = null, ?int $domainId = null): string
     {
+        $token = trim((string) $deviceToken);
+        if ($token !== '' && strlen($token) >= 8) {
+            $basis = ($domainId ? $domainId.'|' : '').'tok|'.$token;
+
+            return 'DEV_'.strtoupper(substr(hash('sha256', $basis), 0, 12));
+        }
+
         $ua = strtolower((string) $userAgent);
         $family = self::uaFamily($ua);
 
-        // Device = fingerprint hash + UA family only.
-        // Never Visitor ID / Browser ID — those are cookies and reset often.
         return 'DEV_'.strtoupper(substr(hash('sha256', $fingerprintId.'|'.$family), 0, 12));
     }
 

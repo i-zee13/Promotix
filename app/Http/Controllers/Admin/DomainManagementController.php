@@ -424,6 +424,30 @@ class DomainManagementController extends Controller
         return response()->json(['ok' => true, 'gtm_container_id' => $domain->gtm_container_id]);
     }
 
+    public function updateGa4(Request $request, Domain $domain): JsonResponse
+    {
+        abort_unless($domain->user_id === $request->user()->id, 403);
+        $data = $request->validate([
+            'ga4_measurement_id' => ['nullable', 'string', 'max:32', 'regex:/^G-[A-Z0-9]+$/'],
+            'ga4_api_secret' => ['nullable', 'string', 'max:128'],
+        ]);
+
+        if (array_key_exists('ga4_measurement_id', $data)) {
+            $domain->ga4_measurement_id = $data['ga4_measurement_id'] ?: null;
+        }
+        if (array_key_exists('ga4_api_secret', $data) && $data['ga4_api_secret'] !== null) {
+            $secret = trim((string) $data['ga4_api_secret']);
+            $domain->ga4_api_secret = $secret !== '' ? $secret : null;
+        }
+        $domain->save();
+
+        return response()->json([
+            'ok' => true,
+            'ga4_measurement_id' => $domain->ga4_measurement_id,
+            'ga4_api_secret_set' => filled($domain->ga4_api_secret),
+        ]);
+    }
+
     public function updateTrackingParams(Request $request, Domain $domain): JsonResponse
     {
         abort_unless($domain->user_id === $request->user()->id, 403);

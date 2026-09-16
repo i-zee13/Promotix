@@ -906,12 +906,12 @@
                         <button type="button" @click="selectCampaign('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">
                             <span class="paid-advanced-campaign-option__label">All Campaigns</span>
                         </button>
-                        <template x-for="row in campaignOptions" :key="row.campaign + '-' + (row.campaign_id || '')">
+                            <template x-for="row in campaignOptions" :key="row.campaign + '-' + (row.campaign_id || '')">
                             <button type="button" @click="selectCampaign(row.campaign)" class="paid-advanced-campaign-option" :class="filters.campaign === row.campaign && 'is-active'">
                                 <span class="paid-advanced-campaign-option__label" x-text="row.campaign"></span>
                                 <span class="paid-advanced-campaign-option__sub" x-show="row.account_label || row.account_sub" x-text="[row.account_label, row.account_sub].filter(Boolean).join(' · ')"></span>
                             </button>
-                        </template>
+                            </template>
                     </div>
                 </label>
                 <div class="paid-filter-secondary">
@@ -950,12 +950,12 @@
                     </span>
                     <h2 class="paid-dashboard-card__title">Google Ads Click Summary</h2>
                     <button type="button" class="paid-dashboard-card__icon-btn ml-auto" aria-label="Refresh" @click="reload(true, true)" title="Refresh Google Ads sync">
-                        <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
-                    </button>
-                </div>
+                            <svg class="h-[14px] w-[14px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h5M20 20v-5h-5M20 9A8 8 0 006.34 6.34M4 15a8 8 0 0013.66 2.66"/></svg>
+                        </button>
+                    </div>
                 <div class="mt-[10px] grid grid-cols-2 gap-x-[12px] gap-y-[18px]">
-                    <div>
-                        <p class="paid-traffic-metrics__label">Total Google Ads Clicks</p>
+                        <div>
+                            <p class="paid-traffic-metrics__label">Total Google Ads Clicks</p>
                         <div class="flex flex-wrap items-center gap-[8px]">
                             <p class="paid-kpi-card__big" x-text="fmt(summary.total_click_count || summary.google_clicks)"></p>
                             <template x-if="showGoogleReconnect">
@@ -974,33 +974,33 @@
                         <p class="mt-[4px] text-[9px] leading-snug text-amber-200/90" x-show="showGoogleReconnect" x-cloak>
                             Google Ads total not syncing — reconnect Google, then refresh.
                         </p>
-                    </div>
-                    <div>
-                        <p class="paid-traffic-metrics__label">Tracked Clicks</p>
+                        </div>
+                        <div>
+                            <p class="paid-traffic-metrics__label">Tracked Clicks</p>
                         <p class="paid-kpi-card__big" x-text="fmt(summary.tracked_clicks ?? summary.unique_paid_clicks)"></p>
-                    </div>
-                    <div>
-                        <p class="paid-traffic-metrics__label">Valid Clicks</p>
+                        </div>
+                        <div>
+                            <p class="paid-traffic-metrics__label">Valid Clicks</p>
                         <p class="text-[15px] font-semibold leading-none text-emerald-300">
                             <span x-text="fmt(summary.unique_valid_paid_clicks ?? summary.valid_paid_visits)"></span>
                             <span class="text-[11px] font-medium opacity-90">(<span x-text="validClickPct"></span>%)</span>
                         </p>
-                    </div>
-                    <div>
-                        <p class="paid-traffic-metrics__label">Invalid Clicks</p>
+                        </div>
+                        <div>
+                            <p class="paid-traffic-metrics__label">Invalid Clicks</p>
                         <p class="text-[15px] font-semibold leading-none text-rose-300">
                             <span x-text="fmt(summary.unique_invalid_paid_clicks ?? summary.invalid_paid_visits)"></span>
                             <span class="text-[11px] font-medium opacity-90">(<span x-text="invalidClickPct"></span>%)</span>
                         </p>
-                    </div>
-                </div>
+                        </div>
+                        </div>
                 <div class="mt-[14px] flex items-end justify-between gap-[10px]">
-                    <div>
-                        <p class="paid-traffic-metrics__label">Cost Saved</p>
+                        <div>
+                            <p class="paid-traffic-metrics__label">Cost Saved</p>
                         <p class="text-[16px] font-semibold leading-none text-white"><span x-text="summary.cost_saved_label || (activeCurrencySymbol() + Number(summary.cost_saved || 0).toFixed(2))"></span></p>
-                    </div>
+                        </div>
                     <p class="text-[9px] text-white/45" x-show="summary.avg_cpc">Avg CPC <span x-text="activeCurrencySymbol() + Number(summary.avg_cpc || 0).toFixed(2)"></span></p>
-                </div>
+                    </div>
                 <div class="mt-auto pt-[12px]">
                     <div class="mb-[4px] flex items-center justify-between text-[9px]">
                         <span class="text-white/70">Tracking Accuracy</span>
@@ -1020,29 +1020,29 @@
                     <h2 class="paid-dashboard-card__title">Paid Traffic Protection</h2>
                 </div>
                 <div class="mt-[10px] grid flex-1 grid-cols-2 gap-x-[12px] gap-y-[12px]">
-                    <div>
+                        <div>
                         <p class="paid-traffic-metrics__label">Tracked Clicks</p>
                         <p class="paid-kpi-card__mid" x-text="fmt(summary.tag_paid_visits)"></p>
-                    </div>
-                    <div>
+                        </div>
+                        <div>
                         <p class="paid-traffic-metrics__label">Fraud Signals</p>
                         <p class="paid-kpi-card__mid text-emerald-300">
                             <span x-text="fmt(summary.invalid_paid_visits)"></span>
                             <span class="text-[10px] opacity-90">(<span x-text="botRate"></span>%)</span>
                         </p>
-                    </div>
-                    <div>
+                        </div>
+                        <div>
                         <p class="paid-traffic-metrics__label">Blocked</p>
                         <p class="paid-kpi-card__mid text-rose-300">
                             <span x-text="fmt(summary.block_enforced || summary.block_attempts || 0)"></span>
                             <span class="text-[10px] opacity-90">(<span x-text="blockedBotPct"></span>%)</span>
                         </p>
-                    </div>
-                    <div>
+                        </div>
+                        <div>
                         <p class="paid-traffic-metrics__label">Invalid Rate</p>
                         <p class="paid-kpi-card__mid text-emerald-300"><span x-text="botRate"></span>%</p>
+                        </div>
                     </div>
-                </div>
                 <a href="{{ route('paid-marketing.detailed') }}" class="paid-kpi-card__link mt-auto">View Advanced Investigation <span aria-hidden="true">→</span></a>
             </article>
 
@@ -1060,7 +1060,7 @@
                     <div class="paid-blocking-row"><span class="text-rose-300">Blocked</span><span class="text-rose-300"><span x-text="fmt(summary.block_enforced || 0)"></span> (<span x-text="actionBlockedPct"></span>%)</span></div>
                     <div class="paid-blocking-row"><span class="text-amber-200">Monitored</span><span class="text-amber-200"><span x-text="fmt(summary.flagged_paid_visits)"></span> (<span x-text="actionMonitoredPct"></span>%)</span></div>
                     <div class="paid-blocking-row"><span class="text-emerald-300">Whitelisted</span><span class="text-emerald-300"><span x-text="fmt(whitelistedIpCount)"></span> (<span x-text="actionWhitelistedPct"></span>%)</span></div>
-                </div>
+                    </div>
                 <a href="{{ route('paid-marketing.detailed') }}" class="paid-kpi-card__link mt-auto">View All Threats <span aria-hidden="true">→</span></a>
             </article>
 
@@ -1100,18 +1100,18 @@
                                             <td x-text="(row.invalid_pct != null ? row.invalid_pct : 0) + '%'"></td>
                                             <td><span x-text="row.cost_saved_label || (activeCurrencySymbol() + Number(row.cost_saved || 0).toFixed(2))"></span></td>
                                         </tr>
-                                    </template>
+                            </template>
                                 </tbody>
                             </table>
                             <p x-show="campaignOptions.length === 0" class="px-[2px] text-[10px] text-white/55">No campaign data yet</p>
                         </div>
                     </template>
                 </div>
-                <a
-                    :href="campaignBreakdownLink()"
+                    <a
+                        :href="campaignBreakdownLink()"
                     class="paid-kpi-card__link mt-auto"
                     x-text="untaggedDomains.length ? 'Add Tag Management →' : 'Set Tracking Template →'"
-                ></a>
+                    ></a>
             </article>
         </div>
         </div>
@@ -1125,18 +1125,18 @@
                         <h2 class="text-[15px] font-semibold text-[#a9a9a9] sm:text-[16px]">Paid Traffic Trend</h2>
                         <span class="rounded-[4px] border border-white/10 bg-white/5 px-[6px] py-[2px] text-[9px] text-white/55" x-text="trends.granularity_label || (filters.from && filters.from === filters.to ? 'Hourly · Today' : 'Daily')"></span>
                         <div class="flex flex-wrap items-center gap-[6px]">
-                            <template x-for="item in trendsLegendItems()" :key="item.key">
-                                <button
-                                    type="button"
+                        <template x-for="item in trendsLegendItems()" :key="item.key">
+                            <button
+                                type="button"
                                     class="chart-legend-item text-[10px] text-white/90 sm:text-[11px]"
-                                    :class="{ 'is-hidden': isTrendSeriesHidden(item.key) }"
-                                    @click="toggleTrendSeries(item.key)"
-                                >
+                                :class="{ 'is-hidden': isTrendSeriesHidden(item.key) }"
+                                @click="toggleTrendSeries(item.key)"
+                            >
                                     <i class="mr-[3px] inline-block h-[8px] w-[8px] rounded-full" :style="`background:${item.color}`"></i>
-                                    <span x-text="item.name"></span>
-                                </button>
-                            </template>
-                        </div>
+                                <span x-text="item.name"></span>
+                            </button>
+                        </template>
+                    </div>
                     </div>
                     <select x-model="filters.window" @change="setWindow()" class="paid-window-select">
                         <option value="today">Today (Hourly)</option>
@@ -1158,22 +1158,22 @@
                         <option value="weekly">This Week (Daily)</option>
                         <option value="monthly">This Month (Daily)</option>
                     </select>
-                </div>
+                    </div>
                 <div id="heatmap-grid" class="paid-heatmap-grid flex-1"></div>
                 <div class="paid-heatmap-legend mt-[10px]">
                     <span>Low</span>
                     <div class="paid-heatmap-legend__bar"></div>
                     <span>High</span>
                 </div>
-            </section>
+                </section>
 
             <section class="paid-panel-card flex min-h-0 flex-col p-[16px] sm:p-[18px]">
                 <div class="mb-[10px] flex items-center justify-between gap-[8px]">
                     <h2 class="text-[15px] font-semibold text-[#a9a9a9] sm:text-[16px]">Keyword Performance</h2>
                     <a href="{{ route('paid-marketing.detailed') }}" class="text-[10px] font-semibold text-[#B893D8] hover:text-white">View All</a>
-                </div>
+                    </div>
                 <div id="keyword-list" class="min-h-0 flex-1 overflow-x-auto overflow-y-auto"></div>
-            </section>
+                </section>
             </div>
         </div>
 
@@ -1215,7 +1215,7 @@
                         <a href="{{ route('paid-marketing.detection-settings') }}" class="paid-engine-link mt-auto self-end">Manage Protection Settings <span aria-hidden="true">→</span></a>
                     </div>
                 </div>
-            </section>
+                </section>
 
             <section class="paid-engine-card">
                 <div class="mb-[10px] flex items-center justify-between gap-[8px]">
@@ -1278,22 +1278,22 @@
                     </div>
                     <button type="button" @click="exportIpsCsv()" title="Download CSV" aria-label="Download CSV" class="paid-export-btn">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>
-                    </button>
-                </div>
+                        </button>
+                    </div>
                 <div class="paid-traffic-head__domain">
-                    <span class="shrink-0">Domain</span>
-                    <select
-                        x-model="filters.domain_id"
-                        @change="onDomainChange()"
-                        class="figma-panel-select min-h-[24px] min-w-0 flex-1 !rounded-[3px] !py-[4px] !text-[10px]"
-                    >
-                        <option value="">All domains</option>
-                        @foreach ($domains as $domain)
-                            <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
-                        @endforeach
-                    </select>
+                        <span class="shrink-0">Domain</span>
+                        <select
+                            x-model="filters.domain_id"
+                            @change="onDomainChange()"
+                            class="figma-panel-select min-h-[24px] min-w-0 flex-1 !rounded-[3px] !py-[4px] !text-[10px]"
+                        >
+                            <option value="">All domains</option>
+                            @foreach ($domains as $domain)
+                                <option value="{{ $domain->id }}">{{ $domain->hostname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
-            </div>
             <div class="paid-traffic-wrap promotix-slim-scroll">
                 <table class="paid-traffic-table" :data-ip-view="ipViewMode">
                     <colgroup>
@@ -1317,44 +1317,44 @@
                         <tr>
                             <th class="pt-col-ip pt-sticky-ip">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('ip')" @click="setIpSort('ip')"><span>IP Address</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                            </th>
+                                </th>
                             <th class="pt-col-device">Device ID</th>
                             <th class="pt-col-conf">Identity Conf.</th>
                             <th class="pt-col-num">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('total')" @click="setIpSort('total')"><span>Paid Clicks</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                            </th>
+                                </th>
                             <th class="pt-col-num">Clicks 60m</th>
                             <th class="pt-col-num">
-                                <button type="button" class="promotix-sortable" :class="ipSortClass('invalid')" @click="setIpSort('invalid')"><span>Invalid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                            </th>
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('invalid')" @click="setIpSort('invalid')"><span>Invalid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
                             <th class="pt-col-num">
-                                <button type="button" class="promotix-sortable" :class="ipSortClass('valid')" @click="setIpSort('valid')"><span>Valid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                            </th>
+                                    <button type="button" class="promotix-sortable" :class="ipSortClass('valid')" @click="setIpSort('valid')"><span>Valid</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
+                                </th>
                             <th class="pt-col-detect">Primary Detection</th>
                             <th class="pt-col-risk">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('risk_score')" @click="setIpSort('risk_score')"><span>Risk</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                            </th>
+                                </th>
                             <th class="pt-col-action">Block</th>
                             <th class="pt-col-excl">IP Exclusion</th>
                             <th class="pt-col-campaign pt-expert">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('campaign')" @click="setIpSort('campaign')"><span>Campaign</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                            </th>
+                                </th>
                             <th class="pt-col-pid pt-expert">PID</th>
                             <th class="pt-col-fp pt-expert" title="Same fingerprint as Advanced / Detailed View">Fingerprint</th>
                             <th class="pt-col-time pt-expert">
                                 <button type="button" class="promotix-sortable" :class="ipSortClass('last_seen')" @click="setIpSort('last_seen')" title="When invalid/paid evidence was last recorded for this IP"><span>Last Click</span><span class="promotix-sortable-arrows" aria-hidden="true"><span class="promotix-sortable-up">▲</span><span class="promotix-sortable-down">▼</span></span></button>
-                            </th>
-                        </tr>
-                    </thead>
+                                </th>
+                            </tr>
+                        </thead>
                     <tbody>
-                        <template x-for="row in sortedIps" :key="row.ip">
+                            <template x-for="row in sortedIps" :key="row.ip">
                             <tr class="cursor-pointer transition hover:bg-white/5" @click="openIpModal(row)">
                                 <td class="pt-col-ip pt-sticky-ip">
-                                    <span class="flex items-center gap-[4px]">
+                                        <span class="flex items-center gap-[4px]">
                                         <span class="block max-w-[110px] truncate font-mono text-[9px] text-white" :title="row.ip" x-text="ipLabel(row.ip)"></span>
                                         <span x-show="row.is_allowlisted" class="shrink-0 rounded-[3px] bg-emerald-500/20 px-[4px] py-[1px] text-[8px] font-semibold uppercase text-emerald-300">WL</span>
-                                    </span>
-                                </td>
+                                        </span>
+                                    </td>
                                 <td class="pt-col-device font-mono text-[9px] text-white/90"
                                     :title="(row.device_id || '') + (row.multi_identity ? (' · ' + (row.distinct_device_count || '?') + ' distinct devices on this IP') : '')"
                                     x-text="row.device_id_label || row.device_id || '—'"></td>
@@ -1375,17 +1375,17 @@
                                 <td class="pt-col-pid pt-expert font-mono text-[9px] text-white/85" :title="row.paid_identity_id || ''" x-text="row.paid_identity_id || '—'"></td>
                                 <td class="pt-col-fp pt-expert font-mono text-[9px] text-white/85" :title="row.fingerprint_id || row.device_fingerprint || ''" x-text="fingerprintLabel(row.fingerprint_id || row.device_fingerprint)"></td>
                                 <td class="pt-col-time pt-expert text-[10px] text-white/85" :title="evidenceTimeTitle(row)" x-text="evidenceTimeLabel(row)"></td>
-                            </tr>
-                        </template>
+                                </tr>
+                            </template>
                         <template x-if="sortedIps.length === 0">
                             <tr>
                                 <td colspan="15" class="px-[10px] py-[12px] text-center text-white/60" x-text="filters.campaign ? 'No paid traffic for this campaign in the selected date range.' : 'No paid traffic yet for the selected domain(s) and date range.'"></td>
-                            </tr>
+                                </tr>
                         </template>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+                            </tbody>
+                        </table>
+                </div>
+            </section>
     </section>
 
     <div class="figma-modal-overlay"
@@ -2069,9 +2069,9 @@ function paidAdvertisingFigma(config = {}) {
                 this.filters.from = iso;
                 this.filters.to = iso;
             } else {
-                const days = this.filters.window === 'monthly' ? 29 : 6;
-                const start = new Date(today.getTime() - days * 86400000);
-                this.filters.from = start.toISOString().slice(0, 10);
+            const days = this.filters.window === 'monthly' ? 29 : 6;
+            const start = new Date(today.getTime() - days * 86400000);
+            this.filters.from = start.toISOString().slice(0, 10);
                 this.filters.to = iso;
             }
             try {
@@ -2416,22 +2416,22 @@ function paidAdvertisingFigma(config = {}) {
                         const gen = this.reloadGeneration;
                         const summary = await fetch(`/paid-marketing/summary?${qs}`).then(r => r.json());
                         if (gen !== this.reloadGeneration) return;
-                        this.summary = summary;
-                        this.lastSummaryFingerprint = JSON.stringify({
-                            paid_visits: summary?.paid_visits,
-                            invalid_paid_visits: summary?.invalid_paid_visits,
-                            total_click_count: summary?.total_click_count,
-                            google_clicks: summary?.google_clicks,
-                            tag_paid_visits: summary?.tag_paid_visits,
-                            block_attempts: summary?.block_attempts,
-                            block_enforced: summary?.block_enforced,
-                            flagged_paid_visits: summary?.flagged_paid_visits,
-                            invalid_reconciliation: summary?.invalid_reconciliation,
-                        });
-                        if (summary?.timezone_context?.reporting_timezone) {
-                            this.userTimezone = summary.timezone_context.reporting_timezone;
-                        }
-                        this.syncPaidTimezoneHeader();
+                this.summary = summary;
+                this.lastSummaryFingerprint = JSON.stringify({
+                    paid_visits: summary?.paid_visits,
+                    invalid_paid_visits: summary?.invalid_paid_visits,
+                    total_click_count: summary?.total_click_count,
+                    google_clicks: summary?.google_clicks,
+                    tag_paid_visits: summary?.tag_paid_visits,
+                    block_attempts: summary?.block_attempts,
+                    block_enforced: summary?.block_enforced,
+                    flagged_paid_visits: summary?.flagged_paid_visits,
+                    invalid_reconciliation: summary?.invalid_reconciliation,
+                });
+                if (summary?.timezone_context?.reporting_timezone) {
+                    this.userTimezone = summary.timezone_context.reporting_timezone;
+                }
+                this.syncPaidTimezoneHeader();
                     },
                     async () => {
                         const gen = this.reloadGeneration;
@@ -2445,7 +2445,7 @@ function paidAdvertisingFigma(config = {}) {
                         const gen = this.reloadGeneration;
                         const trends = await fetch(`/paid-marketing/trends?${qs}`).then(r => r.json());
                         if (gen !== this.reloadGeneration) return;
-                        this.trends = trends;
+                this.trends = trends;
                         await this.$nextTick();
                         this.render(false);
                     },
@@ -2475,7 +2475,7 @@ function paidAdvertisingFigma(config = {}) {
                         const gen = this.reloadGeneration;
                         const blocking = await fetch(`/paid-marketing/blocking-activity?${qs}`).then(r => r.json());
                         if (gen !== this.reloadGeneration) return;
-                        this.blocking = blocking;
+                this.blocking = blocking;
                     },
                     async () => {
                         const gen = this.reloadGeneration;
@@ -2655,15 +2655,15 @@ function paidAdvertisingFigma(config = {}) {
         },
         trendsLegendItems() {
             if (this.compareEnabled) {
-                const datasets = this.trends.datasets || [];
-                if (datasets.length) {
-                    return datasets.map(ds => ({
-                        key: ds.dashed ? 'lastWeek' : 'thisWeek',
-                        name: ds.name || (ds.dashed ? 'Last Week' : 'This Week'),
+            const datasets = this.trends.datasets || [];
+            if (datasets.length) {
+                return datasets.map(ds => ({
+                    key: ds.dashed ? 'lastWeek' : 'thisWeek',
+                    name: ds.name || (ds.dashed ? 'Last Week' : 'This Week'),
                         color: ds.dashed ? (ds.color || '#FF4BC1') : this.trendLineColor(ds),
-                    }));
-                }
-                return [
+                }));
+            }
+            return [
                     { key: 'thisWeek', name: 'This Week', color: this.compareThisWeekColor() },
                     { key: 'lastWeek', name: 'Last Week', color: '#FF4BC1' },
                 ];
@@ -2704,10 +2704,10 @@ function paidAdvertisingFigma(config = {}) {
         },
         visibleTrendDatasets() {
             if (this.compareEnabled) {
-                return (this.trends.datasets || []).filter(ds => {
-                    const key = ds.dashed ? 'lastWeek' : 'thisWeek';
-                    return !this.hiddenTrendSeries[key];
-                });
+            return (this.trends.datasets || []).filter(ds => {
+                const key = ds.dashed ? 'lastWeek' : 'thisWeek';
+                return !this.hiddenTrendSeries[key];
+            });
             }
             return this.qualityTrendDatasets().filter((ds) => !this.hiddenTrendSeries[ds.key]);
         },
@@ -2967,7 +2967,7 @@ function paidAdvertisingFigma(config = {}) {
                     else if (t > 0.15) bg = light ? this.brandSoft(0.25) : this.brandDark(0.25);
                     else if (t > 0) bg = light ? this.brandSoft(0.55) : this.brandDark(0.55);
                     return `<span class="paid-heatmap-cell" title="${day} ${h}:00 — ${v}" style="background:${bg}"></span>`;
-                }).join('');
+            }).join('');
                 return `<div class="paid-heatmap-day">${day}</div>${cells}`;
             }).join('');
             el.innerHTML = `${head}${body}`;

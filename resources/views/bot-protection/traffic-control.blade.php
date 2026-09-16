@@ -413,10 +413,12 @@
                             <thead>
                                 <tr>
                                     <th x-text="activeTab === 'reputation' ? 'IP Address' : 'Device ID'"></th>
-                                    <th>IPs Used</th>
+                                    <th>Paid Clicks</th>
+                                    <th>IPs</th>
                                     <th>IP Changes</th>
-                                    <th>Google Ads Clicks</th>
-                                    <th>Risk Score</th>
+                                    <th>Conversions</th>
+                                    <th>Confidence</th>
+                                    <th>Risk</th>
                                     <th>Last Seen</th>
                                     <th>Status</th>
                                     <th>Action</th>
@@ -426,6 +428,7 @@
                                 <template x-for="row in tableRows" :key="(row.device_key || row.device_id) + '-' + (row.ips?.[0] || '')">
                                     <tr :class="{ 'is-selected': isRowSelected(row) }">
                                         <td class="font-mono text-[11px]" x-text="activeTab === 'reputation' ? (row.ips?.[0] || '—') : row.device_id"></td>
+                                        <td x-text="fmtNum(row.clicks || 0)"></td>
                                         <td>
                                             <div class="flex flex-wrap items-center">
                                                 <span class="tc-ip-count" x-text="(row.ip_count || 0) + ' IPs'"></span>
@@ -436,7 +439,8 @@
                                             </div>
                                         </td>
                                         <td x-text="row.ip_changes ?? 0"></td>
-                                        <td x-text="fmtNum(row.clicks || 0)"></td>
+                                        <td x-text="fmtNum(row.conversions || 0)"></td>
+                                        <td x-text="row.device_confidence != null ? (row.device_confidence + '%') : '—'"></td>
                                         <td>
                                             <div class="tc-risk-ring" :style="miniGauge(row.risk_score || 0)">
                                                 <div class="tc-risk-ring__inner" :style="'color:' + riskColor(row.risk_score || 0)" x-text="row.risk_score"></div>
@@ -448,8 +452,13 @@
                                         </td>
                                         <td>
                                             <div class="flex items-center gap-2">
+                                                <span class="text-[11px] font-semibold" x-text="row.action_label || '—'"
+                                                    :class="{
+                                                        'text-rose-300': row.action_label === 'Excluded',
+                                                        'text-emerald-300': row.action_label === 'Allow',
+                                                        'text-amber-300': row.action_label === 'Monitor'
+                                                    }"></span>
                                                 <button type="button" class="tc-investigate" @click="selectRow(row)">Investigate</button>
-                                                <button type="button" class="px-1 text-white/35 hover:text-white/70" aria-label="More">⋮</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -491,6 +500,20 @@
                             </div>
                             <div class="mt-[10px]">
                                 <span class="tc-status" :class="'is-' + (selected?.status_tone || 'watch')" x-text="selected?.status"></span>
+                            </div>
+                            <div class="mt-[12px] grid grid-cols-3 gap-2 text-[11px]">
+                                <div>
+                                    <div class="text-white/40">Paid clicks</div>
+                                    <div class="font-semibold text-white" x-text="fmtNum(selected?.clicks || 0)"></div>
+                                </div>
+                                <div>
+                                    <div class="text-white/40">Conversions</div>
+                                    <div class="font-semibold text-white" x-text="fmtNum(selected?.conversions || 0)"></div>
+                                </div>
+                                <div>
+                                    <div class="text-white/40">Confidence</div>
+                                    <div class="font-semibold text-white" x-text="selected?.device_confidence != null ? (selected.device_confidence + '%') : '—'"></div>
+                                </div>
                             </div>
                         </div>
                         <div class="text-center">

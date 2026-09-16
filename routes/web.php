@@ -51,6 +51,9 @@ Route::match(['get', 'post', 'options'], '/t/collect', [TrackingController::clas
 // GET must be allowed: the embedded tag falls back to an <img> pixel (query string) when sendBeacon/fetch fail.
 Route::match(['get', 'post', 'options'], '/ingest/visit', [TrackingController::class, 'collect'])->middleware('throttle:240,1')->name('ingest.visit');
 Route::get('/click', [TrackingController::class, 'googleAdsClick'])->middleware('throttle:120,1')->name('google-ads.click');
+Route::match(['post', 'options'], '/api/v1/conversion', [\App\Http\Controllers\ConversionController::class, 'store'])
+    ->middleware('throttle:120,1')
+    ->name('api.v1.conversion');
 Route::get('/docs/click-tracker', function () {
     return response()->view('docs.transparent-click-tracker', [
         'trackerHost' => \App\Support\TransparentClickTracker::baseUrl(),
@@ -376,6 +379,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/domains/{domain}/tracking-script', [DomainManagementController::class, 'trackingScript']);
     Route::get('/domains/{domain}/api-key', [DomainManagementController::class, 'apiKey']);
     Route::put('/domains/{domain}/gtm', [DomainManagementController::class, 'updateGtm']);
+    Route::put('/domains/{domain}/ga4', [DomainManagementController::class, 'updateGa4']);
     Route::put('/domains/{domain}/tracking-params', [DomainManagementController::class, 'updateTrackingParams']);
     Route::post('/domains/{domain}/email-developer', [DomainManagementController::class, 'emailDeveloper']);
     Route::post('/domains/{domain}/verify-wordpress', [DomainManagementController::class, 'verifyWordpress']);

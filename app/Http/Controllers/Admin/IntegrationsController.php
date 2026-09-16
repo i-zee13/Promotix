@@ -508,6 +508,10 @@ class IntegrationsController extends Controller
             if ($gtmContainerId !== '' && ! preg_match('/^GTM-[A-Z0-9]+$/', $gtmContainerId)) {
                 $gtmContainerId = '';
             }
+            $ga4MeasurementId = strtoupper(trim((string) ($domain->ga4_measurement_id ?: '')));
+            if ($ga4MeasurementId !== '' && ! preg_match('/^G-[A-Z0-9]+$/', $ga4MeasurementId)) {
+                $ga4MeasurementId = '';
+            }
             $scriptKey = (string) ($domain->domain_key ?: '');
             $clickronixScriptId = $scriptKey !== '' ? 'CRX-'.strtoupper(substr($scriptKey, 0, 6)) : '';
             $scriptOk = (bool) $domain->tag_connected;
@@ -540,9 +544,9 @@ class IntegrationsController extends Controller
                     'ok' => $scriptOk,
                 ],
                 'ga4' => [
-                    'id' => '—',
-                    'status' => 'Not detected',
-                    'ok' => false,
+                    'id' => $ga4MeasurementId !== '' ? $ga4MeasurementId : '—',
+                    'status' => $ga4MeasurementId !== '' ? 'Linked' : 'Not detected',
+                    'ok' => $ga4MeasurementId !== '',
                 ],
                 'setup_url' => route('domains.setup', $domain),
             ];
@@ -1867,11 +1871,35 @@ class IntegrationsController extends Controller
 
         $detection = $ga4Presence->detect($domain);
 
+        $measurementIds = $detection['measurement_ids'] ?? ($detection['ids'] ?? []);
+        if (! is_array($measurementIds)) {
+            $measurementIds = [];
+        }
+        $firstG = '';
+        foreach ($measurementIds as $mid) {
+            $mid = strtoupper(trim((string) $mid));
+            if (preg_match('/^G-[A-Z0-9]+$/', $mid)) {
+                $firstG = $mid;
+                break;
+            }
+        }
+        if ($firstG === '' && ! empty($detection['has_ga4'])) {
+            $candidate = strtoupper(trim((string) ($detection['measurement_id'] ?? $detection['ga4_id'] ?? '')));
+            if (preg_match('/^G-[A-Z0-9]+$/', $candidate)) {
+                $firstG = $candidate;
+            }
+        }
+        if ($firstG !== '' && (string) ($domain->ga4_measurement_id ?? '') !== $firstG) {
+            $domain->ga4_measurement_id = $firstG;
+            $domain->save();
+        }
+
         return response()->json([
             'ok' => true,
             'domain_id' => $domain->id,
             'hostname' => $domain->hostname,
             'detection' => $detection,
+            'ga4_measurement_id' => $domain->ga4_measurement_id,
         ]);
     }
 

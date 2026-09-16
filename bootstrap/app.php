@@ -19,7 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
             '/ip-check',
             '/t/collect',
             '/ingest/visit',
+            '/ingest/session-recording',
             '/click',
+            '/api/v1/conversion',
             '/api/admin/*',
             '/stripe/webhook',
         ]);

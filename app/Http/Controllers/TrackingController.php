@@ -296,6 +296,8 @@ class TrackingController extends Controller
             'session_id' => ['nullable', 'string', 'max:128'],
             'fingerprint' => ['nullable', 'string', 'max:512'],
             'fingerprint_signals' => ['nullable'],
+            'device_token' => ['nullable', 'string', 'max:80'],
+            'ga4_client_id' => ['nullable', 'string', 'max:128'],
             'ts' => ['nullable', 'numeric'],
             'click_source' => ['nullable', 'string', 'max:16'],
             'ad_click_meta' => ['nullable'],
@@ -408,6 +410,7 @@ class TrackingController extends Controller
                         'click_type' => $googleClick['type'] ?? null,
                         'duplicate_paid_click' => $duplicatePaidClick,
                         'is_paid_traffic' => true,
+                        'device_token' => trim((string) ($data['device_token'] ?? $request->input('device_token') ?: '')),
                     ],
                 );
                 $paidIdentity = $paidEnrichment['identity'];
@@ -539,6 +542,15 @@ class TrackingController extends Controller
                 }
                 if (Schema::hasColumn('paid_marketing_clicks', 'click_source')) {
                     $clickPayload['click_source'] = $data['click_source'] ?? 'tag';
+                }
+                if (Schema::hasColumn('paid_marketing_clicks', 'device_id') && $paidIdentity instanceof ResolvedPaidIdentity) {
+                    $clickPayload['device_id'] = $paidIdentity->deviceId;
+                }
+                if (Schema::hasColumn('paid_marketing_clicks', 'ga4_client_id')) {
+                    $ga4 = trim((string) ($data['ga4_client_id'] ?? ''));
+                    if ($ga4 !== '') {
+                        $clickPayload['ga4_client_id'] = $ga4;
+                    }
                 }
 
                 PaidMarketingClick::create($clickPayload);
@@ -817,6 +829,69 @@ class TrackingController extends Controller
             $domain,
             60000,
         );
+
+        // Device intelligence (spec): persistent DEV_ ≠ fingerprint, paid history, exclusion → GA4.
+        try {
+            $threatGroup = strtolower((string) ($detection['threat_group'] ?? ''));
+            $deviceIntel = app(\App\Services\ClickronixDeviceService::class)->ingest($domain, [
+                'device_token' => trim((string) ($data['device_token'] ?? '')),
+                'fingerprint' => $data['fingerprint'] ?? null,
+                'fingerprint_id' => $paidIdentity instanceof ResolvedPaidIdentity ? $paidIdentity->fingerprintId : null,
+                'ga4_client_id' => trim((string) ($data['ga4_client_id'] ?? '')),
+                'gclid' => $data['gclid'] ?? null,
+                'gbraid' => $data['gbraid'] ?? null,
+                'wbraid' => $data['wbraid'] ?? null,
+                'ip' => $ip,
+                // Count unique paid entries only (server→tag continuation must not double-count).
+                'is_paid' => $isPaidTraffic && $priorPaidClick === null,
+                'is_invalid' => $isPaidTraffic && ($detection['action_taken'] !== 'allow') && ! $allowListedIp && ! $sameClickContinuation,
+                'landing_page' => $data['url'] ?? $data['path'] ?? null,
+                'session_id' => $sessionId,
+                'automation' => str_contains($threatGroup, 'bot') || str_contains($threatGroup, 'automat'),
+                'proxy' => str_contains($threatGroup, 'proxy'),
+                'vpn' => str_contains($threatGroup, 'vpn'),
+                'datacenter' => str_contains($threatGroup, 'data_center') || str_contains($threatGroup, 'datacenter'),
+                'user_agent' => $ua,
+            ]);
+
+            if (Schema::hasTable('visits') && $visitId && filled($deviceIntel['device_id'] ?? null)) {
+                $update = [];
+                if (Schema::hasColumn('visits', 'device_id')) {
+                    $update['device_id'] = $deviceIntel['device_id'];
+                }
+                if (Schema::hasColumn('visits', 'fingerprint_id') && filled($deviceIntel['fingerprint_id'] ?? null)) {
+                    $update['fingerprint_id'] = $deviceIntel['fingerprint_id'];
+                }
+                if (Schema::hasColumn('visits', 'ga4_client_id') && filled($deviceIntel['ga4_client_id'] ?? null)) {
+                    $update['ga4_client_id'] = $deviceIntel['ga4_client_id'];
+                } elseif (Schema::hasColumn('visits', 'ga4_client_id') && filled($data['ga4_client_id'] ?? null)) {
+                    $update['ga4_client_id'] = trim((string) $data['ga4_client_id']);
+                }
+                if (Schema::hasColumn('visits', 'device_confidence')) {
+                    $update['device_confidence'] = $deviceIntel['device_confidence'];
+                }
+                if (Schema::hasColumn('visits', 'device_token') && filled($deviceIntel['device_token'] ?? null)) {
+                    $update['device_token'] = $deviceIntel['device_token'];
+                }
+                if ($update !== []) {
+                    DB::table('visits')->where('id', $visitId)->update($update);
+                }
+            }
+
+            $clientPayload['device_id'] = $deviceIntel['device_id'] ?? null;
+            $clientPayload['device_token'] = $deviceIntel['device_token'] ?? null;
+            $clientPayload['device_confidence'] = $deviceIntel['device_confidence'] ?? null;
+            $clientPayload['exclusion_candidate'] = (bool) ($deviceIntel['exclusion_candidate'] ?? false);
+            $clientPayload['fire_exclude_event'] = (bool) ($deviceIntel['fire_exclude_event'] ?? false);
+            $clientPayload['exclude_event'] = \App\Services\ClickronixDeviceService::EXCLUDE_EVENT;
+            $clientPayload['exclude_reason'] = $deviceIntel['risk_reason'] ?? null;
+            $clientPayload['risk_label'] = $deviceIntel['risk_label'] ?? null;
+            if (! empty($deviceIntel['ga4_client_id'])) {
+                $clientPayload['ga4_client_id'] = $deviceIntel['ga4_client_id'];
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         if ($request->isMethod('get')) {
             return $this->cors(
