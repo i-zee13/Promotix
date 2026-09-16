@@ -25,32 +25,65 @@
             @media (min-width:640px){ .vj-title{ font-size:32px; } }
             .vj-title__muted { color:#a9a9a9; }
             .vj-title__pipe { color:rgba(255,255,255,.35); margin:0 4px; }
-            .vj-filters { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; }
-            .vj-filter { position:relative; min-width:132px; }
-            .vj-filter__select, .vj-filter__date {
-                appearance:none; -webkit-appearance:none; height:38px; width:100%;
-                border-radius:8px; border:1px solid rgba(255,255,255,.16); background:#101010;
-                color:rgba(255,255,255,.82); font-size:12px; font-weight:500; padding:0 32px 0 12px; outline:none;
+
+            /* Shared Figma filter bar (same as Traffic Control / Overview) */
+            .figma-filter-bar--vj.ov-filter-bar,
+            .figma-filter-bar--vj {
+                width: 100%;
+                max-width: 860px;
+                min-height: 54px;
+                border-color: rgba(255, 102, 0, 0.55) !important;
+                box-shadow: 0 0 0 1px rgba(255, 102, 0, 0.12);
             }
-            .vj-filter__chev { pointer-events:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); width:12px; height:12px; color:rgba(255,255,255,.45); }
-            .vj-filter__date-wrap { position:relative; min-width:168px; }
-            .vj-filter__date { display:inline-flex; align-items:center; gap:8px; cursor:pointer; padding-right:12px; white-space:nowrap; }
-            .vj-filter__date svg { width:14px; height:14px; color:rgba(255,255,255,.5); margin-left:auto; }
-            .vj-sample {
-                display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 10px;
-                border-radius:8px; border:1px solid rgba(255,255,255,.14); background:#101010;
-                font-size:11px; color:rgba(255,255,255,.65);
+            @media (min-width: 1100px) {
+                .figma-filter-bar--vj { width: fit-content; margin-left: auto; }
             }
-            .vj-toggle {
-                width:34px; height:18px; border-radius:999px; background:rgba(255,255,255,.15);
-                position:relative; transition:background .15s ease; flex-shrink:0;
+            .figma-filter-bar--vj > label { min-width: 0 !important; }
+            .figma-filter-bar--vj > label.vj-f-account { width: 148px !important; flex: 1 1 148px !important; }
+            .figma-filter-bar--vj > label.vj-f-domain { width: 132px !important; flex: 1 1 132px !important; }
+            .figma-filter-bar--vj > label.vj-f-campaign { width: 132px !important; flex: 1 1 132px !important; }
+            .figma-filter-bar--vj > label.vj-f-device { width: 110px !important; flex: 1 1 110px !important; }
+            .figma-filter-bar--vj > label.vj-f-sample { width: 108px !important; flex: 0 0 108px !important; }
+            .figma-filter-bar--vj .vj-f-actions {
+                display: flex; align-items: stretch; flex-shrink: 0;
+                margin-left: auto;
             }
-            .vj-toggle.is-on { background:#FF6600; }
-            .vj-toggle::after {
-                content:''; position:absolute; top:2px; left:2px; width:14px; height:14px;
-                border-radius:999px; background:#fff; transition:transform .15s ease;
+            .figma-filter-bar--vj .figma-filter-calendar-host {
+                border-left: 1px solid rgba(0,0,0,.2);
+                min-height: 100%;
             }
-            .vj-toggle.is-on::after { transform:translateX(16px); }
+            .figma-filter-bar--vj .vj-sample-row {
+                display: flex; align-items: center; justify-content: space-between; gap: 8px;
+                height: 22px; padding: 0 8px; border-radius: 3px; background: #101010;
+                color: #8c8787; font-size: 10px; font-weight: 500;
+            }
+            .figma-filter-bar--vj .vj-toggle {
+                width: 28px; height: 15px; border-radius: 999px; background: rgba(255,255,255,.18);
+                position: relative; transition: background .15s ease; flex-shrink: 0;
+            }
+            .figma-filter-bar--vj .vj-toggle.is-on { background: #FF6600; }
+            .figma-filter-bar--vj .vj-toggle::after {
+                content: ''; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px;
+                border-radius: 999px; background: #fff; transition: transform .15s ease;
+            }
+            .figma-filter-bar--vj .vj-toggle.is-on::after { transform: translateX(13px); }
+            @media (max-width: 820px) {
+                .figma-filter-bar--vj {
+                    flex-wrap: wrap !important;
+                    width: 100% !important;
+                    max-width: none !important;
+                }
+                .figma-filter-bar--vj > label {
+                    flex: 1 1 46% !important;
+                    width: auto !important;
+                    border-bottom: 1px solid rgba(0,0,0,.12);
+                }
+                .figma-filter-bar--vj .vj-f-actions {
+                    width: 100%;
+                    border-top: 1px solid rgba(0,0,0,.12);
+                    justify-content: flex-end;
+                }
+            }
 
             .vj-kpi-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
             @media (min-width:900px){ .vj-kpi-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
@@ -430,58 +463,60 @@
                         <span>Visitor Journey</span>
                     </h1>
                 </div>
-                <div class="vj-filters">
-                    <div class="vj-filter" style="min-width:160px">
-                        <select class="vj-filter__select" x-model="filters.google_ads_account_id" @change="reload()">
-                            <option value="">Google Ads · All accounts</option>
-                            @foreach (($googleAdsAccounts ?? []) as $account)
-                                <option value="{{ $account->id }}">{{ method_exists($account, 'displayLabel') ? $account->displayLabel() : ($account->account_name ?: 'Account') }}</option>
-                            @endforeach
-                        </select>
-                        <svg class="vj-filter__chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </div>
-                    <button type="button" class="vj-sample" @click="filters.sample = !filters.sample; reload()">
-                        <span>Sample data</span>
-                        <span class="vj-toggle" :class="{ 'is-on': filters.sample }"></span>
-                    </button>
-                    <div class="vj-filter">
-                        <select class="vj-filter__select" x-model="filters.domain_id" @change="reload()">
-                            <option value="">All Domains</option>
-                            @foreach ($domains as $d)
-                                <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                            @endforeach
-                        </select>
-                        <svg class="vj-filter__chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </div>
-                    <div class="vj-filter">
-                        <select class="vj-filter__select" x-model="filters.campaign" @change="reload()">
-                            <option value="">All Campaigns</option>
-                            <template x-for="c in campaignOptions" :key="'c-'+c">
-                                <option :value="c" x-text="c"></option>
-                            </template>
-                        </select>
-                        <svg class="vj-filter__chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </div>
-                    <div class="vj-filter" style="min-width:120px">
-                        <select class="vj-filter__select" x-model="filters.device" @change="reload()">
-                            <option value="">All Devices</option>
-                            <option value="mobile">Mobile</option>
-                            <option value="desktop">Desktop</option>
-                            <option value="tablet">Tablet</option>
-                        </select>
-                        <svg class="vj-filter__chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </div>
-                    <div
-                        class="vj-filter__date-wrap"
-                        x-data="figmaDateRangePicker"
-                        x-init="init()"
-                        @click.outside="if (calendarOpen && !isMobile()) cancelCalendar()"
-                    >
-                        <button type="button" class="vj-filter__date" @click="toggleCalendar()">
-                            <span x-text="$root.prettyRange()"></span>
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" stroke-width="1.6"/><path stroke-width="1.6" stroke-linecap="round" d="M8 3v3M16 3v3M4 10h16"/></svg>
+                <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--vj ov-filter-bar flex min-h-[54px] max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                    <label class="vj-f-account flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                        <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Google Ads Account</span>
+                        <div class="figma-filter-select-wrap">
+                            <select class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0" x-model="filters.google_ads_account_id" @change="reload()">
+                                <option value="">All Accounts</option>
+                                @foreach (($googleAdsAccounts ?? []) as $account)
+                                    <option value="{{ $account->id }}">{{ method_exists($account, 'displayLabel') ? $account->displayLabel() : ($account->account_name ?: 'Account') }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </label>
+                    <label class="vj-f-domain flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                        <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Domain</span>
+                        <div class="figma-filter-select-wrap">
+                            <select class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0" x-model="filters.domain_id" @change="reload()">
+                                <option value="">All Domains</option>
+                                @foreach ($domains as $d)
+                                    <option value="{{ $d->id }}">{{ $d->hostname }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </label>
+                    <label class="vj-f-campaign flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                        <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Campaign</span>
+                        <div class="figma-filter-select-wrap">
+                            <select class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0" x-model="filters.campaign" @change="reload()">
+                                <option value="">All Campaigns</option>
+                                <template x-for="c in campaignOptions" :key="'c-'+c">
+                                    <option :value="c" x-text="c"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </label>
+                    <label class="vj-f-device flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                        <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Device</span>
+                        <div class="figma-filter-select-wrap">
+                            <select class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0" x-model="filters.device" @change="reload()">
+                                <option value="">All Devices</option>
+                                <option value="mobile">Mobile</option>
+                                <option value="desktop">Desktop</option>
+                                <option value="tablet">Tablet</option>
+                            </select>
+                        </div>
+                    </label>
+                    <label class="vj-f-sample flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                        <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Sample Data</span>
+                        <button type="button" class="vj-sample-row w-full text-left" @click="filters.sample = !filters.sample; reload()">
+                            <span x-text="filters.sample ? 'On' : 'Off'"></span>
+                            <span class="vj-toggle" :class="{ 'is-on': filters.sample }"></span>
                         </button>
-                        @include('partials.figma-date-range-popover')
+                    </label>
+                    <div class="vj-f-actions">
+                        @include('partials.figma-filter-date-fields')
                     </div>
                 </div>
             </div>
