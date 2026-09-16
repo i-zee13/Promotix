@@ -43,7 +43,6 @@
             .figma-filter-bar--vj > label.vj-f-domain { width: 132px !important; flex: 1 1 132px !important; }
             .figma-filter-bar--vj > label.vj-f-campaign { width: 132px !important; flex: 1 1 132px !important; }
             .figma-filter-bar--vj > label.vj-f-device { width: 110px !important; flex: 1 1 110px !important; }
-            .figma-filter-bar--vj > label.vj-f-sample { width: 108px !important; flex: 0 0 108px !important; }
             .figma-filter-bar--vj .vj-f-actions {
                 display: flex; align-items: stretch; flex-shrink: 0;
                 margin-left: auto;
@@ -52,21 +51,6 @@
                 border-left: 1px solid rgba(0,0,0,.2);
                 min-height: 100%;
             }
-            .figma-filter-bar--vj .vj-sample-row {
-                display: flex; align-items: center; justify-content: space-between; gap: 8px;
-                height: 22px; padding: 0 8px; border-radius: 3px; background: #101010;
-                color: #8c8787; font-size: 10px; font-weight: 500;
-            }
-            .figma-filter-bar--vj .vj-toggle {
-                width: 28px; height: 15px; border-radius: 999px; background: rgba(255,255,255,.18);
-                position: relative; transition: background .15s ease; flex-shrink: 0;
-            }
-            .figma-filter-bar--vj .vj-toggle.is-on { background: #FF6600; }
-            .figma-filter-bar--vj .vj-toggle::after {
-                content: ''; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px;
-                border-radius: 999px; background: #fff; transition: transform .15s ease;
-            }
-            .figma-filter-bar--vj .vj-toggle.is-on::after { transform: translateX(13px); }
             @media (max-width: 820px) {
                 .figma-filter-bar--vj {
                     flex-wrap: wrap !important;
@@ -571,11 +555,6 @@
                 border: 1.5px solid #FF6600 !important;
                 color: #FF6600 !important;
             }
-            html.light-mode .figma-filter-bar--vj .vj-sample-row {
-                background: #ffffff !important;
-                color: #5c5470 !important;
-                border: 1px solid rgba(255, 102, 0, 0.22);
-            }
             html.light-mode .figma-filter-bar--vj .vj-f-actions,
             html.light-mode .figma-filter-bar--vj .figma-filter-calendar-host,
             html.light-mode .figma-filter-bar--vj > label {
@@ -1061,13 +1040,6 @@
                                 </button>
                             </template>
                         </div>
-                    </label>
-                    <label class="vj-f-sample flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
-                        <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Sample Data</span>
-                        <button type="button" class="vj-sample-row w-full text-left" @click="filters.sample = !filters.sample; reload()">
-                            <span x-text="filters.sample ? 'On' : 'Off'"></span>
-                            <span class="vj-toggle" :class="{ 'is-on': filters.sample }"></span>
-                        </button>
                     </label>
                     <div class="vj-f-actions">
                         @include('partials.figma-filter-date-fields')
@@ -1627,7 +1599,6 @@ function visitorJourneyPage() {
             google_ads_account_id: '',
             campaign: '',
             device: '',
-            sample: false,
             from: '',
             to: '',
         },
@@ -1807,15 +1778,7 @@ function visitorJourneyPage() {
 
         init() {
             this.hydrateDates();
-            // Default sample ON when no live preference — matches design demo until data exists.
-            try {
-                const pref = localStorage.getItem('promotix-vj-sample');
-                if (pref === '1') this.filters.sample = true;
-                if (pref === '0') this.filters.sample = false;
-                if (pref === null) this.filters.sample = false;
-            } catch (e) {
-                this.filters.sample = false;
-            }
+            try { localStorage.removeItem('promotix-vj-sample'); } catch (e) {}
             this.reload();
         },
         hydrateDates() {
@@ -1861,14 +1824,10 @@ function visitorJourneyPage() {
             if (this.filters.device) p.set('device', this.filters.device);
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);
-            if (this.filters.sample) p.set('sample', '1');
             return p;
         },
         async reload() {
             this.loading = true;
-            try {
-                localStorage.setItem('promotix-vj-sample', this.filters.sample ? '1' : '0');
-            } catch (e) {}
             try {
                 const res = await fetch('/bot-protection/visitor-journey/intelligence?' + this.queryParams().toString(), {
                     headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },

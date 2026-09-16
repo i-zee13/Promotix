@@ -13,15 +13,11 @@ class VisitorJourneyIntelligence
 {
     /**
      * @param  list<int>  $domainIds
-     * @param  array{campaign?:string,device?:string,path?:string,q?:string,sample?:bool}  $filters
+     * @param  array{campaign?:string,device?:string,path?:string,q?:string}  $filters
      * @return array<string, mixed>
      */
     public function build(array $domainIds, Carbon $from, Carbon $to, Request $request, array $filters = []): array
     {
-        if (! empty($filters['sample'])) {
-            return $this->samplePayload();
-        }
-
         if ($domainIds === [] || ! Schema::hasTable('visits')) {
             return $this->emptyPayload();
         }
@@ -266,27 +262,21 @@ class VisitorJourneyIntelligence
         $sessionId = (string) ($row['session_id'] ?? $row['session_key'] ?? '');
         $deviceRaw = trim((string) ($row['device_id'] ?? ''));
         $fpRaw = trim((string) ($row['fingerprint_id'] ?? ''));
-        $deviceId = $deviceRaw !== '' ? $deviceRaw : $fpRaw;
-        if ($deviceId === '' || str_starts_with($deviceId, 'unknown_')) {
-            $basis = $sessionId !== '' ? $sessionId : (string) ($row['ip'] ?? 'x');
-            $deviceId = 'DEV_'.strtoupper(substr(hash('sha256', $basis), 0, 12));
-        } elseif (str_starts_with($deviceId, 'FP_')) {
-            $deviceId = 'DEV_'.substr($deviceId, 3);
-        } elseif (! str_starts_with($deviceId, 'DEV_') && ! str_starts_with($deviceId, 'dev_')) {
-            $deviceId = 'DEV_'.strtoupper(substr(hash('sha256', $deviceId), 0, 12));
-        }
+        $ip = trim((string) ($row['ip'] ?? ''));
+        $deviceId = DeviceIdLabel::format($deviceRaw, $fpRaw, $ip);
         if ($sessionId !== '' && str_starts_with($sessionId, 'unknown_')) {
             $sessionId = 'ses_'.substr(sha1($sessionId), 0, 6);
         } elseif ($sessionId !== '' && ! str_starts_with($sessionId, 'ses_') && strlen($sessionId) > 12) {
             $sessionId = 'ses_'.substr(sha1($sessionId), 0, 6);
         } elseif ($sessionId === '') {
-            $sessionId = 'ses_'.substr(sha1((string) ($row['ip'] ?? 'x')), 0, 6);
+            $sessionId = 'ses_'.substr(sha1($ip !== '' ? $ip : 'x'), 0, 6);
         }
 
         return [
             'session_id' => $sessionId,
             'session_key' => (string) ($row['session_key'] ?? $sessionId),
             'device_id' => $deviceId,
+            'device_id_raw' => $deviceRaw !== '' ? $deviceRaw : ($fpRaw !== '' ? $fpRaw : ''),
             'device' => (string) ($row['device'] ?? '—'),
             'browser' => (string) ($row['browser'] ?? '—'),
             'os' => (string) ($row['os'] ?? '—'),
@@ -974,216 +964,6 @@ class VisitorJourneyIntelligence
             'selected' => null,
             'timeline' => [],
             'meta' => ['session_total' => 0, 'tracked' => 0, 'campaigns' => [], 'days' => 0],
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private function samplePayload(): array
-    {
-        $mk = function (array $d): array {
-            return $this->timelineEvent($d);
-        };
-
-        $sessions = [
-            [
-                'session_id' => 'ses_42a8',
-                'session_key' => 'ses_42a8',
-                'device_id' => 'dev_7c9b1a2f',
-                'device' => 'Mobile',
-                'status' => 'Ended',
-                'campaign' => 'Frontier Search',
-                'duration' => '2m 11s',
-                'path_chips' => [
-                    ['label' => '/frontier', 'tone' => 'page'],
-                    ['label' => '/plans', 'tone' => 'page'],
-                    ['label' => 'call button click', 'tone' => 'action'],
-                ],
-                'outcome' => ['label' => 'Pending', 'tone' => 'pending'],
-                'timeline' => [
-                    $mk(['type' => 'page', 'label' => '/frontier', 'event' => '/frontier', 'kind' => 'Page view', 'time' => '10:24:00', 'elapsed_sec' => 0, 'page' => '/frontier', 'status' => 'Page viewed']),
-                    $mk(['type' => 'page', 'label' => '/plans', 'event' => '/plans', 'kind' => 'Page view', 'time' => '10:24:18', 'elapsed_sec' => 18, 'page' => '/plans', 'status' => 'Page viewed']),
-                    $mk(['type' => 'scroll', 'label' => 'Scroll', 'event' => 'scroll', 'kind' => 'Scroll', 'time' => '10:24:28', 'elapsed_sec' => 28, 'page' => '/plans', 'status' => 'Scroll recorded']),
-                    $mk(['type' => 'form', 'label' => 'availability check', 'event' => 'availability_check', 'kind' => 'Form submit', 'time' => '10:24:36', 'elapsed_sec' => 36, 'page' => '/plans', 'status' => 'Submitted']),
-                    $mk(['type' => 'cta', 'label' => 'Call click', 'event' => 'call_button_click', 'kind' => 'CTA click', 'time' => '10:24:52', 'elapsed_sec' => 52, 'page' => '/plans', 'note' => 'Call outcome unavailable.', 'status' => 'Click recorded']),
-                    $mk(['type' => 'exit', 'label' => 'Exit', 'event' => 'session_end', 'kind' => 'Exit', 'time' => '10:26:11', 'elapsed_sec' => 131, 'page' => '/plans', 'status' => 'Session ended']),
-                ],
-            ],
-            [
-                'session_id' => 'ses_b4d3',
-                'session_key' => 'ses_b4d3',
-                'device_id' => 'dev_3f8e2b1c',
-                'device' => 'Desktop',
-                'status' => 'Ended',
-                'campaign' => 'Verizon Brand',
-                'duration' => '1m 48s',
-                'path_chips' => [
-                    ['label' => '/verizon', 'tone' => 'page'],
-                    ['label' => '/availability', 'tone' => 'page'],
-                    ['label' => 'form submit', 'tone' => 'form'],
-                ],
-                'outcome' => ['label' => 'Lead confirmed', 'tone' => 'lead'],
-                'timeline' => [
-                    $mk(['type' => 'page', 'label' => '/verizon', 'event' => '/verizon', 'kind' => 'Page view', 'time' => '11:02:00', 'elapsed_sec' => 0, 'page' => '/verizon', 'status' => 'Page viewed']),
-                    $mk(['type' => 'page', 'label' => '/availability', 'event' => '/availability', 'kind' => 'Page view', 'time' => '11:02:40', 'elapsed_sec' => 40, 'page' => '/availability', 'status' => 'Page viewed']),
-                    $mk(['type' => 'scroll', 'label' => 'Scroll', 'event' => 'scroll', 'kind' => 'Scroll', 'time' => '11:03:05', 'elapsed_sec' => 65, 'page' => '/availability', 'status' => 'Scroll recorded']),
-                    $mk(['type' => 'form', 'label' => 'form_submit', 'event' => 'form_submit', 'kind' => 'Form submit', 'time' => '11:03:22', 'elapsed_sec' => 82, 'page' => '/availability', 'status' => 'Submitted']),
-                    $mk(['type' => 'exit', 'label' => 'Exit', 'event' => 'session_end', 'kind' => 'Exit', 'time' => '11:03:48', 'elapsed_sec' => 108, 'page' => '/availability', 'status' => 'Session ended']),
-                ],
-            ],
-            [
-                'session_id' => 'ses_c9e1',
-                'session_key' => 'ses_c9e1',
-                'device_id' => 'dev_9a0b4d2e',
-                'device' => 'Mobile',
-                'status' => 'Ended',
-                'campaign' => 'Kinetic Display',
-                'duration' => '0m 48s',
-                'path_chips' => [
-                    ['label' => '/kinetic', 'tone' => 'page'],
-                    ['label' => 'exit', 'tone' => 'exit'],
-                ],
-                'outcome' => ['label' => 'No conversion', 'tone' => 'none'],
-                'timeline' => [
-                    $mk(['type' => 'page', 'label' => '/kinetic', 'event' => '/kinetic', 'kind' => 'Page view', 'time' => '09:15:00', 'elapsed_sec' => 0, 'page' => '/kinetic', 'status' => 'Page viewed']),
-                    $mk(['type' => 'scroll', 'label' => 'Scroll', 'event' => 'scroll', 'kind' => 'Scroll', 'time' => '09:15:12', 'elapsed_sec' => 12, 'page' => '/kinetic', 'status' => 'Scroll recorded']),
-                    $mk(['type' => 'exit', 'label' => 'Exit', 'event' => 'session_end', 'kind' => 'Exit', 'time' => '09:15:48', 'elapsed_sec' => 48, 'page' => '/kinetic', 'status' => 'Session ended']),
-                ],
-            ],
-            [
-                'session_id' => 'ses_d7f2',
-                'session_key' => 'ses_d7f2',
-                'device_id' => 'dev_1c4a88e0',
-                'device' => 'Desktop',
-                'status' => 'Ended',
-                'campaign' => 'Frontier Search',
-                'duration' => '2m 05s',
-                'path_chips' => [
-                    ['label' => '/frontier', 'tone' => 'page'],
-                    ['label' => '/contact', 'tone' => 'page'],
-                    ['label' => 'call button click', 'tone' => 'action'],
-                ],
-                'outcome' => ['label' => 'Pending', 'tone' => 'pending'],
-                'timeline' => [
-                    $mk(['type' => 'page', 'label' => '/frontier', 'event' => '/frontier', 'kind' => 'Page view', 'time' => '12:10:00', 'elapsed_sec' => 0, 'page' => '/frontier', 'status' => 'Page viewed']),
-                    $mk(['type' => 'page', 'label' => '/contact', 'event' => '/contact', 'kind' => 'Page view', 'time' => '12:10:35', 'elapsed_sec' => 35, 'page' => '/contact', 'status' => 'Page viewed']),
-                    $mk(['type' => 'cta', 'label' => 'Call click', 'event' => 'call_button_click', 'kind' => 'CTA click', 'time' => '12:11:10', 'elapsed_sec' => 70, 'page' => '/contact', 'note' => 'Call outcome unavailable.', 'status' => 'Click recorded']),
-                    $mk(['type' => 'exit', 'label' => 'Exit', 'event' => 'session_end', 'kind' => 'Exit', 'time' => '12:12:05', 'elapsed_sec' => 125, 'page' => '/contact', 'status' => 'Session ended']),
-                ],
-            ],
-        ];
-
-        $sessions = array_map(function (array $s): array {
-            $pages = collect($s['path_chips'] ?? [])->where('tone', 'page')->pluck('label')->values()->all();
-            $timeline = $s['timeline'] ?? [];
-            $cta = collect($timeline)->where('type', 'cta')->count();
-            $forms = collect($timeline)->where('type', 'form')->count();
-            $last = $timeline[count($timeline) - 1] ?? null;
-            $first = $timeline[0] ?? null;
-
-            return array_merge([
-                'browser' => 'Chrome',
-                'os' => ($s['device'] ?? '') === 'Desktop' ? 'Windows' : 'Android',
-                'source' => 'Google Ads',
-                'landing_page' => $pages[0] ?? '/',
-                'exit_page' => $pages[count($pages) - 1] ?? '/',
-                'page_views' => max(1, count($pages)),
-                'cta_clicks' => $cta,
-                'form_submits' => $forms,
-                'gclid_captured' => true,
-                'start_time' => (string) ($first['time'] ?? '10:24:00'),
-                'start_label' => $this->ampmFromClock((string) ($first['time'] ?? '10:24:00')),
-                'last_event_time' => (string) ($last['time'] ?? ''),
-                'path_footer' => array_values(array_merge(
-                    array_map(fn ($p) => ['label' => $p, 'tone' => 'page'], $pages),
-                    [['label' => 'Exit', 'tone' => 'exit']],
-                )),
-                'alert' => $this->sessionAlert($timeline),
-            ], $s);
-        }, $sessions);
-
-        $flow = [
-            'columns' => [
-                [
-                    'key' => 'landing',
-                    'label' => 'Landing Page',
-                    'nodes' => [
-                        ['id' => 'l:/frontier', 'label' => '/frontier', 'value' => 420, 'pct' => 42.0, 'tone' => 'default'],
-                        ['id' => 'l:/verizon', 'label' => '/verizon', 'value' => 350, 'pct' => 35.0, 'tone' => 'default'],
-                        ['id' => 'l:/kinetic', 'label' => '/kinetic', 'value' => 230, 'pct' => 23.0, 'tone' => 'default'],
-                    ],
-                ],
-                [
-                    'key' => 'next',
-                    'label' => 'Next Page',
-                    'nodes' => [
-                        ['id' => 'n:/plans', 'label' => '/plans', 'value' => 380, 'pct' => 38.0, 'tone' => 'default'],
-                        ['id' => 'n:/availability', 'label' => '/availability', 'value' => 300, 'pct' => 30.0, 'tone' => 'default'],
-                        ['id' => 'n:/contact', 'label' => '/contact', 'value' => 240, 'pct' => 24.0, 'tone' => 'default'],
-                        ['id' => 'n:Exit', 'label' => 'Exit', 'value' => 80, 'pct' => 8.0, 'tone' => 'exit'],
-                    ],
-                ],
-                [
-                    'key' => 'action',
-                    'label' => 'Action',
-                    'nodes' => [
-                        ['id' => 'a:call', 'label' => 'Call button click', 'value' => 280, 'pct' => 28.0, 'tone' => 'action'],
-                        ['id' => 'a:form', 'label' => 'Form started', 'value' => 240, 'pct' => 24.0, 'tone' => 'form'],
-                        ['id' => 'a:none', 'label' => 'No action', 'value' => 320, 'pct' => 32.0, 'tone' => 'default'],
-                        ['id' => 'a:exit', 'label' => 'Exit', 'value' => 160, 'pct' => 16.0, 'tone' => 'exit'],
-                    ],
-                ],
-                [
-                    'key' => 'outcome',
-                    'label' => 'Outcome',
-                    'nodes' => [
-                        ['id' => 'o:lead', 'label' => 'Lead confirmed', 'value' => 80, 'pct' => 8.0, 'tone' => 'lead'],
-                        ['id' => 'o:wait', 'label' => 'Awaiting outcome', 'value' => 140, 'pct' => 14.0, 'tone' => 'pending'],
-                        ['id' => 'o:exit', 'label' => 'Exit', 'value' => 780, 'pct' => 78.0, 'tone' => 'exit'],
-                    ],
-                ],
-            ],
-            'links' => [],
-        ];
-        $flow['links'] = $this->syntheticLinks($flow['columns']);
-
-        return [
-            'kpis' => [
-                ['key' => 'tracked_sessions', 'label' => 'Tracked Sessions', 'value' => 1000, 'display' => '1,000', 'delta' => 12.4, 'vs_label' => 'vs previous 30 days', 'tone' => 'orange', 'spark' => [4, 5, 4, 6, 7, 6, 8]],
-                ['key' => 'avg_duration', 'label' => 'Avg. Session Duration', 'value' => 138, 'display' => '00:02:18', 'delta' => 8.7, 'vs_label' => 'vs previous 30 days', 'tone' => 'orange', 'spark' => [3, 4, 5, 4, 6, 5, 7]],
-                ['key' => 'pages_per_session', 'label' => 'Pages per Session', 'value' => 2.64, 'display' => '2.64', 'delta' => 6.1, 'vs_label' => 'vs previous 30 days', 'tone' => 'orange', 'spark' => [2, 3, 3, 4, 3, 5, 4]],
-                ['key' => 'lead_conversion', 'label' => 'Lead Conversion Rate', 'value' => 8.0, 'display' => '8.0%', 'delta' => 2.8, 'vs_label' => 'vs previous 30 days', 'tone' => 'orange', 'spark' => [2, 2, 3, 3, 4, 3, 5]],
-                ['key' => 'single_page', 'label' => 'Single-Page Sessions', 'value' => 38.0, 'display' => '38.0%', 'delta' => -4.1, 'vs_label' => 'vs previous 30 days', 'tone' => 'orange', 'spark' => [6, 5, 5, 4, 4, 3, 3], 'delta_bad_when_up' => true],
-                ['key' => 'engaged_sessions', 'label' => 'Engaged Sessions', 'value' => 620, 'display' => '620', 'delta' => 15.6, 'vs_label' => 'vs previous 30 days', 'tone' => 'orange', 'spark' => [3, 4, 5, 6, 5, 7, 8]],
-            ],
-            'flow' => $flow,
-            'common_paths' => [
-                ['rank' => 1, 'path' => '/frontier → /plans → call button click', 'steps' => ['/frontier', '/plans', 'call button click'], 'value' => 280, 'pct' => 28.0],
-                ['rank' => 2, 'path' => '/verizon → /availability → form started', 'steps' => ['/verizon', '/availability', 'form started'], 'value' => 190, 'pct' => 19.0],
-                ['rank' => 3, 'path' => '/kinetic → /contact → exit', 'steps' => ['/kinetic', '/contact', 'exit'], 'value' => 120, 'pct' => 12.0],
-                ['rank' => 4, 'path' => '/frontier → exit', 'steps' => ['/frontier', 'exit'], 'value' => 80, 'pct' => 8.0],
-            ],
-            'landing_pages' => [
-                ['label' => '/frontier', 'value' => 420, 'pct' => 42.0],
-                ['label' => '/verizon', 'value' => 350, 'pct' => 35.0],
-                ['label' => '/kinetic', 'value' => 230, 'pct' => 23.0],
-            ],
-            'exit_pages' => [
-                ['label' => '/plans', 'value' => 310, 'pct' => 31.0],
-                ['label' => '/availability', 'value' => 260, 'pct' => 26.0],
-                ['label' => '/frontier', 'value' => 180, 'pct' => 18.0],
-            ],
-            'outcomes' => [
-                'total' => 1000,
-                'slices' => [
-                    ['key' => 'lead', 'label' => 'Confirmed leads', 'value' => 80, 'color' => '#22C55E'],
-                    ['key' => 'pending', 'label' => 'Pending', 'value' => 140, 'color' => '#EAB308'],
-                    ['key' => 'none', 'label' => 'No conversion', 'value' => 780, 'color' => '#EF4444'],
-                ],
-            ],
-            'sessions' => $sessions,
-            'selected' => $sessions[0],
-            'timeline' => $sessions[0]['timeline'],
-            'meta' => ['session_total' => 1000, 'tracked' => 1000, 'campaigns' => ['Frontier Search', 'Verizon Brand', 'Kinetic Display'], 'days' => 30],
         ];
     }
 }

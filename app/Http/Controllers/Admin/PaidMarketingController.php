@@ -874,10 +874,21 @@ class PaidMarketingController extends Controller
 
         $search = trim((string) $request->query('ip', ''));
         if ($search !== '') {
-            $query->where(function ($match) use ($search): void {
+            $needles = \App\Support\DeviceIdLabel::looksLikeDeviceId($search)
+                ? \App\Support\DeviceIdLabel::searchNeedles($search)
+                : [$search];
+            if ($needles === []) {
+                $needles = [$search];
+            }
+            $query->where(function ($match) use ($search, $needles): void {
                 $match->where('ip', 'like', '%'.$search.'%');
-                if (Schema::hasColumn('visits', 'device_id')) {
-                    $match->orWhere('device_id', 'like', '%'.$search.'%');
+                foreach ($needles as $needle) {
+                    if (Schema::hasColumn('visits', 'device_id')) {
+                        $match->orWhere('device_id', 'like', '%'.$needle.'%');
+                    }
+                    if (Schema::hasColumn('visits', 'fingerprint_id')) {
+                        $match->orWhere('fingerprint_id', 'like', '%'.$needle.'%');
+                    }
                 }
             });
         }
@@ -889,21 +900,25 @@ class PaidMarketingController extends Controller
             ->map(function (object $visit): array {
                 $deviceId = trim((string) ($visit->device_id ?? ''));
                 $fingerprintId = trim((string) ($visit->fingerprint_id ?? ''));
+                $ip = (string) ($visit->ip ?? '');
                 // Do not merge unknown devices together. A row without a stable
                 // device identifier remains attributable to its IP only.
                 $key = $deviceId !== '' ? $deviceId : ($fingerprintId !== '' ? $fingerprintId : 'Unknown');
+                $label = ($deviceId !== '' || $fingerprintId !== '' || $ip !== '')
+                    ? \App\Support\DeviceIdLabel::format($deviceId, $fingerprintId, $ip)
+                    : '—';
 
                 return [
-                    'ip' => (string) $visit->ip,
+                    'ip' => $ip,
                     'device_key' => $key,
-                    'device_id' => $deviceId !== '' ? $deviceId : '—',
+                    'device_id' => $label,
                     'device' => (string) ($visit->device ?? ''),
                     'browser' => (string) ($visit->browser ?? ''),
                     'os' => (string) ($visit->os ?? ''),
                     'screen_resolution' => (string) ($visit->screen_resolution ?? ''),
                     'language' => (string) ($visit->language ?? ''),
                     'timezone' => (string) ($visit->timezone ?? ''),
-                    'fingerprint_id' => $fingerprintId,
+                    'fingerprint_id' => $label !== '—' ? $label : $fingerprintId,
                     'visited_at' => (string) ($visit->visited_at ?? ''),
                 ];
             })
@@ -2665,6 +2680,15 @@ class PaidMarketingController extends Controller
             $fpSignals = \App\Support\DeviceFingerprintCatalog::sanitize($row->fingerprint_signals);
         }
 
+        $formattedDeviceId = \App\Support\DeviceIdLabel::format(
+            filled($row->device_id ?? null) ? (string) $row->device_id : null,
+            filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null,
+            filled($row->ip ?? null) ? (string) $row->ip : null,
+        );
+        if ($formattedDeviceId === 'DEV_UNKNOWN') {
+            $formattedDeviceId = null;
+        }
+
         return [
             'session_id' => $sessionId,
             'device_fingerprint' => $fingerprint
@@ -2676,10 +2700,10 @@ class PaidMarketingController extends Controller
             'screen' => filled($row->screen_resolution ?? null) ? (string) $row->screen_resolution : null,
             'language' => filled($row->language ?? null) ? (string) $row->language : null,
             'timezone' => filled($row->timezone ?? null) ? (string) $row->timezone : null,
-            'device_id' => filled($row->device_id ?? null) ? (string) $row->device_id : null,
+            'device_id' => $formattedDeviceId,
             'browser_id' => filled($row->browser_id ?? null) ? (string) $row->browser_id : null,
             'visitor_id' => filled($row->visitor_id ?? null) ? (string) $row->visitor_id : null,
-            'fingerprint_id' => filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null,
+            'fingerprint_id' => $formattedDeviceId ?: (filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null),
             'paid_identity_id' => filled($row->paid_identity_id ?? null) ? (string) $row->paid_identity_id : null,
             'identity_confidence' => $confidence,
             'identity_confidence_label' => $identityLabel,
@@ -3197,6 +3221,15 @@ class PaidMarketingController extends Controller
             $fpSignals = \App\Support\DeviceFingerprintCatalog::sanitize($row->fingerprint_signals);
         }
 
+        $formattedDeviceId = \App\Support\DeviceIdLabel::format(
+            filled($row->device_id ?? null) ? (string) $row->device_id : null,
+            filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null,
+            filled($row->ip ?? null) ? (string) $row->ip : null,
+        );
+        if ($formattedDeviceId === 'DEV_UNKNOWN') {
+            $formattedDeviceId = null;
+        }
+
         return [
             'session_id' => $sessionId,
             'device_fingerprint' => $fingerprint
@@ -3208,10 +3241,10 @@ class PaidMarketingController extends Controller
             'screen' => filled($row->screen_resolution ?? null) ? (string) $row->screen_resolution : null,
             'language' => filled($row->language ?? null) ? (string) $row->language : null,
             'timezone' => filled($row->timezone ?? null) ? (string) $row->timezone : null,
-            'device_id' => filled($row->device_id ?? null) ? (string) $row->device_id : null,
+            'device_id' => $formattedDeviceId,
             'browser_id' => filled($row->browser_id ?? null) ? (string) $row->browser_id : null,
             'visitor_id' => filled($row->visitor_id ?? null) ? (string) $row->visitor_id : null,
-            'fingerprint_id' => filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null,
+            'fingerprint_id' => $formattedDeviceId ?: (filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null),
             'paid_identity_id' => filled($row->paid_identity_id ?? null) ? (string) $row->paid_identity_id : null,
             'identity_confidence' => $confidence,
             'identity_confidence_label' => $identityLabel,
@@ -3965,23 +3998,40 @@ class PaidMarketingController extends Controller
         }
 
         if ($this->looksLikeDeviceId($term)) {
-            $query->where(function ($match) use ($term): void {
-                if (Schema::hasTable('visits') && Schema::hasColumn('visits', 'device_id')) {
-                    $match->orWhereExists(function ($sq) use ($term): void {
+            $needles = \App\Support\DeviceIdLabel::searchNeedles($term);
+            if ($needles === []) {
+                $needles = [$term];
+            }
+            $query->where(function ($match) use ($needles): void {
+                if (Schema::hasTable('visits')) {
+                    $match->orWhereExists(function ($sq) use ($needles): void {
                         $sq->selectRaw('1')
                             ->from('visits')
                             ->whereColumn('visits.domain_id', 'paid_marketing_visits.domain_id')
                             ->whereColumn('visits.ip', 'paid_marketing_visits.ip')
-                            ->where(function ($inner) use ($term): void {
-                                $inner->where('visits.device_id', $term)
-                                    ->orWhere('visits.device_id', 'like', '%'.$term.'%');
+                            ->where(function ($inner) use ($needles): void {
+                                foreach ($needles as $needle) {
+                                    if (Schema::hasColumn('visits', 'device_id')) {
+                                        $inner->orWhere('visits.device_id', 'like', '%'.$needle.'%');
+                                    }
+                                    if (Schema::hasColumn('visits', 'fingerprint_id')) {
+                                        $inner->orWhere('visits.fingerprint_id', 'like', '%'.$needle.'%');
+                                    }
+                                    if (Schema::hasColumn('visits', 'session_id')) {
+                                        $inner->orWhere('visits.session_id', 'like', '%'.$needle.'%');
+                                    }
+                                }
                             });
                     });
                 }
 
-                $match->orWhereHas('clicks', function ($cq) use ($term): void {
+                $match->orWhereHas('clicks', function ($cq) use ($needles): void {
                     if (Schema::hasColumn('paid_marketing_clicks', 'device_id')) {
-                        $cq->where('device_id', 'like', '%'.$term.'%');
+                        $cq->where(function ($inner) use ($needles): void {
+                            foreach ($needles as $needle) {
+                                $inner->orWhere('device_id', 'like', '%'.$needle.'%');
+                            }
+                        });
                     } else {
                         $cq->whereRaw('1=0');
                     }
@@ -4057,9 +4107,7 @@ class PaidMarketingController extends Controller
 
     private function looksLikeDeviceId(string $value): bool
     {
-        $value = trim($value);
-
-        return (bool) preg_match('/^DEV_[A-Za-z0-9]+$/i', $value);
+        return \App\Support\DeviceIdLabel::looksLikeDeviceId($value);
     }
 
     private function campaignFromPath(?string $path): ?string

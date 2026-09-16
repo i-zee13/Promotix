@@ -68,6 +68,9 @@ class TrafficControlSessionQuery
         if (Schema::hasColumn('visits', 'session_id')) {
             $select[] = DB::raw('MAX(visits.session_id) as session_id');
         }
+        if (Schema::hasColumn('visits', 'device_id')) {
+            $select[] = DB::raw('MAX(visits.device_id) as device_id');
+        }
         if (Schema::hasColumn('visits', 'fingerprint_id')) {
             $select[] = DB::raw('MAX(visits.fingerprint_id) as fingerprint_id');
         }
@@ -174,6 +177,12 @@ class TrafficControlSessionQuery
             $secs = $durationSec % 60;
             $deviceBucket = TrafficSourceClassifier::deviceBucket($row->device, $row->os);
 
+            $deviceLabel = DeviceIdLabel::format(
+                (string) ($row->device_id ?? ''),
+                (string) ($row->fingerprint_id ?? ''),
+                (string) ($row->ip ?? ''),
+            );
+
             return [
                 'id' => (int) sprintf('%u', crc32($row->domain_id.'|'.$key)),
                 'session_id' => $row->session_id ?? $key,
@@ -181,7 +190,8 @@ class TrafficControlSessionQuery
                 'ip' => $row->ip,
                 'domain_id' => (int) $row->domain_id,
                 'domain' => $row->hostname,
-                'fingerprint_id' => $row->fingerprint_id ?? null,
+                'device_id' => $deviceLabel,
+                'fingerprint_id' => $deviceLabel,
                 'source_platform' => $platform,
                 'campaign' => $row->utm_campaign,
                 'keyword' => $row->utm_term,
@@ -273,7 +283,31 @@ class TrafficControlSessionQuery
             $query->where('visits.url', 'like', "%{$path}%");
         }
         if ($ip = trim((string) $request->query('ip', ''))) {
-            $query->where('visits.ip', 'like', "%{$ip}%");
+            if (DeviceIdLabel::looksLikeDeviceId($ip)
+                || preg_match('/^ses_/i', $ip)
+                || (! filter_var($ip, FILTER_VALIDATE_IP) && ! preg_match('/^\d{1,3}(\.\d{1,3}){0,3}$/', $ip) && strlen($ip) >= 6)
+            ) {
+                $needles = DeviceIdLabel::searchNeedles($ip);
+                if ($needles === []) {
+                    $needles = [$ip];
+                }
+                $query->where(function ($match) use ($ip, $needles): void {
+                    $match->where('visits.ip', 'like', '%'.$ip.'%');
+                    foreach ($needles as $needle) {
+                        if (Schema::hasColumn('visits', 'device_id')) {
+                            $match->orWhere('visits.device_id', 'like', '%'.$needle.'%');
+                        }
+                        if (Schema::hasColumn('visits', 'fingerprint_id')) {
+                            $match->orWhere('visits.fingerprint_id', 'like', '%'.$needle.'%');
+                        }
+                        if (Schema::hasColumn('visits', 'session_id')) {
+                            $match->orWhere('visits.session_id', 'like', '%'.$needle.'%');
+                        }
+                    }
+                });
+            } else {
+                $query->where('visits.ip', 'like', '%'.$ip.'%');
+            }
         }
         if ($device = trim((string) $request->query('device', ''))) {
             $query->where(function ($q) use ($device): void {

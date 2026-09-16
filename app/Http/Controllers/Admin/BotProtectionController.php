@@ -63,7 +63,6 @@ class BotProtectionController extends Controller
                 'device' => trim((string) $request->query('device', '')),
                 'path' => trim((string) $request->query('path', '')),
                 'q' => trim((string) $request->query('q', '')),
-                'sample' => filter_var($request->query('sample', false), FILTER_VALIDATE_BOOLEAN),
             ]);
 
             return response()->json($payload);
@@ -1413,8 +1412,32 @@ class BotProtectionController extends Controller
 
     private function applyAdvancedVisitFilters($query, Request $request): void
     {
-        if ($ip = trim((string) $request->query('ip', ''))) {
-            $query->where('visits.ip', 'like', '%'.$ip.'%');
+        if ($term = trim((string) $request->query('ip', ''))) {
+            if (\App\Support\DeviceIdLabel::looksLikeDeviceId($term)
+                || preg_match('/^ses_/i', $term)
+                || (! filter_var($term, FILTER_VALIDATE_IP) && ! preg_match('/^\d{1,3}(\.\d{1,3}){0,3}$/', $term) && strlen($term) >= 6)
+            ) {
+                $needles = \App\Support\DeviceIdLabel::searchNeedles($term);
+                if ($needles === []) {
+                    $needles = [$term];
+                }
+                $query->where(function ($match) use ($term, $needles): void {
+                    $match->where('visits.ip', 'like', '%'.$term.'%');
+                    foreach ($needles as $needle) {
+                        if (Schema::hasColumn('visits', 'device_id')) {
+                            $match->orWhere('visits.device_id', 'like', '%'.$needle.'%');
+                        }
+                        if (Schema::hasColumn('visits', 'fingerprint_id')) {
+                            $match->orWhere('visits.fingerprint_id', 'like', '%'.$needle.'%');
+                        }
+                        if (Schema::hasColumn('visits', 'session_id')) {
+                            $match->orWhere('visits.session_id', 'like', '%'.$needle.'%');
+                        }
+                    }
+                });
+            } else {
+                $query->where('visits.ip', 'like', '%'.$term.'%');
+            }
         }
         if ($country = trim((string) $request->query('country', ''))) {
             $query->where('visits.country', strtoupper($country));

@@ -115,6 +115,7 @@ class TrafficControlIntelligence
             if (! isset($devices[$deviceKey])) {
                 $devices[$deviceKey] = [
                     'device_id' => $deviceLabel,
+                    'device_id_raw' => $deviceRaw !== '' ? $deviceRaw : $fpRaw,
                     'device_key' => $deviceKey,
                     'ips' => [],
                     'ip_times' => [],
@@ -192,6 +193,7 @@ class TrafficControlIntelligence
 
             $deviceRows[] = [
                 'device_id' => $row['device_id'],
+                'device_id_raw' => $row['device_id_raw'] ?? '',
                 'device_key' => $row['device_key'],
                 'ips' => array_slice($ipsUsed, 0, 8),
                 'ip_count' => $ipCount,
@@ -218,14 +220,24 @@ class TrafficControlIntelligence
 
         $q = trim((string) ($filters['q'] ?? ''));
         if ($q !== '') {
-            $needle = strtolower($q);
-            $deviceRows = array_values(array_filter($deviceRows, static function (array $row) use ($needle): bool {
-                if (str_contains(strtolower($row['device_id']), $needle)) {
-                    return true;
+            $needles = array_map('strtolower', DeviceIdLabel::searchNeedles($q));
+            if ($needles === []) {
+                $needles = [strtolower($q)];
+            }
+            $deviceRows = array_values(array_filter($deviceRows, static function (array $row) use ($needles): bool {
+                $hayDevice = strtolower((string) ($row['device_id'] ?? ''));
+                $hayRaw = strtolower((string) ($row['device_id_raw'] ?? ''));
+                foreach ($needles as $needle) {
+                    if ($needle !== '' && (str_contains($hayDevice, $needle) || ($hayRaw !== '' && str_contains($hayRaw, $needle)))) {
+                        return true;
+                    }
                 }
                 foreach ($row['ips'] as $ip) {
-                    if (str_contains(strtolower((string) $ip), $needle)) {
-                        return true;
+                    $hayIp = strtolower((string) $ip);
+                    foreach ($needles as $needle) {
+                        if ($needle !== '' && str_contains($hayIp, $needle)) {
+                            return true;
+                        }
                     }
                 }
 
@@ -791,25 +803,6 @@ class TrafficControlIntelligence
      */
     private function formatDeviceLabel(string $deviceRaw, string $fpRaw, string $ip): string
     {
-        if ($deviceRaw !== '') {
-            if (str_starts_with($deviceRaw, 'unknown_')) {
-                return 'DEV_'.strtoupper(substr(hash('sha256', $deviceRaw), 0, 12));
-            }
-
-            return $deviceRaw;
-        }
-
-        if ($fpRaw !== '') {
-            if (str_starts_with($fpRaw, 'DEV_')) {
-                return $fpRaw;
-            }
-            if (str_starts_with($fpRaw, 'FP_')) {
-                return 'DEV_'.substr($fpRaw, 3);
-            }
-
-            return 'DEV_'.strtoupper(substr(hash('sha256', $fpRaw), 0, 12));
-        }
-
-        return 'DEV_'.strtoupper(substr(hash('sha256', 'ip|'.$ip), 0, 12));
+        return DeviceIdLabel::format($deviceRaw, $fpRaw, $ip);
     }
 }
