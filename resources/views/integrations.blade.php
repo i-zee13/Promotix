@@ -601,20 +601,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             .pi-setup-track {
                 display: grid;
-                grid-template-columns: repeat(6, minmax(0, 1fr));
+                grid-template-columns: repeat(var(--pi-setup-count, 5), minmax(0, 1fr));
                 gap: 8px;
                 position: relative;
+                width: 100%;
+                max-width: 920px;
+                margin-inline: auto;
                 /* Keep step z-index inside this card — never above page modals */
                 isolation: isolate;
                 z-index: 0;
             }
             .pi-setup-track__fill {
                 position: absolute;
-                left: calc(100% / 12);
+                left: calc(100% / (2 * var(--pi-setup-count, 5)));
                 top: 18px;
                 height: 2px;
-                width: calc((100% - (100% / 6)) * (var(--pi-setup-fill, 0) / 100));
-                max-width: calc(100% - (100% / 6));
+                /* Line runs only between first and last node centers — never past the last circle */
+                width: calc((100% - (100% / var(--pi-setup-count, 5))) * (var(--pi-setup-fill, 0) / 100));
+                max-width: calc(100% - (100% / var(--pi-setup-count, 5)));
                 background: var(--brand-primary);
                 opacity: 0.95;
                 z-index: 0;
@@ -1125,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <p class="mb-[10px] text-[11px] text-white/50" x-show="selectedDomainId" x-cloak>
                 Showing progress for the selected domain only. GTM and Clickronix script must be connected on this domain separately.
             </p>
-            <div class="pi-setup-track" :style="`--pi-setup-fill: ${setupProgressFill}`">
+            <div class="pi-setup-track" :style="`--pi-setup-fill: ${setupProgressFill}; --pi-setup-count: ${Math.max((activeSetupProgress || []).length, 1)}`">
                 <div class="pi-setup-track__fill" aria-hidden="true"></div>
                 <template x-for="step in activeSetupProgress" :key="step.key">
                     <div class="pi-setup-step">

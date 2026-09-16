@@ -61,6 +61,24 @@ class GoogleAdsAccount extends Model
             ->where('account_name', '!=', '');
     }
 
+    /**
+     * Customer accounts linked to the user's domains (FK or DomainGoogleAdsMapping).
+     * Excludes MCC manager rows — filters should only list connected client accounts.
+     */
+    public function scopeLinkedToUserDomains($query, \App\Models\User $user)
+    {
+        return $query
+            ->whereHas('connection', fn ($q) => $q->where('user_id', $user->id))
+            ->synced()
+            ->where(function ($q) {
+                $q->where('is_manager', false)->orWhereNull('is_manager');
+            })
+            ->where(function ($q) use ($user) {
+                $q->whereHas('linkedDomains', fn ($d) => $d->where('user_id', $user->id))
+                    ->orWhereHas('domainMappings.domain', fn ($d) => $d->where('user_id', $user->id));
+            });
+    }
+
     public function displayLabel(): string
     {
         $name = trim((string) $this->account_name);
@@ -109,8 +127,7 @@ class GoogleAdsAccount extends Model
     public static function filterOptionsForUser(\App\Models\User $user): array
     {
         return self::query()
-            ->whereHas('connection', fn ($q) => $q->where('user_id', $user->id))
-            ->synced()
+            ->linkedToUserDomains($user)
             ->orderBy('account_name')
             ->orderBy('customer_id')
             ->get(['id', 'account_name', 'customer_id', 'display_customer_id', 'is_manager', 'manager_customer_id', 'currency_code'])

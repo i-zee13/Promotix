@@ -43,8 +43,7 @@ class BotProtectionController extends Controller
             ->get(['id', 'hostname']);
 
         $googleAdsAccounts = GoogleAdsAccount::query()
-            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
-            ->synced()
+            ->linkedToUserDomains($request->user())
             ->orderBy('account_name')
             ->get();
 
@@ -89,8 +88,7 @@ class BotProtectionController extends Controller
             ->get(['id', 'hostname']);
 
         $googleAdsAccounts = GoogleAdsAccount::query()
-            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
-            ->synced()
+            ->linkedToUserDomains($request->user())
             ->orderBy('account_name')
             ->get();
 
@@ -844,8 +842,7 @@ class BotProtectionController extends Controller
             ->get(['id', 'hostname']);
 
         $googleAdsAccounts = GoogleAdsAccount::query()
-            ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
-            ->synced()
+            ->linkedToUserDomains($request->user())
             ->orderBy('account_name')
             ->get();
 

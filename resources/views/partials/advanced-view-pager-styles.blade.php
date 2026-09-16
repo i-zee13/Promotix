@@ -82,11 +82,11 @@
         padding: 0 22px 0 8px !important;
     }
     html.light-mode .adv-pager { color: #5c5470; }
-    html.light-mode .adv-pager__btn { color: #2d2d3a; border-color: #d4c4e8; }
+    html.light-mode .adv-pager__btn { color: #2d2d3a; border-color: rgba(255, 102, 0, 0.32); }
     html.light-mode .adv-pager select,
     html.light-mode .adv-pager__select {
         background-color: #fff !important;
         color: #2d2d3a !important;
-        border-color: #d4c4e8 !important;
+        border-color: rgba(255, 102, 0, 0.32) !important;
     }
 </style>

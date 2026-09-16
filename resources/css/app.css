@@ -685,7 +685,7 @@ html.light-mode .figma-click-modal-sidebar {
 html.light-mode .paid-advanced-campaign-menu,
 .light-mode .paid-advanced-campaign-menu {
     background: #ffffff;
-    border-color: var(--brand-tint-border, #e4dceb);
+    border-color: var(--brand-tint-border, rgba(255, 102, 0, 0.28));
     box-shadow: 0 12px 28px color-mix(in srgb, var(--brand-primary, #FF6600) 12%, transparent);
 }
 

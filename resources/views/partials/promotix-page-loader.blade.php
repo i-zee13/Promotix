@@ -52,7 +52,7 @@
     }
     html.light-mode #promotix-page-loader .pmx-loader-card {
         background: rgba(255, 255, 255, 0.98);
-        border-color: #d4c4e8;
+        border-color: rgba(255, 102, 0, 0.32);
         box-shadow: 0 8px 28px rgba(100, 0, 178, 0.12);
     }
     html.light-mode #promotix-page-loader .pmx-loader-msg {

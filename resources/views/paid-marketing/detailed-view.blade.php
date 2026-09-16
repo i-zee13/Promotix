@@ -664,7 +664,7 @@
             html.light-mode .pm-adv-chart-card,
             html.light-mode .pm-adv-hip-card {
                 background: #ffffff;
-                border-color: #d4c4e8;
+                border-color: rgba(255, 102, 0, 0.32);
                 box-shadow: 0 1px 0 rgba(255, 102, 0, 0.06);
             }
             html.light-mode .pm-adv-kpi-card__label,

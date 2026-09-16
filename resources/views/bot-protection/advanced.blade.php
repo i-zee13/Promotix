@@ -278,8 +278,8 @@
             }
             html.light-mode .bp-adv-kpi-card {
                 background: #fff;
-                border-color: #d4c4e8;
-                box-shadow: 0 1px 0 rgba(100, 0, 178, 0.06);
+                border-color: #e8d4c4;
+                box-shadow: 0 1px 0 rgba(255, 102, 0, 0.06);
             }
             html.light-mode .analytics-skin .bp-adv-kpi-card {
                 border-color: rgba(255, 102, 0, 0.35);
@@ -302,7 +302,7 @@
             html.light-mode .bp-adv-kpi-card__icon.is-amber { background: rgba(245, 158, 11, 0.14); color: #b45309; }
             html.light-mode .bp-adv-filters-menu {
                 background: #fff;
-                border-color: #d4c4e8;
+                border-color: #e8d4c4;
             }
             html.light-mode .analytics-skin .bp-adv-filters-menu {
                 border-color: rgba(255, 102, 0, 0.35);
@@ -505,7 +505,7 @@
             html.light-mode .bp-adv-filters-menu select {
                 background: #f7f5fa !important;
                 color: #2d2d3a !important;
-                border-color: #d4c4e8 !important;
+                border-color: #e8d4c4 !important;
             }
 
             .bp-adv-charts {
@@ -913,7 +913,7 @@
             .bp-adv-hip__btn:hover {
                 background: #222;
                 color: #fff;
-                border-color: rgba(100, 0, 178, 0.55);
+                border-color: rgba(255, 102, 0, 0.55);
             }
             .bp-adv-hip__track {
                 display: flex;
@@ -937,7 +937,7 @@
                 cursor: pointer;
             }
             .bp-adv-hip-card:hover {
-                border-color: rgba(100, 0, 178, 0.55);
+                border-color: rgba(255, 102, 0, 0.55);
                 background: #1a1a1a;
             }
             .bp-adv-hip-card__ip {
@@ -995,7 +995,7 @@
             html.light-mode .bp-adv-chart-card,
             html.light-mode .bp-adv-hip-card {
                 background: #fff;
-                border-color: #d4c4e8;
+                border-color: rgba(255, 102, 0, 0.32);
             }
             html.light-mode .bp-adv-donut__inner { background: #fff; }
             html.light-mode .bp-adv-chart-card__title,
@@ -1009,14 +1009,14 @@
             html.light-mode .bp-adv-hip-card__meta,
             html.light-mode .bp-adv-hip-card__ago,
             html.light-mode .bp-adv-hip__empty { color: #6b6280; }
-            html.light-mode .bp-adv-country-row__track { background: rgba(100, 0, 178, 0.1); }
+            html.light-mode .bp-adv-country-row__track { background: rgba(255, 102, 0, 0.1); }
             html.light-mode .bp-adv-hip__empty {
                 background: #faf8fc;
-                border-color: #d4c4e8;
+                border-color: #e8d4c4;
             }
             html.light-mode .bp-adv-hip__btn {
                 background: #fff;
-                border-color: #d4c4e8;
+                border-color: #e8d4c4;
                 color: #5c5470;
             }
             @media (max-width: 520px) {
