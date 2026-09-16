@@ -221,6 +221,8 @@
             .vj-hbar { display:grid; grid-template-columns:78px 1fr 34px; gap:8px; align-items:center; margin-bottom:10px; font-size:11px; color:rgba(255,255,255,.65); }
             .vj-hbar__track { height:8px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; }
             .vj-hbar__fill { height:100%; border-radius:999px; background:#FF6600; }
+            .vj-hbar__fill.is-exit { background:#ef4444; }
+            .vj-hbar__val { color:rgba(255,255,255,.55); font-variant-numeric:tabular-nums; }
             .vj-donut-wrap { display:flex; align-items:center; gap:12px; }
             .vj-donut { width:120px; height:120px; border-radius:999px; display:grid; place-items:center; flex-shrink:0; }
             .vj-donut__hole { width:72px; height:72px; border-radius:999px; background:#121212; display:grid; place-items:center; text-align:center; z-index:1; }
@@ -534,6 +536,35 @@
                 border-color: rgba(255, 102, 0, 0.28) !important;
                 color: #1a1a1a !important;
                 box-shadow: none !important;
+                filter: none !important;
+            }
+            html.light-mode .vj-widgets .vj-widget,
+            html.light-mode .vj-kpi-grid .vj-kpi {
+                box-shadow: none !important;
+            }
+            html.light-mode .vj-hbar {
+                color: #3d3848 !important;
+            }
+            html.light-mode .vj-hbar__val,
+            html.light-mode .vj-hbar .text-white\/45,
+            html.light-mode .vj-hbar [class*="text-white"] {
+                color: #3d3848 !important;
+            }
+            html.light-mode .vj-hbar__track {
+                background: rgba(255, 102, 0, 0.12) !important;
+            }
+            html.light-mode .vj-hbar__fill {
+                background: #FF6600 !important;
+            }
+            html.light-mode .vj-hbar__fill.is-exit {
+                background: #ef4444 !important;
+            }
+            html.light-mode .vj-path-row {
+                color: #1a1a1a !important;
+            }
+            html.light-mode .vj-path-rank {
+                background: #FF6600 !important;
+                color: #ffffff !important;
             }
             html.light-mode .vj-kpi__label,
             html.light-mode .vj-kpi__delta-vs,
@@ -741,6 +772,91 @@
                 color: #1a1a1a !important;
                 border-color: rgba(255, 102, 0, 0.16) !important;
             }
+            html.light-mode .vj-table td.font-mono,
+            html.light-mode .vj-table .font-mono {
+                color: #1a1a1a !important;
+            }
+            html.light-mode .vj-table tr.is-selected td {
+                background: #ffedd5 !important;
+                border-color: rgba(255, 102, 0, 0.35) !important;
+            }
+            html.light-mode .vj-table tr td:first-child,
+            html.light-mode .vj-table tr td:last-child {
+                border-color: rgba(255, 102, 0, 0.16) !important;
+            }
+            html.light-mode .vj-table .vj-arrow {
+                color: #9a3412 !important;
+            }
+            html.light-mode .vj-table .vj-chip.is-page {
+                background: rgba(255, 102, 0, 0.1) !important;
+                color: #9a3412 !important;
+                border-color: rgba(255, 102, 0, 0.35) !important;
+            }
+            html.light-mode .vj-table .vj-chip.is-action {
+                background: rgba(255, 102, 0, 0.14) !important;
+                color: #c2410c !important;
+                border-color: rgba(255, 102, 0, 0.45) !important;
+            }
+            html.light-mode .vj-table .vj-chip.is-form,
+            html.light-mode .vj-table .vj-chip.is-lead {
+                background: rgba(22, 163, 74, 0.12) !important;
+                color: #15803d !important;
+                border-color: rgba(22, 163, 74, 0.4) !important;
+            }
+            html.light-mode .vj-table .vj-chip.is-exit {
+                background: rgba(239, 68, 68, 0.12) !important;
+                color: #b91c1c !important;
+                border-color: rgba(239, 68, 68, 0.4) !important;
+            }
+            html.light-mode .vj-table .vj-chip.is-pending {
+                background: rgba(234, 179, 8, 0.16) !important;
+                color: #a16207 !important;
+                border-color: rgba(202, 138, 4, 0.45) !important;
+            }
+            html.light-mode .vj-table .vj-chip.is-none {
+                background: rgba(0, 0, 0, 0.05) !important;
+                color: #3d3848 !important;
+                border-color: rgba(0, 0, 0, 0.12) !important;
+            }
+            html.light-mode .vj-chip.is-page {
+                background: rgba(255, 102, 0, 0.1) !important;
+                color: #9a3412 !important;
+                border-color: rgba(255, 102, 0, 0.35) !important;
+            }
+            html.light-mode .vj-chip.is-action {
+                background: rgba(255, 102, 0, 0.14) !important;
+                color: #c2410c !important;
+                border-color: rgba(255, 102, 0, 0.45) !important;
+            }
+            html.light-mode .vj-chip.is-form,
+            html.light-mode .vj-chip.is-lead {
+                background: rgba(22, 163, 74, 0.12) !important;
+                color: #15803d !important;
+                border-color: rgba(22, 163, 74, 0.4) !important;
+            }
+            html.light-mode .vj-chip.is-exit {
+                background: rgba(239, 68, 68, 0.12) !important;
+                color: #b91c1c !important;
+                border-color: rgba(239, 68, 68, 0.4) !important;
+            }
+            html.light-mode .vj-chip.is-pending {
+                background: rgba(234, 179, 8, 0.16) !important;
+                color: #a16207 !important;
+                border-color: rgba(202, 138, 4, 0.45) !important;
+            }
+            html.light-mode .vj-chip.is-none {
+                background: rgba(0, 0, 0, 0.05) !important;
+                color: #3d3848 !important;
+                border-color: rgba(0, 0, 0, 0.12) !important;
+            }
+            html.light-mode .vj-table-head .vj-card__title,
+            html.light-mode .vj-table-head .vj-card__title span {
+                color: #121212 !important;
+            }
+            html.light-mode .vj-table-head .text-white\/40,
+            html.light-mode .vj-table-head [class*="text-white"] {
+                color: #6b6578 !important;
+            }
             html.light-mode .vj-is {
                 border-color: rgba(255, 102, 0, 0.16) !important;
             }
@@ -796,6 +912,20 @@
             html.light-mode .vj-tl-time,
             html.light-mode .vj-tl-kind,
             html.light-mode .vj-tl-note { color: #6b6578 !important; }
+            /* Re-assert recent journeys table after global text-white flips */
+            html.light-mode .vj-table-card .vj-table td {
+                color: #1a1a1a !important;
+            }
+            html.light-mode .vj-table-card .vj-chip.is-none {
+                color: #3d3848 !important;
+                background: rgba(0, 0, 0, 0.05) !important;
+            }
+            html.light-mode .vj-table-card .vj-chip.is-page {
+                color: #9a3412 !important;
+            }
+            html.light-mode .vj-table-card .vj-chip.is-exit {
+                color: #b91c1c !important;
+            }
         </style>
 
         <div class="vj-page">
@@ -1314,7 +1444,7 @@
                         <div class="vj-hbar">
                             <div class="vj-hbar__path" :title="row.label" x-text="row.label"></div>
                             <div class="vj-hbar__track"><div class="vj-hbar__fill" :style="'width:' + barPct(row.value, maxLanding) + '%'"></div></div>
-                            <div class="text-right text-white/45" x-text="row.value"></div>
+                            <div class="vj-hbar__val text-right" x-text="row.value"></div>
                         </div>
                     </template>
                     <div class="vj-empty" x-show="!landingPages.length">No landing pages.</div>
@@ -1323,9 +1453,9 @@
                     <div class="vj-widget__title">Top Exit Pages</div>
                     <template x-for="row in exitPages" :key="'e'+row.label">
                         <div class="vj-hbar">
-                            <div class="truncate" x-text="row.label"></div>
-                            <div class="vj-hbar__track"><div class="vj-hbar__fill" style="background:#ef4444" :style="'width:' + barPct(row.value, maxExit) + '%;background:#ef4444'"></div></div>
-                            <div class="text-right text-white/45" x-text="row.value"></div>
+                            <div class="vj-hbar__path" :title="row.label" x-text="row.label"></div>
+                            <div class="vj-hbar__track"><div class="vj-hbar__fill is-exit" :style="'width:' + barPct(row.value, maxExit) + '%'"></div></div>
+                            <div class="vj-hbar__val text-right" x-text="row.value"></div>
                         </div>
                     </template>
                     <div class="vj-empty" x-show="!exitPages.length">No exit pages.</div>

@@ -5842,17 +5842,39 @@ html.light-mode {
 .light-mode .figma-rightbar {
     background: #ffffff !important;
     border-color: color-mix(in srgb, var(--brand-primary) 35%, #e8e4ef) !important;
-    color: #1a1a1a !important;
+    color: #a9a9a9 !important;
 }
 
+/* Sidebar: use theme lite muted gray (#a9a9a9), not near-black */
 .light-mode .figma-sidebar-brand-text,
 .light-mode .figma-nav-label,
-.light-mode .figma-sidebar-theme-label {
-    color: #6b6280 !important;
+.light-mode .figma-sidebar-theme-label,
+.light-mode .figma-sidebar .text-\[\#a9a9a9\],
+.light-mode .figma-sidebar [class*="text-[#a9a9a9]"] {
+    color: #a9a9a9 !important;
 }
 
 .light-mode .figma-nav-link:not(.is-active) {
-    color: #5c5470 !important;
+    color: #a9a9a9 !important;
+}
+
+.light-mode .figma-nav-link:not(.is-active) svg,
+.light-mode .figma-nav-link:not(.is-active) .figma-nav-ico,
+.light-mode .figma-sidebar-search-icon,
+.light-mode .figma-sidebar-settings,
+.light-mode .figma-sidebar .text-white\/70,
+.light-mode .figma-sidebar .text-white\/50,
+.light-mode .figma-sidebar [class*="text-white/"] {
+    color: #a9a9a9 !important;
+}
+
+.light-mode .figma-nav-link:not(.is-active):hover {
+    color: #ffffff !important;
+}
+
+.light-mode .figma-nav-link:not(.is-active):hover svg,
+.light-mode .figma-nav-link:not(.is-active):hover .figma-nav-ico {
+    color: #ffffff !important;
 }
 
 .light-mode .figma-nav-link.is-active,
@@ -5860,10 +5882,15 @@ html.light-mode {
     color: #ffffff !important;
 }
 
+.light-mode .figma-nav-link.is-active svg,
+.light-mode .figma-nav-link.is-active .figma-nav-ico {
+    color: #ffffff !important;
+}
+
 .light-mode .figma-sidebar-search {
     background: color-mix(in srgb, var(--brand-primary) 6%, #ffffff) !important;
     border-color: color-mix(in srgb, var(--brand-primary) 35%, #e8e4ef) !important;
-    color: #2d2d2d !important;
+    color: #5c5470 !important;
     box-shadow: none !important;
 }
 
@@ -5872,11 +5899,11 @@ html.light-mode {
 }
 
 .light-mode .figma-sidebar-search::placeholder {
-    color: #8a8299 !important;
+    color: #a9a9a9 !important;
 }
 
 .light-mode .figma-sidebar-search-icon {
-    color: #6b6280 !important;
+    color: #a9a9a9 !important;
 }
 
 .light-mode .figma-add-domain-btn {
@@ -10133,7 +10160,23 @@ html.light-mode .ov-page .ov-conn-row,
 html.light-mode .ov-page .ov-quick-stat,
 html.light-mode .ov-page .ov-suite-stat,
 html.light-mode .ov-page .ov-feed-item {
-    color: rgba(255, 255, 255, 0.88);
+    color: rgba(255, 255, 255, 0.92) !important;
+}
+
+html.light-mode .ov-page .ov-feed-item,
+html.light-mode .ov-page .ov-feed-item p,
+html.light-mode .ov-page .ov-feed-item span,
+html.light-mode .ov-page .ov-feed-item a,
+html.light-mode .ov-page .ov-feed-item .text-white,
+html.light-mode .ov-page .ov-feed-item [class*="text-white"] {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+html.light-mode .ov-page .ov-feed-item .text-white\/65,
+html.light-mode .ov-page .ov-feed-item .text-white\/55,
+html.light-mode .ov-page .ov-feed-item .text-white\/45,
+html.light-mode .ov-page .ov-feed-item .text-white\/40 {
+    color: rgba(255, 255, 255, 0.7) !important;
 }
 
 html.light-mode .ov-page .ov-card .ov-conn-row,

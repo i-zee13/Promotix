@@ -1031,6 +1031,27 @@
         html.light-mode .pa-dash .pa-quality__badge strong {
             color: #1a1a1a !important;
         }
+        /* Cost per Conversion card — white type was invisible on light cards */
+        html.light-mode .pa-dash .pa-cost__stat span,
+        html.light-mode .pa-dash .pa-cost__label {
+            color: #6b6578 !important;
+        }
+        html.light-mode .pa-dash .pa-cost__stat strong,
+        html.light-mode .pa-dash .pa-cost__value {
+            color: #121212 !important;
+        }
+        html.light-mode .pa-dash .pa-cost__main .pa-kpi__delta.is-up {
+            color: #047857 !important;
+        }
+        html.light-mode .pa-dash .pa-cost__main .pa-kpi__delta.is-down {
+            color: #b91c1c !important;
+        }
+        html.light-mode .pa-dash .pa-kpi__delta.is-up {
+            color: #047857 !important;
+        }
+        html.light-mode .pa-dash .pa-kpi__delta.is-down {
+            color: #b91c1c !important;
+        }
         html.light-mode .pa-dash .pa-quality__badge span {
             color: #c2410c !important;
         }
