@@ -91,7 +91,7 @@ class GoogleAdsAudienceAssociationService
     public function createAudienceList(
         Domain $domain,
         string $audienceName,
-        string $durationLabel = '30 days',
+        string $durationLabel = '90 days',
         string $eventName = AudienceSignalService::DEFAULT_EVENT,
         string $method = 'ga4',
         bool $forceNew = false,
@@ -100,8 +100,8 @@ class GoogleAdsAudienceAssociationService
         $audienceName = trim($audienceName);
         if ($audienceName === '') {
             $audienceName = $method === 'website'
-                ? 'Clickronix | Invalid Traffic | Google Ads'
-                : 'Clickronix | Invalid Traffic | GA4';
+                ? 'CR - Invalid Traffic'
+                : 'CR - Invalid Traffic';
         }
         $days = $this->parseMembershipDays($durationLabel);
 
@@ -697,13 +697,27 @@ class GoogleAdsAudienceAssociationService
         $lifeSpan = (string) max(1, min(540, $membershipDays));
         $baseName = mb_substr(trim($audienceName), 0, 255);
         $description = mb_substr(
-            'Clickronix invalid-traffic exclusion. Event: '.$eventName
-            .' + Google Client ID. Attach as negative audience on Search/Display campaigns.',
+            'CR Invalid Traffic audience. Rule: event cr_invalid_traffic AND cr_traffic_verdict=invalid. '
+            .'Membership via Google browser identity (not Clickronix Device ID). Attach as campaign exclusion.',
             0,
             500
         );
 
         // Prefer remarketing/rule list (shows under Audiences); CRM Contact Info often needs Customer Match agreement.
+        $eventRuleItem = [
+            'name' => 'e:'.$eventName,
+            'stringRuleItem' => [
+                'operator' => 'EQUALS',
+                'value' => $eventName,
+            ],
+        ];
+        $verdictRuleItem = [
+            'name' => AudienceSignalService::VERDICT_PARAM,
+            'stringRuleItem' => [
+                'operator' => 'EQUALS',
+                'value' => AudienceSignalService::VERDICT_INVALID,
+            ],
+        ];
         $attempts = [
             [
                 'name' => $baseName,
@@ -716,13 +730,25 @@ class GoogleAdsAudienceAssociationService
                         'inclusiveRuleOperator' => 'AND',
                         'inclusiveOperands' => [[
                             'ruleItemGroups' => [[
-                                'ruleItems' => [[
-                                    'name' => 'e:'.$eventName,
-                                    'stringRuleItem' => [
-                                        'operator' => 'EQUALS',
-                                        'value' => $eventName,
-                                    ],
-                                ]],
+                                'ruleItems' => [$eventRuleItem, $verdictRuleItem],
+                            ]],
+                            'lookbackWindowDays' => $lifeSpan,
+                        ]],
+                    ],
+                ],
+            ],
+            [
+                'name' => $baseName,
+                'description' => $description,
+                'membershipStatus' => 'OPEN',
+                'membershipLifeSpan' => $lifeSpan,
+                'ruleBasedUserList' => [
+                    'prepopulationStatus' => 'REQUESTED',
+                    'flexibleRuleUserList' => [
+                        'inclusiveRuleOperator' => 'AND',
+                        'inclusiveOperands' => [[
+                            'ruleItemGroups' => [[
+                                'ruleItems' => [$eventRuleItem],
                             ]],
                             'lookbackWindowDays' => $lifeSpan,
                         ]],

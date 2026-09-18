@@ -9,6 +9,7 @@ class GlobalIpAllowlistEntry extends Model
 {
     protected $fillable = [
         'kind',
+        'list_type',
         'provider',
         'value',
         'label',
@@ -32,5 +33,15 @@ class GlobalIpAllowlistEntry extends Model
     public function isProvider(): bool
     {
         return $this->kind === 'provider';
+    }
+
+    public function isAllowList(): bool
+    {
+        return ($this->list_type ?: 'allow') === 'allow';
+    }
+
+    public function isBlockList(): bool
+    {
+        return ($this->list_type ?: 'allow') === 'block';
     }
 }

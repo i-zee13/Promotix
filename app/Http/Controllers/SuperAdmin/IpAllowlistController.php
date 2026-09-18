@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\GlobalIpAllowlistEntry;
 use App\Support\GlobalIpAllowlist;
+use App\Support\GlobalIpBlocklist;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,11 +17,21 @@ class IpAllowlistController extends Controller
     public function index(Request $request): View
     {
         $kind = (string) $request->query('kind', '');
+        $listType = (string) $request->query('list', '');
         $search = trim((string) $request->query('search', ''));
 
         $entries = GlobalIpAllowlistEntry::query()
             ->with('createdBy:id,name,email')
             ->when($kind !== '' && in_array($kind, ['provider', 'cidr'], true), fn ($q) => $q->where('kind', $kind))
+            ->when($listType !== '' && in_array($listType, ['allow', 'block'], true), function ($q) use ($listType): void {
+                if ($listType === 'allow') {
+                    $q->where(function ($inner): void {
+                        $inner->where('list_type', 'allow')->orWhereNull('list_type');
+                    });
+                } else {
+                    $q->where('list_type', 'block');
+                }
+            })
             ->when($search !== '', function ($q) use ($search): void {
                 $q->where(function ($inner) use ($search): void {
                     $inner->where('value', 'like', "%{$search}%")
@@ -29,17 +40,41 @@ class IpAllowlistController extends Controller
                 });
             })
             ->orderByRaw("CASE WHEN kind = 'provider' THEN 0 ELSE 1 END")
+            ->orderByRaw("CASE WHEN COALESCE(list_type, 'allow') = 'allow' THEN 0 ELSE 1 END")
             ->orderBy('label')
             ->orderByDesc('id')
             ->paginate(min(50, max(10, $request->integer('per_page', 10))))
             ->withQueryString();
 
+        $allowProviders = GlobalIpAllowlistEntry::query()
+            ->where('kind', 'provider')
+            ->where('enabled', true)
+            ->where(fn ($q) => $q->where('list_type', 'allow')->orWhereNull('list_type'))
+            ->count();
+        $blockProviders = GlobalIpAllowlistEntry::query()
+            ->where('kind', 'provider')
+            ->where('enabled', true)
+            ->where('list_type', 'block')
+            ->count();
+        $allowIps = GlobalIpAllowlistEntry::query()
+            ->where('kind', 'cidr')
+            ->where('enabled', true)
+            ->where(fn ($q) => $q->where('list_type', 'allow')->orWhereNull('list_type'))
+            ->count();
+        $blockIps = GlobalIpAllowlistEntry::query()
+            ->where('kind', 'cidr')
+            ->where('enabled', true)
+            ->where('list_type', 'block')
+            ->count();
+
         return view('super-admin.settings.whitelist', [
             'entries' => $entries,
             'providers' => array_keys(GlobalIpAllowlist::providerCidrs()),
             'stats' => [
-                'providers' => GlobalIpAllowlistEntry::query()->where('kind', 'provider')->where('enabled', true)->count(),
-                'ips' => GlobalIpAllowlistEntry::query()->where('kind', 'cidr')->where('enabled', true)->count(),
+                'allow_providers' => $allowProviders,
+                'block_providers' => $blockProviders,
+                'allow_ips' => $allowIps,
+                'block_ips' => $blockIps,
                 'disabled' => GlobalIpAllowlistEntry::query()->where('enabled', false)->count(),
             ],
         ]);
@@ -49,6 +84,7 @@ class IpAllowlistController extends Controller
     {
         $data = $request->validate([
             'kind' => ['required', Rule::in(['provider', 'cidr'])],
+            'list_type' => ['required', Rule::in(['allow', 'block'])],
             'provider' => ['nullable', 'string', 'max:32'],
             'value' => ['required', 'string', 'max:128'],
             'label' => ['nullable', 'string', 'max:120'],
@@ -57,6 +93,7 @@ class IpAllowlistController extends Controller
 
         $value = trim($data['value']);
         $kind = $data['kind'];
+        $listType = $data['list_type'];
 
         if ($kind === 'provider') {
             $provider = strtolower(trim((string) ($data['provider'] ?: $value)));
@@ -74,6 +111,7 @@ class IpAllowlistController extends Controller
         GlobalIpAllowlistEntry::query()->updateOrCreate(
             ['kind' => $kind, 'value' => $value],
             [
+                'list_type' => $listType,
                 'provider' => $provider,
                 'label' => $label,
                 'notes' => $data['notes'] ?? null,
@@ -83,18 +121,58 @@ class IpAllowlistController extends Controller
         );
 
         GlobalIpAllowlist::flush();
+        GlobalIpBlocklist::flushCaches();
 
-        return back()->with('status', 'Whitelist entry saved. Matching traffic will not be blocked.');
+        $msg = $listType === 'block'
+            ? 'Blocklist entry saved. Matching traffic will be blocked across all domains.'
+            : 'Whitelist entry saved. Matching traffic will not be blocked.';
+
+        return back()->with('status', $msg);
+    }
+
+    /**
+     * Set a provider (or entry) to whitelist, blocklist, or off.
+     */
+    public function setMode(Request $request, GlobalIpAllowlistEntry $entry): RedirectResponse
+    {
+        $data = $request->validate([
+            'mode' => ['required', Rule::in(['allow', 'block', 'off'])],
+        ]);
+
+        $mode = $data['mode'];
+        if ($mode === 'off') {
+            $entry->update(['enabled' => false]);
+        } else {
+            $entry->update([
+                'enabled' => true,
+                'list_type' => $mode,
+            ]);
+        }
+
+        GlobalIpAllowlist::flush();
+        GlobalIpBlocklist::flushCaches();
+
+        $label = $entry->label ?: $entry->value;
+        $status = match ($mode) {
+            'allow' => "{$label} is now whitelisted — matching IPs will show as allowed.",
+            'block' => "{$label} is now blocklisted — matching IPs will be blocked.",
+            default => "{$label} is off (neither whitelist nor blocklist).",
+        };
+
+        return back()->with('status', $status);
     }
 
     public function toggle(GlobalIpAllowlistEntry $entry): RedirectResponse
     {
         $entry->update(['enabled' => ! $entry->enabled]);
         GlobalIpAllowlist::flush();
+        GlobalIpBlocklist::flushCaches();
+
+        $listLabel = $entry->isBlockList() ? 'blocklist' : 'whitelist';
 
         return back()->with('status', $entry->enabled
-            ? "{$entry->label} is now whitelisted."
-            : "{$entry->label} removed from the active whitelist.");
+            ? "{$entry->label} is now on the {$listLabel}."
+            : "{$entry->label} removed from the active {$listLabel}.");
     }
 
     public function destroy(GlobalIpAllowlistEntry $entry): RedirectResponse
@@ -104,8 +182,9 @@ class IpAllowlistController extends Controller
         $label = $entry->label ?: $entry->value;
         $entry->delete();
         GlobalIpAllowlist::flush();
+        GlobalIpBlocklist::flushCaches();
 
-        return back()->with('status', "Removed {$label} from the whitelist.");
+        return back()->with('status', "Removed {$label}.");
     }
 
     private function assertIpOrCidr(string $value): void

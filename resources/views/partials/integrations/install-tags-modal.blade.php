@@ -121,17 +121,16 @@
                             </ul>
                         </div>
                         <div class="text-[12px] text-white/70">
-                            <p><span class="text-white/45">Trigger:</span> Custom Event — <code class="text-[#ffd0b0]">clickronix_invalid_traffic</code></p>
+                            <p><span class="text-white/45">Trigger:</span> Custom Event — <code class="text-[#ffd0b0]">cr_invalid_traffic</code> when <code class="text-[#ffd0b0]">cr_traffic_verdict = invalid</code></p>
                             <p class="mt-[4px]"><span class="text-white/45">Consent:</span> Require ad_storage and analytics_storage</p>
-                            <p class="mt-[4px] text-[11px] text-white/45">Collector / Google tag can use All Pages. The Invalid Traffic GA4 (and Ads) event tags must fire only on this custom event — not on Initialization.</p>
+                            <p class="mt-[4px] text-[11px] text-white/45">Google base tag must fire before this event. Invalid Traffic GA4 / Ads tags fire only on this custom event — not on Initialization. Status in Clickronix = “Audience signal sent” (not “member added”).</p>
                         </div>
                         <div>
-                            <p class="mb-[6px] text-[11px] font-semibold text-white/55">Generated dataLayer signal (example)</p>
+                            <p class="mb-[6px] text-[11px] font-semibold text-white/55">Canonical dataLayer signal</p>
                             <pre class="overflow-x-auto rounded-[8px] border border-white/10 bg-[#0a0a0a] p-[12px] font-mono text-[11px] text-emerald-200">window.dataLayer = window.dataLayer || [];
 window.dataLayer.push({
-  event: 'clickronix_invalid_traffic',
-  traffic_status: 'invalid',
-  risk_confidence: 'high'
+  event: 'cr_invalid_traffic',
+  cr_traffic_verdict: 'invalid'
 });</pre>
                         </div>
                     </div>

@@ -94,6 +94,27 @@ class VisitProtectionService
             return $this->allowListedResult($domain, $ipLog, $isPaidTraffic);
         }
 
+        if (\App\Support\GlobalIpBlocklist::matchesIp($ipLog->ip)) {
+            if (! $ipLog->is_blocked) {
+                $ipLog->is_blocked = true;
+                $ipLog->save();
+            }
+
+            $detection = [
+                'threat_score' => 100,
+                'threat_group' => 'blocked',
+                'action_taken' => 'block',
+                'reasons' => ['global_block_list', 'provider_block_list'],
+            ];
+
+            return [
+                'ipLog' => $ipLog,
+                'detection' => $detection,
+                'enforce_block' => $this->shouldEnforceBlock($domain, $detection, $isPaidTraffic, $ipLog->ip),
+                'prior_blocked' => false,
+            ];
+        }
+
         // Paid traffic always re-evaluates with the current pipeline so a wiped
         // exclusion list / new ADS rules are not short-circuited by sticky ip_logs.is_blocked.
         if ($ipLog->is_blocked && ! $isPaidTraffic) {

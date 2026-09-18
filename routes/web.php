@@ -173,6 +173,7 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/settings/whitelist', [SuperAdminIpAllowlistController::class, 'index'])->name('settings.whitelist');
         Route::post('/settings/whitelist', [SuperAdminIpAllowlistController::class, 'store'])->name('settings.whitelist.store');
         Route::patch('/settings/whitelist/{entry}/toggle', [SuperAdminIpAllowlistController::class, 'toggle'])->name('settings.whitelist.toggle');
+        Route::patch('/settings/whitelist/{entry}/mode', [SuperAdminIpAllowlistController::class, 'setMode'])->name('settings.whitelist.mode');
         Route::delete('/settings/whitelist/{entry}', [SuperAdminIpAllowlistController::class, 'destroy'])->name('settings.whitelist.destroy');
         Route::put('/email-templates/{emailTemplate}', [SuperAdminSupportPagesController::class, 'updateEmailTemplate'])->name('email-templates.update');
         Route::post('/email-templates/{emailTemplate}/restore', [SuperAdminSupportPagesController::class, 'restoreEmailTemplate'])->name('email-templates.restore');

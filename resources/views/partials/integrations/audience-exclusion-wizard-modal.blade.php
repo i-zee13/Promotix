@@ -212,13 +212,13 @@
                             <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="audienceWizard.ga4Name">
                         </label>
                         <label class="block text-[11px] sm:col-span-2"><span class="mb-[4px] block text-white/55">Inclusion rule</span>
-                            <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" value="event_name equals clickronix_invalid_traffic" readonly>
+                            <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" :value="'event_name equals ' + (audienceWizard.eventName || 'cr_invalid_traffic') + ' AND cr_traffic_verdict equals invalid'" readonly>
                         </label>
                         <label class="block text-[11px]"><span class="mb-[4px] block text-white/55">Membership duration</span>
                             <select class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="audienceWizard.duration">
                                 <option>30 days</option>
                                 <option>60 days</option>
-                                <option>90 days</option>
+                                <option selected>90 days</option>
                             </select>
                         </label>
                     </div>
@@ -235,7 +235,7 @@
                     <div class="flex justify-between gap-[8px]"><span>Google Ads link</span><span :class="wizardAdsConnected ? 'text-emerald-300' : 'text-white/45'" x-text="wizardAdsConnected ? 'Verified' : 'Pending'"></span></div>
                     <div class="flex justify-between gap-[8px]"><span>Audience creation</span><span :class="audienceWizard.ga4ListId ? 'text-emerald-300' : 'text-amber-300'" x-text="audienceWizard.ga4ListId ? 'Created' : 'Ready'"></span></div>
                     <div class="flex justify-between gap-[8px]"><span>Google Ads list</span><span class="text-amber-300" x-text="audienceWizard.ga4ListId ? ('List ' + audienceWizard.ga4ListId) : 'Awaiting creation'"></span></div>
-                    <p class="rounded-[8px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[10px] py-[8px] text-[11px] text-[#ffd0b0]">After creation, wait for the shared Google Ads list before applying exclusions. New list is added — old lists are not replaced.</p>
+                    <p class="rounded-[8px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[10px] py-[8px] text-[11px] text-[#ffd0b0]">After creation, wait for the shared Google Ads list before applying exclusions. New list is added — old lists are not replaced. Creating the audience does <strong class="text-white">not</strong> upload existing Device IDs; membership starts from future <code class="text-white/90">cr_invalid_traffic</code> browser events.</p>
                 </aside>
             </div>
 
@@ -260,7 +260,7 @@
                             <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="audienceWizard.websiteName">
                         </label>
                         <label class="block text-[11px] sm:col-span-2"><span class="mb-[4px] block text-white/55">Audience rule</span>
-                            <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" value="clickronix_invalid equals true" readonly>
+                            <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" :value="'event equals ' + (audienceWizard.eventName || 'cr_invalid_traffic') + ' AND cr_traffic_verdict equals invalid'" readonly>
                         </label>
                     </div>
                     <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[9px] text-[13px] font-semibold disabled:opacity-40"

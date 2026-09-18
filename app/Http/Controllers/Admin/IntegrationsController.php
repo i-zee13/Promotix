@@ -2041,7 +2041,7 @@ class IntegrationsController extends Controller
 
     /**
      * Apply step: attach Invalid Traffic audience (user list) as negative exclusion on selected campaigns.
-     * Does not push IPs — membership is Client ID + clickronix_invalid_traffic from the tag.
+     * Does not push IPs — membership is Google browser identity + cr_invalid_traffic / cr_traffic_verdict=invalid from the tag.
      */
     public function applyAudienceExclusion(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations, \App\Services\Ga4SitePresenceService $ga4Presence): JsonResponse
     {

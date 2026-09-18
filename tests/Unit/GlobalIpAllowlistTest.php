@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Services\IpIntel\IpFraudEvaluator;
 use App\Support\GlobalIpAllowlist;
+use App\Support\GlobalIpBlocklist;
 use Tests\TestCase;
 
 class GlobalIpAllowlistTest extends TestCase
@@ -22,5 +23,6 @@ class GlobalIpAllowlistTest extends TestCase
             'org' => 'Google LLC',
             'asn' => 15169,
         ]));
+        $this->assertFalse(GlobalIpBlocklist::matches('66.249.89.3'));
     }
 }

@@ -13,6 +13,7 @@ use App\Support\DetectionPlanFeatures;
 use App\Support\DetectionProfiles;
 use App\Support\GeoAudienceMatcher;
 use App\Support\GlobalIpAllowlist;
+use App\Support\GlobalIpBlocklist;
 
 /**
  * Collects Promotix signals and scores them via Clickronix ScoringEngine (manual v2).
@@ -99,6 +100,15 @@ class IpFraudEvaluator
 
         if ($can(DetectionPlanFeatures::ALLOW_LIST) && $settings->allow_list_enabled && self::isIpInList($ipLog->ip, (string) $settings->allow_list_ips)) {
             return $this->finalizePolicyAllow(['allow_list']);
+        }
+
+        if (GlobalIpBlocklist::matches($ipLog->ip, [
+            'isp' => $ipLog->intel_isp,
+            'org' => $ipLog->intel_isp,
+            'asn' => $ipLog->intel_asn ?? data_get($ipLog->ipdetails_raw, 'asn'),
+            'raw' => $ipLog->ipdetails_raw,
+        ], $ipLog)) {
+            return $this->finalizeStandaloneBlock('blocked', ['global_block_list', 'provider_block_list'], 100);
         }
 
         if ($can(DetectionPlanFeatures::BLOCK_LIST) && $settings->block_list_enabled && self::isIpInList($ipLog->ip, (string) $settings->block_list_ips)) {

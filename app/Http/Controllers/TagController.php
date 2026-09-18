@@ -234,18 +234,29 @@ class TagController extends Controller
 
   function applyProtection(resp){
     if (!resp || typeof resp !== 'object') return;
+    var firedAudience = false;
     if (resp.fire_audience_event) {
-      fireInvalidAudienceEvent(resp);
+      firedAudience = fireInvalidAudienceEvent(resp);
     }
     if (resp.fire_exclude_event) {
       fireExcludeAudienceEvent(resp);
     }
+    // Spec §13: never cancel the Google tag request with an immediate hide/redirect.
+    // Audience signal must dispatch before website protection.
     if (resp.blocked) {
-      applyBlockResponse(resp);
+      if (firedAudience || resp.fire_audience_event) {
+        setTimeout(function(){ applyBlockResponse(resp); }, 180);
+      } else {
+        applyBlockResponse(resp);
+      }
       return;
     }
     if (resp.captcha_required && !captchaPassed()) {
-      showCaptcha();
+      if (firedAudience || resp.fire_audience_event) {
+        setTimeout(function(){ showCaptcha(); }, 180);
+      } else {
+        showCaptcha();
+      }
     }
     if (resp.record_session) {
       startSessionRecording(resp);
@@ -309,38 +320,63 @@ class TagController extends Controller
     });
   }
 
-  /** Populate GA4/GTM Invalid Traffic audience via Client ID + event (not IP). */
+  /** Spec: cr_invalid_traffic + cr_traffic_verdict=invalid; once per decision_id; before block. */
   function fireInvalidAudienceEvent(resp){
     try {
-      if (consentRequired && !hasConsent()) return;
-      var eventName = String(resp.audience_event || 'clickronix_invalid_traffic');
-      var params = {
-        traffic_status: String(resp.audience_traffic_status || resp.traffic_status || 'invalid'),
-        risk_confidence: 'high',
-        threat_group: resp.threat_group || undefined,
-        send_to: undefined
-      };
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({
+      if (consentRequired && !hasConsent()) return false;
+      var eventName = String(resp.audience_event || 'cr_invalid_traffic');
+      var verdict = String(resp.audience_traffic_verdict || resp.audience_traffic_status || resp.traffic_status || 'invalid').toLowerCase();
+      if (verdict !== 'invalid') return false;
+
+      var decisionId = String(resp.audience_decision_id || '');
+      try {
+        if (decisionId && window.sessionStorage) {
+          var dedupeKey = 'cr_aud_sig_' + decisionId;
+          if (sessionStorage.getItem(dedupeKey) === '1') return false;
+          sessionStorage.setItem(dedupeKey, '1');
+        }
+      } catch (eDedupe) {}
+
+      var payload = {
         event: eventName,
-        traffic_status: params.traffic_status,
-        risk_confidence: params.risk_confidence,
-        threat_group: params.threat_group || null,
+        cr_event_version: String(resp.audience_event_version || '1.0'),
+        cr_traffic_verdict: 'invalid',
+        // GA4 event param alias used by audience builders / GTM DLVs.
+        traffic_verdict: 'invalid',
+        // Back-compat for older GTM containers.
+        traffic_status: 'invalid',
         clickronix_source: 'protection_tag'
-      });
+      };
+      if (resp.audience_event_id) payload.cr_event_id = String(resp.audience_event_id);
+      if (decisionId) payload.cr_decision_id = decisionId;
+      if (resp.audience_detection_type) payload.cr_detection_type = String(resp.audience_detection_type);
+      if (resp.audience_risk_score != null && resp.audience_risk_score !== '') payload.cr_risk_score = Number(resp.audience_risk_score);
+      if (resp.audience_protection_action) payload.cr_protection_action = String(resp.audience_protection_action);
+      if (resp.audience_occurred_at) payload.cr_occurred_at = String(resp.audience_occurred_at);
+      if (resp.threat_group) payload.threat_group = String(resp.threat_group);
+
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push(payload);
+
       function pushGtag(clientId){
         try {
-          if (typeof gtag === 'function') {
-            var payload = {
-              traffic_status: params.traffic_status,
-              risk_confidence: params.risk_confidence
-            };
-            if (clientId) payload.clickronix_client_id = String(clientId);
-            if (params.threat_group) payload.threat_group = String(params.threat_group);
-            var sendTo = String(resp.google_tag_id || '');
-            if (sendTo) payload.send_to = sendTo;
-            gtag('event', eventName, payload);
-          }
+          if (typeof gtag !== 'function') return;
+          var gtagPayload = {
+            cr_traffic_verdict: 'invalid',
+            traffic_verdict: 'invalid',
+            traffic_status: 'invalid',
+            engagement_time_msec: 1
+          };
+          if (payload.cr_event_id) gtagPayload.cr_event_id = payload.cr_event_id;
+          if (payload.cr_decision_id) gtagPayload.cr_decision_id = payload.cr_decision_id;
+          if (payload.cr_detection_type) gtagPayload.cr_detection_type = payload.cr_detection_type;
+          if (payload.cr_risk_score != null) gtagPayload.cr_risk_score = payload.cr_risk_score;
+          if (payload.cr_protection_action) gtagPayload.cr_protection_action = payload.cr_protection_action;
+          if (payload.cr_occurred_at) gtagPayload.cr_occurred_at = payload.cr_occurred_at;
+          if (clientId) gtagPayload.clickronix_client_id = String(clientId);
+          var sendTo = String(resp.google_tag_id || '');
+          if (sendTo) gtagPayload.send_to = sendTo;
+          gtag('event', eventName, gtagPayload);
         } catch (e) {}
       }
       try {
@@ -358,15 +394,18 @@ class TagController extends Controller
             var mid = ids[0];
             if (String(mid).indexOf('G-') === 0) {
               gtag('get', mid, 'client_id', function(cid){ pushGtag(cid); });
-              return;
+              return true;
             }
             pushGtag(null);
-            return;
+            return true;
           }
         }
       } catch (e3) {}
       pushGtag(null);
-    } catch (e) {}
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   function startSessionRecording(meta){

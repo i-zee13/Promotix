@@ -158,8 +158,8 @@
             <span class="figma-sa-settings-card-icon" aria-hidden="true">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </span>
-            <h3 class="figma-sa-settings-card-title">IP / Provider Whitelist</h3>
-            <p class="figma-sa-settings-card-desc">Never block Google, Bing, or custom IPs</p>
+            <h3 class="figma-sa-settings-card-title">IP / Provider Lists</h3>
+            <p class="figma-sa-settings-card-desc">Whitelist or blocklist Google, Bing, Meta, and custom IPs</p>
             <a href="{{ route('super-admin.settings.whitelist') }}" class="figma-sa-settings-card-btn">Manage</a>
         </article>
     </div>

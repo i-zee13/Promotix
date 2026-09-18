@@ -8,70 +8,25 @@ use App\Services\IpIntel\IpFraudEvaluator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
-class GlobalIpAllowlist
+/**
+ * Platform-wide provider / IP blocklist (super-admin).
+ * When Google (or another provider) is blocklisted, all matching CIDRs + ASN/ISP hits are blocked.
+ */
+class GlobalIpBlocklist
 {
-    public const CACHE_KEY = 'global_ip_allowlist_patterns';
+    public const CACHE_KEY = 'global_ip_blocklist_patterns';
 
-    public const CACHE_PROVIDERS_KEY = 'global_ip_allowlist_providers';
-
-    /**
-     * Known crawler / ads-bot CIDRs. Enable via System Settings → IP / Provider Whitelist.
-     *
-     * @return array<string, list<string>>
-     */
-    public static function providerCidrs(): array
-    {
-        return [
-            'google' => [
-                '66.249.0.0/16',
-                '64.233.160.0/19',
-                '72.14.192.0/18',
-                '74.125.0.0/16',
-                '209.85.128.0/17',
-                '216.239.32.0/19',
-                '66.102.0.0/20',
-                '2001:4860::/32',
-            ],
-            'bing' => [
-                '40.77.167.0/24',
-                '207.46.13.0/24',
-                '157.55.39.0/24',
-                '13.66.139.0/24',
-            ],
-            'meta' => [
-                '31.13.24.0/21',
-                '66.220.144.0/20',
-                '69.63.176.0/20',
-                '69.171.224.0/19',
-            ],
-        ];
-    }
-
-    /**
-     * @return array<string, array{asns: list<int>, needles: list<string>}>
-     */
-    public static function providerIdentity(): array
-    {
-        return [
-            'google' => [
-                'asns' => [15169, 36040, 36384],
-                'needles' => ['google llc', 'google inc', 'googlebot', 'adsbot-google', 'google ireland'],
-            ],
-            'bing' => [
-                'asns' => [8075],
-                'needles' => ['microsoft', 'bingbot', 'msnbot'],
-            ],
-            'meta' => [
-                'asns' => [32934],
-                'needles' => ['facebook', 'meta platforms', 'facebookbot'],
-            ],
-        ];
-    }
+    public const CACHE_PROVIDERS_KEY = 'global_ip_blocklist_providers';
 
     public static function matches(string $ip, array $context = [], ?IpLog $ipLog = null): bool
     {
         $ip = trim($ip);
         if ($ip === '') {
+            return false;
+        }
+
+        // Never block if the same IP is on the platform whitelist.
+        if (GlobalIpAllowlist::matches($ip, $context, $ipLog)) {
             return false;
         }
 
@@ -82,10 +37,6 @@ class GlobalIpAllowlist
         return self::matchesProviderIdentity($context, $ipLog);
     }
 
-    /**
-     * Resolve latest IpLog intel so enabled provider whitelist (ASN / ISP name) works
-     * even when callers only have an IP string.
-     */
     public static function matchesIp(string $ip): bool
     {
         $ip = trim($ip);
@@ -108,22 +59,18 @@ class GlobalIpAllowlist
      */
     public static function patterns(): array
     {
-        $catalog = self::providerCidrs();
+        $catalog = GlobalIpAllowlist::providerCidrs();
 
         if (! self::tableReady()) {
-            // Until the admin table is migrated, still trust Google crawler ranges.
-            return $catalog['google'];
+            return [];
         }
 
         return Cache::remember(self::CACHE_KEY, now()->addMinutes(5), function () use ($catalog): array {
             $patterns = [];
-            $query = GlobalIpAllowlistEntry::query()->where('enabled', true);
-            if (self::hasListTypeColumn()) {
-                $query->where(function ($q): void {
-                    $q->where('list_type', 'allow')->orWhereNull('list_type');
-                });
-            }
-            $entries = $query->get(['kind', 'provider', 'value']);
+            $entries = GlobalIpAllowlistEntry::query()
+                ->where('enabled', true)
+                ->where('list_type', 'block')
+                ->get(['kind', 'provider', 'value']);
 
             foreach ($entries as $entry) {
                 if ($entry->kind === 'provider') {
@@ -148,23 +95,17 @@ class GlobalIpAllowlist
     /**
      * @return list<string>
      */
-    public static function enabledProviders(): array
+    public static function blockedProviders(): array
     {
         if (! self::tableReady()) {
-            return ['google'];
+            return [];
         }
 
         return Cache::remember(self::CACHE_PROVIDERS_KEY, now()->addMinutes(5), function (): array {
-            $query = GlobalIpAllowlistEntry::query()
+            return GlobalIpAllowlistEntry::query()
                 ->where('kind', 'provider')
-                ->where('enabled', true);
-            if (self::hasListTypeColumn()) {
-                $query->where(function ($q): void {
-                    $q->where('list_type', 'allow')->orWhereNull('list_type');
-                });
-            }
-
-            return $query
+                ->where('enabled', true)
+                ->where('list_type', 'block')
                 ->get(['provider', 'value'])
                 ->map(fn (GlobalIpAllowlistEntry $entry) => strtolower((string) ($entry->provider ?: $entry->value)))
                 ->filter()
@@ -174,26 +115,24 @@ class GlobalIpAllowlist
         });
     }
 
-    public static function flush(): void
+    public static function flushCaches(): void
     {
         Cache::forget(self::CACHE_KEY);
         Cache::forget(self::CACHE_PROVIDERS_KEY);
-        GlobalIpBlocklist::flushCaches();
+    }
+
+    public static function flush(): void
+    {
+        self::flushCaches();
+        Cache::forget(GlobalIpAllowlist::CACHE_KEY);
+        Cache::forget(GlobalIpAllowlist::CACHE_PROVIDERS_KEY);
     }
 
     private static function tableReady(): bool
     {
         try {
-            return Schema::hasTable('global_ip_allowlist_entries');
-        } catch (\Throwable) {
-            return false;
-        }
-    }
-
-    private static function hasListTypeColumn(): bool
-    {
-        try {
-            return Schema::hasColumn('global_ip_allowlist_entries', 'list_type');
+            return Schema::hasTable('global_ip_allowlist_entries')
+                && Schema::hasColumn('global_ip_allowlist_entries', 'list_type');
         } catch (\Throwable) {
             return false;
         }
@@ -242,8 +181,8 @@ class GlobalIpAllowlist
             (string) data_get($raw, 'company.name', ''),
         ]))));
 
-        foreach (self::enabledProviders() as $provider) {
-            $identity = self::providerIdentity()[$provider] ?? null;
+        foreach (self::blockedProviders() as $provider) {
+            $identity = GlobalIpAllowlist::providerIdentity()[$provider] ?? null;
             if ($identity === null) {
                 continue;
             }

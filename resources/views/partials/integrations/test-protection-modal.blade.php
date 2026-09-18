@@ -46,7 +46,7 @@
                         <p class="mb-[8px] text-[11px] font-semibold uppercase text-white/50">Recovery steps</p>
                         <ol class="space-y-[10px] text-white/75">
                             <li><strong class="text-white">Install Google tag</strong> — Add the Google tag and verify it loads.</li>
-                            <li><strong class="text-white">Send test invalid event</strong> — Trigger consent-gated <code class="text-[#ffd0b0]">clickronix_invalid_traffic</code>.</li>
+                            <li><strong class="text-white">Send test invalid event</strong> — Trigger consent-gated <code class="text-[#ffd0b0]">cr_invalid_traffic</code> with <code class="text-[#ffd0b0]">cr_traffic_verdict=invalid</code>.</li>
                             <li><strong class="text-white">Create audience</strong> — Create/select invalid-traffic audience, then apply exclusion.</li>
                         </ol>
                     </div>

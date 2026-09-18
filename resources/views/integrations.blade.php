@@ -1699,7 +1699,7 @@ function platformIntegrations(config) {
             requiredTags: [
                 { name: 'Clickronix Collector', meta: 'Type: Custom HTML · All Pages' },
                 { name: 'Google tag', meta: 'Type: Google tag · AW destination · All Pages' },
-                { name: 'Invalid Traffic GA4 Event', meta: 'Type: GA4 Event · trigger: clickronix_invalid_traffic' },
+                { name: 'Invalid Traffic GA4 Event', meta: 'Type: GA4 Event · trigger: cr_invalid_traffic · cr_traffic_verdict=invalid' },
                 { name: 'Invalid Traffic Ads Event', meta: 'Type: Google Ads Event / remarketing · same custom event' },
             ],
         },
@@ -1738,10 +1738,10 @@ function platformIntegrations(config) {
             creating: false,
             source: 'ga4',
             delivery: 'gtm',
-            eventName: 'clickronix_invalid_traffic',
-            duration: '30 days',
-            ga4Name: 'Clickronix | Invalid Traffic | GA4',
-            websiteName: 'Clickronix | Invalid Traffic | Google Ads',
+            eventName: 'cr_invalid_traffic',
+            duration: '90 days',
+            ga4Name: 'CR - Invalid Traffic',
+            websiteName: 'CR - Invalid Traffic',
             ga4ListId: '',
             websiteListId: '',
             resumeAfterTags: false,
@@ -1767,8 +1767,8 @@ function platformIntegrations(config) {
             steps: ['Source', 'Rule active', 'Validate', 'Apply'],
             ga4_property: '',
             ads_account: '',
-            name: 'Clickronix | Invalid Traffic | GA4',
-            duration: '30 days',
+            name: 'CR - Invalid Traffic',
+            duration: '90 days',
             evaluation: 'User scoped from first matching event',
             method: 'ga4',
             ga4Options: [],
@@ -1781,18 +1781,15 @@ function platformIntegrations(config) {
             ga4Confidence: '',
             ga4StatusUrl: config.ga4StatusUrl || '',
             includeRules: [
-                { field: 'Event name', param: '', op: 'exactly matches', value: 'clickronix_invalid_traffic' },
-                { field: 'Event parameter', param: 'traffic_status', op: 'exactly matches', value: 'invalid' },
-                { field: 'Event parameter', param: 'risk_confidence', op: 'equals', value: 'high' },
+                { field: 'Event name', param: '', op: 'exactly matches', value: 'cr_invalid_traffic' },
+                { field: 'Event parameter', param: 'cr_traffic_verdict', op: 'exactly matches', value: 'invalid' },
             ],
-            excludeRules: [
-                { field: 'Event name', param: '', op: 'exactly matches', value: 'clickronix_valid_override' },
-            ],
+            excludeRules: [],
             evidence: [
-                { key: 'event', label: 'GA4 event received', detail: 'Optional check — not required to create Ads list', ok: false },
-                { key: 'status', label: 'traffic_status', detail: 'invalid', ok: false },
+                { key: 'event', label: 'GA4 / Ads event received', detail: 'Optional check — not required to create list', ok: false },
+                { key: 'status', label: 'cr_traffic_verdict', detail: 'invalid', ok: false },
                 { key: 'consent', label: 'Consent (analytics_storage)', detail: 'not verified', ok: false },
-                { key: 'match', label: 'Test user matched', detail: 'Optional', ok: false },
+                { key: 'match', label: 'Audience signal sent', detail: 'Same-browser tag fired; Google evaluates membership', ok: false },
             ],
             draftSaved: false,
             createUrl: config.createAudienceUrl || '',
@@ -1852,7 +1849,7 @@ function platformIntegrations(config) {
             trigger_source: 'Server-accepted-lead',
             unique_key: 'lead_id',
             sendAudienceSignal: true,
-            audience_event: 'clickronix_invalid_traffic',
+            audience_event: 'cr_invalid_traffic',
             policyRows: [
                 { verdict: 'Valid traffic', action: 'send conversion once', tone: 'ok', icon: '✓' },
                 { verdict: 'Confirmed invalid', action: 'suppress Google Ads conversion', tone: 'bad', icon: '×' },
@@ -1863,7 +1860,7 @@ function platformIntegrations(config) {
             tests: [
                 { label: 'Valid event sent once', ok: false },
                 { label: 'Invalid conversion suppressed', ok: false },
-                { label: 'Audience signal received', ok: false },
+                { label: 'Audience signal sent', ok: false },
                 { label: 'Timeout behavior', ok: false },
             ],
             getUrl: '/integrations/google/pixel-guard',
@@ -2584,7 +2581,7 @@ function platformIntegrations(config) {
                     domain_id: Number(domainId),
                     audience_name: this.createAudienceModal.name,
                     duration: this.createAudienceModal.duration || '30 days',
-                    event_name: this.audienceWizard.eventName || 'clickronix_invalid_traffic',
+                    event_name: this.audienceWizard.eventName || 'cr_invalid_traffic',
                     method: route,
                     force_reuse: true,
                 };
@@ -2939,9 +2936,9 @@ function platformIntegrations(config) {
         simulateAudienceTestEvidence() {
             this.createAudienceModal.evidence = [
                 { key: 'event', label: 'GA4 event received', detail: 'marked for QA (optional)', ok: true },
-                { key: 'status', label: 'traffic_status', detail: 'invalid', ok: true },
+                { key: 'status', label: 'cr_traffic_verdict', detail: 'invalid', ok: true },
                 { key: 'consent', label: 'Consent (analytics_storage)', detail: 'granted', ok: true },
-                { key: 'match', label: 'Test user matched', detail: 'Include rules matched; not excluded.', ok: true },
+                { key: 'match', label: 'Audience signal sent', detail: 'Same-browser tag fired; Google evaluates membership (not Device ID upload).', ok: true },
             ];
             this.createAudienceModal.step = Math.max(this.createAudienceModal.step, 2);
             this.showMenuToast('Test evidence marked (optional). You can Create without this.', 'success');
@@ -2981,7 +2978,7 @@ function platformIntegrations(config) {
                     domain_id: Number(domainId),
                     audience_name: this.createAudienceModal.name,
                     duration: this.createAudienceModal.duration || '30 days',
-                    event_name: 'clickronix_invalid_traffic',
+                    event_name: 'cr_invalid_traffic',
                     method: this.createAudienceModal.method || 'ga4',
                 };
                 if (adsId && adsId !== 'summary' && /^\d+$/.test(String(adsId))) {
@@ -3223,7 +3220,7 @@ function platformIntegrations(config) {
                         campaign_ids: selected.map((c) => String(c.id)),
                         audience_name: this.applyAudienceModal.audienceName || this.createAudienceModal.name,
                         user_list_id: this.applyAudienceModal.userListId || null,
-                        event_name: 'clickronix_invalid_traffic',
+                        event_name: 'cr_invalid_traffic',
                         scope: this.applyAudienceModal.scope || 'campaign',
                         method: this.applyAudienceModal.method || this.createAudienceModal.method || 'ga4',
                         route: this.applyAudienceModal.method || this.createAudienceModal.method || 'ga4',

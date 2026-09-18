@@ -28,7 +28,8 @@
                         <li>✓ GA4 property linked to Google Ads</li>
                         <li>✓ Personalized advertising enabled</li>
                         <li>✓ Marketer access</li>
-                        <li>✓ Event: <code class="text-[#ffd0b0]">clickronix_invalid_traffic</code></li>
+                        <li>✓ Event: <code class="text-[#ffd0b0]">cr_invalid_traffic</code></li>
+                        <li>✓ Parameter: <code class="text-[#ffd0b0]">cr_traffic_verdict=invalid</code></li>
                     </ul>
                 </button>
                 <button type="button" class="w-full rounded-[10px] border p-[14px] text-left transition"
@@ -38,7 +39,8 @@
                     <ul class="mt-[10px] space-y-[4px] text-[11px] text-white/70">
                         <li>✓ Google tag <span class="font-mono" x-text="trackingInstallation.google_tag.id || 'AW-…'"></span></li>
                         <li>✓ Website visitor data source</li>
-                        <li>✓ Custom parameter <code class="text-[#ffd0b0]">traffic_status=invalid</code></li>
+                        <li>✓ Same event: <code class="text-[#ffd0b0]">cr_invalid_traffic</code></li>
+                        <li>✓ Parameter <code class="text-[#ffd0b0]">cr_traffic_verdict=invalid</code></li>
                     </ul>
                 </button>
                 <div class="w-full rounded-[10px] border border-white/10 bg-[#0a0a0a] p-[14px] opacity-55">
@@ -61,8 +63,8 @@
                     <li>Raw IP addresses and fingerprints are <strong class="text-white">not</strong> uploaded to Google.</li>
                 </ol>
                 <p class="rounded-[8px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[10px] py-[8px] text-[11px] text-[#ffd0b0]">
-                    Event rules: <code>traffic_status=invalid</code> + <code>risk_confidence=high</code> only.
-                    V1 = GA4 event audience + separate IP exclusion — don&apos;t call both the same list.
+                    Audience rule: <code>cr_invalid_traffic</code> + <code>cr_traffic_verdict=invalid</code> only (final invalid — never suspicious).
+                    Create audience = container/rule; membership comes from future same-browser tag events. UI status = “Audience signal sent”, not “member added”.
                 </p>
             </aside>
         </div>
