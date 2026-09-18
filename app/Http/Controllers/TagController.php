@@ -320,18 +320,24 @@ class TagController extends Controller
     });
   }
 
-  /** Spec: cr_invalid_traffic + cr_traffic_verdict=invalid; once per decision_id; before block. */
+  /** Spec: cr_invalid_traffic + full §5 params; once per audience_id:decision_id; before block. */
   function fireInvalidAudienceEvent(resp){
     try {
       if (consentRequired && !hasConsent()) return false;
+      if (!(resp.fire_audience_signal || resp.fire_audience_event)) return false;
       var eventName = String(resp.audience_event || 'cr_invalid_traffic');
-      var verdict = String(resp.audience_traffic_verdict || resp.audience_traffic_status || resp.traffic_status || 'invalid').toLowerCase();
-      if (verdict !== 'invalid') return false;
+      var verdict = String(resp.audience_traffic_verdict || resp.audience_traffic_status || resp.traffic_status || '').toLowerCase();
+      var protectionAction = String(resp.audience_protection_action || '').toLowerCase();
+      // Rule engine already decided fire; still reject empty suspicious-only without rule match payload.
+      if (!resp.fire_audience_signal && verdict && verdict !== 'invalid' && protectionAction !== 'blocked') {
+        return false;
+      }
 
       var decisionId = String(resp.audience_decision_id || '');
+      var audienceId = String(resp.audience_id || 'default');
       try {
         if (decisionId && window.sessionStorage) {
-          var dedupeKey = 'cr_aud_sig_' + decisionId;
+          var dedupeKey = 'cr_aud_sig_' + audienceId + ':' + decisionId;
           if (sessionStorage.getItem(dedupeKey) === '1') return false;
           sessionStorage.setItem(dedupeKey, '1');
         }
@@ -340,18 +346,30 @@ class TagController extends Controller
       var payload = {
         event: eventName,
         cr_event_version: String(resp.audience_event_version || '1.0'),
-        cr_traffic_verdict: 'invalid',
-        // GA4 event param alias used by audience builders / GTM DLVs.
-        traffic_verdict: 'invalid',
-        // Back-compat for older GTM containers.
-        traffic_status: 'invalid',
+        cr_traffic_verdict: verdict || 'invalid',
+        traffic_verdict: verdict || 'invalid',
+        traffic_status: verdict || 'invalid',
         clickronix_source: 'protection_tag'
       };
       if (resp.audience_event_id) payload.cr_event_id = String(resp.audience_event_id);
       if (decisionId) payload.cr_decision_id = decisionId;
-      if (resp.audience_detection_type) payload.cr_detection_type = String(resp.audience_detection_type);
+      if (protectionAction) payload.cr_protection_action = protectionAction;
+      if (resp.audience_invalid_category) payload.cr_invalid_category = String(resp.audience_invalid_category);
+      if (resp.audience_invalid_reason || resp.audience_detection_type) {
+        payload.cr_invalid_reason = String(resp.audience_invalid_reason || resp.audience_detection_type);
+      }
       if (resp.audience_risk_score != null && resp.audience_risk_score !== '') payload.cr_risk_score = Number(resp.audience_risk_score);
-      if (resp.audience_protection_action) payload.cr_protection_action = String(resp.audience_protection_action);
+      if (resp.audience_action) payload.cr_action = String(resp.audience_action);
+      if (resp.audience_outcome) payload.cr_outcome = String(resp.audience_outcome);
+      if (resp.audience_lead_status) payload.cr_lead_status = String(resp.audience_lead_status);
+      if (resp.audience_form_status) payload.cr_form_status = String(resp.audience_form_status);
+      if (resp.audience_keyword_class) payload.cr_keyword_class = String(resp.audience_keyword_class);
+      if (resp.audience_repeat_click_count != null && resp.audience_repeat_click_count !== '') {
+        payload.cr_repeat_click_count = Number(resp.audience_repeat_click_count);
+      }
+      if (resp.audience_challenge_result) payload.cr_challenge_result = String(resp.audience_challenge_result);
+      if (resp.audience_zip_status) payload.cr_zip_status = String(resp.audience_zip_status);
+      if (resp.audience_campaign_id) payload.cr_campaign_id = String(resp.audience_campaign_id);
       if (resp.audience_occurred_at) payload.cr_occurred_at = String(resp.audience_occurred_at);
       if (resp.threat_group) payload.threat_group = String(resp.threat_group);
 
@@ -362,17 +380,15 @@ class TagController extends Controller
         try {
           if (typeof gtag !== 'function') return;
           var gtagPayload = {
-            cr_traffic_verdict: 'invalid',
-            traffic_verdict: 'invalid',
-            traffic_status: 'invalid',
+            cr_traffic_verdict: payload.cr_traffic_verdict,
+            traffic_verdict: payload.traffic_verdict,
+            traffic_status: payload.traffic_status,
             engagement_time_msec: 1
           };
-          if (payload.cr_event_id) gtagPayload.cr_event_id = payload.cr_event_id;
-          if (payload.cr_decision_id) gtagPayload.cr_decision_id = payload.cr_decision_id;
-          if (payload.cr_detection_type) gtagPayload.cr_detection_type = payload.cr_detection_type;
-          if (payload.cr_risk_score != null) gtagPayload.cr_risk_score = payload.cr_risk_score;
-          if (payload.cr_protection_action) gtagPayload.cr_protection_action = payload.cr_protection_action;
-          if (payload.cr_occurred_at) gtagPayload.cr_occurred_at = payload.cr_occurred_at;
+          ['cr_event_id','cr_decision_id','cr_protection_action','cr_invalid_category','cr_invalid_reason',
+           'cr_risk_score','cr_action','cr_outcome','cr_lead_status','cr_form_status','cr_keyword_class',
+           'cr_repeat_click_count','cr_challenge_result','cr_zip_status','cr_campaign_id','cr_occurred_at'
+          ].forEach(function(k){ if (payload[k] != null) gtagPayload[k] = payload[k]; });
           if (clientId) gtagPayload.clickronix_client_id = String(clientId);
           var sendTo = String(resp.google_tag_id || '');
           if (sendTo) gtagPayload.send_to = sendTo;

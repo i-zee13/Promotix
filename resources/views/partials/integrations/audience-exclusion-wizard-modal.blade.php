@@ -211,14 +211,50 @@
                         <label class="block text-[11px] sm:col-span-2"><span class="mb-[4px] block text-white/55">Audience name</span>
                             <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="audienceWizard.ga4Name">
                         </label>
-                        <label class="block text-[11px] sm:col-span-2"><span class="mb-[4px] block text-white/55">Inclusion rule</span>
-                            <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" :value="'event_name equals ' + (audienceWizard.eventName || 'cr_invalid_traffic') + ' AND cr_traffic_verdict equals invalid'" readonly>
+                        <label class="block text-[11px] sm:col-span-2"><span class="mb-[4px] block text-white/55">Rule mode</span>
+                            <select class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="audienceWizard.matchMode">
+                                <option value="any">Match ANY (OR)</option>
+                                <option value="all">Match ALL (AND)</option>
+                            </select>
                         </label>
+                        <div class="sm:col-span-2 space-y-[8px]">
+                            <div class="flex items-center justify-between gap-[8px]">
+                                <span class="text-[11px] text-white/55">Exclusion conditions</span>
+                                <button type="button" class="text-[11px] text-[#ffd0b0]" @click="addAudienceRuleCondition()">+ Add condition</button>
+                            </div>
+                            <template x-for="(row, idx) in audienceWizard.ruleConditions" :key="'aw-rule-'+idx">
+                                <div class="grid grid-cols-12 gap-[6px]">
+                                    <select class="ae-field col-span-5 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]"
+                                            x-model="row.param" @change="syncAudienceRuleOps(row)">
+                                        <template x-for="p in (audienceWizard.ruleCatalog?.parameters || [])" :key="p.param">
+                                            <option :value="p.param" x-text="p.label"></option>
+                                        </template>
+                                    </select>
+                                    <select class="ae-field col-span-2 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.op">
+                                        <template x-for="op in audienceRuleOpsFor(row.param)" :key="op">
+                                            <option :value="op" x-text="op"></option>
+                                        </template>
+                                    </select>
+                                    <template x-if="(audienceRuleMeta(row.param)?.values || []).length">
+                                        <select class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.value">
+                                            <template x-for="v in (audienceRuleMeta(row.param)?.values || [])" :key="v">
+                                                <option :value="v" x-text="v"></option>
+                                            </template>
+                                        </select>
+                                    </template>
+                                    <template x-if="!(audienceRuleMeta(row.param)?.values || []).length">
+                                        <input class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.value" placeholder="Value">
+                                    </template>
+                                    <button type="button" class="col-span-1 text-white/45 hover:text-rose-300" @click="removeAudienceRuleCondition(idx)">×</button>
+                                </div>
+                            </template>
+                            <p class="rounded-[8px] border border-white/10 bg-[#0a0a0a] px-[10px] py-[8px] text-[11px] text-white/70" x-text="audienceRuleSummary()"></p>
+                        </div>
                         <label class="block text-[11px]"><span class="mb-[4px] block text-white/55">Membership duration</span>
                             <select class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="audienceWizard.duration">
                                 <option>30 days</option>
                                 <option>60 days</option>
-                                <option selected>90 days</option>
+                                <option>90 days</option>
                             </select>
                         </label>
                     </div>
@@ -259,8 +295,51 @@
                         <label class="block text-[11px] sm:col-span-2"><span class="mb-[4px] block text-white/55">Audience name</span>
                             <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="audienceWizard.websiteName">
                         </label>
-                        <label class="block text-[11px] sm:col-span-2"><span class="mb-[4px] block text-white/55">Audience rule</span>
-                            <input type="text" class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" :value="'event equals ' + (audienceWizard.eventName || 'cr_invalid_traffic') + ' AND cr_traffic_verdict equals invalid'" readonly>
+                        <label class="block text-[11px] sm:col-span-2"><span class="mb-[4px] block text-white/55">Rule mode</span>
+                            <select class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="audienceWizard.matchMode">
+                                <option value="any">Match ANY (OR)</option>
+                                <option value="all">Match ALL (AND)</option>
+                            </select>
+                        </label>
+                        <div class="sm:col-span-2 space-y-[8px]">
+                            <div class="flex items-center justify-between gap-[8px]">
+                                <span class="text-[11px] text-white/55">Exclusion conditions</span>
+                                <button type="button" class="text-[11px] text-[#ffd0b0]" @click="addAudienceRuleCondition()">+ Add condition</button>
+                            </div>
+                            <template x-for="(row, idx) in audienceWizard.ruleConditions" :key="'aw-web-rule-'+idx">
+                                <div class="grid grid-cols-12 gap-[6px]">
+                                    <select class="ae-field col-span-5 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]"
+                                            x-model="row.param" @change="syncAudienceRuleOps(row)">
+                                        <template x-for="p in (audienceWizard.ruleCatalog?.parameters || [])" :key="'w-'+p.param">
+                                            <option :value="p.param" x-text="p.label"></option>
+                                        </template>
+                                    </select>
+                                    <select class="ae-field col-span-2 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.op">
+                                        <template x-for="op in audienceRuleOpsFor(row.param)" :key="'wop-'+op">
+                                            <option :value="op" x-text="op"></option>
+                                        </template>
+                                    </select>
+                                    <template x-if="(audienceRuleMeta(row.param)?.values || []).length">
+                                        <select class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.value">
+                                            <template x-for="v in (audienceRuleMeta(row.param)?.values || [])" :key="'wv-'+v">
+                                                <option :value="v" x-text="v"></option>
+                                            </template>
+                                        </select>
+                                    </template>
+                                    <template x-if="!(audienceRuleMeta(row.param)?.values || []).length">
+                                        <input class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.value" placeholder="Value">
+                                    </template>
+                                    <button type="button" class="col-span-1 text-white/45 hover:text-rose-300" @click="removeAudienceRuleCondition(idx)">×</button>
+                                </div>
+                            </template>
+                            <p class="rounded-[8px] border border-white/10 bg-[#0a0a0a] px-[10px] py-[8px] text-[11px] text-white/70" x-text="audienceRuleSummary()"></p>
+                        </div>
+                        <label class="block text-[11px]"><span class="mb-[4px] block text-white/55">Membership duration</span>
+                            <select class="ae-field w-full rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[10px] py-[8px]" x-model="audienceWizard.duration">
+                                <option>30 days</option>
+                                <option>60 days</option>
+                                <option>90 days</option>
+                            </select>
                         </label>
                     </div>
                     <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[9px] text-[13px] font-semibold disabled:opacity-40"
@@ -280,23 +359,34 @@
             {{-- STEP 04: Verify & exclude --}}
             <div x-show="audienceWizard.step === 3" class="space-y-[16px]">
                 <div class="grid gap-[8px] sm:grid-cols-4">
-                    <div class="rounded-[10px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[12px] py-[10px] text-[12px]">
+                    <template x-for="m in audiencePipelineMetrics()" :key="m.label">
+                        <div class="rounded-[10px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[12px] py-[10px] text-[12px]">
+                            <p class="text-white/50" x-text="m.label"></p>
+                            <p class="mt-[4px] font-semibold" :class="m.ok ? 'text-emerald-300' : 'text-white/60'" x-text="m.value"></p>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="grid gap-[8px] sm:grid-cols-4">
+                    <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
                         <p class="text-white/50">Account access</p>
                         <p class="mt-[4px] font-semibold" :class="wizardAdsConnected ? 'text-emerald-300' : 'text-white/60'" x-text="wizardAdsConnected ? 'Connected' : 'Pending'"></p>
                     </div>
-                    <div class="rounded-[10px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[12px] py-[10px] text-[12px]">
+                    <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
                         <p class="text-white/50">Audience lists</p>
                         <p class="mt-[4px] font-semibold text-white" x-text="wizardListCount + ' found'"></p>
                     </div>
-                    <div class="rounded-[10px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[12px] py-[10px] text-[12px]">
+                    <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
                         <p class="text-white/50">GA4 list</p>
                         <p class="mt-[4px] font-mono text-[11px]" x-text="audienceWizard.ga4ListId ? ('List ' + audienceWizard.ga4ListId) : '—'"></p>
                     </div>
-                    <div class="rounded-[10px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[12px] py-[10px] text-[12px]">
+                    <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
                         <p class="text-white/50">Website list</p>
                         <p class="mt-[4px] font-mono text-[11px]" x-text="audienceWizard.websiteListId ? ('List ' + audienceWizard.websiteListId) : '—'"></p>
                     </div>
                 </div>
+
+                <p class="rounded-[8px] border border-white/10 bg-[#0a0a0a] px-[10px] py-[8px] text-[11px] text-white/70" x-text="audienceRuleSummary()"></p>
 
                 <div class="overflow-x-auto rounded-[10px] border border-white/12">
                     <table class="ae-verify-table min-w-full text-left text-[12px]">
@@ -315,8 +405,12 @@
                                 <td class="px-[12px] py-[10px] font-mono" x-text="audienceWizard.ga4ListId ? ('List ' + audienceWizard.ga4ListId) : '—'"></td>
                                 <td class="px-[12px] py-[10px]">
                                     <span class="inline-flex rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
-                                          :class="audienceWizard.ga4ListId ? 'bg-emerald-500/20 text-emerald-200' : 'bg-rose-500/20 text-rose-200'"
-                                          x-text="audienceWizard.ga4ListId ? 'Created' : 'Missing'"></span>
+                                          :class="{
+                                              'bg-emerald-500/20 text-emerald-200': wizardAttachmentTone('ga4') === 'ok',
+                                              'bg-amber-500/20 text-amber-200': wizardAttachmentTone('ga4') === 'warn',
+                                              'bg-white/10 text-white/55': wizardAttachmentTone('ga4') === 'muted',
+                                          }"
+                                          x-text="wizardAttachmentLabel('ga4')"></span>
                                 </td>
                             </tr>
                             <tr class="border-t border-white/10" x-show="audienceWizard.source === 'website' || audienceWizard.websiteListId">
@@ -325,15 +419,19 @@
                                 <td class="px-[12px] py-[10px] font-mono" x-text="audienceWizard.websiteListId ? ('List ' + audienceWizard.websiteListId) : '—'"></td>
                                 <td class="px-[12px] py-[10px]">
                                     <span class="inline-flex rounded-full px-[8px] py-[2px] text-[10px] font-semibold"
-                                          :class="audienceWizard.websiteListId ? 'bg-emerald-500/20 text-emerald-200' : 'bg-rose-500/20 text-rose-200'"
-                                          x-text="audienceWizard.websiteListId ? 'Created' : 'Missing'"></span>
+                                          :class="{
+                                              'bg-emerald-500/20 text-emerald-200': wizardAttachmentTone('website') === 'ok',
+                                              'bg-amber-500/20 text-amber-200': wizardAttachmentTone('website') === 'warn',
+                                              'bg-white/10 text-white/55': wizardAttachmentTone('website') === 'muted',
+                                          }"
+                                          x-text="wizardAttachmentLabel('website')"></span>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <p class="text-[11px] text-white/55">Apply adds the selected list as a <strong class="text-white/80">new</strong> campaign exclusion. Existing exclusion lists on the campaign stay in place — nothing is overridden.</p>
+                <p class="text-[11px] text-white/55">Apply adds the selected list as a <strong class="text-white/80">new</strong> campaign exclusion. Existing exclusion lists on the campaign stay in place — nothing is overridden. Status wording = “Audience signal sent”, not individual Google membership.</p>
                 <div class="flex flex-wrap gap-[8px]">
                     <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[16px] py-[8px] text-[13px] font-semibold disabled:opacity-40"
                             :disabled="audienceWizard.source === 'website' ? !audienceWizard.websiteListId : !audienceWizard.ga4ListId"

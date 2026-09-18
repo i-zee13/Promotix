@@ -57,7 +57,15 @@
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[16px] py-[8px] text-[13px] font-semibold" @click="closeProtectionCenter(); openIpExclusionsModal()">Open IP exclusions</button>
                 <p class="mt-[10px] text-[11px] text-white/50">IP exclusion is separate from GA4 audience — do not call both the same “list”.</p>
             </div>
-            <div x-show="protectionCenter.tab === 'audience'" x-cloak class="space-y-[8px]">
+            <div x-show="protectionCenter.tab === 'audience'" x-cloak class="space-y-[12px]">
+                <div class="grid gap-[8px] sm:grid-cols-4">
+                    <template x-for="m in audiencePipelineMetrics()" :key="'pc-'+m.label">
+                        <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
+                            <p class="text-white/50" x-text="m.label"></p>
+                            <p class="mt-[4px] font-semibold" :class="m.ok ? 'text-emerald-300' : 'text-white/60'" x-text="m.value"></p>
+                        </div>
+                    </template>
+                </div>
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[16px] py-[8px] text-[13px] font-semibold" @click="closeProtectionCenter(); openAudienceMethodModal()">Choose audience method</button>
                 <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="closeProtectionCenter(); openCreateAudienceModal()">Create GA4 audience</button>
                 <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="closeProtectionCenter(); openApplyAudienceModal()">Apply audience exclusion</button>

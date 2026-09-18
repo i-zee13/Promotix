@@ -36,6 +36,20 @@ class AudienceSignalServiceTest extends TestCase
         $this->assertFalse($valid['fire']);
     }
 
+    public function test_fires_on_blocked_via_default_any_rule(): void
+    {
+        // Default preset is Match ANY: invalid OR blocked.
+        $flags = (new AudienceSignalService)->clientFlags([
+            'traffic_status' => 'suspicious',
+            'action_taken' => 'block',
+            'threat_score' => 70,
+        ]);
+
+        $this->assertTrue($flags['fire_audience_event'] ?? false);
+        $this->assertSame('blocked', $flags['audience_protection_action'] ?? null);
+        $this->assertSame(AudienceSignalService::EVENT_VERSION, $flags['audience_event_version'] ?? null);
+    }
+
     public function test_client_flags_use_canonical_contract(): void
     {
         $flags = (new AudienceSignalService)->clientFlags([
@@ -50,16 +64,23 @@ class AudienceSignalServiceTest extends TestCase
         $this->assertSame('invalid', $flags['audience_traffic_verdict']);
         $this->assertArrayHasKey('audience_decision_id', $flags);
         $this->assertArrayHasKey('audience_event_id', $flags);
+        $this->assertSame('blocked', $flags['audience_protection_action']);
+        $this->assertArrayHasKey('audience_id', $flags);
     }
 
-    public function test_does_not_fire_on_block_when_status_suspicious(): void
+    public function test_build_decision_params_omit_pii(): void
     {
-        $flags = (new AudienceSignalService)->clientFlags([
-            'traffic_status' => 'suspicious',
+        $params = (new AudienceSignalService)->buildDecisionParams([
+            'traffic_status' => 'invalid',
             'action_taken' => 'block',
-            'threat_score' => 70,
+            'threat_score' => 88,
+            'ip' => '1.2.3.4',
+            'fingerprint' => 'fp-secret',
         ]);
 
-        $this->assertSame([], $flags);
+        $this->assertArrayNotHasKey('ip', $params);
+        $this->assertArrayNotHasKey('fingerprint', $params);
+        $this->assertSame('invalid', $params['cr_traffic_verdict']);
+        $this->assertSame('blocked', $params['cr_protection_action']);
     }
 }

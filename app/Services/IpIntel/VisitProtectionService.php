@@ -315,7 +315,7 @@ class VisitProtectionService
             }
         }
 
-        foreach ($this->audienceSignals->clientFlags($detection) as $key => $value) {
+        foreach ($this->audienceSignals->clientFlags($detection, $domain) as $key => $value) {
             $payload[$key] = $value;
         }
 

@@ -764,6 +764,16 @@ class IntegrationsController extends Controller
                 $current[$route] = [
                     'user_list_id' => $id,
                     'user_list_name' => (string) ($row['user_list_name'] ?? $row['audience_name'] ?? ''),
+                    'rule' => is_array($row['rule'] ?? null) ? $row['rule'] : null,
+                    'rule_summary' => (string) ($row['rule_summary'] ?? ''),
+                    'attachment_status' => (string) ($row['attachment_status'] ?? 'pending'),
+                    'status' => (string) ($row['status'] ?? ''),
+                    'attached_campaign_ids' => is_array($row['attached_campaign_ids'] ?? null)
+                        ? $row['attached_campaign_ids']
+                        : [],
+                    'verified_campaign_ids' => is_array($row['verified_campaign_ids'] ?? null)
+                        ? $row['verified_campaign_ids']
+                        : [],
                 ];
             }
             $audienceAssociationsByDomain[$domainId] = $current;
@@ -1831,6 +1841,13 @@ class IntegrationsController extends Controller
             'google_ads_account_id' => ['nullable', 'integer'],
             'force_reuse' => ['sometimes', 'boolean'],
             'skip_ga4_check' => ['sometimes', 'boolean'],
+            'match_mode' => ['nullable', 'string', 'in:any,all'],
+            'rule' => ['nullable', 'array'],
+            'rule.match_mode' => ['nullable', 'string', 'in:any,all'],
+            'rule.conditions' => ['nullable', 'array'],
+            'rule.conditions.*.param' => ['nullable', 'string', 'max:64'],
+            'rule.conditions.*.op' => ['nullable', 'string', 'max:16'],
+            'rule.conditions.*.value' => ['nullable'],
         ]);
 
         $domain = Domain::query()
@@ -1875,25 +1892,46 @@ class IntegrationsController extends Controller
             }
         }
 
-        $defaultName = $method === 'website'
-            ? 'Clickronix | Invalid Traffic | Google Ads'
-            : 'Clickronix | Invalid Traffic | GA4';
+        $defaultName = \App\Support\AudienceRuleSchema::defaultAudienceName($method);
         $audienceName = trim((string) $data['audience_name']) !== ''
             ? (string) $data['audience_name']
             : $defaultName;
+
+        $ruleInput = is_array($data['rule'] ?? null) ? $data['rule'] : [
+            'match_mode' => $data['match_mode'] ?? 'any',
+            'conditions' => \App\Support\AudienceRuleSchema::defaultPreset()['conditions'],
+        ];
+        if (empty($ruleInput['conditions'])) {
+            $ruleInput = \App\Support\AudienceRuleSchema::defaultPreset();
+        }
+        $normalized = \App\Support\AudienceRuleSchema::normalize($ruleInput);
+        if (! $normalized['ok'] && ($normalized['error'] ?? null)) {
+            return response()->json([
+                'ok' => false,
+                'message' => $normalized['error'],
+                'user_list_id' => null,
+                'user_list_name' => null,
+                'created' => false,
+            ], 422);
+        }
 
         // Always allow many lists: if name already exists, append a unique suffix unless force_reuse.
         $forceReuse = $request->boolean('force_reuse');
         $result = $associations->createAudienceList(
             $domain,
             $audienceName,
-            (string) ($data['duration'] ?? '30 days'),
+            (string) ($data['duration'] ?? '90 days'),
             (string) ($data['event_name'] ?: \App\Services\AudienceSignalService::DEFAULT_EVENT),
             $method,
             forceNew: ! $forceReuse,
+            rule: $normalized['rule'],
         );
 
-        return response()->json($result + ['ga4_detection' => $detection], $result['ok'] ? 200 : 422);
+        return response()->json($result + [
+            'ga4_detection' => $detection,
+            'rule' => $normalized['rule'],
+            'rule_summary' => \App\Support\AudienceRuleSchema::naturalLanguageSummary($normalized['rule']),
+        ], $result['ok'] ? 200 : 422);
     }
 
     /**
@@ -2100,6 +2138,9 @@ class IntegrationsController extends Controller
             'stored' => $result['stored'],
             'user_list_id' => $result['user_list_id'] ?? null,
             'user_list_name' => $result['user_list_name'] ?? null,
+            'attachment_status' => $result['stored']['attachment_status']
+                ?? (($result['ok'] ?? false) ? 'attached' : 'pending'),
+            'verified_campaign_ids' => $result['stored']['verified_campaign_ids'] ?? [],
             'ga4_detection' => $detection,
         ], $result['ok'] ? 200 : 422);
     }

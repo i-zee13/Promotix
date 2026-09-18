@@ -130,7 +130,15 @@
                             <pre class="overflow-x-auto rounded-[8px] border border-white/10 bg-[#0a0a0a] p-[12px] font-mono text-[11px] text-emerald-200">window.dataLayer = window.dataLayer || [];
 window.dataLayer.push({
   event: 'cr_invalid_traffic',
-  cr_traffic_verdict: 'invalid'
+  cr_event_version: '1.0',
+  cr_event_id: 'EVT-…',
+  cr_decision_id: 'DEC-…',
+  cr_traffic_verdict: 'invalid',
+  cr_protection_action: 'blocked',
+  cr_invalid_category: 'click_fraud',
+  cr_invalid_reason: 'repeat_clicks',
+  cr_risk_score: 92,
+  cr_occurred_at: '2026-09-18T11:00:00Z'
 });</pre>
                         </div>
                     </div>

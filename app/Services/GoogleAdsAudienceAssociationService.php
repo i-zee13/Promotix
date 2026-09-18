@@ -79,6 +79,13 @@ class GoogleAdsAudienceAssociationService
             return [
                 'user_list_id' => $id,
                 'user_list_name' => (string) ($row['user_list_name'] ?? $row['audience_name'] ?? ''),
+                'rule' => is_array($row['rule'] ?? null) ? $row['rule'] : \App\Support\AudienceRuleSchema::defaultPreset(),
+                'rule_summary' => (string) ($row['rule_summary'] ?? \App\Support\AudienceRuleSchema::naturalLanguageSummary($row['rule'] ?? [])),
+                'membership_days' => (int) ($row['membership_days'] ?? 90),
+                'status' => (string) ($row['status'] ?? 'created'),
+                'attachment_status' => (string) ($row['attachment_status'] ?? 'pending'),
+                'campaign_ids' => array_values($row['campaign_ids'] ?? []),
+                'verified_campaign_ids' => array_values($row['verified_campaign_ids'] ?? []),
             ];
         };
 
@@ -95,15 +102,16 @@ class GoogleAdsAudienceAssociationService
         string $eventName = AudienceSignalService::DEFAULT_EVENT,
         string $method = 'ga4',
         bool $forceNew = false,
+        ?array $rule = null,
     ): array {
         $method = $method === 'website' ? 'website' : 'ga4';
         $audienceName = trim($audienceName);
         if ($audienceName === '') {
-            $audienceName = $method === 'website'
-                ? 'CR - Invalid Traffic'
-                : 'CR - Invalid Traffic';
+            $audienceName = \App\Support\AudienceRuleSchema::defaultAudienceName($method);
         }
         $days = $this->parseMembershipDays($durationLabel);
+        $normalizedRule = \App\Support\AudienceRuleSchema::normalize($rule ?? \App\Support\AudienceRuleSchema::defaultPreset());
+        $rulePayload = $normalizedRule['rule'];
 
         $account = $this->resolveAccount($domain);
         if (! $account || ! $account->connection || (bool) $account->is_manager) {
@@ -178,9 +186,13 @@ class GoogleAdsAudienceAssociationService
             'membership_days' => $days,
             'method' => $method,
             'route' => $method,
+            'rule' => $rulePayload,
+            'rule_summary' => \App\Support\AudienceRuleSchema::naturalLanguageSummary($rulePayload),
             'desired' => true,
             'status' => 'created',
+            'attachment_status' => 'pending',
             'campaign_ids' => [],
+            'verified_campaign_ids' => [],
             'updated_at' => now()->toIso8601String(),
         ];
         $this->persistAssociation($domain, $stored);
@@ -475,6 +487,9 @@ class GoogleAdsAudienceAssociationService
         }
 
         $stored['status'] = $attached !== [] ? ($failed === [] ? 'applied' : 'partial') : 'failed';
+        $stored['attachment_status'] = $attached !== []
+            ? (($failed === [] && ! empty($stored['verified_campaign_ids'])) ? 'verified' : 'attached')
+            : 'pending';
         $stored['attached_campaign_ids'] = $attached;
         $stored['errors'] = $failed;
         $stored['updated_at'] = now()->toIso8601String();

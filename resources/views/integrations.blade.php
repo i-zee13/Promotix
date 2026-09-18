@@ -1740,10 +1740,18 @@ function platformIntegrations(config) {
             delivery: 'gtm',
             eventName: 'cr_invalid_traffic',
             duration: '90 days',
-            ga4Name: 'CR - Invalid Traffic',
-            websiteName: 'CR - Invalid Traffic',
+            ga4Name: 'CR - Invalid and Blocked',
+            websiteName: 'CR - Direct Ads - Invalid Visitors',
+            matchMode: 'any',
+            ruleConditions: [
+                { param: 'cr_traffic_verdict', op: '=', value: 'invalid' },
+                { param: 'cr_protection_action', op: '=', value: 'blocked' },
+            ],
+            ruleCatalog: @js(\App\Support\AudienceRuleSchema::forUi()),
             ga4ListId: '',
             websiteListId: '',
+            ga4AttachmentStatus: 'pending',
+            websiteAttachmentStatus: 'pending',
             resumeAfterTags: false,
             resumeAfterConnect: false,
             stepLabels: ['Connections', 'GA4 route', 'Ads route', 'Verify & exclude'],
@@ -1767,7 +1775,7 @@ function platformIntegrations(config) {
             steps: ['Source', 'Rule active', 'Validate', 'Apply'],
             ga4_property: '',
             ads_account: '',
-            name: 'CR - Invalid Traffic',
+            name: 'CR - Invalid and Blocked',
             duration: '90 days',
             evaluation: 'User scoped from first matching event',
             method: 'ga4',
@@ -1783,11 +1791,12 @@ function platformIntegrations(config) {
             includeRules: [
                 { field: 'Event name', param: '', op: 'exactly matches', value: 'cr_invalid_traffic' },
                 { field: 'Event parameter', param: 'cr_traffic_verdict', op: 'exactly matches', value: 'invalid' },
+                { field: 'Event parameter', param: 'cr_protection_action', op: 'exactly matches', value: 'blocked' },
             ],
             excludeRules: [],
             evidence: [
                 { key: 'event', label: 'GA4 / Ads event received', detail: 'Optional check — not required to create list', ok: false },
-                { key: 'status', label: 'cr_traffic_verdict', detail: 'invalid', ok: false },
+                { key: 'status', label: 'cr_traffic_verdict / cr_protection_action', detail: 'invalid OR blocked', ok: false },
                 { key: 'consent', label: 'Consent (analytics_storage)', detail: 'not verified', ok: false },
                 { key: 'match', label: 'Audience signal sent', detail: 'Same-browser tag fired; Google evaluates membership', ok: false },
             ],
@@ -2456,6 +2465,80 @@ function platformIntegrations(config) {
             }
             return 'Done';
         },
+        audienceRuleMeta(param) {
+            const list = this.audienceWizard.ruleCatalog?.parameters || [];
+            return list.find((p) => p.param === param) || null;
+        },
+        audienceRuleOpsFor(param) {
+            const meta = this.audienceRuleMeta(param);
+            return (meta?.operators && meta.operators.length) ? meta.operators : ['='];
+        },
+        syncAudienceRuleOps(row) {
+            if (!row || typeof row !== 'object') return;
+            const ops = this.audienceRuleOpsFor(row.param);
+            if (!ops.includes(row.op)) row.op = ops[0];
+            const vals = this.audienceRuleMeta(row.param)?.values || [];
+            if (vals.length && !vals.includes(row.value)) row.value = vals[0];
+        },
+        addAudienceRuleCondition() {
+            const first = (this.audienceWizard.ruleCatalog?.parameters || [])[0];
+            const param = first?.param || 'cr_traffic_verdict';
+            const ops = first?.operators || ['='];
+            const vals = first?.values || [];
+            this.audienceWizard.ruleConditions.push({
+                param,
+                op: ops[0] || '=',
+                value: vals[0] || '',
+            });
+        },
+        removeAudienceRuleCondition(idx) {
+            if ((this.audienceWizard.ruleConditions || []).length <= 1) return;
+            this.audienceWizard.ruleConditions.splice(idx, 1);
+        },
+        audienceRuleSummary() {
+            const mode = (this.audienceWizard.matchMode || 'any') === 'all' ? 'ALL' : 'ANY';
+            const parts = (this.audienceWizard.ruleConditions || []).map((c) => {
+                const label = this.audienceRuleMeta(c.param)?.label || c.param;
+                return `${label} ${c.op} ${c.value}`;
+            }).filter(Boolean);
+            if (!parts.length) return 'No conditions configured.';
+            const joiner = mode === 'ALL' ? ' AND ' : ' OR ';
+            return `Include when ${mode} of: ${parts.join(joiner)}.`;
+        },
+        wizardAttachmentLabel(route) {
+            const status = route === 'website'
+                ? this.audienceWizard.websiteAttachmentStatus
+                : this.audienceWizard.ga4AttachmentStatus;
+            if (status === 'verified') return 'Verified';
+            if (status === 'attached') return 'Attached';
+            const listId = route === 'website' ? this.audienceWizard.websiteListId : this.audienceWizard.ga4ListId;
+            return listId ? 'Created' : 'Ready';
+        },
+        wizardAttachmentTone(route) {
+            const status = route === 'website'
+                ? this.audienceWizard.websiteAttachmentStatus
+                : this.audienceWizard.ga4AttachmentStatus;
+            if (status === 'verified') return 'ok';
+            if (status === 'attached') return 'warn';
+            const listId = route === 'website' ? this.audienceWizard.websiteListId : this.audienceWizard.ga4ListId;
+            return listId ? 'ok' : 'muted';
+        },
+        audiencePipelineMetrics() {
+            const hasList = Boolean(this.audienceWizard.ga4ListId || this.audienceWizard.websiteListId);
+            const attach = this.audienceWizard.ga4AttachmentStatus === 'verified'
+                || this.audienceWizard.websiteAttachmentStatus === 'verified'
+                ? 'Verified'
+                : (this.audienceWizard.ga4AttachmentStatus === 'attached'
+                    || this.audienceWizard.websiteAttachmentStatus === 'attached'
+                    ? 'Attached'
+                    : (hasList ? 'Pending attach' : '—'));
+            return [
+                { label: 'Detection', value: this.botReady ? 'Active' : 'Pending', ok: Boolean(this.botReady) },
+                { label: 'Event delivery', value: this.tagReady ? 'Tag ready' : 'Install tags', ok: Boolean(this.tagReady) },
+                { label: 'Audience status', value: hasList ? 'List created' : 'Not created', ok: hasList },
+                { label: 'Campaign attachment', value: attach, ok: attach === 'Verified' || attach === 'Attached' },
+            ];
+        },
         hydrateWizardAudienceLists(fromServer) {
             const domainId = this.resolveAudienceDomainId();
             const fromConfig = domainId
@@ -2475,13 +2558,46 @@ function platformIntegrations(config) {
                 this.audienceWizard.websiteListId = String(website.user_list_id);
                 if (website.user_list_name) this.audienceWizard.websiteName = String(website.user_list_name);
             }
+            if (ga4?.attachment_status) {
+                this.audienceWizard.ga4AttachmentStatus = String(ga4.attachment_status);
+            }
+            if (website?.attachment_status) {
+                this.audienceWizard.websiteAttachmentStatus = String(website.attachment_status);
+            }
+            const ruleSource = (this.audienceWizard.source === 'website' ? website : ga4) || ga4 || website;
+            if (ruleSource?.rule && Array.isArray(ruleSource.rule.conditions) && ruleSource.rule.conditions.length) {
+                this.audienceWizard.matchMode = ruleSource.rule.match_mode === 'all' ? 'all' : 'any';
+                this.audienceWizard.ruleConditions = ruleSource.rule.conditions.map((c) => ({
+                    param: c.param,
+                    op: c.op || '=',
+                    value: Array.isArray(c.value) ? c.value.join(', ') : c.value,
+                }));
+            }
             if (domainId && lists) {
                 this.audienceAssociationsByDomain[domainId] = {
                     ga4: this.audienceWizard.ga4ListId
-                        ? { user_list_id: this.audienceWizard.ga4ListId, user_list_name: this.audienceWizard.ga4Name }
+                        ? {
+                            user_list_id: this.audienceWizard.ga4ListId,
+                            user_list_name: this.audienceWizard.ga4Name,
+                            attachment_status: this.audienceWizard.ga4AttachmentStatus,
+                            rule: {
+                                match_mode: this.audienceWizard.matchMode,
+                                conditions: this.audienceWizard.ruleConditions,
+                            },
+                            rule_summary: this.audienceRuleSummary(),
+                        }
                         : (ga4 || null),
                     website: this.audienceWizard.websiteListId
-                        ? { user_list_id: this.audienceWizard.websiteListId, user_list_name: this.audienceWizard.websiteName }
+                        ? {
+                            user_list_id: this.audienceWizard.websiteListId,
+                            user_list_name: this.audienceWizard.websiteName,
+                            attachment_status: this.audienceWizard.websiteAttachmentStatus,
+                            rule: {
+                                match_mode: this.audienceWizard.matchMode,
+                                conditions: this.audienceWizard.ruleConditions,
+                            },
+                            rule_summary: this.audienceRuleSummary(),
+                        }
                         : (website || null),
                 };
             }
@@ -2557,9 +2673,9 @@ function platformIntegrations(config) {
             }
             this.createAudienceModal.method = route;
             this.createAudienceModal.name = route === 'website'
-                ? (this.audienceWizard.websiteName || 'Clickronix | Invalid Traffic | Google Ads')
-                : (this.audienceWizard.ga4Name || 'Clickronix | Invalid Traffic | GA4');
-            this.createAudienceModal.duration = this.audienceWizard.duration || '30 days';
+                ? (this.audienceWizard.websiteName || 'CR - Direct Ads - Invalid Visitors')
+                : (this.audienceWizard.ga4Name || 'CR - Invalid and Blocked');
+            this.createAudienceModal.duration = this.audienceWizard.duration || '90 days';
             this.audienceWizard.creating = true;
             try {
                 const domainId = this.resolveAudienceDomainId();
@@ -2580,10 +2696,19 @@ function platformIntegrations(config) {
                 const body = {
                     domain_id: Number(domainId),
                     audience_name: this.createAudienceModal.name,
-                    duration: this.createAudienceModal.duration || '30 days',
+                    duration: this.createAudienceModal.duration || '90 days',
                     event_name: this.audienceWizard.eventName || 'cr_invalid_traffic',
                     method: route,
                     force_reuse: true,
+                    match_mode: this.audienceWizard.matchMode || 'any',
+                    rule: {
+                        match_mode: this.audienceWizard.matchMode || 'any',
+                        conditions: (this.audienceWizard.ruleConditions || []).map((c) => ({
+                            param: c.param,
+                            op: c.op,
+                            value: c.value,
+                        })),
+                    },
                 };
                 if (adsId && adsId !== 'summary' && /^\d+$/.test(String(adsId))) {
                     body.google_ads_account_id = Number(adsId);
@@ -3239,6 +3364,20 @@ function platformIntegrations(config) {
                 });
                 if (data.user_list_id) {
                     this.applyAudienceModal.userListId = String(data.user_list_id);
+                }
+                const attachStatus = (data.attachment_status
+                    || (data.ok && (data.verified_campaign_ids || []).length ? 'verified' : null)
+                    || (data.ok && attached.size ? 'attached' : null)
+                    || 'pending');
+                const routeKey = method === 'website' ? 'website' : 'ga4';
+                if (routeKey === 'website') {
+                    this.audienceWizard.websiteAttachmentStatus = attachStatus;
+                } else {
+                    this.audienceWizard.ga4AttachmentStatus = attachStatus;
+                }
+                if (domainId && this.audienceAssociationsByDomain[domainId]) {
+                    const bucket = this.audienceAssociationsByDomain[domainId][routeKey];
+                    if (bucket) bucket.attachment_status = attachStatus;
                 }
                 this.showMenuToast(data.message || (data.ok
                     ? 'Audience attached to campaign exclusions in Google Ads.'
