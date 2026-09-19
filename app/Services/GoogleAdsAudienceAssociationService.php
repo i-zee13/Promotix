@@ -95,6 +95,231 @@ class GoogleAdsAudienceAssociationService
         ];
     }
 
+    /**
+     * Live Google Ads user-list membership / size stats for the Apply modal + CSV export.
+     *
+     * @return array{
+     *   ok: bool,
+     *   user_list_id: ?string,
+     *   user_list_name: ?string,
+     *   membership_status: ?string,
+     *   size_for_search: ?int,
+     *   size_for_display: ?int,
+     *   size_range_for_search: ?string,
+     *   size_range_for_display: ?string,
+     *   search_size_label: string,
+     *   display_size_label: string,
+     *   status_label: string,
+     *   message: ?string
+     * }
+     */
+    public function fetchUserListStats(
+        Domain $domain,
+        ?string $userListId = null,
+        ?string $audienceName = null,
+    ): array {
+        $empty = [
+            'ok' => false,
+            'user_list_id' => $userListId ? preg_replace('/\D+/', '', $userListId) : null,
+            'user_list_name' => $audienceName ? trim($audienceName) : null,
+            'membership_status' => null,
+            'size_for_search' => null,
+            'size_for_display' => null,
+            'size_range_for_search' => null,
+            'size_range_for_display' => null,
+            'search_size_label' => 'Not available yet',
+            'display_size_label' => 'Not available yet',
+            'status_label' => 'List not loaded',
+            'message' => null,
+        ];
+
+        $account = $this->resolveAccount($domain);
+        if (! $account || ! $account->connection || (bool) $account->is_manager) {
+            $empty['message'] = 'Link a Google Ads customer account to this domain first.';
+
+            return $empty;
+        }
+
+        $headers = $this->headersForAccount($account);
+        if (! $headers) {
+            $empty['message'] = 'Google Ads API auth failed — reconnect Google.';
+
+            return $empty;
+        }
+
+        $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+        $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
+        $listId = preg_replace('/\D+/', '', (string) ($userListId ?? ''));
+        $name = trim((string) ($audienceName ?? ''));
+
+        if ($listId === '' && $name === '') {
+            $stored = $this->storedAssociationsForDomain($domain);
+            foreach (['ga4', 'website'] as $route) {
+                $row = $stored[$route] ?? null;
+                if (is_array($row) && ! empty($row['user_list_id'])) {
+                    $listId = preg_replace('/\D+/', '', (string) $row['user_list_id']);
+                    $name = (string) ($row['user_list_name'] ?? '');
+                    break;
+                }
+            }
+        }
+
+        if ($listId === '' && $name !== '') {
+            $lists = $this->fetchUserLists($customerId, $version, $headers) ?? [];
+            $match = $this->matchUserListByName($lists, $name);
+            if ($match !== null) {
+                $listId = $match['id'];
+                $name = $match['name'] ?? $name;
+            }
+        }
+
+        if ($listId === '') {
+            $empty['message'] = 'No user list id found for this audience yet.';
+
+            return $empty;
+        }
+
+        $query = 'SELECT user_list.id, user_list.name, user_list.membership_status, user_list.type, '
+            .'user_list.size_for_search, user_list.size_for_display, '
+            .'user_list.size_range_for_search, user_list.size_range_for_display '
+            ."FROM user_list WHERE user_list.id = '{$listId}' LIMIT 1";
+
+        $response = Http::timeout(30)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if (! $response->successful()) {
+            Log::warning('Google Ads user list stats failed', [
+                'customer_id' => $customerId,
+                'user_list_id' => $listId,
+                'body' => Str::limit((string) $response->body(), 500),
+            ]);
+            $empty['message'] = 'Could not load list stats from Google Ads.';
+
+            return $empty;
+        }
+
+        $list = null;
+        $payload = $response->json();
+        if (is_array($payload)) {
+            foreach ($payload as $chunk) {
+                if (! is_array($chunk)) {
+                    continue;
+                }
+                foreach (($chunk['results'] ?? []) as $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $candidate = $row['userList'] ?? $row['user_list'] ?? null;
+                    if (is_array($candidate)) {
+                        $list = $candidate;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        if (! is_array($list)) {
+            $empty['message'] = 'User list not found in this Ads account.';
+
+            return $empty;
+        }
+
+        $id = preg_replace('/\D+/', '', (string) ($list['id'] ?? $listId));
+        $listName = trim((string) ($list['name'] ?? $name));
+        $listType = strtoupper((string) ($list['type'] ?? ''));
+        $membership = strtoupper((string) ($list['membershipStatus'] ?? $list['membership_status'] ?? ''));
+        $sizeSearch = $this->normalizeUserListSize($list['sizeForSearch'] ?? $list['size_for_search'] ?? null);
+        $sizeDisplay = $this->normalizeUserListSize($list['sizeForDisplay'] ?? $list['size_for_display'] ?? null);
+        $rangeSearch = $this->normalizeSizeRange($list['sizeRangeForSearch'] ?? $list['size_range_for_search'] ?? null);
+        $rangeDisplay = $this->normalizeSizeRange($list['sizeRangeForDisplay'] ?? $list['size_range_for_display'] ?? null);
+
+        $searchLabel = $this->formatUserListSizeLabel($sizeSearch, $rangeSearch, 'Search');
+        $displayLabel = $this->formatUserListSizeLabel($sizeDisplay, $rangeDisplay, 'Display');
+        $isCrm = ! $this->isEventCapableUserListType($listType);
+        $statusLabel = $isCrm
+            ? 'Wrong type: Customer Match (CRM) — will stay “Too small”; Create Audience again for a rule-based list'
+            : match ($membership) {
+                'OPEN' => ($sizeSearch === 0 || $sizeSearch === null) && ($sizeDisplay === 0 || $sizeDisplay === null)
+                    ? 'Open — waiting for cr_invalid_traffic events (may show Too small until members arrive)'
+                    : 'Open — receiving members',
+                'CLOSED' => 'Closed',
+                default => $membership !== '' ? $membership : 'Ready',
+            };
+        if ($isCrm) {
+            $searchLabel = 'N/A — CRM Customer list (not event-fed)';
+            $displayLabel = 'N/A — recreate as rule-based · Event list';
+        }
+
+        return [
+            'ok' => true,
+            'user_list_id' => $id !== '' ? $id : null,
+            'user_list_name' => $listName !== '' ? $listName : null,
+            'user_list_type' => $listType !== '' ? $listType : null,
+            'membership_status' => $membership !== '' ? $membership : null,
+            'size_for_search' => $sizeSearch,
+            'size_for_display' => $sizeDisplay,
+            'size_range_for_search' => $rangeSearch,
+            'size_range_for_display' => $rangeDisplay,
+            'search_size_label' => $searchLabel,
+            'display_size_label' => $displayLabel,
+            'status_label' => $statusLabel,
+            'is_crm_shell' => $isCrm,
+            'message' => $isCrm
+                ? 'This Google Ads list is Customer Match CRM — Clickronix cannot push emails into it. Create Audience again to make a rule-based list.'
+                : null,
+        ];
+    }
+
+    private function normalizeUserListSize(mixed $value): ?int
+    {
+        if ($value === null || $value === '' || $value === -1 || $value === '-1') {
+            return null;
+        }
+        if (! is_numeric($value)) {
+            return null;
+        }
+        $n = (int) $value;
+
+        return $n < 0 ? null : $n;
+    }
+
+    private function normalizeSizeRange(mixed $value): ?string
+    {
+        $raw = strtoupper(trim((string) ($value ?? '')));
+        if ($raw === '' || in_array($raw, ['UNSPECIFIED', 'UNKNOWN'], true)) {
+            return null;
+        }
+
+        return $raw;
+    }
+
+    private function formatUserListSizeLabel(?int $size, ?string $range, string $network): string
+    {
+        if ($size !== null) {
+            return number_format($size).' users ('.$network.')';
+        }
+
+        $rangeLabels = [
+            'LESS_THAN_FIVE_HUNDRED' => '< 500',
+            'LESS_THAN_ONE_THOUSAND' => '< 1,000',
+            'LESS_THAN_TEN_THOUSAND' => '< 10,000',
+            'LESS_THAN_FIFTY_THOUSAND' => '< 50,000',
+            'LESS_THAN_ONE_HUNDRED_THOUSAND' => '< 100,000',
+            'LESS_THAN_THREE_HUNDRED_THOUSAND' => '< 300,000',
+            'LESS_THAN_FIVE_HUNDRED_THOUSAND' => '< 500,000',
+            'LESS_THAN_ONE_MILLION' => '< 1,000,000',
+            'OVER_ONE_MILLION' => '1,000,000+',
+        ];
+        if ($range !== null && isset($rangeLabels[$range])) {
+            return $rangeLabels[$range].' users ('.$network.')';
+        }
+
+        return '0 / not reported yet ('.$network.') — list may still be populating';
+    }
+
     public function createAudienceList(
         Domain $domain,
         string $audienceName,
@@ -182,6 +407,7 @@ class GoogleAdsAudienceAssociationService
             'event_name' => $eventName,
             'user_list_id' => (string) $resolved['id'],
             'user_list_name' => (string) ($resolved['name'] ?? $audienceName),
+            'user_list_type' => (string) ($resolved['type'] ?? 'RULE_BASED'),
             'user_list_created' => (bool) ($resolved['created'] ?? false),
             'membership_days' => $days,
             'method' => $method,
@@ -198,13 +424,18 @@ class GoogleAdsAudienceAssociationService
         $this->persistAssociation($domain, $stored);
 
         $action = ! empty($resolved['created']) ? 'Created' : 'Reused existing';
+        $typeNote = str_contains((string) ($resolved['name'] ?? ''), '· Event')
+            ? ' Replaced an empty Customer Match (“Too small”) shell with a rule-based event list.'
+            : '';
 
         return [
             'ok' => true,
             'message' => $action.' Google Ads audience “'.$stored['user_list_name'].'” (ID '.$stored['user_list_id']
-                .', '.$days.'-day membership). Next: Apply exclusion to Search/Display campaigns.',
+                .', type '.$stored['user_list_type'].', '.$days.'-day membership).'.$typeNote
+                .' Next: Apply exclusion to Search/Display campaigns.',
             'user_list_id' => $stored['user_list_id'],
             'user_list_name' => $stored['user_list_name'],
+            'user_list_type' => $stored['user_list_type'],
             'created' => (bool) ($resolved['created'] ?? false),
             'membership_days' => $days,
             'method' => $stored['method'],
@@ -551,33 +782,60 @@ class GoogleAdsAudienceAssociationService
 
         if ($preferredId && ! $forceNew) {
             foreach ($lists as $row) {
-                if (($row['id'] ?? '') === $preferredId) {
-                    return [
-                        'id' => $row['id'],
-                        'name' => $row['name'] ?? $audienceName,
-                        'created' => false,
-                        'error' => null,
-                    ];
+                if (($row['id'] ?? '') !== $preferredId) {
+                    continue;
                 }
+                if (! $this->isEventCapableUserListType($row['type'] ?? null)) {
+                    // Prefer creating a rule-based list over reusing an empty Customer Match shell.
+                    Log::info('Skipping preferred CRM/Customer Match user list for event audience', [
+                        'customer_id' => $customerId,
+                        'user_list_id' => $preferredId,
+                        'type' => $row['type'] ?? null,
+                    ]);
+                    break;
+                }
+
+                return [
+                    'id' => $row['id'],
+                    'name' => $row['name'] ?? $audienceName,
+                    'created' => false,
+                    'error' => null,
+                    'type' => $row['type'] ?? null,
+                ];
             }
         }
 
         if (! $forceNew) {
-            $match = $this->matchUserListByName($lists, $audienceName);
+            $match = $this->matchUserListByName($lists, $audienceName, true);
             if ($match !== null) {
                 return [
                     'id' => $match['id'],
                     'name' => $match['name'],
                     'created' => false,
                     'error' => null,
+                    'type' => $match['type'] ?? null,
                 ];
             }
-        } else {
-            // Unique list name so Create always adds another Ads audience (never silently reuses).
+        }
+
+        // Name taken by a CRM "Customer list" (Too small) — create an event-capable list with a clear suffix.
+        $crmBlocker = $this->matchUserListByName($lists, $audienceName, false);
+        if ($crmBlocker !== null && ! $this->isEventCapableUserListType($crmBlocker['type'] ?? null)) {
+            $audienceName = rtrim($audienceName).' · Event';
+            $n = 2;
+            while ($this->matchUserListByName($lists, $audienceName, false) !== null) {
+                $audienceName = rtrim((string) ($crmBlocker['name'] ?? 'Clickronix Invalid')).' · Event ('.$n.')';
+                $n++;
+                if ($n > 50) {
+                    $audienceName = rtrim((string) ($crmBlocker['name'] ?? 'Clickronix Invalid')).' · Event · '.now()->format('Ymd-Hi');
+                    break;
+                }
+            }
+        } elseif ($forceNew) {
             $base = $audienceName;
             $candidate = $base;
             $n = 2;
-            while ($this->matchUserListByName($lists, $candidate) !== null) {
+            while ($this->matchUserListByName($lists, $candidate, false) !== null) {
                 $candidate = $base.' ('.$n.')';
                 $n++;
                 if ($n > 200) {
@@ -595,6 +853,7 @@ class GoogleAdsAudienceAssociationService
                 'name' => $created['name'] ?? $audienceName,
                 'created' => (bool) ($created['created'] ?? true),
                 'error' => null,
+                'type' => $created['type'] ?? 'RULE_BASED',
             ];
         }
 
@@ -608,7 +867,7 @@ class GoogleAdsAudienceAssociationService
 
     /**
      * @param  array<string, string>  $headers
-     * @return list<array{id: string, name: string}>|null
+     * @return list<array{id: string, name: string, type: string}>|null
      */
     private function fetchUserLists(string $customerId, string $version, array $headers): ?array
     {
@@ -653,7 +912,12 @@ class GoogleAdsAudienceAssociationService
                 if ($id === '') {
                     continue;
                 }
-                $out[] = ['id' => $id, 'name' => $name !== '' ? $name : ('List '.$id)];
+                $type = strtoupper((string) ($list['type'] ?? ''));
+                $out[] = [
+                    'id' => $id,
+                    'name' => $name !== '' ? $name : ('List '.$id),
+                    'type' => $type,
+                ];
             }
         }
 
@@ -661,13 +925,32 @@ class GoogleAdsAudienceAssociationService
     }
 
     /**
-     * Reuse only when the Ads user-list name matches exactly (case-insensitive).
-     * Fuzzy / "contains Clickronix" matching was rewriting the user's chosen name.
-     *
-     * @param  list<array{id: string, name: string}>  $lists
-     * @return array{id: string, name: string}|null
+     * CRM / Customer Match lists never receive GA4/tag events — they stay "Too small".
+     * Only rule/basic/logical lists are usable for invalid-traffic exclusion membership.
      */
-    private function matchUserListByName(array $lists, string $audienceName): ?array
+    private function isEventCapableUserListType(?string $type): bool
+    {
+        $type = strtoupper(trim((string) $type));
+        if ($type === '' || $type === 'UNKNOWN' || $type === 'UNSPECIFIED') {
+            // Unknown: allow reuse but create path will still prefer rule-based.
+            return true;
+        }
+
+        return ! in_array($type, [
+            'CRM_BASED',
+            'LOOKALIKE',
+            'SIMILAR',
+        ], true);
+    }
+
+    /**
+     * Reuse only when the Ads user-list name matches exactly (case-insensitive)
+     * AND the list type can receive browser/event membership (not Customer Match CRM).
+     *
+     * @param  list<array{id: string, name: string, type?: string}>  $lists
+     * @return array{id: string, name: string, type?: string}|null
+     */
+    private function matchUserListByName(array $lists, string $audienceName, bool $eventCapableOnly = true): ?array
     {
         $needle = mb_strtolower(trim($audienceName));
         if ($needle === '') {
@@ -675,30 +958,34 @@ class GoogleAdsAudienceAssociationService
         }
 
         foreach ($lists as $row) {
-            if (mb_strtolower(trim($row['name'])) === $needle) {
-                return [
-                    'id' => $row['id'],
-                    // Keep the name the user requested (canonical casing from their input).
-                    'name' => trim($audienceName),
-                    'ads_name' => $row['name'],
-                ];
+            if (mb_strtolower(trim($row['name'])) !== $needle) {
+                continue;
             }
+            if ($eventCapableOnly && ! $this->isEventCapableUserListType($row['type'] ?? null)) {
+                continue;
+            }
+
+            return [
+                'id' => $row['id'],
+                'name' => trim($audienceName),
+                'ads_name' => $row['name'],
+                'type' => $row['type'] ?? null,
+            ];
         }
 
         return null;
     }
 
     /**
-     * Create an Ads-side audience shell so it can be attached as campaign exclusion.
-     * Membership still grows from GA4 event / remarketing when linked; attach is what
-     * makes the list appear under Exclusions in the Ads UI.
+     * Create an Ads-side RULE-BASED audience shell for exclusion.
      *
-     * Never renames the audience (no timestamp suffix). On duplicate name, reuse the
-     * exact existing list so the user-facing name stays stable.
+     * Never creates CRM / Customer Match lists — those show as "Customer list" /
+     * "Too small to use on Google properties" and never receive GA4/tag events.
+     * Membership grows when the site fires cr_invalid_traffic (Google browser identity).
      *
      * @param  array<string, string>  $headers
-     * @param  list<array{id: string, name: string}>  $knownLists
-     * @return array{id: ?string, name: ?string, created?: bool, error: ?string}
+     * @param  list<array{id: string, name: string, type?: string}>  $knownLists
+     * @return array{id: ?string, name: ?string, created?: bool, type?: ?string, error: ?string}
      */
     private function createUserList(
         string $customerId,
@@ -718,7 +1005,6 @@ class GoogleAdsAudienceAssociationService
             500
         );
 
-        // Prefer remarketing/rule list (shows under Audiences); CRM Contact Info often needs Customer Match agreement.
         $eventRuleItem = [
             'name' => 'e:'.$eventName,
             'stringRuleItem' => [
@@ -733,7 +1019,17 @@ class GoogleAdsAudienceAssociationService
                 'value' => AudienceSignalService::VERDICT_INVALID,
             ],
         ];
+        // Also try custom-parameter form without e: prefix (Ads remarketing params).
+        $eventParamItem = [
+            'name' => $eventName,
+            'stringRuleItem' => [
+                'operator' => 'EQUALS',
+                'value' => $eventName,
+            ],
+        ];
+
         $attempts = [
+            // 1) Event + verdict (canonical Clickronix contract)
             [
                 'name' => $baseName,
                 'description' => $description,
@@ -752,6 +1048,7 @@ class GoogleAdsAudienceAssociationService
                     ],
                 ],
             ],
+            // 2) Event name only (e:cr_invalid_traffic)
             [
                 'name' => $baseName,
                 'description' => $description,
@@ -770,47 +1067,89 @@ class GoogleAdsAudienceAssociationService
                     ],
                 ],
             ],
+            // 3) Custom parameter style
             [
                 'name' => $baseName,
                 'description' => $description,
                 'membershipStatus' => 'OPEN',
                 'membershipLifeSpan' => $lifeSpan,
-                'crmBasedUserList' => [
-                    'uploadKeyType' => 'CONTACT_INFO',
+                'ruleBasedUserList' => [
+                    'prepopulationStatus' => 'NONE',
+                    'flexibleRuleUserList' => [
+                        'inclusiveRuleOperator' => 'AND',
+                        'inclusiveOperands' => [[
+                            'ruleItemGroups' => [[
+                                'ruleItems' => [$eventParamItem, $verdictRuleItem],
+                            ]],
+                            'lookbackWindowDays' => $lifeSpan,
+                        ]],
+                    ],
+                ],
+            ],
+            // 4) Minimal open rule shell (url__ never-match) so Attach still works; events may still fill via linked GA4 later
+            [
+                'name' => $baseName,
+                'description' => $description,
+                'membershipStatus' => 'OPEN',
+                'membershipLifeSpan' => $lifeSpan,
+                'ruleBasedUserList' => [
+                    'prepopulationStatus' => 'NONE',
+                    'flexibleRuleUserList' => [
+                        'inclusiveRuleOperator' => 'OR',
+                        'inclusiveOperands' => [[
+                            'ruleItemGroups' => [[
+                                'ruleItems' => [[
+                                    'name' => 'url__',
+                                    'stringRuleItem' => [
+                                        'operator' => 'EQUALS',
+                                        'value' => 'https://clickronix.invalid/cr_invalid_traffic_shell',
+                                    ],
+                                ]],
+                            ]],
+                            'lookbackWindowDays' => $lifeSpan,
+                        ]],
+                    ],
                 ],
             ],
         ];
 
         $lastError = 'User list create failed.';
-        foreach ($attempts as $createBody) {
+        foreach ($attempts as $idx => $createBody) {
             $payload = ['operations' => [['create' => $createBody]]];
             $response = Http::timeout(30)
                 ->withHeaders($headers)
                 ->post($this->googleAdsUrl($version, "customers/{$customerId}/userLists:mutate"), $payload);
 
-            // Duplicate name → reuse exact list; do not append date/time to the name.
+            // Duplicate name → reuse exact list only when it is event-capable (not CRM Customer Match).
             if (! $response->successful() && $this->isBenignDuplicate((string) $response->body())) {
-                $existing = $this->matchUserListByName($knownLists, $baseName);
+                $existing = $this->matchUserListByName($knownLists, $baseName, true);
                 if ($existing === null) {
                     $refreshed = $this->fetchUserLists($customerId, $version, $headers) ?? [];
-                    $existing = $this->matchUserListByName($refreshed, $baseName);
+                    $existing = $this->matchUserListByName($refreshed, $baseName, true);
                 }
                 if ($existing !== null) {
                     return [
                         'id' => $existing['id'],
                         'name' => $baseName,
                         'created' => false,
+                        'type' => $existing['type'] ?? null,
                         'error' => null,
                     ];
                 }
-                $lastError = 'An audience with this exact name already exists but could not be loaded.';
+                $lastError = 'An audience with this name already exists as a Customer Match list (Too small). Create again to make a rule-based “· Event” list.';
+                Log::warning('Google Ads user list name blocked by CRM duplicate', [
+                    'customer_id' => $customerId,
+                    'name' => $baseName,
+                    'attempt' => $idx,
+                ]);
                 continue;
             }
 
             if (! $response->successful()) {
-                $lastError = Str::limit($this->extractError((string) $response->body()), 200);
-                Log::warning('Google Ads user list create attempt failed', [
+                $lastError = Str::limit($this->extractError((string) $response->body()), 240);
+                Log::warning('Google Ads rule-based user list create attempt failed', [
                     'customer_id' => $customerId,
+                    'attempt' => $idx,
                     'body' => Str::limit((string) $response->body(), 600),
                 ]);
                 continue;
@@ -827,6 +1166,7 @@ class GoogleAdsAudienceAssociationService
                     'id' => $m[1],
                     'name' => $baseName,
                     'created' => true,
+                    'type' => 'RULE_BASED',
                     'error' => null,
                 ];
             }
@@ -836,7 +1176,7 @@ class GoogleAdsAudienceAssociationService
         return [
             'id' => null,
             'name' => null,
-            'error' => $lastError,
+            'error' => $lastError.' (CRM/Customer Match fallback disabled — those lists never receive invalid-traffic events.)',
         ];
     }
 

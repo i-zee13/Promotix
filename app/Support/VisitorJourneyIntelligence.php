@@ -258,7 +258,21 @@ class VisitorJourneyIntelligence
 
         $timeline = $this->buildTimeline($row, $pages);
 
-        $durationLabel = $this->friendlyDuration((string) ($row['time_on_site'] ?? '00:00:00'));
+        $durationSec = $this->durationToSeconds((string) ($row['time_on_site'] ?? '00:00:00'));
+        $timelineMax = 0;
+        foreach ($timeline as $ev) {
+            $timelineMax = max($timelineMax, (int) ($ev['elapsed_sec'] ?? 0));
+        }
+        // Bounce / same-second visits often report 00:00:00 while the timeline has a real span.
+        if ($durationSec <= 0 && $timelineMax > 0) {
+            $durationSec = $timelineMax;
+        }
+        $durationLabel = $this->friendlyDuration(sprintf(
+            '%02d:%02d:%02d',
+            intdiv($durationSec, 3600),
+            intdiv($durationSec % 3600, 60),
+            $durationSec % 60
+        ));
         $sessionId = (string) ($row['session_id'] ?? $row['session_key'] ?? '');
         $deviceRaw = trim((string) ($row['device_id'] ?? ''));
         $fpRaw = trim((string) ($row['fingerprint_id'] ?? ''));
@@ -284,7 +298,7 @@ class VisitorJourneyIntelligence
             'campaign' => (string) ($row['campaign'] ?? $row['source_platform'] ?? '—'),
             'source' => (string) ($row['source_platform'] ?? 'Google Ads'),
             'duration' => $durationLabel,
-            'duration_raw' => (string) ($row['time_on_site'] ?? '00:00:00'),
+            'duration_raw' => sprintf('%02d:%02d:%02d', intdiv($durationSec, 3600), intdiv($durationSec % 3600, 60), $durationSec % 60),
             'path_chips' => $pathChips,
             'path_footer' => array_values(array_merge(
                 array_map(fn ($p) => ['label' => $p, 'tone' => 'page'], array_slice($pages, 0, 3)),
@@ -399,9 +413,14 @@ class VisitorJourneyIntelligence
                     continue;
                 }
                 $type = $this->normalizeEventType((string) ($ev['type'] ?? $ev['kind'] ?? $ev['label'] ?? ''));
-                $elapsedMs = (int) ($ev['t'] ?? 0);
-                $elapsed = (int) ($ev['elapsed_sec'] ?? ($elapsedMs > 1000 ? (int) floor($elapsedMs / 1000) : $elapsedMs));
-                if ($elapsed <= 0 && isset($ev['at'])) {
+                $elapsed = (int) ($ev['elapsed_sec'] ?? 0);
+                if ($elapsed <= 0) {
+                    $rawT = (int) ($ev['t'] ?? 0);
+                    // Recorder may send ms (>=1000) or seconds.
+                    $elapsed = $rawT > 1000 ? (int) floor($rawT / 1000) : $rawT;
+                }
+                if ($elapsed <= 0 && $i > 0) {
+                    // Spread stacked t=0 events so the lane is not stuck at 0:00.
                     $elapsed = $i * 18;
                 }
                 $label = (string) ($ev['label'] ?? $ev['name'] ?? $ev['path'] ?? $ev['detail'] ?? 'event');
@@ -730,7 +749,7 @@ class VisitorJourneyIntelligence
         }
         $scale = $tracked / max(1, count($recent));
         $colAction = [
-            ['id' => 'a:call', 'label' => 'Call button click', 'value' => max(1, (int) round($call * $scale)), 'pct' => 0, 'tone' => 'action'],
+            ['id' => 'a:call', 'label' => 'Call button clicked', 'value' => max(1, (int) round($call * $scale)), 'pct' => 0, 'tone' => 'action'],
             ['id' => 'a:form', 'label' => 'Form started', 'value' => max(1, (int) round($form * $scale)), 'pct' => 0, 'tone' => 'form'],
             ['id' => 'a:none', 'label' => 'No action', 'value' => max(1, (int) round($none * $scale)), 'pct' => 0, 'tone' => 'default'],
             ['id' => 'a:exit', 'label' => 'Exit', 'value' => max(1, (int) round($exitAction * $scale)), 'pct' => 0, 'tone' => 'exit'],
@@ -744,7 +763,7 @@ class VisitorJourneyIntelligence
         $colOutcome = [
             ['id' => 'o:lead', 'label' => 'Lead confirmed', 'value' => max(0, (int) round($lead * $scale)), 'pct' => 0, 'tone' => 'lead'],
             ['id' => 'o:wait', 'label' => 'Awaiting outcome', 'value' => max(0, (int) round($pending * $scale)), 'pct' => 0, 'tone' => 'pending'],
-            ['id' => 'o:exit', 'label' => 'Exit', 'value' => max(0, (int) round($noConv * $scale)), 'pct' => 0, 'tone' => 'exit'],
+            ['id' => 'o:exit', 'label' => 'Exited', 'value' => max(0, (int) round($noConv * $scale)), 'pct' => 0, 'tone' => 'exit'],
         ];
         if (array_sum(array_column($colOutcome, 'value')) === 0) {
             $colOutcome[2]['value'] = $tracked;

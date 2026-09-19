@@ -3012,7 +3012,7 @@ class PaidMarketingController extends Controller
     private function preferredDeviceIdFromRequest(Request $request): ?string
     {
         $term = trim(preg_replace('/\s+/', '', (string) $request->query('ip', '')) ?? '');
-        if ($term === '' || ! preg_match('/^DEV_[A-Za-z0-9]+$/i', $term)) {
+        if ($term === '' || ! \App\Support\DeviceIdLabel::looksLikeDeviceId($term)) {
             return null;
         }
 
@@ -4004,6 +4004,7 @@ class PaidMarketingController extends Controller
             }
             $query->where(function ($match) use ($needles): void {
                 if (Schema::hasTable('visits')) {
+                    // Same IP + device on visits (common path).
                     $match->orWhereExists(function ($sq) use ($needles): void {
                         $sq->selectRaw('1')
                             ->from('visits')
@@ -4023,6 +4024,26 @@ class PaidMarketingController extends Controller
                                 }
                             });
                     });
+
+                    // Device seen on any IP for this domain → include PM rows for those IPs
+                    // (device may rotate IPs; Device ID on one visit should still find paid rows).
+                    $match->orWhereIn('paid_marketing_visits.ip', function ($sub) use ($needles): void {
+                        $sub->select('visits.ip')
+                            ->from('visits')
+                            ->whereColumn('visits.domain_id', 'paid_marketing_visits.domain_id')
+                            ->whereNotNull('visits.ip')
+                            ->where('visits.ip', '!=', '')
+                            ->where(function ($inner) use ($needles): void {
+                                foreach ($needles as $needle) {
+                                    if (Schema::hasColumn('visits', 'device_id')) {
+                                        $inner->orWhere('visits.device_id', 'like', '%'.$needle.'%');
+                                    }
+                                    if (Schema::hasColumn('visits', 'fingerprint_id')) {
+                                        $inner->orWhere('visits.fingerprint_id', 'like', '%'.$needle.'%');
+                                    }
+                                }
+                            });
+                    });
                 }
 
                 $match->orWhereHas('clicks', function ($cq) use ($needles): void {
@@ -4036,6 +4057,30 @@ class PaidMarketingController extends Controller
                         $cq->whereRaw('1=0');
                     }
                 });
+
+                if (Schema::hasTable('clickronix_devices')) {
+                    $match->orWhereExists(function ($sq) use ($needles): void {
+                        $sq->selectRaw('1')
+                            ->from('clickronix_devices')
+                            ->whereColumn('clickronix_devices.domain_id', 'paid_marketing_visits.domain_id')
+                            ->where(function ($inner) use ($needles): void {
+                                foreach ($needles as $needle) {
+                                    $inner->orWhere('clickronix_devices.device_id', 'like', '%'.$needle.'%');
+                                    if (Schema::hasColumn('clickronix_devices', 'fingerprint_id')) {
+                                        $inner->orWhere('clickronix_devices.fingerprint_id', 'like', '%'.$needle.'%');
+                                    }
+                                }
+                            })
+                            ->where(function ($ipMatch): void {
+                                $ipMatch->whereColumn('clickronix_devices.last_ip', 'paid_marketing_visits.ip');
+                                if (Schema::hasColumn('clickronix_devices', 'ip_history')) {
+                                    $ipMatch->orWhereRaw(
+                                        'clickronix_devices.ip_history LIKE CONCAT(\'%\', paid_marketing_visits.ip, \'%\')'
+                                    );
+                                }
+                            });
+                    });
+                }
             });
 
             return;

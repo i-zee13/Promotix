@@ -117,6 +117,40 @@ class IntegrationsController extends Controller
             ['label' => 'Google Ads', 'done' => $connections->isNotEmpty() && $accounts->isNotEmpty()],
         ];
 
+        $domainVisitTotals = collect();
+        $domainLastVisitAt = collect();
+        if (Schema::hasTable('visits') && $manualDomains->isNotEmpty()) {
+            $domainIds = $manualDomains->pluck('id');
+            $domainVisitTotals = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->selectRaw('domain_id, COUNT(*) as total')
+                ->groupBy('domain_id')
+                ->pluck('total', 'domain_id');
+            $domainLastVisitAt = DB::table('visits')
+                ->whereIn('domain_id', $domainIds)
+                ->selectRaw('domain_id, MAX(visited_at) as last_visited_at')
+                ->groupBy('domain_id')
+                ->pluck('last_visited_at', 'domain_id');
+        }
+
+        $todayStartUtc = \App\Support\UserTimezone::nowUtc()->timezone(config('app.timezone', 'UTC'))->startOfDay()->utc();
+        $todayEndUtc = (clone $todayStartUtc)->addDay();
+        $eventsToday = 0;
+        if (Schema::hasTable('visits') && $manualDomains->isNotEmpty()) {
+            $eventsToday = (int) DB::table('visits')
+                ->whereIn('domain_id', $manualDomains->pluck('id'))
+                ->where('visited_at', '>=', $todayStartUtc->toDateTimeString())
+                ->where('visited_at', '<', $todayEndUtc->toDateTimeString())
+                ->count();
+        }
+
+        $latestVisitRaw = $domainLastVisitAt->filter()->max();
+        $latestEventAt = $latestVisitRaw
+            ? \Illuminate\Support\Carbon::parse((string) $latestVisitRaw)->utc()->toIso8601String()
+            : ($manualDomains->max('last_seen_at')
+                ? \Illuminate\Support\Carbon::parse((string) $manualDomains->max('last_seen_at'))->utc()->toIso8601String()
+                : null);
+
         $primary = $connections->first();
         $connectionHealth = [
             'oauth_connected' => $connections->isNotEmpty(),
@@ -127,13 +161,8 @@ class IntegrationsController extends Controller
             'last_sync_message' => $primary?->last_sync_message,
             'accounts' => $accounts->count(),
             'tracking_active' => $tagReady,
-            'events_today' => Schema::hasTable('visits')
-                ? (int) DB::table('visits')
-                    ->whereIn('domain_id', $manualDomains->pluck('id'))
-                    ->whereDate('visited_at', now()->toDateString())
-                    ->count()
-                : 0,
-            'last_event_at' => $manualDomains->max('last_seen_at'),
+            'events_today' => $eventsToday,
+            'last_event_at' => $latestEventAt,
         ];
 
         $firstDomain = $manualDomains->first();
@@ -143,15 +172,6 @@ class IntegrationsController extends Controller
         $adsCustomerId = $firstAccount
             ? $firstAccount->formattedCustomerId()
             : '';
-
-        $domainVisitTotals = collect();
-        if (Schema::hasTable('visits') && $manualDomains->isNotEmpty()) {
-            $domainVisitTotals = DB::table('visits')
-                ->whereIn('domain_id', $manualDomains->pluck('id'))
-                ->selectRaw('domain_id, COUNT(*) as total')
-                ->groupBy('domain_id')
-                ->pluck('total', 'domain_id');
-        }
 
         $googleEmail = $primary?->google_email ?: '';
         $googleConnected = $connections->isNotEmpty();
@@ -335,8 +355,9 @@ class IntegrationsController extends Controller
                 ? ($mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion')
                 : 'Not configured';
             $lastSyncAt = $mapping->account?->connection?->last_sync_at;
-            $lastEventAt = $domain?->last_seen_at
-                ? \Illuminate\Support\Carbon::parse((string) $domain->last_seen_at)
+            $visitAtRaw = $domainLastVisitAt[$mapping->domain_id] ?? null;
+            $lastEventAt = $visitAtRaw
+                ? \Illuminate\Support\Carbon::parse((string) $visitAtRaw)->utc()
                 : null;
             $clicks = (int) ($domainVisitCounts[$mapping->domain_id] ?? 0);
 
@@ -415,8 +436,9 @@ class IntegrationsController extends Controller
             $protectionDone = false;
             $clicks = (int) ($domainVisitCounts[$domain->id] ?? 0);
             $lastSyncAt = $account->connection?->last_sync_at;
-            $lastEventAt = $domain->last_seen_at
-                ? \Illuminate\Support\Carbon::parse((string) $domain->last_seen_at)
+            $visitAtRaw = $domainLastVisitAt[$domain->id] ?? null;
+            $lastEventAt = $visitAtRaw
+                ? \Illuminate\Support\Carbon::parse((string) $visitAtRaw)->utc()
                 : null;
 
             $platformRows->push([
@@ -1823,6 +1845,59 @@ class IntegrationsController extends Controller
             'customer_id' => $account->formattedCustomerId() ?: $account->customer_id,
             'domain_id' => $domain?->id,
             'hostname' => $domain?->hostname,
+        ]);
+    }
+
+    /**
+     * Live Search/Display size + membership status for an Ads user list (Apply modal + CSV).
+     */
+    public function audienceListStats(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
+    {
+        $data = $request->validate([
+            'domain_id' => ['nullable', 'integer'],
+            'user_list_id' => ['nullable', 'string', 'max:40'],
+            'audience_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        $domainId = (int) ($data['domain_id'] ?? 0);
+        $domain = null;
+        if ($domainId > 0) {
+            $domain = Domain::query()
+                ->where('user_id', $user->id)
+                ->where('id', $domainId)
+                ->with(['googleAdsAccount.connection', 'googleAdsMappings.account.connection'])
+                ->first();
+        }
+        if (! $domain) {
+            $domain = Domain::query()
+                ->where('user_id', $user->id)
+                ->manual()
+                ->whereNotNull('google_ads_account_id')
+                ->with(['googleAdsAccount.connection', 'googleAdsMappings.account.connection'])
+                ->orderBy('hostname')
+                ->first();
+        }
+
+        if (! $domain) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Select a domain linked to Google Ads first.',
+                'search_size_label' => '—',
+                'display_size_label' => '—',
+                'status_label' => 'No domain',
+            ]);
+        }
+
+        $stats = $associations->fetchUserListStats(
+            $domain,
+            $data['user_list_id'] ?? null,
+            $data['audience_name'] ?? null,
+        );
+
+        return response()->json($stats + [
+            'domain_id' => $domain->id,
+            'hostname' => $domain->hostname,
         ]);
     }
 

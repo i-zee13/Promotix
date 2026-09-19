@@ -155,8 +155,8 @@
                 display: inline-flex; align-items: center; gap: 7px;
             }
             .tc-tabs {
-                display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-                padding: 12px 14px;
+                display: flex; flex-wrap: nowrap; gap: 8px; align-items: center;
+                padding: 12px 14px; overflow-x: auto;
             }
             .tc-tab {
                 border-radius: 8px; border: 1px solid rgba(255,255,255,.14);
@@ -254,8 +254,25 @@
             }
 
             .tc-detail {
-                border-radius: 12px; border: 1px solid rgba(255,102,0,.22);
+                border-radius: 12px; border: 1px solid rgba(255,102,0,.28);
                 background: #121212; padding: 14px; position: sticky; top: 72px;
+                max-height: calc(100vh - 96px); overflow: auto;
+            }
+            /* Below desktop split: Investigate opens as a fixed drawer so it is always visible */
+            @media (max-width: 1179px) {
+                .tc-detail {
+                    position: fixed; top: 56px; right: 12px; bottom: 12px;
+                    width: min(380px, calc(100vw - 24px));
+                    z-index: 80; max-height: none;
+                    box-shadow: 0 18px 40px rgba(0,0,0,.55);
+                }
+                .tc-detail-backdrop {
+                    position: fixed; inset: 0; z-index: 70;
+                    background: rgba(0,0,0,.55);
+                }
+            }
+            @media (min-width: 1180px) {
+                .tc-detail-backdrop { display: none !important; }
             }
             .tc-detail__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
             .tc-detail__title { font-size: 14px; font-weight: 650; color: #fff; }
@@ -762,7 +779,7 @@
                                                         'text-emerald-300': row.action_label === 'Allow',
                                                         'text-amber-300': row.action_label === 'Monitor'
                                                     }"></span>
-                                                <button type="button" class="tc-investigate" @click="selectRow(row)">Investigate</button>
+                                                <button type="button" class="tc-investigate" @click.stop="selectRow(row)">Investigate</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -787,7 +804,8 @@
                     <div class="tc-foot" x-show="activeTab !== 'ranges' && tableRows.length" x-text="footerLabel()"></div>
                 </div>
 
-                <aside class="tc-detail" x-show="selected" x-cloak>
+                <div class="tc-detail-backdrop" x-show="selected" x-cloak @click="selected = null"></div>
+                <aside class="tc-detail" x-show="selected" x-cloak x-ref="tcDetail" @click.stop>
                     <div class="tc-detail__head">
                         <div class="tc-detail__title">Selected Device Intelligence</div>
                         <button type="button" class="text-white/40 hover:text-white" @click="selected = null" aria-label="Close">✕</button>
@@ -1047,10 +1065,10 @@ function trafficControlIntel() {
                 this.metaTotal = Number(data.meta?.device_count || this.devices.length || 0);
                 if (this.selected) {
                     const match = this.devices.find((d) => d.device_key === this.selected.device_key)
-                        || this.ipChanges.find((d) => d.device_key === this.selected.device_key);
-                    this.selected = match || (this.devices[0] || null);
-                } else if (this.devices[0]) {
-                    this.selected = this.devices[0];
+                        || this.ipChanges.find((d) => d.device_key === this.selected.device_key)
+                        || this.reputationRows.find((d) => (d.device_key || d.device_id) === (this.selected.device_key || this.selected.device_id)
+                            && (d.ips?.[0] || d.ip) === (this.selected.ips?.[0] || this.selected.ip));
+                    this.selected = match || null;
                 }
             } catch (e) {
                 console.error(e);
@@ -1066,7 +1084,14 @@ function trafficControlIntel() {
             clearTimeout(this.pathTimer);
             this.pathTimer = setTimeout(() => this.reload(), 350);
         },
-        selectRow(row) { this.selected = row; },
+        selectRow(row) {
+            this.selected = row;
+            this.$nextTick(() => {
+                try {
+                    this.$refs.tcDetail?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+                } catch (e) {}
+            });
+        },
         isRowSelected(row) {
             if (!this.selected) return false;
             if (this.activeTab === 'reputation' || this.activeTab === 'ip_changes') {

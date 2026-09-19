@@ -62,9 +62,33 @@ class TrafficControlIntelligence
 
         $query = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
-            ->whereBetween('visited_at', [$from, $to])
             ->whereNotNull('ip')
             ->where('ip', '!=', '');
+
+        $q = trim((string) ($filters['q'] ?? ''));
+        $isDeviceSearch = $q !== '' && DeviceIdLabel::looksLikeDeviceId($q);
+
+        // Device ID search: do not hide rows behind a narrow date chip (same as Advanced View).
+        if ($isDeviceSearch) {
+            $needles = DeviceIdLabel::searchNeedles($q);
+            if ($needles === []) {
+                $needles = [$q];
+            }
+            $query->where(function ($match) use ($needles, $hasDevice, $hasFingerprint): void {
+                foreach ($needles as $needle) {
+                    if ($hasDevice) {
+                        $match->orWhere('device_id', 'like', '%'.$needle.'%');
+                    }
+                    if ($hasFingerprint) {
+                        $match->orWhere('fingerprint_id', 'like', '%'.$needle.'%');
+                    }
+                }
+            });
+            // Safety bound so we never scan the entire table unbounded.
+            $query->where('visited_at', '>=', now()->subYear());
+        } else {
+            $query->whereBetween('visited_at', [$from, $to]);
+        }
 
         $campaign = trim((string) ($filters['campaign'] ?? ''));
         if ($campaign !== '' && Schema::hasColumn('visits', 'utm_campaign')) {
@@ -73,6 +97,19 @@ class TrafficControlIntelligence
         $path = trim((string) ($filters['path'] ?? ''));
         if ($path !== '' && Schema::hasColumn('visits', 'url')) {
             $query->where('url', 'like', '%'.$path.'%');
+        }
+
+        // IP / free-text: push into SQL before the 25k cap so matches are not truncated away.
+        if ($q !== '' && ! $isDeviceSearch) {
+            $query->where(function ($match) use ($q, $hasDevice, $hasFingerprint): void {
+                $match->where('ip', 'like', '%'.$q.'%');
+                if ($hasDevice) {
+                    $match->orWhere('device_id', 'like', '%'.$q.'%');
+                }
+                if ($hasFingerprint) {
+                    $match->orWhere('fingerprint_id', 'like', '%'.$q.'%');
+                }
+            });
         }
 
         $visits = $query->orderByDesc('visited_at')->limit(25000)->get($select);

@@ -39,10 +39,10 @@
                         <p class="mt-[2px] font-medium" :class="applyAudienceModal.status === 'Populating' ? 'text-amber-300' : 'text-emerald-300'" x-text="applyAudienceModal.status"></p>
                     </div>
                     <div><span class="text-white/50">Search size</span>
-                        <p class="mt-[2px] font-medium text-amber-200" x-text="applyAudienceModal.searchSize"></p>
+                        <p class="mt-[2px] font-medium text-amber-200" x-text="applyAudienceModal.statsLoading ? 'Loading live size…' : applyAudienceModal.searchSize"></p>
                     </div>
                     <div><span class="text-white/50">Display size</span>
-                        <p class="mt-[2px] font-medium text-emerald-300" x-text="applyAudienceModal.displaySize"></p>
+                        <p class="mt-[2px] font-medium text-emerald-300" x-text="applyAudienceModal.statsLoading ? 'Loading live size…' : applyAudienceModal.displaySize"></p>
                     </div>
                 </div>
             </section>

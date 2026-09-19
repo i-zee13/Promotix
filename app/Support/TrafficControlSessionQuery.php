@@ -102,7 +102,24 @@ class TrafficControlSessionQuery
 
             $first = Carbon::parse($row->first_seen);
             $last = Carbon::parse($row->last_seen);
-            $durationSec = max(0, $last->diffInSeconds($first));
+            $durationSec = max(0, (int) $last->diffInSeconds($first));
+            if ($durationSec < 1) {
+                $durationSec = max($durationSec, (int) floor(((int) ($rec['duration_ms'] ?? 0)) / 1000));
+            }
+            // Last resort: infer from recording timeline elapsed.
+            if ($durationSec < 1 && is_array($rec['event_detail']['timeline'] ?? null)) {
+                foreach ($rec['event_detail']['timeline'] as $ev) {
+                    if (! is_array($ev)) {
+                        continue;
+                    }
+                    $t = (int) ($ev['elapsed_sec'] ?? 0);
+                    if ($t <= 0) {
+                        $raw = (int) ($ev['t'] ?? 0);
+                        $t = $raw > 1000 ? (int) floor($raw / 1000) : $raw;
+                    }
+                    $durationSec = max($durationSec, $t);
+                }
+            }
 
             $isPaid = (bool) ($row->is_paid_traffic ?? false);
             $platform = TrafficSourceClassifier::platformLabel(
@@ -403,6 +420,7 @@ class TrafficControlSessionQuery
 
             return [
                 'id' => (int) $rec->id,
+                'duration_ms' => (int) ($rec->duration_ms ?? 0),
                 'cta_clicks' => (int) ($rec->cta_clicks ?? $analysis['cta_clicks'] ?? 0),
                 'tel_clicks' => (int) ($rec->tel_clicks ?? $analysis['tel_clicks'] ?? 0),
                 'scroll_count' => (int) ($rec->scroll_count ?? $analysis['scroll_count'] ?? 0),

@@ -1353,8 +1353,9 @@ class BotProtectionController extends Controller
     {
         $query = DB::table('visits')
             ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
-            ->whereIn('visits.domain_id', $domainIds)
-            ->whereBetween('visits.visited_at', [$from, $to]);
+            ->whereIn('visits.domain_id', $domainIds);
+        $this->applyAdvancedVisitedAtWindow($query, $request, $from, $to);
+
         GoogleClickAttribution::excludeClickIdsForPaidDomains(
             $query,
             $this->paidMarketingDomainIds($domainIds),
@@ -1396,8 +1397,8 @@ class BotProtectionController extends Controller
     private function countAdvancedUniqueIps(Request $request, $domainIds, Carbon $from, Carbon $to): int
     {
         $query = DB::table('visits')
-            ->whereIn('visits.domain_id', $domainIds)
-            ->whereBetween('visits.visited_at', [$from, $to]);
+            ->whereIn('visits.domain_id', $domainIds);
+        $this->applyAdvancedVisitedAtWindow($query, $request, $from, $to);
         GoogleClickAttribution::excludeClickIdsForPaidDomains(
             $query,
             $this->paidMarketingDomainIds($domainIds),
@@ -1408,6 +1409,20 @@ class BotProtectionController extends Controller
         return (int) $query
             ->selectRaw('COUNT(DISTINCT CONCAT(visits.domain_id, "|", visits.ip)) as aggregate_count')
             ->value('aggregate_count');
+    }
+
+    /**
+     * Device ID / session identity search: widen beyond the selected date chip.
+     */
+    private function applyAdvancedVisitedAtWindow($query, Request $request, Carbon $from, Carbon $to): void
+    {
+        $term = trim((string) $request->query('ip', ''));
+        if ($term !== '' && \App\Support\DeviceIdLabel::looksLikeDeviceId($term)) {
+            $query->where('visits.visited_at', '>=', now()->subYear());
+
+            return;
+        }
+        $query->whereBetween('visits.visited_at', [$from, $to]);
     }
 
     private function applyAdvancedVisitFilters($query, Request $request): void
@@ -1466,8 +1481,8 @@ class BotProtectionController extends Controller
     {
         $query = DB::table('visits')
             ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
-            ->whereIn('visits.domain_id', $domainIds)
-            ->whereBetween('visits.visited_at', [$from, $to]);
+            ->whereIn('visits.domain_id', $domainIds);
+        $this->applyAdvancedVisitedAtWindow($query, $request, $from, $to);
         GoogleClickAttribution::excludeClickIdsForPaidDomains(
             $query,
             $this->paidMarketingDomainIds($domainIds),

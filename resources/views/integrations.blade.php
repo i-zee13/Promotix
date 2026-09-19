@@ -177,6 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'google_tag_id' => $a->resolvedGoogleTagId() ?: $a->google_tag_id,
         ])->values(),
         'audienceCampaignsUrl' => route('integrations.google.audience-campaigns'),
+        'audienceListStatsUrl' => route('integrations.google.audience-list-stats'),
         'ga4StatusUrl' => route('integrations.google.ga4-status'),
         'createAudienceUrl' => route('integrations.google.create-audience'),
         'applyAudienceUrl' => route('integrations.google.apply-audience'),
@@ -1807,17 +1808,22 @@ function platformIntegrations(config) {
             open: false,
             loading: false,
             applying: false,
+            statsLoading: false,
             error: '',
             audienceName: 'Clickronix | Invalid Traffic | GA4',
             source: 'GA4',
             status: 'Ready to apply',
-            searchSize: 'Attach works on Search/Display — size affects serving later',
-            displaySize: 'Eligible when list exists',
+            searchSize: 'Loading live size…',
+            displaySize: 'Loading live size…',
+            sizeForSearch: null,
+            sizeForDisplay: null,
+            membershipStatus: '',
             scope: 'campaign',
             preserve: true,
             sourceLinked: true,
             method: 'ga4',
             campaignsUrl: config.audienceCampaignsUrl || '',
+            listStatsUrl: config.audienceListStatsUrl || '',
             applyUrl: config.applyAudienceUrl || '',
             ga4Present: null,
             ga4Message: '',
@@ -1972,8 +1978,13 @@ function platformIntegrations(config) {
             if (!value) return '—';
             const d = new Date(value);
             if (Number.isNaN(d.getTime())) return '—';
-            const sec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
-            if (sec < 60) return `${sec}s ago`;
+            let sec = Math.round((Date.now() - d.getTime()) / 1000);
+            // Clock skew / future timestamps used to clamp to "0s ago" for every row.
+            if (sec < -120) {
+                return this.formatHealthTime(value);
+            }
+            sec = Math.max(0, sec);
+            if (sec < 60) return sec <= 1 ? 'just now' : `${sec}s ago`;
             const min = Math.round(sec / 60);
             if (min < 60) return `${min}m ago`;
             const hr = Math.round(min / 60);
@@ -3184,32 +3195,100 @@ function platformIntegrations(config) {
                 const s = String(v ?? '');
                 return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
             };
-            const lines = [
-                ['Audience name', 'User list ID', 'Source', 'Scope', 'Campaign', 'Type', 'Eligibility', 'Current state'].map(esc).join(','),
-                ...rows.map((c) => [
-                    this.applyAudienceModal.audienceName,
-                    this.applyAudienceModal.userListId || '',
-                    this.applyAudienceModal.source,
-                    this.applyAudienceModal.scope,
-                    c.name,
-                    c.type,
-                    c.eligibility,
-                    c.state,
-                ].map(esc).join(',')),
+            const summary = [
+                ['Field', 'Value'].map(esc).join(','),
+                ['Audience name', this.applyAudienceModal.audienceName].map(esc).join(','),
+                ['User list ID', this.applyAudienceModal.userListId || ''].map(esc).join(','),
+                ['Source', this.applyAudienceModal.source].map(esc).join(','),
+                ['Status', this.applyAudienceModal.status].map(esc).join(','),
+                ['Membership status', this.applyAudienceModal.membershipStatus || ''].map(esc).join(','),
+                ['Search size', this.applyAudienceModal.searchSize].map(esc).join(','),
+                ['Display size', this.applyAudienceModal.displaySize].map(esc).join(','),
+                ['Search size (raw)', this.applyAudienceModal.sizeForSearch ?? ''].map(esc).join(','),
+                ['Display size (raw)', this.applyAudienceModal.sizeForDisplay ?? ''].map(esc).join(','),
+                ['Scope', this.applyAudienceModal.scope].map(esc).join(','),
+                ['Safeguard preserve', this.applyAudienceModal.preserve ? 'yes' : 'no'].map(esc).join(','),
+                ['Selected campaigns', String(rows.length)].map(esc).join(','),
+                '',
             ];
-            const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const campaignHeader = ['Campaign', 'Type', 'Eligibility', 'Current state', 'Audience name', 'User list ID', 'Search size', 'Display size', 'Status'].map(esc).join(',');
+            const campaignLines = rows.map((c) => [
+                c.name,
+                c.type,
+                c.eligibility,
+                c.state,
+                this.applyAudienceModal.audienceName,
+                this.applyAudienceModal.userListId || '',
+                this.applyAudienceModal.searchSize,
+                this.applyAudienceModal.displaySize,
+                this.applyAudienceModal.status,
+            ].map(esc).join(','));
+            const blob = new Blob([[...summary, campaignHeader, ...campaignLines].join('\n')], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             const safe = String(this.applyAudienceModal.audienceName || 'audience')
                 .replace(/[^\w\-]+/g, '_')
                 .slice(0, 48);
             a.href = url;
-            a.download = `${safe || 'audience'}_exclusion_preview.csv`;
+            a.download = `${safe || 'audience'}_exclusion_list_stats.csv`;
             document.body.appendChild(a);
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
-            this.showMenuToast('CSV downloaded — open in Google Sheets (File → Import).', 'success');
+            this.showMenuToast('CSV downloaded with exclusion list stats — open in Google Sheets (File → Import).', 'success');
+        },
+        async loadAudienceListStats() {
+            if (!this.applyAudienceModal.listStatsUrl) {
+                this.applyAudienceModal.searchSize = 'Stats endpoint missing';
+                this.applyAudienceModal.displaySize = 'Stats endpoint missing';
+                return;
+            }
+            this.applyAudienceModal.statsLoading = true;
+            try {
+                let domainId = this.selectedDomainId || '';
+                if (!domainId && (this.trackingIds || []).length) {
+                    domainId = this.trackingIds[0].domain_id || '';
+                }
+                const params = new URLSearchParams();
+                if (domainId) params.set('domain_id', String(domainId));
+                if (this.applyAudienceModal.userListId) {
+                    params.set('user_list_id', String(this.applyAudienceModal.userListId));
+                }
+                if (this.applyAudienceModal.audienceName) {
+                    params.set('audience_name', String(this.applyAudienceModal.audienceName));
+                }
+                const res = await fetch(this.applyAudienceModal.listStatsUrl + '?' + params.toString(), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                const data = await res.json().catch(() => ({}));
+                if (data.user_list_id) {
+                    this.applyAudienceModal.userListId = String(data.user_list_id);
+                }
+                if (data.user_list_name) {
+                    this.applyAudienceModal.audienceName = data.user_list_name;
+                }
+                this.applyAudienceModal.membershipStatus = data.membership_status || '';
+                this.applyAudienceModal.sizeForSearch = data.size_for_search ?? null;
+                this.applyAudienceModal.sizeForDisplay = data.size_for_display ?? null;
+                this.applyAudienceModal.searchSize = data.search_size_label
+                    || (data.ok === false ? (data.message || 'Could not load Search size') : '0 / not reported yet');
+                this.applyAudienceModal.displaySize = data.display_size_label
+                    || (data.ok === false ? (data.message || 'Could not load Display size') : '0 / not reported yet');
+                if (data.status_label) {
+                    if (data.is_crm_shell || data.membership_status === 'OPEN' || data.size_for_search != null || data.size_for_display != null) {
+                        this.applyAudienceModal.status = data.status_label;
+                    }
+                }
+                if (data.is_crm_shell) {
+                    this.showMenuToast(data.message || 'This Ads list is Customer Match (CRM) — Create Audience again for a rule-based list.', 'error');
+                }
+            } catch (_) {
+                this.applyAudienceModal.searchSize = 'Could not load live Search size';
+                this.applyAudienceModal.displaySize = 'Could not load live Display size';
+            } finally {
+                this.applyAudienceModal.statsLoading = false;
+            }
         },
         openApplyAudienceModal() {
             if (!this.applyAudienceModal.audienceName) {
@@ -3217,10 +3296,13 @@ function platformIntegrations(config) {
             }
             this.applyAudienceModal.ga4Present = this.createAudienceModal.ga4Present;
             this.applyAudienceModal.ga4Message = this.createAudienceModal.ga4Message || '';
+            this.applyAudienceModal.searchSize = 'Loading live size…';
+            this.applyAudienceModal.displaySize = 'Loading live size…';
             this.applyAudienceModal.open = true;
             this.lockSpecModal();
             this.checkGa4SiteStatus(true);
             this.loadApplyAudienceCampaigns();
+            this.loadAudienceListStats();
         },
         closeApplyAudienceModal() {
             this.applyAudienceModal.open = false;
@@ -3364,6 +3446,9 @@ function platformIntegrations(config) {
                 });
                 if (data.user_list_id) {
                     this.applyAudienceModal.userListId = String(data.user_list_id);
+                }
+                if (data.ok) {
+                    await this.loadAudienceListStats();
                 }
                 const attachStatus = (data.attachment_status
                     || (data.ok && (data.verified_campaign_ids || []).length ? 'verified' : null)
