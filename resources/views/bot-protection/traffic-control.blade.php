@@ -141,10 +141,6 @@
             .tc-main {
                 display: grid; grid-template-columns: minmax(0,1fr); gap: 14px; margin-bottom: 16px;
             }
-            @media (min-width: 1180px) {
-                .tc-main { grid-template-columns: minmax(0,1fr) 330px; align-items: start; }
-                .tc-main.is-panel-closed { grid-template-columns: minmax(0,1fr); }
-            }
             .tc-card {
                 border-radius: 12px; border: 1px solid rgba(255,102,0,.22);
                 background: #121212; overflow: hidden; min-width: 0;
@@ -253,26 +249,20 @@
                 padding: 4px 14px 14px; font-size: 12px; color: rgba(255,255,255,.42);
             }
 
+            .tc-investigate-modal {
+                position: fixed; inset: 0; z-index: 2147483000;
+            }
+            .tc-detail-backdrop {
+                position: absolute; inset: 0;
+                background: rgba(0,0,0,.55);
+            }
             .tc-detail {
                 border-radius: 12px; border: 1px solid rgba(255,102,0,.28);
-                background: #121212; padding: 14px; position: sticky; top: 72px;
-                max-height: calc(100vh - 96px); overflow: auto;
-            }
-            /* Below desktop split: Investigate opens as a fixed drawer so it is always visible */
-            @media (max-width: 1179px) {
-                .tc-detail {
-                    position: fixed; top: 56px; right: 12px; bottom: 12px;
-                    width: min(380px, calc(100vw - 24px));
-                    z-index: 80; max-height: none;
-                    box-shadow: 0 18px 40px rgba(0,0,0,.55);
-                }
-                .tc-detail-backdrop {
-                    position: fixed; inset: 0; z-index: 70;
-                    background: rgba(0,0,0,.55);
-                }
-            }
-            @media (min-width: 1180px) {
-                .tc-detail-backdrop { display: none !important; }
+                background: #121212; padding: 14px;
+                position: absolute; top: 56px; right: 12px; bottom: 12px;
+                width: min(420px, calc(100vw - 24px));
+                z-index: 1; overflow: auto;
+                box-shadow: 0 18px 40px rgba(0,0,0,.55);
             }
             .tc-detail__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
             .tc-detail__title { font-size: 14px; font-weight: 650; color: #fff; }
@@ -703,7 +693,7 @@
             </div>
 
             {{-- Table + detail --}}
-            <div class="tc-main" :class="{ 'is-panel-closed': !selected }">
+            <div class="tc-main">
                 <div class="tc-card">
                     <div class="tc-card__pad">
                         <div class="tc-card__title">
@@ -804,11 +794,31 @@
                     <div class="tc-foot" x-show="activeTab !== 'ranges' && tableRows.length" x-text="footerLabel()"></div>
                 </div>
 
-                <div class="tc-detail-backdrop" x-show="selected" x-cloak @click="selected = null"></div>
-                <aside class="tc-detail" x-show="selected" x-cloak x-ref="tcDetail" @click.stop>
+            </div>
+
+            <template x-teleport="body">
+                <div
+                    class="tc-investigate-modal"
+                    x-show="selected"
+                    x-cloak
+                    x-transition.opacity
+                    role="dialog"
+                    aria-modal="true"
+                    @keydown.escape.window="if (selected) closeDetail()"
+                >
+                    <div class="tc-detail-backdrop" @click="closeDetail()"></div>
+                    <aside
+                        class="tc-detail"
+                        x-ref="tcDetail"
+                        tabindex="-1"
+                        @click.stop
+                        x-transition:enter="transition ease-out duration-150"
+                        x-transition:enter-start="opacity-0 translate-x-4"
+                        x-transition:enter-end="opacity-100 translate-x-0"
+                    >
                     <div class="tc-detail__head">
                         <div class="tc-detail__title">Selected Device Intelligence</div>
-                        <button type="button" class="text-white/40 hover:text-white" @click="selected = null" aria-label="Close">✕</button>
+                        <button type="button" class="text-white/40 hover:text-white" @click="closeDetail()" aria-label="Close">✕</button>
                     </div>
 
                     <div class="tc-detail__top">
@@ -872,8 +882,9 @@
                             </div>
                         </template>
                     </div>
-                </aside>
-            </div>
+                    </aside>
+                </div>
+            </template>
 
             {{-- Charts — no “What Traffic Control Detects” --}}
             <div class="tc-charts">
@@ -1006,6 +1017,9 @@ function trafficControlIntel() {
 
         init() {
             this.hydrateDates();
+            this.$watch('selected', (val) => {
+                document.body.style.overflow = val ? 'hidden' : '';
+            });
             this.reload();
         },
         hydrateDates() {
@@ -1085,12 +1099,18 @@ function trafficControlIntel() {
             this.pathTimer = setTimeout(() => this.reload(), 350);
         },
         selectRow(row) {
-            this.selected = row;
+            if (!row || typeof row !== 'object') {
+                this.selected = null;
+                return;
+            }
+            // Clone so re-clicking the same row still re-opens / refreshes the panel.
+            this.selected = JSON.parse(JSON.stringify(row));
             this.$nextTick(() => {
-                try {
-                    this.$refs.tcDetail?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
-                } catch (e) {}
+                try { this.$refs.tcDetail?.focus?.(); } catch (e) {}
             });
+        },
+        closeDetail() {
+            this.selected = null;
         },
         isRowSelected(row) {
             if (!this.selected) return false;
