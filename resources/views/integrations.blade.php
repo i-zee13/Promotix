@@ -178,10 +178,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ])->values(),
         'audienceCampaignsUrl' => route('integrations.google.audience-campaigns'),
         'audienceListStatsUrl' => route('integrations.google.audience-list-stats'),
+        'audienceListsUrl' => route('integrations.google.audience-lists'),
+        'audienceExclusionExportUrl' => route('integrations.google.audience-exclusion-export'),
         'ga4StatusUrl' => route('integrations.google.ga4-status'),
         'createAudienceUrl' => route('integrations.google.create-audience'),
         'applyAudienceUrl' => route('integrations.google.apply-audience'),
         'audienceAssociationsByDomain' => $audienceAssociationsByDomain ?? [],
+        'audienceListsByDomain' => $audienceListsByDomain ?? [],
         'domainFilterOptions' => collect($manualDomains ?? [])->map(fn ($d) => [
             'id' => (string) $d->id,
             'label' => $d->hostname,
@@ -1249,12 +1252,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <td>
                                     <span class="{{ ! empty($row['script_ok']) ? 'pi-status-connected' : 'pi-status-pending' }}">{{ $row['script_status'] ?? '—' }}</span>
                                 </td>
-                                <td>
-                                    @if (! empty($row['last_event_at']))
-                                        <span x-text="relativeAgo(@js($row['last_event_at']))">{{ $row['last_event'] ?? '—' }}</span>
-                                    @else
-                                        {{ $row['last_event'] ?? '—' }}
-                                    @endif
+                                <td class="whitespace-nowrap text-[12px] font-medium text-black/80">
+                                    {{ $row['last_event'] ?? '—' }}
                                 </td>
                                 <td>
                                     <span class="pi-prot {{ ! empty($row['protection_ok']) ? 'is-audience' : 'is-track' }}">
@@ -1824,14 +1823,20 @@ function platformIntegrations(config) {
             method: 'ga4',
             campaignsUrl: config.audienceCampaignsUrl || '',
             listStatsUrl: config.audienceListStatsUrl || '',
+            listsUrl: config.audienceListsUrl || '',
+            exclusionExportUrl: config.audienceExclusionExportUrl || '',
             applyUrl: config.applyAudienceUrl || '',
             ga4Present: null,
             ga4Message: '',
             userListId: '',
             campaigns: [],
+            managedLists: [],
+            listsLoading: false,
+            exportLoading: false,
         },
         createdAudienceLists: [],
         audienceAssociationsByDomain: config.audienceAssociationsByDomain || {},
+        audienceListsByDomain: config.audienceListsByDomain || {},
         get trackingInstallation() {
             const id = String(this.selectedDomainId || '');
             if (id && this.trackingInstallationByDomain[id]) {
@@ -3155,6 +3160,23 @@ function platformIntegrations(config) {
                         method: this.createAudienceModal.method || 'ga4',
                         at: new Date().toISOString(),
                     });
+                    const domainId = this.resolveAudienceDomainId();
+                    if (domainId) {
+                        const bucket = this.audienceListsByDomain[domainId] || this.audienceListsByDomain[String(domainId)] || [];
+                        const next = Array.isArray(bucket) ? [...bucket] : [];
+                        if (!next.some((l) => String(l.user_list_id) === String(data.user_list_id))) {
+                            next.unshift({
+                                user_list_id: String(data.user_list_id),
+                                user_list_name: data.user_list_name || this.createAudienceModal.name,
+                                user_list_type: data.user_list_type || '',
+                                method: this.createAudienceModal.method || 'ga4',
+                                attachment_status: 'pending',
+                                status: 'created',
+                                updated_at: new Date().toISOString(),
+                            });
+                        }
+                        this.audienceListsByDomain[domainId] = next;
+                    }
                 }
                 this.closeCreateAudienceModal();
                 this.showMenuToast(data.message || (data.created ? 'New audience list created in Google Ads.' : 'Audience ready in Google Ads.'), 'success');
@@ -3186,56 +3208,136 @@ function platformIntegrations(config) {
             return false;
         },
         exportAudienceApplyPreview() {
-            const rows = (this.applyAudienceModal.campaigns || []).filter((c) => c.selected && c.canSelect);
-            if (!rows.length) {
-                this.showMenuToast('Select at least one campaign to download.', 'info');
+            this.downloadAudienceExclusionSheet(this.applyAudienceModal.userListId || null);
+        },
+        async downloadAudienceExclusionSheet(listId) {
+            const id = String(listId || this.applyAudienceModal.userListId || '').replace(/\D+/g, '');
+            if (!id) {
+                this.showMenuToast('Select or create an audience list first, then download.', 'info');
                 return;
             }
-            const esc = (v) => {
-                const s = String(v ?? '');
-                return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-            };
-            const summary = [
-                ['Field', 'Value'].map(esc).join(','),
-                ['Audience name', this.applyAudienceModal.audienceName].map(esc).join(','),
-                ['User list ID', this.applyAudienceModal.userListId || ''].map(esc).join(','),
-                ['Source', this.applyAudienceModal.source].map(esc).join(','),
-                ['Status', this.applyAudienceModal.status].map(esc).join(','),
-                ['Membership status', this.applyAudienceModal.membershipStatus || ''].map(esc).join(','),
-                ['Search size', this.applyAudienceModal.searchSize].map(esc).join(','),
-                ['Display size', this.applyAudienceModal.displaySize].map(esc).join(','),
-                ['Search size (raw)', this.applyAudienceModal.sizeForSearch ?? ''].map(esc).join(','),
-                ['Display size (raw)', this.applyAudienceModal.sizeForDisplay ?? ''].map(esc).join(','),
-                ['Scope', this.applyAudienceModal.scope].map(esc).join(','),
-                ['Safeguard preserve', this.applyAudienceModal.preserve ? 'yes' : 'no'].map(esc).join(','),
-                ['Selected campaigns', String(rows.length)].map(esc).join(','),
-                '',
-            ];
-            const campaignHeader = ['Campaign', 'Type', 'Eligibility', 'Current state', 'Audience name', 'User list ID', 'Search size', 'Display size', 'Status'].map(esc).join(',');
-            const campaignLines = rows.map((c) => [
-                c.name,
-                c.type,
-                c.eligibility,
-                c.state,
-                this.applyAudienceModal.audienceName,
-                this.applyAudienceModal.userListId || '',
-                this.applyAudienceModal.searchSize,
-                this.applyAudienceModal.displaySize,
-                this.applyAudienceModal.status,
-            ].map(esc).join(','));
-            const blob = new Blob([[...summary, campaignHeader, ...campaignLines].join('\n')], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            const safe = String(this.applyAudienceModal.audienceName || 'audience')
-                .replace(/[^\w\-]+/g, '_')
-                .slice(0, 48);
-            a.href = url;
-            a.download = `${safe || 'audience'}_exclusion_list_stats.csv`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-            this.showMenuToast('CSV downloaded with exclusion list stats — open in Google Sheets (File → Import).', 'success');
+            if (!this.applyAudienceModal.exclusionExportUrl) {
+                this.showMenuToast('Export endpoint missing.', 'error');
+                return;
+            }
+            this.applyAudienceModal.exportLoading = true;
+            try {
+                let domainId = this.selectedDomainId || '';
+                if (!domainId && (this.trackingIds || []).length) {
+                    domainId = this.trackingIds[0].domain_id || '';
+                }
+                const params = new URLSearchParams({ user_list_id: id });
+                if (domainId) params.set('domain_id', String(domainId));
+                const res = await fetch(this.applyAudienceModal.exclusionExportUrl + '?' + params.toString(), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!data.ok && !data.user_list_id) {
+                    this.showMenuToast(data.message || 'Could not load Google exclusion data for this list.', 'error');
+                    return;
+                }
+                const esc = (v) => {
+                    const s = String(v ?? '');
+                    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+                };
+                const exclusions = Array.isArray(data.exclusions) ? data.exclusions : [];
+                const summary = [
+                    ['Field', 'Value'].map(esc).join(','),
+                    ['Audience name', data.user_list_name || this.applyAudienceModal.audienceName].map(esc).join(','),
+                    ['User list ID', data.user_list_id || id].map(esc).join(','),
+                    ['List type', data.user_list_type || ''].map(esc).join(','),
+                    ['Membership status', data.membership_status || ''].map(esc).join(','),
+                    ['Status', data.status_label || this.applyAudienceModal.status].map(esc).join(','),
+                    ['Search size', data.search_size_label || ''].map(esc).join(','),
+                    ['Display size', data.display_size_label || ''].map(esc).join(','),
+                    ['Search size (raw)', data.size_for_search ?? ''].map(esc).join(','),
+                    ['Display size (raw)', data.size_for_display ?? ''].map(esc).join(','),
+                    ['Exclusions Google is using', String(data.exclusion_count ?? exclusions.length)].map(esc).join(','),
+                    ['Domain', data.hostname || ''].map(esc).join(','),
+                    ['Exported at', data.exported_at || new Date().toISOString()].map(esc).join(','),
+                    '',
+                ];
+                const header = ['Campaign ID', 'Campaign name', 'Level', 'Exclusion type', 'User list ID', 'User list name', 'Search size', 'Display size'].map(esc).join(',');
+                const lines = exclusions.length
+                    ? exclusions.map((e) => [
+                        e.campaign_id,
+                        e.campaign_name,
+                        e.level || 'Campaign',
+                        'Negative audience exclusion',
+                        data.user_list_id || id,
+                        data.user_list_name || '',
+                        data.search_size_label || '',
+                        data.display_size_label || '',
+                    ].map(esc).join(','))
+                    : [['', '(No campaign exclusions found yet in Google Ads for this list)', '', '', data.user_list_id || id, data.user_list_name || '', data.search_size_label || '', data.display_size_label || ''].map(esc).join(',')];
+                const blob = new Blob([[...summary, header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const safe = String(data.user_list_name || this.applyAudienceModal.audienceName || 'audience')
+                    .replace(/[^\w\-]+/g, '_')
+                    .slice(0, 48);
+                a.href = url;
+                a.download = `${safe || 'audience'}_${id}_google_exclusions.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                this.showMenuToast(
+                    exclusions.length
+                        ? `Downloaded ${exclusions.length} Google exclusion row(s) for this list.`
+                        : 'Downloaded list stats — no campaign exclusions attached in Google yet.',
+                    'success'
+                );
+            } catch (_) {
+                this.showMenuToast('Download failed.', 'error');
+            } finally {
+                this.applyAudienceModal.exportLoading = false;
+            }
+        },
+        async loadManagedAudienceLists() {
+            const domainId = this.selectedDomainId || (this.trackingIds || [])[0]?.domain_id || '';
+            const fromConfig = domainId
+                ? (this.audienceListsByDomain[domainId] || this.audienceListsByDomain[String(domainId)] || [])
+                : [];
+            this.applyAudienceModal.managedLists = Array.isArray(fromConfig) ? [...fromConfig] : [];
+            (this.createdAudienceLists || []).forEach((row) => {
+                if (!row?.id) return;
+                if (this.applyAudienceModal.managedLists.some((l) => String(l.user_list_id) === String(row.id))) return;
+                this.applyAudienceModal.managedLists.unshift({
+                    user_list_id: String(row.id),
+                    user_list_name: row.name || ('List ' + row.id),
+                    method: row.method || 'ga4',
+                    attachment_status: 'pending',
+                    status: 'created',
+                });
+            });
+            if (!this.applyAudienceModal.listsUrl) return;
+            this.applyAudienceModal.listsLoading = true;
+            try {
+                const params = new URLSearchParams();
+                if (domainId) params.set('domain_id', String(domainId));
+                const res = await fetch(this.applyAudienceModal.listsUrl + '?' + params.toString(), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                const data = await res.json().catch(() => ({}));
+                if (Array.isArray(data.lists)) {
+                    this.applyAudienceModal.managedLists = data.lists;
+                    if (domainId) this.audienceListsByDomain[domainId] = data.lists;
+                }
+            } catch (_) {
+            } finally {
+                this.applyAudienceModal.listsLoading = false;
+            }
+        },
+        selectManagedAudienceList(row) {
+            if (!row) return;
+            this.applyAudienceModal.userListId = String(row.user_list_id || '');
+            this.applyAudienceModal.audienceName = row.user_list_name || this.applyAudienceModal.audienceName;
+            this.applyAudienceModal.method = row.method || row.route || this.applyAudienceModal.method || 'ga4';
+            this.applyAudienceModal.source = (this.applyAudienceModal.method === 'website') ? 'Website segment' : 'GA4 event';
+            this.loadAudienceListStats();
         },
         async loadAudienceListStats() {
             if (!this.applyAudienceModal.listStatsUrl) {
@@ -3302,6 +3404,7 @@ function platformIntegrations(config) {
             this.lockSpecModal();
             this.checkGa4SiteStatus(true);
             this.loadApplyAudienceCampaigns();
+            this.loadManagedAudienceLists();
             this.loadAudienceListStats();
         },
         closeApplyAudienceModal() {

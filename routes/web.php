@@ -274,6 +274,8 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::get('/integrations/google-ads/campaign-metrics', [IntegrationsController::class, 'campaignMetricsForHost'])->name('integrations.google.campaign-metrics');
         Route::get('/integrations/google-ads/audience-campaigns', [IntegrationsController::class, 'audienceCampaigns'])->name('integrations.google.audience-campaigns');
         Route::get('/integrations/google-ads/audience-list-stats', [IntegrationsController::class, 'audienceListStats'])->name('integrations.google.audience-list-stats');
+        Route::get('/integrations/google-ads/audience-lists', [IntegrationsController::class, 'audienceLists'])->name('integrations.google.audience-lists');
+        Route::get('/integrations/google-ads/audience-exclusion-export', [IntegrationsController::class, 'audienceExclusionExport'])->name('integrations.google.audience-exclusion-export');
         Route::get('/integrations/google-ads/ga4-status', [IntegrationsController::class, 'ga4SiteStatus'])->name('integrations.google.ga4-status');
         Route::post('/integrations/google-ads/create-audience', [IntegrationsController::class, 'createAudience'])->name('integrations.google.create-audience');
         Route::post('/integrations/google-ads/apply-audience', [IntegrationsController::class, 'applyAudienceExclusion'])->name('integrations.google.apply-audience');

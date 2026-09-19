@@ -75,7 +75,7 @@ class IntegrationsController extends Controller
             'paid_marketing_connected' => (bool) $d->paid_marketing_connected || $d->google_ads_account_id !== null || (int) ($d->google_ads_mappings_count ?? 0) > 0,
             'bot_mitigation_connected' => (bool) $d->bot_mitigation_connected,
             'last_seen_at' => $d->last_seen_at
-                ? \Illuminate\Support\Carbon::parse((string) $d->last_seen_at)->toIso8601String()
+                ? (UserTimezone::parseUtcInstant($d->last_seen_at)?->toIso8601String())
                 : null,
             'steps' => [
                 ['label' => 'Clickronix Script', 'done' => (bool) $d->tag_connected],
@@ -133,23 +133,48 @@ class IntegrationsController extends Controller
                 ->pluck('last_visited_at', 'domain_id');
         }
 
-        $todayStartUtc = \App\Support\UserTimezone::nowUtc()->timezone(config('app.timezone', 'UTC'))->startOfDay()->utc();
-        $todayEndUtc = (clone $todayStartUtc)->addDay();
+        // Visits / last_seen are stored as UTC wall-clock — never parse in app/user TZ.
+        $formatEventAge = static function (mixed $raw): array {
+            $at = UserTimezone::parseUtcInstant($raw);
+            if (! $at) {
+                return ['at' => null, 'label' => '—', 'iso' => null];
+            }
+            $now = UserTimezone::nowUtc();
+            // Clamp future skew (bad writes) so UI never says "from now" / fake "0s ago".
+            if ($at->gt($now->copy()->addMinutes(2))) {
+                $at = $now->copy();
+            }
+            $sec = max(0, (int) $at->diffInSeconds($now, false));
+            if ($sec < 60) {
+                $label = $sec <= 1 ? 'just now' : $sec.'s ago';
+            } elseif ($sec < 3600) {
+                $label = (int) round($sec / 60).'m ago';
+            } elseif ($sec < 172800) {
+                $label = (int) round($sec / 3600).'h ago';
+            } else {
+                $label = $at->format('M j, g:i A').' UTC';
+            }
+
+            return [
+                'at' => $at,
+                'label' => $label,
+                'iso' => $at->copy()->utc()->toIso8601String(),
+            ];
+        };
+
         $eventsToday = 0;
         if (Schema::hasTable('visits') && $manualDomains->isNotEmpty()) {
+            $dayStart = UserTimezone::nowUtc()->startOfDay();
+            $dayEnd = $dayStart->copy()->addDay();
             $eventsToday = (int) DB::table('visits')
                 ->whereIn('domain_id', $manualDomains->pluck('id'))
-                ->where('visited_at', '>=', $todayStartUtc->toDateTimeString())
-                ->where('visited_at', '<', $todayEndUtc->toDateTimeString())
+                ->where('visited_at', '>=', $dayStart->toDateTimeString())
+                ->where('visited_at', '<', $dayEnd->toDateTimeString())
                 ->count();
         }
 
         $latestVisitRaw = $domainLastVisitAt->filter()->max();
-        $latestEventAt = $latestVisitRaw
-            ? \Illuminate\Support\Carbon::parse((string) $latestVisitRaw)->utc()->toIso8601String()
-            : ($manualDomains->max('last_seen_at')
-                ? \Illuminate\Support\Carbon::parse((string) $manualDomains->max('last_seen_at'))->utc()->toIso8601String()
-                : null);
+        $latestEventMeta = $formatEventAge($latestVisitRaw ?: $manualDomains->max('last_seen_at'));
 
         $primary = $connections->first();
         $connectionHealth = [
@@ -162,7 +187,8 @@ class IntegrationsController extends Controller
             'accounts' => $accounts->count(),
             'tracking_active' => $tagReady,
             'events_today' => $eventsToday,
-            'last_event_at' => $latestEventAt,
+            'last_event_at' => $latestEventMeta['iso'],
+            'last_event_label' => $latestEventMeta['label'],
         ];
 
         $firstDomain = $manualDomains->first();
@@ -179,7 +205,9 @@ class IntegrationsController extends Controller
         $buildSetupProgressForDomain = function (?Domain $domain) use (
             $googleConnected,
             $googleEmail,
-            $domainVisitTotals
+            $domainVisitTotals,
+            $domainLastVisitAt,
+            $formatEventAge,
         ): array {
             if (! $domain) {
                 return [];
@@ -203,13 +231,17 @@ class IntegrationsController extends Controller
             $trackingDone = (bool) $domain->tag_connected;
             $gtmId = strtoupper(trim((string) ($domain->gtm_container_id ?: '')));
             $gtmDone = $gtmId !== '' && preg_match('/^GTM-[A-Z0-9]+$/', $gtmId);
-            $visitCount = (int) ($domainVisitTotals[$domain->id] ?? 0);
-            $clickDone = $visitCount > 0 || filled($domain->last_seen_at);
-            $clickDetail = 'Waiting for traffic';
+
+            $visitCount = (int) ($domainVisitTotals[$domain->id] ?? $domainVisitTotals[(string) $domain->id] ?? 0);
+            $visitAtRaw = $domainLastVisitAt[$domain->id] ?? $domainLastVisitAt[(string) $domain->id] ?? null;
+            $eventMeta = $formatEventAge($visitAtRaw ?: $domain->last_seen_at);
+            $clickDone = $visitCount > 0 || filled($eventMeta['iso']);
             if ($clickDone) {
-                $clickDetail = filled($domain->last_seen_at)
-                    ? \Illuminate\Support\Carbon::parse((string) $domain->last_seen_at)->diffForHumans()
-                    : number_format($visitCount).' clicks';
+                $clickDetail = $visitCount > 0
+                    ? number_format($visitCount).' events · '.$eventMeta['label']
+                    : $eventMeta['label'];
+            } else {
+                $clickDetail = 'Waiting for traffic';
             }
 
             $protectionDone = (bool) $domain->bot_mitigation_connected;
@@ -325,9 +357,11 @@ class IntegrationsController extends Controller
                 'label' => 'First Click Received',
                 'done' => $hasFirstClick,
                 'detail' => $hasFirstClick
-                    ? (filled($connectionHealth['last_event_at'])
-                        ? \Illuminate\Support\Carbon::parse((string) $connectionHealth['last_event_at'])->diffForHumans()
-                        : 'Today')
+                    ? (
+                        $eventsToday > 0
+                            ? number_format($eventsToday).' events today · '.($connectionHealth['last_event_label'] ?? '—')
+                            : ($connectionHealth['last_event_label'] ?? 'Today')
+                    )
                     : 'Waiting for traffic',
             ],
             [
@@ -355,11 +389,17 @@ class IntegrationsController extends Controller
                 ? ($mapping->protection_type === 'pixel_guard' ? 'Pixel Guard' : 'Audience Exclusion')
                 : 'Not configured';
             $lastSyncAt = $mapping->account?->connection?->last_sync_at;
-            $visitAtRaw = $domainLastVisitAt[$mapping->domain_id] ?? null;
-            $lastEventAt = $visitAtRaw
-                ? \Illuminate\Support\Carbon::parse((string) $visitAtRaw)->utc()
-                : null;
-            $clicks = (int) ($domainVisitCounts[$mapping->domain_id] ?? 0);
+            $visitAtRaw = $domainLastVisitAt[$mapping->domain_id]
+                ?? $domainLastVisitAt[(string) $mapping->domain_id]
+                ?? null;
+            $clicks = (int) ($domainVisitCounts[$mapping->domain_id] ?? $domainVisitCounts[(string) $mapping->domain_id] ?? 0);
+            $eventMeta = $formatEventAge($visitAtRaw ?: $domain?->last_seen_at);
+            $lastEventLabel = $eventMeta['label'];
+            if ($clicks > 0 && $eventMeta['iso']) {
+                $lastEventLabel = number_format($clicks).' · '.$eventMeta['label'];
+            } elseif ($clicks > 0) {
+                $lastEventLabel = number_format($clicks).' events';
+            }
 
             $platformRows->push([
                 'key' => 'ads-' . $mapping->id,
@@ -379,8 +419,9 @@ class IntegrationsController extends Controller
                 'api_ok' => $apiHealthy,
                 'script_status' => $scriptActive ? 'Active' : 'Missing',
                 'script_ok' => $scriptActive,
-                'last_event' => $lastEventAt ? $lastEventAt->diffForHumans() : '—',
-                'last_event_at' => optional($lastEventAt)->toIso8601String(),
+                'last_event' => $lastEventLabel,
+                'last_event_at' => $eventMeta['iso'],
+                'events_count' => $clicks,
                 'protection' => $protectionLabel,
                 'protection_ok' => $protectionDone,
                 'protection_tone' => $protectionDone ? 'audience' : 'track',
@@ -434,12 +475,16 @@ class IntegrationsController extends Controller
             $scriptKey = (string) ($domain->domain_key ?: '');
             $scriptActive = (bool) $domain->tag_connected;
             $protectionDone = false;
-            $clicks = (int) ($domainVisitCounts[$domain->id] ?? 0);
+            $clicks = (int) ($domainVisitCounts[$domain->id] ?? $domainVisitCounts[(string) $domain->id] ?? 0);
             $lastSyncAt = $account->connection?->last_sync_at;
-            $visitAtRaw = $domainLastVisitAt[$domain->id] ?? null;
-            $lastEventAt = $visitAtRaw
-                ? \Illuminate\Support\Carbon::parse((string) $visitAtRaw)->utc()
-                : null;
+            $visitAtRaw = $domainLastVisitAt[$domain->id] ?? $domainLastVisitAt[(string) $domain->id] ?? null;
+            $eventMeta = $formatEventAge($visitAtRaw ?: $domain->last_seen_at);
+            $lastEventLabel = $eventMeta['label'];
+            if ($clicks > 0 && $eventMeta['iso']) {
+                $lastEventLabel = number_format($clicks).' · '.$eventMeta['label'];
+            } elseif ($clicks > 0) {
+                $lastEventLabel = number_format($clicks).' events';
+            }
 
             $platformRows->push([
                 'key' => 'ads-fk-' . $domain->id,
@@ -459,8 +504,9 @@ class IntegrationsController extends Controller
                 'api_ok' => $apiHealthy,
                 'script_status' => $scriptActive ? 'Active' : 'Missing',
                 'script_ok' => $scriptActive,
-                'last_event' => $lastEventAt ? $lastEventAt->diffForHumans() : '—',
-                'last_event_at' => optional($lastEventAt)->toIso8601String(),
+                'last_event' => $lastEventLabel,
+                'last_event_at' => $eventMeta['iso'],
+                'events_count' => $clicks,
                 'protection' => $protectionDone ? 'Audience Exclusion' : 'Not configured',
                 'protection_ok' => $protectionDone,
                 'protection_tone' => $protectionDone ? 'audience' : 'track',
@@ -768,6 +814,7 @@ class IntegrationsController extends Controller
         }
 
         $audienceAssociationsByDomain = [];
+        $audienceListsByDomain = [];
         foreach ($mappings as $mapping) {
             $domainId = (string) ($mapping->domain_id ?? '');
             if ($domainId === '') {
@@ -799,6 +846,49 @@ class IntegrationsController extends Controller
                 ];
             }
             $audienceAssociationsByDomain[$domainId] = $current;
+
+            $lists = [];
+            $byList = is_array($mapping->settings['audience_lists'] ?? null)
+                ? $mapping->settings['audience_lists']
+                : [];
+            foreach ($byList as $lid => $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $id = preg_replace('/\D+/', '', (string) ($row['user_list_id'] ?? $lid));
+                if ($id === '') {
+                    continue;
+                }
+                $lists[] = [
+                    'user_list_id' => $id,
+                    'user_list_name' => (string) ($row['user_list_name'] ?? $row['audience_name'] ?? ('List '.$id)),
+                    'user_list_type' => (string) ($row['user_list_type'] ?? ''),
+                    'method' => (string) ($row['method'] ?? $row['route'] ?? 'ga4'),
+                    'attachment_status' => (string) ($row['attachment_status'] ?? 'pending'),
+                    'status' => (string) ($row['status'] ?? ''),
+                    'updated_at' => (string) ($row['updated_at'] ?? ''),
+                ];
+            }
+            foreach (['ga4', 'website'] as $route) {
+                $row = $current[$route] ?? null;
+                if (! is_array($row) || empty($row['user_list_id'])) {
+                    continue;
+                }
+                $id = (string) $row['user_list_id'];
+                if (collect($lists)->contains(fn ($l) => (string) ($l['user_list_id'] ?? '') === $id)) {
+                    continue;
+                }
+                $lists[] = [
+                    'user_list_id' => $id,
+                    'user_list_name' => (string) ($row['user_list_name'] ?? ''),
+                    'user_list_type' => '',
+                    'method' => $route,
+                    'attachment_status' => (string) ($row['attachment_status'] ?? 'pending'),
+                    'status' => (string) ($row['status'] ?? ''),
+                    'updated_at' => '',
+                ];
+            }
+            $audienceListsByDomain[$domainId] = $lists;
         }
 
         return view('integrations', compact(
@@ -830,6 +920,7 @@ class IntegrationsController extends Controller
             'trackingInstallationByDomain',
             'ipExclusionRows',
             'audienceAssociationsByDomain',
+            'audienceListsByDomain',
         ));
     }
 
@@ -1902,6 +1993,85 @@ class IntegrationsController extends Controller
     }
 
     /**
+     * All Clickronix-created audience lists for a domain (multiple lists supported).
+     */
+    public function audienceLists(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
+    {
+        $data = $request->validate([
+            'domain_id' => ['nullable', 'integer'],
+        ]);
+
+        $user = $request->user();
+        $domainId = (int) ($data['domain_id'] ?? 0);
+        $domain = null;
+        if ($domainId > 0) {
+            $domain = Domain::query()
+                ->where('user_id', $user->id)
+                ->where('id', $domainId)
+                ->first();
+        }
+        if (! $domain) {
+            $domain = Domain::query()
+                ->where('user_id', $user->id)
+                ->manual()
+                ->whereNotNull('google_ads_account_id')
+                ->orderBy('hostname')
+                ->first();
+        }
+
+        if (! $domain) {
+            return response()->json(['lists' => [], 'domain_id' => null]);
+        }
+
+        return response()->json([
+            'domain_id' => $domain->id,
+            'hostname' => $domain->hostname,
+            'lists' => $associations->listStoredAudiences($domain),
+        ]);
+    }
+
+    /**
+     * Live Google exclusion data for one user list (CSV/JSON download source).
+     */
+    public function audienceExclusionExport(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
+    {
+        $data = $request->validate([
+            'domain_id' => ['nullable', 'integer'],
+            'user_list_id' => ['required', 'string', 'max:40'],
+        ]);
+
+        $user = $request->user();
+        $domainId = (int) ($data['domain_id'] ?? 0);
+        $domain = null;
+        if ($domainId > 0) {
+            $domain = Domain::query()
+                ->where('user_id', $user->id)
+                ->where('id', $domainId)
+                ->with(['googleAdsAccount.connection', 'googleAdsMappings.account.connection'])
+                ->first();
+        }
+        if (! $domain) {
+            $domain = Domain::query()
+                ->where('user_id', $user->id)
+                ->manual()
+                ->whereNotNull('google_ads_account_id')
+                ->with(['googleAdsAccount.connection', 'googleAdsMappings.account.connection'])
+                ->orderBy('hostname')
+                ->first();
+        }
+
+        if (! $domain) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Select a domain linked to Google Ads first.',
+                'exclusions' => [],
+            ], 422);
+        }
+
+        return response()->json($associations->fetchExclusionExport($domain, (string) $data['user_list_id']));
+    }
+
+    /**
      * Create Ads-side audience (user list) for exclusion. Real Google Ads API call — not demo.
      * Requires GA4/GTM detected on the domain website (or linked measurement ID / GTM in portal).
      */
@@ -2564,7 +2734,7 @@ class IntegrationsController extends Controller
             'tracking' => [
                 'active' => $trackingActive,
                 'last_event_at' => $lastSeen
-                    ? \Carbon\Carbon::parse((string) $lastSeen)->toIso8601String()
+                    ? (UserTimezone::parseUtcInstant($lastSeen)?->toIso8601String())
                     : null,
             ],
             'direct' => [

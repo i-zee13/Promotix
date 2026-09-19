@@ -31,6 +31,50 @@
             </section>
 
             <section class="rounded-[10px] border border-white/10 bg-[#0d0d0d] p-[14px]">
+                <div class="mb-[8px] flex flex-wrap items-center justify-between gap-[8px]">
+                    <p class="text-[11px] font-semibold uppercase text-white/50">Your audience lists</p>
+                    <p class="text-[10px] text-white/40">Multiple lists allowed — select one to apply or download</p>
+                </div>
+                <div class="overflow-x-auto rounded-[8px] border border-white/10">
+                    <table class="min-w-full text-left text-[12px]">
+                        <thead class="bg-black/40 text-[11px] uppercase text-white/50">
+                            <tr>
+                                <th class="px-[10px] py-[8px]">List</th>
+                                <th class="px-[10px] py-[8px]">ID</th>
+                                <th class="px-[10px] py-[8px]">Status</th>
+                                <th class="px-[10px] py-[8px]">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr x-show="applyAudienceModal.listsLoading" x-cloak>
+                                <td colspan="4" class="px-[10px] py-[12px] text-white/50">Loading lists…</td>
+                            </tr>
+                            <tr x-show="!applyAudienceModal.listsLoading && !(applyAudienceModal.managedLists || []).length" x-cloak>
+                                <td colspan="4" class="px-[10px] py-[12px] text-amber-200/90">No lists yet — Create Audience first. Each create adds another list.</td>
+                            </tr>
+                            <template x-for="list in (applyAudienceModal.managedLists || [])" :key="'alist-' + list.user_list_id">
+                                <tr class="border-t border-white/10"
+                                    :class="String(applyAudienceModal.userListId) === String(list.user_list_id) ? 'bg-[var(--brand-primary)]/10' : ''">
+                                    <td class="px-[10px] py-[8px] font-medium" x-text="list.user_list_name"></td>
+                                    <td class="px-[10px] py-[8px] font-mono text-[11px] text-white/60" x-text="list.user_list_id"></td>
+                                    <td class="px-[10px] py-[8px] text-white/55" x-text="list.attachment_status || list.status || '—'"></td>
+                                    <td class="px-[10px] py-[8px]">
+                                        <div class="flex flex-wrap gap-[6px]">
+                                            <button type="button" class="rounded-[4px] border border-white/25 px-[8px] py-[3px] text-[11px]"
+                                                    @click="selectManagedAudienceList(list)">Use</button>
+                                            <button type="button" class="rounded-[4px] border border-white/25 px-[8px] py-[3px] text-[11px]"
+                                                    :disabled="applyAudienceModal.exportLoading"
+                                                    @click="downloadAudienceExclusionSheet(list.user_list_id)">Download</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="rounded-[10px] border border-white/10 bg-[#0d0d0d] p-[14px]">
                 <p class="mb-[8px] text-[11px] font-semibold uppercase text-white/50">Audience summary</p>
                 <p class="text-[14px] font-semibold" x-text="applyAudienceModal.audienceName"></p>
                 <div class="mt-[10px] grid gap-[8px] text-[12px] sm:grid-cols-4">
@@ -122,7 +166,11 @@
         <footer class="flex shrink-0 flex-wrap items-center justify-between gap-[8px] border-t border-white/15 px-[22px] py-[14px]">
             <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="closeApplyAudienceModal()">Cancel</button>
             <div class="flex flex-wrap gap-[8px]">
-                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="exportAudienceApplyPreview()">Download Google Sheet</button>
+                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]"
+                        :disabled="applyAudienceModal.exportLoading || !applyAudienceModal.userListId"
+                        @click="exportAudienceApplyPreview()">
+                    <span x-text="applyAudienceModal.exportLoading ? 'Downloading…' : 'Download Google Sheet'"></span>
+                </button>
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[18px] py-[8px] text-[13px] font-semibold text-white disabled:opacity-40"
                         :disabled="applyAudienceSelectedCount < 1 || !applyAudienceModal.sourceLinked || applyAudienceModal.applying || (applyAudienceModal.method === 'ga4' && applyAudienceModal.ga4Present === false)"
                         @click="applyEligibleAudienceExclusion()">

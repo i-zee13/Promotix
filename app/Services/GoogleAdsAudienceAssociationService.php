@@ -96,6 +96,195 @@ class GoogleAdsAudienceAssociationService
     }
 
     /**
+     * All Clickronix-managed audience lists for a domain (multiple lists allowed).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listStoredAudiences(Domain $domain): array
+    {
+        $mapping = DomainGoogleAdsMapping::query()
+            ->where('domain_id', $domain->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $settings = is_array($mapping?->settings) ? $mapping->settings : [];
+        $byId = is_array($settings['audience_lists'] ?? null) ? $settings['audience_lists'] : [];
+        $out = [];
+
+        foreach ($byId as $id => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $listId = preg_replace('/\D+/', '', (string) ($row['user_list_id'] ?? $id));
+            if ($listId === '') {
+                continue;
+            }
+            $out[$listId] = [
+                'user_list_id' => $listId,
+                'user_list_name' => (string) ($row['user_list_name'] ?? $row['audience_name'] ?? ('List '.$listId)),
+                'user_list_type' => (string) ($row['user_list_type'] ?? ''),
+                'method' => (string) ($row['method'] ?? $row['route'] ?? 'ga4'),
+                'route' => (string) ($row['route'] ?? $row['method'] ?? 'ga4'),
+                'status' => (string) ($row['status'] ?? 'created'),
+                'attachment_status' => (string) ($row['attachment_status'] ?? 'pending'),
+                'membership_days' => (int) ($row['membership_days'] ?? 90),
+                'attached_campaign_ids' => array_values($row['attached_campaign_ids'] ?? []),
+                'verified_campaign_ids' => array_values($row['verified_campaign_ids'] ?? []),
+                'updated_at' => (string) ($row['updated_at'] ?? ''),
+            ];
+        }
+
+        foreach (['ga4', 'website'] as $route) {
+            $row = is_array($settings['audience_associations'][$route] ?? null)
+                ? $settings['audience_associations'][$route]
+                : null;
+            $listId = preg_replace('/\D+/', '', (string) ($row['user_list_id'] ?? ''));
+            if ($listId === '' || isset($out[$listId])) {
+                continue;
+            }
+            $out[$listId] = [
+                'user_list_id' => $listId,
+                'user_list_name' => (string) ($row['user_list_name'] ?? $row['audience_name'] ?? ('List '.$listId)),
+                'user_list_type' => (string) ($row['user_list_type'] ?? ''),
+                'method' => (string) ($row['method'] ?? $route),
+                'route' => $route,
+                'status' => (string) ($row['status'] ?? 'created'),
+                'attachment_status' => (string) ($row['attachment_status'] ?? 'pending'),
+                'membership_days' => (int) ($row['membership_days'] ?? 90),
+                'attached_campaign_ids' => array_values($row['attached_campaign_ids'] ?? []),
+                'verified_campaign_ids' => array_values($row['verified_campaign_ids'] ?? []),
+                'updated_at' => (string) ($row['updated_at'] ?? ''),
+            ];
+        }
+
+        $list = array_values($out);
+        usort($list, static function (array $a, array $b): int {
+            return strcmp((string) ($b['updated_at'] ?? ''), (string) ($a['updated_at'] ?? ''));
+        });
+
+        return $list;
+    }
+
+    /**
+     * Live Google exclusion usage for one user list (campaigns Google is excluding + size stats).
+     *
+     * @return array<string, mixed>
+     */
+    public function fetchExclusionExport(Domain $domain, string $userListId): array
+    {
+        $userListId = preg_replace('/\D+/', '', $userListId);
+        $stats = $this->fetchUserListStats($domain, $userListId, null);
+        $account = $this->resolveAccount($domain);
+        $exclusions = [];
+
+        if ($account && $account->connection && $userListId !== '') {
+            $headers = $this->headersForAccount($account);
+            if ($headers) {
+                $customerId = preg_replace('/\D+/', '', (string) $account->customer_id);
+                $version = $this->connectionApi->apiVersions()[0] ?? 'v24';
+                $exclusions = $this->fetchLiveExclusionsForList($customerId, $version, $headers, $userListId);
+            }
+        }
+
+        $stored = null;
+        foreach ($this->listStoredAudiences($domain) as $row) {
+            if (($row['user_list_id'] ?? '') === $userListId) {
+                $stored = $row;
+                break;
+            }
+        }
+
+        return [
+            'ok' => true,
+            'domain_id' => $domain->id,
+            'hostname' => $domain->hostname,
+            'user_list_id' => $userListId !== '' ? $userListId : null,
+            'user_list_name' => $stats['user_list_name'] ?? ($stored['user_list_name'] ?? null),
+            'user_list_type' => $stats['user_list_type'] ?? ($stored['user_list_type'] ?? null),
+            'membership_status' => $stats['membership_status'] ?? null,
+            'search_size_label' => $stats['search_size_label'] ?? '—',
+            'display_size_label' => $stats['display_size_label'] ?? '—',
+            'size_for_search' => $stats['size_for_search'] ?? null,
+            'size_for_display' => $stats['size_for_display'] ?? null,
+            'status_label' => $stats['status_label'] ?? null,
+            'is_crm_shell' => (bool) ($stats['is_crm_shell'] ?? false),
+            'attachment_status' => $stored['attachment_status'] ?? null,
+            'exclusions' => $exclusions,
+            'exclusion_count' => count($exclusions),
+            'exported_at' => now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     * @return list<array{campaign_id: string, campaign_name: string, level: string, negative: bool, user_list_resource: string}>
+     */
+    private function fetchLiveExclusionsForList(
+        string $customerId,
+        string $version,
+        array $headers,
+        string $userListId,
+    ): array {
+        $want = "customers/{$customerId}/userLists/{$userListId}";
+        $query = 'SELECT campaign.id, campaign.name, campaign_criterion.negative, '
+            .'campaign_criterion.user_list.user_list, campaign_criterion.criterion_id '
+            .'FROM campaign_criterion '
+            ."WHERE campaign_criterion.type = 'USER_LIST' "
+            .'AND campaign_criterion.negative = TRUE '
+            ."AND campaign_criterion.user_list.user_list = '{$want}'";
+
+        $response = Http::timeout(30)
+            ->withHeaders($headers)
+            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
+                'query' => $query,
+            ]);
+
+        if (! $response->successful()) {
+            Log::warning('Google Ads exclusion export query failed', [
+                'customer_id' => $customerId,
+                'user_list_id' => $userListId,
+                'body' => Str::limit((string) $response->body(), 500),
+            ]);
+
+            return [];
+        }
+
+        $out = [];
+        $payload = $response->json();
+        if (! is_array($payload)) {
+            return [];
+        }
+
+        foreach ($payload as $chunk) {
+            if (! is_array($chunk)) {
+                continue;
+            }
+            foreach (($chunk['results'] ?? []) as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $cid = preg_replace('/\D+/', '', (string) ($row['campaign']['id'] ?? ''));
+                if ($cid === '') {
+                    continue;
+                }
+                $out[] = [
+                    'campaign_id' => $cid,
+                    'campaign_name' => (string) ($row['campaign']['name'] ?? ('Campaign '.$cid)),
+                    'level' => 'Campaign',
+                    'negative' => true,
+                    'user_list_resource' => (string) (
+                        $row['campaignCriterion']['userList']['userList']
+                        ?? $row['campaign_criterion']['user_list']['user_list']
+                        ?? $want
+                    ),
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Live Google Ads user-list membership / size stats for the Apply modal + CSV export.
      *
      * @return array{
@@ -1399,6 +1588,19 @@ class GoogleAdsAudienceAssociationService
             : [];
         $byRoute[$route] = $association;
         $settings['audience_associations'] = $byRoute;
+
+        // Keep every list id so multiple audiences coexist (Create N times → N lists).
+        $listId = preg_replace('/\D+/', '', (string) ($association['user_list_id'] ?? ''));
+        if ($listId !== '') {
+            $byList = is_array($settings['audience_lists'] ?? null) ? $settings['audience_lists'] : [];
+            $prev = is_array($byList[$listId] ?? null) ? $byList[$listId] : [];
+            $byList[$listId] = array_merge($prev, $association, [
+                'user_list_id' => $listId,
+                'updated_at' => (string) ($association['updated_at'] ?? now()->toIso8601String()),
+            ]);
+            $settings['audience_lists'] = $byList;
+        }
+
         $mapping->audience_exclusion_enabled = true;
         $mapping->settings = $settings;
         $mapping->save();
