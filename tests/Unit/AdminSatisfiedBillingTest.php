@@ -44,6 +44,21 @@ class AdminSatisfiedBillingTest extends TestCase
         $this->assertFalse($user->needsCardOnboarding());
     }
 
+    public function test_admin_invite_with_plan_skips_card_onboarding(): void
+    {
+        $subscription = new Subscription([
+            'status' => 'active',
+            'metadata' => ['source' => 'super_admin_invite'],
+        ]);
+
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->shouldReceive('activeSubscription')->andReturn($subscription);
+        $user->shouldReceive('hasPaymentMethodOnFile')->andReturn(false);
+
+        $this->assertTrue($user->hasAdminSatisfiedBilling());
+        $this->assertFalse($user->needsCardOnboarding());
+    }
+
     public function test_self_serve_subscription_still_needs_card(): void
     {
         $user = Mockery::mock(User::class)->makePartial();

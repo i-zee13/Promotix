@@ -8,7 +8,8 @@
     <div class="pi-spec-modal-panel relative z-[1] flex max-h-[92vh] w-full max-w-[1120px] flex-col overflow-hidden rounded-[12px] border border-white/20 bg-[#121212] text-white shadow-2xl" @click.stop>
         <header class="flex shrink-0 items-start justify-between gap-[12px] border-b border-white/15 px-[22px] pb-[12px] pt-[18px]">
             <div class="min-w-0">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-white/45" x-text="'Step 0' + (audienceWizard.step + 1) + ' / ' + audienceWizard.stepLabels[audienceWizard.step]"></p>
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-white/45"
+                   x-text="'Step ' + String(wizardDisplayStepIndex + 1).padStart(2, '0') + ' / ' + wizardCurrentStepLabel"></p>
                 <h2 class="mt-[2px] text-[18px] font-semibold" x-text="audienceWizard.titles[audienceWizard.step]"></h2>
                 <p class="mt-[4px] text-[12px] text-white/55" x-text="audienceWizard.subtitles[audienceWizard.step]"></p>
             </div>
@@ -19,17 +20,13 @@
 
         <div class="shrink-0 border-b border-white/10 px-[22px] py-[12px]">
             <ol class="flex flex-wrap gap-[8px] text-[11px]">
-                <template x-for="(label, idx) in audienceWizard.stepLabels" :key="'wiz-'+label">
+                <template x-for="(stepItem, displayIdx) in wizardVisibleSteps" :key="'wiz-'+stepItem.id">
                     <li class="inline-flex items-center gap-[6px] rounded-full px-[10px] py-[4px]"
-                        :class="audienceWizard.step === idx
+                        :class="audienceWizard.step === stepItem.id
                             ? 'bg-[var(--brand-primary)] text-white'
-                            : (idx === 1 && audienceWizard.source === 'website'
-                                ? 'bg-white/5 text-white/40'
-                                : (idx === 2 && audienceWizard.source === 'ga4' && audienceWizard.step === 3
-                                    ? 'bg-white/5 text-white/40'
-                                    : (audienceWizard.step > idx ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/5 text-white/55')))">
-                        <span class="font-semibold" x-text="String(idx + 1).padStart(2, '0')"></span>
-                        <span x-text="label"></span>
+                            : (audienceWizard.step > stepItem.id ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/5 text-white/55')">
+                        <span class="font-semibold" x-text="String(displayIdx + 1).padStart(2, '0')"></span>
+                        <span x-text="stepItem.label"></span>
                     </li>
                 </template>
             </ol>
@@ -153,7 +150,9 @@
                         <div class="rounded-[8px] border border-white/10 bg-[#0a0a0a] px-[10px] py-[8px] text-[11px]">
                             <div class="flex items-center justify-between gap-[6px]">
                                 <span class="text-white/70">Invalid traffic event</span>
-                                <span class="rounded-full bg-white/10 px-[7px] py-[1px] text-[9px] font-semibold text-white/50">Not tested</span>
+                                <span class="rounded-full px-[7px] py-[1px] text-[9px] font-semibold"
+                                      :class="wizardInvalidEventReady ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/10 text-white/50'"
+                                      x-text="wizardInvalidEventReady ? 'Verified' : 'Not tested'"></span>
                             </div>
                         </div>
                         <div class="rounded-[8px] border border-white/10 bg-[#0a0a0a] px-[10px] py-[8px] text-[11px]">
@@ -220,10 +219,12 @@
                         <div class="sm:col-span-2 space-y-[8px]">
                             <div class="flex items-center justify-between gap-[8px]">
                                 <span class="text-[11px] text-white/55">Exclusion conditions</span>
-                                <button type="button" class="text-[11px] text-[#ffd0b0]" @click="addAudienceRuleCondition()">+ Add condition</button>
+                                <button type="button"
+                                        class="inline-flex items-center rounded-[5px] bg-[var(--brand-primary)] px-[9px] py-[4px] text-[11px] font-semibold text-white hover:opacity-90"
+                                        @click="addAudienceRuleCondition()">+ Add condition</button>
                             </div>
                             <template x-for="(row, idx) in audienceWizard.ruleConditions" :key="'aw-rule-'+idx">
-                                <div class="grid grid-cols-12 gap-[6px]">
+                                <div class="grid grid-cols-12 items-center gap-[6px] rounded-[7px] border border-white/15 bg-[#0a0a0a] px-[8px] py-[7px]">
                                     <select class="ae-field col-span-5 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]"
                                             x-model="row.param" @change="syncAudienceRuleOps(row)">
                                         <template x-for="p in (audienceWizard.ruleCatalog?.parameters || [])" :key="p.param">
@@ -245,7 +246,15 @@
                                     <template x-if="!(audienceRuleMeta(row.param)?.values || []).length">
                                         <input class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.value" placeholder="Value">
                                     </template>
-                                    <button type="button" class="col-span-1 text-white/45 hover:text-rose-300" @click="removeAudienceRuleCondition(idx)">×</button>
+                                    <button type="button"
+                                            class="col-span-1 inline-flex h-[28px] w-full items-center justify-center rounded-[5px] text-[#f87171] hover:bg-rose-500/15 hover:text-[#ef4444]"
+                                            title="Remove condition"
+                                            aria-label="Remove condition"
+                                            @click="removeAudienceRuleCondition(idx)">
+                                        <svg class="h-[15px] w-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 6h18M8 6V4h8v2m-9 0v14a2 2 0 002 2h6a2 2 0 002-2V6M10 11v6M14 11v6"/>
+                                        </svg>
+                                    </button>
                                 </div>
                             </template>
                             <p class="rounded-[8px] border border-white/10 bg-[#0a0a0a] px-[10px] py-[8px] text-[11px] text-white/70" x-text="audienceRuleSummary()"></p>
@@ -304,10 +313,12 @@
                         <div class="sm:col-span-2 space-y-[8px]">
                             <div class="flex items-center justify-between gap-[8px]">
                                 <span class="text-[11px] text-white/55">Exclusion conditions</span>
-                                <button type="button" class="text-[11px] text-[#ffd0b0]" @click="addAudienceRuleCondition()">+ Add condition</button>
+                                <button type="button"
+                                        class="inline-flex items-center rounded-[5px] bg-[var(--brand-primary)] px-[9px] py-[4px] text-[11px] font-semibold text-white hover:opacity-90"
+                                        @click="addAudienceRuleCondition()">+ Add condition</button>
                             </div>
                             <template x-for="(row, idx) in audienceWizard.ruleConditions" :key="'aw-web-rule-'+idx">
-                                <div class="grid grid-cols-12 gap-[6px]">
+                                <div class="grid grid-cols-12 items-center gap-[6px] rounded-[7px] border border-white/15 bg-[#0a0a0a] px-[8px] py-[7px]">
                                     <select class="ae-field col-span-5 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]"
                                             x-model="row.param" @change="syncAudienceRuleOps(row)">
                                         <template x-for="p in (audienceWizard.ruleCatalog?.parameters || [])" :key="'w-'+p.param">
@@ -329,7 +340,15 @@
                                     <template x-if="!(audienceRuleMeta(row.param)?.values || []).length">
                                         <input class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.value" placeholder="Value">
                                     </template>
-                                    <button type="button" class="col-span-1 text-white/45 hover:text-rose-300" @click="removeAudienceRuleCondition(idx)">×</button>
+                                    <button type="button"
+                                            class="col-span-1 inline-flex h-[28px] w-full items-center justify-center rounded-[5px] text-[#f87171] hover:bg-rose-500/15 hover:text-[#ef4444]"
+                                            title="Remove condition"
+                                            aria-label="Remove condition"
+                                            @click="removeAudienceRuleCondition(idx)">
+                                        <svg class="h-[15px] w-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 6h18M8 6V4h8v2m-9 0v14a2 2 0 002 2h6a2 2 0 002-2V6M10 11v6M14 11v6"/>
+                                        </svg>
+                                    </button>
                                 </div>
                             </template>
                             <p class="rounded-[8px] border border-white/10 bg-[#0a0a0a] px-[10px] py-[8px] text-[11px] text-white/70" x-text="audienceRuleSummary()"></p>
@@ -356,7 +375,7 @@
                 </aside>
             </div>
 
-            {{-- STEP 04: Verify & exclude --}}
+            {{-- STEP 04: Verify & exclude — only the route the user came from --}}
             <div x-show="audienceWizard.step === 3" class="space-y-[16px]">
                 <div class="grid gap-[8px] sm:grid-cols-4">
                     <template x-for="m in audiencePipelineMetrics()" :key="m.label">
@@ -367,22 +386,21 @@
                     </template>
                 </div>
 
-                <div class="grid gap-[8px] sm:grid-cols-4">
+                <div class="grid gap-[8px] sm:grid-cols-3">
                     <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
                         <p class="text-white/50">Account access</p>
                         <p class="mt-[4px] font-semibold" :class="wizardAdsConnected ? 'text-emerald-300' : 'text-white/60'" x-text="wizardAdsConnected ? 'Connected' : 'Pending'"></p>
                     </div>
                     <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
-                        <p class="text-white/50">Audience lists</p>
-                        <p class="mt-[4px] font-semibold text-white" x-text="wizardListCount + ' found'"></p>
+                        <p class="text-white/50">Route</p>
+                        <p class="mt-[4px] font-semibold text-white" x-text="audienceWizard.source === 'website' ? 'Ads route' : 'GA4 route'"></p>
                     </div>
                     <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
-                        <p class="text-white/50">GA4 list</p>
-                        <p class="mt-[4px] font-mono text-[11px]" x-text="audienceWizard.ga4ListId ? ('List ' + audienceWizard.ga4ListId) : '—'"></p>
-                    </div>
-                    <div class="rounded-[10px] border border-white/12 bg-[#0d0d0d] px-[12px] py-[10px] text-[12px]">
-                        <p class="text-white/50">Website list</p>
-                        <p class="mt-[4px] font-mono text-[11px]" x-text="audienceWizard.websiteListId ? ('List ' + audienceWizard.websiteListId) : '—'"></p>
+                        <p class="text-white/50" x-text="audienceWizard.source === 'website' ? 'Website list' : 'GA4 list'"></p>
+                        <p class="mt-[4px] font-mono text-[11px]"
+                           x-text="(audienceWizard.source === 'website' ? audienceWizard.websiteListId : audienceWizard.ga4ListId)
+                               ? ('List ' + (audienceWizard.source === 'website' ? audienceWizard.websiteListId : audienceWizard.ga4ListId))
+                               : '—'"></p>
                     </div>
                 </div>
 
@@ -399,7 +417,7 @@
                             </tr>
                         </thead>
                         <tbody class="text-white/85">
-                            <tr class="border-t border-white/10" x-show="audienceWizard.source === 'ga4' || audienceWizard.ga4ListId">
+                            <tr class="border-t border-white/10" x-show="audienceWizard.source === 'ga4'">
                                 <td class="px-[12px] py-[10px]">GA4</td>
                                 <td class="px-[12px] py-[10px]" x-text="audienceWizard.ga4Name"></td>
                                 <td class="px-[12px] py-[10px] font-mono" x-text="audienceWizard.ga4ListId ? ('List ' + audienceWizard.ga4ListId) : '—'"></td>
@@ -413,7 +431,7 @@
                                           x-text="wizardAttachmentLabel('ga4')"></span>
                                 </td>
                             </tr>
-                            <tr class="border-t border-white/10" x-show="audienceWizard.source === 'website' || audienceWizard.websiteListId">
+                            <tr class="border-t border-white/10" x-show="audienceWizard.source === 'website'">
                                 <td class="px-[12px] py-[10px]">Google Ads website</td>
                                 <td class="px-[12px] py-[10px]" x-text="audienceWizard.websiteName"></td>
                                 <td class="px-[12px] py-[10px] font-mono" x-text="audienceWizard.websiteListId ? ('List ' + audienceWizard.websiteListId) : '—'"></td>

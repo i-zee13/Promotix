@@ -56,7 +56,8 @@
                 <template x-for="(s, i) in steps" :key="s.key">
                     <button type="button"
                             class="rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition"
-                            :class="step === i ? 'bg-[var(--brand-primary,#FF6600)] text-white' : (i < step ? 'bg-white/15 text-white' : 'bg-white/5 text-white/45')"
+                            :class="step === i ? 'bg-[var(--brand-primary,#FF6600)] text-white' : (i < step ? 'bg-white/15 text-white' : (canVisitStep(i) ? 'bg-white/5 text-white/45' : 'bg-white/5 text-white/25 opacity-50 cursor-not-allowed'))"
+                            :disabled="!canVisitStep(i)"
                             @click="goStep(i)"
                             x-text="(i + 1) + '. ' + s.label"></button>
                 </template>
@@ -240,6 +241,8 @@ function createRoleWizard(cfg) {
 
     return {
         step: 0,
+        maxReached: 0,
+        stepError: '',
         storeUrl: cfg.storeUrl,
         lockedSlug: Boolean(cfg.lockedSlug),
         steps: [
@@ -280,13 +283,54 @@ function createRoleWizard(cfg) {
         get baseRolesForPortal() {
             return this.baseRoles.filter((r) => (r.portal || 'user') === this.form.portal);
         },
-        goStep(i) { if (i >= 0 && i < this.steps.length) this.step = i; },
+        goStep(i) {
+            const target = Number(i);
+            if (Number.isNaN(target) || target < 0 || target >= this.steps.length) return;
+            if (target <= this.maxReached) {
+                this.stepError = '';
+                this.step = target;
+                return;
+            }
+            for (let s = 0; s < target; s++) {
+                const err = this.stepValidationError(s);
+                if (err) {
+                    this.step = s;
+                    this.stepError = err;
+                    alert(err);
+                    return;
+                }
+            }
+            this.stepError = '';
+            this.step = target;
+            this.maxReached = Math.max(this.maxReached, target);
+        },
+        canVisitStep(i) {
+            return Number(i) <= this.maxReached;
+        },
+        stepValidationError(i) {
+            if (i === 0) {
+                if (!String(this.form.name || '').trim()) return 'Role name is required before you can continue.';
+                if (this.form.is_temporary && !String(this.form.expires_at || '').trim()) {
+                    return 'Expiration date is required for a temporary role.';
+                }
+            }
+            return '';
+        },
         next() {
-            if (this.step === 0 && !String(this.form.name || '').trim()) { alert('Role name is required.'); return; }
-            if (this.step < 4) this.step += 1;
+            const err = this.stepValidationError(this.step);
+            if (err) {
+                this.stepError = err;
+                alert(err);
+                return;
+            }
+            this.stepError = '';
+            if (this.step < 4) {
+                this.step += 1;
+                this.maxReached = Math.max(this.maxReached, this.step);
+            }
             if (this.step === 2) this.pruneAbilities();
         },
-        prev() { if (this.step > 0) this.step -= 1; },
+        prev() { if (this.step > 0) { this.stepError = ''; this.step -= 1; } },
         hasAnyPageAccess() {
             return Object.values(this.form.page_access || {}).some((l) => l === 'view' || l === 'full');
         },

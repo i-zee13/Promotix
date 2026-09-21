@@ -49,6 +49,10 @@
                 <div class="mt-[14px] flex flex-wrap gap-[8px]">
                     <button type="button" class="pi-primary-btn" @click="openSyncPreview()">Campaign Sync</button>
                     <button type="button" class="pi-ghost-btn" @click="openProtectionCenter()">Protection Rules</button>
+                    <button type="button" class="pi-ghost-btn pi-ghost-btn--wide" @click="openExclusionAudience()">
+                        title="Create exclusion audience in Google Ads, then apply to campaigns">
+                        Open Exclusion Audience
+                    </button>
                     <button type="button" class="pi-text-link" @click="openConnectGoogleModal()">
                         <span x-text="googleAdsSummary.connected ? '+ Add Connection' : 'Connect Google Ads'"></span>
                     </button>

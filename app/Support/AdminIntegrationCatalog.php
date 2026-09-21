@@ -119,17 +119,43 @@ class AdminIntegrationCatalog
     }
 
     /**
-     * Optional integrations surfaced on tenant Platform Integrate
+     * Optional integrations surfaced on tenant Detection / Platform Integrate
      * when enabled in Super Admin → Integrations.
+     * Cross-domain also requires the plan flag `cross_domain` when a user is provided.
      *
      * @return array{cross_domain: bool, chatbot: bool}
      */
-    public static function enabledTenantIntegrations(): array
+    public static function enabledTenantIntegrations(?\App\Models\User $user = null): array
     {
+        $crossDomain = self::integrationEnabledForTenants('cross-domain');
+        if ($crossDomain && $user !== null) {
+            $crossDomain = \App\Support\WorkspacePlanFeatures::enabled(
+                $user,
+                \App\Support\WorkspacePlanFeatures::CROSS_DOMAIN
+            );
+        }
+
         return [
-            'cross_domain' => self::integrationEnabledForTenants('cross-domain'),
+            'cross_domain' => $crossDomain,
             'chatbot' => self::integrationEnabledForTenants('guidance-chatbot'),
         ];
+    }
+
+    /** Platform Integrations toggle On + plan feature `cross_domain` On. */
+    public static function crossDomainAvailableForUser(?\App\Models\User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        if (! self::integrationEnabledForTenants('cross-domain')) {
+            return false;
+        }
+
+        return \App\Support\WorkspacePlanFeatures::enabled(
+            $user,
+            \App\Support\WorkspacePlanFeatures::CROSS_DOMAIN
+        );
     }
 
     public static function integrationEnabledForTenants(string $name): bool

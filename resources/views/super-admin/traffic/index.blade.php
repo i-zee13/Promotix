@@ -11,10 +11,17 @@
             stats:   '{{ url('api/admin/traffic/stats') }}',
             block:   '{{ url('api/admin/traffic/block-ip') }}',
             blocklist: '{{ url('api/admin/traffic/blocklist') }}',
+            whitelistStore: '{{ route('super-admin.settings.whitelist.store') }}',
+            whitelistModeBase: '{{ url('/super-admin/settings/whitelist') }}',
+            whitelistManageAllow: '{{ route('super-admin.settings.whitelist', ['kind' => 'provider', 'list' => 'allow']) }}',
+            whitelistManageBlock: '{{ route('super-admin.settings.whitelist', ['kind' => 'provider', 'list' => 'block']) }}',
         },
         csrf: '{{ csrf_token() }}',
         domains: @js($domains->map(fn ($d) => ['id' => $d->id, 'hostname' => $d->hostname])->values()),
         initialStats: @js($stats),
+        providerOptions: @js($providerOptions ?? []),
+        allowProviders: @js($allowProviders ?? []),
+        blockProviders: @js($blockProviders ?? []),
     })"
     x-init="loadStats(); loadTraffic();"
     @traffic-block-ip.window="blockIp($event.detail.ip, $event.detail.blocked)">
@@ -23,9 +30,15 @@
         <label class="figma-sa-traffic-date">
             <input type="date" class="figma-sa-traffic-date-input" x-model="filters.date" @change="loadTraffic(1)">
         </label>
-        <a href="{{ route('super-admin.traffic.cross-domain') }}" class="figma-sa-btn figma-sa-btn-outline !px-3 !py-2 text-[12px]">
+        <a href="{{ route('super-admin.traffic.cross-domain') }}" class="figma-sa-traffic-toolbar-btn">
             Cross-domain intel
         </a>
+        <button type="button" class="figma-sa-traffic-toolbar-btn" @click="openProviderModal('allow')">
+            Whitelisted Provider
+        </button>
+        <button type="button" class="figma-sa-traffic-toolbar-btn" @click="openProviderModal('block')">
+            Blocklisted Provider
+        </button>
         <a href="{{ route('super-admin.domains.index') }}" class="figma-sa-traffic-add-btn ml-auto">
             <span class="figma-sa-traffic-add-icon">+</span>
             Add Tracker
@@ -72,6 +85,17 @@
             <span x-text="toast.message"></span>
         </div>
     </template>
+
+    @if (session('status'))
+        <div class="figma-sa-msg">
+            <span>{{ session('status') }}</span>
+        </div>
+    @endif
+    @if ($errors->any())
+        <div class="figma-sa-msg figma-sa-msg--danger">
+            <span>{{ $errors->first() }}</span>
+        </div>
+    @endif
 
     <div class="figma-sa-traffic-filters">
         <label class="figma-sa-dash-search figma-sa-traffic-search">
@@ -262,6 +286,89 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    {{-- Provider allow / block modal --}}
+    <div
+        x-show="providerModal.open"
+        x-cloak
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+        @keydown.escape.window="if (providerModal.open) providerModal.open = false"
+    >
+        <div class="w-full max-w-lg rounded-[10px] border border-white/10 bg-[#1a1a1a] p-5 shadow-2xl" @click.outside="providerModal.open = false">
+            <div class="mb-4 flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-semibold text-white" x-text="providerModal.listType === 'block' ? 'Blocklisted Provider' : 'Whitelisted Provider'"></h2>
+                    <p class="mt-1 text-[12px] text-white/55" x-show="providerModal.listType === 'allow'">
+                        Add a provider (e.g. Google LLC) → every matching IP / ASN is whitelisted and will never go on the block list.
+                    </p>
+                    <p class="mt-1 text-[12px] text-white/55" x-show="providerModal.listType === 'block'" x-cloak>
+                        Add a provider → every matching IP / ASN is blocked across all domains.
+                    </p>
+                </div>
+                <button type="button" class="figma-sa-dash-row-menu" @click="providerModal.open = false" aria-label="Close">×</button>
+            </div>
+
+            <form method="POST" action="{{ route('super-admin.settings.whitelist.store') }}" class="space-y-3">
+                @csrf
+                <input type="hidden" name="kind" value="provider">
+                <input type="hidden" name="list_type" :value="providerModal.listType">
+                <input type="hidden" name="value" :value="providerModal.provider">
+                <input type="hidden" name="label" :value="providerLabel(providerModal.provider)">
+
+                <label class="block">
+                    <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-white/45">Provider</span>
+                    <select name="provider" class="figma-input w-full" x-model="providerModal.provider" required>
+                        <template x-for="p in providerOptions" :key="p.id">
+                            <option :value="p.id" x-text="p.label"></option>
+                        </template>
+                    </select>
+                </label>
+
+                <p class="rounded-[8px] border border-white/10 bg-black/30 px-3 py-2 text-[11px] text-white/65">
+                    <span x-show="providerModal.listType === 'allow'">
+                        Example: <strong class="text-white/90">Google LLC</strong> on whitelist → all Google CIDRs / ASNs show as allowed; they will not be blocklisted.
+                    </span>
+                    <span x-show="providerModal.listType === 'block'" x-cloak>
+                        Example: <strong class="text-white/90">Google LLC</strong> on blocklist → all Google CIDRs / ASNs are blocked platform-wide.
+                    </span>
+                </p>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <a
+                        :href="providerModal.listType === 'block' ? urls.whitelistManageBlock : urls.whitelistManageAllow"
+                        class="text-[12px] text-[#FF6600] hover:underline"
+                    >Manage all lists →</a>
+                    <div class="flex gap-2">
+                        <button type="button" class="figma-sa-traffic-toolbar-btn" @click="providerModal.open = false">Cancel</button>
+                        <button
+                            type="submit"
+                            class="figma-sa-btn figma-sa-btn-primary !h-[43px] !px-4 !text-[12px]"
+                            :style="providerModal.listType === 'block' ? 'background:#dc2626' : 'background:#16a34a'"
+                            x-text="providerModal.listType === 'block' ? 'Add to blocklist' : 'Add to whitelist'"
+                        ></button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="mt-4 border-t border-white/10 pt-3" x-show="activeProvidersForModal.length">
+                <p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/45"
+                   x-text="providerModal.listType === 'block' ? 'Currently blocklisted' : 'Currently whitelisted'"></p>
+                <ul class="space-y-1.5">
+                    <template x-for="row in activeProvidersForModal" :key="row.id">
+                        <li class="flex items-center justify-between gap-2 rounded-[6px] border border-white/10 bg-black/25 px-3 py-2 text-[12px]">
+                            <span class="text-white" x-text="row.label"></span>
+                            <form method="POST" :action="urls.whitelistModeBase + '/' + row.id + '/mode'">
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="mode" value="off">
+                                <button type="submit" class="text-[11px] text-white/50 hover:text-rose-300">Remove</button>
+                            </form>
+                        </li>
+                    </template>
+                </ul>
             </div>
         </div>
     </div>

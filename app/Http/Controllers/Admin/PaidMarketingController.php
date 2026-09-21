@@ -4289,7 +4289,7 @@ class PaidMarketingController extends Controller
             'detectionProfiles' => \App\Support\DetectionProfiles::catalog(),
             'googleAdsAccounts' => $googleAdsAccounts,
             'planDetectionFeatures' => \App\Support\DetectionPlanFeatures::forUser($request->user()),
-            'enabledTenantIntegrations' => AdminIntegrationCatalog::enabledTenantIntegrations(),
+            'enabledTenantIntegrations' => AdminIntegrationCatalog::enabledTenantIntegrations($request->user()),
             'enabledAdPlatforms' => AdminIntegrationCatalog::enabledAdPlatforms(),
         ]);
     }
@@ -4437,6 +4437,7 @@ class PaidMarketingController extends Controller
             is_array($before?->google_exclusion_rules) ? $before->google_exclusion_rules : []
         );
 
+        $crossDomainAvailable = AdminIntegrationCatalog::crossDomainAvailableForUser($request->user());
         $crossDomainEnabled = $request->has('cross_domain_exclusion_enabled')
             ? $request->boolean('cross_domain_exclusion_enabled')
             : (bool) ($existingExclusionRules['cross_domain_enabled'] ?? false);
@@ -4445,6 +4446,9 @@ class PaidMarketingController extends Controller
             : (string) ($existingExclusionRules['cross_domain_mode'] ?? 'all');
         if (! in_array($crossDomainMode, ['all', 'domain_similarity'], true)) {
             $crossDomainMode = 'all';
+        }
+        if (! $crossDomainAvailable) {
+            $crossDomainEnabled = false;
         }
 
         $googleExclusionRules = [

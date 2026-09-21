@@ -8,6 +8,10 @@ function trafficLogs(initial) {
         toast: { message: '', type: 'success' },
         loading: { traffic: false, blocklist: false },
         showBlocklist: false,
+        providerModal: { open: false, listType: 'allow', provider: 'google' },
+        providerOptions: initial.providerOptions || [],
+        allowProviders: initial.allowProviders || [],
+        blockProviders: initial.blockProviders || [],
         perPage: 10,
         filters: {
             search: '',
@@ -39,6 +43,20 @@ function trafficLogs(initial) {
             if (!this.filters.country) return 'Country / Geo Filter';
             const names = { US: 'United States', PK: 'Pakistan', IN: 'India', TR: 'Turkey' };
             return names[this.filters.country] || this.filters.country;
+        },
+        get activeProvidersForModal() {
+            return this.providerModal.listType === 'block' ? this.blockProviders : this.allowProviders;
+        },
+        openProviderModal(listType) {
+            this.providerModal = {
+                open: true,
+                listType: listType === 'block' ? 'block' : 'allow',
+                provider: (this.providerOptions[0] && this.providerOptions[0].id) || 'google',
+            };
+        },
+        providerLabel(id) {
+            const hit = (this.providerOptions || []).find((p) => p.id === id);
+            return hit ? hit.label : id;
         },
         formatNumber(value) {
             return new Intl.NumberFormat().format(Number(value || 0));

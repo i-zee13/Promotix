@@ -29,15 +29,16 @@
 <style>
     .crw { color: #fff; }
     .crw-head {
-        display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
         gap: 16px; margin-bottom: 22px;
     }
+    .crw-head > div:first-child { min-width: 0; flex: 1 1 240px; }
     .crw-crumb { margin: 0 0 6px; font-size: 12px; color: rgba(255,255,255,.45); }
     .crw-crumb a { color: rgba(255,255,255,.55); text-decoration: none; }
     .crw-crumb a:hover { color: #fff; }
     .crw-title { margin: 0; font-size: 28px; font-weight: 600; line-height: 1.15; color: #fff; }
     .crw-sub { margin: 6px 0 0; font-size: 13px; color: rgba(255,255,255,.55); max-width: 520px; }
-    .crw-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .crw-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex-shrink: 0; }
     .crw-btn {
         display: inline-flex; align-items: center; justify-content: center; gap: 6px;
         min-height: 38px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
@@ -65,8 +66,20 @@
         border-radius: 8px; cursor: pointer; text-align: left; width: 100%;
         background: transparent; border: 0; color: inherit;
     }
+    .crw-step.is-locked { cursor: not-allowed; opacity: 0.45; }
+    .crw-step.is-locked:hover { background: transparent; }
     .crw-step + .crw-step { margin-top: 2px; }
     .crw-step.is-active { background: rgba(255,102,0,.12); }
+    .crw-step-error {
+        margin: 0 0 14px; padding: 10px 12px; border-radius: 8px;
+        border: 1px solid rgba(248,113,113,.45); background: rgba(248,113,113,.1);
+        font-size: 12px; color: #fecaca;
+    }
+    .crw-field.is-invalid .crw-input,
+    .crw-field.is-invalid .crw-textarea,
+    .crw-field.is-invalid .crw-select {
+        border-color: rgba(248,113,113,.7);
+    }
     .crw-step-num {
         width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center;
         font-size: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,.25);
@@ -288,7 +301,14 @@
             {{-- Vertical stepper --}}
             <aside class="crw-stepper" aria-label="Create role steps">
                 <template x-for="(s, i) in steps" :key="s.key">
-                    <button type="button" class="crw-step" :class="{ 'is-active': step === i, 'is-done': i < step }" @click="goStep(i)">
+                    <button
+                        type="button"
+                        class="crw-step"
+                        :class="{ 'is-active': step === i, 'is-done': i < step, 'is-locked': !canVisitStep(i) }"
+                        :disabled="!canVisitStep(i)"
+                        :aria-disabled="!canVisitStep(i)"
+                        @click="goStep(i)"
+                    >
                         <span class="crw-step-num" x-text="i < step ? '✓' : (i + 1)"></span>
                         <span>
                             <span class="crw-step-label" x-text="s.label"></span>
@@ -300,14 +320,16 @@
 
             {{-- Main panel --}}
             <section class="crw-panel">
+                <div class="crw-step-error" x-show="stepError" x-cloak x-text="stepError"></div>
+
                 {{-- Step 1: Role details --}}
                 <div x-show="step === 0" x-cloak>
                     <h2 class="crw-panel-title">Role details</h2>
                     <p class="crw-panel-lead">Define basic information for this role.</p>
 
-                    <div class="crw-field">
-                        <label class="crw-label" for="cr-name">Role name <span class="crw-count" x-text="(form.name || '').length + '/100'"></span></label>
-                        <input id="cr-name" name="name" type="text" maxlength="100" x-model="form.name" @input="autoSlug" class="crw-input" placeholder="e.g. Campaign Analyst" required>
+                    <div class="crw-field" :class="{ 'is-invalid': stepError && !String(form.name || '').trim() }">
+                        <label class="crw-label" for="cr-name">Role name <span class="text-rose-300">*</span> <span class="crw-count" x-text="(form.name || '').length + '/100'"></span></label>
+                        <input id="cr-name" name="name" type="text" maxlength="100" x-model="form.name" @input="autoSlug(); stepError = ''" class="crw-input" placeholder="e.g. Campaign Analyst" required>
                         <p class="crw-hint">Choose a clear, descriptive name for this role.</p>
                     </div>
 
@@ -363,8 +385,8 @@
                             </label>
                         </div>
                         <div class="mt-3" x-show="form.is_temporary" x-cloak>
-                            <label class="crw-label" for="cr-exp">Expiration date</label>
-                            <input id="cr-exp" type="datetime-local" class="crw-input" x-model="form.expires_at">
+                            <label class="crw-label" for="cr-exp">Expiration date <span class="text-rose-300">*</span></label>
+                            <input id="cr-exp" type="datetime-local" class="crw-input" x-model="form.expires_at" @input="stepError = ''" required>
                         </div>
                     </div>
 
@@ -642,7 +664,7 @@
                     <span aria-hidden="true">⚠</span>
                     <span>Abilities require matching page access.</span>
                 </div>
-                <button type="button" class="crw-btn crw-btn-primary" x-show="step < 4" @click="next" x-text="continueLabel"></button>
+                <button type="button" class="crw-btn crw-btn-primary" x-show="step < 4" @click="next()" :disabled="!stepIsValid(step)" x-text="continueLabel"></button>
                 <button type="button" class="crw-btn crw-btn-primary" x-show="step === 4" x-cloak @click="submitFromHeader()" :disabled="!form.confirm_review">Create role &gt;</button>
             </aside>
                 </div>
@@ -663,6 +685,8 @@ function createRoleWizard(cfg) {
 
     return {
         step: 0,
+        maxReached: 0,
+        stepError: '',
         storeUrl: cfg.storeUrl,
         indexUrl: cfg.indexUrl,
         chipDraft: '',
@@ -821,18 +845,87 @@ function createRoleWizard(cfg) {
             return this.userAbilities.filter((a) => this.form.abilities.includes(a.key));
         },
         goStep(i) {
-            if (i >= 0 && i < this.steps.length) this.step = i;
-        },
-        next() {
-            if (this.step === 0 && !String(this.form.name || '').trim()) {
-                alert('Role name is required.');
+            const target = Number(i);
+            if (Number.isNaN(target) || target < 0 || target >= this.steps.length) return;
+            // Always allow going back to an already unlocked step.
+            if (target <= this.maxReached) {
+                this.stepError = '';
+                this.step = target;
                 return;
             }
-            if (this.step < 4) this.step += 1;
+            // Forward jump only if every prior step is valid.
+            for (let s = 0; s < target; s++) {
+                const err = this.stepValidationError(s);
+                if (err) {
+                    this.step = s;
+                    this.stepError = err;
+                    return;
+                }
+            }
+            this.stepError = '';
+            this.step = target;
+            this.maxReached = Math.max(this.maxReached, target);
+        },
+        canVisitStep(i) {
+            return Number(i) <= this.maxReached;
+        },
+        stepIsValid(i) {
+            return !this.stepValidationError(i);
+        },
+        stepValidationError(i) {
+            if (i === 0) {
+                if (!String(this.form.name || '').trim()) {
+                    return 'Role name is required before you can continue.';
+                }
+                if (this.form.is_temporary && !String(this.form.expires_at || '').trim()) {
+                    return 'Expiration date is required for a temporary role.';
+                }
+                return '';
+            }
+            if (i === 1) {
+                if (!this.form.portal) {
+                    return 'Select a portal before continuing.';
+                }
+                if (this.form.scope.mode === 'project' && !(this.form.scope.project_ids || []).length) {
+                    return 'Add at least one project, or switch scope to Entire workspace.';
+                }
+                if (this.form.scope.mode === 'campaign' && !(this.form.scope.campaign_ids || []).length) {
+                    return 'Add at least one campaign, or switch scope to Entire workspace.';
+                }
+                return '';
+            }
+            if (i === 2) {
+                // Pages optional — none is allowed, but keep hook for future required rules.
+                return '';
+            }
+            if (i === 3) {
+                return '';
+            }
+            if (i === 4) {
+                if (!this.form.confirm_review) {
+                    return 'Confirm the review checkbox before creating the role.';
+                }
+            }
+            return '';
+        },
+        next() {
+            const err = this.stepValidationError(this.step);
+            if (err) {
+                this.stepError = err;
+                return;
+            }
+            this.stepError = '';
+            if (this.step < 4) {
+                this.step += 1;
+                this.maxReached = Math.max(this.maxReached, this.step);
+            }
             if (this.step === 3) this.pruneAbilities();
         },
         prev() {
-            if (this.step > 0) this.step -= 1;
+            if (this.step > 0) {
+                this.stepError = '';
+                this.step -= 1;
+            }
         },
         hasAnyPageAccess() {
             return Object.values(this.form.page_access || {}).some((l) => l === 'view' || l === 'full');
@@ -871,22 +964,35 @@ function createRoleWizard(cfg) {
             }
         },
         submitFromHeader() {
-            if (this.step !== 4) {
-                this.step = 4;
-                return;
+            // Finish remaining steps in order — never skip validation.
+            while (this.step < 4) {
+                const err = this.stepValidationError(this.step);
+                if (err) {
+                    this.stepError = err;
+                    return;
+                }
+                this.step += 1;
+                this.maxReached = Math.max(this.maxReached, this.step);
+                if (this.step === 3) this.pruneAbilities();
             }
             if (!this.form.confirm_review) {
-                alert('Confirm the review checkbox before creating the role.');
+                this.stepError = 'Confirm the review checkbox before creating the role.';
                 return;
             }
+            this.stepError = '';
             this.pruneAbilities();
             document.getElementById('create-role-form')?.requestSubmit();
         },
         onSubmit(e) {
-            if (this.step !== 4 || !this.form.confirm_review) {
-                e.preventDefault();
-                this.step = 4;
-                return;
+            for (let s = 0; s <= 4; s++) {
+                const err = this.stepValidationError(s);
+                if (err) {
+                    e.preventDefault();
+                    this.step = s;
+                    this.maxReached = Math.max(this.maxReached, s);
+                    this.stepError = err;
+                    return;
+                }
             }
             this.pruneAbilities();
         },

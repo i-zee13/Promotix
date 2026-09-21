@@ -36,7 +36,7 @@
                             <th>Portal</th>
                             <th>Permissions</th>
                             <th>Users</th>
-                            <th class="text-right">Actions</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>

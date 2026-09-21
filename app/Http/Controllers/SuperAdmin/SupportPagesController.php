@@ -606,7 +606,53 @@ class SupportPagesController extends Controller
             'stats' => $stats,
             'domains' => Domain::query()->orderBy('hostname')->get(['id', 'hostname']),
             'crossDomainIntel' => $this->buildCrossDomainIntel(50),
+            'providerOptions' => collect(\App\Support\GlobalIpAllowlist::providerCidrs())
+                ->keys()
+                ->map(fn (string $id) => [
+                    'id' => $id,
+                    'label' => match ($id) {
+                        'google' => 'Google LLC',
+                        'bing' => 'Microsoft / Bing',
+                        'meta' => 'Meta Platforms',
+                        default => ucfirst($id),
+                    },
+                ])
+                ->values()
+                ->all(),
+            'allowProviders' => $this->providerListEntries('allow'),
+            'blockProviders' => $this->providerListEntries('block'),
         ]);
+    }
+
+    /**
+     * @return list<array{id:int,label:string,provider:string}>
+     */
+    private function providerListEntries(string $listType): array
+    {
+        if (! Schema::hasTable('global_ip_allowlist_entries')) {
+            return [];
+        }
+
+        $query = \App\Models\GlobalIpAllowlistEntry::query()
+            ->where('kind', 'provider')
+            ->where('enabled', true);
+
+        if ($listType === 'block') {
+            $query->where('list_type', 'block');
+        } else {
+            $query->where(fn ($q) => $q->where('list_type', 'allow')->orWhereNull('list_type'));
+        }
+
+        return $query
+            ->orderBy('label')
+            ->get(['id', 'label', 'provider', 'value'])
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'label' => (string) ($row->label ?: ucfirst((string) ($row->provider ?: $row->value))),
+                'provider' => (string) ($row->provider ?: $row->value),
+            ])
+            ->values()
+            ->all();
     }
 
     public function crossDomainIntel(Request $request): View|\Illuminate\Http\JsonResponse

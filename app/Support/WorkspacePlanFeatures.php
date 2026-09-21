@@ -6,13 +6,15 @@ use App\Models\Plan;
 use App\Models\User;
 
 /**
- * Workspace (non-detection) plan gates: team invite, provider whitelist UI.
+ * Workspace (non-detection) plan gates: team invite, provider whitelist, cross-domain.
  */
 class WorkspacePlanFeatures
 {
     public const TEAM_INVITE = 'team_invite';
 
     public const PROVIDER_WHITELIST = 'provider_ip_whitelist';
+
+    public const CROSS_DOMAIN = 'cross_domain';
 
     /**
      * @return list<array{key: string, label: string, description: string}>
@@ -29,6 +31,11 @@ class WorkspacePlanFeatures
                 'key' => self::PROVIDER_WHITELIST,
                 'label' => 'Provider / IP whitelist',
                 'description' => 'Treat Google / Bing / Meta ranges as trusted so they are not blocked.',
+            ],
+            [
+                'key' => self::CROSS_DOMAIN,
+                'label' => 'Cross-domain intelligence',
+                'description' => 'Show Cross-domain card on Detection Settings. Also requires Super Admin → Integrations → Cross-domain toggle On.',
             ],
         ];
     }
@@ -73,7 +80,10 @@ class WorkspacePlanFeatures
             || str_contains($name, 'custom');
 
         return match ($key) {
+            // Premium defaults — Cross-domain stays off until Super Admin checks the plan box
+            // (platform Integrations toggle is a separate master switch).
             self::TEAM_INVITE, self::PROVIDER_WHITELIST => $isPremiumTier,
+            self::CROSS_DOMAIN => false,
             default => false,
         };
     }

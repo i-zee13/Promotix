@@ -482,6 +482,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 color: rgba(255, 255, 255, 0.95);
             }
             .pi-ghost-btn:hover { background: rgba(0, 0, 0, 0.22); }
+            .pi-ghost-btn--wide {
+                max-width: none;
+                width: auto;
+                white-space: nowrap;
+                padding: 0 12px;
+            }
             .pi-primary-btn {
                 display: inline-flex;
                 align-items: center;
@@ -1252,8 +1258,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <td>
                                     <span class="{{ ! empty($row['script_ok']) ? 'pi-status-connected' : 'pi-status-pending' }}">{{ $row['script_status'] ?? '—' }}</span>
                                 </td>
-                                <td class="whitespace-nowrap text-[12px] font-medium text-black/80">
-                                    {{ $row['last_event'] ?? '—' }}
+                                <td class="whitespace-nowrap text-[12px] font-medium text-black/80"
+                                    data-platform-domain="{{ $row['domain_id'] ?? '' }}">
+                                    <span class="pi-last-event">{{ $row['last_event'] ?? '—' }}</span>
                                 </td>
                                 <td>
                                     <span class="pi-prot {{ ! empty($row['protection_ok']) ? 'is-audience' : 'is-track' }}">
@@ -2430,6 +2437,18 @@ function platformIntegrations(config) {
         openAudienceMethodModal() {
             this.openAudienceWizard();
         },
+        /** Google Ads card CTA: create exclusion audience, then apply to campaigns. */
+        openExclusionAudience() {
+            if (!this.googleAdsSummary?.account_connected && !this.googleAdsSummary?.connected) {
+                this.showMenuToast('Connect Google Ads first, then open Exclusion Audience.', 'error');
+                return;
+            }
+            if (!this.resolveAudienceDomainId()) {
+                this.showMenuToast('Select a domain first, then open Exclusion Audience.', 'error');
+                return;
+            }
+            this.openAudienceWizard();
+        },
         closeAudienceMethodModal() {
             this.audienceMethodModal.open = false;
             this.unlockSpecModal();
@@ -2461,6 +2480,14 @@ function platformIntegrations(config) {
         get wizardScriptInstalled() {
             return Boolean(this.trackingInstallation?.script?.ok || this.trackingInstallation?.script?.installed);
         },
+        /** Ready to fire cr_invalid_traffic: Clickronix script + delivery path (GTM or direct gtag). */
+        get wizardInvalidEventReady() {
+            if (!this.wizardScriptInstalled) return false;
+            if ((this.audienceWizard?.delivery || 'gtm') === 'gtm') {
+                return this.wizardGtmConnected;
+            }
+            return Boolean(this.trackingInstallation?.google_tag?.ok || this.connectionHealth?.google_tag_ok);
+        },
         get wizardWebsiteHost() {
             const rows = Array.isArray(this.trackingIds) ? this.trackingIds : [];
             const match = rows.find((r) => String(r.domain_id) === String(this.resolveAudienceDomainId())) || rows[0];
@@ -2480,6 +2507,28 @@ function platformIntegrations(config) {
                 return this.audienceWizard.websiteListId ? 'Continue to Verify →' : 'Create Ads list & verify →';
             }
             return 'Done';
+        },
+        /** Top step bar: only Connections + chosen route + Verify (hide unused route). */
+        get wizardVisibleSteps() {
+            const labels = this.audienceWizard.stepLabels || [];
+            const all = [
+                { id: 0, label: labels[0] || 'Connections' },
+                { id: 1, label: labels[1] || 'GA4 route' },
+                { id: 2, label: labels[2] || 'Ads route' },
+                { id: 3, label: labels[3] || 'Verify & exclude' },
+            ];
+            if (this.audienceWizard.source === 'website') {
+                return all.filter((s) => s.id !== 1);
+            }
+            return all.filter((s) => s.id !== 2);
+        },
+        get wizardDisplayStepIndex() {
+            const idx = this.wizardVisibleSteps.findIndex((s) => s.id === this.audienceWizard.step);
+            return idx >= 0 ? idx : 0;
+        },
+        get wizardCurrentStepLabel() {
+            const hit = this.wizardVisibleSteps.find((s) => s.id === this.audienceWizard.step);
+            return hit?.label || (this.audienceWizard.stepLabels?.[this.audienceWizard.step] || '');
         },
         audienceRuleMeta(param) {
             const list = this.audienceWizard.ruleCatalog?.parameters || [];
@@ -2540,12 +2589,16 @@ function platformIntegrations(config) {
             return listId ? 'ok' : 'muted';
         },
         audiencePipelineMetrics() {
-            const hasList = Boolean(this.audienceWizard.ga4ListId || this.audienceWizard.websiteListId);
-            const attach = this.audienceWizard.ga4AttachmentStatus === 'verified'
-                || this.audienceWizard.websiteAttachmentStatus === 'verified'
+            const activeListId = this.audienceWizard.source === 'website'
+                ? this.audienceWizard.websiteListId
+                : this.audienceWizard.ga4ListId;
+            const hasList = Boolean(activeListId);
+            const attachStatus = this.audienceWizard.source === 'website'
+                ? this.audienceWizard.websiteAttachmentStatus
+                : this.audienceWizard.ga4AttachmentStatus;
+            const attach = attachStatus === 'verified'
                 ? 'Verified'
-                : (this.audienceWizard.ga4AttachmentStatus === 'attached'
-                    || this.audienceWizard.websiteAttachmentStatus === 'attached'
+                : (attachStatus === 'attached'
                     ? 'Attached'
                     : (hasList ? 'Pending attach' : '—'));
             return [
@@ -3237,56 +3290,99 @@ function platformIntegrations(config) {
                     this.showMenuToast(data.message || 'Could not load Google exclusion data for this list.', 'error');
                     return;
                 }
-                const esc = (v) => {
-                    const s = String(v ?? '');
-                    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-                };
-                const exclusions = Array.isArray(data.exclusions) ? data.exclusions : [];
-                const summary = [
-                    ['Field', 'Value'].map(esc).join(','),
-                    ['Audience name', data.user_list_name || this.applyAudienceModal.audienceName].map(esc).join(','),
-                    ['User list ID', data.user_list_id || id].map(esc).join(','),
-                    ['List type', data.user_list_type || ''].map(esc).join(','),
-                    ['Membership status', data.membership_status || ''].map(esc).join(','),
-                    ['Status', data.status_label || this.applyAudienceModal.status].map(esc).join(','),
-                    ['Search size', data.search_size_label || ''].map(esc).join(','),
-                    ['Display size', data.display_size_label || ''].map(esc).join(','),
-                    ['Search size (raw)', data.size_for_search ?? ''].map(esc).join(','),
-                    ['Display size (raw)', data.size_for_display ?? ''].map(esc).join(','),
-                    ['Exclusions Google is using', String(data.exclusion_count ?? exclusions.length)].map(esc).join(','),
-                    ['Domain', data.hostname || ''].map(esc).join(','),
-                    ['Exported at', data.exported_at || new Date().toISOString()].map(esc).join(','),
-                    '',
+                const escHtml = (v) => String(v ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+                const members = Array.isArray(data.invalid_members) ? data.invalid_members : [];
+                const summaryHeaders = [
+                    'Audience name',
+                    'User list ID',
+                    'List type',
+                    'Membership status',
+                    'Status',
+                    'Search size',
+                    'Display size',
+                    'Search size (raw)',
+                    'Display size (raw)',
+                    'Invalid members',
+                    'Domain',
+                    'Exported at',
                 ];
-                const header = ['Campaign ID', 'Campaign name', 'Level', 'Exclusion type', 'User list ID', 'User list name', 'Search size', 'Display size'].map(esc).join(',');
-                const lines = exclusions.length
-                    ? exclusions.map((e) => [
-                        e.campaign_id,
-                        e.campaign_name,
-                        e.level || 'Campaign',
-                        'Negative audience exclusion',
-                        data.user_list_id || id,
-                        data.user_list_name || '',
-                        data.search_size_label || '',
-                        data.display_size_label || '',
-                    ].map(esc).join(','))
-                    : [['', '(No campaign exclusions found yet in Google Ads for this list)', '', '', data.user_list_id || id, data.user_list_name || '', data.search_size_label || '', data.display_size_label || ''].map(esc).join(',')];
-                const blob = new Blob([[...summary, header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
+                const summaryValues = [
+                    data.user_list_name || this.applyAudienceModal.audienceName || '',
+                    data.user_list_id || id,
+                    data.user_list_type || '',
+                    data.membership_status || '',
+                    data.status_label || this.applyAudienceModal.status || '',
+                    data.search_size_label || '',
+                    data.display_size_label || '',
+                    data.size_for_search ?? '',
+                    data.size_for_display ?? '',
+                    String(data.invalid_member_count ?? members.length),
+                    data.hostname || '',
+                    data.exported_at || new Date().toISOString(),
+                ];
+                const memberHeaders = [
+                    'Visited at',
+                    'IP',
+                    'Device ID',
+                    'GCLID',
+                    'Campaign ID',
+                    'Campaign name',
+                    'Threat group',
+                    'Action',
+                    'Country',
+                    'URL',
+                ];
+                const th = (label) => `<th style="font-weight:bold;text-align:center;vertical-align:middle;background:#f3f4f6;border:1px solid #d1d5db;padding:8px 10px;white-space:nowrap;">${escHtml(label)}</th>`;
+                const td = (value) => `<td style="text-align:center;vertical-align:middle;border:1px solid #e5e7eb;padding:7px 10px;">${escHtml(value)}</td>`;
+                let memberRowsHtml = '';
+                if (members.length) {
+                    memberRowsHtml = members.map((m) => `<tr>${[
+                        m.visited_at,
+                        m.ip,
+                        m.device_id,
+                        m.gclid,
+                        m.campaign_id,
+                        m.campaign_name,
+                        m.threat_group,
+                        m.action_taken,
+                        m.country,
+                        m.url,
+                    ].map(td).join('')}</tr>`).join('');
+                } else {
+                    memberRowsHtml = `<tr><td colspan="10" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No invalid members found for this list / attached campaigns yet.</td></tr>`;
+                }
+                const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Invalid members</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>
+<h3 style="font-family:Arial,sans-serif;margin:0 0 10px;">Audience basics</h3>
+<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;margin-bottom:18px;">
+<tr>${summaryHeaders.map(th).join('')}</tr>
+<tr>${summaryValues.map(td).join('')}</tr>
+</table>
+<h3 style="font-family:Arial,sans-serif;margin:0 0 10px;">Invalid members</h3>
+<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;">
+<tr>${memberHeaders.map(th).join('')}</tr>
+${memberRowsHtml}
+</table>
+</body></html>`;
+                const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 const safe = String(data.user_list_name || this.applyAudienceModal.audienceName || 'audience')
                     .replace(/[^\w\-]+/g, '_')
                     .slice(0, 48);
                 a.href = url;
-                a.download = `${safe || 'audience'}_${id}_google_exclusions.csv`;
+                a.download = `${safe || 'audience'}_${id}_invalid_members.xls`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
                 URL.revokeObjectURL(url);
                 this.showMenuToast(
-                    exclusions.length
-                        ? `Downloaded ${exclusions.length} Google exclusion row(s) for this list.`
-                        : 'Downloaded list stats — no campaign exclusions attached in Google yet.',
+                    members.length
+                        ? `Downloaded ${members.length} invalid member row(s).`
+                        : 'Downloaded sheet — no invalid members found yet for this list.',
                     'success'
                 );
             } catch (_) {
@@ -3571,6 +3667,7 @@ function platformIntegrations(config) {
                     ? 'Audience attached to campaign exclusions in Google Ads.'
                     : 'Could not attach audience exclusion in Google Ads.'), data.ok ? 'success' : 'error');
                 if (data.ok) {
+                    this.bumpPlatformLastEvent(domainId, data.last_event_label || 'Exclusion · just now');
                     this.closeApplyAudienceModal();
                 }
             } catch (_) {
@@ -3579,6 +3676,13 @@ function platformIntegrations(config) {
             } finally {
                 this.applyAudienceModal.applying = false;
             }
+        },
+        bumpPlatformLastEvent(domainId, label) {
+            const id = String(domainId || '');
+            if (!id) return;
+            document.querySelectorAll(`[data-platform-domain="${id}"] .pi-last-event`).forEach((el) => {
+                el.textContent = label || 'Exclusion · just now';
+            });
         },
         openPixelGuardModal() {
             this.pixelGuardModal.google_tag_id = this.trackingInstallation.google_tag?.id && this.trackingInstallation.google_tag.id !== '—'
@@ -3706,13 +3810,14 @@ function platformIntegrations(config) {
             const tagOk = Boolean(this.connectionHealth.google_tag_ok) || this.trackingInstallation.google_tag?.ok;
             const audienceOk = String(this.connectionHealth.audience_protection || '').toLowerCase() === 'active';
             const hasCustomer = Boolean(this.googleAdsSummary.customer_id);
+            const invalidEventOk = this.wizardInvalidEventReady;
             this.testProtectionModal.tab = tab || 'tests';
             this.testProtectionModal.checks = [
                 { key: 'api', label: 'Ads API permission', ok: apiOk, warn: false, state: apiOk ? 'Passed' : 'Missing' },
                 { key: 'cid', label: 'Customer ID', ok: hasCustomer, warn: false, state: hasCustomer ? 'Passed' : 'Missing' },
                 { key: 'script', label: 'Clickronix script', ok: scriptOk, warn: false, state: scriptOk ? 'Passed' : 'Missing' },
                 { key: 'tag', label: 'Google tag', ok: tagOk, warn: !tagOk, state: tagOk ? 'Passed' : 'Missing' },
-                { key: 'ga4', label: 'GA4 invalid event', ok: false, warn: true, state: 'Pending' },
+                { key: 'ga4', label: 'GA4 invalid event', ok: invalidEventOk, warn: !invalidEventOk, state: invalidEventOk ? 'Passed' : 'Pending' },
                 { key: 'audience', label: 'Audience list', ok: audienceOk, warn: !audienceOk, state: audienceOk ? 'Passed' : 'Not created' },
                 { key: 'ip', label: 'IP write permission', ok: apiOk, warn: false, state: apiOk ? 'Passed' : 'Pending' },
                 { key: 'placement', label: 'Placement report access', ok: apiOk, warn: false, state: apiOk ? 'Passed' : 'Pending' },

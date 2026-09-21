@@ -4247,11 +4247,16 @@ select.figma-sa-subs-status-pill {
 
 /* Traffic & Bot Logs */
 .light-mode .figma-sa-traffic-date,
+.light-mode .figma-sa-traffic-toolbar-btn,
 .light-mode .figma-sa-traffic-per-page,
 .light-mode .figma-sa-traffic-page-btn {
     background: #ffffff !important;
     border-color: #e8cbb8 !important;
     color: #3d3848 !important;
+}
+
+.light-mode .figma-sa-traffic-toolbar-btn:hover {
+    background: #f5f0ec !important;
 }
 
 .light-mode .figma-sa-traffic-date-input,
@@ -13864,35 +13869,45 @@ a.figma-sa-teams-card-name:hover {
     background: rgba(0, 0, 0, 0.2);
 }
 
-/* Roles & Permissions — dedicated columns (do not inherit Products checkbox widths) */
+/* Roles & Permissions — 5 columns aligned (Role / Portal / Permissions / Users / Actions) */
 .figma-sa-products-table.figma-sa-roles-table {
     table-layout: fixed;
     width: 100%;
 }
+.figma-sa-products-table.figma-sa-roles-table th,
+.figma-sa-products-table.figma-sa-roles-table td {
+    vertical-align: middle;
+}
 .figma-sa-products-table.figma-sa-roles-table th:nth-child(1),
 .figma-sa-products-table.figma-sa-roles-table td:nth-child(1) {
-    width: 48%;
+    width: 38%;
     text-align: left;
 }
 .figma-sa-products-table.figma-sa-roles-table th:nth-child(2),
 .figma-sa-products-table.figma-sa-roles-table td:nth-child(2) {
-    width: 14%;
+    width: 12%;
     text-align: center;
-    vertical-align: middle;
 }
 .figma-sa-products-table.figma-sa-roles-table th:nth-child(3),
 .figma-sa-products-table.figma-sa-roles-table td:nth-child(3) {
-    width: 12%;
+    width: 14%;
     text-align: center;
-    vertical-align: middle;
 }
 .figma-sa-products-table.figma-sa-roles-table th:nth-child(4),
 .figma-sa-products-table.figma-sa-roles-table td:nth-child(4) {
-    width: 26%;
-    min-width: 200px;
-    padding-right: 14px;
+    width: 12%;
+    text-align: center;
+    padding-right: 12px;
+}
+.figma-sa-products-table.figma-sa-roles-table th:nth-child(5),
+.figma-sa-products-table.figma-sa-roles-table td:nth-child(5) {
+    width: 24%;
+    min-width: 160px;
     text-align: right;
-    vertical-align: middle;
+    padding-right: 14px;
+}
+.figma-sa-products-table.figma-sa-roles-table th:nth-child(5) {
+    text-align: right;
 }
 
 .figma-sa-roles-icon {
@@ -15745,6 +15760,7 @@ a.figma-sa-teams-card-name:hover {
     align-items: center;
     gap: 10px;
     height: 43px;
+    box-sizing: border-box;
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.35);
     background: rgba(255, 255, 255, 0.12);
@@ -15758,11 +15774,38 @@ a.figma-sa-teams-card-name:hover {
     color: #ffffff;
     font-size: 14px;
     font-weight: 500;
+    line-height: 1;
+    height: 100%;
     color-scheme: dark;
 }
 
 .figma-sa-traffic-date-input:focus {
     outline: none;
+}
+
+.figma-sa-traffic-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 43px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.12);
+    padding: 0 14px;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.figma-sa-traffic-toolbar-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .figma-sa-traffic-source-input {

@@ -258,7 +258,7 @@ class VisitorJourneyIntelligence
 
         $timeline = $this->buildTimeline($row, $pages);
 
-        $durationSec = $this->durationToSeconds((string) ($row['time_on_site'] ?? '00:00:00'));
+        $durationSec = $this->sessionDurationSeconds($row);
         $timelineMax = 0;
         foreach ($timeline as $ev) {
             $timelineMax = max($timelineMax, (int) ($ev['elapsed_sec'] ?? 0));
@@ -394,35 +394,31 @@ class VisitorJourneyIntelligence
             }
         }
 
+        $sessionDur = $this->sessionDurationSeconds($row);
+        $sessionStartTs = $this->sessionStartUnix($row);
+        $entryClock = (string) ($row['entry_clock'] ?? $this->extractClock((string) ($row['first_seen'] ?? '')) ?: '00:00:00');
+        $base = $this->parseClock($entryClock);
+
         if ($flat !== []) {
-            usort($flat, static function ($a, $b): int {
-                $ta = (int) ($a['t'] ?? $a['elapsed_sec'] ?? 0);
-                $tb = (int) ($b['t'] ?? $b['elapsed_sec'] ?? 0);
+            usort($flat, function ($a, $b) use ($sessionStartTs): int {
+                $ta = $this->rawEventSortKey(is_array($a) ? $a : [], $sessionStartTs);
+                $tb = $this->rawEventSortKey(is_array($b) ? $b : [], $sessionStartTs);
                 if ($ta === $tb) {
-                    return strcmp((string) ($a['at'] ?? ''), (string) ($b['at'] ?? ''));
+                    return strcmp((string) (($a['at'] ?? '')), (string) (($b['at'] ?? '')));
                 }
 
                 return $ta <=> $tb;
             });
 
             $out = [];
-            $entryClock = (string) ($row['entry_clock'] ?? '10:24:00');
-            $base = $this->parseClock($entryClock);
-            foreach (array_slice($flat, 0, 20) as $i => $ev) {
+            $prevElapsed = 0;
+            foreach (array_slice($flat, 0, 40) as $i => $ev) {
                 if (! is_array($ev)) {
                     continue;
                 }
                 $type = $this->normalizeEventType((string) ($ev['type'] ?? $ev['kind'] ?? $ev['label'] ?? ''));
-                $elapsed = (int) ($ev['elapsed_sec'] ?? 0);
-                if ($elapsed <= 0) {
-                    $rawT = (int) ($ev['t'] ?? 0);
-                    // Recorder may send ms (>=1000) or seconds.
-                    $elapsed = $rawT > 1000 ? (int) floor($rawT / 1000) : $rawT;
-                }
-                if ($elapsed <= 0 && $i > 0) {
-                    // Spread stacked t=0 events so the lane is not stuck at 0:00.
-                    $elapsed = $i * 18;
-                }
+                $elapsed = $this->resolveEventElapsedSec($ev, $sessionStartTs, $i === 0 ? 0 : $prevElapsed);
+                $prevElapsed = $elapsed;
                 $label = (string) ($ev['label'] ?? $ev['name'] ?? $ev['path'] ?? $ev['detail'] ?? 'event');
                 $page = $this->shortPath((string) ($ev['page'] ?? $ev['path'] ?? $ev['page_url'] ?? ($pages[min($i, max(0, count($pages) - 1))] ?? '/')));
                 $clock = (string) ($ev['time'] ?? '');
@@ -447,13 +443,21 @@ class VisitorJourneyIntelligence
             if ($out !== []) {
                 $hasExit = collect($out)->contains(fn ($e) => ($e['type'] ?? '') === 'exit');
                 if (! $hasExit) {
-                    $lastElapsed = (int) ($out[count($out) - 1]['elapsed_sec'] ?? 0) + 20;
+                    $lastElapsed = (int) ($out[count($out) - 1]['elapsed_sec'] ?? 0);
+                    // Real session length — never invent +20s demo padding.
+                    if ($sessionDur > $lastElapsed) {
+                        $lastElapsed = $sessionDur;
+                    }
+                    $exitClock = (string) ($row['exit_clock'] ?? $this->extractClock((string) ($row['last_seen'] ?? '')));
+                    if ($exitClock === '') {
+                        $exitClock = $this->formatClock($base + $lastElapsed);
+                    }
                     $out[] = $this->timelineEvent([
                         'type' => 'exit',
                         'label' => 'Exit',
                         'event' => 'session_end',
                         'kind' => 'Exit',
-                        'time' => $this->formatClock($base + $lastElapsed),
+                        'time' => $exitClock,
                         'elapsed_sec' => $lastElapsed,
                         'page' => $pages[count($pages) - 1] ?? ($out[count($out) - 1]['page'] ?? '/'),
                         'note' => '',
@@ -465,12 +469,17 @@ class VisitorJourneyIntelligence
             }
         }
 
-        $entryClock = (string) ($row['entry_clock'] ?? '10:24:00');
-        $base = $this->parseClock($entryClock);
+        // No recorder events — build from page path + real session duration (not demo gaps).
+        $pageSlice = array_values(array_slice($pages, 0, 6));
+        if ($pageSlice === []) {
+            $pageSlice = ['/'];
+        }
+        $n = count($pageSlice);
         $out = [];
-        $elapsed = 0;
-        foreach (array_slice($pages, 0, 4) as $i => $page) {
-            $elapsed = $i === 0 ? 0 : $elapsed + 18;
+        foreach ($pageSlice as $i => $page) {
+            $elapsed = ($n <= 1 || $sessionDur <= 0)
+                ? 0
+                : (int) round(($i / max(1, $n - 1)) * $sessionDur);
             $out[] = $this->timelineEvent([
                 'type' => 'page',
                 'label' => $page,
@@ -482,66 +491,147 @@ class VisitorJourneyIntelligence
                 'note' => '',
                 'status' => 'Page viewed',
             ]);
-            if ($i === 0 && (int) ($row['scroll_events'] ?? 0) > 0) {
-                $elapsed += 8;
-                $out[] = $this->timelineEvent([
-                    'type' => 'scroll',
-                    'label' => 'Scroll',
-                    'event' => 'scroll',
-                    'kind' => 'Scroll',
-                    'time' => $this->formatClock($base + $elapsed),
-                    'elapsed_sec' => $elapsed,
-                    'page' => $page,
-                    'note' => '',
-                    'status' => 'Scroll recorded',
-                ]);
-            }
+        }
+        if ((int) ($row['scroll_events'] ?? 0) > 0 && $sessionDur > 0) {
+            $scrollAt = min($sessionDur, max(1, (int) round($sessionDur * 0.25)));
+            array_splice($out, min(1, count($out)), 0, [$this->timelineEvent([
+                'type' => 'scroll',
+                'label' => 'Scroll',
+                'event' => 'scroll',
+                'kind' => 'Scroll',
+                'time' => $this->formatClock($base + $scrollAt),
+                'elapsed_sec' => $scrollAt,
+                'page' => $pageSlice[0],
+                'note' => '',
+                'status' => 'Scroll recorded',
+            ])]);
         }
         if ((int) ($row['form_starts'] ?? 0) > 0 || (int) ($row['form_submits'] ?? 0) > 0) {
-            $elapsed += 18;
-            $page = $pages[min(1, max(0, count($pages) - 1))] ?? '/';
+            $formAt = $sessionDur > 0 ? min($sessionDur, max(1, (int) round($sessionDur * 0.55))) : 0;
             $out[] = $this->timelineEvent([
                 'type' => 'form',
                 'label' => 'availability check',
                 'event' => 'availability_check',
                 'kind' => 'Form submit',
-                'time' => $this->formatClock($base + $elapsed),
-                'elapsed_sec' => $elapsed,
-                'page' => $page,
+                'time' => $this->formatClock($base + $formAt),
+                'elapsed_sec' => $formAt,
+                'page' => $pageSlice[min(1, $n - 1)],
                 'note' => '',
                 'status' => 'Submitted',
             ]);
         }
         if ((int) ($row['cta_clicks'] ?? 0) > 0 || (int) ($row['tel_clicks'] ?? 0) > 0) {
-            $elapsed += 16;
-            $page = $pages[min(1, max(0, count($pages) - 1))] ?? '/';
+            $ctaAt = $sessionDur > 0 ? min($sessionDur, max(1, (int) round($sessionDur * 0.7))) : 0;
             $out[] = $this->timelineEvent([
                 'type' => 'cta',
                 'label' => 'Call click',
                 'event' => 'call_button_click',
                 'kind' => 'CTA click',
-                'time' => $this->formatClock($base + $elapsed),
-                'elapsed_sec' => $elapsed,
-                'page' => $page,
+                'time' => $this->formatClock($base + $ctaAt),
+                'elapsed_sec' => $ctaAt,
+                'page' => $pageSlice[min(1, $n - 1)],
                 'note' => 'Call outcome unavailable.',
                 'status' => 'Click recorded',
             ]);
         }
-        $dur = $this->durationToSeconds((string) ($row['time_on_site'] ?? '00:00:00'));
-        $elapsed = max($elapsed + 20, $dur > 0 ? $dur : $elapsed + 20);
+
+        usort($out, static fn ($a, $b) => ((int) ($a['elapsed_sec'] ?? 0)) <=> ((int) ($b['elapsed_sec'] ?? 0)));
+
+        $exitAt = $sessionDur;
+        if ($exitAt <= 0 && $out !== []) {
+            $exitAt = (int) ($out[count($out) - 1]['elapsed_sec'] ?? 0);
+        }
+        $exitClock = (string) ($row['exit_clock'] ?? $this->extractClock((string) ($row['last_seen'] ?? '')));
+        if ($exitClock === '') {
+            $exitClock = $this->formatClock($base + $exitAt);
+        }
         $out[] = $this->timelineEvent([
             'type' => 'exit',
             'label' => 'Exit',
             'event' => 'session_end',
             'kind' => 'Exit',
-            'time' => $this->formatClock($base + $elapsed),
-            'elapsed_sec' => $elapsed,
-            'page' => $pages[count($pages) - 1] ?? '/',
+            'time' => $exitClock,
+            'elapsed_sec' => $exitAt,
+            'page' => $pageSlice[count($pageSlice) - 1] ?? '/',
             'note' => '',
             'status' => 'Session ended',
         ]);
 
         return $out;
+    }
+
+    /** @param  array<string, mixed>  $row */
+    private function sessionDurationSeconds(array $row): int
+    {
+        $dur = $this->durationToSeconds((string) ($row['time_on_site'] ?? '00:00:00'));
+        if ($dur > 0) {
+            return $dur;
+        }
+        $first = $this->parseFlexibleUnix((string) ($row['first_seen'] ?? ''));
+        $last = $this->parseFlexibleUnix((string) ($row['last_seen'] ?? ''));
+        if ($first !== null && $last !== null && $last >= $first) {
+            return (int) ($last - $first);
+        }
+        $entry = $this->parseClock((string) ($row['entry_clock'] ?? ''));
+        $exit = $this->parseClock((string) ($row['exit_clock'] ?? ''));
+        if ($exit > $entry) {
+            return $exit - $entry;
+        }
+
+        return 0;
+    }
+
+    /** @param  array<string, mixed>  $row */
+    private function sessionStartUnix(array $row): ?int
+    {
+        return $this->parseFlexibleUnix((string) ($row['first_seen'] ?? ''))
+            ?? $this->parseFlexibleUnix((string) ($row['entry_at'] ?? ''));
+    }
+
+    private function parseFlexibleUnix(string $raw): ?int
+    {
+        $raw = trim($raw);
+        if ($raw === '' || $raw === '—' || $raw === '-') {
+            return null;
+        }
+        if (ctype_digit($raw)) {
+            $n = (int) $raw;
+
+            return $n > 1_000_000_000_000 ? (int) floor($n / 1000) : $n;
+        }
+        $ts = strtotime($raw);
+
+        return $ts !== false ? $ts : null;
+    }
+
+    /** @param  array<string, mixed>  $ev */
+    private function rawEventSortKey(array $ev, ?int $sessionStartTs): int
+    {
+        $elapsed = $this->resolveEventElapsedSec($ev, $sessionStartTs, 0);
+
+        return $elapsed;
+    }
+
+    /** @param  array<string, mixed>  $ev */
+    private function resolveEventElapsedSec(array $ev, ?int $sessionStartTs, int $fallbackPrev): int
+    {
+        $elapsed = (int) ($ev['elapsed_sec'] ?? 0);
+        if ($elapsed > 0) {
+            return $elapsed;
+        }
+        $rawT = (int) ($ev['t'] ?? 0);
+        if ($rawT > 0) {
+            // Recorder may send ms (>= 1000 for multi-second) or seconds.
+            return $rawT >= 1000 ? (int) floor($rawT / 1000) : $rawT;
+        }
+        if ($sessionStartTs !== null && ! empty($ev['at'])) {
+            $at = $this->parseFlexibleUnix((string) $ev['at']);
+            if ($at !== null && $at >= $sessionStartTs) {
+                return (int) ($at - $sessionStartTs);
+            }
+        }
+        // Keep honest stacking at previous time — never invent demo gaps (+18s).
+        return max(0, $fallbackPrev);
     }
 
     /** @param  array<string, mixed>  $data */
@@ -663,13 +753,13 @@ class VisitorJourneyIntelligence
      */
     private function buildFlow(array $current, array $recent, int $tracked): array
     {
-        $landing = collect($current['top_landing_pages'] ?? [])->take(3)->values();
+        $landing = collect($current['top_landing_pages'] ?? [])->take(12)->values();
         if ($landing->isEmpty()) {
             $landing = collect($recent)
                 ->groupBy('landing_page')
                 ->map(fn ($rows, $path) => ['label' => $path, 'value' => $rows->count()])
                 ->sortByDesc('value')
-                ->take(3)
+                ->take(12)
                 ->values();
         }
 
@@ -697,7 +787,7 @@ class VisitorJourneyIntelligence
         $colNext = [];
         $i = 0;
         foreach ($nextCounts as $label => $value) {
-            if ($i >= 3) {
+            if ($i >= 11) {
                 break;
             }
             $colNext[] = [
@@ -720,58 +810,132 @@ class VisitorJourneyIntelligence
             ];
         }
 
-        $call = 0;
-        $form = 0;
-        $none = 0;
-        $exitAction = 0;
-        $lead = 0;
-        $pending = 0;
-        $noConv = 0;
-        foreach ($recent as $s) {
-            $tones = collect($s['path_chips'] ?? [])->pluck('tone')->all();
-            if (in_array('action', $tones, true)) {
-                $call++;
-            } elseif (in_array('form', $tones, true)) {
-                $form++;
-            } elseif (in_array('exit', $tones, true) && count($s['path_chips'] ?? []) <= 2) {
-                $exitAction++;
-            } else {
-                $none++;
-            }
-            $ot = $s['outcome']['tone'] ?? 'none';
-            if ($ot === 'lead') {
-                $lead++;
-            } elseif ($ot === 'pending') {
-                $pending++;
-            } else {
-                $noConv++;
-            }
-        }
-        $scale = $tracked / max(1, count($recent));
-        $colAction = [
-            ['id' => 'a:call', 'label' => 'Call button clicked', 'value' => max(1, (int) round($call * $scale)), 'pct' => 0, 'tone' => 'action'],
-            ['id' => 'a:form', 'label' => 'Form started', 'value' => max(1, (int) round($form * $scale)), 'pct' => 0, 'tone' => 'form'],
-            ['id' => 'a:none', 'label' => 'No action', 'value' => max(1, (int) round($none * $scale)), 'pct' => 0, 'tone' => 'default'],
-            ['id' => 'a:exit', 'label' => 'Exit', 'value' => max(1, (int) round($exitAction * $scale)), 'pct' => 0, 'tone' => 'exit'],
+        $actionBuckets = [
+            'Page viewed' => 0,
+            'CTA clicked' => 0,
+            'Call button clicked' => 0,
+            'Form started' => 0,
+            'Form submitted' => 0,
+            'Chat started' => 0,
+            'Appointment requested' => 0,
+            'No action' => 0,
+            'Exit' => 0,
         ];
-        $actionSum = max(1, array_sum(array_column($colAction, 'value')));
-        foreach ($colAction as &$n) {
-            $n['pct'] = round(($n['value'] / max(1, $tracked)) * 100, 1);
-        }
-        unset($n);
+        $outcomeBuckets = [
+            'Lead confirmed' => 0,
+            'Qualified lead' => 0,
+            'Call connected' => 0,
+            'Form completed' => 0,
+            'Appointment booked' => 0,
+            'Follow-up required' => 0,
+            'Awaiting outcome' => 0,
+            'Exited' => 0,
+        ];
 
-        $colOutcome = [
-            ['id' => 'o:lead', 'label' => 'Lead confirmed', 'value' => max(0, (int) round($lead * $scale)), 'pct' => 0, 'tone' => 'lead'],
-            ['id' => 'o:wait', 'label' => 'Awaiting outcome', 'value' => max(0, (int) round($pending * $scale)), 'pct' => 0, 'tone' => 'pending'],
-            ['id' => 'o:exit', 'label' => 'Exited', 'value' => max(0, (int) round($noConv * $scale)), 'pct' => 0, 'tone' => 'exit'],
+        foreach ($recent as $s) {
+            $hadMeaningful = false;
+            foreach ($s['event_actions'] ?? [] as $ev) {
+                $key = strtolower((string) ($ev['key'] ?? ''));
+                if (in_array($key, ['cta_click', 'tel_click', 'call_click'], true)) {
+                    $actionBuckets['Call button clicked']++;
+                    $actionBuckets['CTA clicked']++;
+                    $hadMeaningful = true;
+                } elseif ($key === 'form_start' || $key === 'form_fills') {
+                    $actionBuckets['Form started']++;
+                    $hadMeaningful = true;
+                } elseif ($key === 'form_submit') {
+                    $actionBuckets['Form submitted']++;
+                    $hadMeaningful = true;
+                } elseif (str_contains($key, 'chat')) {
+                    $actionBuckets['Chat started']++;
+                    $hadMeaningful = true;
+                } elseif (str_contains($key, 'appointment')) {
+                    $actionBuckets['Appointment requested']++;
+                    $hadMeaningful = true;
+                }
+            }
+            if ((int) ($s['page_views'] ?? 0) > 0 || ! empty($s['path_chips'])) {
+                $actionBuckets['Page viewed']++;
+            }
+            $tones = collect($s['path_chips'] ?? [])->pluck('tone')->all();
+            if (! $hadMeaningful) {
+                if (in_array('exit', $tones, true) && count($s['path_chips'] ?? []) <= 2) {
+                    $actionBuckets['Exit']++;
+                } else {
+                    $actionBuckets['No action']++;
+                }
+            }
+
+            $ot = $s['outcome']['tone'] ?? 'none';
+            $olabel = strtolower((string) ($s['outcome']['label'] ?? ''));
+            if ($ot === 'lead' || str_contains($olabel, 'lead confirmed')) {
+                $outcomeBuckets['Lead confirmed']++;
+            } elseif (str_contains($olabel, 'qualified')) {
+                $outcomeBuckets['Qualified lead']++;
+            } elseif (str_contains($olabel, 'call connected')) {
+                $outcomeBuckets['Call connected']++;
+            } elseif (str_contains($olabel, 'form completed') || str_contains($olabel, 'form submit')) {
+                $outcomeBuckets['Form completed']++;
+            } elseif (str_contains($olabel, 'appointment')) {
+                $outcomeBuckets['Appointment booked']++;
+            } elseif (str_contains($olabel, 'follow')) {
+                $outcomeBuckets['Follow-up required']++;
+            } elseif ($ot === 'pending') {
+                $outcomeBuckets['Awaiting outcome']++;
+            } else {
+                $outcomeBuckets['Exited']++;
+            }
+        }
+
+        $scale = $tracked / max(1, count($recent));
+        $actionTones = [
+            'Page viewed' => 'default',
+            'CTA clicked' => 'action',
+            'Call button clicked' => 'action',
+            'Form started' => 'form',
+            'Form submitted' => 'form',
+            'Chat started' => 'action',
+            'Appointment requested' => 'action',
+            'No action' => 'default',
+            'Exit' => 'exit',
         ];
+        $colAction = [];
+        foreach ($actionBuckets as $label => $count) {
+            $value = (int) round($count * $scale);
+            $colAction[] = [
+                'id' => 'a:'.md5($label),
+                'label' => $label,
+                'value' => $value,
+                'pct' => round(($value / max(1, $tracked)) * 100, 1),
+                'tone' => $actionTones[$label] ?? 'default',
+            ];
+        }
+
+        $outcomeTones = [
+            'Lead confirmed' => 'lead',
+            'Qualified lead' => 'lead',
+            'Call connected' => 'lead',
+            'Form completed' => 'lead',
+            'Appointment booked' => 'lead',
+            'Follow-up required' => 'pending',
+            'Awaiting outcome' => 'pending',
+            'Exited' => 'exit',
+        ];
+        $colOutcome = [];
+        foreach ($outcomeBuckets as $label => $count) {
+            $value = (int) round($count * $scale);
+            $colOutcome[] = [
+                'id' => 'o:'.md5($label),
+                'label' => $label,
+                'value' => $value,
+                'pct' => round(($value / max(1, $tracked)) * 100, 1),
+                'tone' => $outcomeTones[$label] ?? 'default',
+            ];
+        }
         if (array_sum(array_column($colOutcome, 'value')) === 0) {
-            $colOutcome[2]['value'] = $tracked;
+            $colOutcome[count($colOutcome) - 1]['value'] = $tracked;
+            $colOutcome[count($colOutcome) - 1]['pct'] = 100.0;
         }
-        foreach ($colOutcome as &$n) {
-            $n['pct'] = round(($n['value'] / max(1, $tracked)) * 100, 1);
-        }
-        unset($n);
 
         $columns = [
             ['key' => 'landing', 'label' => 'Landing Page', 'nodes' => $colLanding],

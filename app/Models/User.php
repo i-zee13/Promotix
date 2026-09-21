@@ -285,6 +285,7 @@ class User extends Authenticatable
         if (in_array($source, [
             'super_admin_create_user',
             'super_admin_assign_plan',
+            'super_admin_invite',
             'super_admin_payment_verify',
         ], true)) {
             return true;

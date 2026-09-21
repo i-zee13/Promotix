@@ -393,9 +393,14 @@ class IntegrationsController extends Controller
                 ?? $domainLastVisitAt[(string) $mapping->domain_id]
                 ?? null;
             $clicks = (int) ($domainVisitCounts[$mapping->domain_id] ?? $domainVisitCounts[(string) $mapping->domain_id] ?? 0);
-            $eventMeta = $formatEventAge($visitAtRaw ?: $domain?->last_seen_at);
+            $protectionAtRaw = $this->latestProtectionActivityAt($mapping);
+            $activityRaw = $this->newerTimestamp($visitAtRaw ?: $domain?->last_seen_at, $protectionAtRaw);
+            $eventMeta = $formatEventAge($activityRaw);
+            $protectionNewer = $this->isTimestampNewer($protectionAtRaw, $visitAtRaw ?: $domain?->last_seen_at);
             $lastEventLabel = $eventMeta['label'];
-            if ($clicks > 0 && $eventMeta['iso']) {
+            if ($protectionNewer && $eventMeta['iso']) {
+                $lastEventLabel = 'Exclusion · '.$eventMeta['label'];
+            } elseif ($clicks > 0 && $eventMeta['iso']) {
                 $lastEventLabel = number_format($clicks).' · '.$eventMeta['label'];
             } elseif ($clicks > 0) {
                 $lastEventLabel = number_format($clicks).' events';
@@ -478,9 +483,14 @@ class IntegrationsController extends Controller
             $clicks = (int) ($domainVisitCounts[$domain->id] ?? $domainVisitCounts[(string) $domain->id] ?? 0);
             $lastSyncAt = $account->connection?->last_sync_at;
             $visitAtRaw = $domainLastVisitAt[$domain->id] ?? $domainLastVisitAt[(string) $domain->id] ?? null;
-            $eventMeta = $formatEventAge($visitAtRaw ?: $domain->last_seen_at);
+            $protectionAtRaw = $this->latestProtectionActivityAtForDomain((int) $domain->id);
+            $activityRaw = $this->newerTimestamp($visitAtRaw ?: $domain->last_seen_at, $protectionAtRaw);
+            $eventMeta = $formatEventAge($activityRaw);
+            $protectionNewer = $this->isTimestampNewer($protectionAtRaw, $visitAtRaw ?: $domain->last_seen_at);
             $lastEventLabel = $eventMeta['label'];
-            if ($clicks > 0 && $eventMeta['iso']) {
+            if ($protectionNewer && $eventMeta['iso']) {
+                $lastEventLabel = 'Exclusion · '.$eventMeta['label'];
+            } elseif ($clicks > 0 && $eventMeta['iso']) {
                 $lastEventLabel = number_format($clicks).' · '.$eventMeta['label'];
             } elseif ($clicks > 0) {
                 $lastEventLabel = number_format($clicks).' events';
@@ -2375,6 +2385,22 @@ class IntegrationsController extends Controller
             $route,
         );
 
+        $this->recordSyncLog(
+            (int) $request->user()->id,
+            (int) (GoogleAdsAccount::query()
+                ->where('id', $domain->google_ads_account_id)
+                ->value('google_connection_id') ?: 0) ?: null,
+            (int) $domain->id,
+            'audience exclusion',
+            $result['ok'] ? 'ok' : 'error',
+            (string) ($result['message'] ?? ''),
+            [
+                'user_list_id' => $result['user_list_id'] ?? null,
+                'attached' => $result['attached'] ?? [],
+                'failed' => $result['failed'] ?? [],
+            ],
+        );
+
         return response()->json([
             'ok' => $result['ok'],
             'message' => $result['message'],
@@ -2387,6 +2413,8 @@ class IntegrationsController extends Controller
                 ?? (($result['ok'] ?? false) ? 'attached' : 'pending'),
             'verified_campaign_ids' => $result['stored']['verified_campaign_ids'] ?? [],
             'ga4_detection' => $detection,
+            'last_protection_activity_at' => now()->toIso8601String(),
+            'last_event_label' => $result['ok'] ? 'Exclusion · just now' : null,
         ], $result['ok'] ? 200 : 422);
     }
 
@@ -2831,6 +2859,90 @@ class IntegrationsController extends Controller
     /**
      * @param  array<string, mixed>  $meta
      */
+    /**
+     * Latest audience/protection activity timestamp stored on a mapping.
+     */
+    private function latestProtectionActivityAt(?DomainGoogleAdsMapping $mapping): mixed
+    {
+        if (! $mapping) {
+            return null;
+        }
+        $settings = is_array($mapping->settings) ? $mapping->settings : [];
+        $candidates = [
+            $settings['last_protection_activity_at'] ?? null,
+            $settings['audience_exclusion_updated_at'] ?? null,
+            $settings['audience_association']['updated_at'] ?? null,
+        ];
+        foreach (['ga4', 'website'] as $route) {
+            $candidates[] = $settings['audience_associations'][$route]['updated_at'] ?? null;
+        }
+        foreach ((array) ($settings['audience_lists'] ?? []) as $row) {
+            if (is_array($row)) {
+                $candidates[] = $row['updated_at'] ?? null;
+            }
+        }
+
+        return $this->maxTimestamp($candidates);
+    }
+
+    private function latestProtectionActivityAtForDomain(int $domainId): mixed
+    {
+        $mapping = DomainGoogleAdsMapping::query()
+            ->where('domain_id', $domainId)
+            ->orderByDesc('id')
+            ->first();
+
+        return $this->latestProtectionActivityAt($mapping);
+    }
+
+    /** @param  list<mixed>  $candidates */
+    private function maxTimestamp(array $candidates): mixed
+    {
+        $best = null;
+        $bestTs = null;
+        foreach ($candidates as $raw) {
+            if ($raw === null || $raw === '') {
+                continue;
+            }
+            $at = UserTimezone::parseUtcInstant($raw);
+            if (! $at) {
+                continue;
+            }
+            $ts = $at->getTimestamp();
+            if ($bestTs === null || $ts > $bestTs) {
+                $bestTs = $ts;
+                $best = $raw;
+            }
+        }
+
+        return $best;
+    }
+
+    private function newerTimestamp(mixed $a, mixed $b): mixed
+    {
+        return $this->maxTimestamp([$a, $b]);
+    }
+
+    private function isTimestampNewer(mixed $candidate, mixed $baseline): bool
+    {
+        if ($candidate === null || $candidate === '') {
+            return false;
+        }
+        if ($baseline === null || $baseline === '') {
+            return true;
+        }
+        $a = UserTimezone::parseUtcInstant($candidate);
+        $b = UserTimezone::parseUtcInstant($baseline);
+        if (! $a) {
+            return false;
+        }
+        if (! $b) {
+            return true;
+        }
+
+        return $a->gt($b);
+    }
+
     private function recordSyncLog(
         int $userId,
         ?int $connectionId,

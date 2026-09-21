@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\Domain;
 use App\Models\DomainGoogleAdsMapping;
 use App\Models\GoogleAdsAccount;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -194,6 +196,19 @@ class GoogleAdsAudienceAssociationService
             }
         }
 
+        $campaignIds = array_values(array_unique(array_filter(array_map(
+            static fn ($e) => preg_replace('/\D+/', '', (string) ($e['campaign_id'] ?? '')),
+            $exclusions
+        ))));
+        $campaignNames = [];
+        foreach ($exclusions as $e) {
+            $cid = preg_replace('/\D+/', '', (string) ($e['campaign_id'] ?? ''));
+            if ($cid !== '') {
+                $campaignNames[$cid] = (string) ($e['campaign_name'] ?? '');
+            }
+        }
+        $invalidMembers = $this->fetchInvalidMembersForExport($domain, $campaignIds, $campaignNames);
+
         return [
             'ok' => true,
             'domain_id' => $domain->id,
@@ -211,8 +226,79 @@ class GoogleAdsAudienceAssociationService
             'attachment_status' => $stored['attachment_status'] ?? null,
             'exclusions' => $exclusions,
             'exclusion_count' => count($exclusions),
+            'invalid_members' => $invalidMembers,
+            'invalid_member_count' => count($invalidMembers),
             'exported_at' => now()->toIso8601String(),
         ];
+    }
+
+    /**
+     * Invalid traffic rows for export (Clickronix detections on attached campaigns, else domain-wide).
+     *
+     * @param  list<string>  $campaignIds
+     * @param  array<string, string>  $campaignNames
+     * @return list<array<string, mixed>>
+     */
+    private function fetchInvalidMembersForExport(Domain $domain, array $campaignIds, array $campaignNames = []): array
+    {
+        if (! Schema::hasTable('visits')) {
+            return [];
+        }
+
+        $select = ['id', 'visited_at', 'ip'];
+        foreach (['device_id', 'gclid', 'google_campaign_id', 'campaign_name', 'utm_campaign', 'threat_group', 'action_taken', 'country', 'url'] as $col) {
+            if (Schema::hasColumn('visits', $col)) {
+                $select[] = $col;
+            }
+        }
+
+        $query = DB::table('visits')
+            ->where('domain_id', $domain->id)
+            ->orderByDesc('visited_at')
+            ->limit(1000);
+
+        if (Schema::hasColumn('visits', 'is_invalid_traffic')) {
+            $query->where('is_invalid_traffic', 1);
+        } elseif (Schema::hasColumn('visits', 'action_taken')) {
+            $query->where('action_taken', 'block');
+        }
+
+        $campaignIds = array_values(array_filter($campaignIds));
+        if ($campaignIds !== [] && Schema::hasColumn('visits', 'google_campaign_id')) {
+            $scoped = (clone $query)->where(function ($q) use ($campaignIds) {
+                $q->whereIn('google_campaign_id', $campaignIds);
+                foreach ($campaignIds as $cid) {
+                    $q->orWhere('google_campaign_id', 'like', '%'.$cid.'%');
+                }
+            });
+            $rows = $scoped->get($select);
+            if ($rows->isEmpty()) {
+                $rows = $query->get($select);
+            }
+        } else {
+            $rows = $query->get($select);
+        }
+
+        return $rows->map(function ($row) use ($campaignNames) {
+            $campaignId = preg_replace('/\D+/', '', (string) ($row->google_campaign_id ?? ''));
+            $name = (string) ($row->campaign_name ?? $row->utm_campaign ?? '');
+            if ($name === '' && $campaignId !== '' && isset($campaignNames[$campaignId])) {
+                $name = $campaignNames[$campaignId];
+            }
+
+            return [
+                'visited_at' => $row->visited_at ? (string) $row->visited_at : '',
+                'ip' => (string) ($row->ip ?? ''),
+                'device_id' => (string) ($row->device_id ?? ''),
+                'gclid' => (string) ($row->gclid ?? ''),
+                'campaign_id' => $campaignId,
+                'campaign_name' => $name,
+                'threat_group' => (string) ($row->threat_group ?? ''),
+                'action_taken' => (string) ($row->action_taken ?? ''),
+                'country' => (string) ($row->country ?? ''),
+                'url' => (string) ($row->url ?? ''),
+            ];
+        })->all();
     }
 
     /**
@@ -429,17 +515,17 @@ class GoogleAdsAudienceAssociationService
         $displayLabel = $this->formatUserListSizeLabel($sizeDisplay, $rangeDisplay, 'Display');
         $isCrm = ! $this->isEventCapableUserListType($listType);
         $statusLabel = $isCrm
-            ? 'Wrong type: Customer Match (CRM) — will stay “Too small”; Create Audience again for a rule-based list'
+            ? 'Wrong type: Customer Match (CRM) - will stay "Too small"; Create Audience again for a rule-based list'
             : match ($membership) {
                 'OPEN' => ($sizeSearch === 0 || $sizeSearch === null) && ($sizeDisplay === 0 || $sizeDisplay === null)
-                    ? 'Open — waiting for cr_invalid_traffic events (may show Too small until members arrive)'
-                    : 'Open — receiving members',
+                    ? 'Open - waiting for cr_invalid_traffic events (may show Too small until members arrive)'
+                    : 'Open - receiving members',
                 'CLOSED' => 'Closed',
                 default => $membership !== '' ? $membership : 'Ready',
             };
         if ($isCrm) {
-            $searchLabel = 'N/A — CRM Customer list (not event-fed)';
-            $displayLabel = 'N/A — recreate as rule-based · Event list';
+            $searchLabel = 'N/A - CRM Customer list (not event-fed)';
+            $displayLabel = 'N/A - recreate as rule-based Event list';
         }
 
         return [
@@ -457,7 +543,7 @@ class GoogleAdsAudienceAssociationService
             'status_label' => $statusLabel,
             'is_crm_shell' => $isCrm,
             'message' => $isCrm
-                ? 'This Google Ads list is Customer Match CRM — Clickronix cannot push emails into it. Create Audience again to make a rule-based list.'
+                ? 'This Google Ads list is Customer Match CRM - Clickronix cannot push emails into it. Create Audience again to make a rule-based list.'
                 : null,
         ];
     }
@@ -1602,6 +1688,8 @@ class GoogleAdsAudienceAssociationService
         }
 
         $mapping->audience_exclusion_enabled = true;
+        $settings['last_protection_activity_at'] = now()->toIso8601String();
+        $settings['last_protection_activity'] = (string) ($association['status'] ?? $association['attachment_status'] ?? 'updated');
         $mapping->settings = $settings;
         $mapping->save();
     }

@@ -169,15 +169,16 @@ class RegisteredUserController extends Controller
             Subscription::query()->create([
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
-                'status' => 'trialing',
-                'is_trial' => true,
+                'status' => 'active',
+                'is_trial' => false,
                 'amount_cents' => $amountCents,
                 'currency' => $plan->currency ?: 'usd',
                 'billing_interval' => $interval,
                 'started_at' => now(),
-                'trial_ends_at' => now()->addDays((int) app_setting('trial.days', 7)),
-                'current_period_ends_at' => now()->addDays((int) app_setting('trial.days', 7)),
-                'metadata' => ['source' => 'user_invite'],
+                'trial_ends_at' => null,
+                'current_period_ends_at' => $interval === 'yearly' ? now()->addYear() : now()->addMonth(),
+                // Admin assigned the plan on invite — skip card until renewal / recursion.
+                'metadata' => ['source' => 'super_admin_invite'],
             ]);
         });
     }
