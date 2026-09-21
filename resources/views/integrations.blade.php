@@ -3355,7 +3355,16 @@ function platformIntegrations(config) {
                 } else {
                     memberRowsHtml = `<tr><td colspan="10" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No invalid members found for this list / attached campaigns yet.</td></tr>`;
                 }
-                const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Invalid members</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>
+                const xOpen = (n) => '<' + 'x:' + n + '>';
+                const xClose = (n) => '</' + 'x:' + n + '>';
+                const xEmpty = (n) => '<' + 'x:' + n + '/>';
+                const msoExcelXml = '<!--[if gte mso 9]><xml>'
+                    + xOpen('ExcelWorkbook') + xOpen('ExcelWorksheets') + xOpen('ExcelWorksheet')
+                    + xOpen('Name') + 'Invalid members' + xClose('Name')
+                    + xOpen('WorksheetOptions') + xEmpty('DisplayGridlines') + xClose('WorksheetOptions')
+                    + xClose('ExcelWorksheet') + xClose('ExcelWorksheets') + xClose('ExcelWorkbook')
+                    + '</xml><![endif]-->';
+                const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8">${msoExcelXml}</head><body>
 <h3 style="font-family:Arial,sans-serif;margin:0 0 10px;">Audience basics</h3>
 <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;margin-bottom:18px;">
 <tr>${summaryHeaders.map(th).join('')}</tr>
