@@ -148,22 +148,36 @@
                 background:rgba(255,102,0,.15); color:#FF6600;
             }
             .vj-flow__col-menu-panel {
-                position:absolute; top:calc(100% + 4px); right:0; z-index:40;
-                width:min(240px, 70vw); max-height:280px; overflow:auto;
+                position:fixed; z-index:2147483000;
+                width:min(260px, calc(100vw - 24px)); max-height:min(320px, 70vh); overflow:auto;
                 border-radius:10px; border:1px solid rgba(255,102,0,.35);
-                background:#121212; box-shadow:0 12px 28px rgba(0,0,0,.55); padding:6px 0;
+                background:#121212; box-shadow:0 12px 28px rgba(0,0,0,.55); padding:0 0 6px;
+                scrollbar-width:thin; scrollbar-color:rgba(255,102,0,.45) transparent;
             }
             .vj-flow__col-menu-head {
-                padding:6px 12px 8px; font-size:10px; font-weight:650; letter-spacing:.04em;
+                position:sticky; top:0; z-index:1;
+                padding:8px 12px; font-size:10px; font-weight:650; letter-spacing:.04em;
                 text-transform:uppercase; color:rgba(255,255,255,.45);
-                border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:4px;
+                border-bottom:1px solid rgba(255,255,255,.08);
+                background:#121212;
             }
             .vj-flow__col-menu-item {
                 display:flex; align-items:center; justify-content:space-between; gap:8px;
                 width:100%; text-align:left; border:0; background:transparent;
-                padding:7px 12px; font-size:11px; color:rgba(255,255,255,.75); cursor:default;
+                padding:7px 12px; font-size:11px; color:rgba(255,255,255,.55); cursor:pointer;
             }
+            .vj-flow__col-menu-item:hover { background:rgba(255,255,255,.04); color:rgba(255,255,255,.85); }
+            .vj-flow__col-menu-item.is-on { color:rgba(255,255,255,.88); }
             .vj-flow__col-menu-item.is-active { color:#FF6600; background:rgba(255,102,0,.08); }
+            .vj-flow__col-menu-item .vj-opt-check {
+                flex-shrink:0; width:14px; height:14px; border-radius:4px;
+                border:1px solid rgba(255,255,255,.25); display:inline-flex;
+                align-items:center; justify-content:center; font-size:9px; line-height:1;
+                color:transparent; background:transparent;
+            }
+            .vj-flow__col-menu-item.is-on .vj-opt-check {
+                border-color:#FF6600; background:rgba(255,102,0,.2); color:#FF6600;
+            }
             .vj-flow__col-menu-item .vj-opt-badge {
                 flex-shrink:0; font-size:9px; font-weight:650; color:rgba(255,255,255,.4);
                 border-radius:999px; padding:1px 6px; background:rgba(255,255,255,.06);
@@ -851,14 +865,11 @@
                 color: #ea580c !important;
                 text-decoration-color: #ea580c !important;
             }
-            html.light-mode .vj-flow__col-menu-btn,
-            html.light-mode .vj-node__dots {
+            html.light-mode .vj-flow__col-menu-btn {
                 color: #6b6578 !important;
             }
             html.light-mode .vj-flow__col-menu-btn:hover,
-            html.light-mode .vj-flow__col-menu-btn.is-open,
-            html.light-mode .vj-node__dots:hover,
-            html.light-mode .vj-node__dots.is-open {
+            html.light-mode .vj-flow__col-menu-btn.is-open {
                 background: rgba(255, 102, 0, 0.12) !important;
                 color: #FF6600 !important;
             }
@@ -870,13 +881,25 @@
             html.light-mode .vj-flow__col-menu-head {
                 color: #6b6578 !important;
                 border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+                background: #ffffff !important;
             }
             html.light-mode .vj-flow__col-menu-item {
+                color: #6b6578 !important;
+            }
+            html.light-mode .vj-flow__col-menu-item.is-on {
                 color: #121212 !important;
             }
             html.light-mode .vj-flow__col-menu-item.is-active {
                 color: #FF6600 !important;
                 background: rgba(255, 102, 0, 0.08) !important;
+            }
+            html.light-mode .vj-flow__col-menu-item .vj-opt-check {
+                border-color: rgba(0, 0, 0, 0.2) !important;
+            }
+            html.light-mode .vj-flow__col-menu-item.is-on .vj-opt-check {
+                border-color: #FF6600 !important;
+                background: rgba(255, 102, 0, 0.15) !important;
+                color: #FF6600 !important;
             }
             html.light-mode .vj-flow__col-menu-item .vj-opt-badge {
                 color: #6b6578 !important;
@@ -1179,34 +1202,25 @@
                             <button type="button" class="vj-tab" :class="{ 'is-active': flowTab === 'sessions' }" @click="setFlowTab('sessions')">Individual Sessions</button>
                         </div>
 
-                        <div class="vj-tab-body" x-show="flowTab === 'paths'">
-                        <div class="vj-flow" x-ref="flowBox" @click.outside="pathMenu = null">
+                        <div class="vj-tab-body" x-show="flowTab === 'paths'" @scroll.passive="pathMenu = null">
+                        <div class="vj-flow" x-ref="flowBox">
                             <svg class="vj-flow__svg" x-html="flowSvg()"></svg>
                             <div class="vj-flow__cols">
-                                <template x-for="col in (flow.columns || [])" :key="col.key">
+                                <template x-for="col in displayFlowColumns" :key="col.key">
                                     <div class="vj-flow__col">
                                         <div class="vj-flow__col-label">
                                             <span x-text="col.label"></span>
                                             <div class="vj-flow__col-menu" x-show="col.key === 'action' || col.key === 'outcome'" x-cloak>
                                                 <button type="button" class="vj-flow__col-menu-btn"
                                                         :class="{ 'is-open': pathMenu === col.key }"
-                                                        @click.stop="togglePathMenu(col.key)"
-                                                        :title="col.key === 'action' ? 'All action options' : 'All outcome options'"
-                                                        :aria-label="col.key === 'action' ? 'Action options' : 'Outcome options'">
+                                                        @click.stop="togglePathMenu(col.key, $event)"
+                                                        :title="col.key === 'action' ? 'Final Action Options' : 'Final Outcome Options'"
+                                                        :aria-label="col.key === 'action' ? 'Action options' : 'Outcome options'"
+                                                        :aria-expanded="pathMenu === col.key">
                                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                                         <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
                                                     </svg>
                                                 </button>
-                                                <div class="vj-flow__col-menu-panel" x-show="pathMenu === col.key" x-cloak @click.stop>
-                                                    <div class="vj-flow__col-menu-head" x-text="col.key === 'action' ? 'Final Action Options' : 'Final Outcome Options'"></div>
-                                                    <template x-for="opt in pathCatalog(col.key)" :key="col.key + '-' + opt">
-                                                        <div class="vj-flow__col-menu-item"
-                                                             :class="{ 'is-active': pathOptionActive(col, opt) }">
-                                                            <span x-text="opt"></span>
-                                                            <span class="vj-opt-badge" x-show="pathOptionActive(col, opt)" x-text="pathOptionCount(col, opt)"></span>
-                                                        </div>
-                                                    </template>
-                                                </div>
                                             </div>
                                         </div>
                                         <template x-for="node in (col.nodes || [])" :key="node.id">
@@ -1224,26 +1238,6 @@
                                                         </div>
                                                         <div class="vj-node__meta" x-text="node.value + ' (' + Number(node.pct||0).toFixed(1) + '%)'"></div>
                                                     </div>
-                                                    <div class="vj-flow__col-menu" x-show="col.key === 'action' || col.key === 'outcome'" x-cloak>
-                                                        <button type="button" class="vj-node__dots"
-                                                                :class="{ 'is-open': pathMenu === (col.key + ':' + node.id) }"
-                                                                @click.stop="togglePathMenu(col.key + ':' + node.id)"
-                                                                title="Journey options">
-                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                                <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
-                                                            </svg>
-                                                        </button>
-                                                        <div class="vj-flow__col-menu-panel" x-show="pathMenu === (col.key + ':' + node.id)" x-cloak @click.stop>
-                                                            <div class="vj-flow__col-menu-head" x-text="col.key === 'action' ? 'Final Action Options' : 'Final Outcome Options'"></div>
-                                                            <template x-for="opt in pathCatalog(col.key)" :key="node.id + '-' + opt">
-                                                                <div class="vj-flow__col-menu-item"
-                                                                     :class="{ 'is-active': pathOptionMatches(node.label, opt) }">
-                                                                    <span x-text="opt"></span>
-                                                                    <span class="vj-opt-badge" x-show="pathOptionMatches(node.label, opt)">This step</span>
-                                                                </div>
-                                                            </template>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             </div>
                                         </template>
@@ -1252,6 +1246,45 @@
                             </div>
                             <div class="vj-empty" x-show="!(flow.columns || []).length && !loading">No journey flow for this range.</div>
                         </div>
+
+                        <template x-teleport="body">
+                            <div
+                                x-show="pathMenu"
+                                x-cloak
+                                class="fixed inset-0"
+                                style="z-index:2147482999"
+                                @click="pathMenu = null"
+                                aria-hidden="true"
+                            ></div>
+                            <div
+                                class="vj-flow__col-menu-panel"
+                                x-show="pathMenu"
+                                x-cloak
+                                x-transition.opacity
+                                :style="pathMenuPanelStyle"
+                                @click.stop
+                                @keydown.escape.window="pathMenu = null"
+                            >
+                                <div class="vj-flow__col-menu-head" x-text="pathMenu === 'outcome' ? 'Final Outcome Options' : 'Final Action Options'"></div>
+                                <template x-for="opt in pathCatalog(pathMenu)" :key="(pathMenu || 'x') + '-' + opt">
+                                    <button
+                                        type="button"
+                                        class="vj-flow__col-menu-item"
+                                        :class="{
+                                            'is-on': pathOptionEnabled(pathMenu, opt),
+                                            'is-active': pathOptionActive(flowColumn(pathMenu), opt)
+                                        }"
+                                        @click="togglePathOption(pathMenu, opt)"
+                                    >
+                                        <span class="min-w-0 truncate" x-text="opt"></span>
+                                        <span class="inline-flex items-center gap-1.5 shrink-0">
+                                            <span class="vj-opt-badge" x-show="pathOptionActive(flowColumn(pathMenu), opt)" x-text="pathOptionCount(flowColumn(pathMenu), opt)"></span>
+                                            <span class="vj-opt-check" aria-hidden="true">✓</span>
+                                        </span>
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
                         </div>
 
                         {{-- Event Timeline (multi-session lanes) --}}
@@ -1755,6 +1788,11 @@ function visitorJourneyPage() {
         ],
         flowTab: 'paths',
         pathMenu: null,
+        pathMenuRect: null,
+        pathEnabled: {
+            action: null,
+            outcome: null,
+        },
         actionOptions: [
             'Page viewed',
             'Pricing viewed',
@@ -2181,8 +2219,76 @@ function visitorJourneyPage() {
             if (tone === 'form') return 'is-form';
             return '';
         },
-        togglePathMenu(key) {
-            this.pathMenu = this.pathMenu === key ? null : key;
+        togglePathMenu(key, event) {
+            if (this.pathMenu === key) {
+                this.pathMenu = null;
+                this.pathMenuRect = null;
+                return;
+            }
+            const rect = event?.currentTarget?.getBoundingClientRect?.();
+            if (rect) {
+                const width = Math.min(260, window.innerWidth - 24);
+                let left = rect.right - width;
+                if (left < 12) left = 12;
+                if (left + width > window.innerWidth - 12) left = window.innerWidth - width - 12;
+                let top = rect.bottom + 6;
+                const maxH = Math.min(320, window.innerHeight * 0.7);
+                if (top + maxH > window.innerHeight - 12) {
+                    top = Math.max(12, rect.top - maxH - 6);
+                }
+                this.pathMenuRect = { top, left, width };
+            } else {
+                this.pathMenuRect = null;
+            }
+            this.ensurePathEnabled(key);
+            this.pathMenu = key;
+        },
+        get pathMenuPanelStyle() {
+            const r = this.pathMenuRect;
+            if (!r) return { display: 'none' };
+            return {
+                top: r.top + 'px',
+                left: r.left + 'px',
+                width: r.width + 'px',
+            };
+        },
+        get displayFlowColumns() {
+            return (this.flow.columns || []).map((col) => {
+                if (col.key !== 'action' && col.key !== 'outcome') return col;
+                const enabled = (Array.isArray(this.pathEnabled[col.key]) && this.pathEnabled[col.key].length)
+                    ? this.pathEnabled[col.key]
+                    : this.pathCatalog(col.key);
+                const nodes = (col.nodes || []).filter((n) =>
+                    enabled.some((opt) => this.pathOptionMatches(n.label, opt))
+                );
+                return Object.assign({}, col, { nodes });
+            });
+        },
+        flowColumn(key) {
+            return (this.flow.columns || []).find((c) => c.key === key) || { nodes: [] };
+        },
+        ensurePathEnabled(colKey) {
+            if (colKey !== 'action' && colKey !== 'outcome') return;
+            if (Array.isArray(this.pathEnabled[colKey]) && this.pathEnabled[colKey].length) return;
+            this.pathEnabled[colKey] = this.pathCatalog(colKey).slice();
+        },
+        pathOptionEnabled(colKey, option) {
+            const enabled = (Array.isArray(this.pathEnabled[colKey]) && this.pathEnabled[colKey].length)
+                ? this.pathEnabled[colKey]
+                : this.pathCatalog(colKey);
+            return enabled.includes(option);
+        },
+        togglePathOption(colKey, option) {
+            this.ensurePathEnabled(colKey);
+            const cur = (this.pathEnabled[colKey] || []).slice();
+            const idx = cur.indexOf(option);
+            if (idx >= 0) {
+                if (cur.length <= 1) return; // keep at least one
+                cur.splice(idx, 1);
+            } else {
+                cur.push(option);
+            }
+            this.pathEnabled = Object.assign({}, this.pathEnabled, { [colKey]: cur });
         },
         pathCatalog(colKey) {
             return colKey === 'outcome' ? this.outcomeOptions : this.actionOptions;
@@ -2203,11 +2309,11 @@ function visitorJourneyPage() {
             const na = aliases[a] || a;
             const nb = aliases[b] || b;
             if (na === nb) return true;
-            // Action Exit vs Outcome Exited
+            // Action Exit vs Outcome Exited — exact-ish only (avoid "cta clicked" fuzzy matches)
             if ((na === 'exit' || na === 'exited') && (nb === 'exit' || nb === 'exited')) {
-                return a === b || (a.includes('exit') && b.includes('exit'));
+                return true;
             }
-            return a.includes(b) || b.includes(a);
+            return false;
         },
         pathOptionActive(col, option) {
             return (col?.nodes || []).some((n) => this.pathOptionMatches(n.label, option));
@@ -2251,7 +2357,7 @@ function visitorJourneyPage() {
             </svg>`;
         },
         flowSvg() {
-            const cols = this.flow.columns || [];
+            const cols = this.displayFlowColumns || [];
             const links = this.flow.links || [];
             if (!cols.length || !links.length) return '';
             // 4 equal columns — tighter vertical rhythm for compact nodes.
@@ -2260,15 +2366,18 @@ function visitorJourneyPage() {
             const light = document.documentElement.classList.contains('light-mode');
             const stroke = light ? 'rgba(255,102,0,0.4)' : 'rgba(255,102,0,0.28)';
             const positions = {};
+            const visibleIds = new Set();
             cols.forEach((col, ci) => {
                 const nodes = col.nodes || [];
                 nodes.forEach((node, ni) => {
+                    visibleIds.add(node.id);
                     const y = 34 + ni * 62 + 20;
                     positions[node.id] = { x: colX[ci] ?? 125, y };
                 });
             });
             const maxLink = Math.max(1, ...links.map((l) => Number(l.value || 0)));
             return links.map((link) => {
+                if (!visibleIds.has(link.source) || !visibleIds.has(link.target)) return '';
                 const a = positions[link.source];
                 const b = positions[link.target];
                 if (!a || !b) return '';
