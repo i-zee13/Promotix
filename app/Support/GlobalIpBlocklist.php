@@ -198,23 +198,15 @@ class GlobalIpBlocklist
             }
         }
 
+        if ($asn !== null && in_array($asn, GlobalIpAllowlist::listedAsns('block'), true)) {
+            return true;
+        }
+
         return false;
     }
 
     private static function normalizeAsn(mixed $value): ?int
     {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        if (is_int($value) || is_float($value)) {
-            return (int) $value;
-        }
-
-        if (is_string($value) && preg_match('/(\d+)/', $value, $match) === 1) {
-            return (int) $match[1];
-        }
-
-        return null;
+        return GlobalIpAllowlist::normalizeAsn($value);
     }
 }

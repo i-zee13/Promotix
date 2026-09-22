@@ -47,6 +47,10 @@ function trafficLogs(initial) {
         get activeProvidersForModal() {
             return this.providerModal.listType === 'block' ? this.blockProviders : this.allowProviders;
         },
+        get selectedProviderMeta() {
+            const id = this.providerModal?.provider;
+            return (this.providerOptions || []).find((p) => p.id === id) || null;
+        },
         openProviderModal(listType) {
             this.providerModal = {
                 open: true,

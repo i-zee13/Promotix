@@ -22,7 +22,7 @@ class IpAllowlistController extends Controller
 
         $entries = GlobalIpAllowlistEntry::query()
             ->with('createdBy:id,name,email')
-            ->when($kind !== '' && in_array($kind, ['provider', 'cidr'], true), fn ($q) => $q->where('kind', $kind))
+            ->when($kind !== '' && in_array($kind, ['provider', 'cidr', 'asn'], true), fn ($q) => $q->where('kind', $kind))
             ->when($listType !== '' && in_array($listType, ['allow', 'block'], true), function ($q) use ($listType): void {
                 if ($listType === 'allow') {
                     $q->where(function ($inner): void {
@@ -83,7 +83,7 @@ class IpAllowlistController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'kind' => ['required', Rule::in(['provider', 'cidr'])],
+            'kind' => ['required', Rule::in(['provider', 'cidr', 'asn'])],
             'list_type' => ['required', Rule::in(['allow', 'block'])],
             'provider' => ['nullable', 'string', 'max:32'],
             'value' => ['required', 'string', 'max:128'],
@@ -102,6 +102,14 @@ class IpAllowlistController extends Controller
             }
             $value = $provider;
             $label = $data['label'] ?: ucfirst($provider);
+        } elseif ($kind === 'asn') {
+            $asn = GlobalIpAllowlist::normalizeAsn($value);
+            if ($asn === null) {
+                throw ValidationException::withMessages(['value' => 'Enter a valid ASN number (e.g. 15169 or AS15169).']);
+            }
+            $value = (string) $asn;
+            $provider = 'custom';
+            $label = $data['label'] ?: ('AS'.$asn);
         } else {
             $this->assertIpOrCidr($value);
             $provider = 'custom';

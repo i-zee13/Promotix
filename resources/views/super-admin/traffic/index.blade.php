@@ -327,6 +327,12 @@
                     </select>
                 </label>
 
+                <div class="rounded-[8px] border border-[#FF6600]/35 bg-[#FF6600]/08 px-3 py-2 text-[11px] text-white/80" x-show="selectedProviderMeta">
+                    <p class="font-semibold text-white/90">Included ASNs (auto-matched)</p>
+                    <p class="mt-1 font-mono text-[11px] text-[#FFB380]" x-text="(selectedProviderMeta?.asn_labels || []).join(' · ') || '—'"></p>
+                    <p class="mt-1 text-white/50" x-text="(selectedProviderMeta?.cidr_count || 0) + ' CIDR ranges also covered'"></p>
+                </div>
+
                 <p class="rounded-[8px] border border-white/10 bg-black/30 px-3 py-2 text-[11px] text-white/65">
                     <span x-show="providerModal.listType === 'allow'">
                         Example: <strong class="text-white/90">Google LLC</strong> on whitelist → all Google CIDRs / ASNs show as allowed; they will not be blocklisted.

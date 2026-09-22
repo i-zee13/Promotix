@@ -606,19 +606,7 @@ class SupportPagesController extends Controller
             'stats' => $stats,
             'domains' => Domain::query()->orderBy('hostname')->get(['id', 'hostname']),
             'crossDomainIntel' => $this->buildCrossDomainIntel(50),
-            'providerOptions' => collect(\App\Support\GlobalIpAllowlist::providerCidrs())
-                ->keys()
-                ->map(fn (string $id) => [
-                    'id' => $id,
-                    'label' => match ($id) {
-                        'google' => 'Google LLC',
-                        'bing' => 'Microsoft / Bing',
-                        'meta' => 'Meta Platforms',
-                        default => ucfirst($id),
-                    },
-                ])
-                ->values()
-                ->all(),
+            'providerOptions' => \App\Support\GlobalIpAllowlist::providerCatalog(),
             'allowProviders' => $this->providerListEntries('allow'),
             'blockProviders' => $this->providerListEntries('block'),
         ]);

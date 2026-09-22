@@ -10,6 +10,7 @@
         '' => 'All entries',
         'provider' => 'Providers',
         'cidr' => 'Custom IPs',
+        'asn' => 'Custom ASNs',
     ];
     $listTabs = [
         '' => 'Allow + Block',
@@ -102,6 +103,35 @@
                 <button type="submit" class="figma-sa-subs-export-btn" style="background:#FF6600;color:#fff;border-color:#FF6600;">Apply provider</button>
             </div>
         </form>
+
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <form method="POST" action="{{ route('super-admin.settings.whitelist.store') }}" class="figma-sa-subs-filters flex-wrap !items-end">
+                @csrf
+                <input type="hidden" name="kind" value="asn">
+                <input type="hidden" name="list_type" value="allow">
+                <label class="figma-sa-subs-search !max-w-none flex-1">
+                    <span class="sr-only">ASN</span>
+                    <input type="text" name="value" value="{{ old('kind') === 'asn' && old('list_type') === 'allow' ? old('value') : '' }}" placeholder="Whitelist ASN (e.g. 15169 or AS15169)" required>
+                </label>
+                <div class="figma-sa-subs-actions">
+                    <button type="submit" class="figma-sa-subs-export-btn" style="background:#16a34a;color:#fff;border-color:#16a34a;">+ Whitelist ASN</button>
+                </div>
+            </form>
+
+            <form method="POST" action="{{ route('super-admin.settings.whitelist.store') }}" class="figma-sa-subs-filters flex-wrap !items-end">
+                @csrf
+                <input type="hidden" name="kind" value="asn">
+                <input type="hidden" name="list_type" value="block">
+                <label class="figma-sa-subs-search !max-w-none flex-1">
+                    <span class="sr-only">ASN</span>
+                    <input type="text" name="value" value="{{ old('kind') === 'asn' && old('list_type') === 'block' ? old('value') : '' }}" placeholder="Blocklist ASN (e.g. 32934 or AS32934)" required>
+                </label>
+                <div class="figma-sa-subs-actions">
+                    <button type="submit" class="figma-sa-subs-export-btn" style="background:#dc2626;color:#fff;border-color:#dc2626;">+ Blocklist ASN</button>
+                </div>
+            </form>
+        </div>
+
         @error('value')
             <p class="text-[12px] text-rose-300">{{ $message }}</p>
         @enderror
@@ -110,8 +140,9 @@
         @enderror
 
         <p class="text-[11px] text-[#a9a9a9]">
-            Example: put <strong class="text-white/80">Google</strong> on Whitelist → every Google IP on user domains shows as whitelisted / never blocked.
+            Example: put <strong class="text-white/80">Google</strong> on Whitelist → every Google IP / ASN on user domains shows as whitelisted / never blocked.
             Put Google on Blocklist → every Google CIDR/ASN match is blocked platform-wide.
+            You can also add a raw ASN (AS15169) to allow or block that network only.
         </p>
 
         <form method="GET" action="{{ route('super-admin.settings.whitelist') }}" class="figma-sa-subs-filters">
@@ -146,7 +177,11 @@
                             @endphp
                             <tr class="figma-sa-subs-row">
                                 <td>
-                                    <span class="figma-sa-subs-plan-tier">{{ $entry->kind === 'provider' ? 'Provider' : 'IP / CIDR' }}</span>
+                                    <span class="figma-sa-subs-plan-tier">{{ match ($entry->kind) {
+                                        'provider' => 'Provider',
+                                        'asn' => 'ASN',
+                                        default => 'IP / CIDR',
+                                    } }}</span>
                                 </td>
                                 <td>
                                     <span class="figma-sa-subs-plan-tier font-mono">{{ $entry->value }}</span>

@@ -54,18 +54,109 @@ class GlobalIpAllowlist
     {
         return [
             'google' => [
-                'asns' => [15169, 36040, 36384],
-                'needles' => ['google llc', 'google inc', 'googlebot', 'adsbot-google', 'google ireland'],
+                // Google / Googlebot / YouTube / Ads crawler nets
+                'asns' => [15169, 36040, 36384, 36492, 16591, 19527, 396982],
+                'needles' => ['google llc', 'google inc', 'googlebot', 'adsbot-google', 'google ireland', 'youtube'],
             ],
             'bing' => [
-                'asns' => [8075],
+                // Microsoft / Bingbot
+                'asns' => [8075, 8068, 8069],
                 'needles' => ['microsoft', 'bingbot', 'msnbot'],
             ],
             'meta' => [
-                'asns' => [32934],
-                'needles' => ['facebook', 'meta platforms', 'facebookbot'],
+                // Meta / Facebook / Instagram crawlers
+                'asns' => [32934, 63293],
+                'needles' => ['facebook', 'meta platforms', 'facebookbot', 'instagram'],
             ],
         ];
+    }
+
+    /**
+     * Catalog for Super Admin UI (labels + ASN coverage).
+     *
+     * @return list<array{id: string, label: string, asns: list<int>, asn_labels: list<string>, cidr_count: int}>
+     */
+    public static function providerCatalog(): array
+    {
+        $cidrs = self::providerCidrs();
+        $identity = self::providerIdentity();
+        $labels = [
+            'google' => 'Google LLC',
+            'bing' => 'Microsoft / Bing',
+            'meta' => 'Meta Platforms',
+        ];
+
+        $out = [];
+        foreach ($cidrs as $id => $ranges) {
+            $asns = array_values(array_unique(array_map('intval', $identity[$id]['asns'] ?? [])));
+            sort($asns);
+            $out[] = [
+                'id' => $id,
+                'label' => $labels[$id] ?? ucfirst($id),
+                'asns' => $asns,
+                'asn_labels' => array_map(static fn (int $n) => 'AS'.$n, $asns),
+                'cidr_count' => count($ranges),
+            ];
+        }
+
+        return $out;
+    }
+
+    public static function normalizeAsn(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            $n = (int) $value;
+
+            return $n > 0 ? $n : null;
+        }
+
+        if (is_string($value) && preg_match('/(\d+)/', $value, $match) === 1) {
+            $n = (int) $match[1];
+
+            return $n > 0 ? $n : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Explicit ASN numbers on allow/block lists (kind = asn).
+     *
+     * @return list<int>
+     */
+    public static function listedAsns(string $listType = 'allow'): array
+    {
+        if (! self::tableReady()) {
+            return [];
+        }
+
+        $cacheKey = 'global_ip_listed_asns_'.$listType;
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($listType): array {
+            $query = GlobalIpAllowlistEntry::query()
+                ->where('kind', 'asn')
+                ->where('enabled', true);
+
+            if (self::hasListTypeColumn()) {
+                if ($listType === 'block') {
+                    $query->where('list_type', 'block');
+                } else {
+                    $query->where(fn ($q) => $q->where('list_type', 'allow')->orWhereNull('list_type'));
+                }
+            }
+
+            return $query
+                ->pluck('value')
+                ->map(fn ($v) => self::normalizeAsn($v))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        });
     }
 
     public static function matches(string $ip, array $context = [], ?IpLog $ipLog = null): bool
@@ -178,6 +269,8 @@ class GlobalIpAllowlist
     {
         Cache::forget(self::CACHE_KEY);
         Cache::forget(self::CACHE_PROVIDERS_KEY);
+        Cache::forget('global_ip_listed_asns_allow');
+        Cache::forget('global_ip_listed_asns_block');
         GlobalIpBlocklist::flushCaches();
     }
 
@@ -259,23 +352,10 @@ class GlobalIpAllowlist
             }
         }
 
+        if ($asn !== null && in_array($asn, self::listedAsns('allow'), true)) {
+            return true;
+        }
+
         return false;
-    }
-
-    private static function normalizeAsn(mixed $value): ?int
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        if (is_int($value) || is_float($value)) {
-            return (int) $value;
-        }
-
-        if (is_string($value) && preg_match('/(\d+)/', $value, $match) === 1) {
-            return (int) $match[1];
-        }
-
-        return null;
     }
 }
