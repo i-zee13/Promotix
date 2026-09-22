@@ -14068,13 +14068,14 @@ a.figma-sa-teams-card-name:hover {
 }
 
 .figma-sa-roles-action-btn--danger {
-    border-color: #7a1f1f;
-    background: #5c1515;
+    border-color: #dc2626;
+    background: #ef4444;
     color: #ffffff;
 }
 
 .figma-sa-roles-action-btn--danger:hover {
-    background: #6e1a1a;
+    background: #dc2626;
+    border-color: #b91c1c;
     color: #ffffff;
 }
 
