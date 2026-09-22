@@ -27,16 +27,23 @@
             </a>
         </div>
 
-        <div class="figma-sa-products-table-shell">
-            <div class="figma-sa-table-scroll">
+        <div class="figma-sa-products-table-shell figma-sa-roles-table-shell">
+            <div class="figma-sa-table-scroll figma-sa-roles-table-scroll">
                 <table class="figma-sa-products-table figma-sa-roles-table">
+                    <colgroup>
+                        <col class="figma-sa-roles-col-role">
+                        <col class="figma-sa-roles-col-portal">
+                        <col class="figma-sa-roles-col-perms">
+                        <col class="figma-sa-roles-col-users">
+                        <col class="figma-sa-roles-col-action">
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th>Role</th>
-                            <th>Portal</th>
-                            <th>Permissions</th>
-                            <th>Users</th>
-                            <th>Action</th>
+                            <th scope="col">Role</th>
+                            <th scope="col">Portal</th>
+                            <th scope="col">Permissions</th>
+                            <th scope="col">Users</th>
+                            <th scope="col">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -80,16 +87,16 @@
                                         <span class="figma-sa-roles-count-badge figma-sa-roles-count-badge--muted">{{ $role->users_count }}</span>
                                     </div>
                                 </td>
-                                <td class="text-right">
+                                <td>
                                     <div class="figma-sa-roles-actions">
                                         <a href="{{ route('super-admin.roles.edit', $role) }}" class="figma-sa-roles-action-btn">Edit</a>
                                         @if ($role->slug !== 'super-admin')
-                                            <form method="POST" action="{{ route('super-admin.roles.destroy', $role) }}" class="inline-flex flex-wrap items-center gap-2"
+                                            <form method="POST" action="{{ route('super-admin.roles.destroy', $role) }}" class="figma-sa-roles-delete-form"
                                                   onsubmit="return confirm(@json($role->users_count > 0 ? 'Reassign members then delete this role?' : 'Delete this role?'));">
                                                 @csrf
                                                 @method('DELETE')
                                                 @if ($role->users_count > 0)
-                                                    <select name="reassign_role_id" required class="figma-input !w-auto !py-1 text-[11px]" title="Reassign members to">
+                                                    <select name="reassign_role_id" required class="figma-input figma-sa-roles-reassign" title="Reassign members to">
                                                         <option value="">Reassign to…</option>
                                                         @foreach ($allRolesForReassign as $other)
                                                             @if ($other->id !== $role->id)
@@ -100,8 +107,6 @@
                                                 @endif
                                                 <button type="submit" class="figma-sa-roles-action-btn figma-sa-roles-action-btn--danger">Delete</button>
                                             </form>
-                                        @else
-                                            <span class="figma-sa-roles-action-spacer" aria-hidden="true"></span>
                                         @endif
                                     </div>
                                 </td>

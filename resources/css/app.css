@@ -13869,56 +13869,91 @@ a.figma-sa-teams-card-name:hover {
     background: rgba(0, 0, 0, 0.2);
 }
 
-/* Roles & Permissions — 5 columns aligned (Role / Portal / Permissions / Users / Actions) */
+/* Roles & Permissions — own grid (do not inherit Products checkbox column widths) */
+.figma-sa-roles-table-shell {
+    overflow: hidden;
+    max-width: 100%;
+}
+.figma-sa-roles-table-scroll {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
 .figma-sa-products-table.figma-sa-roles-table {
     table-layout: fixed;
     width: 100%;
+    min-width: 640px;
+    border-collapse: collapse;
 }
+.figma-sa-roles-col-role { width: 36%; }
+.figma-sa-roles-col-portal { width: 14%; }
+.figma-sa-roles-col-perms { width: 16%; }
+.figma-sa-roles-col-users { width: 14%; }
+.figma-sa-roles-col-action { width: 20%; }
+
 .figma-sa-products-table.figma-sa-roles-table th,
 .figma-sa-products-table.figma-sa-roles-table td {
     vertical-align: middle;
+    box-sizing: border-box;
 }
+
+/* Kill Products table checkbox / plan column widths on this table */
+.figma-sa-products-table.figma-sa-roles-table th:nth-child(1),
+.figma-sa-products-table.figma-sa-roles-table td:nth-child(1),
+.figma-sa-products-table.figma-sa-roles-table th:nth-child(2),
+.figma-sa-products-table.figma-sa-roles-table td:nth-child(2),
+.figma-sa-products-table.figma-sa-roles-table th:nth-child(3),
+.figma-sa-products-table.figma-sa-roles-table td:nth-child(3),
+.figma-sa-products-table.figma-sa-roles-table th:nth-child(4),
+.figma-sa-products-table.figma-sa-roles-table td:nth-child(4),
+.figma-sa-products-table.figma-sa-roles-table th:nth-child(5),
+.figma-sa-products-table.figma-sa-roles-table td:nth-child(5) {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
 .figma-sa-products-table.figma-sa-roles-table th:nth-child(1),
 .figma-sa-products-table.figma-sa-roles-table td:nth-child(1) {
-    width: 38%;
     text-align: left;
 }
 .figma-sa-products-table.figma-sa-roles-table th:nth-child(2),
-.figma-sa-products-table.figma-sa-roles-table td:nth-child(2) {
-    width: 12%;
-    text-align: center;
-}
+.figma-sa-products-table.figma-sa-roles-table td:nth-child(2),
 .figma-sa-products-table.figma-sa-roles-table th:nth-child(3),
-.figma-sa-products-table.figma-sa-roles-table td:nth-child(3) {
-    width: 14%;
-    text-align: center;
-}
+.figma-sa-products-table.figma-sa-roles-table td:nth-child(3),
 .figma-sa-products-table.figma-sa-roles-table th:nth-child(4),
 .figma-sa-products-table.figma-sa-roles-table td:nth-child(4) {
-    width: 12%;
     text-align: center;
-    padding-right: 12px;
 }
 .figma-sa-products-table.figma-sa-roles-table th:nth-child(5),
 .figma-sa-products-table.figma-sa-roles-table td:nth-child(5) {
-    width: 24%;
-    min-width: 160px;
     text-align: right;
     padding-right: 14px;
 }
-.figma-sa-products-table.figma-sa-roles-table th:nth-child(5) {
-    text-align: right;
-}
 
-.figma-sa-roles-icon {
-    display: inline-flex;
-    flex-shrink: 0;
+.figma-sa-products-table.figma-sa-roles-table .figma-sa-products-usercell {
+    min-width: 0;
+    max-width: 100%;
+}
+.figma-sa-products-table.figma-sa-roles-table .figma-sa-products-usercell > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+}
+.figma-sa-products-table.figma-sa-roles-table .figma-sa-products-name,
+.figma-sa-products-table.figma-sa-roles-table .figma-sa-products-sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .figma-sa-roles-count-cell {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
 }
 
 .figma-sa-roles-count-badge {
@@ -13927,12 +13962,14 @@ a.figma-sa-teams-card-name:hover {
     justify-content: center;
     min-width: 34px;
     height: 34px;
-    padding: 0 8px;
+    padding: 0 10px;
     border-radius: 999px;
     background: var(--brand-primary, #FF6600);
     color: #ffffff;
     font-size: 13px;
     font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .figma-sa-roles-count-badge--muted {
@@ -13945,8 +13982,27 @@ a.figma-sa-teams-card-name:hover {
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    width: 100%;
     min-height: 31px;
+}
+
+.figma-sa-roles-delete-form {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0;
+}
+
+.figma-sa-roles-reassign {
+    width: auto !important;
+    max-width: 140px;
+    min-height: 31px;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    font-size: 11px !important;
 }
 
 .figma-sa-roles-action-btn {
@@ -13954,17 +14010,19 @@ a.figma-sa-teams-card-name:hover {
     align-items: center;
     justify-content: center;
     min-height: 31px;
-    min-width: 72px;
-    padding: 6px 14px;
+    min-width: 64px;
+    padding: 6px 12px;
     border-radius: 5px;
     border: 1px solid #1c1c1c;
-    background: transparent;
+    background: #ffffff;
     color: #1c1c1c;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
     line-height: 1.2;
+    white-space: nowrap;
+    box-sizing: border-box;
 }
 
 .figma-sa-roles-action-btn:hover {
@@ -13984,11 +14042,31 @@ a.figma-sa-teams-card-name:hover {
 }
 
 .figma-sa-roles-action-spacer {
-    display: inline-block;
-    min-width: 72px;
-    min-height: 31px;
-    visibility: hidden;
-    pointer-events: none;
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .figma-sa-products-table.figma-sa-roles-table {
+        min-width: 560px;
+        font-size: 12px;
+    }
+    .figma-sa-roles-col-role { width: 32%; }
+    .figma-sa-roles-col-portal { width: 14%; }
+    .figma-sa-roles-col-perms { width: 16%; }
+    .figma-sa-roles-col-users { width: 14%; }
+    .figma-sa-roles-col-action { width: 24%; }
+    .figma-sa-products-table.figma-sa-roles-table thead th {
+        font-size: 12px;
+        padding: 10px 8px;
+    }
+    .figma-sa-products-table.figma-sa-roles-table tbody td {
+        padding: 12px 8px;
+    }
+    .figma-sa-roles-action-btn {
+        min-width: 56px;
+        padding: 5px 10px;
+        font-size: 11px;
+    }
 }
 
 /* User detail page */
