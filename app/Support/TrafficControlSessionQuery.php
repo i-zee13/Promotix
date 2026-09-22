@@ -102,7 +102,8 @@ class TrafficControlSessionQuery
 
             $first = Carbon::parse($row->first_seen);
             $last = Carbon::parse($row->last_seen);
-            $durationSec = max(0, (int) $last->diffInSeconds($first));
+            // Carbon 3 returns a signed diff; $last->diffInSeconds($first) is negative when last > first.
+            $durationSec = max(0, (int) round($first->diffInSeconds($last, true)));
             if ($durationSec < 1) {
                 $durationSec = max($durationSec, (int) floor(((int) ($rec['duration_ms'] ?? 0)) / 1000));
             }
@@ -219,11 +220,14 @@ class TrafficControlSessionQuery
                 'first_seen' => UserTimezone::formatForUser($first, $request->user(), 'M j, Y g:i a'),
                 'last_seen' => UserTimezone::formatForUser($last, $request->user(), 'M j, Y g:i a'),
                 'entry_time' => UserTimezone::formatForUser($first, $request->user(), 'm/d/y'),
-                'entry_clock' => UserTimezone::formatForUser($first, $request->user(), 'H:i'),
+                'entry_clock' => UserTimezone::formatForUser($first, $request->user(), 'H:i:s'),
                 'exit_time' => UserTimezone::formatForUser($last, $request->user(), 'm/d/y'),
-                'exit_clock' => UserTimezone::formatForUser($last, $request->user(), 'H:i'),
+                'exit_clock' => UserTimezone::formatForUser($last, $request->user(), 'H:i:s'),
                 'timezone' => UserTimezone::reportingTimezoneForUser($request->user()),
                 'time_on_site' => sprintf('%02d:%02d:%02d', $hours, $mins, $secs),
+                'duration_sec' => $durationSec,
+                'first_seen_at' => $first->toIso8601String(),
+                'last_seen_at' => $last->toIso8601String(),
                 'page_views' => $pageViews,
                 'event_actions' => $eventActions,
                 'scroll_events' => $scrollEvents,

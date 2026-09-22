@@ -563,12 +563,15 @@ class VisitorJourneyIntelligence
     /** @param  array<string, mixed>  $row */
     private function sessionDurationSeconds(array $row): int
     {
+        if (isset($row['duration_sec']) && (int) $row['duration_sec'] > 0) {
+            return (int) $row['duration_sec'];
+        }
         $dur = $this->durationToSeconds((string) ($row['time_on_site'] ?? '00:00:00'));
         if ($dur > 0) {
             return $dur;
         }
-        $first = $this->parseFlexibleUnix((string) ($row['first_seen'] ?? ''));
-        $last = $this->parseFlexibleUnix((string) ($row['last_seen'] ?? ''));
+        $first = $this->parseFlexibleUnix((string) ($row['first_seen_at'] ?? $row['first_seen'] ?? ''));
+        $last = $this->parseFlexibleUnix((string) ($row['last_seen_at'] ?? $row['last_seen'] ?? ''));
         if ($first !== null && $last !== null && $last >= $first) {
             return (int) ($last - $first);
         }
@@ -584,7 +587,8 @@ class VisitorJourneyIntelligence
     /** @param  array<string, mixed>  $row */
     private function sessionStartUnix(array $row): ?int
     {
-        return $this->parseFlexibleUnix((string) ($row['first_seen'] ?? ''))
+        return $this->parseFlexibleUnix((string) ($row['first_seen_at'] ?? ''))
+            ?? $this->parseFlexibleUnix((string) ($row['first_seen'] ?? ''))
             ?? $this->parseFlexibleUnix((string) ($row['entry_at'] ?? ''));
     }
 

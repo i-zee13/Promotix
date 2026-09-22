@@ -336,7 +336,7 @@ class PageAnalyticsAggregator
                     ? $this->parseInstant($events[$i + 1]['at'] ?? null)
                     : $this->parseInstant($session['last_at'] ?? null);
                 if ($start && $end) {
-                    $dwell = max(0, min(1800, $end->diffInSeconds($start)));
+                    $dwell = max(0, min(1800, (int) round($start->diffInSeconds($end, true))));
                     if ($dwell > 0) {
                         $paths[$path]['dwell'][] = $dwell;
                     }
@@ -1133,7 +1133,7 @@ class PageAnalyticsAggregator
             $pageCount = count($pages);
             $start = $this->parseInstant($session['first_at'] ?? null);
             $end = $this->parseInstant($session['last_at'] ?? null);
-            $secs = ($start && $end) ? max(0, $end->diffInSeconds($start)) : 0;
+            $secs = ($start && $end) ? max(0, (int) round($start->diffInSeconds($end, true))) : 0;
 
             if ($pageCount <= 1 && $secs < 30) {
                 $bounced++;
@@ -1312,7 +1312,7 @@ class PageAnalyticsAggregator
                     return 0;
                 }
 
-                return max(0, min(1800, $end->diffInSeconds($start)));
+                return max(0, min(1800, (int) round($start->diffInSeconds($end, true))));
             };
 
             $steps['Landing Page']['count']++;
@@ -1641,7 +1641,7 @@ class PageAnalyticsAggregator
             if (! $start || ! $end) {
                 continue;
             }
-            $secs[] = max(0, min(7200, $end->diffInSeconds($start)));
+            $secs[] = max(0, min(7200, (int) round($start->diffInSeconds($end, true))));
         }
 
         if ($secs === []) {

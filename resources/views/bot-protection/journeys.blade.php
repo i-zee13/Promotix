@@ -1577,22 +1577,22 @@
                                 <div class="vj-meta-row">
                                     <span>Session ID</span>
                                     <strong>
-                                        <span class="font-mono text-[11px]" x-text="selected?.session_id"></span>
-                                        <button type="button" class="text-white/35 hover:text-white" @click="copyText(selected?.session_id)">⧉</button>
+                                        <span class="font-mono text-[11px]" x-text="selectedEvent.session_id || selected?.session_id || '—'"></span>
+                                        <button type="button" class="text-white/35 hover:text-white" @click="copyText(selectedEvent.session_id || selected?.session_id)">⧉</button>
                                     </strong>
                                 </div>
                                 <div class="vj-meta-row">
                                     <span>Device ID</span>
                                     <strong>
-                                        <span class="font-mono text-[11px]" x-text="selected?.device_id"></span>
-                                        <button type="button" class="text-white/35 hover:text-white" @click="copyText(selected?.device_id)">⧉</button>
+                                        <span class="font-mono text-[11px]" x-text="selectedEvent.device_id || selected?.device_id || '—'"></span>
+                                        <button type="button" class="text-white/35 hover:text-white" @click="copyText(selectedEvent.device_id || selected?.device_id)">⧉</button>
                                     </strong>
                                 </div>
-                                <div class="vj-meta-row"><span>Event</span><strong class="font-mono text-[11px]" x-text="selectedEvent.event || selectedEvent.label"></strong></div>
+                                <div class="vj-meta-row"><span>Event</span><strong class="font-mono text-[11px]" x-text="selectedEvent.event || selectedEvent.label || '—'"></strong></div>
                                 <div class="vj-meta-row"><span>Time</span><strong x-text="selectedEvent.time || '—'"></strong></div>
-                                <div class="vj-meta-row"><span>Elapsed Time</span><strong x-text="selectedEvent.elapsed || selectedEvent.elapsed_short"></strong></div>
+                                <div class="vj-meta-row"><span>Elapsed Time</span><strong x-text="selectedEvent.elapsed || selectedEvent.elapsed_short || '—'"></strong></div>
                                 <div class="vj-meta-row"><span>Page</span><strong x-text="selectedEvent.page || '—'"></strong></div>
-                                <div class="vj-meta-row"><span>Campaign</span><strong x-text="selected?.campaign || '—'"></strong></div>
+                                <div class="vj-meta-row"><span>Campaign</span><strong x-text="selectedEvent.campaign || selected?.campaign || '—'"></strong></div>
                                 <div class="vj-meta-row">
                                     <span>Status</span>
                                     <strong><span class="vj-status-ok"></span> <span x-text="selectedEvent.status || selectedEvent.kind"></span></strong>
@@ -2140,7 +2140,11 @@ function visitorJourneyPage() {
         },
         selectEvent(row, ev) {
             this.selected = row;
-            this.selectedEvent = ev;
+            this.selectedEvent = Object.assign({}, ev, {
+                session_id: row?.session_id || ev?.session_id || '',
+                device_id: row?.device_id || ev?.device_id || '',
+                campaign: row?.campaign || ev?.campaign || '',
+            });
         },
         isEventSelected(row, ev) {
             return this.selected?.session_key === row.session_key && this.selectedEvent?.id === ev.id;

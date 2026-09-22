@@ -153,7 +153,7 @@ class AdsTimingEvaluator
                 return null;
             }
 
-            return max(0, $now->diffInSeconds(Carbon::parse((string) $previous)));
+            return max(0, (int) round($now->diffInSeconds(Carbon::parse((string) $previous), true)));
         } catch (\Throwable) {
             return null;
         }
