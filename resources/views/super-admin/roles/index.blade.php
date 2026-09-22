@@ -68,8 +68,14 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="figma-sa-roles-count-badge figma-sa-roles-count-badge--muted">
-                                        {{ ($role->portal ?? 'user') === 'admin' ? 'Admin' : 'User' }}
+                                    @php
+                                        $portalKey = (string) ($role->portal ?? 'user');
+                                        $portalLabel = $role->slug === 'super-admin'
+                                            ? 'Super Admin'
+                                            : ($portalKey === 'admin' ? 'Admin' : 'User');
+                                    @endphp
+                                    <span class="figma-sa-roles-portal-badge" data-portal="{{ $role->slug === 'super-admin' ? 'super' : $portalKey }}">
+                                        {{ $portalLabel }}
                                     </span>
                                 </td>
                                 <td>
