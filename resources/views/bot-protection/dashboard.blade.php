@@ -37,7 +37,7 @@
                     gap: 12px;
                     min-width: 0;
                     position: relative;
-                    z-index: 30;
+                    z-index: 20;
                     overflow: visible;
                 }
                 @media (min-width: 1100px) {
@@ -124,7 +124,7 @@
                     align-items: stretch;
                     align-self: stretch;
                     position: relative;
-                    z-index: 40;
+                    z-index: 25;
                     overflow: visible;
                     border-left: 1px solid rgba(0, 0, 0, 0.2);
                     border-top: 0;
@@ -141,7 +141,7 @@
                     justify-content: center;
                     align-self: stretch;
                     position: relative;
-                    z-index: 50;
+                    z-index: 26;
                     overflow: visible;
                     border-left: 0 !important;
                     border-top: 0 !important;
