@@ -416,23 +416,33 @@
             }
             .vj-et__sid .vj-et__id-line { color:rgba(255,255,255,.55); }
             .vj-et__track {
-                position:relative; height:64px; margin:6px 8px;
+                position:relative; height:72px; margin:6px 8px;
                 border-bottom:1px dotted rgba(255,255,255,.18);
             }
             .vj-et__marker {
-                position:absolute; top:8px; transform:translateX(-50%); text-align:center; z-index:2;
+                position:absolute; top:10px; transform:translateX(-50%); text-align:center; z-index:2;
+                width: 56px;
             }
             .vj-et__marker.is-hover { z-index: 30; }
             .vj-et__marker.is-selected .vj-ev-icon { outline:2px solid #FF6600; outline-offset:2px; }
             .vj-et__m-label {
                 font-size:9px; color:rgba(255,255,255,.7); white-space:nowrap; margin-bottom:4px;
-                max-width:72px; overflow:hidden; text-overflow:ellipsis; margin-left:auto; margin-right:auto;
+                max-width:56px; overflow:hidden; text-overflow:ellipsis; margin-left:auto; margin-right:auto;
+                line-height:1.1; min-height:11px;
             }
             .vj-et__marker.is-hover .vj-et__m-label,
-            .vj-et__marker.is-clustered .vj-et__m-label {
+            .vj-et__marker.is-clustered:not(.is-cluster-head) .vj-et__m-label,
+            .vj-et__marker.hide-label .vj-et__m-label {
                 visibility: hidden;
             }
-            .vj-et__m-time { font-size:9px; color:rgba(255,255,255,.4); margin-top:4px; }
+            .vj-et__m-time {
+                font-size:9px; color:rgba(255,255,255,.4); margin-top:4px;
+                white-space:nowrap; line-height:1.1; min-height:11px;
+            }
+            .vj-et__marker.is-clustered:not(.is-cluster-tail) .vj-et__m-time,
+            .vj-et__marker.hide-time .vj-et__m-time {
+                visibility: hidden;
+            }
             .vj-ev-icon {
                 width:14px; height:14px; display:inline-block; vertical-align:middle;
             }
@@ -1325,14 +1335,10 @@
                                             <small x-text="sessionDurationLabel(row)"></small>
                                         </div>
                                         <div class="vj-et__track">
-                                            <template x-for="ev in filteredEvents(row)" :key="ev.id || (ev.event + ev.elapsed_sec)">
+                                            <template x-for="(ev, evi) in displayEvents(row)" :key="(row.session_key || '') + '-' + evi + '-' + (ev.id || ev.type) + '-' + (ev.elapsed_sec || 0)">
                                                 <div
                                                     class="vj-et__marker"
-                                                    :class="{
-                                                        'is-selected': isEventSelected(row, ev),
-                                                        'is-hover': hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id,
-                                                        'is-clustered': isEventClustered(ev, row)
-                                                    }"
+                                                    :class="markerClass(row, ev)"
                                                     :style="'left:' + eventLeftPct(ev, row) + '%'"
                                                     @click.stop="selectEvent(row, ev)"
                                                     @mouseenter="hoverEvent = { session: row.session_key, id: ev.id }"
@@ -1994,18 +2000,20 @@ function visitorJourneyPage() {
         },
         get timelineMaxSec() {
             const step = Number(this.timeScale || 30);
-            const fromData = Math.max(0, ...this.timelineSessions.flatMap((s) => (s.timeline || []).map((e) => Number(e.elapsed_sec || 0))));
+            const fromData = Math.max(0, ...this.timelineSessions.flatMap((s) => {
+                const dur = this.rowDurationSec(s);
+                const evMax = Math.max(0, ...(s.timeline || []).map((e) => Number(e.elapsed_sec || 0)));
+                return [dur, evMax];
+            }));
             if (fromData <= 0) return step * 5;
             // Fit axis to real session span — do not force 2:30 when events end at 0:20.
-            return Math.max(fromData + step, step * 2);
+            return Math.max(fromData + Math.min(step, 15), step * 2);
         },
         sessionDurationLabel(row) {
             if (!row) return '0m 00s';
-            const raw = this.durationSec(row.duration_raw || row.duration);
-            if (raw > 0) return row.duration || this.formatDurationSec(raw);
-            const maxEv = Math.max(0, ...(row.timeline || []).map((e) => Number(e.elapsed_sec || 0)));
-            if (maxEv <= 0) return row.duration || '0m 00s';
-            return this.formatDurationSec(maxEv);
+            const raw = this.rowDurationSec(row);
+            if (raw > 0) return this.formatDurationSec(raw);
+            return row.duration || '0m 00s';
         },
         formatDurationSec(sec) {
             const n = Math.max(0, Math.round(Number(sec) || 0));
@@ -2220,11 +2228,68 @@ function visitorJourneyPage() {
             if (fp && fp !== '—') parts.push(fp);
             return parts.length ? parts.join(' · ') : '—';
         },
-        isEventClustered(ev, row) {
-            const list = this.filteredEvents(row);
-            if (list.length < 2) return false;
+        rowDurationSec(row) {
+            const fromRaw = this.durationSec(row?.duration_raw || row?.duration);
+            const fromEvents = Math.max(0, ...(row?.timeline || []).map((e) => Number(e.elapsed_sec || 0)));
+            return Math.max(fromRaw, fromEvents, 0);
+        },
+        displayEvents(row) {
+            const list = this.filteredEvents(row) || [];
+            const dur = this.rowDurationSec(row);
+            const seen = new Set();
+            const out = [];
+            let exitSeen = false;
+            list.forEach((ev, idx) => {
+                if (!ev || typeof ev !== 'object') return;
+                let e = Object.assign({}, ev);
+                if (e.type === 'exit' && dur > 0 && Number(e.elapsed_sec || 0) < dur) {
+                    e.elapsed_sec = dur;
+                    e.elapsed = this.formatClockPad(dur);
+                    e.elapsed_short = this.formatClockShort(dur);
+                    e.id = (e.id || 'exit') + '-sync-' + dur;
+                }
+                if (e.type === 'exit') {
+                    if (exitSeen) return;
+                    exitSeen = true;
+                }
+                const key = String(e.type || '') + '|' + Number(e.elapsed_sec || 0) + '|' + String(e.label || e.event || '').toLowerCase();
+                if (seen.has(key)) return;
+                seen.add(key);
+                e._idx = idx;
+                out.push(e);
+            });
+            out.sort((a, b) => Number(a.elapsed_sec || 0) - Number(b.elapsed_sec || 0));
+            return out;
+        },
+        formatClockPad(sec) {
+            const n = Math.max(0, Math.round(Number(sec) || 0));
+            return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+        },
+        formatClockShort(sec) {
+            const n = Math.max(0, Math.round(Number(sec) || 0));
+            return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0');
+        },
+        clusterPeers(ev, row) {
+            const list = this.displayEvents(row);
             const sec = Number(ev.elapsed_sec || 0);
-            return list.filter((e) => Math.abs(Number(e.elapsed_sec || 0) - sec) < 1).length > 1;
+            return list.filter((e) => Math.abs(Number(e.elapsed_sec || 0) - sec) < 1.5);
+        },
+        markerClass(row, ev) {
+            const peers = this.clusterPeers(ev, row);
+            const clustered = peers.length > 1;
+            const idx = clustered ? Math.max(0, peers.findIndex((e) => String(e.id) === String(ev.id))) : 0;
+            return {
+                'is-selected': this.isEventSelected(row, ev),
+                'is-hover': this.hoverEvent && this.hoverEvent.session === row.session_key && this.hoverEvent.id === ev.id,
+                'is-clustered': clustered,
+                'is-cluster-head': clustered && idx === 0,
+                'is-cluster-tail': clustered && idx === peers.length - 1,
+                'hide-label': clustered && idx !== 0,
+                'hide-time': clustered && idx !== peers.length - 1,
+            };
+        },
+        isEventClustered(ev, row) {
+            return this.clusterPeers(ev, row).length > 1;
         },
         isEventSelected(row, ev) {
             return this.selected?.session_key === row.session_key && this.selectedEvent?.id === ev.id;
@@ -2236,19 +2301,20 @@ function visitorJourneyPage() {
         },
         eventLeftPct(ev, row = null) {
             const sec = Number(ev.elapsed_sec || 0);
-            const max = Math.max(1, this.timelineMaxSec);
-            let base = Math.min(98, Math.max(1, (sec / max) * 100));
-            // Same-second events (page + exit at 0:00) — nudge sideways so labels don't stack.
-            const list = row ? this.filteredEvents(row) : [];
+            const rowMax = row ? this.rowDurationSec(row) : 0;
+            const max = Math.max(1, this.timelineMaxSec, rowMax);
+            let base = Math.min(96, Math.max(2, (sec / max) * 100));
+            // Same-second events — nudge sideways so icons don't stack.
+            const list = row ? this.displayEvents(row) : [];
             if (list.length > 1) {
-                const same = list.filter((e) => Math.abs(Number(e.elapsed_sec || 0) - sec) < 1);
+                const same = list.filter((e) => Math.abs(Number(e.elapsed_sec || 0) - sec) < 1.5);
                 if (same.length > 1) {
                     const idx = Math.max(0, same.findIndex((e) => String(e.id) === String(ev.id)));
-                    const spread = Math.min(2.4, 10 / same.length);
+                    const spread = Math.min(4.5, 14 / same.length);
                     base = base + (idx - (same.length - 1) / 2) * spread;
                 }
             }
-            return Math.min(98, Math.max(1, base));
+            return Math.min(97, Math.max(2, base));
         },
         eventHoverLabel(ev) {
             const name = String(ev?.event || ev?.label || 'Event').trim();

@@ -268,6 +268,8 @@ class VisitorJourneyIntelligence
         if ($durationSec <= 0 && $timelineMax > 0) {
             $durationSec = $timelineMax;
         }
+        // Duration label can be correct while exit is still stuck at 0:00 — pin exit to duration.
+        $timeline = $this->syncExitToDuration($timeline, $durationSec, $row);
         $durationLabel = $this->friendlyDuration(sprintf(
             '%02d:%02d:%02d',
             intdiv($durationSec, 3600),
@@ -612,7 +614,97 @@ class VisitorJourneyIntelligence
 
         usort($out, static fn ($a, $b) => ((int) ($a['elapsed_sec'] ?? 0)) <=> ((int) ($b['elapsed_sec'] ?? 0)));
 
-        return array_values($out);
+        return array_values($this->dedupeTimelineEvents($out));
+    }
+
+    /**
+     * Pin Exit marker to engaged session duration (e.g. 14s left label → Exit at 0:14).
+     *
+     * @param  list<array<string, mixed>>  $timeline
+     * @param  array<string, mixed>  $row
+     * @return list<array<string, mixed>>
+     */
+    private function syncExitToDuration(array $timeline, int $durationSec, array $row): array
+    {
+        if ($durationSec <= 0) {
+            return $this->dedupeTimelineEvents($timeline);
+        }
+
+        $exitClock = (string) ($row['exit_clock'] ?? $this->extractClock((string) ($row['last_seen'] ?? '')));
+        $hasExit = false;
+        foreach ($timeline as $i => $ev) {
+            if (($ev['type'] ?? '') !== 'exit') {
+                continue;
+            }
+            $hasExit = true;
+            $cur = (int) ($ev['elapsed_sec'] ?? 0);
+            if ($cur >= $durationSec) {
+                continue;
+            }
+            $timeline[$i] = $this->timelineEvent([
+                'type' => 'exit',
+                'label' => (string) ($ev['label'] ?? 'Exit'),
+                'event' => (string) ($ev['event'] ?? 'session_end'),
+                'kind' => (string) ($ev['kind'] ?? 'Exit'),
+                'time' => $exitClock !== '' ? $exitClock : (string) ($ev['time'] ?? ''),
+                'elapsed_sec' => $durationSec,
+                'page' => (string) ($ev['page'] ?? ($row['exit_page'] ?? '/')),
+                'note' => (string) ($ev['note'] ?? ''),
+                'status' => (string) ($ev['status'] ?? 'Session ended'),
+            ]);
+        }
+
+        if (! $hasExit) {
+            $timeline[] = $this->timelineEvent([
+                'type' => 'exit',
+                'label' => 'Exit',
+                'event' => 'session_end',
+                'kind' => 'Exit',
+                'time' => $exitClock,
+                'elapsed_sec' => $durationSec,
+                'page' => $this->shortPath((string) ($row['exit_page'] ?? '/')),
+                'note' => '',
+                'status' => 'Session ended',
+            ]);
+        }
+
+        usort($timeline, static fn ($a, $b) => ((int) ($a['elapsed_sec'] ?? 0)) <=> ((int) ($b['elapsed_sec'] ?? 0)));
+
+        return array_values($this->dedupeTimelineEvents($timeline));
+    }
+
+    /**
+     * Drop duplicate markers (same type + second + label) that cause double-rendered UI.
+     *
+     * @param  list<array<string, mixed>>  $timeline
+     * @return list<array<string, mixed>>
+     */
+    private function dedupeTimelineEvents(array $timeline): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($timeline as $ev) {
+            if (! is_array($ev)) {
+                continue;
+            }
+            $key = strtolower((string) ($ev['type'] ?? '')).'|'
+                .(int) ($ev['elapsed_sec'] ?? 0).'|'
+                .strtolower(trim((string) ($ev['label'] ?? $ev['event'] ?? '')));
+            if (isset($seen[$key])) {
+                continue;
+            }
+            // Only one Exit marker per session.
+            if (($ev['type'] ?? '') === 'exit' && isset($seen['__exit__'])) {
+                continue;
+            }
+            if (($ev['type'] ?? '') === 'exit') {
+                $seen['__exit__'] = true;
+            }
+            $seen[$key] = true;
+            $out[] = $ev;
+        }
+
+        return $out;
     }
 
     /** @param  array<string, mixed>  $row */
