@@ -2293,14 +2293,29 @@ function visitorJourneyPage() {
 
             events.sort((a, b) => a.elapsed_sec - b.elapsed_sec);
 
+            // Short sessions (1–29s): hide the 0:00 starting page marker so Exit (e.g. 0:07)
+            // is not covered by overlapping start labels/times.
+            let visible = events;
+            if (dur > 0 && dur < 30) {
+                visible = events.filter((e) => {
+                    if (e.type === 'exit') return true;
+                    return Number(e.elapsed_sec || 0) > 0;
+                });
+                // If everything was at 0:00 except we filtered them out, keep Exit only.
+                if (!visible.length && events.length) {
+                    const exit = events.find((e) => e.type === 'exit') || events[events.length - 1];
+                    visible = exit ? [exit] : [];
+                }
+            }
+
             // Cluster by second for label/time visibility + horizontal nudge.
             const buckets = {};
-            events.forEach((e, i) => {
+            visible.forEach((e, i) => {
                 const b = Math.round(e.elapsed_sec);
                 (buckets[b] || (buckets[b] = [])).push(i);
             });
 
-            return events.map((e, i) => {
+            return visible.map((e, i) => {
                 const b = Math.round(e.elapsed_sec);
                 const peers = buckets[b] || [i];
                 const pIdx = peers.indexOf(i);
