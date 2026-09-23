@@ -105,6 +105,7 @@ class VisitProtectionService
                 'threat_group' => 'blocked',
                 'action_taken' => 'block',
                 'reasons' => ['global_block_list', 'provider_block_list'],
+                'is_paid_traffic' => $isPaidTraffic,
             ];
 
             return [
@@ -178,7 +179,11 @@ class VisitProtectionService
 
         return [
             'ipLog' => $ipLog->fresh(),
-            'detection' => $detection,
+            'detection' => array_merge($detection, [
+                'is_paid_traffic' => $isPaidTraffic,
+                'paid_clicks_today' => $paidClicksToday,
+                'cr_repeat_click_count' => $paidClicksToday,
+            ]),
             'enforce_block' => $this->shouldEnforceBlock($domain, $detection, $isPaidTraffic, $ipLog->ip),
             'prior_blocked' => false,
         ];
@@ -464,6 +469,7 @@ class VisitProtectionService
             'threat_group' => null,
             'action_taken' => 'allow',
             'reasons' => ['allow_list'],
+            'is_paid_traffic' => $isPaidTraffic,
         ];
 
         return [
@@ -484,6 +490,7 @@ class VisitProtectionService
             'threat_group' => 'blocked',
             'action_taken' => 'block',
             'reasons' => [$priorBlocked ? 'previously_blocked' : 'blocked'],
+            'is_paid_traffic' => $isPaidTraffic,
         ];
 
         return [

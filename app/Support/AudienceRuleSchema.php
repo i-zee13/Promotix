@@ -53,7 +53,17 @@ final class AudienceRuleSchema
             'cr_action' => [
                 'label' => 'Journey action',
                 'operators' => ['=', 'in'],
-                'values' => ['page_view', 'form_submitted', 'cta_click', 'exit'],
+                'values' => [
+                    'page_view',
+                    'form_submitted',
+                    'form_link',
+                    'cta_click',
+                    'tel_click',
+                    'add_to_cart',
+                    'checkout',
+                    'purchase',
+                    'exit',
+                ],
                 'type' => 'enum',
             ],
             'cr_outcome' => [

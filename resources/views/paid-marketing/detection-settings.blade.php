@@ -441,6 +441,16 @@
                 min-height: 42px;
             }
             .figma-bip-title, .figma-gaem-title { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #2d2d3a; }
+            .figma-gaem-title {
+                display: inline-block;
+                margin: 0;
+                padding: 6px 12px;
+                border-radius: 8px;
+                background: #ea580c;
+                color: #fff !important;
+                font-size: 16px;
+                font-weight: 600;
+            }
             .figma-bip-lead, .figma-gaem-lead { margin: 0; font-size: 11px; color: #6b6578; }
             .figma-bip-head-actions, .figma-gaem-head-actions { display: flex; align-items: center; gap: 8px; }
             .figma-bip-upload, .figma-gaem-bulk {
@@ -550,8 +560,8 @@
             .figma-gaem-row-btn--primary { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
 
             html.light-mode .figma-dem-title,
-            html.light-mode .figma-bip-title,
-            html.light-mode .figma-gaem-title { color: #2d2d3a; }
+            html.light-mode .figma-bip-title { color: #2d2d3a; }
+            html.light-mode .figma-gaem-title { color: #fff !important; background: #ea580c; }
             html.light-mode .figma-dem-card-title,
             html.light-mode .figma-dem-meta-row strong { color: #fff; }
             html.light-mode .figma-dem-lead,
@@ -611,8 +621,11 @@
                 background: #fff !important;
                 border-color: #e4dceb !important;
             }
-            .figma-bip .figma-bip-title,
-            .figma-gaem .figma-gaem-title { color: #2d2d3a !important; }
+            .figma-bip .figma-bip-title { color: #2d2d3a !important; }
+            .figma-gaem .figma-gaem-title {
+                background: #ea580c !important;
+                color: #fff !important;
+            }
             .figma-bip .figma-bip-lead,
             .figma-gaem .figma-gaem-lead { color: #6b6578 !important; }
             .figma-bip .figma-bip-upload,

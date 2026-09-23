@@ -16,22 +16,33 @@ class AudienceSignalServiceTest extends TestCase
             'action_taken' => 'block',
             'threat_score' => 94,
             'threat_group' => 'repeat_clicks',
+            'is_paid_traffic' => true,
         ]);
         $this->assertTrue($invalid['fire']);
         $this->assertSame('cr_invalid_traffic', $invalid['event']);
         $this->assertSame('invalid', $invalid['traffic_verdict']);
         $this->assertNotEmpty($invalid['decision_id']);
 
+        $organicInvalid = $svc->decisionFromDetection([
+            'traffic_status' => 'invalid',
+            'action_taken' => 'block',
+            'threat_score' => 94,
+            'is_paid_traffic' => false,
+        ]);
+        $this->assertFalse($organicInvalid['fire']);
+
         $suspicious = $svc->decisionFromDetection([
             'traffic_status' => 'suspicious',
             'action_taken' => 'flag',
             'threat_score' => 50,
+            'is_paid_traffic' => true,
         ]);
         $this->assertFalse($suspicious['fire']);
 
         $valid = $svc->decisionFromDetection([
             'traffic_status' => 'valid',
             'action_taken' => 'allow',
+            'is_paid_traffic' => true,
         ]);
         $this->assertFalse($valid['fire']);
     }
@@ -43,6 +54,7 @@ class AudienceSignalServiceTest extends TestCase
             'traffic_status' => 'suspicious',
             'action_taken' => 'block',
             'threat_score' => 70,
+            'is_paid_traffic' => true,
         ]);
 
         $this->assertTrue($flags['fire_audience_event'] ?? false);
@@ -57,6 +69,7 @@ class AudienceSignalServiceTest extends TestCase
             'action_taken' => 'block',
             'threat_score' => 90,
             'threat_group' => 'blocked',
+            'is_paid_traffic' => true,
         ]);
 
         $this->assertTrue($flags['fire_audience_event']);

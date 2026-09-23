@@ -3325,12 +3325,22 @@ function platformIntegrations(config) {
                     data.exported_at || new Date().toISOString(),
                 ];
                 const memberHeaders = [
-                    'Visited at',
+                    'First click',
+                    'Last click',
                     'IP',
                     'Device ID',
                     'GCLID',
                     'Campaign ID',
                     'Campaign name',
+                    'Repeat clicks',
+                    'Matched parameters',
+                    'CTA clicks',
+                    'Tel clicks',
+                    'Add to cart',
+                    'Checkout',
+                    'Purchase',
+                    'Form events',
+                    'Journey actions',
                     'Threat group',
                     'Action',
                     'Country',
@@ -3341,19 +3351,29 @@ function platformIntegrations(config) {
                 let memberRowsHtml = '';
                 if (members.length) {
                     memberRowsHtml = members.map((m) => `<tr>${[
-                        m.visited_at,
+                        m.first_click_at || m.visited_at,
+                        m.last_click_at || m.visited_at,
                         m.ip,
                         m.device_id,
                         m.gclid,
                         m.campaign_id,
                         m.campaign_name,
+                        m.repeat_click_count ?? '',
+                        m.matched_params || m.rule_summary || '',
+                        m.cta_clicks ?? 0,
+                        m.tel_clicks ?? 0,
+                        m.add_to_cart ?? 0,
+                        m.checkout ?? 0,
+                        m.purchase ?? 0,
+                        m.form_events ?? 0,
+                        m.journey_actions || '',
                         m.threat_group,
                         m.action_taken,
                         m.country,
                         m.url,
                     ].map(td).join('')}</tr>`).join('');
                 } else {
-                    memberRowsHtml = `<tr><td colspan="10" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No invalid members found for this list / attached campaigns yet.</td></tr>`;
+                    memberRowsHtml = `<tr><td colspan="20" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No members matched this audience rule for ads traffic yet.</td></tr>`;
                 }
                 const xOpen = (n) => '<' + 'x:' + n + '>';
                 const xClose = (n) => '</' + 'x:' + n + '>';
@@ -3364,13 +3384,17 @@ function platformIntegrations(config) {
                     + xOpen('WorksheetOptions') + xEmpty('DisplayGridlines') + xClose('WorksheetOptions')
                     + xClose('ExcelWorksheet') + xClose('ExcelWorksheets') + xClose('ExcelWorkbook')
                     + '</xml><![endif]-->';
+                const ruleNote = data.rule_summary
+                    ? `<p style="font-family:Arial,sans-serif;font-size:11px;color:#6b7280;margin:0 0 12px;">Rule: ${escHtml(data.rule_summary)}</p>`
+                    : '';
                 const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8">${msoExcelXml}</head><body>
 <h3 style="font-family:Arial,sans-serif;margin:0 0 10px;">Audience basics</h3>
 <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;margin-bottom:18px;">
 <tr>${summaryHeaders.map(th).join('')}</tr>
 <tr>${summaryValues.map(td).join('')}</tr>
 </table>
-<h3 style="font-family:Arial,sans-serif;margin:0 0 10px;">Invalid members</h3>
+${ruleNote}
+<h3 style="font-family:Arial,sans-serif;margin:0 0 10px;padding:8px 12px;background:#ea580c;color:#ffffff;display:inline-block;">Invalid members</h3>
 <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;">
 <tr>${memberHeaders.map(th).join('')}</tr>
 ${memberRowsHtml}

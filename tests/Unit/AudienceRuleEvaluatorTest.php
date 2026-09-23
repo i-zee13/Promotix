@@ -63,6 +63,32 @@ class AudienceRuleEvaluatorTest extends TestCase
         $this->assertFalse(AudienceRuleEvaluator::matches($rule, ['cr_risk_score' => 40]));
     }
 
+    public function test_repeat_click_count_and_journey_actions(): void
+    {
+        $repeatRule = [
+            'match_mode' => 'all',
+            'conditions' => [
+                ['param' => 'cr_repeat_click_count', 'op' => '>=', 'value' => 4],
+            ],
+        ];
+        $this->assertTrue(AudienceRuleEvaluator::matches($repeatRule, ['cr_repeat_click_count' => 4]));
+        $this->assertTrue(AudienceRuleEvaluator::matches($repeatRule, ['cr_repeat_click_count' => 7]));
+        $this->assertFalse(AudienceRuleEvaluator::matches($repeatRule, ['cr_repeat_click_count' => 3]));
+
+        $actionRule = [
+            'match_mode' => 'any',
+            'conditions' => [
+                ['param' => 'cr_action', 'op' => 'in', 'value' => ['cta_click', 'tel_click', 'checkout']],
+            ],
+        ];
+        $this->assertTrue(AudienceRuleEvaluator::matches($actionRule, [
+            'cr_actions' => ['page_view', 'tel_click'],
+        ]));
+        $this->assertFalse(AudienceRuleEvaluator::matches($actionRule, [
+            'cr_actions' => ['page_view', 'exit'],
+        ]));
+    }
+
     public function test_natural_language_summary(): void
     {
         $summary = AudienceRuleSchema::naturalLanguageSummary(AudienceRuleSchema::defaultPreset());

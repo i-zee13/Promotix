@@ -77,14 +77,19 @@ class AudienceSignalService
             'cr_invalid_category' => $category,
             'cr_invalid_reason' => $reason !== '' ? $reason : null,
             'cr_risk_score' => $score,
-            'cr_action' => $detection['cr_action'] ?? $detection['journey_action'] ?? null,
+            'cr_action' => $this->normalizeJourneyAction(
+                $detection['cr_action'] ?? $detection['journey_action'] ?? null
+            ),
+            'cr_actions' => $this->normalizeJourneyActions($detection['cr_actions'] ?? $detection['journey_actions'] ?? null),
             'cr_outcome' => $detection['cr_outcome'] ?? $detection['outcome'] ?? null,
             'cr_lead_status' => $detection['cr_lead_status'] ?? $detection['lead_status'] ?? null,
             'cr_form_status' => $detection['cr_form_status'] ?? $detection['form_status'] ?? null,
             'cr_keyword_class' => $detection['cr_keyword_class'] ?? $detection['keyword_class'] ?? null,
             'cr_repeat_click_count' => isset($detection['cr_repeat_click_count'])
                 ? (int) $detection['cr_repeat_click_count']
-                : (isset($detection['paid_clicks_today']) ? (int) $detection['paid_clicks_today'] : null),
+                : (isset($detection['paid_clicks_today'])
+                    ? (int) $detection['paid_clicks_today']
+                    : (isset($detection['click_count']) ? (int) $detection['click_count'] : null)),
             'cr_challenge_result' => $detection['cr_challenge_result'] ?? $detection['challenge_result'] ?? null,
             'cr_zip_status' => $detection['cr_zip_status'] ?? $detection['zip_status'] ?? null,
             'cr_campaign_id' => $detection['cr_campaign_id'] ?? $detection['campaign_id'] ?? null,
@@ -107,6 +112,23 @@ class AudienceSignalService
     {
         $params = $this->buildDecisionParams($detection);
         $status = (string) ($params['cr_traffic_verdict'] ?? 'valid');
+
+        // Audience exclusion is ads-only — never fire for organic traffic.
+        $isPaid = filter_var($detection['is_paid_traffic'] ?? false, FILTER_VALIDATE_BOOLEAN)
+            || ! empty($detection['gclid'])
+            || ! empty($detection['gbraid'])
+            || ! empty($detection['wbraid']);
+        if (! $isPaid) {
+            return [
+                'fire' => false,
+                'event' => self::DEFAULT_EVENT,
+                'traffic_verdict' => $status,
+                'decision_id' => $params['cr_decision_id'] ?? null,
+                'matched_audience_ids' => [],
+                'params' => $params,
+            ];
+        }
+
         $audiences = $this->activeAudiencesForDomain($domain);
 
         $matchedIds = [];
@@ -195,19 +217,45 @@ class AudienceSignalService
             ->orderByDesc('id')
             ->first();
 
-        $byRoute = is_array($mapping?->settings['audience_associations'] ?? null)
-            ? $mapping->settings['audience_associations']
+        $settings = is_array($mapping?->settings) ? $mapping->settings : [];
+        $byList = is_array($settings['audience_lists'] ?? null) ? $settings['audience_lists'] : [];
+        $byRoute = is_array($settings['audience_associations'] ?? null)
+            ? $settings['audience_associations']
             : [];
 
         $out = [];
+        $seen = [];
+
+        foreach ($byList as $listId => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $id = preg_replace('/\D+/', '', (string) ($row['user_list_id'] ?? $listId));
+            if ($id === '' || isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $rule = is_array($row['rule'] ?? null)
+                ? AudienceRuleSchema::normalize($row['rule'])['rule']
+                : AudienceRuleSchema::defaultPreset();
+
+            $out[] = [
+                'id' => $id,
+                'rule' => $rule,
+                'method' => (string) ($row['method'] ?? $row['route'] ?? 'ga4'),
+                'membership_days' => (int) ($row['membership_days'] ?? 90),
+            ];
+        }
+
         foreach ($byRoute as $route => $row) {
             if (! is_array($row)) {
                 continue;
             }
-            $id = trim((string) ($row['user_list_id'] ?? ''));
-            if ($id === '') {
+            $id = preg_replace('/\D+/', '', (string) ($row['user_list_id'] ?? ''));
+            if ($id === '' || isset($seen[$id])) {
                 continue;
             }
+            $seen[$id] = true;
             $rule = is_array($row['rule'] ?? null)
                 ? AudienceRuleSchema::normalize($row['rule'])['rule']
                 : AudienceRuleSchema::defaultPreset();
@@ -216,10 +264,56 @@ class AudienceSignalService
                 'id' => $id,
                 'rule' => $rule,
                 'method' => (string) ($row['method'] ?? $route),
+                'membership_days' => (int) ($row['membership_days'] ?? 90),
             ];
         }
 
         return $out;
+    }
+
+    /**
+     * Map stored / behavior event labels onto AudienceRuleSchema cr_action values.
+     */
+    public function normalizeJourneyAction(mixed $raw): ?string
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        $key = strtolower(trim((string) $raw));
+
+        return match ($key) {
+            'page_view', 'page' => 'page_view',
+            'form_submitted', 'form_submit', 'form_fill' => 'form_submitted',
+            'form_link', 'form_start' => 'form_link',
+            'cta_click', 'cta' => 'cta_click',
+            'tel_click', 'phone_click', 'call_click' => 'tel_click',
+            'add_to_cart', 'cart' => 'add_to_cart',
+            'checkout' => 'checkout',
+            'purchase', 'sale' => 'purchase',
+            'exit', 'session_exit' => 'exit',
+            default => in_array($key, AudienceRuleSchema::parameters()['cr_action']['values'] ?? [], true) ? $key : null,
+        };
+    }
+
+    /**
+     * @param  mixed  $raw
+     * @return list<string>|null
+     */
+    public function normalizeJourneyActions(mixed $raw): ?array
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        $list = is_array($raw) ? $raw : [$raw];
+        $out = [];
+        foreach ($list as $item) {
+            $normalized = $this->normalizeJourneyAction($item);
+            if ($normalized !== null) {
+                $out[$normalized] = $normalized;
+            }
+        }
+
+        return $out === [] ? null : array_values($out);
     }
 
     /**

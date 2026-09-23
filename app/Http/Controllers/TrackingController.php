@@ -838,6 +838,11 @@ class TrackingController extends Controller
             }
         }
 
+        $detection['is_paid_traffic'] = $isPaidTraffic;
+        if (! empty($data['gclid'])) {
+            $detection['gclid'] = $data['gclid'];
+        }
+
         $clientPayload = $protection->clientPayload(
             $detection,
             $enforceBlock,

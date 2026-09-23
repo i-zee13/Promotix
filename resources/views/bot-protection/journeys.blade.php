@@ -109,6 +109,11 @@
                 scrollbar-width: thin;
                 scrollbar-color: rgba(255,102,0,.45) transparent;
             }
+            .vj-tab-body--paths {
+                overflow-x: auto;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
             .vj-tab-body--sessions {
                 overflow: hidden;
                 padding: 0;
@@ -126,11 +131,17 @@
                 background: rgba(255,102,0,.45); border-radius: 999px;
             }
 
-            .vj-flow { position:relative; min-height:100%; height:100%; overflow:visible; }
+            .vj-flow {
+                position: relative;
+                min-height: 100%;
+                height: auto;
+                overflow: visible;
+                padding-bottom: 8px;
+            }
             .vj-flow__cols {
                 display:grid; grid-template-columns:repeat(4, minmax(0, 1fr));
                 gap: clamp(14px, 2.2vw, 24px);
-                position:relative; z-index:1; min-width:680px; padding:0 4px;
+                position:relative; z-index:1; min-width:680px; padding:0 4px 4px;
             }
             .vj-flow__col { min-width:0; width:100%; }
             .vj-flow__col-label {
@@ -249,6 +260,7 @@
             }
             .vj-flow__svg {
                 position:absolute; inset:22px 0 0 0; width:100%; height:calc(100% - 22px);
+                min-height: calc(100% - 22px);
                 pointer-events:none; z-index:0; min-width:680px;
             }
 
@@ -1219,7 +1231,7 @@
                             <button type="button" class="vj-tab" :class="{ 'is-active': flowTab === 'sessions' }" @click="setFlowTab('sessions')">Individual Sessions</button>
                         </div>
 
-                        <div class="vj-tab-body" style="overflow:hidden;" x-show="flowTab === 'paths'">
+                        <div class="vj-tab-body vj-tab-body--paths" x-show="flowTab === 'paths'" @scroll.passive="if (pathMenu) pathMenu = null">
                         <div class="vj-flow" x-ref="flowBox">
                             <svg class="vj-flow__svg" x-html="flowSvg()"></svg>
                             <div class="vj-flow__cols">

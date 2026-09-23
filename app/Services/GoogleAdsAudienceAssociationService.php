@@ -130,6 +130,11 @@ class GoogleAdsAudienceAssociationService
                 'status' => (string) ($row['status'] ?? 'created'),
                 'attachment_status' => (string) ($row['attachment_status'] ?? 'pending'),
                 'membership_days' => (int) ($row['membership_days'] ?? 90),
+                'rule' => is_array($row['rule'] ?? null)
+                    ? \App\Support\AudienceRuleSchema::normalize($row['rule'])['rule']
+                    : \App\Support\AudienceRuleSchema::defaultPreset(),
+                'rule_summary' => (string) ($row['rule_summary']
+                    ?? \App\Support\AudienceRuleSchema::naturalLanguageSummary($row['rule'] ?? [])),
                 'attached_campaign_ids' => array_values($row['attached_campaign_ids'] ?? []),
                 'verified_campaign_ids' => array_values($row['verified_campaign_ids'] ?? []),
                 'updated_at' => (string) ($row['updated_at'] ?? ''),
@@ -153,6 +158,11 @@ class GoogleAdsAudienceAssociationService
                 'status' => (string) ($row['status'] ?? 'created'),
                 'attachment_status' => (string) ($row['attachment_status'] ?? 'pending'),
                 'membership_days' => (int) ($row['membership_days'] ?? 90),
+                'rule' => is_array($row['rule'] ?? null)
+                    ? \App\Support\AudienceRuleSchema::normalize($row['rule'])['rule']
+                    : \App\Support\AudienceRuleSchema::defaultPreset(),
+                'rule_summary' => (string) ($row['rule_summary']
+                    ?? \App\Support\AudienceRuleSchema::naturalLanguageSummary($row['rule'] ?? [])),
                 'attached_campaign_ids' => array_values($row['attached_campaign_ids'] ?? []),
                 'verified_campaign_ids' => array_values($row['verified_campaign_ids'] ?? []),
                 'updated_at' => (string) ($row['updated_at'] ?? ''),
@@ -207,7 +217,14 @@ class GoogleAdsAudienceAssociationService
                 $campaignNames[$cid] = (string) ($e['campaign_name'] ?? '');
             }
         }
-        $invalidMembers = $this->fetchInvalidMembersForExport($domain, $campaignIds, $campaignNames);
+        $invalidMembers = $this->fetchInvalidMembersForExport(
+            $domain,
+            $campaignIds,
+            $campaignNames,
+            is_array($stored['rule'] ?? null) ? $stored['rule'] : null,
+            (int) ($stored['membership_days'] ?? 90),
+            (string) ($stored['rule_summary'] ?? ''),
+        );
 
         return [
             'ok' => true,
@@ -224,6 +241,8 @@ class GoogleAdsAudienceAssociationService
             'status_label' => $stats['status_label'] ?? null,
             'is_crm_shell' => (bool) ($stats['is_crm_shell'] ?? false),
             'attachment_status' => $stored['attachment_status'] ?? null,
+            'rule_summary' => (string) ($stored['rule_summary']
+                ?? \App\Support\AudienceRuleSchema::naturalLanguageSummary($stored['rule'] ?? [])),
             'exclusions' => $exclusions,
             'exclusion_count' => count($exclusions),
             'invalid_members' => $invalidMembers,
@@ -233,20 +252,41 @@ class GoogleAdsAudienceAssociationService
     }
 
     /**
-     * Invalid traffic rows for export (Clickronix detections on attached campaigns, else domain-wide).
+     * Ads-only members that match this audience's stored parameter rule (IP/device aggregates).
      *
      * @param  list<string>  $campaignIds
      * @param  array<string, string>  $campaignNames
+     * @param  array{match_mode?: string, conditions?: list<array{param: string, op: string, value: mixed}>}|null  $rule
      * @return list<array<string, mixed>>
      */
-    private function fetchInvalidMembersForExport(Domain $domain, array $campaignIds, array $campaignNames = []): array
-    {
+    private function fetchInvalidMembersForExport(
+        Domain $domain,
+        array $campaignIds,
+        array $campaignNames = [],
+        ?array $rule = null,
+        int $membershipDays = 90,
+        string $ruleSummary = '',
+    ): array {
         if (! Schema::hasTable('visits')) {
             return [];
         }
 
+        $rule = is_array($rule) && ($rule['conditions'] ?? null)
+            ? \App\Support\AudienceRuleSchema::normalize($rule)['rule']
+            : \App\Support\AudienceRuleSchema::defaultPreset();
+        if ($ruleSummary === '') {
+            $ruleSummary = \App\Support\AudienceRuleSchema::naturalLanguageSummary($rule);
+        }
+
+        $days = max(1, min(540, $membershipDays > 0 ? $membershipDays : 90));
+        $since = now()->subDays($days);
+
         $select = ['id', 'visited_at', 'ip'];
-        foreach (['device_id', 'gclid', 'google_campaign_id', 'campaign_name', 'utm_campaign', 'threat_group', 'action_taken', 'country', 'url'] as $col) {
+        foreach ([
+            'device_id', 'gclid', 'gbraid', 'wbraid', 'google_campaign_id', 'campaign_name',
+            'utm_campaign', 'utm_medium', 'threat_group', 'action_taken', 'country', 'url',
+            'is_paid_traffic', 'is_invalid_traffic', 'threat_score', 'paid_risk_score',
+        ] as $col) {
             if (Schema::hasColumn('visits', $col)) {
                 $select[] = $col;
             }
@@ -254,14 +294,14 @@ class GoogleAdsAudienceAssociationService
 
         $query = DB::table('visits')
             ->where('domain_id', $domain->id)
+            ->where('visited_at', '>=', $since)
+            ->whereNotNull('ip')
+            ->where('ip', '!=', '')
             ->orderByDesc('visited_at')
-            ->limit(1000);
+            ->limit(5000);
 
-        if (Schema::hasColumn('visits', 'is_invalid_traffic')) {
-            $query->where('is_invalid_traffic', 1);
-        } elseif (Schema::hasColumn('visits', 'action_taken')) {
-            $query->where('action_taken', 'block');
-        }
+        // Ads-only — never include organic visits in exclusion audience export.
+        $this->scopeQueryToPaidAdsTraffic($query);
 
         $campaignIds = array_values(array_filter($campaignIds));
         if ($campaignIds !== [] && Schema::hasColumn('visits', 'google_campaign_id')) {
@@ -279,26 +319,316 @@ class GoogleAdsAudienceAssociationService
             $rows = $query->get($select);
         }
 
-        return $rows->map(function ($row) use ($campaignNames) {
-            $campaignId = preg_replace('/\D+/', '', (string) ($row->google_campaign_id ?? ''));
-            $name = (string) ($row->campaign_name ?? $row->utm_campaign ?? '');
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        /** @var array<string, array{visits: list<object>, first: string, last: string, count: int}> $groups */
+        $groups = [];
+        foreach ($rows as $row) {
+            $ip = trim((string) ($row->ip ?? ''));
+            if ($ip === '') {
+                continue;
+            }
+            $device = trim((string) ($row->device_id ?? ''));
+            $key = $ip.'|'.$device;
+            if (! isset($groups[$key])) {
+                $groups[$key] = [
+                    'visits' => [],
+                    'first' => (string) ($row->visited_at ?? ''),
+                    'last' => (string) ($row->visited_at ?? ''),
+                    'count' => 0,
+                ];
+            }
+            $groups[$key]['visits'][] = $row;
+            $groups[$key]['count']++;
+            $at = (string) ($row->visited_at ?? '');
+            if ($at !== '' && ($groups[$key]['first'] === '' || $at < $groups[$key]['first'])) {
+                $groups[$key]['first'] = $at;
+            }
+            if ($at !== '' && ($groups[$key]['last'] === '' || $at > $groups[$key]['last'])) {
+                $groups[$key]['last'] = $at;
+            }
+        }
+
+        $behaviorByKey = $this->behaviorCountsForExportGroups($domain->id, $groups, $since);
+        $signalService = app(AudienceSignalService::class);
+        $out = [];
+
+        foreach ($groups as $key => $group) {
+            $latest = $group['visits'][0];
+            foreach ($group['visits'] as $candidate) {
+                if ((string) ($candidate->visited_at ?? '') === $group['last']) {
+                    $latest = $candidate;
+                    break;
+                }
+            }
+
+            $behavior = $behaviorByKey[$key] ?? [
+                'cta_click' => 0,
+                'tel_click' => 0,
+                'add_to_cart' => 0,
+                'checkout' => 0,
+                'purchase' => 0,
+                'form_link' => 0,
+                'actions' => [],
+            ];
+
+            $actionTaken = strtolower(trim((string) ($latest->action_taken ?? 'allow')));
+            $isInvalid = (bool) ($latest->is_invalid_traffic ?? false);
+            $verdict = match (true) {
+                $isInvalid || $actionTaken === 'block' => 'invalid',
+                in_array($actionTaken, ['flag', 'challenge'], true) => 'suspicious',
+                default => 'valid',
+            };
+
+            $detection = [
+                'is_paid_traffic' => true,
+                'traffic_status' => $verdict,
+                'action_taken' => $actionTaken,
+                'threat_group' => (string) ($latest->threat_group ?? ''),
+                'threat_score' => $latest->threat_score ?? $latest->paid_risk_score ?? null,
+                'paid_clicks_today' => $group['count'],
+                'cr_repeat_click_count' => $group['count'],
+                'gclid' => (string) ($latest->gclid ?? ''),
+                'cr_actions' => $behavior['actions'],
+                'cr_action' => $behavior['actions'][0] ?? null,
+                'campaign_id' => preg_replace('/\D+/', '', (string) ($latest->google_campaign_id ?? '')),
+            ];
+            if ((int) ($behavior['form_link'] ?? 0) > 0 || (int) ($behavior['form_submitted'] ?? 0) > 0) {
+                $detection['form_status'] = 'submitted';
+            }
+
+            $params = $signalService->buildDecisionParams($detection);
+            if (! \App\Support\AudienceRuleEvaluator::matches($rule, $params)) {
+                continue;
+            }
+
+            $campaignId = preg_replace('/\D+/', '', (string) ($latest->google_campaign_id ?? ''));
+            $name = (string) ($latest->campaign_name ?? $latest->utm_campaign ?? '');
             if ($name === '' && $campaignId !== '' && isset($campaignNames[$campaignId])) {
                 $name = $campaignNames[$campaignId];
             }
 
-            return [
-                'visited_at' => $row->visited_at ? (string) $row->visited_at : '',
-                'ip' => (string) ($row->ip ?? ''),
-                'device_id' => (string) ($row->device_id ?? ''),
-                'gclid' => (string) ($row->gclid ?? ''),
+            $out[] = [
+                'first_click_at' => $group['first'],
+                'last_click_at' => $group['last'],
+                'visited_at' => $group['last'],
+                'ip' => (string) ($latest->ip ?? ''),
+                'device_id' => (string) ($latest->device_id ?? ''),
+                'gclid' => (string) ($latest->gclid ?? ''),
                 'campaign_id' => $campaignId,
                 'campaign_name' => $name,
-                'threat_group' => (string) ($row->threat_group ?? ''),
-                'action_taken' => (string) ($row->action_taken ?? ''),
-                'country' => (string) ($row->country ?? ''),
-                'url' => (string) ($row->url ?? ''),
+                'threat_group' => (string) ($latest->threat_group ?? ''),
+                'action_taken' => (string) ($latest->action_taken ?? ''),
+                'country' => (string) ($latest->country ?? ''),
+                'url' => (string) ($latest->url ?? ''),
+                'repeat_click_count' => $group['count'],
+                'rule_summary' => $ruleSummary,
+                'matched_params' => $this->formatMatchedParamsForExport($rule, $params),
+                'cta_clicks' => (int) ($behavior['cta_click'] ?? 0),
+                'tel_clicks' => (int) ($behavior['tel_click'] ?? 0),
+                'add_to_cart' => (int) ($behavior['add_to_cart'] ?? 0),
+                'checkout' => (int) ($behavior['checkout'] ?? 0),
+                'purchase' => (int) ($behavior['purchase'] ?? 0),
+                'form_events' => (int) ($behavior['form_link'] ?? 0) + (int) ($behavior['form_submitted'] ?? 0),
+                'journey_actions' => implode(', ', $behavior['actions'] ?? []),
             ];
-        })->all();
+        }
+
+        usort($out, static function (array $a, array $b): int {
+            return strcmp((string) ($b['last_click_at'] ?? ''), (string) ($a['last_click_at'] ?? ''));
+        });
+
+        return array_slice($out, 0, 1000);
+    }
+
+    /**
+     * Restrict a visits query to paid ads traffic (never organic).
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function scopeQueryToPaidAdsTraffic($query): void
+    {
+        $query->where(function ($q): void {
+            $hasPaid = Schema::hasColumn('visits', 'is_paid_traffic');
+            if ($hasPaid) {
+                $q->where('is_paid_traffic', 1);
+            }
+            $clickCols = [];
+            foreach (['gclid', 'gbraid', 'wbraid'] as $col) {
+                if (Schema::hasColumn('visits', $col)) {
+                    $clickCols[] = $col;
+                }
+            }
+            if ($clickCols !== []) {
+                $q->orWhere(function ($inner) use ($clickCols): void {
+                    foreach ($clickCols as $i => $col) {
+                        if ($i === 0) {
+                            $inner->whereNotNull($col)->where($col, '!=', '');
+                        } else {
+                            $inner->orWhere(function ($c) use ($col): void {
+                                $c->whereNotNull($col)->where($col, '!=', '');
+                            });
+                        }
+                    }
+                });
+            } elseif (! $hasPaid && Schema::hasColumn('visits', 'utm_medium')) {
+                $q->orWhereIn(DB::raw('LOWER(utm_medium)'), ['cpc', 'ppc', 'paid', 'paidsearch', 'paidsocial']);
+            }
+        });
+    }
+
+    /**
+     * @param  array<string, array{visits: list<object>, first: string, last: string, count: int}>  $groups
+     * @return array<string, array<string, mixed>>
+     */
+    private function behaviorCountsForExportGroups(int $domainId, array $groups, $since): array
+    {
+        $empty = [
+            'cta_click' => 0,
+            'tel_click' => 0,
+            'add_to_cart' => 0,
+            'checkout' => 0,
+            'purchase' => 0,
+            'form_link' => 0,
+            'form_submitted' => 0,
+            'actions' => [],
+        ];
+        $out = [];
+        foreach (array_keys($groups) as $key) {
+            $out[$key] = $empty;
+        }
+
+        if (! Schema::hasTable('visit_behavior_events') || $groups === []) {
+            return $out;
+        }
+
+        $visitIds = [];
+        foreach ($groups as $group) {
+            foreach ($group['visits'] as $visit) {
+                $visitIds[] = (int) ($visit->id ?? 0);
+            }
+        }
+        $visitIds = array_values(array_filter(array_unique($visitIds)));
+        if ($visitIds === []) {
+            return $out;
+        }
+
+        $events = DB::table('visit_behavior_events')
+            ->where('domain_id', $domainId)
+            ->whereIn('visit_id', array_slice($visitIds, 0, 4000))
+            ->whereIn('event_type', [
+                'cta_click', 'phone_click', 'tel_click', 'form_start', 'form_submit', 'form_fill',
+                'add_to_cart', 'checkout', 'purchase', 'sale',
+            ])
+            ->get(['visit_id', 'event_type']);
+
+        $visitToKey = [];
+        foreach ($groups as $key => $group) {
+            foreach ($group['visits'] as $visit) {
+                $visitToKey[(int) $visit->id] = $key;
+            }
+        }
+
+        $signalService = app(AudienceSignalService::class);
+        foreach ($events as $event) {
+            $key = $visitToKey[(int) ($event->visit_id ?? 0)] ?? null;
+            if ($key === null) {
+                continue;
+            }
+            $action = $signalService->normalizeJourneyAction((string) ($event->event_type ?? ''));
+            if ($action === null) {
+                continue;
+            }
+            $bucket = match ($action) {
+                'cta_click' => 'cta_click',
+                'tel_click' => 'tel_click',
+                'add_to_cart' => 'add_to_cart',
+                'checkout' => 'checkout',
+                'purchase' => 'purchase',
+                'form_link' => 'form_link',
+                'form_submitted' => 'form_submitted',
+                default => null,
+            };
+            if ($bucket !== null) {
+                $out[$key][$bucket] = (int) ($out[$key][$bucket] ?? 0) + 1;
+            }
+            if (! in_array($action, $out[$key]['actions'], true)) {
+                $out[$key]['actions'][] = $action;
+            }
+        }
+
+        // Fallback: session recording aggregates when typed events are missing.
+        if (Schema::hasTable('visit_session_recordings')) {
+            $recSelect = ['visit_id'];
+            foreach (['cta_clicks', 'tel_clicks'] as $col) {
+                if (Schema::hasColumn('visit_session_recordings', $col)) {
+                    $recSelect[] = $col;
+                }
+            }
+            if (count($recSelect) > 1) {
+                $recs = DB::table('visit_session_recordings')
+                    ->whereIn('visit_id', array_slice($visitIds, 0, 4000))
+                    ->get($recSelect);
+                foreach ($recs as $rec) {
+                    $key = $visitToKey[(int) ($rec->visit_id ?? 0)] ?? null;
+                    if ($key === null) {
+                        continue;
+                    }
+                    $cta = (int) ($rec->cta_clicks ?? 0);
+                    $tel = (int) ($rec->tel_clicks ?? 0);
+                    if ($cta > 0 && (int) $out[$key]['cta_click'] === 0) {
+                        $out[$key]['cta_click'] = $cta;
+                        if (! in_array('cta_click', $out[$key]['actions'], true)) {
+                            $out[$key]['actions'][] = 'cta_click';
+                        }
+                    }
+                    if ($tel > 0 && (int) $out[$key]['tel_click'] === 0) {
+                        $out[$key]['tel_click'] = $tel;
+                        if (! in_array('tel_click', $out[$key]['actions'], true)) {
+                            $out[$key]['actions'][] = 'tel_click';
+                        }
+                    }
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array{match_mode?: string, conditions?: list<array{param: string, op: string, value: mixed}>}  $rule
+     * @param  array<string, mixed>  $params
+     */
+    private function formatMatchedParamsForExport(array $rule, array $params): string
+    {
+        $parts = [];
+        $catalog = \App\Support\AudienceRuleSchema::parameters();
+        foreach ($rule['conditions'] ?? [] as $condition) {
+            if (! is_array($condition)) {
+                continue;
+            }
+            $param = (string) ($condition['param'] ?? '');
+            if ($param === '' || ! \App\Support\AudienceRuleEvaluator::matches([
+                'match_mode' => \App\Support\AudienceRuleSchema::MATCH_ALL,
+                'conditions' => [$condition],
+            ], $params)) {
+                continue;
+            }
+            $label = $catalog[$param]['label'] ?? $param;
+            $actual = $params[$param] ?? null;
+            if ($param === 'cr_action' && isset($params['cr_actions']) && is_array($params['cr_actions'])) {
+                $actual = implode(', ', $params['cr_actions']);
+            }
+            if ($param === 'cr_repeat_click_count') {
+                $actual = $params['cr_repeat_click_count'] ?? null;
+            }
+            $val = is_array($actual) ? implode(', ', $actual) : (string) ($actual ?? $condition['value'] ?? '');
+            $parts[] = $label.' '.$condition['op'].' '.$val;
+        }
+
+        return implode('; ', $parts);
     }
 
     /**

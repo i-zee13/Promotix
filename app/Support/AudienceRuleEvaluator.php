@@ -54,6 +54,8 @@ final class AudienceRuleEvaluator
                 'cr_protection_action' => ['protection_action', 'action_taken'],
                 'cr_invalid_reason' => ['invalid_reason', 'threat_group'],
                 'cr_risk_score' => ['risk_score', 'threat_score', 'paid_risk_score'],
+                'cr_repeat_click_count' => ['repeat_click_count', 'paid_clicks_today', 'click_count'],
+                'cr_action' => ['journey_action', 'action'],
             ];
             foreach ($aliases[$param] ?? [] as $alias) {
                 if (array_key_exists($alias, $params) && $params[$alias] !== null && $params[$alias] !== '') {
@@ -61,6 +63,32 @@ final class AudienceRuleEvaluator
                     break;
                 }
             }
+        }
+
+        // Visitor may have multiple journey actions (CTA + tel + cart, etc.).
+        if ($param === 'cr_action') {
+            $actions = [];
+            if (isset($params['cr_actions']) && is_array($params['cr_actions'])) {
+                $actions = $params['cr_actions'];
+            } elseif ($actual !== null && $actual !== '') {
+                $actions = [$actual];
+            }
+            if ($actions === []) {
+                return false;
+            }
+            foreach ($actions as $action) {
+                $hit = match ($op) {
+                    '=' => self::equals($action, $expected),
+                    '!=' => ! self::equals($action, $expected),
+                    'in' => self::inList($action, $expected),
+                    default => false,
+                };
+                if ($hit) {
+                    return true;
+                }
+            }
+
+            return $op === '!=';
         }
 
         if ($actual === null || $actual === '') {
