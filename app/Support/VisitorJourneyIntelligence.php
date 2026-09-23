@@ -456,31 +456,7 @@ class VisitorJourneyIntelligence
                 ]);
             }
             if ($out !== []) {
-                $hasExit = collect($out)->contains(fn ($e) => ($e['type'] ?? '') === 'exit');
-                if (! $hasExit) {
-                    $lastElapsed = (int) ($out[count($out) - 1]['elapsed_sec'] ?? 0);
-                    // Real session length — never invent +20s demo padding.
-                    if ($sessionDur > $lastElapsed) {
-                        $lastElapsed = $sessionDur;
-                    }
-                    $exitClock = (string) ($row['exit_clock'] ?? $this->extractClock((string) ($row['last_seen'] ?? '')));
-                    if ($exitClock === '') {
-                        $exitClock = $this->formatClock($base + $lastElapsed);
-                    }
-                    $out[] = $this->timelineEvent([
-                        'type' => 'exit',
-                        'label' => 'Exit',
-                        'event' => 'session_end',
-                        'kind' => 'Exit',
-                        'time' => $exitClock,
-                        'elapsed_sec' => $lastElapsed,
-                        'page' => $pages[count($pages) - 1] ?? ($out[count($out) - 1]['page'] ?? '/'),
-                        'note' => '',
-                        'status' => 'Session ended',
-                    ]);
-                }
-
-                return $out;
+                return $this->finalizeTimelineExits($out, $row, $sessionDur, $base);
             }
         }
 
@@ -552,48 +528,179 @@ class VisitorJourneyIntelligence
 
         usort($out, static fn ($a, $b) => ((int) ($a['elapsed_sec'] ?? 0)) <=> ((int) ($b['elapsed_sec'] ?? 0)));
 
-        $exitAt = $sessionDur;
-        if ($exitAt <= 0 && $out !== []) {
-            $exitAt = (int) ($out[count($out) - 1]['elapsed_sec'] ?? 0);
+        return $this->finalizeTimelineExits($out, $row, $sessionDur, $base);
+    }
+
+    /**
+     * Ensure Exit sits at real session end (never stuck at 0:00 beside the first page view).
+     *
+     * @param  list<array<string, mixed>>  $out
+     * @param  array<string, mixed>  $row
+     * @return list<array<string, mixed>>
+     */
+    private function finalizeTimelineExits(array $out, array $row, int $sessionDur, int $baseClock): array
+    {
+        $maxOther = 0;
+        foreach ($out as $ev) {
+            if (($ev['type'] ?? '') === 'exit') {
+                continue;
+            }
+            $maxOther = max($maxOther, (int) ($ev['elapsed_sec'] ?? 0));
         }
+        $maxRaw = $this->maxRawTimelineElapsed($row);
+        $exitAt = max($sessionDur, $maxOther, $maxRaw);
+
+        // Clock delta (entry → exit) when duration_sec was rounded to 0 — but never
+        // treat multi-hour idle gaps between sparse hits as engaged time.
+        $entry = $this->parseClock((string) ($row['entry_clock'] ?? ''));
+        $exitClockSec = $this->parseClock((string) ($row['exit_clock'] ?? ''));
+        if ($exitClockSec > $entry) {
+            $clockSpan = $exitClockSec - $entry;
+            $idleCap = 30 * 60;
+            if ($exitAt > 0) {
+                // Keep engaged duration; ignore huge idle wall-clock.
+            } else {
+                $exitAt = min($clockSpan, $idleCap);
+            }
+        }
+
         $exitClock = (string) ($row['exit_clock'] ?? $this->extractClock((string) ($row['last_seen'] ?? '')));
         if ($exitClock === '') {
-            $exitClock = $this->formatClock($base + $exitAt);
+            $exitClock = $this->formatClock($baseClock + $exitAt);
         }
-        $out[] = $this->timelineEvent([
-            'type' => 'exit',
-            'label' => 'Exit',
-            'event' => 'session_end',
-            'kind' => 'Exit',
-            'time' => $exitClock,
-            'elapsed_sec' => $exitAt,
-            'page' => $pageSlice[count($pageSlice) - 1] ?? '/',
-            'note' => '',
-            'status' => 'Session ended',
-        ]);
 
-        return $out;
+        $hasExit = false;
+        foreach ($out as $i => $ev) {
+            if (($ev['type'] ?? '') !== 'exit') {
+                continue;
+            }
+            $hasExit = true;
+            $cur = (int) ($ev['elapsed_sec'] ?? 0);
+            $target = max($cur, $exitAt);
+            // Exit must not share 0:00 with the landing page when we know the session lasted longer.
+            if ($target <= 0 && $maxOther <= 0 && $maxRaw <= 0 && $sessionDur <= 0) {
+                continue;
+            }
+            if ($target !== $cur || $cur === 0 && $target > 0) {
+                $out[$i] = $this->timelineEvent([
+                    'type' => 'exit',
+                    'label' => (string) ($ev['label'] ?? 'Exit'),
+                    'event' => (string) ($ev['event'] ?? 'session_end'),
+                    'kind' => (string) ($ev['kind'] ?? 'Exit'),
+                    'time' => $exitClock !== '' ? $exitClock : (string) ($ev['time'] ?? ''),
+                    'elapsed_sec' => $target,
+                    'page' => (string) ($ev['page'] ?? ($row['exit_page'] ?? '/')),
+                    'note' => (string) ($ev['note'] ?? ''),
+                    'status' => (string) ($ev['status'] ?? 'Session ended'),
+                ]);
+            }
+        }
+
+        if (! $hasExit) {
+            $out[] = $this->timelineEvent([
+                'type' => 'exit',
+                'label' => 'Exit',
+                'event' => 'session_end',
+                'kind' => 'Exit',
+                'time' => $exitClock,
+                'elapsed_sec' => $exitAt,
+                'page' => $this->shortPath((string) ($row['exit_page'] ?? ($out[count($out) - 1]['page'] ?? '/'))),
+                'note' => '',
+                'status' => 'Session ended',
+            ]);
+        }
+
+        usort($out, static fn ($a, $b) => ((int) ($a['elapsed_sec'] ?? 0)) <=> ((int) ($b['elapsed_sec'] ?? 0)));
+
+        return array_values($out);
+    }
+
+    /** @param  array<string, mixed>  $row */
+    private function maxRawTimelineElapsed(array $row): int
+    {
+        $detail = $row['event_detail'] ?? [];
+        $flat = [];
+        if (isset($detail['timeline']) && is_array($detail['timeline'])) {
+            $flat = $detail['timeline'];
+        } elseif (is_array($detail)) {
+            foreach (['pages', 'scroll', 'cta', 'tel', 'phone', 'form', 'commerce'] as $bucket) {
+                if (! empty($detail[$bucket]) && is_array($detail[$bucket])) {
+                    foreach ($detail[$bucket] as $ev) {
+                        if (is_array($ev)) {
+                            $flat[] = $ev;
+                        }
+                    }
+                }
+            }
+        }
+
+        $max = 0;
+        foreach ($flat as $ev) {
+            if (! is_array($ev)) {
+                continue;
+            }
+            $elapsed = (int) ($ev['elapsed_sec'] ?? 0);
+            if ($elapsed > 0) {
+                $max = max($max, $elapsed);
+            }
+            $rawT = (int) ($ev['t'] ?? 0);
+            if ($rawT > 0) {
+                $max = max($max, $rawT >= 1000 ? (int) floor($rawT / 1000) : $rawT);
+            }
+        }
+
+        // Recording duration_ms (when visits first/last collapse to the same second).
+        if (isset($row['duration_ms']) && (int) $row['duration_ms'] > 0) {
+            $max = max($max, (int) floor(((int) $row['duration_ms']) / 1000));
+        }
+
+        return $max;
     }
 
     /** @param  array<string, mixed>  $row */
     private function sessionDurationSeconds(array $row): int
     {
-        if (isset($row['duration_sec']) && (int) $row['duration_sec'] > 0) {
-            return (int) $row['duration_sec'];
+        $idleCap = 30 * 60;
+        $fromEvents = $this->maxRawTimelineElapsed($row);
+
+        if (isset($row['duration_ms']) && (int) $row['duration_ms'] > 0) {
+            $fromMs = (int) floor(((int) $row['duration_ms']) / 1000);
+            if ($fromMs > 0) {
+                return max($fromMs, $fromEvents);
+            }
         }
+
+        if (isset($row['duration_sec']) && (int) $row['duration_sec'] > 0) {
+            // Trust TC engaged duration when already capped; still prefer event max if higher.
+            return max((int) $row['duration_sec'], $fromEvents);
+        }
+
         $dur = $this->durationToSeconds((string) ($row['time_on_site'] ?? '00:00:00'));
         if ($dur > 0) {
-            return $dur;
+            return min(max($dur, $fromEvents), max($fromEvents, $idleCap));
         }
         $first = $this->parseFlexibleUnix((string) ($row['first_seen_at'] ?? $row['first_seen'] ?? ''));
         $last = $this->parseFlexibleUnix((string) ($row['last_seen_at'] ?? $row['last_seen'] ?? ''));
         if ($first !== null && $last !== null && $last >= $first) {
-            return (int) ($last - $first);
+            $wall = (int) ($last - $first);
+            if ($fromEvents > 0) {
+                return $fromEvents;
+            }
+
+            return min($wall, $idleCap);
         }
         $entry = $this->parseClock((string) ($row['entry_clock'] ?? ''));
         $exit = $this->parseClock((string) ($row['exit_clock'] ?? ''));
         if ($exit > $entry) {
-            return $exit - $entry;
+            $wall = $exit - $entry;
+            if ($fromEvents > 0) {
+                return $fromEvents;
+            }
+
+            return min($wall, $idleCap);
+        }
+        if ($fromEvents > 0) {
+            return $fromEvents;
         }
 
         return 0;

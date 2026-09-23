@@ -122,25 +122,7 @@ class TrafficControlSessionQuery
 
             $first = Carbon::parse($row->first_seen);
             $last = Carbon::parse($row->last_seen);
-            // Carbon 3 returns a signed diff; $last->diffInSeconds($first) is negative when last > first.
-            $durationSec = max(0, (int) round($first->diffInSeconds($last, true)));
-            if ($durationSec < 1) {
-                $durationSec = max($durationSec, (int) floor(((int) ($rec['duration_ms'] ?? 0)) / 1000));
-            }
-            // Last resort: infer from recording timeline elapsed.
-            if ($durationSec < 1 && is_array($rec['event_detail']['timeline'] ?? null)) {
-                foreach ($rec['event_detail']['timeline'] as $ev) {
-                    if (! is_array($ev)) {
-                        continue;
-                    }
-                    $t = (int) ($ev['elapsed_sec'] ?? 0);
-                    if ($t <= 0) {
-                        $raw = (int) ($ev['t'] ?? 0);
-                        $t = $raw > 1000 ? (int) floor($raw / 1000) : $raw;
-                    }
-                    $durationSec = max($durationSec, $t);
-                }
-            }
+            $durationSec = $this->resolveEngagedDurationSec($first, $last, is_array($rec) ? $rec : null);
 
             $isPaid = (bool) ($row->is_paid_traffic ?? false) || $trafficMode === 'paid';
             $platform = TrafficSourceClassifier::platformLabel(
@@ -250,6 +232,7 @@ class TrafficControlSessionQuery
                 'timezone' => UserTimezone::reportingTimezoneForUser($request->user()),
                 'time_on_site' => sprintf('%02d:%02d:%02d', $hours, $mins, $secs),
                 'duration_sec' => $durationSec,
+                'duration_ms' => (int) ($rec['duration_ms'] ?? max(0, $durationSec * 1000)),
                 'first_seen_at' => $first->toIso8601String(),
                 'last_seen_at' => $last->toIso8601String(),
                 'page_views' => $pageViews,
@@ -281,6 +264,43 @@ class TrafficControlSessionQuery
         })->values()->all();
 
         return ['data' => $data, 'total' => $total];
+    }
+
+    /**
+     * Engaged session length — not idle wall-clock between sparse hits hours apart.
+     * Prefer recorder / event timeline; otherwise cap first→last at a 30-minute session timeout.
+     *
+     * @param  array<string, mixed>|null  $rec
+     */
+    private function resolveEngagedDurationSec(Carbon $first, Carbon $last, ?array $rec): int
+    {
+        // Carbon 3 returns a signed diff; absolute span between first and last hit.
+        $wallClock = max(0, (int) round($first->diffInSeconds($last, true)));
+        $recDur = (int) floor(((int) ($rec['duration_ms'] ?? 0)) / 1000);
+        $timelineMax = 0;
+        if (is_array($rec['event_detail']['timeline'] ?? null)) {
+            foreach ($rec['event_detail']['timeline'] as $ev) {
+                if (! is_array($ev)) {
+                    continue;
+                }
+                $t = (int) ($ev['elapsed_sec'] ?? 0);
+                if ($t <= 0) {
+                    $raw = (int) ($ev['t'] ?? 0);
+                    // Recorder t is usually ms; values under 1000 are treated as seconds.
+                    $t = $raw >= 1000 ? (int) floor($raw / 1000) : $raw;
+                }
+                $timelineMax = max($timelineMax, $t);
+            }
+        }
+        $engaged = max($recDur, $timelineMax);
+        // GA-style idle timeout: sparse pageviews hours apart are not continuous browsing.
+        $idleCap = 30 * 60;
+
+        if ($engaged > 0) {
+            return $engaged;
+        }
+
+        return min($wallClock, $idleCap);
     }
 
     /** @param  list<int>  $domainIds */
