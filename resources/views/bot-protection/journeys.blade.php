@@ -2298,15 +2298,46 @@ function visitorJourneyPage() {
                 const enabled = Array.isArray(this.pathEnabled[col.key])
                     ? this.pathEnabled[col.key]
                     : this.pathCatalog(col.key);
-                let nodes = (col.nodes || []).filter((n) =>
-                    enabled.some((opt) => this.pathOptionMatches(n.label, opt))
-                );
-                // Keep chart readable: max ~7 cards; rest stay selectable in ⋮ menu.
+                const sourceNodes = col.nodes || [];
+                // Keep enabled order; synthesize 0-count cards for catalog picks
+                // that the API has not returned yet (e.g. Purchase completed).
+                let nodes = enabled.map((opt) => {
+                    const hit = sourceNodes.find((n) => this.pathOptionMatches(n.label, opt));
+                    if (hit) return hit;
+                    return {
+                        id: `${col.key}:opt:${String(opt).toLowerCase().replace(/\s+/g, '-')}`,
+                        label: opt,
+                        value: 0,
+                        pct: 0,
+                        tone: this.pathOptionTone(col.key, opt),
+                        synthetic: true,
+                    };
+                }).filter(Boolean);
                 if (nodes.length > this.flowMaxVisible) {
                     nodes = nodes.slice(0, this.flowMaxVisible);
                 }
                 return Object.assign({}, col, { nodes });
             });
+        },
+        pathOptionTone(colKey, option) {
+            const label = String(option || '').toLowerCase();
+            if (colKey === 'outcome') {
+                if (/(exited|exit|spam|fraud|blocked|unqualified|wrong number|no answer|unavailable|unserviceable|duplicate)/.test(label)) {
+                    return 'exit';
+                }
+                if (/(awaiting|follow-up|pending)/.test(label)) return 'pending';
+                if (/(lead|call connected|form completed|appointment|purchase|sale)/.test(label)) return 'lead';
+                return 'default';
+            }
+            if (colKey === 'action') {
+                if (label === 'exit' || label === 'no action') return 'exit';
+                if (/form|chat|call|cta|cart|checkout|payment|appointment|pricing|provider|zip|product/.test(label)) {
+                    return /form/.test(label) ? 'form' : 'action';
+                }
+                return 'default';
+            }
+            if (label === 'exit' || label === 'exited') return 'exit';
+            return 'default';
         },
         flowColumn(key) {
             return (this.flow.columns || []).find((c) => c.key === key) || { nodes: [] };
@@ -2373,6 +2404,10 @@ function visitorJourneyPage() {
                 'no conversion': 'exited',
                 'exit': 'exit',
                 'exited': 'exited',
+                'purchase': 'purchase completed',
+                'sale': 'sale completed',
+                'add to cart': 'add to cart',
+                'checkout': 'checkout started',
             };
             const na = aliases[a] || a;
             const nb = aliases[b] || b;
@@ -2384,11 +2419,19 @@ function visitorJourneyPage() {
             return false;
         },
         pathOptionActive(col, option) {
-            return (col?.nodes || []).some((n) => this.pathOptionMatches(n.label, option));
+            if ((col?.nodes || []).some((n) => this.pathOptionMatches(n.label, option))) {
+                return true;
+            }
+            // Action / outcome catalogs are always chart-eligible (0 until data arrives).
+            return this.actionOptions.includes(option) || this.outcomeOptions.includes(option);
         },
         pathOptionCount(col, option) {
             const node = (col?.nodes || []).find((n) => this.pathOptionMatches(n.label, option));
-            return node ? Number(node.value || 0).toLocaleString() : '';
+            if (node) return Number(node.value || 0).toLocaleString();
+            if (this.actionOptions.includes(option) || this.outcomeOptions.includes(option)) {
+                return '0';
+            }
+            return '';
         },
         isUrlPathLabel(label, colKey) {
             const text = String(label || '').trim();

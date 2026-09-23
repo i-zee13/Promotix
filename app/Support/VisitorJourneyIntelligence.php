@@ -816,11 +816,20 @@ class VisitorJourneyIntelligence
 
         $actionBuckets = [
             'Page viewed' => 0,
+            'Pricing viewed' => 0,
+            'Provider selected' => 0,
+            'ZIP checked' => 0,
             'CTA clicked' => 0,
             'Call button clicked' => 0,
+            'Call started' => 0,
+            'Form viewed' => 0,
             'Form started' => 0,
             'Form submitted' => 0,
             'Chat started' => 0,
+            'Product viewed' => 0,
+            'Add to cart' => 0,
+            'Checkout started' => 0,
+            'Payment started' => 0,
             'Appointment requested' => 0,
             'No action' => 0,
             'Exit' => 0,
@@ -831,8 +840,19 @@ class VisitorJourneyIntelligence
             'Call connected' => 0,
             'Form completed' => 0,
             'Appointment booked' => 0,
+            'Purchase completed' => 0,
+            'Sale completed' => 0,
             'Follow-up required' => 0,
             'Awaiting outcome' => 0,
+            'No answer' => 0,
+            'Wrong number' => 0,
+            'Unqualified lead' => 0,
+            'Provider unavailable' => 0,
+            'ZIP unserviceable' => 0,
+            'Duplicate lead' => 0,
+            'Spam' => 0,
+            'Suspected fraud' => 0,
+            'Blocked' => 0,
             'Exited' => 0,
         ];
 
@@ -841,11 +861,14 @@ class VisitorJourneyIntelligence
             foreach ($s['event_actions'] ?? [] as $ev) {
                 $key = strtolower((string) ($ev['key'] ?? ''));
                 if (in_array($key, ['cta_click', 'tel_click', 'call_click'], true)) {
-                    $actionBuckets['Call button clicked']++;
-                    $actionBuckets['CTA clicked']++;
+                    if (in_array($key, ['tel_click', 'call_click'], true)) {
+                        $actionBuckets['Call button clicked']++;
+                    } else {
+                        $actionBuckets['CTA clicked']++;
+                    }
                     $hadMeaningful = true;
-                } elseif ($key === 'form_start' || $key === 'form_fills') {
-                    $actionBuckets['Form started']++;
+                } elseif (in_array($key, ['form_start', 'form_fills', 'form_view'], true)) {
+                    $actionBuckets[$key === 'form_view' ? 'Form viewed' : 'Form started']++;
                     $hadMeaningful = true;
                 } elseif ($key === 'form_submit') {
                     $actionBuckets['Form submitted']++;
@@ -855,6 +878,27 @@ class VisitorJourneyIntelligence
                     $hadMeaningful = true;
                 } elseif (str_contains($key, 'appointment')) {
                     $actionBuckets['Appointment requested']++;
+                    $hadMeaningful = true;
+                } elseif (in_array($key, ['add_to_cart', 'cart'], true)) {
+                    $actionBuckets['Add to cart']++;
+                    $hadMeaningful = true;
+                } elseif (in_array($key, ['checkout', 'begin_checkout'], true)) {
+                    $actionBuckets['Checkout started']++;
+                    $hadMeaningful = true;
+                } elseif (in_array($key, ['purchase', 'sale', 'payment'], true)) {
+                    $actionBuckets['Payment started']++;
+                    $hadMeaningful = true;
+                } elseif (str_contains($key, 'pricing')) {
+                    $actionBuckets['Pricing viewed']++;
+                    $hadMeaningful = true;
+                } elseif (str_contains($key, 'product')) {
+                    $actionBuckets['Product viewed']++;
+                    $hadMeaningful = true;
+                } elseif (str_contains($key, 'zip')) {
+                    $actionBuckets['ZIP checked']++;
+                    $hadMeaningful = true;
+                } elseif (str_contains($key, 'provider')) {
+                    $actionBuckets['Provider selected']++;
                     $hadMeaningful = true;
                 }
             }
@@ -882,8 +926,30 @@ class VisitorJourneyIntelligence
                 $outcomeBuckets['Form completed']++;
             } elseif (str_contains($olabel, 'appointment')) {
                 $outcomeBuckets['Appointment booked']++;
+            } elseif (str_contains($olabel, 'purchase')) {
+                $outcomeBuckets['Purchase completed']++;
+            } elseif (str_contains($olabel, 'sale')) {
+                $outcomeBuckets['Sale completed']++;
             } elseif (str_contains($olabel, 'follow')) {
                 $outcomeBuckets['Follow-up required']++;
+            } elseif (str_contains($olabel, 'no answer')) {
+                $outcomeBuckets['No answer']++;
+            } elseif (str_contains($olabel, 'wrong number')) {
+                $outcomeBuckets['Wrong number']++;
+            } elseif (str_contains($olabel, 'unqualified')) {
+                $outcomeBuckets['Unqualified lead']++;
+            } elseif (str_contains($olabel, 'unavailable')) {
+                $outcomeBuckets['Provider unavailable']++;
+            } elseif (str_contains($olabel, 'unserviceable') || str_contains($olabel, 'zip')) {
+                $outcomeBuckets['ZIP unserviceable']++;
+            } elseif (str_contains($olabel, 'duplicate')) {
+                $outcomeBuckets['Duplicate lead']++;
+            } elseif (str_contains($olabel, 'spam')) {
+                $outcomeBuckets['Spam']++;
+            } elseif (str_contains($olabel, 'fraud')) {
+                $outcomeBuckets['Suspected fraud']++;
+            } elseif (str_contains($olabel, 'block')) {
+                $outcomeBuckets['Blocked']++;
             } elseif ($ot === 'pending') {
                 $outcomeBuckets['Awaiting outcome']++;
             } else {
@@ -894,11 +960,20 @@ class VisitorJourneyIntelligence
         $scale = $tracked / max(1, count($recent));
         $actionTones = [
             'Page viewed' => 'default',
+            'Pricing viewed' => 'action',
+            'Provider selected' => 'action',
+            'ZIP checked' => 'action',
             'CTA clicked' => 'action',
             'Call button clicked' => 'action',
+            'Call started' => 'action',
+            'Form viewed' => 'form',
             'Form started' => 'form',
             'Form submitted' => 'form',
             'Chat started' => 'action',
+            'Product viewed' => 'action',
+            'Add to cart' => 'action',
+            'Checkout started' => 'action',
+            'Payment started' => 'action',
             'Appointment requested' => 'action',
             'No action' => 'default',
             'Exit' => 'exit',
@@ -921,8 +996,19 @@ class VisitorJourneyIntelligence
             'Call connected' => 'lead',
             'Form completed' => 'lead',
             'Appointment booked' => 'lead',
+            'Purchase completed' => 'lead',
+            'Sale completed' => 'lead',
             'Follow-up required' => 'pending',
             'Awaiting outcome' => 'pending',
+            'No answer' => 'exit',
+            'Wrong number' => 'exit',
+            'Unqualified lead' => 'exit',
+            'Provider unavailable' => 'exit',
+            'ZIP unserviceable' => 'exit',
+            'Duplicate lead' => 'exit',
+            'Spam' => 'exit',
+            'Suspected fraud' => 'exit',
+            'Blocked' => 'exit',
             'Exited' => 'exit',
         ];
         $colOutcome = [];
