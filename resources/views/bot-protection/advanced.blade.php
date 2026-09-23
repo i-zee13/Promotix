@@ -32,37 +32,39 @@
             }
             .figma-filter-bar--bp-adv.ov-filter-bar,
             .figma-filter-bar--bp-adv {
-                width: 100% !important;
+                width: fit-content !important;
                 max-width: 100% !important;
                 min-width: 0 !important;
                 margin-left: auto !important;
-                align-self: stretch;
-                flex: 1 1 auto !important;
-                display: flex !important;
+                align-self: flex-end;
+                flex: 0 0 auto !important;
+                display: inline-flex !important;
                 flex-wrap: nowrap !important;
                 align-items: stretch;
+                justify-content: flex-start !important;
                 gap: 0 !important;
                 overflow: visible;
                 box-sizing: border-box;
             }
             .figma-filter-bar--bp-adv > label {
-                flex: 1 1 auto !important;
+                flex: 0 0 auto !important;
                 margin: 0 !important;
                 min-width: 0 !important;
                 padding-left: 7px !important;
                 padding-right: 7px !important;
             }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-search { width: 140px !important; flex: 1.2 1 140px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-domain { width: 118px !important; flex: 1 1 118px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-traffic { width: 108px !important; flex: 1 1 108px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-campaign { width: 118px !important; flex: 1 1 118px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-device { width: 100px !important; flex: 1 1 100px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-path { width: 120px !important; flex: 1 1 120px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-search { width: 140px !important; flex: 0 0 140px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-account { width: 130px !important; flex: 0 0 130px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-domain { width: 118px !important; flex: 0 0 118px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-traffic { width: 108px !important; flex: 0 0 108px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-campaign { width: 118px !important; flex: 0 0 118px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-device { width: 100px !important; flex: 0 0 100px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-path { width: 120px !important; flex: 0 0 120px !important; }
             .figma-filter-bar--bp-adv .bp-adv-f-actions {
-                display: flex !important;
+                display: inline-flex !important;
                 flex: 0 0 auto !important;
                 align-items: stretch;
-                margin-left: auto;
+                margin-left: 0 !important;
             }
             .figma-filter-bar--bp-adv .figma-filter-calendar-host {
                 display: flex !important;
@@ -105,6 +107,9 @@
                 .figma-filter-bar--bp-adv > label {
                     flex: 1 1 130px !important;
                     width: auto !important;
+                }
+                .figma-filter-bar--bp-adv .bp-adv-f-actions {
+                    margin-left: 0 !important;
                 }
                 .figma-filter-bar--bp-adv .figma-filter-calendar-host {
                     flex: 0 0 auto !important;
@@ -1041,7 +1046,7 @@
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Traffic Control</span>
             </div>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-adv ov-filter-bar ml-auto flex min-h-[54px] w-full max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-adv ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_0_0_rgba(255,255,255,.25)]">
                 <label class="bp-adv-f-search relative flex shrink-0 flex-col justify-center border-r border-black/20 px-[7px] py-[6px]">
                     <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Search</span>
                     <div class="figma-filter-path-wrap">
