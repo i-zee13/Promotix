@@ -14,10 +14,20 @@ class TrafficControlSessionQuery
 {
     /**
      * @param  list<int>  $domainIds
+     * @param  'bot'|'paid'|'all'  $trafficMode  bot = hide paid click-IDs on paid domains (Traffic Control);
+     *                                           paid = Google Ads click-ID sessions only (Visitor Journey);
+     *                                           all = no click-ID attribution filter
      * @return array{data: list<array<string, mixed>>, total: int}
      */
-    public function paginate(array $domainIds, Carbon $from, Carbon $to, Request $request, int $page, int $perPage): array
-    {
+    public function paginate(
+        array $domainIds,
+        Carbon $from,
+        Carbon $to,
+        Request $request,
+        int $page,
+        int $perPage,
+        string $trafficMode = 'bot',
+    ): array {
         if (! Schema::hasTable('visits') || $domainIds === []) {
             return ['data' => [], 'total' => 0];
         }
@@ -31,11 +41,15 @@ class TrafficControlSessionQuery
             ->whereIn('visits.domain_id', $domainIds)
             ->whereBetween('visits.visited_at', [$from, $to]);
 
-        GoogleClickAttribution::excludeClickIdsForPaidDomains(
-            $base,
-            $this->paidMarketingDomainIds($domainIds),
-            'visits',
-        );
+        if ($trafficMode === 'paid') {
+            GoogleClickAttribution::applyHasClickIdFilter($base, 'visits');
+        } elseif ($trafficMode !== 'all') {
+            GoogleClickAttribution::excludeClickIdsForPaidDomains(
+                $base,
+                $this->paidMarketingDomainIds($domainIds),
+                'visits',
+            );
+        }
 
         $this->applyFilters($base, $request);
 
@@ -74,6 +88,12 @@ class TrafficControlSessionQuery
         if (Schema::hasColumn('visits', 'fingerprint_id')) {
             $select[] = DB::raw('MAX(visits.fingerprint_id) as fingerprint_id');
         }
+        if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+            $select[] = DB::raw('MAX(CASE WHEN visits.is_paid_traffic = 1 THEN 1 ELSE 0 END) as is_paid_traffic');
+        }
+        if (Schema::hasColumn('visits', 'gclid')) {
+            $select[] = DB::raw('MAX(visits.gclid) as gclid');
+        }
         if (Schema::hasColumn('visits', 'utm_content')) {
             $select[] = DB::raw('MAX(visits.utm_content) as utm_content');
         }
@@ -94,7 +114,7 @@ class TrafficControlSessionQuery
         $recordings = $this->loadRecordings($domainIds, $sessionKeys, $from, $to);
         $landingPages = $this->loadLandingPages($domainIds, $from, $to, $sessionExpr);
 
-        $data = $rows->map(function ($row) use ($recordings, $landingPages, $request) {
+        $data = $rows->map(function ($row) use ($recordings, $landingPages, $request, $trafficMode) {
             $key = (string) $row->session_key;
             $rec = $recordings->get($key);
             $landing = $landingPages->get($key);
@@ -122,14 +142,16 @@ class TrafficControlSessionQuery
                 }
             }
 
-            $isPaid = (bool) ($row->is_paid_traffic ?? false);
+            $isPaid = (bool) ($row->is_paid_traffic ?? false) || $trafficMode === 'paid';
             $platform = TrafficSourceClassifier::platformLabel(
                 $isPaid,
                 $row->utm_medium,
                 $row->utm_source,
                 $row->referrer,
             );
-            if ($platform === 'Google' && ! $isPaid) {
+            if ($trafficMode === 'paid') {
+                $platform = 'Google Ads';
+            } elseif ($platform === 'Google' && ! $isPaid) {
                 $platform = 'Google Organic';
             } elseif ($platform === 'Backlinks') {
                 $platform = 'Backlink';
@@ -195,21 +217,23 @@ class TrafficControlSessionQuery
             $secs = $durationSec % 60;
             $deviceBucket = TrafficSourceClassifier::deviceBucket($row->device, $row->os);
 
-            $deviceLabel = DeviceIdLabel::format(
-                (string) ($row->device_id ?? ''),
-                (string) ($row->fingerprint_id ?? ''),
-                (string) ($row->ip ?? ''),
-            );
+            $deviceRaw = trim((string) ($row->device_id ?? ''));
+            $fpRaw = trim((string) ($row->fingerprint_id ?? ''));
+            $ipRaw = trim((string) ($row->ip ?? ''));
+            $deviceLabel = DeviceIdLabel::format($deviceRaw, $fpRaw, $ipRaw);
 
             return [
                 'id' => (int) sprintf('%u', crc32($row->domain_id.'|'.$key)),
                 'session_id' => $row->session_id ?? $key,
                 'session_key' => $key,
-                'ip' => $row->ip,
+                'ip' => $ipRaw !== '' ? $ipRaw : null,
                 'domain_id' => (int) $row->domain_id,
                 'domain' => $row->hostname,
                 'device_id' => $deviceLabel,
-                'fingerprint_id' => $deviceLabel,
+                'device_id_raw' => $deviceRaw,
+                'fingerprint_id' => $fpRaw,
+                'is_paid' => $isPaid || ($trafficMode === 'paid'),
+                'gclid' => trim((string) ($row->gclid ?? '')) ?: null,
                 'source_platform' => $platform,
                 'campaign' => $row->utm_campaign,
                 'keyword' => $row->utm_term,

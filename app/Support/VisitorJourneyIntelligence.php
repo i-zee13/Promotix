@@ -45,6 +45,7 @@ class VisitorJourneyIntelligence
             $request,
             1,
             40,
+            'paid',
         );
 
         $sessions = $sessionPage['data'] ?? [];
@@ -274,10 +275,21 @@ class VisitorJourneyIntelligence
             $durationSec % 60
         ));
         $sessionId = (string) ($row['session_id'] ?? $row['session_key'] ?? '');
-        $deviceRaw = trim((string) ($row['device_id'] ?? ''));
+        $deviceRaw = trim((string) ($row['device_id_raw'] ?? ''));
         $fpRaw = trim((string) ($row['fingerprint_id'] ?? ''));
+        // Ignore legacy TC rows that copied Device ID label into fingerprint_id.
+        if ($fpRaw !== '' && str_starts_with($fpRaw, 'DEV_')) {
+            $fpRaw = '';
+        }
         $ip = trim((string) ($row['ip'] ?? ''));
-        $deviceId = DeviceIdLabel::format($deviceRaw, $fpRaw, $ip);
+        $displayDevice = trim((string) ($row['device_id'] ?? ''));
+        $deviceId = $displayDevice !== '' && str_starts_with($displayDevice, 'DEV_')
+            ? $displayDevice
+            : DeviceIdLabel::format(
+                $deviceRaw !== '' ? $deviceRaw : null,
+                $fpRaw !== '' ? $fpRaw : null,
+                $ip !== '' ? $ip : null,
+            );
         if ($sessionId !== '' && str_starts_with($sessionId, 'unknown_')) {
             $sessionId = 'ses_'.substr(sha1($sessionId), 0, 6);
         } elseif ($sessionId !== '' && ! str_starts_with($sessionId, 'ses_') && strlen($sessionId) > 12) {
@@ -289,8 +301,11 @@ class VisitorJourneyIntelligence
         return [
             'session_id' => $sessionId,
             'session_key' => (string) ($row['session_key'] ?? $sessionId),
+            'ip' => $ip !== '' ? $ip : '—',
+            'fingerprint_id' => $fpRaw !== '' ? $fpRaw : '—',
+            'fingerprint_short' => $fpRaw !== '' ? $this->shortId($fpRaw) : '—',
             'device_id' => $deviceId,
-            'device_id_raw' => $deviceRaw !== '' ? $deviceRaw : ($fpRaw !== '' ? $fpRaw : ''),
+            'device_id_raw' => $deviceRaw,
             'device' => (string) ($row['device'] ?? '—'),
             'browser' => (string) ($row['browser'] ?? '—'),
             'os' => (string) ($row['os'] ?? '—'),
@@ -1136,6 +1151,19 @@ class VisitorJourneyIntelligence
         }
 
         return strlen($path) > 28 ? substr($path, 0, 26).'…' : $path;
+    }
+
+    private function shortId(string $id): string
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return '—';
+        }
+        if (strlen($id) <= 16) {
+            return $id;
+        }
+
+        return substr($id, 0, 8).'…'.substr($id, -4);
     }
 
     private function pctDelta(int|float $cur, int|float $prev): float

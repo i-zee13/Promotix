@@ -384,7 +384,7 @@
             .vj-axis-label { font-size:10px; color:rgba(255,255,255,.35); margin-bottom:6px; }
             .vj-et { overflow: visible; min-height: 0; }
             .vj-et__axis {
-                display:grid; grid-template-columns:118px 1fr; gap:0; margin-bottom:4px; min-width:720px;
+                display:grid; grid-template-columns:168px 1fr; gap:0; margin-bottom:4px; min-width:720px;
                 position: sticky; top: 0; background: #121212; z-index: 3;
             }
             html.light-mode .vj-et__axis {
@@ -399,16 +399,22 @@
                 font-size:10px; color:rgba(255,255,255,.35); border-bottom:1px solid rgba(255,255,255,.08);
             }
             .vj-et__row {
-                display:grid; grid-template-columns:118px 1fr; gap:0; min-width:720px;
+                display:grid; grid-template-columns:168px 1fr; gap:0; min-width:720px;
                 border-radius:8px; margin-bottom:2px; cursor:pointer;
             }
             .vj-et__row.is-active { background:rgba(255,102,0,.10); }
             .vj-et__row:hover { background:rgba(255,255,255,.03); }
             .vj-et__row.is-active:hover { background:rgba(255,102,0,.14); }
             .vj-et__sid {
-                padding:14px 10px; font-size:12px; color:#fff; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                padding:10px 10px; font-size:12px; color:#fff; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                min-width:0;
             }
-            .vj-et__sid small { display:block; margin-top:3px; font-size:10px; color:rgba(255,255,255,.4); font-family:inherit; }
+            .vj-et__sid > span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+            .vj-et__sid small {
+                display:block; margin-top:2px; font-size:9px; color:rgba(255,255,255,.4);
+                font-family:inherit; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+            }
+            .vj-et__sid .vj-et__id-line { color:rgba(255,255,255,.55); }
             .vj-et__track {
                 position:relative; height:64px; margin:6px 8px;
                 border-bottom:1px dotted rgba(255,255,255,.18);
@@ -422,7 +428,8 @@
                 font-size:9px; color:rgba(255,255,255,.7); white-space:nowrap; margin-bottom:4px;
                 max-width:72px; overflow:hidden; text-overflow:ellipsis; margin-left:auto; margin-right:auto;
             }
-            .vj-et__marker.is-hover .vj-et__m-label {
+            .vj-et__marker.is-hover .vj-et__m-label,
+            .vj-et__marker.is-clustered .vj-et__m-label {
                 visibility: hidden;
             }
             .vj-et__m-time { font-size:9px; color:rgba(255,255,255,.4); margin-top:4px; }
@@ -741,6 +748,9 @@
             }
             html.light-mode .vj-et__sid small {
                 color: #6b6578 !important;
+            }
+            html.light-mode .vj-et__sid .vj-et__id-line {
+                color: #5c5470 !important;
             }
             html.light-mode .vj-et__track {
                 border-bottom-color: rgba(255, 102, 0, 0.28) !important;
@@ -1310,6 +1320,8 @@
                                     <div class="vj-et__row" :class="{ 'is-active': selected?.session_key === row.session_key }" @click="selectSession(row, false)">
                                         <div class="vj-et__sid">
                                             <span x-text="row.session_id"></span>
+                                            <small class="vj-et__id-line" x-text="row.device_id || '—'" :title="row.device_id"></small>
+                                            <small class="vj-et__id-line" :title="(row.ip || '') + ' · ' + (row.fingerprint_id || '')" x-text="timelineIdentityLine(row)"></small>
                                             <small x-text="sessionDurationLabel(row)"></small>
                                         </div>
                                         <div class="vj-et__track">
@@ -1318,7 +1330,8 @@
                                                     class="vj-et__marker"
                                                     :class="{
                                                         'is-selected': isEventSelected(row, ev),
-                                                        'is-hover': hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id
+                                                        'is-hover': hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id,
+                                                        'is-clustered': isEventClustered(ev, row)
                                                     }"
                                                     :style="'left:' + eventLeftPct(ev, row) + '%'"
                                                     @click.stop="selectEvent(row, ev)"
@@ -1500,9 +1513,20 @@
                                                         <strong><span class="font-mono text-[11px]" x-text="selected.session_id"></span>
                                                             <button type="button" class="text-white/35" @click="copyText(selected.session_id)">⧉</button></strong>
                                                     </div>
+                                                    <div class="vj-meta-row">
+                                                        <span>IP</span>
+                                                        <strong><span class="font-mono text-[11px]" x-text="selected.ip || '—'"></span>
+                                                            <button type="button" class="text-white/35" @click="copyText(selected.ip)">⧉</button></strong>
+                                                    </div>
+                                                    <div class="vj-meta-row">
+                                                        <span>Fingerprint</span>
+                                                        <strong><span class="font-mono text-[11px]" x-text="selected.fingerprint_id || '—'"></span>
+                                                            <button type="button" class="text-white/35" @click="copyText(selected.fingerprint_id)">⧉</button></strong>
+                                                    </div>
                                                     <div class="vj-meta-row"><span>Device</span><strong x-text="selected.device"></strong></div>
                                                     <div class="vj-meta-row"><span>Browser / OS</span><strong x-text="(selected.browser || '—') + ' / ' + (selected.os || '—')"></strong></div>
                                                     <div class="vj-meta-row"><span>Campaign</span><strong x-text="selected.campaign || '—'"></strong></div>
+                                                    <div class="vj-meta-row"><span>Source</span><strong x-text="selected.source || 'Google Ads'"></strong></div>
                                                     <div class="vj-meta-row"><span>Landing page</span><strong x-text="selected.landing_page || '—'"></strong></div>
                                                     <div class="vj-meta-row"><span>Exit page</span><strong x-text="selected.exit_page || '—'"></strong></div>
                                                     <div class="vj-meta-row"><span>Duration</span><strong x-text="sessionDurationLabel(selected)"></strong></div>
@@ -1614,11 +1638,26 @@
                                         <button type="button" class="text-white/35 hover:text-white" @click="copyText(selectedEvent.device_id || selected?.device_id)">⧉</button>
                                     </strong>
                                 </div>
+                                <div class="vj-meta-row">
+                                    <span>IP</span>
+                                    <strong>
+                                        <span class="font-mono text-[11px]" x-text="selectedEvent.ip || selected?.ip || '—'"></span>
+                                        <button type="button" class="text-white/35 hover:text-white" @click="copyText(selectedEvent.ip || selected?.ip)">⧉</button>
+                                    </strong>
+                                </div>
+                                <div class="vj-meta-row">
+                                    <span>Fingerprint</span>
+                                    <strong>
+                                        <span class="font-mono text-[11px]" x-text="selectedEvent.fingerprint_id || selected?.fingerprint_id || '—'"></span>
+                                        <button type="button" class="text-white/35 hover:text-white" @click="copyText(selectedEvent.fingerprint_id || selected?.fingerprint_id)">⧉</button>
+                                    </strong>
+                                </div>
                                 <div class="vj-meta-row"><span>Event</span><strong class="font-mono text-[11px]" x-text="selectedEvent.event || selectedEvent.label || '—'"></strong></div>
                                 <div class="vj-meta-row"><span>Time</span><strong x-text="selectedEvent.time || '—'"></strong></div>
                                 <div class="vj-meta-row"><span>Elapsed Time</span><strong x-text="selectedEvent.elapsed || selectedEvent.elapsed_short || '—'"></strong></div>
                                 <div class="vj-meta-row"><span>Page</span><strong x-text="selectedEvent.page || '—'"></strong></div>
                                 <div class="vj-meta-row"><span>Campaign</span><strong x-text="selectedEvent.campaign || selected?.campaign || '—'"></strong></div>
+                                <div class="vj-meta-row"><span>Source</span><strong x-text="selected?.source || 'Google Ads'"></strong></div>
                                 <div class="vj-meta-row">
                                     <span>Status</span>
                                     <strong><span class="vj-status-ok"></span> <span x-text="selectedEvent.status || selectedEvent.kind"></span></strong>
@@ -2168,8 +2207,24 @@ function visitorJourneyPage() {
             this.selectedEvent = Object.assign({}, ev, {
                 session_id: row?.session_id || ev?.session_id || '',
                 device_id: row?.device_id || ev?.device_id || '',
+                ip: row?.ip || ev?.ip || '',
+                fingerprint_id: row?.fingerprint_id || ev?.fingerprint_id || '',
                 campaign: row?.campaign || ev?.campaign || '',
             });
+        },
+        timelineIdentityLine(row) {
+            const ip = String(row?.ip || '').trim();
+            const fp = String(row?.fingerprint_short || row?.fingerprint_id || '').trim();
+            const parts = [];
+            if (ip && ip !== '—') parts.push(ip);
+            if (fp && fp !== '—') parts.push(fp);
+            return parts.length ? parts.join(' · ') : '—';
+        },
+        isEventClustered(ev, row) {
+            const list = this.filteredEvents(row);
+            if (list.length < 2) return false;
+            const sec = Number(ev.elapsed_sec || 0);
+            return list.filter((e) => Math.abs(Number(e.elapsed_sec || 0) - sec) < 1).length > 1;
         },
         isEventSelected(row, ev) {
             return this.selected?.session_key === row.session_key && this.selectedEvent?.id === ev.id;
@@ -2238,9 +2293,12 @@ function visitorJourneyPage() {
                 ['Field', 'Value'],
                 ['Session ID', row.session_id],
                 ['Device ID', row.device_id],
+                ['IP', row.ip],
+                ['Fingerprint', row.fingerprint_id],
                 ['Device', row.device],
                 ['Browser', row.browser],
                 ['OS', row.os],
+                ['Source', row.source || 'Google Ads'],
                 ['Campaign', row.campaign],
                 ['Landing page', row.landing_page],
                 ['Exit page', row.exit_page],
