@@ -316,6 +316,7 @@ class VisitorJourneyIntelligence
             'source' => (string) ($row['source_platform'] ?? 'Google Ads'),
             'duration' => $durationLabel,
             'duration_raw' => sprintf('%02d:%02d:%02d', intdiv($durationSec, 3600), intdiv($durationSec % 3600, 60), $durationSec % 60),
+            'duration_sec' => $durationSec,
             'path_chips' => $pathChips,
             'path_footer' => array_values(array_merge(
                 array_map(fn ($p) => ['label' => $p, 'tone' => 'page'], array_slice($pages, 0, 3)),
