@@ -37,7 +37,8 @@
                     gap: 12px;
                     min-width: 0;
                     position: relative;
-                    z-index: 20;
+                    /* Above dashboard cards; below fixed .figma-header (100) + impersonate (200) */
+                    z-index: 50;
                     overflow: visible;
                 }
                 @media (min-width: 1100px) {
@@ -66,11 +67,10 @@
                     align-items: stretch;
                     justify-content: flex-start !important;
                     gap: 0 !important;
-                    overflow-x: auto !important;
-                    overflow-y: visible !important;
+                    /* MUST stay visible — overflow-x:auto clips calendar/dropdowns (CSS forces y=auto too) */
+                    overflow: visible !important;
                     box-sizing: border-box;
                     min-height: 44px !important;
-                    -webkit-overflow-scrolling: touch;
                 }
                 .figma-filter-bar--bp-dash > label {
                     flex: 0 0 auto !important;
@@ -83,6 +83,9 @@
                     padding-top: 4px !important;
                     padding-bottom: 4px !important;
                     box-sizing: border-box;
+                    position: relative;
+                    z-index: 1;
+                    overflow: visible !important;
                 }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-search { width: 118px !important; flex: 0 0 118px !important; }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-account { width: 108px !important; flex: 0 0 108px !important; }
@@ -124,8 +127,8 @@
                     align-items: stretch;
                     align-self: stretch;
                     position: relative;
-                    z-index: 25;
-                    overflow: visible;
+                    z-index: 5;
+                    overflow: visible !important;
                     border-left: 1px solid rgba(0, 0, 0, 0.2);
                     border-top: 0;
                     margin-left: 0 !important;
@@ -141,13 +144,18 @@
                     justify-content: center;
                     align-self: stretch;
                     position: relative;
-                    z-index: 26;
-                    overflow: visible;
+                    z-index: 6;
+                    overflow: visible !important;
                     border-left: 0 !important;
                     border-top: 0 !important;
                     padding: 4px 6px !important;
                     margin: 0 !important;
                     box-sizing: border-box;
+                }
+                .figma-filter-bar--bp-dash .paid-advanced-campaign-menu,
+                .figma-filter-bar--bp-dash .figma-gads-calendar,
+                .figma-filter-bar--bp-dash .figma-date-range-popover {
+                    z-index: 120 !important;
                 }
                 .figma-filter-bar--bp-dash .figma-filter-calendar-btn--responsive {
                     width: 30px !important;
@@ -201,6 +209,7 @@
                         margin-left: 0 !important;
                         align-self: stretch;
                         display: flex !important;
+                        overflow: visible !important;
                     }
                     .figma-filter-bar--bp-dash > label {
                         flex: 0 0 auto !important;
@@ -277,7 +286,7 @@
                 }
             </style>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar ml-auto flex min-h-[44px] w-fit max-w-full flex-nowrap overflow-x-auto overflow-y-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar ml-auto flex min-h-[44px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
                 <label class="bp-dash-f-search flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
                     <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Search</span>
                     <div class="figma-filter-path-wrap">

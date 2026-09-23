@@ -84,13 +84,13 @@
         : false;
 @endphp
 
-<div id="figma-shell" class="figma-shell @yield('figma_shell_class')">
+<div id="figma-shell" class="figma-shell @yield('figma_shell_class') @if (session('impersonator_id')) figma-shell--impersonating @endif">
     @if (session('impersonator_id'))
-        <div class="fixed left-0 right-0 top-0 z-50 border-b border-amber-500/40 bg-amber-500/20 px-4 py-2 text-xs text-amber-100">
-            <form method="POST" action="{{ route('impersonate.stop') }}" class="flex flex-wrap items-center justify-between gap-2">
+        <div class="figma-impersonate-bar" role="status">
+            <form method="POST" action="{{ route('impersonate.stop') }}" class="figma-impersonate-bar__form">
                 @csrf
                 <span>You are impersonating <strong>{{ $user?->email }}</strong>.</span>
-                <button type="submit" class="rounded-md bg-amber-500/30 px-3 py-1 font-semibold hover:bg-amber-500/50">Stop impersonating</button>
+                <button type="submit" class="figma-impersonate-bar__stop">Stop impersonating</button>
             </form>
         </div>
     @endif

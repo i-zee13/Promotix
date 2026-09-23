@@ -21,6 +21,9 @@
                 gap: 12px;
                 margin-bottom: 18px;
                 min-width: 0;
+                position: relative;
+                z-index: 50;
+                overflow: visible;
             }
             @media (min-width: 1100px) {
                 .bp-adv-page-head {
@@ -43,7 +46,7 @@
                 align-items: stretch;
                 justify-content: flex-start !important;
                 gap: 0 !important;
-                overflow: visible;
+                overflow: visible !important;
                 box-sizing: border-box;
             }
             .figma-filter-bar--bp-adv > label {
@@ -52,6 +55,8 @@
                 min-width: 0 !important;
                 padding-left: 7px !important;
                 padding-right: 7px !important;
+                position: relative;
+                overflow: visible !important;
             }
             .figma-filter-bar--bp-adv > label.bp-adv-f-search { width: 140px !important; flex: 0 0 140px !important; }
             .figma-filter-bar--bp-adv > label.bp-adv-f-account { width: 130px !important; flex: 0 0 130px !important; }

@@ -625,7 +625,7 @@ html.light-mode .figma-click-modal-sidebar {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    z-index: 60;
+    z-index: 120;
     width: max(100%, 220px);
     max-height: 240px;
     overflow: auto;
@@ -4663,7 +4663,7 @@ select.figma-sa-subs-status-pill {
     top: 0;
     left: var(--figma-left);
     right: var(--figma-right);
-    /* Above page sticky heads / filter bars (often z-30–80); below modals (~200+) */
+    /* Above page sticky heads / filter bars (often z-30–80); below impersonate bar + modals */
     z-index: 100;
     /* Keep controls visually at the old 17px offset; fill the gap with solid chrome */
     height: 75px;
@@ -4673,6 +4673,76 @@ select.figma-sa-subs-status-pill {
     background: #0e0e0e;
     /* Opaque paint layer so scrolled titles/filters cannot show through */
     isolation: isolate;
+}
+
+/* Impersonation strip — always above header, sidebar, page content */
+.figma-impersonate-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    height: var(--figma-impersonate-h, 40px);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid rgba(245, 158, 11, 0.45);
+    background: #7a4a0a;
+    color: #fff7e8;
+    font-size: 12px;
+    line-height: 1.2;
+    isolation: isolate;
+}
+
+.figma-impersonate-bar__form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+}
+
+.figma-impersonate-bar__stop {
+    border: 0;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    cursor: pointer;
+}
+
+.figma-impersonate-bar__stop:hover {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.figma-shell--impersonating {
+    --figma-impersonate-h: 40px;
+}
+
+.figma-shell--impersonating .figma-sidebar {
+    top: var(--figma-impersonate-h);
+}
+
+.figma-shell--impersonating .figma-header {
+    top: var(--figma-impersonate-h);
+}
+
+.figma-shell--impersonating .figma-rightbar {
+    top: var(--figma-impersonate-h);
+}
+
+.figma-shell--impersonating .figma-main {
+    padding-top: calc(75px + var(--figma-impersonate-h));
+}
+
+.light-mode .figma-impersonate-bar {
+    background: #b45309;
+    border-bottom-color: rgba(180, 83, 9, 0.55);
+    color: #fff7ed;
 }
 
 /* Header left + right clusters — bottom padding for visual balance */
