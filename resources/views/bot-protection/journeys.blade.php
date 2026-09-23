@@ -177,11 +177,11 @@
             .vj-flow__col-menu-item {
                 display:flex; align-items:center; justify-content:space-between; gap:8px;
                 width:100%; text-align:left; border:0; background:transparent;
-                padding:7px 12px; font-size:11px; color:rgba(255,255,255,.55); cursor:pointer;
+                padding:7px 12px; font-size:11px; color:rgba(255,255,255,.45); cursor:pointer;
             }
-            .vj-flow__col-menu-item:hover { background:rgba(255,255,255,.04); color:rgba(255,255,255,.85); }
-            .vj-flow__col-menu-item.is-on { color:rgba(255,255,255,.88); }
-            .vj-flow__col-menu-item.is-active { color:#FF6600; background:rgba(255,102,0,.08); }
+            .vj-flow__col-menu-item:hover { background:rgba(255,255,255,.04); }
+            .vj-flow__col-menu-item.is-on { color:#FF6600; background:rgba(255,102,0,.08); }
+            .vj-flow__col-menu-item.is-on:hover { color:#FF6600; }
             .vj-flow__col-menu-item .vj-opt-check {
                 flex-shrink:0; width:14px; height:14px; border-radius:4px;
                 border:1px solid rgba(255,255,255,.25); display:inline-flex;
@@ -192,10 +192,10 @@
                 border-color:#FF6600; background:rgba(255,102,0,.2); color:#FF6600;
             }
             .vj-flow__col-menu-item .vj-opt-badge {
-                flex-shrink:0; font-size:9px; font-weight:650; color:rgba(255,255,255,.4);
+                flex-shrink:0; font-size:9px; font-weight:650; color:rgba(255,255,255,.35);
                 border-radius:999px; padding:1px 6px; background:rgba(255,255,255,.06);
             }
-            .vj-flow__col-menu-item.is-active .vj-opt-badge {
+            .vj-flow__col-menu-item.is-on .vj-opt-badge {
                 color:#FF6600; background:rgba(255,102,0,.18);
             }
             .vj-node {
@@ -416,10 +416,14 @@
             .vj-et__marker {
                 position:absolute; top:8px; transform:translateX(-50%); text-align:center; z-index:2;
             }
+            .vj-et__marker.is-hover { z-index: 30; }
             .vj-et__marker.is-selected .vj-ev-icon { outline:2px solid #FF6600; outline-offset:2px; }
             .vj-et__m-label {
                 font-size:9px; color:rgba(255,255,255,.7); white-space:nowrap; margin-bottom:4px;
                 max-width:72px; overflow:hidden; text-overflow:ellipsis; margin-left:auto; margin-right:auto;
+            }
+            .vj-et__marker.is-hover .vj-et__m-label {
+                visibility: hidden;
             }
             .vj-et__m-time { font-size:9px; color:rgba(255,255,255,.4); margin-top:4px; }
             .vj-ev-icon {
@@ -439,10 +443,12 @@
                 width:10px; height:10px; border-radius:2px; background:rgba(255,255,255,.55);
             }
             .vj-tooltip {
-                position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
-                white-space:nowrap; background:#0f0f0f; border:1px solid rgba(255,102,0,.55);
-                color:rgba(255,255,255,.85); font-size:10px; padding:5px 8px; border-radius:6px;
-                pointer-events:none; z-index:5; box-shadow:0 8px 20px rgba(0,0,0,.45);
+                position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+                white-space:nowrap; max-width:min(280px, 60vw);
+                overflow:hidden; text-overflow:ellipsis;
+                background:#0f0f0f; border:1px solid rgba(255,102,0,.55);
+                color:rgba(255,255,255,.9); font-size:10px; padding:6px 9px; border-radius:6px;
+                pointer-events:none; z-index:40; box-shadow:0 8px 20px rgba(0,0,0,.45);
             }
             .vj-info-box {
                 margin:12px 0; padding:10px 12px; border-radius:8px;
@@ -913,12 +919,9 @@
                 background: #ffffff !important;
             }
             html.light-mode .vj-flow__col-menu-item {
-                color: #6b6578 !important;
-            }
-            html.light-mode .vj-flow__col-menu-item.is-on {
                 color: #121212 !important;
             }
-            html.light-mode .vj-flow__col-menu-item.is-active {
+            html.light-mode .vj-flow__col-menu-item.is-on {
                 color: #FF6600 !important;
                 background: rgba(255, 102, 0, 0.08) !important;
             }
@@ -931,8 +934,12 @@
                 color: #FF6600 !important;
             }
             html.light-mode .vj-flow__col-menu-item .vj-opt-badge {
-                color: #6b6578 !important;
+                color: #121212 !important;
                 background: rgba(0, 0, 0, 0.05) !important;
+            }
+            html.light-mode .vj-flow__col-menu-item.is-on .vj-opt-badge {
+                color: #FF6600 !important;
+                background: rgba(255, 102, 0, 0.18) !important;
             }
             html.light-mode .vj-donut__hole {
                 background: #ffffff !important;
@@ -1309,14 +1316,21 @@
                                             <template x-for="ev in filteredEvents(row)" :key="ev.id || (ev.event + ev.elapsed_sec)">
                                                 <div
                                                     class="vj-et__marker"
-                                                    :class="{ 'is-selected': isEventSelected(row, ev) }"
-                                                    :style="'left:' + eventLeftPct(ev) + '%'"
+                                                    :class="{
+                                                        'is-selected': isEventSelected(row, ev),
+                                                        'is-hover': hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id
+                                                    }"
+                                                    :style="'left:' + eventLeftPct(ev, row) + '%'"
                                                     @click.stop="selectEvent(row, ev)"
                                                     @mouseenter="hoverEvent = { session: row.session_key, id: ev.id }"
                                                     @mouseleave="hoverEvent = null"
                                                 >
-                                                    <div class="vj-tooltip" x-show="hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id" x-cloak
-                                                         x-text="(ev.event || ev.label) + ' • ' + (ev.elapsed || ev.elapsed_short) + ' • ' + (ev.page || '')"></div>
+                                                    <div
+                                                        class="vj-tooltip"
+                                                        x-show="hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id"
+                                                        x-cloak
+                                                        x-text="eventHoverLabel(ev)"
+                                                    ></div>
                                                     <div class="vj-et__m-label" x-text="ev.label"></div>
                                                     <span class="vj-ev-icon" :class="'is-' + (ev.type || 'page')"></span>
                                                     <div class="vj-et__m-time" x-text="ev.elapsed_short || ev.elapsed"></div>
@@ -1765,14 +1779,13 @@
                     type="button"
                     class="vj-flow__col-menu-item"
                     :class="{
-                        'is-on': pathOptionEnabled(pathMenu, opt),
-                        'is-active': pathOptionActive(flowColumn(pathMenu), opt)
+                        'is-on': pathOptionEnabled(pathMenu, opt)
                     }"
                     @click="togglePathOption(pathMenu, opt)"
                 >
                     <span class="min-w-0 truncate" x-text="opt"></span>
                     <span class="inline-flex items-center gap-1.5 shrink-0">
-                        <span class="vj-opt-badge" x-show="pathOptionActive(flowColumn(pathMenu), opt)" x-text="pathOptionCount(flowColumn(pathMenu), opt)"></span>
+                        <span class="vj-opt-badge" x-show="pathOptionEnabled(pathMenu, opt)" x-text="pathOptionCount(flowColumn(pathMenu), opt)"></span>
                         <span class="vj-opt-check" aria-hidden="true">✓</span>
                     </span>
                 </button>
@@ -2166,10 +2179,30 @@ function visitorJourneyPage() {
             if (this.eventFilter === 'all') return list;
             return list.filter((e) => e.type === this.eventFilter);
         },
-        eventLeftPct(ev) {
+        eventLeftPct(ev, row = null) {
             const sec = Number(ev.elapsed_sec || 0);
             const max = Math.max(1, this.timelineMaxSec);
-            return Math.min(98, Math.max(1, (sec / max) * 100));
+            let base = Math.min(98, Math.max(1, (sec / max) * 100));
+            // Same-second events (page + exit at 0:00) — nudge sideways so labels don't stack.
+            const list = row ? this.filteredEvents(row) : [];
+            if (list.length > 1) {
+                const same = list.filter((e) => Math.abs(Number(e.elapsed_sec || 0) - sec) < 1);
+                if (same.length > 1) {
+                    const idx = Math.max(0, same.findIndex((e) => String(e.id) === String(ev.id)));
+                    const spread = Math.min(2.4, 10 / same.length);
+                    base = base + (idx - (same.length - 1) / 2) * spread;
+                }
+            }
+            return Math.min(98, Math.max(1, base));
+        },
+        eventHoverLabel(ev) {
+            const name = String(ev?.event || ev?.label || 'Event').trim();
+            const when = String(ev?.elapsed || ev?.elapsed_short || '').trim();
+            const page = String(ev?.page || '').trim();
+            const parts = [name];
+            if (when) parts.push(when);
+            if (page && page.toLowerCase() !== name.toLowerCase()) parts.push(page);
+            return parts.join(' · ');
         },
         durationSec(raw) {
             if (!raw) return 0;
