@@ -2685,8 +2685,63 @@ function platformIntegrations(config) {
             this.audienceWizard.source = 'ga4';
             this.audienceWizard.open = true;
             this.lockSpecModal();
+            this.ensureAudienceAdsAccount({ toastIfEmpty: false });
             this.hydrateWizardAudienceLists();
             this.checkGa4SiteStatus(false);
+        },
+        /**
+         * Wizard + Create modal both need a domain-linked customer account id.
+         * Without this, create-audience posts with no google_ads_account_id and fails.
+         */
+        ensureAudienceAdsAccount(options = {}) {
+            const toastIfEmpty = options.toastIfEmpty !== false;
+            let rows = Array.isArray(this.trackingIds) ? [...this.trackingIds] : [];
+            const domainId = this.resolveAudienceDomainId();
+            if (domainId) {
+                rows = rows.filter((t) => String(t.domain_id) === String(domainId));
+            }
+            if (this.selectedAdsAccountId) {
+                const scoped = rows.filter((t) => String(t.account_id) === String(this.selectedAdsAccountId));
+                if (scoped.length) rows = scoped;
+            }
+            const seen = new Set();
+            const accounts = [];
+            rows.forEach((t) => {
+                const id = String(t.account_id || '');
+                if (!id || seen.has(id)) return;
+                seen.add(id);
+                const cid = String(t.customer_id || '').trim();
+                const name = String(t.label || '').trim();
+                const currency = String(t.currency_code || '').trim();
+                let label = name || cid || ('Account ' + id);
+                if (name && cid && name !== cid && !name.includes(cid)) {
+                    label = name + ' (' + cid + ')';
+                }
+                if (currency) label = label + ' · ' + currency;
+                accounts.push({
+                    id,
+                    label,
+                    customer_id: cid,
+                    currency_code: currency,
+                    currency_label: t.currency_label || currency,
+                    google_tag_id: t.google_tag_id || '',
+                    domain_id: t.domain_id,
+                    domain: t.domain || '',
+                });
+            });
+            this.createAudienceModal.adsOptions = accounts;
+            if (!accounts.length) {
+                this.createAudienceModal.ads_account = '';
+                if (toastIfEmpty) {
+                    this.showMenuToast('No linked Google Ads account for this domain. Link an account first.', 'error');
+                }
+                return false;
+            }
+            if (!this.createAudienceModal.ads_account
+                || !accounts.find((a) => String(a.id) === String(this.createAudienceModal.ads_account))) {
+                this.createAudienceModal.ads_account = accounts[0].id;
+            }
+            return true;
         },
         get wizardGa4StatusLabel() {
             if (this.wizardGa4Connected) return 'Account connected';
@@ -2752,6 +2807,9 @@ function platformIntegrations(config) {
                     this.showMenuToast('Select a domain first, then Create audience.', 'error');
                     return false;
                 }
+                if (!this.ensureAudienceAdsAccount({ toastIfEmpty: true })) {
+                    return false;
+                }
                 if (route === 'ga4') {
                     const present = this.createAudienceModal.ga4Present === true
                         ? true
@@ -2762,6 +2820,20 @@ function platformIntegrations(config) {
                     }
                 }
                 const adsId = this.createAudienceModal.ads_account;
+                let conditions = (this.audienceWizard.ruleConditions || [])
+                    .filter((c) => c && c.param)
+                    .map((c) => ({
+                        param: c.param,
+                        op: c.op || '=',
+                        value: c.value,
+                    }));
+                // Keep guide default when UI somehow dropped conditions.
+                if (!conditions.length) {
+                    conditions = [
+                        { param: 'cr_traffic_verdict', op: '=', value: 'invalid' },
+                        { param: 'cr_protection_action', op: '=', value: 'blocked' },
+                    ];
+                }
                 const body = {
                     domain_id: Number(domainId),
                     audience_name: this.createAudienceModal.name,
@@ -2772,15 +2844,14 @@ function platformIntegrations(config) {
                     match_mode: this.audienceWizard.matchMode || 'any',
                     rule: {
                         match_mode: this.audienceWizard.matchMode || 'any',
-                        conditions: (this.audienceWizard.ruleConditions || []).map((c) => ({
-                            param: c.param,
-                            op: c.op,
-                            value: c.value,
-                        })),
+                        conditions,
                     },
                 };
                 if (adsId && adsId !== 'summary' && /^\d+$/.test(String(adsId))) {
                     body.google_ads_account_id = Number(adsId);
+                } else {
+                    this.showMenuToast('Select a linked Google Ads customer account for this domain.', 'error');
+                    return false;
                 }
                 const res = await fetch(this.createAudienceModal.createUrl, {
                     method: 'POST',
@@ -2801,11 +2872,19 @@ function platformIntegrations(config) {
                     this.createAudienceModal._gtmIds = data.ga4_detection.gtm_ids || [];
                     this.createAudienceModal._measurementIds = data.ga4_detection.measurement_ids || [];
                 }
-                if (!data.ok) {
-                    this.showMenuToast(data.message || 'Could not create audience in Google Ads.', 'error');
+                if (!res.ok || !data.ok) {
+                    const detail = data.message
+                        || (res.status === 419 ? 'Session expired — refresh and try again.' : '')
+                        || (res.status ? ('HTTP ' + res.status) : '')
+                        || 'Could not create audience in Google Ads.';
+                    this.showMenuToast(detail, 'error');
                     return false;
                 }
                 const listId = data.user_list_id ? String(data.user_list_id) : '';
+                if (!listId) {
+                    this.showMenuToast(data.message || 'Audience API returned no list ID. Try Create again.', 'error');
+                    return false;
+                }
                 if (route === 'website') {
                     this.audienceWizard.websiteListId = listId;
                     this.audienceWizard.websiteName = data.user_list_name || this.audienceWizard.websiteName;
@@ -2827,7 +2906,7 @@ function platformIntegrations(config) {
                 if (!stayOnStep) {
                     this.wizardGoToStep(3);
                 }
-                return Boolean(listId);
+                return true;
             } catch (_) {
                 this.showMenuToast('Create audience request failed.', 'error');
                 return false;
