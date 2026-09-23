@@ -272,6 +272,9 @@
                             @click="wizardCreateAudience('ga4')">
                         <span x-text="audienceWizard.creating ? 'Creating…' : 'Create GA4 audience'"></span>
                     </button>
+                    <div x-show="audienceWizard.createError" x-cloak
+                         class="rounded-[8px] border border-red-400/40 bg-red-500/15 px-[12px] py-[10px] text-[12px] text-red-100"
+                         x-text="audienceWizard.createError"></div>
                 </div>
                 <aside class="space-y-[10px] rounded-[10px] border border-white/12 bg-[#0d0d0d] p-[14px] text-[12px]">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-white/45">Route verification</p>
@@ -280,6 +283,7 @@
                     <div class="flex justify-between gap-[8px]"><span>Google Ads link</span><span :class="wizardAdsConnected ? 'text-emerald-300' : 'text-white/45'" x-text="wizardAdsConnected ? 'Verified' : 'Pending'"></span></div>
                     <div class="flex justify-between gap-[8px]"><span>Audience creation</span><span :class="audienceWizard.ga4ListId ? 'text-emerald-300' : 'text-amber-300'" x-text="audienceWizard.ga4ListId ? 'Created' : 'Ready'"></span></div>
                     <div class="flex justify-between gap-[8px]"><span>Google Ads list</span><span class="text-amber-300" x-text="audienceWizard.ga4ListId ? ('List ' + audienceWizard.ga4ListId) : 'Awaiting creation'"></span></div>
+                    <p x-show="audienceWizard.createError" x-cloak class="rounded-[8px] border border-red-400/40 bg-red-500/15 px-[10px] py-[8px] text-[11px] text-red-100" x-text="audienceWizard.createError"></p>
                     <p class="rounded-[8px] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)]/10 px-[10px] py-[8px] text-[11px] text-[#ffd0b0]">After creation, wait for the shared Google Ads list before applying exclusions. New list is added — old lists are not replaced. Creating the audience does <strong class="text-white">not</strong> upload existing Device IDs; membership starts from future <code class="text-white/90">cr_invalid_traffic</code> browser events.</p>
                 </aside>
             </div>

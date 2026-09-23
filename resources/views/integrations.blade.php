@@ -1515,18 +1515,20 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     </div>
 
-    <div
-        x-show="menuToast"
-        x-cloak
-        x-transition
-        class="fixed top-[70px] right-[24px] z-[250] max-w-[min(360px,calc(100vw-48px))] rounded-[8px] px-[14px] py-[10px] text-[12px] shadow-lg backdrop-blur-sm"
-        :class="{
-            'border border-red-400/45 bg-red-500/20 text-red-50': menuToastType === 'error',
-            'border border-emerald-400/35 bg-emerald-500/15 text-emerald-50': menuToastType === 'success',
-            'border border-[var(--brand-primary)]/40 bg-[var(--brand-primary)]/30 text-white': menuToastType === 'info',
-        }"
-        x-text="menuToast"
-    ></div>
+    <template x-teleport="body">
+        <div
+            x-show="menuToast"
+            x-cloak
+            x-transition
+            class="fixed top-[70px] right-[24px] z-[2147483646] max-w-[min(420px,calc(100vw-48px))] rounded-[8px] px-[14px] py-[10px] text-[12px] shadow-lg backdrop-blur-sm"
+            :class="{
+                'border border-red-400/45 bg-red-500/20 text-red-50': menuToastType === 'error',
+                'border border-emerald-400/35 bg-emerald-500/15 text-emerald-50': menuToastType === 'success',
+                'border border-[var(--brand-primary)]/40 bg-[var(--brand-primary)]/30 text-white': menuToastType === 'info',
+            }"
+            x-text="menuToast"
+        ></div>
+    </template>
 </div>
 
 <script>
@@ -1743,6 +1745,7 @@ function platformIntegrations(config) {
             open: false,
             step: 0,
             creating: false,
+            createError: '',
             source: 'ga4',
             delivery: 'gtm',
             eventName: 'cr_invalid_traffic',
@@ -2683,6 +2686,7 @@ function platformIntegrations(config) {
         openAudienceWizard() {
             this.audienceWizard.step = 0;
             this.audienceWizard.source = 'ga4';
+            this.audienceWizard.createError = '';
             this.audienceWizard.open = true;
             this.lockSpecModal();
             this.ensureAudienceAdsAccount({ toastIfEmpty: false });
@@ -2801,6 +2805,7 @@ function platformIntegrations(config) {
                 : (this.audienceWizard.ga4Name || 'CR - Invalid and Blocked');
             this.createAudienceModal.duration = this.audienceWizard.duration || '90 days';
             this.audienceWizard.creating = true;
+            this.audienceWizard.createError = '';
             try {
                 const domainId = this.resolveAudienceDomainId();
                 if (!domainId || !this.createAudienceModal.createUrl) {
@@ -2873,18 +2878,19 @@ function platformIntegrations(config) {
                     this.createAudienceModal._measurementIds = data.ga4_detection.measurement_ids || [];
                 }
                 if (!res.ok || !data.ok) {
-                    const detail = data.message
-                        || (res.status === 419 ? 'Session expired — refresh and try again.' : '')
-                        || (res.status ? ('HTTP ' + res.status) : '')
-                        || 'Could not create audience in Google Ads.';
+                    const detail = this.formatAudienceCreateError(data, res);
+                    this.audienceWizard.createError = detail;
                     this.showMenuToast(detail, 'error');
                     return false;
                 }
                 const listId = data.user_list_id ? String(data.user_list_id) : '';
                 if (!listId) {
-                    this.showMenuToast(data.message || 'Audience API returned no list ID. Try Create again.', 'error');
+                    const detail = data.message || 'Audience API returned no list ID. Try Create again.';
+                    this.audienceWizard.createError = detail;
+                    this.showMenuToast(detail, 'error');
                     return false;
                 }
+                this.audienceWizard.createError = '';
                 if (route === 'website') {
                     this.audienceWizard.websiteListId = listId;
                     this.audienceWizard.websiteName = data.user_list_name || this.audienceWizard.websiteName;
@@ -2908,7 +2914,9 @@ function platformIntegrations(config) {
                 }
                 return true;
             } catch (_) {
-                this.showMenuToast('Create audience request failed.', 'error');
+                const detail = 'Create audience request failed.';
+                this.audienceWizard.createError = detail;
+                this.showMenuToast(detail, 'error');
                 return false;
             } finally {
                 this.audienceWizard.creating = false;
@@ -4241,7 +4249,24 @@ ${memberRowsHtml}
             this.menuToast = message;
             this.menuToastType = type;
             clearTimeout(this.menuToastTimer);
-            this.menuToastTimer = setTimeout(() => { this.menuToast = ''; }, 3200);
+            const ms = type === 'error' ? 9000 : 3200;
+            this.menuToastTimer = setTimeout(() => { this.menuToast = ''; }, ms);
+        },
+        formatAudienceCreateError(data, res) {
+            if (data?.message) return String(data.message);
+            if (data?.errors && typeof data.errors === 'object') {
+                const parts = [];
+                Object.keys(data.errors).forEach((key) => {
+                    const arr = data.errors[key];
+                    if (Array.isArray(arr)) parts.push(...arr.map(String));
+                    else if (arr) parts.push(String(arr));
+                });
+                if (parts.length) return parts.join(' ');
+            }
+            if (res?.status === 419) return 'Session expired — refresh the page and try again.';
+            if (res?.status === 403) return 'Permission denied creating this audience. Reconnect Google Ads with write access.';
+            if (res?.status) return 'Could not create audience (HTTP ' + res.status + ').';
+            return 'Could not create audience in Google Ads.';
         },
         async copyText(value, label = 'Copied') {
             const text = String(value || '').trim();
