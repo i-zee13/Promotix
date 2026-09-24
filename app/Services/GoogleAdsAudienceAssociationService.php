@@ -1621,7 +1621,7 @@ class GoogleAdsAudienceAssociationService
         int $membershipDays = 30,
         array $knownLists = [],
     ): array {
-        $lifeSpan = (string) max(1, min(540, $membershipDays));
+        $lifeSpan = max(1, min(540, $membershipDays));
         $baseName = mb_substr(trim($audienceName), 0, 255);
         $description = mb_substr(
             'CR Invalid Traffic audience. Rule: event cr_invalid_traffic AND cr_traffic_verdict=invalid. '
@@ -1653,6 +1653,21 @@ class GoogleAdsAudienceAssociationService
             ],
         ];
 
+        $operand = static function (array $ruleItems, string $op = 'AND') use ($lifeSpan): array {
+            return [
+                'inclusiveRuleOperator' => $op,
+                'inclusiveOperands' => [[
+                    // FlexibleRuleOperandInfo requires nested UserListRuleInfo under "rule".
+                    'rule' => [
+                        'ruleItemGroups' => [[
+                            'ruleItems' => $ruleItems,
+                        ]],
+                    ],
+                    'lookbackWindowDays' => $lifeSpan,
+                ]],
+            ];
+        };
+
         $attempts = [
             // 1) Event + verdict (canonical Clickronix contract)
             [
@@ -1662,15 +1677,7 @@ class GoogleAdsAudienceAssociationService
                 'membershipLifeSpan' => $lifeSpan,
                 'ruleBasedUserList' => [
                     'prepopulationStatus' => 'REQUESTED',
-                    'flexibleRuleUserList' => [
-                        'inclusiveRuleOperator' => 'AND',
-                        'inclusiveOperands' => [[
-                            'ruleItemGroups' => [[
-                                'ruleItems' => [$eventRuleItem, $verdictRuleItem],
-                            ]],
-                            'lookbackWindowDays' => $lifeSpan,
-                        ]],
-                    ],
+                    'flexibleRuleUserList' => $operand([$eventRuleItem, $verdictRuleItem], 'AND'),
                 ],
             ],
             // 2) Event name only (e:cr_invalid_traffic)
@@ -1681,34 +1688,17 @@ class GoogleAdsAudienceAssociationService
                 'membershipLifeSpan' => $lifeSpan,
                 'ruleBasedUserList' => [
                     'prepopulationStatus' => 'REQUESTED',
-                    'flexibleRuleUserList' => [
-                        'inclusiveRuleOperator' => 'AND',
-                        'inclusiveOperands' => [[
-                            'ruleItemGroups' => [[
-                                'ruleItems' => [$eventRuleItem],
-                            ]],
-                            'lookbackWindowDays' => $lifeSpan,
-                        ]],
-                    ],
+                    'flexibleRuleUserList' => $operand([$eventRuleItem], 'AND'),
                 ],
             ],
-            // 3) Custom parameter style
+            // 3) Custom parameter style (omit prepopulation — v24 has no NONE enum)
             [
                 'name' => $baseName,
                 'description' => $description,
                 'membershipStatus' => 'OPEN',
                 'membershipLifeSpan' => $lifeSpan,
                 'ruleBasedUserList' => [
-                    'prepopulationStatus' => 'NONE',
-                    'flexibleRuleUserList' => [
-                        'inclusiveRuleOperator' => 'AND',
-                        'inclusiveOperands' => [[
-                            'ruleItemGroups' => [[
-                                'ruleItems' => [$eventParamItem, $verdictRuleItem],
-                            ]],
-                            'lookbackWindowDays' => $lifeSpan,
-                        ]],
-                    ],
+                    'flexibleRuleUserList' => $operand([$eventParamItem, $verdictRuleItem], 'AND'),
                 ],
             ],
             // 4) Minimal open rule shell (url__ never-match) so Attach still works; events may still fill via linked GA4 later
@@ -1718,22 +1708,13 @@ class GoogleAdsAudienceAssociationService
                 'membershipStatus' => 'OPEN',
                 'membershipLifeSpan' => $lifeSpan,
                 'ruleBasedUserList' => [
-                    'prepopulationStatus' => 'NONE',
-                    'flexibleRuleUserList' => [
-                        'inclusiveRuleOperator' => 'OR',
-                        'inclusiveOperands' => [[
-                            'ruleItemGroups' => [[
-                                'ruleItems' => [[
-                                    'name' => 'url__',
-                                    'stringRuleItem' => [
-                                        'operator' => 'EQUALS',
-                                        'value' => 'https://clickronix.invalid/cr_invalid_traffic_shell',
-                                    ],
-                                ]],
-                            ]],
-                            'lookbackWindowDays' => $lifeSpan,
-                        ]],
-                    ],
+                    'flexibleRuleUserList' => $operand([[
+                        'name' => 'url__',
+                        'stringRuleItem' => [
+                            'operator' => 'EQUALS',
+                            'value' => 'https://clickronix.invalid/cr_invalid_traffic_shell',
+                        ],
+                    ]], 'OR'),
                 ],
             ],
         ];
