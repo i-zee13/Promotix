@@ -2,11 +2,25 @@
 
 namespace Tests\Unit;
 
+use App\Models\GoogleAdsAccount;
 use App\Support\AccountCurrency;
 use PHPUnit\Framework\TestCase;
 
 class AccountCurrencyTest extends TestCase
 {
+    public function test_account_needs_metadata_refresh_when_currency_missing(): void
+    {
+        $account = new GoogleAdsAccount([
+            'is_manager' => false,
+            'time_zone' => 'Asia/Karachi',
+            'currency_code' => null,
+        ]);
+        $this->assertTrue($account->needsCustomerMetadataRefresh());
+
+        $account->currency_code = 'PKR';
+        $this->assertFalse($account->needsCustomerMetadataRefresh());
+    }
+
     public function test_pkr_uses_rs_symbol(): void
     {
         $this->assertSame('Rs ', AccountCurrency::symbol('PKR'));

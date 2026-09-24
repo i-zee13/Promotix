@@ -16,10 +16,10 @@ class RapidRepeatDetectionTest extends TestCase
         $this->assertSame(120, IpFraudEvaluator::PAID_RAPID_WINDOW_SECONDS);
     }
 
-    public function test_daily_limit_blocks_on_third_valid_paid_click(): void
+    public function test_daily_limit_blocks_on_fourth_valid_paid_click(): void
     {
-        // Prior valid paid clicks today >= 2 means current hit is the 3rd+.
-        $this->assertSame(2, IpFraudEvaluator::PAID_DAILY_VALID_CLICK_LIMIT);
+        // Default daily limit is 3 — prior valid paid clicks today >= 3 means current hit is the 4th+.
+        $this->assertSame(3, IpFraudEvaluator::PAID_DAILY_VALID_CLICK_LIMIT);
     }
 
     /**

@@ -36,7 +36,9 @@ class GoogleAdsDomainMetricsSync
         $domain->loadMissing('googleAdsAccount.connection');
         $account = $domain->googleAdsAccount;
 
-        if ($account && ! $account->time_zone && ! (bool) $account->is_manager) {
+        // Also refresh when currency_code is missing — older accounts may have
+        // time_zone from before currency_code was stored, which left Cost Saved in USD.
+        if ($account && ! (bool) $account->is_manager && $account->needsCustomerMetadataRefresh()) {
             app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($account);
             $account->refresh();
         }

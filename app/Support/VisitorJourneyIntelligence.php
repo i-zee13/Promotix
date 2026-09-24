@@ -153,9 +153,11 @@ class VisitorJourneyIntelligence
             ],
         ];
 
-        $recent = array_map(fn (array $row) => $this->shapeSession($row), array_slice($sessions, 0, 12));
-        $flow = $this->buildFlow($current, $recent, $tracked);
-        $outcomes = $this->buildOutcomes($recent, $tracked, $leadRate, $bounced);
+        $shaped = array_map(fn (array $row) => $this->shapeSession($row), $sessions);
+        // UI list stays short; Action/Outcome columns use the full page of sessions + KPI floors.
+        $recent = array_slice($shaped, 0, 12);
+        $flow = $this->buildFlow($current, $shaped, $tracked);
+        $outcomes = $this->buildOutcomes($shaped, $tracked, $leadRate, $bounced);
 
         $commonPaths = collect($current['journey_paths'] ?? [])
             ->take(6)
@@ -229,7 +231,9 @@ class VisitorJourneyIntelligence
         $actions = [];
         foreach ($row['event_actions'] ?? [] as $ev) {
             $key = (string) ($ev['key'] ?? '');
-            if (in_array($key, ['cta_click', 'tel_click'], true)) {
+            if ($key === 'cta_click') {
+                $actions[] = ['label' => 'cta clicked', 'tone' => 'action'];
+            } elseif (in_array($key, ['tel_click', 'call_click'], true)) {
                 $actions[] = ['label' => 'call button click', 'tone' => 'action'];
             } elseif (in_array($key, ['form_start', 'form_submit', 'form_fills'], true)) {
                 $actions[] = ['label' => (str_contains($key, 'submit') ? 'form submit' : 'form started'), 'tone' => 'form'];
@@ -326,7 +330,13 @@ class VisitorJourneyIntelligence
             'landing_page' => $this->shortPath((string) ($row['landing_page'] ?? '/')),
             'exit_page' => $this->shortPath((string) ($row['exit_page'] ?? '—')),
             'page_views' => (int) ($row['page_views'] ?? max(1, count($pages))),
+            // Keep raw action keys for Page Paths Action column (buildFlow).
+            'event_actions' => array_values(array_filter(
+                $row['event_actions'] ?? [],
+                fn ($ev) => is_array($ev) && filled($ev['key'] ?? null),
+            )),
             'cta_clicks' => (int) ($row['cta_clicks'] ?? 0) + (int) ($row['tel_clicks'] ?? 0),
+            'tel_clicks' => (int) ($row['tel_clicks'] ?? 0),
             'form_submits' => (int) ($row['form_submits'] ?? 0) + (int) ($row['form_fills'] ?? 0),
             'gclid_captured' => filled($row['gclid'] ?? null)
                 || str_contains(strtolower((string) ($row['source_platform'] ?? '')), 'google')
@@ -1074,7 +1084,11 @@ class VisitorJourneyIntelligence
         foreach ($recent as $s) {
             $hadMeaningful = false;
             foreach ($s['event_actions'] ?? [] as $ev) {
+                if (! is_array($ev)) {
+                    continue;
+                }
                 $key = strtolower((string) ($ev['key'] ?? ''));
+                // Session-level presence (Traffic Control emits one row per key).
                 if (in_array($key, ['cta_click', 'tel_click', 'call_click'], true)) {
                     if (in_array($key, ['tel_click', 'call_click'], true)) {
                         $actionBuckets['Call button clicked']++;
@@ -1114,6 +1128,40 @@ class VisitorJourneyIntelligence
                     $hadMeaningful = true;
                 } elseif (str_contains($key, 'provider')) {
                     $actionBuckets['Provider selected']++;
+                    $hadMeaningful = true;
+                }
+            }
+            // Fallback when event_actions was empty but session counters / timeline have CTAs.
+            if (! $hadMeaningful) {
+                $telOnly = (int) ($s['tel_clicks'] ?? 0);
+                $ctaCombined = (int) ($s['cta_clicks'] ?? 0);
+                // shapeSession stores cta_clicks as cta+tel; isolate pure CTA when possible.
+                $ctaOnly = max(0, $ctaCombined - $telOnly);
+                if ($ctaOnly > 0) {
+                    $actionBuckets['CTA clicked']++;
+                    $hadMeaningful = true;
+                }
+                if ($telOnly > 0) {
+                    $actionBuckets['Call button clicked']++;
+                    $hadMeaningful = true;
+                }
+                if (! $hadMeaningful) {
+                    foreach ($s['timeline'] ?? [] as $tev) {
+                        $tt = strtolower((string) ($tev['type'] ?? ''));
+                        if (in_array($tt, ['cta', 'cta_click'], true)) {
+                            $actionBuckets['CTA clicked']++;
+                            $hadMeaningful = true;
+                            break;
+                        }
+                        if (in_array($tt, ['tel', 'tel_click', 'phone', 'phone_click'], true)) {
+                            $actionBuckets['Call button clicked']++;
+                            $hadMeaningful = true;
+                            break;
+                        }
+                    }
+                }
+                if (! $hadMeaningful && (int) ($s['form_submits'] ?? 0) > 0) {
+                    $actionBuckets['Form submitted']++;
                     $hadMeaningful = true;
                 }
             }
@@ -1204,6 +1252,8 @@ class VisitorJourneyIntelligence
                 'tone' => $actionTones[$label] ?? 'default',
             ];
         }
+        // Sample can miss CTAs that exist in recordings / behavior events — lift from Page Analytics KPIs.
+        $colAction = $this->liftActionNodesFromKpis($colAction, $current, $tracked);
 
         $outcomeTones = [
             'Lead confirmed' => 'lead',
@@ -1252,6 +1302,88 @@ class VisitorJourneyIntelligence
         $links = $this->syntheticLinks($columns);
 
         return ['columns' => $columns, 'links' => $links];
+    }
+
+    /**
+     * Prefer real Page Analytics KPI totals when the session sample under-counts conversions.
+     *
+     * @param  list<array{id:string,label:string,value:int,pct:float,tone:string}>  $colAction
+     * @param  array<string, mixed>  $current
+     * @return list<array{id:string,label:string,value:int,pct:float,tone:string}>
+     */
+    private function liftActionNodesFromKpis(array $colAction, array $current, int $tracked): array
+    {
+        $kpis = is_array($current['kpis'] ?? null) ? $current['kpis'] : [];
+        $floors = [
+            'CTA clicked' => min($tracked, (int) ($kpis['cta_clicks'] ?? 0)),
+            'Call button clicked' => min($tracked, (int) ($kpis['tel_clicks'] ?? 0)),
+            'Form submitted' => min($tracked, (int) ($kpis['form_submits'] ?? 0)),
+            'Payment started' => min($tracked, (int) ($kpis['purchases'] ?? 0)),
+        ];
+
+        // Pricing / product from known pages when event keys are not recorded yet.
+        $pricingHits = 0;
+        foreach (array_merge(
+            $current['top_landing_pages'] ?? [],
+            $current['top_exit_pages'] ?? [],
+            $current['journey_paths'] ?? [],
+        ) as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $path = strtolower((string) ($row['path'] ?? $row['label'] ?? ''));
+            if ($path !== '' && str_contains($path, 'pricing')) {
+                $pricingHits += (int) ($row['value'] ?? 0);
+            }
+        }
+        if ($pricingHits > 0) {
+            $floors['Pricing viewed'] = min($tracked, max($floors['Pricing viewed'] ?? 0, $pricingHits));
+        }
+
+        $lifted = 0;
+        foreach ($colAction as &$node) {
+            $label = (string) ($node['label'] ?? '');
+            if (! isset($floors[$label])) {
+                continue;
+            }
+            $floor = (int) $floors[$label];
+            if ($floor <= (int) ($node['value'] ?? 0)) {
+                continue;
+            }
+            $lifted += $floor - (int) $node['value'];
+            $node['value'] = $floor;
+            $node['pct'] = round(($floor / max(1, $tracked)) * 100, 1);
+        }
+        unset($node);
+
+        if ($lifted <= 0) {
+            return $colAction;
+        }
+
+        // Pull excess away from Exit / No action so the column stays ~session-normalized.
+        foreach (['Exit', 'No action', 'Page viewed'] as $drain) {
+            if ($lifted <= 0) {
+                break;
+            }
+            foreach ($colAction as &$node) {
+                if ($lifted <= 0) {
+                    break;
+                }
+                if ((string) ($node['label'] ?? '') !== $drain) {
+                    continue;
+                }
+                $take = min($lifted, (int) ($node['value'] ?? 0));
+                if ($take <= 0) {
+                    continue;
+                }
+                $node['value'] = (int) $node['value'] - $take;
+                $node['pct'] = round(((int) $node['value'] / max(1, $tracked)) * 100, 1);
+                $lifted -= $take;
+            }
+            unset($node);
+        }
+
+        return $colAction;
     }
 
     /**

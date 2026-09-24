@@ -1931,14 +1931,14 @@ function paidAdvertisingFigma(config = {}) {
             if (accountId) {
                 const account = (this.accountOptions || []).find((a) => String(a.id) === accountId);
                 if (account?.currency_code) {
-                    const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: '₨', AED: 'د.إ' };
+                    const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: 'Rs ', AED: 'د.إ' };
                     return map[account.currency_code] || `${account.currency_code} `;
                 }
             }
             const id = String(this.filters.domain_id || '');
             const entry = id ? this.domainCatalog[id] : null;
             if (entry?.currency_code) {
-                const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: '₨', AED: 'د.إ' };
+                const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: 'Rs ', AED: 'د.إ' };
                 return map[entry.currency_code] || `${entry.currency_code} `;
             }
             return '$';

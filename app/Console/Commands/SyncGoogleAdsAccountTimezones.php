@@ -12,9 +12,9 @@ class SyncGoogleAdsAccountTimezones extends Command
     protected $signature = 'google-ads:sync-timezones
         {--user= : Only accounts for this user ID}
         {--account= : Only this google_ads_accounts.id}
-        {--all : Refresh even when time_zone is already set}';
+        {--all : Refresh even when time_zone/currency_code are already set}';
 
-    protected $description = 'Fetch and save Google Ads account timezones (missing by default)';
+    protected $description = 'Fetch and save Google Ads account timezones and currency codes (missing by default)';
 
     public function handle(GoogleAdsAccountTimezoneService $timezoneService): int
     {
@@ -30,7 +30,8 @@ class SyncGoogleAdsAccountTimezones extends Command
 
         if (! $refreshAll) {
             $query->where(function ($q) {
-                $q->whereNull('time_zone')->orWhere('time_zone', '');
+                $q->whereNull('time_zone')->orWhere('time_zone', '')
+                    ->orWhereNull('currency_code')->orWhere('currency_code', '');
             });
         }
 
@@ -47,7 +48,7 @@ class SyncGoogleAdsAccountTimezones extends Command
         if ($accounts->isEmpty()) {
             $this->info($refreshAll
                 ? 'No active client Google Ads accounts found for the given filters.'
-                : 'All matching accounts already have a timezone. Use --all to force refresh.');
+                : 'All matching accounts already have timezone and currency. Use --all to force refresh.');
 
             return self::SUCCESS;
         }
@@ -79,17 +80,31 @@ class SyncGoogleAdsAccountTimezones extends Command
                 continue;
             }
 
-            $before = $account->time_zone;
+            $beforeTz = $account->time_zone;
+            $beforeCurrency = $account->currency_code;
             $timezone = $timezoneService->refreshForAccount($account);
             $account->refresh();
 
-            if (UserTimezone::isValid($timezone)) {
+            $hasTz = UserTimezone::isValid($timezone);
+            $hasCurrency = strlen(trim((string) $account->currency_code)) === 3;
+
+            if ($hasTz || $hasCurrency) {
                 $synced++;
-                $note = $before && $before !== $timezone ? " (was {$before})" : '';
-                $this->line("✓ {$label} → {$timezone}{$note}");
+                $parts = [];
+                if ($hasTz) {
+                    $note = $beforeTz && $beforeTz !== $timezone ? " (was {$beforeTz})" : '';
+                    $parts[] = "tz={$timezone}{$note}";
+                }
+                if ($hasCurrency) {
+                    $note = $beforeCurrency && $beforeCurrency !== $account->currency_code
+                        ? " (was {$beforeCurrency})"
+                        : '';
+                    $parts[] = "currency={$account->currency_code}{$note}";
+                }
+                $this->line('✓ '.$label.' → '.implode(', ', $parts));
             } else {
                 $failed++;
-                $this->error("✗ {$label}: could not fetch timezone (check OAuth token & GOOGLE_ADS_DEVELOPER_TOKEN).");
+                $this->error("✗ {$label}: could not fetch timezone/currency (check OAuth token & GOOGLE_ADS_DEVELOPER_TOKEN).");
             }
         }
 

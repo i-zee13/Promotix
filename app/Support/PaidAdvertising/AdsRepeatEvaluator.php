@@ -241,7 +241,7 @@ class AdsRepeatEvaluator
      */
     public function campaignProfile(array $thresholds): string
     {
-        $daily = (int) ($thresholds['daily_valid_click_limit'] ?? 2);
+        $daily = (int) ($thresholds['daily_valid_click_limit'] ?? 3);
         $requireCombined = (bool) ($thresholds['require_combined_evidence'] ?? false);
 
         if ($requireCombined && $daily <= 1) {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Domain;
 use App\Models\DomainDetectionSetting;
 use App\Models\GoogleAdsAccount;
+use App\Services\GoogleAdsAccountTimezoneService;
 use App\Services\GoogleAdsConnectionService;
 use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
@@ -53,6 +54,11 @@ class PaidAdvertisingDashboardController extends Controller
 
     public function summary(Request $request): JsonResponse
     {
+        $domainIds = $this->scopedDomainIds($request);
+        $domains = $this->scopedDomains($request, $domainIds);
+        // Refresh missing API currency before cache lookup so PKR (etc.) invalidates USD stubs.
+        $this->ensureGoogleAdsCurrencyMetadata($domains);
+
         return $this->rememberPaidDashboardJson(
             $request,
             'summary',
@@ -69,6 +75,7 @@ class PaidAdvertisingDashboardController extends Controller
         $reportingTz = $this->reportingTimezone($request, $domainIds);
         $googleTz = $this->resolveGoogleTimezone($request, $domainIds);
         $domains = $this->scopedDomains($request, $domainIds);
+        $this->ensureGoogleAdsCurrencyMetadata($domains);
 
         // Dashboard reads the last successful stored metrics. Do not make a
         // Google API call during normal card refreshes: a transient API/token
@@ -579,7 +586,9 @@ class PaidAdvertisingDashboardController extends Controller
 
         $domainIds = $this->scopedDomainIds($request);
         $scopedDomains = $this->scopedDomains($request, $domainIds);
+        $this->ensureGoogleAdsCurrencyMetadata($scopedDomains);
         $avgCpc = $this->avgGoogleCpc($request, $domainIds, $metricFrom, $metricTo, $scopedDomains);
+        $currencyCode = AccountCurrency::resolveForRequest($request, $scopedDomains);
         $merged = $merged
             ->merge($this->visitCampaignRows($request, $domainIds, $metricFrom, $metricTo))
             ->merge($this->paidMarketingCampaignRows($domainIds, $metricFrom, $metricTo, $request->user(), $this->reportingTimezone($request, $domainIds)));
@@ -587,10 +596,11 @@ class PaidAdvertisingDashboardController extends Controller
         $rows = $merged
             ->filter(fn ($row) => filled(is_array($row) ? ($row['campaign'] ?? null) : null))
             ->groupBy(fn ($row) => (string) $row['campaign'])
-            ->map(function ($group, $campaign) use ($avgCpc) {
+            ->map(function ($group, $campaign) use ($avgCpc, $currencyCode) {
                 $best = collect($group)->sortByDesc(fn ($row) => (int) ($row['total'] ?? $row['clicks'] ?? 0))->first();
                 $total = (int) ($best['total'] ?? $best['clicks'] ?? 0);
                 $invalid = (int) ($best['invalid'] ?? 0);
+                $costSaved = round($avgCpc * $invalid, 2);
 
                 return [
                     'campaign' => $campaign,
@@ -601,7 +611,10 @@ class PaidAdvertisingDashboardController extends Controller
                     'invalid' => $invalid,
                     'valid' => (int) ($best['valid'] ?? max(0, $total - $invalid)),
                     'invalid_pct' => $total > 0 ? round(($invalid / $total) * 100, 1) : 0,
-                    'cost_saved' => round($avgCpc * $invalid, 2),
+                    'cost_saved' => $costSaved,
+                    'cost_saved_label' => AccountCurrency::formatAmount($costSaved, $currencyCode),
+                    'currency_code' => $currencyCode,
+                    'currency_symbol' => AccountCurrency::symbol($currencyCode),
                     'source' => $best['source'] ?? 'merged',
                 ];
             })
@@ -3184,6 +3197,27 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /**
+     * Pull customer.currency_code (and timezone) from Google Ads when missing.
+     * Older accounts often have time_zone but never received currency_code, which
+     * made Cost Saved / Avg CPC fall back to USD via AccountCurrency::normalize.
+     *
+     * @param  \Illuminate\Support\Collection<int, Domain>|iterable<Domain>  $domains
+     */
+    private function ensureGoogleAdsCurrencyMetadata(iterable $domains): void
+    {
+        foreach ($domains as $domain) {
+            $account = $domain->googleAdsAccount ?? null;
+            if (! $account instanceof GoogleAdsAccount || ! $account->needsCustomerMetadataRefresh()) {
+                continue;
+            }
+
+            app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($account);
+            $account->refresh();
+            $domain->setRelation('googleAdsAccount', $account);
+        }
+    }
+
+    /**
      * Average Google Ads CPC for scoped domains/date range (used for Cost Saved).
      *
      * @param  \Illuminate\Support\Collection<int, int>  $domainIds
@@ -3519,6 +3553,23 @@ class PaidAdvertisingDashboardController extends Controller
             ]);
         }
 
+        // Include Ads account currency so backfilling PKR (etc.) busts USD-cached Cost Saved labels.
+        $currencySig = '0';
+        if ($domainIds->isNotEmpty() && Schema::hasTable('google_ads_accounts')) {
+            $currencySig = Domain::query()
+                ->whereIn('id', $domainIds->all())
+                ->with('googleAdsAccount:id,currency_code')
+                ->get()
+                ->map(fn (Domain $d) => (string) ($d->googleAdsAccount?->currency_code ?? ''))
+                ->filter()
+                ->sort()
+                ->values()
+                ->implode(',');
+            if ($currencySig === '') {
+                $currencySig = '0';
+            }
+        }
+
         $allowlistSig = implode('|', \App\Support\GlobalIpAllowlist::patterns());
         if (Schema::hasTable('global_ip_allowlist_entries')) {
             $allowlistRow = DB::table('global_ip_allowlist_entries')
@@ -3539,6 +3590,7 @@ class PaidAdvertisingDashboardController extends Controller
             $domainsSig,
             $settingsSig,
             $googleMetricsSig,
+            $currencySig,
             $allowlistSig,
             (string) $metricFrom,
             (string) $metricTo,

@@ -20,7 +20,7 @@ class DetectionProfiles
     public static function sharedThresholdDefaults(): array
     {
         return [
-            'hourly_valid_click_limit' => 3,
+            'hourly_valid_click_limit' => 2,
             'weekly_valid_click_limit' => 100,
             'monthly_valid_click_limit' => 300,
             'behavior_control_enabled' => false,
@@ -69,7 +69,7 @@ class DetectionProfiles
                     'rapid_window_seconds' => 120,
                     'rapid_flag_at' => 1,
                     'rapid_block_at' => 2,
-                    'daily_valid_click_limit' => 2,
+                    'daily_valid_click_limit' => 3,
                     'require_combined_evidence' => false,
                 ]),
             ],

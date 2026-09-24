@@ -395,7 +395,7 @@
                 border-radius: 10px;
             }
             .vj-et__ticks {
-                display:flex; justify-content:space-between; padding:0 8px 6px;
+                display:flex; justify-content:space-between; padding:0 10px 6px;
                 font-size:10px; color:rgba(255,255,255,.35); border-bottom:1px solid rgba(255,255,255,.08);
             }
             .vj-et__row {
@@ -1330,7 +1330,7 @@
                                             <small class="vj-et__id-line" :title="(row.ip || '') + ' · ' + (row.fingerprint_id || '')" x-text="timelineIdentityLine(row)"></small>
                                             <small x-text="sessionDurationLabel(row)"></small>
                                         </div>
-                                        <div class="vj-et__track">
+                                        <div class="vj-et__track" :style="timelineGuideStyle">
                                             <template x-for="(ev, evi) in laneEvents(row)" :key="(row.session_key || 's') + '-lane-' + evi + '-' + (ev._key || ev.type)">
                                                 <div
                                                     class="vj-et__marker"
@@ -1531,7 +1531,6 @@
                                                     <div class="vj-meta-row"><span>Device</span><strong x-text="selected.device"></strong></div>
                                                     <div class="vj-meta-row"><span>Browser / OS</span><strong x-text="(selected.browser || '—') + ' / ' + (selected.os || '—')"></strong></div>
                                                     <div class="vj-meta-row"><span>Campaign</span><strong x-text="selected.campaign || '—'"></strong></div>
-                                                    <div class="vj-meta-row"><span>Source</span><strong x-text="selected.source || 'Google Ads'"></strong></div>
                                                     <div class="vj-meta-row"><span>Landing page</span><strong x-text="selected.landing_page || '—'"></strong></div>
                                                     <div class="vj-meta-row"><span>Exit page</span><strong x-text="selected.exit_page || '—'"></strong></div>
                                                     <div class="vj-meta-row"><span>Duration</span><strong x-text="sessionDurationLabel(selected)"></strong></div>
@@ -1662,7 +1661,6 @@
                                 <div class="vj-meta-row"><span>Elapsed Time</span><strong x-text="selectedEvent.elapsed || selectedEvent.elapsed_short || '—'"></strong></div>
                                 <div class="vj-meta-row"><span>Page</span><strong x-text="selectedEvent.page || '—'"></strong></div>
                                 <div class="vj-meta-row"><span>Campaign</span><strong x-text="selectedEvent.campaign || selected?.campaign || '—'"></strong></div>
-                                <div class="vj-meta-row"><span>Source</span><strong x-text="selected?.source || 'Google Ads'"></strong></div>
                                 <div class="vj-meta-row">
                                     <span>Status</span>
                                     <strong><span class="vj-status-ok"></span> <span x-text="selectedEvent.status || selectedEvent.kind"></span></strong>
@@ -1988,20 +1986,29 @@ function visitorJourneyPage() {
             return (this.sessions || []).slice(0, 8);
         },
         get timeTicks() {
-            const step = Number(this.timeScale || 30);
             const maxSec = this.timelineMaxSec;
+            // Dense ticks so a 14s exit is readable between 0:00 and 0:30.
+            let tickStep;
+            if (maxSec <= 15) tickStep = 3;
+            else if (maxSec <= 30) tickStep = 5;
+            else if (maxSec <= 60) tickStep = 10;
+            else tickStep = Math.max(15, Math.round(maxSec / 6));
             const ticks = [];
-            for (let s = 0; s <= maxSec + 0.1; s += step) {
-                ticks.push(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
-                if (ticks.length >= 10) break;
+            for (let s = 0; s <= maxSec + 0.01; s += tickStep) {
+                const sec = Math.round(s);
+                ticks.push(`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`);
+                if (ticks.length >= 12) break;
             }
             return ticks;
         },
         get timelineMaxSec() {
-            // Axis follows the scale dropdown (30s → 0..2:30). Do NOT stretch to a
-            // single 30m outlier — that pins every 7s exit under the 0:00 tick.
-            const step = Number(this.timeScale || 30);
-            return Math.max(step * 5, step * 2);
+            // Window = selected scale (30s scale → 0..30s). A 14s event lands ~47% across.
+            return Math.max(Number(this.timeScale || 30), 15);
+        },
+        get timelineGuideStyle() {
+            const n = Math.max(1, this.timeTicks.length - 1);
+            const pct = (100 / n).toFixed(4);
+            return `background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(${pct}% - 1px),rgba(255,255,255,.07) calc(${pct}% - 1px),rgba(255,255,255,.07) ${pct}%);background-size:100% 100%;`;
         },
         sessionDurationLabel(row) {
             if (!row) return '0m 00s';
@@ -2320,14 +2327,13 @@ function visitorJourneyPage() {
                 const peers = buckets[b] || [i];
                 const pIdx = peers.indexOf(i);
                 const clustered = peers.length > 1;
-                let left = e.elapsed_sec <= 0
-                    ? 4
-                    : Math.min(96, (e.elapsed_sec / axisMax) * 100);
+                // Exact position on the selected scale (14s on 30s axis ≈ 46.7%).
+                let left = (e.elapsed_sec / axisMax) * 100;
                 if (clustered) {
-                    left += (pIdx - (peers.length - 1) / 2) * 5.5;
+                    left += (pIdx - (peers.length - 1) / 2) * 3.5;
                 }
                 return Object.assign({}, e, {
-                    leftPct: Math.min(97, Math.max(3, left)),
+                    leftPct: Math.min(98.5, Math.max(1.5, left)),
                     showLabel: !clustered || pIdx === 0,
                     showTime: !clustered || pIdx === peers.length - 1,
                 });
@@ -2411,7 +2417,6 @@ function visitorJourneyPage() {
                 ['Device', row.device],
                 ['Browser', row.browser],
                 ['OS', row.os],
-                ['Source', row.source || 'Google Ads'],
                 ['Campaign', row.campaign],
                 ['Landing page', row.landing_page],
                 ['Exit page', row.exit_page],

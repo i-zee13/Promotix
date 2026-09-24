@@ -17,7 +17,22 @@ class AccountCurrency
 
     public static function fromDomain(?Domain $domain): string
     {
-        return self::normalize($domain?->googleAdsAccount?->currency_code);
+        if (! $domain) {
+            return 'USD';
+        }
+
+        $code = trim((string) ($domain->googleAdsAccount?->currency_code ?? ''));
+        if ($code === '' && $domain->relationLoaded('googleAdsMappings')) {
+            foreach ($domain->googleAdsMappings as $mapping) {
+                $mapped = trim((string) ($mapping->account?->currency_code ?? ''));
+                if ($mapped !== '') {
+                    $code = $mapped;
+                    break;
+                }
+            }
+        }
+
+        return self::normalize($code !== '' ? $code : null);
     }
 
     /**

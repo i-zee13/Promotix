@@ -24,6 +24,17 @@ class GoogleAdsAccount extends Model
         'is_active',
     ];
 
+    /** True when timezone or API currency still need a customer metadata fetch. */
+    public function needsCustomerMetadataRefresh(): bool
+    {
+        if ((bool) $this->is_manager) {
+            return false;
+        }
+
+        return trim((string) ($this->time_zone ?? '')) === ''
+            || trim((string) ($this->currency_code ?? '')) === '';
+    }
+
     protected function casts(): array
     {
         return [

@@ -1270,7 +1270,7 @@ class IntegrationsController extends Controller
             $detailRes = $this->googleAdsSearchStream(
                 (string) $usedVersion,
                 $customerId,
-                'SELECT customer.id, customer.descriptive_name, customer.manager, customer.time_zone FROM customer LIMIT 1',
+                'SELECT customer.id, customer.descriptive_name, customer.manager, customer.time_zone, customer.currency_code FROM customer LIMIT 1',
                 $baseDetailHeaders,
                 $loginCustomerId !== '' ? $loginCustomerId : null
             );
@@ -1303,6 +1303,8 @@ class IntegrationsController extends Controller
             $isManager = (bool) ($customer['manager'] ?? false);
             $timeZone = trim((string) ($customer['timeZone'] ?? $customer['time_zone'] ?? ''));
             $timeZone = UserTimezone::isValid($timeZone) ? $timeZone : null;
+            $currencyCode = strtoupper(trim((string) ($customer['currencyCode'] ?? $customer['currency_code'] ?? '')));
+            $currencyCode = strlen($currencyCode) === 3 ? $currencyCode : null;
 
             $accountAttributes = [
                 'display_customer_id' => $display,
@@ -1315,6 +1317,9 @@ class IntegrationsController extends Controller
             if ($timeZone !== null) {
                 $accountAttributes['time_zone'] = $timeZone;
             }
+            if ($currencyCode !== null) {
+                $accountAttributes['currency_code'] = $currencyCode;
+            }
 
             $adsAccount = GoogleAdsAccount::updateOrCreate(
                 [
@@ -1325,7 +1330,7 @@ class IntegrationsController extends Controller
             );
             $synced++;
 
-            if (! $adsAccount->time_zone) {
+            if ($adsAccount->needsCustomerMetadataRefresh()) {
                 app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($adsAccount, (string) $usedVersion, $baseDetailHeaders);
             }
 
@@ -1400,7 +1405,7 @@ class IntegrationsController extends Controller
             ->where('customer_id', $data['customer_id'])
             ->first();
 
-        if ($account && ! $account->time_zone && ! $account->is_manager) {
+        if ($account && $account->needsCustomerMetadataRefresh()) {
             app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($account);
         }
 
@@ -1635,7 +1640,7 @@ class IntegrationsController extends Controller
             );
             $synced++;
 
-            if (! $adsAccount->time_zone) {
+            if ($adsAccount->needsCustomerMetadataRefresh()) {
                 app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($adsAccount, $apiVersion, $managerHeaders);
             }
 
@@ -2523,7 +2528,7 @@ class IntegrationsController extends Controller
             ->whereHas('connection', fn ($q) => $q->where('user_id', $request->user()->id))
             ->firstOrFail();
 
-        if (! $account->time_zone && ! $account->is_manager) {
+        if ($account->needsCustomerMetadataRefresh()) {
             app(GoogleAdsAccountTimezoneService::class)->refreshForAccount($account);
             $account->refresh();
         }

@@ -833,22 +833,22 @@
             html.light-mode .figma-ads-title { color: #2d2d3a; }
             html.light-mode .figma-ads-lead,
             html.light-mode .figma-ads-limits span,
-            html.light-mode .figma-ads-custom span { color: #6b6578; }
+            html.light-mode .figma-ads-custom span { color: #6b6570; }
             html.light-mode .figma-ads-col-title { color: #2d2d3a; }
-            html.light-mode .figma-ads-card { background: #fff; border-color: #e4dceb; }
-            html.light-mode .figma-ads-col + .figma-ads-col { border-left-color: #ece7f2; }
-            html.light-mode .figma-ads-pill { color: #2d2d3a; border-color: #c9bdd9; }
+            html.light-mode .figma-ads-card { background: #fff; border-color: #e8d4c4; }
+            html.light-mode .figma-ads-col + .figma-ads-col { border-left-color: #f0e0d4; }
+            html.light-mode .figma-ads-pill { color: #2d2d3a; border-color: #f0c9a8; }
             html.light-mode .figma-ads-pill.is-active { color: #fff; }
             html.light-mode .figma-ads-limits select,
             html.light-mode .figma-ads-custom input {
-                background: #f7f5fa; color: #2d2d3a; border-color: var(--brand-tint-border);
+                background: #fff7f0; color: #2d2d3a; border-color: rgba(255, 102, 0, 0.35);
             }
             html.light-mode .figma-ads-limit-input {
-                background: #f7f5fa;
-                border-color: var(--brand-tint-border);
+                background: #fff7f0;
+                border-color: rgba(255, 102, 0, 0.35);
             }
             html.light-mode .figma-ads-limit-input input { color: #2d2d3a; }
-            html.light-mode .figma-ads-limit-suffix { color: #8a8298; }
+            html.light-mode .figma-ads-limit-suffix { color: #a87855; }
 
             /* Detection panel — mockup sections (Bot Rules / Session / Profiles / Geo) */
             .ds-panel {
@@ -2288,7 +2288,16 @@
                     </div>
 
                     @php
-                        $thr = $settings->detection_thresholds ?? [];
+                        $thr = is_array($settings->detection_thresholds ?? null) ? $settings->detection_thresholds : [];
+                        // Stock demo/Standard defaults: Hourly 2 · Daily 3 (migrate classic 3/2 pair on display).
+                        $hourlyLimit = (int) ($thr['hourly_valid_click_limit'] ?? 2);
+                        $dailyLimit = (int) ($thr['daily_valid_click_limit'] ?? 3);
+                        if ($hourlyLimit === 3 && $dailyLimit === 2) {
+                            $hourlyLimit = 2;
+                            $dailyLimit = 3;
+                        }
+                        $weeklyLimit = (int) ($thr['weekly_valid_click_limit'] ?? 100);
+                        $monthlyLimit = (int) ($thr['monthly_valid_click_limit'] ?? 300);
                         $rapidWindow = (int) ($thr['rapid_window_seconds'] ?? 60);
                         $rapidPreset = match ($rapidWindow) {
                             10 => '10',
@@ -2378,7 +2387,7 @@
                                                 min="1"
                                                 max="100"
                                                 step="1"
-                                                value="{{ (int) ($thr['hourly_valid_click_limit'] ?? 3) }}"
+                                                value="{{ $hourlyLimit }}"
                                                 required
                                             >
                                             <span class="figma-ads-limit-suffix">Clicks</span>
@@ -2393,7 +2402,7 @@
                                                 min="1"
                                                 max="500"
                                                 step="1"
-                                                value="{{ (int) ($thr['daily_valid_click_limit'] ?? 2) }}"
+                                                value="{{ $dailyLimit }}"
                                                 required
                                             >
                                             <span class="figma-ads-limit-suffix">Clicks</span>
@@ -2408,7 +2417,7 @@
                                                 min="1"
                                                 max="2000"
                                                 step="1"
-                                                value="{{ (int) ($thr['weekly_valid_click_limit'] ?? 100) }}"
+                                                value="{{ $weeklyLimit }}"
                                                 required
                                             >
                                             <span class="figma-ads-limit-suffix">Clicks</span>
@@ -2423,7 +2432,7 @@
                                                 min="1"
                                                 max="5000"
                                                 step="1"
-                                                value="{{ (int) ($thr['monthly_valid_click_limit'] ?? 300) }}"
+                                                value="{{ $monthlyLimit }}"
                                                 required
                                             >
                                             <span class="figma-ads-limit-suffix">Clicks</span>
@@ -2432,10 +2441,10 @@
                                         </div>
                                     </div>
                             @else
-                                <input type="hidden" name="hourly_valid_click_limit" value="{{ (int) ($thr['hourly_valid_click_limit'] ?? 3) }}">
-                                <input type="hidden" name="daily_valid_click_limit" value="{{ (int) ($thr['daily_valid_click_limit'] ?? 2) }}">
-                                <input type="hidden" name="weekly_valid_click_limit" value="{{ (int) ($thr['weekly_valid_click_limit'] ?? 100) }}">
-                                <input type="hidden" name="monthly_valid_click_limit" value="{{ (int) ($thr['monthly_valid_click_limit'] ?? 300) }}">
+                                <input type="hidden" name="hourly_valid_click_limit" value="{{ $hourlyLimit }}">
+                                <input type="hidden" name="daily_valid_click_limit" value="{{ $dailyLimit }}">
+                                <input type="hidden" name="weekly_valid_click_limit" value="{{ $weeklyLimit }}">
+                                <input type="hidden" name="monthly_valid_click_limit" value="{{ $monthlyLimit }}">
                             @endif
 
                             <div class="figma-ads-col">

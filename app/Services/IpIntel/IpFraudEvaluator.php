@@ -34,8 +34,8 @@ class IpFraudEvaluator
     /** Standalone extreme velocity (manual: 100/min — scaled to visit telemetry). */
     public const IP_MINUTE_EXTREME_THRESHOLD = 15;
 
-    /** Paid marketing: max valid paid clicks per IP per calendar day (3rd+ daily is blocked). */
-    public const PAID_DAILY_VALID_CLICK_LIMIT = 2;
+    /** Paid marketing: max valid paid clicks per IP per calendar day (4th+ daily is blocked at default 3). */
+    public const PAID_DAILY_VALID_CLICK_LIMIT = 3;
 
     /** Paid marketing: seconds window for rapid-repeat detection (DE-02 / DE-03). */
     public const PAID_RAPID_WINDOW_SECONDS = 120;

@@ -1376,13 +1376,15 @@ class GoogleAdsAudienceAssociationService
         bool $forceNew = false,
     ): array {
         $lists = $this->fetchUserLists($customerId, $version, $headers);
+        $listFetchError = null;
         if ($lists === null) {
-            return [
-                'id' => null,
-                'name' => null,
-                'created' => false,
-                'error' => 'Could not load user lists from Google Ads.',
-            ];
+            // Listing can fail (MCC / login-customer-id) while mutate still works.
+            // Do not block audience creation — proceed without reuse matching.
+            $listFetchError = 'Could not load user lists from Google Ads.';
+            Log::warning('Google Ads user list fetch failed; continuing with create', [
+                'customer_id' => $customerId,
+            ]);
+            $lists = [];
         }
 
         if ($preferredId && ! $forceNew) {
@@ -1462,11 +1464,16 @@ class GoogleAdsAudienceAssociationService
             ];
         }
 
+        $createError = $created['error'] ?? 'User list create failed.';
+        if ($listFetchError !== null) {
+            $createError = $listFetchError.' Then create failed: '.$createError;
+        }
+
         return [
             'id' => null,
             'name' => null,
             'created' => false,
-            'error' => $created['error'] ?? 'User list create failed.',
+            'error' => $createError,
         ];
     }
 
@@ -1479,54 +1486,67 @@ class GoogleAdsAudienceAssociationService
         $query = "SELECT user_list.id, user_list.name, user_list.type, user_list.membership_status "
             ."FROM user_list WHERE user_list.membership_status = 'OPEN' ORDER BY user_list.name";
 
-        $response = Http::timeout(30)
-            ->withHeaders($headers)
-            ->post($this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"), [
-                'query' => $query,
-            ]);
+        // Prefer searchStream; fall back to search when stream fails (common with some MCC paths).
+        $endpoints = [
+            $this->googleAdsUrl($version, "customers/{$customerId}/googleAds:searchStream"),
+            $this->googleAdsUrl($version, "customers/{$customerId}/googleAds:search"),
+        ];
 
-        if (! $response->successful()) {
-            Log::warning('Google Ads user list search failed', [
-                'customer_id' => $customerId,
-                'body' => Str::limit((string) $response->body(), 500),
-            ]);
+        $lastBody = '';
+        foreach ($endpoints as $url) {
+            $response = Http::timeout(30)
+                ->withHeaders($headers)
+                ->post($url, ['query' => $query]);
 
-            return null;
-        }
-
-        $out = [];
-        $payload = $response->json();
-        if (! is_array($payload)) {
-            return [];
-        }
-
-        foreach ($payload as $chunk) {
-            if (! is_array($chunk)) {
+            if (! $response->successful()) {
+                $lastBody = (string) $response->body();
+                Log::warning('Google Ads user list search failed', [
+                    'customer_id' => $customerId,
+                    'url' => $url,
+                    'status' => $response->status(),
+                    'body' => Str::limit($lastBody, 500),
+                ]);
                 continue;
             }
-            foreach (($chunk['results'] ?? []) as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-                $list = $row['userList'] ?? $row['user_list'] ?? [];
-                if (! is_array($list)) {
-                    continue;
-                }
-                $id = preg_replace('/\D+/', '', (string) ($list['id'] ?? ''));
-                $name = trim((string) ($list['name'] ?? ''));
-                if ($id === '') {
-                    continue;
-                }
-                $type = strtoupper((string) ($list['type'] ?? ''));
-                $out[] = [
-                    'id' => $id,
-                    'name' => $name !== '' ? $name : ('List '.$id),
-                    'type' => $type,
-                ];
+
+            $payload = $response->json();
+            if (! is_array($payload)) {
+                return [];
             }
+
+            // searchStream → list of chunks; search → { results: [...] }
+            $chunks = array_is_list($payload) ? $payload : [$payload];
+            $out = [];
+            foreach ($chunks as $chunk) {
+                if (! is_array($chunk)) {
+                    continue;
+                }
+                foreach (($chunk['results'] ?? []) as $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $list = $row['userList'] ?? $row['user_list'] ?? [];
+                    if (! is_array($list)) {
+                        continue;
+                    }
+                    $id = preg_replace('/\D+/', '', (string) ($list['id'] ?? ''));
+                    $name = trim((string) ($list['name'] ?? ''));
+                    if ($id === '') {
+                        continue;
+                    }
+                    $type = strtoupper((string) ($list['type'] ?? ''));
+                    $out[] = [
+                        'id' => $id,
+                        'name' => $name !== '' ? $name : ('List '.$id),
+                        'type' => $type,
+                    ];
+                }
+            }
+
+            return $out;
         }
 
-        return $out;
+        return null;
     }
 
     /**

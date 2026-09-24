@@ -90,7 +90,6 @@
                 .figma-filter-bar--bp-dash > label.bp-dash-f-search { width: 118px !important; flex: 0 0 118px !important; }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-account { width: 108px !important; flex: 0 0 108px !important; }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-domain { width: 92px !important; flex: 0 0 92px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-traffic { width: 86px !important; flex: 0 0 86px !important; }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-campaign { width: 98px !important; flex: 0 0 98px !important; }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-device { width: 80px !important; flex: 0 0 80px !important; }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-path { width: 108px !important; flex: 0 0 108px !important; }
@@ -220,7 +219,6 @@
                     .figma-filter-bar--bp-dash > label.bp-dash-f-search { width: 130px !important; flex: 0 0 130px !important; }
                     .figma-filter-bar--bp-dash > label.bp-dash-f-account { width: 120px !important; flex: 0 0 120px !important; }
                     .figma-filter-bar--bp-dash > label.bp-dash-f-domain { width: 100px !important; flex: 0 0 100px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-traffic { width: 92px !important; flex: 0 0 92px !important; }
                     .figma-filter-bar--bp-dash > label.bp-dash-f-campaign { width: 110px !important; flex: 0 0 110px !important; }
                     .figma-filter-bar--bp-dash > label.bp-dash-f-device { width: 88px !important; flex: 0 0 88px !important; }
                     .figma-filter-bar--bp-dash > label.bp-dash-f-path { width: 120px !important; flex: 0 0 120px !important; }
@@ -273,11 +271,11 @@
                     }
                 }
                 html.light-mode .figma-filter-bar--bp-dash {
-                    background: #e8e4ef !important;
-                    border-color: rgba(0, 0, 0, 0.12) !important;
+                    background: #fff0e6 !important;
+                    border-color: rgba(255, 102, 0, 0.22) !important;
                 }
                 html.light-mode .figma-filter-bar--bp-dash .bp-dash-f-actions {
-                    background: #e8e4ef;
+                    background: #fff0e6;
                 }
                 html.light-mode .figma-filter-bar--bp-dash .figma-filter-calendar-btn--responsive {
                     background: #ffffff !important;
@@ -324,19 +322,6 @@
                         <template x-for="d in domainOptions" :key="'bp-dom-' + d.id">
                             <button type="button" @click="pickDomainFilter(d.id)" class="paid-advanced-campaign-option" :class="String(filters.domain_id) === String(d.id) && 'is-active'">
                                 <span class="paid-advanced-campaign-option__label" x-text="d.label"></span>
-                            </button>
-                        </template>
-                    </div>
-                </label>
-                <label class="bp-dash-f-traffic relative flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]" @click.outside="filterMenus.traffic = false">
-                    <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Source</span>
-                    <button type="button" @click="toggleFilterMenu('traffic')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
-                        <span class="truncate" x-text="trafficFilterLabel()"></span>
-                    </button>
-                    <div x-show="filterMenus.traffic" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !z-[80]">
-                        <template x-for="opt in trafficSourceOptions" :key="'bp-ts-' + opt.value">
-                            <button type="button" @click="pickTrafficFilter(opt.value)" class="paid-advanced-campaign-option" :class="filters.traffic_source === opt.value && 'is-active'">
-                                <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>
                             </button>
                         </template>
                     </div>
@@ -1376,7 +1361,7 @@ function botProtectionFigma(config = {}) {
         useDemo: Boolean(config.useDemo),
         loadError: '',
         hasDomains: @json($domains->isNotEmpty()),
-        filterMenus: { account: false, domain: false, traffic: false, campaign: false, device: false },
+        filterMenus: { account: false, domain: false, campaign: false, device: false },
         accountOptions: @js(collect($googleAdsAccounts ?? [])->map(function ($account) {
             $cid = method_exists($account, 'formattedCustomerId') ? $account->formattedCustomerId() : '';
             $currency = \App\Support\AccountCurrency::normalize((string) ($account->currency_code ?: 'USD'));
@@ -1391,14 +1376,6 @@ function botProtectionFigma(config = {}) {
             'id' => (string) $d->id,
             'label' => $d->hostname,
         ])->values()->all()),
-        trafficSourceOptions: [
-            { value: '', label: 'All Sources' },
-            { value: 'organic', label: 'Organic' },
-            { value: 'direct', label: 'Direct' },
-            { value: 'referral', label: 'Referral' },
-            { value: 'google_ads', label: 'Paid Search' },
-            { value: 'social', label: 'Social' },
-        ],
         deviceOptions: [
             { value: '', label: 'All Devices' },
             { value: 'mobile', label: 'Mobile' },
@@ -1419,7 +1396,7 @@ function botProtectionFigma(config = {}) {
         },
         toggleFilterMenu(key) {
             const next = !this.filterMenus[key];
-            this.filterMenus = { account: false, domain: false, traffic: false, campaign: false, device: false };
+            this.filterMenus = { account: false, domain: false, campaign: false, device: false };
             this.filterMenus[key] = next;
         },
         accountFilterLabel() {
@@ -1431,10 +1408,6 @@ function botProtectionFigma(config = {}) {
             if (!this.filters.domain_id) return 'All Domains';
             const hit = (this.domainOptions || []).find((d) => String(d.id) === String(this.filters.domain_id));
             return hit ? hit.label : 'All Domains';
-        },
-        trafficFilterLabel() {
-            const hit = (this.trafficSourceOptions || []).find((o) => o.value === this.filters.traffic_source);
-            return hit ? hit.label : 'All Sources';
         },
         deviceFilterLabel() {
             const hit = (this.deviceOptions || []).find((o) => o.value === this.filters.device);
@@ -1448,11 +1421,6 @@ function botProtectionFigma(config = {}) {
         pickDomainFilter(id) {
             this.filters.domain_id = String(id || '');
             this.filterMenus.domain = false;
-            this.reload();
-        },
-        pickTrafficFilter(value) {
-            this.filters.traffic_source = String(value || '');
-            this.filterMenus.traffic = false;
             this.reload();
         },
         pickCampaignFilter(value) {
@@ -2194,7 +2162,6 @@ function botProtectionFigma(config = {}) {
         qs() {
             const p = new URLSearchParams();
             if (this.filters.domain_id) p.set('domain_id', this.filters.domain_id);
-            if (this.filters.traffic_source) p.set('traffic_source', this.filters.traffic_source);
             if (this.filters.google_ads_account_id) p.set('google_ads_account_id', this.filters.google_ads_account_id);
             if (this.filters.campaign) p.set('campaign', this.filters.campaign);
             if (this.filters.device) p.set('device', this.filters.device);
