@@ -152,7 +152,7 @@
             }
             .tc-flow-cell__seg { display: inline-flex; align-items: center; gap: 4px; }
             .tc-flow-cell__path { word-break: break-all; }
-            .tc-flow-cell__arrow { color: rgba(255,255,255,0.45); font-size: 10px; }
+            .tc-flow-cell__arrow { color: #8a8178; font-size: 10px; }
             .tc-events-cell {
                 display: flex;
                 flex-direction: column;
@@ -168,10 +168,19 @@
                 line-height: 1.2;
                 white-space: normal;
             }
-            .tc-datetime-cell__date { color: inherit; }
-            .tc-datetime-cell__time { color: rgba(255,255,255,0.45); font-size: 10px; }
-            html.light-mode .tc-flow-cell__arrow,
-            html.light-mode .tc-datetime-cell__time { color: #8a8178; }
+            /* Rows are light gray (#d9d9d9 / #fff7f0) — use dark text, not white/alpha. */
+            .tc-datetime-cell__date {
+                color: #121212;
+                font-weight: 600;
+            }
+            .tc-datetime-cell__time {
+                color: #5c5650;
+                font-size: 10px;
+                font-weight: 500;
+            }
+            html.light-mode .tc-datetime-cell__date { color: #1a1a1a; }
+            html.light-mode .tc-datetime-cell__time { color: #5c5650; }
+            html.light-mode .tc-flow-cell__arrow { color: #8a8178; }
             .pm-adv-page-head {
                 display: flex;
                 flex-direction: column;
@@ -1210,12 +1219,12 @@
                         </div>
 
                         <div class="pm-adv-table-body-scroll">
-                            <template x-for="visit in pagedRows" :key="visit.id">
+                            <template x-for="visit in pagedRows" :key="rowKey(visit)">
                                 <div class="pm-adv-table-grid pm-adv-table-grid--row cursor-pointer text-[10px] sm:text-[11px]" :style="gridStyle" @click="openClicks(visit)">
                                     <label class="flex items-center justify-center" @click.stop>
                                         <input type="checkbox" class="rounded border-white/30" :checked="selectedIds.includes(visit.id)" @change="toggleSelect(visit.id, $event.target.checked)">
                                     </label>
-                                    <template x-for="col in visibleColumns" :key="visit.id + '-' + col.key">
+                                    <template x-for="col in visibleColumns" :key="rowKey(visit) + '-' + col.key">
                                         <div class="pm-adv-cell">
                                             @include('partials.advanced-view-rich-cell', ['item' => 'visit'])
                                         </div>
@@ -1891,6 +1900,8 @@
             staggerMs: 0,
             fetchGeneration: 0,
             fetchTimer: null,
+            _fetchPageOnly: false,
+            _lastFilterSig: '',
             loading: false,
             filterMenuOpen: false,
             dataFilterMenuOpen: false,
@@ -2164,6 +2175,13 @@
             get pageItems() {
                 return this.pagerPages(this.page, this.totalPages);
             },
+            rowKey(visit) {
+                if (!visit) return 'row-empty';
+                const id = visit.id != null && visit.id !== '' ? String(visit.id) : 'syn';
+                const ip = String(visit.ip || '');
+                const domain = String(visit.domain || visit.domain_id || '');
+                return `${id}|${ip}|${domain}`;
+            },
             paginationLabel() {
                 const total = Number(this.totalRows || this.rows.length || 0);
                 if (!total) return 'Showing 0 to 0 of 0 results';
@@ -2191,7 +2209,7 @@
                 const next = Math.min(this.totalPages, Math.max(1, Number(p) || 1));
                 if (next === this.page) return;
                 this.page = next;
-                this.scheduleFetch(true);
+                this.scheduleFetch(true, { pageOnly: true });
             },
             changePerPage() {
                 this.page = 1;
@@ -2387,6 +2405,7 @@
                 this.fetchNow();
                 window.addEventListener('promotix:date-range', () => {
                     this.syncHeaderDates();
+                    this.page = 1;
                     this.scheduleFetch();
                 });
                 window.addEventListener('promotix-open-ip-report', (e) => {
@@ -2475,9 +2494,29 @@
                     detail: { from: this.filters.from, to: this.filters.to },
                 }));
             },
-            scheduleFetch(fast = false) {
+            scheduleFetch(fast = false, opts = {}) {
                 clearTimeout(this.fetchTimer);
+                const pageOnly = Boolean(opts?.pageOnly);
+                this._fetchPageOnly = pageOnly;
+                if (! pageOnly) {
+                    const sig = this.filterSignature();
+                    if (sig !== this._lastFilterSig && this.page !== 1) {
+                        this.page = 1;
+                    }
+                }
                 this.fetchTimer = setTimeout(() => this.fetchNow(), fast ? 350 : this.debounceMs);
+            },
+            filterSignature() {
+                const p = new URLSearchParams();
+                Object.entries(this.filters).forEach(([k, v]) => {
+                    if (k === 'traffic_source') return;
+                    if (v !== '' && v != null) p.set(k, v);
+                });
+                if (this.sortKey) {
+                    p.set('sort', this.sortKey);
+                    p.set('dir', this.sortDir || 'asc');
+                }
+                return p.toString();
             },
             async onDomainChange() {
                 this.filters.campaign = '';
@@ -2704,11 +2743,19 @@
                 const generation = ++this.fetchGeneration;
                 this.loading = true;
                 window.promotixPageLoader?.show('Loading Advanced View…');
-                    const qs = this.queryString();
+                const qs = this.queryString();
+                const filterSig = this.filterSignature();
+                const pageOnly = Boolean(this._fetchPageOnly) && filterSig === this._lastFilterSig && this.kpiCards.length > 0;
+                this._fetchPageOnly = false;
+                if (! pageOnly) {
+                    this._lastFilterSig = filterSig;
+                }
                 try {
-                    // Parallel: KPI summary + table. Campaigns load after paint (non-blocking).
-                    await Promise.all([
-                        (async () => {
+                    // KPIs always come from /summary for the selected date range — never from page-scoped table stats.
+                    // Skip summary on page-only navigation so the top 6 cards stay date-accurate and paging stays fast.
+                    const jobs = [];
+                    if (! pageOnly) {
+                        jobs.push((async () => {
                             const summary = await fetch(`/paid-marketing/summary?${qs}`, {
                                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                             }).then((r) => r.json());
@@ -2719,70 +2766,69 @@
                                 this.timezoneContext = summary.timezone_context;
                                 this.syncPaidTimezoneHeader();
                             }
-                        })(),
-                        (async () => {
-                    const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
-                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    });
-                            if (! this.isFetchCurrent(generation)) return;
-                            if (!res.ok) {
-                                const msg = res.status === 403
-                                    ? 'Request blocked (403). Try a shorter date range — All time can be heavy.'
-                                    : `Failed to load visits (${res.status}).`;
-                                throw new Error(msg);
-                            }
-                    const data = await res.json();
-                            if (! this.isFetchCurrent(generation)) return;
-                    this.rows = data.rows || [];
-                            this.totalRows = Number(data.meta?.total ?? data.total ?? this.rows.length) || 0;
-                            if (data.meta?.page) this.page = Number(data.meta.page) || this.page;
-                            if (data.meta?.per_page) this.perPage = Number(data.meta.per_page) || this.perPage;
-                    this.statCards = data.stats?.cards || this.statCards || [];
-                            if (Array.isArray(data.stats?.kpis) && data.stats.kpis.length) {
-                                this.kpiCards = data.stats.kpis;
-                            }
-                            // Keep chart widgets stable when paging — only refresh on first page / filter reset.
-                            if ((Number(data.meta?.page) || this.page) <= 1) {
+                        })());
+                    }
+                    jobs.push((async () => {
+                        const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
+                            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        });
+                        if (! this.isFetchCurrent(generation)) return;
+                        if (!res.ok) {
+                            const msg = res.status === 403
+                                ? 'Request blocked (403). Try a shorter date range — All time can be heavy.'
+                                : `Failed to load visits (${res.status}).`;
+                            throw new Error(msg);
+                        }
+                        const data = await res.json();
+                        if (! this.isFetchCurrent(generation)) return;
+                        this.rows = Array.isArray(data.rows) ? data.rows.slice() : [];
+                        this.totalRows = Number(data.meta?.total ?? data.total ?? this.rows.length) || 0;
+                        if (data.meta?.page) this.page = Number(data.meta.page) || this.page;
+                        if (data.meta?.per_page) this.perPage = Number(data.meta.per_page) || this.perPage;
+                        this.statCards = data.stats?.cards || this.statCards || [];
+                        // Do NOT overwrite kpiCards from data.stats.kpis — those are page-scoped only.
+                        // Keep chart widgets stable when paging — only refresh on first page / filter reset.
+                        if (! pageOnly && (Number(data.meta?.page) || this.page) <= 1) {
                             const charts = data.stats?.charts || {};
                             this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
                             this.chartRisk = charts.risk || { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' };
                             this.chartCountries = charts.countries || [];
                             this.highRiskIps = charts.high_risk_ips || [];
                             this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
+                        }
+                        this.timezoneContext = data.timezone_context || this.timezoneContext;
+                        if (this.timezoneContext?.reporting_timezone) {
+                            this.reportingTimezone = this.timezoneContext.reporting_timezone;
+                        }
+                        this.syncPaidTimezoneHeader();
+                        const rank = (r) => {
+                            let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
+                            if (score > 0 && score < 1) score *= 100;
+                            if (!Number.isFinite(score)) score = 0;
+                            if (r.ip_is_blocked) score += 40;
+                            if (r.intel_vpn === 'Yes' || Number(r.vpn_hits) > 0) score += 15;
+                            if (r.intel_datacenter === 'Yes' || Number(r.data_center_hits) > 0) score += 15;
+                            if (Number(r.invalid_clicks) > 0) score += 10;
+                            if (r.threat_group) score += 8;
+                            return score;
+                        };
+                        let best = null;
+                        let bestScore = -1;
+                        for (const row of this.rows) {
+                            const s = rank(row);
+                            if (s > bestScore) {
+                                bestScore = s;
+                                best = row;
                             }
-                            this.timezoneContext = data.timezone_context || this.timezoneContext;
-                    if (this.timezoneContext?.reporting_timezone) {
-                        this.reportingTimezone = this.timezoneContext.reporting_timezone;
-                    }
-                    this.syncPaidTimezoneHeader();
-                            const rank = (r) => {
-                                let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
-                                if (score > 0 && score < 1) score *= 100;
-                                if (!Number.isFinite(score)) score = 0;
-                                if (r.ip_is_blocked) score += 40;
-                                if (r.intel_vpn === 'Yes' || Number(r.vpn_hits) > 0) score += 15;
-                                if (r.intel_datacenter === 'Yes' || Number(r.data_center_hits) > 0) score += 15;
-                                if (Number(r.invalid_clicks) > 0) score += 10;
-                                if (r.threat_group) score += 8;
-                                return score;
-                            };
-                            let best = null;
-                            let bestScore = -1;
-                            for (const row of this.rows) {
-                                const s = rank(row);
-                                if (s > bestScore) {
-                                    bestScore = s;
-                                    best = row;
-                                }
-                            }
-                            if (best && bestScore > 0) {
-                                this.publishInvestigation(best);
-                            } else if (this.highRiskIps[0]?.id) {
-                                const visit = this.rows.find((r) => String(r.id) === String(this.highRiskIps[0].id));
-                                if (visit) this.publishInvestigation(visit);
-                            }
-                        })(),
-                    ]);
+                        }
+                        if (best && bestScore > 0) {
+                            this.publishInvestigation(best);
+                        } else if (this.highRiskIps[0]?.id) {
+                            const visit = this.rows.find((r) => String(r.id) === String(this.highRiskIps[0].id));
+                            if (visit) this.publishInvestigation(visit);
+                        }
+                    })());
+                    await Promise.all(jobs);
                     if (! this.isFetchCurrent(generation)) return;
                 } catch (e) {
                     console.error(e);
@@ -2792,8 +2838,8 @@
                     }
                 } finally {
                     if (this.isFetchCurrent(generation)) {
-                    this.loading = false;
-                    window.promotixPageLoader?.hide();
+                        this.loading = false;
+                        window.promotixPageLoader?.hide();
                         this.loadCampaignsForDomain().catch(() => {});
                     }
                 }

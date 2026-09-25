@@ -402,7 +402,7 @@
             }
             .analytics-skin .tc-flow-cell__arrow,
             .analytics-skin .tc-datetime-cell__time {
-                color: #8a8178;
+                color: #5c5650;
             }
             .tc-source-cell {
                 display: inline-flex;
@@ -470,8 +470,8 @@
                 gap: 2px;
                 line-height: 1.3;
             }
-            .tc-datetime-cell__date { color: #1a1a1a; }
-            .tc-datetime-cell__time { color: #8a8178; font-size: 10px; }
+            .tc-datetime-cell__date { color: #1a1a1a; font-weight: 600; }
+            .tc-datetime-cell__time { color: #5c5650; font-size: 10px; font-weight: 500; }
             html.light-mode .analytics-skin .tc-flow-cell,
             html.light-mode .analytics-skin .tc-events-cell,
             html.light-mode .analytics-skin .tc-source-cell__label,
@@ -481,7 +481,7 @@
             }
             html.light-mode .analytics-skin .tc-flow-cell__arrow,
             html.light-mode .analytics-skin .tc-datetime-cell__time {
-                color: #8a8178 !important;
+                color: #5c5650 !important;
             }
             html.light-mode .analytics-skin .tc-source-cell__icon {
                 background: rgba(255, 102, 0, 0.1);
@@ -492,7 +492,7 @@
             html.light-mode .tc-source-cell__label,
             html.light-mode .tc-datetime-cell__date { color: #1a1a1a; }
             html.light-mode .tc-flow-cell__arrow,
-            html.light-mode .tc-datetime-cell__time { color: #8a8178; }
+            html.light-mode .tc-datetime-cell__time { color: #5c5650; }
             html.light-mode .tc-source-cell__icon {
                 background: rgba(255, 102, 0, 0.1);
             }

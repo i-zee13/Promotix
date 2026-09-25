@@ -90,6 +90,28 @@ class PaidMarketingController extends Controller
         // Inventory for totals + paging; only hydrate the requested page of IPs (fast path).
         $inventory = app(PaidAdvertisingDashboardController::class)
             ->ipInventory($request, $inventoryCap, false);
+
+        $sortKey = trim((string) $request->query('sort', ''));
+        $sortDir = strtolower((string) $request->query('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+        // Sort the full inventory before slicing so page 2+ returns the next records for that sort.
+        $inventoryField = match ($sortKey) {
+            'visits', 'valid_clicks' => 'total',
+            'invalid_clicks' => 'invalid',
+            'last_click_at', 'first_click_at' => 'last_seen',
+            'campaign' => 'campaign',
+            'country' => 'country',
+            'threat_group' => 'top_threat',
+            'vpn_hits' => 'vpn_hits',
+            'data_center_hits' => 'data_center_hits',
+            default => null,
+        };
+        if ($inventoryField !== null) {
+            $inventory = $sortDir === 'desc'
+                ? $inventory->sortByDesc(fn (array $row) => $row[$inventoryField] ?? null)->values()
+                : $inventory->sortBy(fn (array $row) => $row[$inventoryField] ?? null)->values();
+        }
+
         $total = $inventory->count();
         $pageInventory = $inventory
             ->slice(($page - 1) * $perPage, $perPage)
@@ -171,9 +193,9 @@ class PaidMarketingController extends Controller
                 ->values();
         }
 
-        $sortKey = trim((string) $request->query('sort', ''));
-        $sortDir = strtolower((string) $request->query('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
-        if ($sortKey !== '') {
+        // Only re-sort the hydrated page when the sort key is not an inventory field
+        // (inventory already ordered before the page slice).
+        if ($sortKey !== '' && $inventoryField === null) {
             $rows = collect(\App\Support\SortableRows::sort(
                 $rows,
                 $sortKey,
@@ -195,6 +217,8 @@ class PaidMarketingController extends Controller
             $stats['charts']['risk']['total'] = $total;
             $stats['charts']['risk']['total_label'] = number_format($total);
         }
+        // Page-scoped KPIs must not drive the top cards — omit so the UI keeps /summary values.
+        unset($stats['kpis']);
 
         return response()->json([
             'rows' => collect($rows)->values(),
@@ -204,6 +228,7 @@ class PaidMarketingController extends Controller
                 'total' => $total,
                 'page' => $page,
                 'per_page' => $perPage,
+                'has_more' => ($page * $perPage) < $total,
             ],
             'sort' => ['key' => $sortKey !== '' ? $sortKey : 'visits', 'dir' => $sortKey !== '' ? $sortDir : 'desc'],
             'timezone_context' => UserTimezone::dashboardContext(
@@ -1890,8 +1915,8 @@ class PaidMarketingController extends Controller
         }
 
         return [
-            'id' => $visit->id,
-            'click_id' => 'CK-' . str_pad((string) $visit->id, 6, '0', STR_PAD_LEFT),
+            'id' => $visit->id ?? ('ip:'.(int) $visit->domain_id.':'.(string) $visit->ip),
+            'click_id' => 'CK-' . str_pad((string) ($visit->id ?: substr(md5((string) $visit->ip), 0, 6)), 6, '0', STR_PAD_LEFT),
             'ip' => $visit->ip,
             'ip_parts' => $ipParts,
             'ip_count' => max(count($ipParts), 1),

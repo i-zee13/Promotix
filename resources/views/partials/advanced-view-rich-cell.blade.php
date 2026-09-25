@@ -77,10 +77,10 @@
         <span x-show="!eventActionRows({{ $item }}).length" class="text-[#8c8787]">—</span>
     </span>
 </template>
-<template x-if="col.key === 'entry_time' || col.key === 'exit_time'">
+<template x-if="col.key === 'entry_time' || col.key === 'exit_time' || col.key === 'last_click_datetime_label'">
     <span class="tc-datetime-cell">
-        <span class="tc-datetime-cell__date" x-text="cellValue({{ $item }}, col.key)"></span>
-        <span class="tc-datetime-cell__time" x-text="cellValue({{ $item }}, col.key === 'entry_time' ? 'entry_clock' : 'exit_clock')"></span>
+        <span class="tc-datetime-cell__date" x-text="datetimeParts({{ $item }}, col.key).date"></span>
+        <span class="tc-datetime-cell__time" x-show="datetimeParts({{ $item }}, col.key).time" x-text="datetimeParts({{ $item }}, col.key).time"></span>
     </span>
 </template>
 <template x-if="col.key === 'cta_clicks' || col.key === 'tel_clicks' || col.key === 'form_starts' || col.key === 'form_submits' || col.key === 'form_fills' || col.key === 'add_to_cart' || col.key === 'checkout'">

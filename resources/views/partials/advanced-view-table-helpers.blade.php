@@ -5,7 +5,37 @@ window.promotixAdvTableHelpers = {
             'country', 'intel_risk_score', 'intel_risk_level', 'action_taken', 'status', 'session_recording',
             'cta_clicks', 'tel_clicks', 'form_starts', 'form_submits', 'form_fills', 'add_to_cart', 'checkout', 'purchase',
             'session_id', 'source_platform', 'page_flow', 'event_actions', 'entry_time', 'exit_time',
+            'last_click_datetime_label',
         ].includes(key);
+    },
+    datetimeParts(row, key) {
+        const empty = { date: '—', time: '' };
+        if (!row || !key) return empty;
+        if (key === 'entry_time') {
+            return {
+                date: row.entry_time ? String(row.entry_time) : '—',
+                time: row.entry_clock ? String(row.entry_clock) : '',
+            };
+        }
+        if (key === 'exit_time') {
+            return {
+                date: row.exit_time ? String(row.exit_time) : '—',
+                time: row.exit_clock ? String(row.exit_clock) : '',
+            };
+        }
+        if (key === 'last_click_datetime_label') {
+            const raw = String(row.last_click_datetime_label || '').trim();
+            if (!raw || raw === '—') {
+                const dateOnly = String(row.last_click_label || '').trim();
+                return { date: dateOnly && dateOnly !== '-' ? dateOnly : '—', time: '' };
+            }
+            const parts = raw.split(/\s+/);
+            if (parts.length >= 2) {
+                return { date: parts[0], time: parts.slice(1).join(' ') };
+            }
+            return { date: raw, time: '' };
+        }
+        return empty;
     },
     sourcePlatformKind(label) {
         const s = String(label || '').toLowerCase();
