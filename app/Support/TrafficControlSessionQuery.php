@@ -27,6 +27,7 @@ class TrafficControlSessionQuery
         int $page,
         int $perPage,
         string $trafficMode = 'bot',
+        bool $withTotal = true,
     ): array {
         if (! Schema::hasTable('visits') || $domainIds === []) {
             return ['data' => [], 'total' => 0];
@@ -53,9 +54,12 @@ class TrafficControlSessionQuery
 
         $this->applyFilters($base, $request);
 
-        $total = (int) (clone $base)
-            ->selectRaw("COUNT(DISTINCT CONCAT(visits.domain_id, '|', {$sessionExpr})) as aggregate_count")
-            ->value('aggregate_count');
+        $total = 0;
+        if ($withTotal) {
+            $total = (int) (clone $base)
+                ->selectRaw("COUNT(DISTINCT CONCAT(visits.domain_id, '|', {$sessionExpr})) as aggregate_count")
+                ->value('aggregate_count');
+        }
 
         $select = [
             DB::raw("{$sessionExpr} as session_key"),
@@ -112,13 +116,14 @@ class TrafficControlSessionQuery
 
         $sessionKeys = $rows->pluck('session_key')->filter()->values();
         $recordings = $this->loadRecordings($domainIds, $sessionKeys, $from, $to);
-        $landingPages = $this->loadLandingPages($domainIds, $from, $to, $sessionExpr);
+        $landingPages = $this->loadLandingPages($domainIds, $from, $to, $sessionExpr, $sessionKeys);
+        $exitPages = $this->loadExitPages($domainIds, $from, $to, $sessionExpr, $sessionKeys);
 
-        $data = $rows->map(function ($row) use ($recordings, $landingPages, $request, $trafficMode) {
+        $data = $rows->map(function ($row) use ($recordings, $landingPages, $exitPages, $request, $trafficMode) {
             $key = (string) $row->session_key;
             $rec = $recordings->get($key);
             $landing = $landingPages->get($key);
-            $exit = $this->loadExitPage($row->domain_id, $key, $row->first_seen, $row->last_seen);
+            $exit = $exitPages->get($key);
 
             $first = Carbon::parse($row->first_seen);
             $last = Carbon::parse($row->last_seen);
@@ -262,6 +267,10 @@ class TrafficControlSessionQuery
                 'event_detail' => $rec['event_detail'] ?? [],
             ];
         })->values()->all();
+
+        if (! $withTotal) {
+            $total = count($data);
+        }
 
         return ['data' => $data, 'total' => $total];
     }
@@ -497,9 +506,14 @@ class TrafficControlSessionQuery
         });
     }
 
-    private function loadLandingPages(array $domainIds, Carbon $from, Carbon $to, string $sessionExpr)
+    /** @param  \Illuminate\Support\Collection<int, string>  $sessionKeys */
+    private function loadLandingPages(array $domainIds, Carbon $from, Carbon $to, string $sessionExpr, $sessionKeys)
     {
-        $rows = DB::table('visits')
+        if ($sessionKeys->isEmpty()) {
+            return collect();
+        }
+
+        $query = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('visited_at', [$from, $to])
             ->select([
@@ -507,33 +521,69 @@ class TrafficControlSessionQuery
                 'url',
                 'visited_at',
             ])
-            ->orderBy('visited_at')
-            ->get();
+            ->orderBy('visited_at');
 
-        return $rows->groupBy('session_key')->map(function ($group) {
+        $this->constrainToSessionKeys($query, $sessionExpr, $sessionKeys);
+
+        return $query->get()->groupBy('session_key')->map(function ($group) {
             $first = $group->first();
 
             return TrafficSourceClassifier::pathFromUrl($first->url ?? '/');
         });
     }
 
-    private function loadExitPage(int $domainId, string $sessionKey, mixed $from, mixed $to): ?string
+    /** @param  \Illuminate\Support\Collection<int, string>  $sessionKeys */
+    private function loadExitPages(array $domainIds, Carbon $from, Carbon $to, string $sessionExpr, $sessionKeys)
     {
-        $row = DB::table('visits')
-            ->where('domain_id', $domainId)
-            ->whereBetween('visited_at', [$from, $to])
-            ->when(Schema::hasColumn('visits', 'session_id'), function ($q) use ($sessionKey): void {
-                if (str_starts_with($sessionKey, 'ip:')) {
-                    $q->where('ip', substr($sessionKey, 3));
-                } else {
-                    $q->where('session_id', $sessionKey);
-                }
-            }, function ($q) use ($sessionKey): void {
-                $q->where('ip', str_starts_with($sessionKey, 'ip:') ? substr($sessionKey, 3) : $sessionKey);
-            })
-            ->orderByDesc('visited_at')
-            ->value('url');
+        if ($sessionKeys->isEmpty()) {
+            return collect();
+        }
 
-        return $row ? TrafficSourceClassifier::pathFromUrl((string) $row) : null;
+        $query = DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('visited_at', [$from, $to])
+            ->select([
+                DB::raw("{$sessionExpr} as session_key"),
+                'url',
+                'visited_at',
+            ])
+            ->orderByDesc('visited_at');
+
+        $this->constrainToSessionKeys($query, $sessionExpr, $sessionKeys);
+
+        return $query->get()->groupBy('session_key')->map(function ($group) {
+            $last = $group->first();
+
+            return $last ? TrafficSourceClassifier::pathFromUrl((string) ($last->url ?? '/')) : null;
+        });
+    }
+
+    /** @param  \Illuminate\Support\Collection<int, string>  $sessionKeys */
+    private function constrainToSessionKeys($query, string $sessionExpr, $sessionKeys): void
+    {
+        $keys = $sessionKeys->values()->all();
+        $ips = [];
+        $sessionIds = [];
+        foreach ($keys as $key) {
+            $key = (string) $key;
+            if (str_starts_with($key, 'ip:')) {
+                $ips[] = substr($key, 3);
+            } else {
+                $sessionIds[] = $key;
+            }
+        }
+
+        $query->where(function ($q) use ($sessionIds, $ips): void {
+            if ($sessionIds !== [] && Schema::hasColumn('visits', 'session_id')) {
+                $q->orWhereIn('session_id', $sessionIds);
+            }
+            if ($ips !== []) {
+                $q->orWhereIn('ip', $ips);
+            }
+            // Fallback: never match nothing if keys were malformed.
+            if ($sessionIds === [] && $ips === []) {
+                $q->whereRaw('1 = 0');
+            }
+        });
     }
 }

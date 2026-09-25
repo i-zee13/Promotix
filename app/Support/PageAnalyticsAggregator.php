@@ -17,9 +17,11 @@ class PageAnalyticsAggregator
      *   campaign?: string,
      *   path?: string,
      *   device?: string,
-     *   granularity?: string
+     *   granularity?: string,
+     *   q?: string
      * }  $filters
      * @param  array{clicks?:int,cost?:float,impressions?:int}|null  $adsTotals
+     * @param  bool  $lite  Skip expensive recording JSON scans (use SUM columns + behavior events only)
      * @return array<string, mixed>
      */
     public function build(
@@ -30,6 +32,7 @@ class PageAnalyticsAggregator
         array $filters = [],
         string $currencyCode = 'USD',
         ?array $adsTotals = null,
+        bool $lite = false,
     ): array {
         $domainIds = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values()->all();
         $currencyCode = AccountCurrency::normalize($currencyCode);
@@ -348,7 +351,7 @@ class PageAnalyticsAggregator
         }
 
         try {
-            $recordingStats = $this->recordingCommerceStats($domainIds, $from, $to, $filters);
+            $recordingStats = $this->recordingCommerceStats($domainIds, $from, $to, $filters, $lite);
         } catch (\Throwable $e) {
             report($e);
             $recordingStats = [
@@ -844,6 +847,8 @@ class PageAnalyticsAggregator
         $clicks = [];
         $conversions = [];
         $valid = [];
+        $paid = [];
+        $invalid = [];
         $hasGoogleClicks = $googleClicksByDay !== [];
 
         // Precompute hourly Google click allocation so totals match Ads day totals.
@@ -913,6 +918,8 @@ class PageAnalyticsAggregator
             }
             $conversions[] = (int) ($row['conversions'] ?? 0);
             $valid[] = (int) ($row['valid'] ?? 0);
+            $paid[] = (int) ($row['paid'] ?? 0);
+            $invalid[] = max(0, (int) ($row['visitors'] ?? 0) - (int) ($row['valid'] ?? 0));
         }
 
         return [
@@ -921,6 +928,8 @@ class PageAnalyticsAggregator
             ['key' => 'conversions', 'label' => 'Conversions', 'color' => '#FF6600', 'scheme' => 'orange', 'total' => array_sum($conversions), 'points' => $conversions, 'labels' => $labels],
             // White card in UI; chart stroke stays light-gray so it remains visible on dark canvas.
             ['key' => 'valid', 'label' => 'Valid Users', 'color' => '#64748B', 'scheme' => 'white', 'total' => array_sum($valid), 'points' => $valid, 'labels' => $labels],
+            ['key' => 'paid', 'label' => 'Paid Traffic', 'color' => '#8B5CF6', 'scheme' => 'purple', 'total' => array_sum($paid), 'points' => $paid, 'labels' => $labels],
+            ['key' => 'invalid', 'label' => 'Invalid Users', 'color' => '#F59E0B', 'scheme' => 'amber', 'total' => array_sum($invalid), 'points' => $invalid, 'labels' => $labels],
         ];
     }
 
@@ -998,7 +1007,7 @@ class PageAnalyticsAggregator
      * @param  array<string, string>  $filters
      * @return array{purchases:int,revenue:float,transactions:int,trend:list<float|int>,cta:int,tel:int,forms:int,carts:int,checkouts:int,product_views:int}
      */
-    private function recordingCommerceStats(array $domainIds, Carbon $from, Carbon $to, array $filters = []): array
+    private function recordingCommerceStats(array $domainIds, Carbon $from, Carbon $to, array $filters = [], bool $lite = false): array
     {
         $defaults = [
             'purchases' => 0,
@@ -1053,6 +1062,11 @@ class PageAnalyticsAggregator
             $defaults['checkouts'] = max($defaults['checkouts'], (int) ($eventCounts['checkout'] ?? 0));
             $defaults['purchases'] = max($defaults['purchases'], (int) ($eventCounts['purchase'] ?? 0));
             $defaults['transactions'] = max($defaults['transactions'], $defaults['purchases']);
+        }
+
+        // Journey / lite callers: SUM columns + behavior events are enough — skip decoding up to 2k JSON blobs.
+        if ($lite) {
+            return $defaults;
         }
 
         $cols = ['events', 'duration_ms', 'created_at'];

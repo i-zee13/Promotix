@@ -1445,7 +1445,33 @@ function botProtectionFigma(config = {}) {
         countries: [],
         pageAnalytics: null,
         keywordHeadlineSource: 'ads',
-        perfActiveSeries: ['clicks', 'visitors', 'conversions', 'valid'],
+        perfMenuOpen: false,
+        perfMetricCatalog: [
+            { key: 'clicks', label: 'Clicks' },
+            { key: 'visitors', label: 'Visitors' },
+            { key: 'conversions', label: 'Conversions' },
+            { key: 'valid', label: 'Valid Users' },
+            { key: 'paid', label: 'Paid Traffic' },
+            { key: 'invalid', label: 'Invalid Users' },
+        ],
+        perfCardKeys: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pa-perf-card-keys-v1') || 'null');
+                if (Array.isArray(saved) && saved.length) {
+                    return saved.filter((k) => ['clicks', 'visitors', 'conversions', 'valid', 'paid', 'invalid'].includes(k)).slice(0, 4);
+                }
+            } catch (e) {}
+            return ['clicks', 'visitors', 'conversions', 'valid'];
+        })(),
+        perfActiveSeries: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pa-perf-card-keys-v1') || 'null');
+                if (Array.isArray(saved) && saved.length) {
+                    return saved.filter((k) => ['clicks', 'visitors', 'conversions', 'valid', 'paid', 'invalid'].includes(k)).slice(0, 4);
+                }
+            } catch (e) {}
+            return ['clicks', 'visitors', 'conversions', 'valid'];
+        })(),
         perfMode: 'line',
         perfGranularity: 'daily',
         perfChartNonce: 0,
@@ -1698,6 +1724,45 @@ function botProtectionFigma(config = {}) {
         pagePerformanceSeries() {
             return this.pagePerformance()?.series || [];
         },
+        pagePerformanceCards() {
+            const byKey = Object.fromEntries((this.pagePerformanceSeries() || []).map((s) => [s.key, s]));
+            const keys = Array.isArray(this.perfCardKeys) && this.perfCardKeys.length
+                ? this.perfCardKeys
+                : ['clicks', 'visitors', 'conversions', 'valid'];
+            return keys.map((key) => byKey[key]).filter(Boolean);
+        },
+        isPerfCardSelected(key) {
+            return (this.perfCardKeys || []).includes(key);
+        },
+        persistPerfCardKeys() {
+            try {
+                localStorage.setItem('pa-perf-card-keys-v1', JSON.stringify(this.perfCardKeys || []));
+            } catch (e) {}
+        },
+        togglePerfCard(key) {
+            const list = Array.isArray(this.perfCardKeys) ? [...this.perfCardKeys] : [];
+            const idx = list.indexOf(key);
+            if (idx >= 0) {
+                if (list.length <= 1) return;
+                list.splice(idx, 1);
+                this.perfActiveSeries = (this.perfActiveSeries || []).filter((k) => k !== key);
+                if (!(this.perfActiveSeries || []).length && list.length) {
+                    this.perfActiveSeries = [list[0]];
+                }
+            } else {
+                if (list.length >= 4) {
+                    const removed = list.shift();
+                    this.perfActiveSeries = (this.perfActiveSeries || []).filter((k) => k !== removed);
+                }
+                list.push(key);
+                if (!(this.perfActiveSeries || []).includes(key)) {
+                    this.perfActiveSeries = [...(this.perfActiveSeries || []), key];
+                }
+            }
+            this.perfCardKeys = list;
+            this.persistPerfCardKeys();
+            this.perfChartNonce = (this.perfChartNonce || 0) + 1;
+        },
         pageCost() {
             return this.pageAnalytics?.cost || null;
         },
@@ -1755,6 +1820,7 @@ function botProtectionFigma(config = {}) {
             this.reload();
         },
         togglePerfSeries(key) {
+            if (!this.isPerfCardSelected(key)) return;
             const list = Array.isArray(this.perfActiveSeries) ? [...this.perfActiveSeries] : [];
             const idx = list.indexOf(key);
             if (idx >= 0) {
@@ -1764,9 +1830,10 @@ function botProtectionFigma(config = {}) {
                 list.push(key);
             }
             this.perfActiveSeries = list;
+            this.perfChartNonce = (this.perfChartNonce || 0) + 1;
         },
         performanceChartSvg(mode = 'line', _seriesKey = '') {
-            const series = (this.pagePerformanceSeries() || []).filter((s) => this.isPerfSeriesActive(s.key));
+            const series = (this.pagePerformanceCards() || []).filter((s) => this.isPerfSeriesActive(s.key));
             // Match viewBox to container so preserveAspectRatio none does not stretch ovals / leave a dead right gutter.
             let width = 920;
             const height = 300;

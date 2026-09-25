@@ -35,6 +35,36 @@ class AccountCurrency
         return self::normalize($code !== '' ? $code : null);
     }
 
+    public static function fromTimezone(?string $timezone): string
+    {
+        $tz = trim((string) $timezone);
+        if ($tz === '') {
+            return 'USD';
+        }
+
+        // PKT / Pakistan accounts → PKR on All Domains.
+        if ($tz === 'Asia/Karachi' || str_contains(strtoupper($tz), 'KARACHI')) {
+            return 'PKR';
+        }
+        if (str_starts_with($tz, 'Europe/London') || $tz === 'GB') {
+            return 'GBP';
+        }
+        if (str_starts_with($tz, 'Europe/')) {
+            return 'EUR';
+        }
+        if (str_starts_with($tz, 'Asia/Kolkata') || str_starts_with($tz, 'Asia/Calcutta')) {
+            return 'INR';
+        }
+        if (str_starts_with($tz, 'Australia/')) {
+            return 'AUD';
+        }
+        if (str_starts_with($tz, 'America/Toronto') || str_starts_with($tz, 'America/Vancouver')) {
+            return 'CAD';
+        }
+
+        return 'USD';
+    }
+
     /**
      * @param  Collection<int, Domain>|iterable<Domain>  $domains
      */
@@ -49,6 +79,10 @@ class AccountCurrency
             if ($fromAccount !== '') {
                 return self::normalize($fromAccount);
             }
+            $accountTz = trim((string) ($account?->time_zone ?? ''));
+            if ($accountTz !== '') {
+                return self::fromTimezone($accountTz);
+            }
         }
 
         $selectedId = (int) $request->query('domain_id', 0);
@@ -60,14 +94,15 @@ class AccountCurrency
             return self::fromDomain($domain);
         }
 
-        foreach ($domains as $domain) {
-            $code = trim((string) ($domain->googleAdsAccount?->currency_code ?? ''));
-            if ($code !== '') {
-                return self::normalize($code);
-            }
-        }
+        // All Domains: currency follows account / reporting timezone (e.g. PKT → PKR),
+        // not "first domain with any currency" which wrongly shows Rs on EDT accounts.
+        $reportingTz = UserTimezone::reportingTimezoneForRequest(
+            $request->user(),
+            null,
+            $domains->pluck('id')->all(),
+        );
 
-        return 'USD';
+        return self::fromTimezone($reportingTz);
     }
 
     public static function symbol(string $currencyCode): string

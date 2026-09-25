@@ -401,12 +401,45 @@
                 margin:0 0 10px; padding:0 2px; font-size:11px; color:rgba(255,255,255,.55);
             }
             .vj-ev-legend__item {
-                display:inline-flex; align-items:center; gap:8px; line-height:1;
+                display:inline-flex; align-items:center; gap:6px; line-height:1;
+                position: relative;
             }
             .vj-ev-legend__item .vj-ev-icon {
                 flex:0 0 14px; width:14px; height:14px;
+            }
+            .vj-ev-legend__item.is-off { opacity: 0.38; }
+            .vj-ev-legend__menu-btn {
                 display:inline-flex; align-items:center; justify-content:center;
-                vertical-align:middle;
+                width:18px; height:18px; border-radius:4px; border:0;
+                background:transparent; color:rgba(255,255,255,.45); cursor:pointer; padding:0;
+            }
+            .vj-ev-legend__menu-btn:hover { color:#fff; background:rgba(255,102,0,.15); }
+            .vj-ev-legend__panel {
+                position:absolute; top:calc(100% + 6px); left:0; z-index:50;
+                min-width:148px; padding:8px; border-radius:8px;
+                border:1px solid rgba(255,102,0,.35); background:#121212;
+                box-shadow:0 10px 24px rgba(0,0,0,.45);
+            }
+            .vj-ev-legend__panel button {
+                display:block; width:100%; text-align:left;
+                border:0; background:transparent; color:rgba(255,255,255,.85);
+                font-size:11px; padding:6px 8px; border-radius:5px; cursor:pointer;
+            }
+            .vj-ev-legend__panel button:hover { background:rgba(255,102,0,.14); color:#fff; }
+            html.light-mode .vj-ev-legend__menu-btn { color:#8a8299 !important; }
+            html.light-mode .vj-ev-legend__menu-btn:hover {
+                color:#FF6600 !important; background:#fff7f0 !important;
+            }
+            html.light-mode .vj-ev-legend__panel {
+                background:#ffffff !important;
+                border-color:rgba(255,102,0,.32) !important;
+                color:#2d2d3a !important;
+            }
+            html.light-mode .vj-ev-legend__panel button {
+                color:#2d2d3a !important;
+            }
+            html.light-mode .vj-ev-legend__panel button:hover {
+                background:#fff7f0 !important; color:#FF6600 !important;
             }
             /* Align caption with the time track (same 168px sid column as rows). */
             .vj-axis-label {
@@ -478,20 +511,20 @@
                 box-sizing: border-box;
             }
             .vj-ev-icon.is-page {
-                width:10px; height:10px; margin:2px; border-radius:999px; background:var(--brand-primary, #FF6600);
+                width:10px; height:10px; margin:2px; border-radius:999px; background:#38BDF8;
             }
             .vj-ev-icon.is-scroll {
-                width:10px; height:10px; margin:2px; background:var(--brand-primary, #FF6600); transform:rotate(45deg); border-radius:1px;
+                width:10px; height:10px; margin:2px; background:#A78BFA; transform:rotate(45deg); border-radius:1px;
             }
             .vj-ev-icon.is-cta {
-                width:10px; height:10px; margin:2px; background:#EAB308; transform:rotate(45deg); border-radius:1px;
+                width:10px; height:10px; margin:2px; background:#F59E0B; transform:rotate(45deg); border-radius:1px;
             }
             .vj-ev-icon.is-form {
                 width:11px; height:11px; margin:1.5px; border-radius:999px; border:2px solid #22C55E; background:transparent;
             }
             .vj-ev-icon.is-exit {
                 width:10px; height:10px; margin:2px; border-radius:2px;
-                background:transparent; border:2px solid var(--brand-primary, #FF6600); box-sizing:border-box;
+                background:transparent; border:2px solid #F43F5E; box-sizing:border-box;
             }
             .vj-tooltip {
                 position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
@@ -1336,6 +1369,7 @@
                                     </div>
                                 </template>
                             </div>
+                            <div class="vj-empty" x-show="loading">Loading journey…</div>
                             <div class="vj-empty" x-show="!(flow.columns || []).length && !loading">No journey flow for this range.</div>
                         </div>
 
@@ -1346,11 +1380,22 @@
                         <div class="vj-timeline-wrap" x-show="flowTab === 'timeline'">
                             <div class="vj-tab-body vj-tab-body--timeline">
                             <div class="vj-ev-legend">
-                                <span class="vj-ev-legend__item"><span class="vj-ev-icon is-page"></span> Page view</span>
-                                <span class="vj-ev-legend__item"><span class="vj-ev-icon is-scroll"></span> Scroll</span>
-                                <span class="vj-ev-legend__item"><span class="vj-ev-icon is-cta"></span> CTA click</span>
-                                <span class="vj-ev-legend__item"><span class="vj-ev-icon is-form"></span> Form submit</span>
-                                <span class="vj-ev-legend__item"><span class="vj-ev-icon is-exit"></span> Exit</span>
+                                <template x-for="item in eventLegendItems" :key="'leg-'+item.key">
+                                    <div class="vj-ev-legend__item" :class="{ 'is-off': !isEventTypeEnabled(item.key) }" @click.outside="legendMenu = null">
+                                        <span class="vj-ev-icon" :class="'is-' + item.key"></span>
+                                        <span x-text="item.label"></span>
+                                        <button type="button" class="vj-ev-legend__menu-btn" @click.stop="legendMenu = legendMenu === item.key ? null : item.key" :aria-label="'Options for ' + item.label">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
+                                            </svg>
+                                        </button>
+                                        <div class="vj-ev-legend__panel" x-show="legendMenu === item.key" x-cloak>
+                                            <button type="button" @click.stop="toggleEventType(item.key); legendMenu = null" x-text="isEventTypeEnabled(item.key) ? 'Hide on timeline' : 'Show on timeline'"></button>
+                                            <button type="button" @click.stop="eventFilter = item.key; legendMenu = null">Filter to this only</button>
+                                            <button type="button" @click.stop="resetEventTypes(); legendMenu = null">Show all types</button>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                             <div class="vj-axis-label"><span>Elapsed time from session start</span></div>
                             <div class="vj-et">
@@ -1982,6 +2027,15 @@ function visitorJourneyPage() {
             'Exited',
         ],
         eventFilter: 'all',
+        legendMenu: null,
+        eventLegendItems: [
+            { key: 'page', label: 'Page view' },
+            { key: 'scroll', label: 'Scroll' },
+            { key: 'cta', label: 'CTA click' },
+            { key: 'form', label: 'Form submit' },
+            { key: 'exit', label: 'Exit' },
+        ],
+        enabledEventTypes: ['page', 'scroll', 'cta', 'form', 'exit'],
         timeScale: '30',
         selectedEvent: null,
         hoverEvent: null,
@@ -2456,12 +2510,35 @@ function visitorJourneyPage() {
         },
         filteredEvents(row) {
             const list = row.timeline || [];
-            if (this.eventFilter === 'all') return list;
+            const enabled = Array.isArray(this.enabledEventTypes) ? this.enabledEventTypes : [];
             return list.filter((e) => {
                 let t = String(e.type || '').toLowerCase();
                 if (t === 'session_exit' || t === 'session_end') t = 'exit';
+                if (enabled.length && !enabled.includes(t)) return false;
+                if (this.eventFilter === 'all') return true;
                 return t === this.eventFilter;
             });
+        },
+        isEventTypeEnabled(key) {
+            return (this.enabledEventTypes || []).includes(key);
+        },
+        toggleEventType(key) {
+            const list = Array.isArray(this.enabledEventTypes) ? [...this.enabledEventTypes] : [];
+            const idx = list.indexOf(key);
+            if (idx >= 0) {
+                if (list.length <= 1) return;
+                list.splice(idx, 1);
+            } else {
+                list.push(key);
+            }
+            this.enabledEventTypes = list;
+            if (this.eventFilter !== 'all' && !list.includes(this.eventFilter)) {
+                this.eventFilter = 'all';
+            }
+        },
+        resetEventTypes() {
+            this.enabledEventTypes = ['page', 'scroll', 'cta', 'form', 'exit'];
+            this.eventFilter = 'all';
         },
         eventLeftPct(ev, row = null) {
             // Kept for any legacy callers; laneEvents precomputes leftPct.

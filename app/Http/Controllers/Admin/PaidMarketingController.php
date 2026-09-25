@@ -83,8 +83,28 @@ class PaidMarketingController extends Controller
     {
         [$metricFrom, $metricTo, $googleTz, $reportingTz] = $this->reportingWindow($request);
 
-        // List path: no nested clicks / identity bags — batch hydrate below (avoids N+1).
-        $visits = $this->collectDetailedVisitModels($request, 5000, withClicks: false, withIdentityMeta: false);
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = min(100, max(10, (int) $request->query('per_page', 20)));
+        $inventoryCap = 5000;
+
+        // Inventory for totals + paging; only hydrate the requested page of IPs (fast path).
+        $inventory = app(PaidAdvertisingDashboardController::class)
+            ->ipInventory($request, $inventoryCap, false);
+        $total = $inventory->count();
+        $pageInventory = $inventory
+            ->slice(($page - 1) * $perPage, $perPage)
+            ->values();
+
+        $visits = $pageInventory->isEmpty()
+            ? collect()
+            : $this->hydrateDetailedVisitsFromIpInventory(
+                $request,
+                $pageInventory,
+                $metricFrom,
+                $metricTo,
+                $reportingTz,
+                false,
+            );
 
         $ips = $visits->pluck('ip')->unique()->filter()->values();
 
@@ -121,12 +141,12 @@ class PaidMarketingController extends Controller
                 $key = $this->detailedVisitMetaKey($visit);
 
                 return $this->formatDetailedVisit(
-            $visit,
-            $request->user(),
-            $ipLogs->get($visit->ip),
-            $recordings->get($visit->ip),
-            $verificationLookup,
-            $reportingTz,
+                    $visit,
+                    $request->user(),
+                    $ipLogs->get($visit->ip),
+                    $recordings->get($visit->ip),
+                    $verificationLookup,
+                    $reportingTz,
                     $behaviorCounts->get($visit->ip),
                     $preferDeviceId,
                     $sessionMetaByKey[$key] ?? null,
@@ -171,17 +191,20 @@ class PaidMarketingController extends Controller
             : null;
 
         $stats = $this->computeDetailedStatsFromArrays(collect($rows));
-        // KPIs come from the parallel /summary request on the frontend — skip nested summary() here.
         if (isset($stats['charts']['risk'])) {
-            $uniqueIps = collect($rows)->count();
-            $stats['charts']['risk']['total'] = $uniqueIps;
-            $stats['charts']['risk']['total_label'] = number_format($uniqueIps);
+            $stats['charts']['risk']['total'] = $total;
+            $stats['charts']['risk']['total_label'] = number_format($total);
         }
 
         return response()->json([
             'rows' => collect($rows)->values(),
             'stats' => $stats,
-            'total' => collect($rows)->count(),
+            'total' => $total,
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+            ],
             'sort' => ['key' => $sortKey !== '' ? $sortKey : 'visits', 'dir' => $sortKey !== '' ? $sortDir : 'desc'],
             'timezone_context' => UserTimezone::dashboardContext(
                 $request->user(),

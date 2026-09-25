@@ -27,6 +27,13 @@ class AccountCurrencyTest extends TestCase
         $this->assertStringStartsWith('Rs ', AccountCurrency::formatCompact(1790, 'PKR'));
     }
 
+    public function test_from_timezone_maps_karachi_to_pkr(): void
+    {
+        $this->assertSame('PKR', AccountCurrency::fromTimezone('Asia/Karachi'));
+        $this->assertSame('USD', AccountCurrency::fromTimezone('America/New_York'));
+        $this->assertSame('GBP', AccountCurrency::fromTimezone('Europe/London'));
+    }
+
     public function test_format_compact_thousands(): void
     {
         $this->assertSame('Rs 1.79K', AccountCurrency::formatCompact(1790, 'PKR'));

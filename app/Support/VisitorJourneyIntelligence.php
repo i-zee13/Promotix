@@ -4,6 +4,8 @@ namespace App\Support;
 
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -22,6 +24,30 @@ class VisitorJourneyIntelligence
             return $this->emptyPayload();
         }
 
+        $cacheKey = 'vj:intel:v2:'.md5(json_encode([
+            'domains' => array_values($domainIds),
+            'from' => $from->toIso8601String(),
+            'to' => $to->toIso8601String(),
+            'campaign' => trim((string) ($filters['campaign'] ?? '')),
+            'device' => strtolower(trim((string) ($filters['device'] ?? ''))),
+            'path' => trim((string) ($filters['path'] ?? '')),
+            'q' => trim((string) ($filters['q'] ?? '')),
+            'domain_id' => (int) $request->query('domain_id', 0),
+            'google_ads_account_id' => (string) $request->query('google_ads_account_id', ''),
+        ]));
+
+        return Cache::remember($cacheKey, 90, function () use ($domainIds, $from, $to, $request, $filters) {
+            return $this->buildUncached($domainIds, $from, $to, $request, $filters);
+        });
+    }
+
+    /**
+     * @param  list<int>  $domainIds
+     * @param  array{campaign?:string,device?:string,path?:string,q?:string}  $filters
+     * @return array<string, mixed>
+     */
+    private function buildUncached(array $domainIds, Carbon $from, Carbon $to, Request $request, array $filters = []): array
+    {
         $analyticsFilters = [
             'traffic_source' => '',
             'campaign' => trim((string) ($filters['campaign'] ?? '')),
@@ -35,8 +61,20 @@ class VisitorJourneyIntelligence
         $prevTo = $from->copy()->subSecond();
         $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
 
-        $current = app(PageAnalyticsAggregator::class)->build($domainIds, $from, $to, null, $analyticsFilters);
-        $previous = app(PageAnalyticsAggregator::class)->build($domainIds, $prevFrom, $prevTo, null, $analyticsFilters);
+        // One lite aggregator pass (skip decoding up to 2k recording JSON blobs).
+        $current = app(PageAnalyticsAggregator::class)->build(
+            $domainIds,
+            $from,
+            $to,
+            null,
+            $analyticsFilters,
+            'USD',
+            null,
+            true,
+        );
+
+        // Cheap previous-period counts for KPI deltas (avoid a second full aggregator build).
+        $prevTracked = $this->cheapSessionCount($domainIds, $prevFrom, $prevTo);
 
         $sessionPage = app(TrafficControlSessionQuery::class)->paginate(
             $domainIds,
@@ -44,12 +82,16 @@ class VisitorJourneyIntelligence
             $to,
             $request,
             1,
-            40,
+            12,
             'paid',
+            false,
         );
 
         $sessions = $sessionPage['data'] ?? [];
-        $sessionTotal = (int) ($sessionPage['total'] ?? count($sessions));
+        $sessionTotal = max(
+            (int) ($current['journey_summary']['sessions'] ?? 0),
+            count($sessions),
+        );
 
         $tracked = max(
             (int) ($current['journey_summary']['sessions'] ?? 0),
@@ -57,7 +99,7 @@ class VisitorJourneyIntelligence
             1,
         );
 
-        $prevTracked = max(1, (int) ($previous['journey_summary']['sessions'] ?? 0));
+        $prevTracked = max(1, $prevTracked);
 
         $avgDurationLabel = (string) ($current['journey_summary']['avg_session_duration'] ?? '00:00:00');
         $pagesPerSession = (float) ($current['pages_per_session'] ?? 0);
@@ -73,16 +115,11 @@ class VisitorJourneyIntelligence
         $engagedSessions = $engaged + $high;
         $singlePagePct = round(($bounced / max(1, $bounced + $engaged + $high)) * 100, 1);
 
-        $prevLead = (float) ($previous['conversion_summary']['rate_raw']
-            ?? $previous['kpis']['conversion_rate']
-            ?? 0);
-        $prevPages = (float) ($previous['pages_per_session'] ?? 0);
-        $prevEngagement = collect($previous['engagement'] ?? []);
-        $prevBounced = (int) ($prevEngagement->firstWhere('key', 'bounced')['value'] ?? 0);
-        $prevEngaged = (int) ($prevEngagement->firstWhere('key', 'engaged')['value'] ?? 0);
-        $prevHigh = (int) ($prevEngagement->firstWhere('key', 'highly_engaged')['value'] ?? 0);
-        $prevEngagedSessions = $prevEngaged + $prevHigh;
-        $prevSingle = round(($prevBounced / max(1, $prevBounced + $prevEngaged + $prevHigh)) * 100, 1);
+        // Previous engagement/conversion deltas skipped (lite path) — keep charts fast.
+        $prevLead = $leadRate;
+        $prevPages = $pagesPerSession;
+        $prevSingle = $singlePagePct;
+        $prevEngagedSessions = $engagedSessions;
 
         $vsLabel = 'vs previous '.$days.' days';
 
@@ -102,10 +139,7 @@ class VisitorJourneyIntelligence
                 'label' => 'Avg. Session Duration',
                 'value' => $this->durationToSeconds($avgDurationLabel),
                 'display' => $avgDurationLabel,
-                'delta' => $this->pctDelta(
-                    $this->durationToSeconds($avgDurationLabel),
-                    $this->durationToSeconds((string) ($previous['journey_summary']['avg_session_duration'] ?? '00:00:00')),
-                ),
+                'delta' => 0.0,
                 'vs_label' => $vsLabel,
                 'tone' => 'orange',
                 'spark' => $this->spark($this->durationToSeconds($avgDurationLabel)),
@@ -154,8 +188,7 @@ class VisitorJourneyIntelligence
         ];
 
         $shaped = array_map(fn (array $row) => $this->shapeSession($row), $sessions);
-        // UI list stays short; Action/Outcome columns use the full page of sessions + KPI floors.
-        $recent = array_slice($shaped, 0, 12);
+        $recent = $shaped;
         $flow = $this->buildFlow($current, $shaped, $tracked);
         $outcomes = $this->buildOutcomes($shaped, $tracked, $leadRate, $bounced);
 
@@ -215,6 +248,28 @@ class VisitorJourneyIntelligence
                 'days' => $days,
             ],
         ];
+    }
+
+    /**
+     * Fast distinct-session estimate for previous-period KPI delta.
+     *
+     * @param  list<int>  $domainIds
+     */
+    private function cheapSessionCount(array $domainIds, Carbon $from, Carbon $to): int
+    {
+        if ($domainIds === [] || ! Schema::hasTable('visits')) {
+            return 0;
+        }
+
+        $sessionExpr = Schema::hasColumn('visits', 'session_id')
+            ? "COALESCE(NULLIF(session_id, ''), CONCAT('ip:', ip))"
+            : "CONCAT('ip:', ip)";
+
+        return (int) DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('visited_at', [$from, $to])
+            ->selectRaw("COUNT(DISTINCT CONCAT(domain_id, '|', {$sessionExpr})) as c")
+            ->value('c');
     }
 
     /** @param  array<string, mixed>  $row */

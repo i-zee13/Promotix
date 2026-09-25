@@ -1231,15 +1231,15 @@
                 <span class="adv-pager__label" x-text="paginationLabel()"></span>
                 <div class="adv-pager__controls">
                     <div class="adv-pager__pages">
-                        <button type="button" class="adv-pager__btn" :disabled="page <= 1" @click="page = Math.max(1, page - 1)">‹</button>
+                        <button type="button" class="adv-pager__btn" :disabled="page <= 1" @click="goToPage(page - 1)">‹</button>
                         <template x-for="item in pageItems" :key="'pm-p-'+item">
-                            <button type="button" class="adv-pager__btn" :class="item === page && 'is-active'" :disabled="item === '…'" @click="item !== '…' && (page = item)" x-text="item"></button>
+                            <button type="button" class="adv-pager__btn" :class="item === page && 'is-active'" :disabled="item === '…'" @click="item !== '…' && goToPage(item)" x-text="item"></button>
                         </template>
-                        <button type="button" class="adv-pager__btn" :disabled="page >= totalPages" @click="page = Math.min(totalPages, page + 1)">›</button>
+                        <button type="button" class="adv-pager__btn" :disabled="page >= totalPages" @click="goToPage(page + 1)">›</button>
                     </div>
-                    <select class="adv-pager__select" x-model.number="perPage" @change="page = 1" aria-label="Rows per page" style="width:108px;height:28px;max-width:108px">
-                        <option :value="10">10 / page</option>
+                    <select class="adv-pager__select" x-model.number="perPage" @change="changePerPage()" aria-label="Rows per page" style="width:108px;height:28px;max-width:108px">
                         <option :value="20">20 / page</option>
+                        <option :value="10">10 / page</option>
                         <option :value="50">50 / page</option>
                     </select>
                 </div>
@@ -1920,6 +1920,7 @@
             rows: [],
             page: 1,
             perPage: 20,
+            totalRows: 0,
             selectedIds: [],
             bulkMessage: '',
             overrideUrl: config.overrideUrl || '',
@@ -2154,20 +2155,20 @@
                 return api.sortRows(this.rows, this.sortKey, this.sortDir, this.sortNumericKeys);
             },
             get totalPages() {
-                return Math.max(1, Math.ceil((this.sortedRows.length || 0) / Math.max(this.perPage, 1)));
+                return Math.max(1, Math.ceil((this.totalRows || this.rows.length || 0) / Math.max(this.perPage, 1)));
             },
             get pagedRows() {
-                const start = (Math.max(1, this.page) - 1) * this.perPage;
-                return this.sortedRows.slice(start, start + this.perPage);
+                // Server already returns the current page (20 rows); avoid double-slicing.
+                return this.sortedRows;
             },
             get pageItems() {
                 return this.pagerPages(this.page, this.totalPages);
             },
             paginationLabel() {
-                const total = this.sortedRows.length;
+                const total = Number(this.totalRows || this.rows.length || 0);
                 if (!total) return 'Showing 0 to 0 of 0 results';
                 const start = (this.page - 1) * this.perPage + 1;
-                const end = Math.min(total, this.page * this.perPage);
+                const end = Math.min(total, (this.page - 1) * this.perPage + this.rows.length);
                 return `Showing ${start} to ${end} of ${Number(total).toLocaleString()} results`;
             },
             setSort(key) {
@@ -2177,14 +2178,24 @@
                     const next = api.toggleSort(this.sortKey, key, this.sortDir);
                     this.sortKey = next.key;
                     this.sortDir = next.dir;
-                    return;
-                }
-                if (this.sortKey === key) {
+                } else if (this.sortKey === key) {
                     this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
                 } else {
                     this.sortKey = key;
                     this.sortDir = 'asc';
                 }
+                this.page = 1;
+                this.scheduleFetch(true);
+            },
+            goToPage(p) {
+                const next = Math.min(this.totalPages, Math.max(1, Number(p) || 1));
+                if (next === this.page) return;
+                this.page = next;
+                this.scheduleFetch(true);
+            },
+            changePerPage() {
+                this.page = 1;
+                this.scheduleFetch(true);
             },
             sortClass(key) {
                 const api = window.promotixSortable;
@@ -2205,19 +2216,27 @@
             },
             activeCurrencySymbol() {
                 const accountId = String(this.filters.google_ads_account_id || '');
+                const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: 'Rs ', AED: 'د.إ' };
                 if (accountId) {
                     const account = (this.accountOptions || []).find((a) => String(a.id) === accountId);
                     if (account?.currency_code) {
-                        const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: '₨', AED: 'د.إ' };
                         return map[account.currency_code] || `${account.currency_code} `;
                     }
                 }
                 const id = String(this.filters.domain_id || '');
-                const entry = id ? this.domainCatalog[id] : null;
-                if (entry?.currency_code) {
-                    const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: '₨', AED: 'د.إ' };
-                    return map[entry.currency_code] || `${entry.currency_code} `;
+                if (id) {
+                    const entry = this.domainCatalog[id];
+                    if (entry?.currency_code) {
+                        return map[entry.currency_code] || `${entry.currency_code} `;
+                    }
                 }
+                // All Domains: follow reporting / account timezone (PKT → Rs), not first domain currency.
+                const tz = String(this.reportingTimezone || this.profileTimezone || '');
+                if (tz === 'Asia/Karachi' || /karachi/i.test(tz)) return 'Rs ';
+                if (tz.startsWith('Europe/London')) return '£';
+                if (tz.startsWith('Europe/')) return '€';
+                if (tz.startsWith('Asia/Kolkata') || tz.startsWith('Asia/Calcutta')) return '₹';
+                if (tz.startsWith('Australia/')) return 'A$';
                 return '$';
             },
             syncPaidTimezoneHeader() {
@@ -2464,6 +2483,7 @@
                 this.filters.campaign = '';
                 this.campaignOptions = [];
                 this.filterMenus.campaign = false;
+                this.page = 1;
                 this.applyDomainTimezoneFromCatalog();
                 if (this.filters.domain_id) {
                     await this.loadCampaignsForDomain();
@@ -2499,11 +2519,13 @@
             selectTrafficFilter(value) {
                 this.filters.traffic_source = value || 'google_ads';
                 this.closeFilterMenus();
+                this.page = 1;
                 this.scheduleFetch(true);
             },
             selectAccountFilter(id) {
                 this.filters.google_ads_account_id = id ? String(id) : '';
                 this.closeFilterMenus();
+                this.page = 1;
                 this.scheduleFetch(true);
             },
             async openCampaignMenu() {
@@ -2515,6 +2537,7 @@
             selectCampaign(name) {
                 this.filters.campaign = name;
                 this.closeFilterMenus();
+                this.page = 1;
                 this.scheduleFetch(true);
             },
             async loadCampaignsForDomain() {
@@ -2654,6 +2677,8 @@
                     p.set('sort', this.sortKey);
                     p.set('dir', this.sortDir || 'asc');
                 }
+                p.set('page', String(this.page || 1));
+                p.set('per_page', String(this.perPage || 20));
                 if (includeExportColumns && this.activeColumnGroup) {
                     p.set('column_group', this.activeColumnGroup);
                     const keys = this.exportColumnKeys;
@@ -2709,17 +2734,22 @@
                     const data = await res.json();
                             if (! this.isFetchCurrent(generation)) return;
                     this.rows = data.rows || [];
-                            this.page = 1;
-                    this.statCards = data.stats?.cards || [];
+                            this.totalRows = Number(data.meta?.total ?? data.total ?? this.rows.length) || 0;
+                            if (data.meta?.page) this.page = Number(data.meta.page) || this.page;
+                            if (data.meta?.per_page) this.perPage = Number(data.meta.per_page) || this.perPage;
+                    this.statCards = data.stats?.cards || this.statCards || [];
                             if (Array.isArray(data.stats?.kpis) && data.stats.kpis.length) {
                                 this.kpiCards = data.stats.kpis;
                             }
+                            // Keep chart widgets stable when paging — only refresh on first page / filter reset.
+                            if ((Number(data.meta?.page) || this.page) <= 1) {
                             const charts = data.stats?.charts || {};
                             this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
                             this.chartRisk = charts.risk || { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' };
                             this.chartCountries = charts.countries || [];
                             this.highRiskIps = charts.high_risk_ips || [];
                             this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
+                            }
                             this.timezoneContext = data.timezone_context || this.timezoneContext;
                     if (this.timezoneContext?.reporting_timezone) {
                         this.reportingTimezone = this.timezoneContext.reporting_timezone;

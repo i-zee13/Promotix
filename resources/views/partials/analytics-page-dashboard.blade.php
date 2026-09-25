@@ -98,7 +98,7 @@
             display: block;
         }
 
-        .pa-dash .pa-perf { margin-bottom: 14px; }
+        .pa-dash .pa-perf { margin-bottom: 14px; overflow: visible; position: relative; z-index: 2; }
         .pa-dash .pa-perf__sub {
             margin: -6px 0 12px;
             font-size: 11px;
@@ -142,6 +142,8 @@
         .pa-dash .pa-perf__metric.is-scheme-blue { background: #4285F4; color: #fff; border-color: transparent; }
         .pa-dash .pa-perf__metric.is-scheme-red { background: #EA4335; color: #fff; border-color: transparent; }
         .pa-dash .pa-perf__metric.is-scheme-orange { background: #FF6600; color: #fff; border-color: transparent; }
+        .pa-dash .pa-perf__metric.is-scheme-purple { background: #8B5CF6; color: #fff; border-color: transparent; }
+        .pa-dash .pa-perf__metric.is-scheme-amber { background: #D97706; color: #fff; border-color: transparent; }
         .pa-dash .pa-perf__metric.is-scheme-white {
             background: #fff;
             color: #1f1f1f;
@@ -164,7 +166,9 @@
         }
         html.light-mode .pa-dash .pa-perf__metric.is-scheme-blue,
         html.light-mode .pa-dash .pa-perf__metric.is-scheme-red,
-        html.light-mode .pa-dash .pa-perf__metric.is-scheme-orange {
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-orange,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-purple,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-amber {
             color: #ffffff !important;
         }
         html.light-mode .pa-dash .pa-perf__metric.is-scheme-blue .pa-perf__metric-value,
@@ -172,8 +176,57 @@
         html.light-mode .pa-dash .pa-perf__metric.is-scheme-red .pa-perf__metric-value,
         html.light-mode .pa-dash .pa-perf__metric.is-scheme-red .pa-perf__metric-label,
         html.light-mode .pa-dash .pa-perf__metric.is-scheme-orange .pa-perf__metric-value,
-        html.light-mode .pa-dash .pa-perf__metric.is-scheme-orange .pa-perf__metric-label {
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-orange .pa-perf__metric-label,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-purple .pa-perf__metric-value,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-purple .pa-perf__metric-label,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-amber .pa-perf__metric-value,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-amber .pa-perf__metric-label {
             color: #ffffff !important;
+        }
+        .pa-dash .pa-perf__title-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+        .pa-dash .pa-perf__menu {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .pa-dash .pa-perf__menu-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 102, 0, 0.35);
+            background: transparent;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+        }
+        .pa-dash .pa-perf__menu-btn:hover {
+            color: #fff;
+            border-color: #FF6600;
+            background: rgba(255, 102, 0, 0.12);
+        }
+        .pa-dash .pa-perf__menu-panel {
+            left: 0;
+            right: auto;
+            width: 220px;
+        }
+        .pa-dash .pa-card__head {
+            overflow: visible;
+        }
+        html.light-mode .pa-dash .pa-perf__menu-btn {
+            color: #5c5470 !important;
+            border-color: rgba(255, 102, 0, 0.32) !important;
+            background: #ffffff !important;
+        }
+        html.light-mode .pa-dash .pa-perf__menu-btn:hover {
+            color: #FF6600 !important;
+            border-color: #FF6600 !important;
+            background: #fff7f0 !important;
         }
         .pa-dash .pa-perf__metric-label {
             display: block;
@@ -1173,7 +1226,39 @@
     @if ($showPerformanceBlock)
     <section class="pa-card pa-perf">
         <div class="pa-card__head">
-            <h2 class="pa-card__title">Performance Over Time</h2>
+            <div class="pa-perf__title-row">
+                <h2 class="pa-card__title">Performance Over Time</h2>
+                <div class="pa-perf__menu" @click.outside="perfMenuOpen = false">
+                    <button
+                        type="button"
+                        class="pa-perf__menu-btn"
+                        @click="perfMenuOpen = !perfMenuOpen"
+                        :aria-expanded="perfMenuOpen"
+                        aria-label="Choose performance metrics"
+                        title="Choose metrics"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <circle cx="12" cy="5" r="1.8"/>
+                            <circle cx="12" cy="12" r="1.8"/>
+                            <circle cx="12" cy="19" r="1.8"/>
+                        </svg>
+                    </button>
+                    <div x-show="perfMenuOpen" x-cloak class="paid-advanced-columns-menu pa-perf__menu-panel promotix-slim-scroll">
+                        <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Metric cards (max 4)</p>
+                        <template x-for="opt in perfMetricCatalog" :key="'perf-opt-'+opt.key">
+                            <label class="paid-advanced-column-option" :class="{ 'is-locked': isPerfCardSelected(opt.key) && perfCardKeys.length <= 1 }">
+                                <input
+                                    type="checkbox"
+                                    :checked="isPerfCardSelected(opt.key)"
+                                    :disabled="isPerfCardSelected(opt.key) && perfCardKeys.length <= 1"
+                                    @change="togglePerfCard(opt.key)"
+                                >
+                                <span x-text="opt.label"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+            </div>
             <div class="pa-perf__right">
                 <div class="pa-kh-toggle" role="group" aria-label="Chart granularity">
                     <button
@@ -1199,7 +1284,7 @@
         <p class="pa-perf__sub">Real-time insights and performance overview.</p>
         <div class="pa-perf__controls">
             <div class="pa-perf__metrics">
-                <template x-for="series in pagePerformanceSeries()" :key="series.key">
+                <template x-for="series in pagePerformanceCards()" :key="series.key">
                     <button
                         type="button"
                         class="pa-perf__metric"
@@ -1209,6 +1294,8 @@
                             'is-scheme-red': series.scheme === 'red',
                             'is-scheme-orange': series.scheme === 'orange',
                             'is-scheme-white': series.scheme === 'white',
+                            'is-scheme-purple': series.scheme === 'purple',
+                            'is-scheme-amber': series.scheme === 'amber',
                         }"
                         @click="togglePerfSeries(series.key)"
                     >
@@ -1218,8 +1305,8 @@
                 </template>
             </div>
         </div>
-        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode, (perfActiveSeries || []).join(',') + '|' + (perfGranularity || 'daily') + '|' + (pagePerformance()?.granularity || '') + '|' + ((pagePerformanceSeries()[0]?.points || []).length) + '|' + ((pagePerformanceSeries()[0]?.labels || [])[0] || '') + '|' + (perfChartNonce || 0))"></div>
-        <p x-show="!(pagePerformanceSeries() || []).length" class="pa-empty">No performance data in this window.</p>
+        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode, (perfActiveSeries || []).join(',') + '|' + (perfCardKeys || []).join(',') + '|' + (perfGranularity || 'daily') + '|' + (pagePerformance()?.granularity || '') + '|' + ((pagePerformanceCards()[0]?.points || []).length) + '|' + ((pagePerformanceCards()[0]?.labels || [])[0] || '') + '|' + (perfChartNonce || 0))"></div>
+        <p x-show="!(pagePerformanceCards() || []).length" class="pa-empty">No performance data in this window.</p>
         <p class="pa-perf__sub" style="margin-top:8px" x-show="perfGranularity === 'hourly'" x-cloak>
             Showing hourly analytics for this range (up to 7 days).
         </p>
