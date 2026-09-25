@@ -37,7 +37,14 @@
 }
 .copilot-ticket-chip--new { max-width: none; }
 
-/* Keep orange header + white status in light mode (global `header` / `.text-white` flips break this) */
+/* Keep dark Copilot chrome in light mode (global `.text-white*` / `header` remaps break contrast) */
+html.light-mode .copilot-panel,
+.light-mode .copilot-panel {
+    background: #0F0F10 !important;
+    background-color: #0F0F10 !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 102, 0, 0.45) !important;
+}
 html.light-mode .copilot-panel > header.copilot-header,
 .light-mode .copilot-panel > header.copilot-header {
     background: #FF6600 !important;
@@ -45,15 +52,93 @@ html.light-mode .copilot-panel > header.copilot-header,
     color: #ffffff !important;
     border-color: rgba(255, 255, 255, 0.12) !important;
 }
-html.light-mode .copilot-panel > header.copilot-header .copilot-title,
-html.light-mode .copilot-panel > header.copilot-header .copilot-status,
-html.light-mode .copilot-panel > header.copilot-header .copilot-close,
-.light-mode .copilot-panel > header.copilot-header .copilot-title,
-.light-mode .copilot-panel > header.copilot-header .copilot-status,
-.light-mode .copilot-panel > header.copilot-header .copilot-close,
-html.light-mode .copilot-panel > header.copilot-header [class*='text-white'],
-.light-mode .copilot-panel > header.copilot-header [class*='text-white'] {
+html.light-mode .copilot-panel .text-white,
+html.light-mode .copilot-panel .text-white\/90,
+html.light-mode .copilot-panel .text-white\/85,
+html.light-mode .copilot-panel .text-white\/80,
+html.light-mode .copilot-panel .text-white\/70,
+html.light-mode .copilot-panel .text-white\/65,
+html.light-mode .copilot-panel .text-white\/60,
+html.light-mode .copilot-panel .text-white\/55,
+html.light-mode .copilot-panel .text-white\/50,
+html.light-mode .copilot-panel .text-white\/45,
+html.light-mode .copilot-panel .text-white\/40,
+html.light-mode .copilot-panel .text-white\/35,
+html.light-mode .copilot-panel [class*='text-white'],
+.light-mode .copilot-panel .text-white,
+.light-mode .copilot-panel .text-white\/90,
+.light-mode .copilot-panel .text-white\/85,
+.light-mode .copilot-panel .text-white\/80,
+.light-mode .copilot-panel .text-white\/70,
+.light-mode .copilot-panel .text-white\/65,
+.light-mode .copilot-panel .text-white\/60,
+.light-mode .copilot-panel .text-white\/55,
+.light-mode .copilot-panel .text-white\/50,
+.light-mode .copilot-panel .text-white\/45,
+.light-mode .copilot-panel .text-white\/40,
+.light-mode .copilot-panel .text-white\/35,
+.light-mode .copilot-panel [class*='text-white'] {
     color: #ffffff !important;
+}
+html.light-mode .copilot-panel .text-white\/90,
+.light-mode .copilot-panel .text-white\/90 { color: rgba(255, 255, 255, 0.9) !important; }
+html.light-mode .copilot-panel .text-white\/80,
+.light-mode .copilot-panel .text-white\/80 { color: rgba(255, 255, 255, 0.8) !important; }
+html.light-mode .copilot-panel .text-white\/70,
+.light-mode .copilot-panel .text-white\/70 { color: rgba(255, 255, 255, 0.7) !important; }
+html.light-mode .copilot-panel .text-white\/45,
+.light-mode .copilot-panel .text-white\/45 { color: rgba(255, 255, 255, 0.45) !important; }
+html.light-mode .copilot-panel .text-white\/40,
+.light-mode .copilot-panel .text-white\/40 { color: rgba(255, 255, 255, 0.4) !important; }
+html.light-mode .copilot-panel [class*='bg-[#1a1a1a]'],
+.light-mode .copilot-panel [class*='bg-[#1a1a1a]'] {
+    background-color: #1a1a1a !important;
+}
+html.light-mode .copilot-panel [class*='bg-[#0d0d0d]'],
+.light-mode .copilot-panel [class*='bg-[#0d0d0d]'] {
+    background-color: #0d0d0d !important;
+}
+html.light-mode .copilot-panel input,
+html.light-mode .copilot-panel textarea,
+.light-mode .copilot-panel input,
+.light-mode .copilot-panel textarea {
+    color: #ffffff !important;
+    background-color: #0d0d0d !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+}
+html.light-mode .copilot-panel input::placeholder,
+html.light-mode .copilot-panel textarea::placeholder,
+.light-mode .copilot-panel input::placeholder,
+.light-mode .copilot-panel textarea::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+html.light-mode .copilot-panel button.bg-\[\#FF6600\],
+html.light-mode .copilot-panel button[class*='bg-[#FF6600]'],
+.light-mode .copilot-panel button.bg-\[\#FF6600\],
+.light-mode .copilot-panel button[class*='bg-[#FF6600]'] {
+    background-color: #FF6600 !important;
+    color: #ffffff !important;
+}
+html.light-mode .copilot-panel .copilot-tickets,
+.light-mode .copilot-panel .copilot-tickets {
+    background: #141414 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html.light-mode .copilot-panel .copilot-ticket-chip:not(.is-on):not(.copilot-ticket-chip--new),
+.light-mode .copilot-panel .copilot-ticket-chip:not(.is-on):not(.copilot-ticket-chip--new) {
+    background: #1f1f1f !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+}
+html.light-mode .copilot-panel .text-amber-50,
+html.light-mode .copilot-panel .text-amber-100\/70,
+.light-mode .copilot-panel .text-amber-50,
+.light-mode .copilot-panel .text-amber-100\/70 {
+    color: #fffbeb !important;
+}
+html.light-mode .copilot-panel .text-\[\#FFB380\],
+.light-mode .copilot-panel .text-\[\#FFB380\] {
+    color: #FFB380 !important;
 }
 .copilot-status {
     color: rgba(255, 255, 255, 0.92);
