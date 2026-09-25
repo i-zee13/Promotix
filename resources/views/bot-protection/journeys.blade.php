@@ -17,6 +17,7 @@
     @promotix:date-range.window="onDateRange($event)"
 >
     <section class="mx-auto w-full min-w-0 px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
+        @include('partials.advanced-view-pager-styles')
         <style>
             .vj-page { color: rgba(255,255,255,.88); }
             .vj-head { display:flex; flex-direction:column; gap:14px; margin-bottom:18px; }
@@ -108,6 +109,25 @@
                 position: relative;
                 scrollbar-width: thin;
                 scrollbar-color: rgba(255,102,0,.45) transparent;
+            }
+            .vj-timeline-wrap {
+                display: flex;
+                flex-direction: column;
+                height: 380px;
+                max-height: 380px;
+                min-height: 380px;
+                min-width: 0;
+            }
+            .vj-timeline-wrap .vj-tab-body--timeline {
+                flex: 1 1 auto;
+                height: auto;
+                max-height: none;
+                min-height: 0;
+            }
+            .vj-timeline-wrap .adv-pager {
+                flex: 0 0 auto;
+                margin-top: 0;
+                border-radius: 0 0 8px 8px;
             }
             .vj-tab-body--paths {
                 overflow-x: auto;
@@ -747,9 +767,14 @@
             html.light-mode .vj-is__title,
             html.light-mode .vj-card__title-row { color: #121212 !important; }
             html.light-mode .vj-tab {
-                color: #ffffff !important;
-                border-color: #101010 !important;
-                background: #101010 !important;
+                color: #5c5470 !important;
+                border-color: rgba(255, 102, 0, 0.32) !important;
+                background: #ffffff !important;
+            }
+            html.light-mode .vj-tab:hover {
+                color: #FF6600 !important;
+                border-color: #FF6600 !important;
+                background: #fff7f0 !important;
             }
             html.light-mode .vj-tab.is-active {
                 background: var(--brand-primary, #FF6600) !important;
@@ -783,9 +808,9 @@
                 border-color: var(--brand-primary, #FF6600) !important;
             }
             html.light-mode .vj-mini-filters select {
-                background: #101010 !important;
-                border-color: #101010 !important;
-                color: #ffffff !important;
+                background: #ffffff !important;
+                border-color: rgba(255, 102, 0, 0.32) !important;
+                color: #2d2d3a !important;
             }
             html.light-mode .vj-tooltip {
                 background: #101010 !important;
@@ -1088,9 +1113,9 @@
             html.light-mode .vj-is__search input,
             html.light-mode .vj-is select,
             html.light-mode .vj-is__tools select {
-                background: #101010 !important;
-                border-color: #101010 !important;
-                color: #ffffff !important;
+                background: #ffffff !important;
+                border-color: rgba(255, 102, 0, 0.32) !important;
+                color: #2d2d3a !important;
             }
             html.light-mode .vj-sj-alert {
                 color: #5c5470 !important;
@@ -1318,7 +1343,8 @@
                         </div>
 
                         {{-- Event Timeline (multi-session lanes) --}}
-                        <div class="vj-tab-body" x-show="flowTab === 'timeline'">
+                        <div class="vj-timeline-wrap" x-show="flowTab === 'timeline'">
+                            <div class="vj-tab-body vj-tab-body--timeline">
                             <div class="vj-ev-legend">
                                 <span class="vj-ev-legend__item"><span class="vj-ev-icon is-page"></span> Page view</span>
                                 <span class="vj-ev-legend__item"><span class="vj-ev-icon is-scroll"></span> Scroll</span>
@@ -1372,6 +1398,25 @@
                                     </div>
                                 </template>
                                 <div class="vj-empty" x-show="!timelineSessions.length">No session timelines for this range.</div>
+                            </div>
+                            </div>
+                            <div class="adv-pager" x-show="timelineTotal > 0">
+                                <span class="adv-pager__label" x-text="timelinePaginationLabel()"></span>
+                                <div class="adv-pager__controls">
+                                    <div class="adv-pager__pages">
+                                        <button type="button" class="adv-pager__btn" :disabled="timelinePage <= 1" @click="setTimelinePage(timelinePage - 1)">‹</button>
+                                        <template x-for="item in timelinePageItems" :key="'tl-p-'+item">
+                                            <button type="button" class="adv-pager__btn" :class="item === timelinePage && 'is-active'" :disabled="item === '…'" @click="item !== '…' && setTimelinePage(item)" x-text="item"></button>
+                                        </template>
+                                        <button type="button" class="adv-pager__btn" :disabled="timelinePage >= timelinePageCount" @click="setTimelinePage(timelinePage + 1)">›</button>
+                                    </div>
+                                    <select class="adv-pager__select" x-model.number="timelinePerPage" @change="setTimelinePage(1)" aria-label="Rows per page">
+                                        <option :value="5">5 / page</option>
+                                        <option :value="8">8 / page</option>
+                                        <option :value="10">10 / page</option>
+                                        <option :value="20">20 / page</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
@@ -1945,6 +1990,8 @@ function visitorJourneyPage() {
         sessionSort: 'newest',
         sessionPage: 1,
         sessionPerPage: 5,
+        timelinePage: 1,
+        timelinePerPage: 8,
         kpis: [],
         flow: { columns: [], links: [] },
         commonPaths: [],
@@ -1996,8 +2043,43 @@ function visitorJourneyPage() {
             this.reload();
         },
 
+        get timelineTotal() {
+            return (this.sessions || []).length;
+        },
+        get timelinePageCount() {
+            return Math.max(1, Math.ceil(this.timelineTotal / Math.max(1, this.timelinePerPage)));
+        },
         get timelineSessions() {
-            return (this.sessions || []).slice(0, 8);
+            const per = Math.max(1, Number(this.timelinePerPage) || 8);
+            const page = Math.min(this.timelinePageCount, Math.max(1, Number(this.timelinePage) || 1));
+            const start = (page - 1) * per;
+            return (this.sessions || []).slice(start, start + per);
+        },
+        get timelinePageItems() {
+            return this.pagerPages(this.timelinePage, this.timelinePageCount);
+        },
+        timelinePaginationLabel() {
+            const total = this.timelineTotal;
+            if (!total) return 'Showing 0 to 0 of 0 results';
+            const per = Math.max(1, Number(this.timelinePerPage) || 8);
+            const page = Math.min(this.timelinePageCount, Math.max(1, Number(this.timelinePage) || 1));
+            const start = (page - 1) * per + 1;
+            const end = Math.min(total, page * per);
+            return `Showing ${start} to ${end} of ${Number(total).toLocaleString()} results`;
+        },
+        setTimelinePage(p) {
+            const next = Math.min(this.timelinePageCount, Math.max(1, Number(p) || 1));
+            this.timelinePage = next;
+        },
+        pagerPages(page, totalPages) {
+            const last = Math.max(1, Number(totalPages) || 1);
+            const current = Math.min(last, Math.max(1, Number(page) || 1));
+            const items = [];
+            for (let i = 1; i <= last; i++) {
+                if (i === 1 || i === last || Math.abs(i - current) <= 1) items.push(i);
+                else if (items[items.length - 1] !== '…') items.push('…');
+            }
+            return items;
         },
         get timeTicks() {
             const maxSec = this.timelineMaxSec;
@@ -2182,6 +2264,8 @@ function visitorJourneyPage() {
                 this.campaignOptions = data.meta?.campaigns || [];
                 this.selected = data.selected || this.sessions[0] || null;
                 this.timeline = data.timeline || this.selected?.timeline || [];
+                this.timelinePage = 1;
+                this.sessionPage = 1;
                 this.ensureSelectedEvent();
                 this.$nextTick(() => { /* allow flow svg recompute */ });
             } catch (e) {
@@ -2198,6 +2282,9 @@ function visitorJourneyPage() {
             }
             if (tab === 'timeline' || tab === 'sessions') {
                 this.ensureSelectedEvent();
+            }
+            if (tab === 'timeline') {
+                this.timelinePage = 1;
             }
             if (tab === 'sessions') {
                 this.sessionPage = 1;

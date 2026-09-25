@@ -348,11 +348,11 @@
             color: rgba(255, 255, 255, 0.45);
         }
         html.light-mode .pa-dash .pa-kh-toggle {
-            background: #101010 !important;
-            border-color: #101010 !important;
+            background: #ffffff !important;
+            border-color: rgba(255, 102, 0, 0.32) !important;
         }
         html.light-mode .pa-dash .pa-kh-toggle__btn {
-            color: #ffffff !important;
+            color: #5c5470 !important;
             background: transparent !important;
             opacity: 1 !important;
         }
@@ -365,7 +365,7 @@
         }
         html.light-mode .pa-dash .pa-kh-toggle__btn:disabled:not(.is-active) {
             opacity: 0.5;
-            color: rgba(255, 255, 255, 0.55) !important;
+            color: #8a8299 !important;
             background: transparent !important;
         }
         html.light-mode .pa-dash .pa-kh-toggle__hint {
@@ -1113,9 +1113,9 @@
             box-shadow: none !important;
         }
         html.light-mode .pa-dash .pa-kh-toggle__btn:not(.is-active) {
-            background: #101010 !important;
-            color: #ffffff !important;
-            border-color: #101010 !important;
+            background: transparent !important;
+            color: #5c5470 !important;
+            border-color: transparent !important;
         }
         html.light-mode .pa-dash .pa-geo__map {
             border: none !important;

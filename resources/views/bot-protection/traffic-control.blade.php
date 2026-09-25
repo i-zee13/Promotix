@@ -512,9 +512,14 @@
             }
 
             html.light-mode .tc-tab {
-                color: #ffffff !important;
-                border-color: #101010 !important;
-                background: #101010 !important;
+                color: #5c5470 !important;
+                border-color: rgba(255, 102, 0, 0.32) !important;
+                background: #ffffff !important;
+            }
+            html.light-mode .tc-tab:hover {
+                color: #FF6600 !important;
+                border-color: #FF6600 !important;
+                background: #fff7f0 !important;
             }
             html.light-mode .tc-tab.is-active {
                 background: #FF6600 !important;

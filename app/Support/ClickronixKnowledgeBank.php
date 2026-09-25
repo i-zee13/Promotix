@@ -252,7 +252,7 @@ class ClickronixKnowledgeBank
         if ($department) {
             return [
                 'answer' => "Absolutely — I can route you to **{$department}**.\n\n"
-                    ."Reply with a short summary of the issue (domain / error / what you already tried), or open a support ticket from this chat and we'll hand it off with context.",
+                    .'Reply with a short summary of the issue (domain / error / what you already tried) and we will hand it off with context.',
                 'title' => 'Live agent routing',
                 'related_page' => null,
                 'steps' => null,
@@ -276,15 +276,14 @@ class ClickronixKnowledgeBank
                 ."• Account & Access\n"
                 ."• Security Team\n"
                 ."• Privacy & Compliance\n"
-                ."• Sales / Account Specialist\n\n"
-                .'Or open a ticket below and we will attach this chat transcript.',
+                .'• Sales / Account Specialist',
             'title' => 'Live agent routing',
             'related_page' => null,
             'steps' => null,
             'image_url' => null,
             'confidence' => 0.9,
             'article_id' => null,
-            'offer_ticket' => true,
+            'offer_ticket' => false,
             'department' => 'General Support',
             'source' => 'live_agent_intent',
         ];
