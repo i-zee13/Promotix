@@ -47,7 +47,7 @@
                 flex-direction: column;
                 min-height: 148px;
                 border-radius: 10px;
-                border: 1px solid rgba(255, 102, 0, 0.55);
+                border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 55%, transparent);
                 background: #111111;
                 padding: 14px 14px 12px;
             }
@@ -64,8 +64,8 @@
             .pm-adv-kpi-card__icon.is-green,
             .pm-adv-kpi-card__icon.is-rose,
             .pm-adv-kpi-card__icon.is-amber {
-                background: rgba(255, 102, 0, 0.28);
-                color: #FFB380;
+                background: color-mix(in srgb, var(--brand-primary, #FF6600) 28%, transparent);
+                color: color-mix(in srgb, var(--brand-primary, #FF6600) 55%, white);
             }
             .pm-adv-kpi-card__label {
                 font-size: 11px;
@@ -499,7 +499,7 @@
                 display: block;
                 height: 100%;
                 border-radius: 999px;
-                background: #FF6600;
+                background: var(--brand-primary, #FF6600);
             }
             .pm-adv-country-row__meta {
                 font-size: 11px;
@@ -690,27 +690,27 @@
             html.light-mode .pm-adv-kpi-card__icon.is-green,
             html.light-mode .pm-adv-kpi-card__icon.is-rose,
             html.light-mode .pm-adv-kpi-card__icon.is-amber {
-                background: rgba(255, 102, 0, 0.12);
-                color: #FF6600;
+                background: color-mix(in srgb, var(--brand-primary, #FF6600) 12%, transparent);
+                color: var(--brand-primary, #FF6600);
             }
             html.light-mode .pm-adv-donut__inner {
                 background: #ffffff;
             }
             html.light-mode .pm-adv-country-row__track {
-                background: rgba(255, 102, 0, 0.1);
+                background: color-mix(in srgb, var(--brand-primary, #FF6600) 10%, transparent);
             }
             html.light-mode .pm-adv-hip__btn {
                 background: #ffffff;
-                border-color: rgba(255, 102, 0, 0.28);
+                border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 28%, transparent);
                 color: #5c5470;
             }
             html.light-mode .pm-adv-hip__btn:hover {
                 background: #fff4eb;
-                color: #FF6600;
-                border-color: rgba(255, 102, 0, 0.45);
+                color: var(--brand-primary, #FF6600);
+                border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 45%, transparent);
             }
             html.light-mode .pm-adv-hip-card:hover {
-                border-color: #FF6600;
+                border-color: var(--brand-primary, #FF6600);
                 background: #fffaf5;
             }
             html.light-mode .pm-adv-hip-card__badge {
@@ -726,6 +726,116 @@
                 background: #ffffff;
                 border-color: rgba(255, 102, 0, 0.28);
                 box-shadow: 0 1px 0 rgba(255, 102, 0, 0.05);
+            }
+
+            /* Column Groups / Columns menus — beat global .light-mode .text-white/* remaps */
+            .pm-col-menu {
+                border: 1px solid rgba(255, 255, 255, 0.22);
+                border-radius: 8px;
+                background: #0f0e0e;
+                padding: 10px;
+                box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+                color: #e8e8e8;
+            }
+            .pm-col-menu__title {
+                margin: 0 0 6px;
+                padding: 0 2px;
+                font-size: 10px;
+                font-weight: 650;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: rgba(255, 255, 255, 0.55) !important;
+            }
+            .pm-col-menu__hint {
+                margin: 0 0 8px;
+                padding: 0 2px;
+                font-size: 9px;
+                line-height: 1.35;
+                color: rgba(255, 255, 255, 0.42) !important;
+            }
+            .pm-col-menu__item {
+                display: block;
+                width: 100%;
+                margin: 0 0 4px;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                border-radius: 6px;
+                background: transparent;
+                padding: 7px 10px;
+                text-align: left;
+                font-size: 11px;
+                line-height: 1.3;
+                color: rgba(255, 255, 255, 0.88) !important;
+                cursor: pointer;
+            }
+            .pm-col-menu__item:hover {
+                background: rgba(255, 255, 255, 0.08);
+                border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent);
+                color: #ffffff !important;
+            }
+            .pm-col-menu__item.is-active {
+                background: color-mix(in srgb, var(--brand-primary, #FF6600) 18%, transparent);
+                border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 65%, transparent);
+                color: #ffffff !important;
+            }
+            .pm-col-menu__clear {
+                display: block;
+                width: 100%;
+                margin-top: 4px;
+                border: 0;
+                background: transparent;
+                padding: 6px 8px;
+                text-align: left;
+                font-size: 10px;
+                color: rgba(255, 255, 255, 0.5) !important;
+                cursor: pointer;
+            }
+            .pm-col-menu__clear:hover { color: rgba(255, 255, 255, 0.85) !important; }
+
+            html.light-mode .pm-col-menu {
+                background: #ffffff !important;
+                border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 35%, transparent) !important;
+                color: #1a1a1a !important;
+                box-shadow: 0 10px 28px color-mix(in srgb, var(--brand-primary, #FF6600) 12%, transparent);
+            }
+            html.light-mode .pm-col-menu__title {
+                color: #9a3412 !important;
+            }
+            html.light-mode .pm-col-menu__hint {
+                color: #6b6578 !important;
+            }
+            html.light-mode .pm-col-menu__item {
+                background: #fff7f0 !important;
+                border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 28%, transparent) !important;
+                color: #1a1a1a !important;
+            }
+            html.light-mode .pm-col-menu__item:hover {
+                background: #ffe8d6 !important;
+                border-color: color-mix(in srgb, var(--brand-primary, #FF6600) 50%, transparent) !important;
+                color: #121212 !important;
+            }
+            html.light-mode .pm-col-menu__item.is-active {
+                background: color-mix(in srgb, var(--brand-primary, #FF6600) 16%, transparent) !important;
+                border-color: var(--brand-primary, #FF6600) !important;
+                color: #9a3412 !important;
+                font-weight: 650;
+            }
+            html.light-mode .pm-col-menu__clear {
+                color: #6b6578 !important;
+            }
+            html.light-mode .pm-col-menu__clear:hover {
+                color: var(--brand-primary, #FF6600) !important;
+            }
+            html.light-mode .paid-advanced-columns-menu {
+                background: #ffffff !important;
+                border-color: rgba(255, 102, 0, 0.35) !important;
+                color: #1a1a1a !important;
+            }
+            html.light-mode .paid-advanced-columns-menu .pm-col-menu__title,
+            html.light-mode .paid-advanced-columns-menu .pm-col-menu__hint {
+                color: inherit;
+            }
+            html.light-mode .paid-advanced-column-option {
+                color: #2d2d3a !important;
             }
             html.light-mode .pm-adv-main-card .pm-adv-table-grid--head {
                 background: #ffe8d6;
@@ -885,8 +995,8 @@
             </template>
         </div>
 
-        <section class="pm-adv-main-card overflow-visible rounded-[12px] border border-[#FF6600]">
-            <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] bg-[#FF6600] px-[16px] py-[12px]">
+        <section class="pm-adv-main-card overflow-visible rounded-[12px] border" style="border-color: var(--brand-primary);">
+            <div class="flex flex-wrap items-center justify-between gap-[10px] overflow-visible rounded-t-[12px] px-[16px] py-[12px]" style="background: var(--brand-primary);">
                 <h2 class="text-[18px] font-normal text-white sm:text-[20px]">Advanced View</h2>
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-[10px]">
                     <div class="relative" @click.outside="groupMenuOpen = false">
@@ -897,21 +1007,23 @@
                             <span class="truncate" x-text="activeColumnGroupLabel"></span>
                             <svg class="h-[12px] w-[12px] shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
-                        <div x-show="groupMenuOpen" x-cloak class="absolute left-0 top-[calc(100%+6px)] z-50 max-h-[320px] w-[240px] overflow-y-auto rounded-[8px] border border-white/20 bg-[#0f0e0e] p-[6px] shadow-lg promotix-slim-scroll">
-                            <p class="mb-[6px] px-[8px] text-[9px] font-semibold uppercase tracking-wide text-white/45">Main groups</p>
+                        <div x-show="groupMenuOpen" x-cloak class="pm-col-menu absolute left-0 top-[calc(100%+6px)] z-50 max-h-[320px] w-[240px] overflow-y-auto promotix-slim-scroll">
+                            <p class="pm-col-menu__title">Column groups</p>
+                            <p class="pm-col-menu__hint">Click a group to show its fields. IP stays first in every group.</p>
                             <button type="button"
-                                class="mb-[2px] block w-full rounded-[6px] px-[8px] py-[6px] text-left text-[11px] text-white/70 hover:bg-white/10"
-                                :class="{ 'bg-white/10 text-white': !activeColumnGroup }"
+                                class="pm-col-menu__item"
+                                :class="{ 'is-active': !activeColumnGroup }"
                                 @click="clearColumnGroup(); groupMenuOpen = false">
                                 All columns
                             </button>
                             <template x-for="group in columnGroups" :key="'main-' + group.id">
                                 <button type="button"
-                                    class="mb-[2px] block w-full rounded-[6px] px-[8px] py-[6px] text-left text-[11px] text-white/85 hover:bg-white/10"
-                                    :class="{ 'border border-[#FF6600]/50 bg-[#FF6600]/15 text-white': activeColumnGroup === group.id }"
+                                    class="pm-col-menu__item"
+                                    :class="{ 'is-active': activeColumnGroup === group.id }"
                                     @click="applyColumnGroup(group.id); groupMenuOpen = false"
                                     x-text="group.label"></button>
                             </template>
+                            <button type="button" class="pm-col-menu__clear" @click="clearColumnGroup(); groupMenuOpen = false">Clear group focus</button>
                         </div>
                     </div>
                     <a
@@ -1006,28 +1118,28 @@
                             Columns
                             <span class="rounded-[3px] bg-white/15 px-[5px] text-[10px]" x-text="visibleColumns.length"></span>
                         </button>
-                        <div x-show="filterMenuOpen" x-cloak class="paid-advanced-columns-menu promotix-slim-scroll">
-                            <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Column groups</p>
-                            <p class="mb-[6px] text-[9px] leading-snug text-white/40">Click a group to show its fields. IP stays first in every group.</p>
+                        <div x-show="filterMenuOpen" x-cloak class="paid-advanced-columns-menu pm-col-menu promotix-slim-scroll">
+                            <p class="pm-col-menu__title">Column groups</p>
+                            <p class="pm-col-menu__hint">Click a group to show its fields. IP stays first in every group.</p>
                             <div class="mb-[10px] flex flex-col gap-[4px]">
                                 <template x-for="group in columnGroups" :key="group.id">
                                     <button type="button"
-                                        class="rounded-[6px] border border-white/15 px-[8px] py-[5px] text-left text-[11px] text-white/85 hover:bg-white/10"
-                                        :class="{ 'border-[#FF6600]/60 bg-[#FF6600]/15': activeColumnGroup === group.id }"
+                                        class="pm-col-menu__item"
+                                        :class="{ 'is-active': activeColumnGroup === group.id }"
                                         @click="applyColumnGroup(group.id)"
                                         x-text="group.label"></button>
                                 </template>
-                                <button type="button" class="rounded-[6px] px-[8px] py-[5px] text-left text-[10px] text-white/50 hover:text-white/80" @click="clearColumnGroup()">Clear group focus</button>
+                                <button type="button" class="pm-col-menu__clear" @click="clearColumnGroup()">Clear group focus</button>
                             </div>
-                            <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Primary columns</p>
+                            <p class="pm-col-menu__title">Primary columns</p>
                             <template x-for="col in columnCatalog.filter(c => c.primary)" :key="col.key">
                                 <label class="paid-advanced-column-option is-locked">
                                     <input type="checkbox" checked disabled>
                                     <span x-text="col.label"></span>
                                 </label>
                             </template>
-                            <p class="mb-[8px] mt-[10px] text-[10px] font-semibold uppercase text-white/55">Optional columns</p>
-                            <p class="mb-[6px] text-[9px] leading-snug text-white/40">IP detection fields show PromoTix intel (VPN, proxy, risk). Enable below.</p>
+                            <p class="pm-col-menu__title" style="margin-top:10px">Optional columns</p>
+                            <p class="pm-col-menu__hint">IP detection fields show PromoTix intel (VPN, proxy, risk). Enable below.</p>
                             <template x-for="col in columnCatalog.filter(c => !c.primary)" :key="col.key">
                                 <label class="paid-advanced-column-option">
                                     <input type="checkbox" :value="col.key" :checked="optionalColumnKeys.includes(col.key)" @change="toggleOptionalColumn(col.key)">
@@ -1298,7 +1410,8 @@
                             <div class="rounded-[6px] border border-white/10 bg-white/5 px-[10px] py-[8px]">
                                 <div class="flex flex-wrap items-center justify-between gap-[6px]">
                                     <span class="rounded-[4px] px-[6px] py-[1px] text-[9px] font-semibold uppercase"
-                                          :class="event.type === 'click' ? 'bg-[#FF6600]/40 text-white' : 'bg-white/15 text-white/80'"
+                                          :class="event.type === 'click' ? 'text-white' : 'bg-white/15 text-white/80'"
+                                          :style="event.type === 'click' ? 'background: color-mix(in srgb, var(--brand-primary) 40%, transparent)' : ''"
                                           x-text="event.type"></span>
                                     <span class="text-[10px] text-white/55" x-text="formatDateTime(event.at)"></span>
                                 </div>
@@ -1587,7 +1700,8 @@
                     <button type="button" class="rounded border border-white/20 px-[8px] py-[4px] text-[10px] text-white/85 hover:bg-white/10" @click="toggleRecordingPlayback()" x-text="recordingPlaying ? 'Pause' : 'Play'"></button>
                     <template x-for="spd in [0.5, 1, 2, 4]" :key="'spd-'+spd">
                         <button type="button" class="rounded border px-[8px] py-[4px] text-[10px]"
-                                :class="recordingSpeed === spd ? 'border-[#FF6600] bg-[#FF6600]/30 text-white' : 'border-white/20 text-white/70 hover:bg-white/10'"
+                                :class="recordingSpeed === spd ? 'text-white' : 'border-white/20 text-white/70 hover:bg-white/10'"
+                                :style="recordingSpeed === spd ? 'border-color: var(--brand-primary); background: color-mix(in srgb, var(--brand-primary) 30%, transparent)' : ''"
                                 @click="setRecordingSpeed(spd)" x-text="spd + 'x'"></button>
                     </template>
                     <button type="button" class="rounded border border-red-400/40 px-[8px] py-[4px] text-[10px] text-red-200 hover:bg-red-500/20" @click="deleteRecording()" x-show="recordingModal.id">Delete recording</button>
@@ -1607,7 +1721,7 @@
                         <template x-for="(event, idx) in (recordingModal.timeline || [])" :key="'tl-'+idx+'-'+event.t">
                             <div class="rounded-[6px] border border-white/10 bg-white/5 px-[10px] py-[8px]">
                                 <div class="flex flex-wrap items-center justify-between gap-[6px]">
-                                    <span class="rounded-[4px] px-[6px] py-[1px] text-[9px] font-semibold uppercase bg-[#FF6600]/40 text-white" x-text="event.label"></span>
+                                    <span class="rounded-[4px] px-[6px] py-[1px] text-[9px] font-semibold uppercase text-white" style="background: color-mix(in srgb, var(--brand-primary) 40%, transparent)" x-text="event.label"></span>
                                     <span class="text-[10px] text-white/55" x-text="formatRecordingMs(event.t)"></span>
                                 </div>
                                 <p class="mt-1 break-all text-[11px] text-white/80" x-text="event.detail || '—'"></p>

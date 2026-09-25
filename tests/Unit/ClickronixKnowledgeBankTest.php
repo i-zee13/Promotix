@@ -69,4 +69,34 @@ class ClickronixKnowledgeBankTest extends TestCase
         $this->assertStringContainsStringIgnoringCase('Analytics', $result['answer']);
         $this->assertLessThan(800, strlen($result['answer']));
     }
+
+    #[Test]
+    public function it_answers_domain_connect_followup_without_billing_or_prompt_leak(): void
+    {
+        ClickronixKnowledgeBank::flushCache();
+
+        $result = GuidanceService::answer(
+            "i saw but i dont know how to connect",
+            null,
+            'domain tracking'
+        );
+
+        $this->assertStringContainsStringIgnoringCase('Domains', $result['answer']);
+        $this->assertStringContainsStringIgnoringCase('Setup', $result['answer']);
+        $this->assertStringNotContainsStringIgnoringCase('Bot should answer', $result['answer']);
+        $this->assertStringNotContainsStringIgnoringCase('Upgrade under your current plan', $result['answer']);
+        $this->assertDoesNotMatchRegularExpression('/^Bot should/im', $result['answer']);
+    }
+
+    #[Test]
+    public function it_strips_bot_should_answer_meta_from_billing_faq(): void
+    {
+        ClickronixKnowledgeBank::flushCache();
+
+        $result = GuidanceService::answer('I want to upgrade my limits but I dont know how');
+
+        $this->assertStringContainsStringIgnoringCase('Billing', $result['answer']);
+        $this->assertStringNotContainsStringIgnoringCase('Bot should answer', $result['answer']);
+        $this->assertStringNotContainsStringIgnoringCase('high-confidence', $result['answer']);
+    }
 }

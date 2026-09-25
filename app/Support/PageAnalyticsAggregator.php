@@ -347,7 +347,24 @@ class PageAnalyticsAggregator
             }
         }
 
-        $recordingStats = $this->recordingCommerceStats($domainIds, $from, $to, $filters);
+        try {
+            $recordingStats = $this->recordingCommerceStats($domainIds, $from, $to, $filters);
+        } catch (\Throwable $e) {
+            report($e);
+            $recordingStats = [
+                'purchases' => 0,
+                'revenue' => 0.0,
+                'transactions' => 0,
+                'trend' => [],
+                'cta' => 0,
+                'tel' => 0,
+                'forms' => 0,
+                'carts' => 0,
+                'checkouts' => 0,
+                'product_views' => 0,
+                'high_value_sessions' => [],
+            ];
+        }
         $purchases = max((int) $recordingStats['purchases'], count($convertingSessions));
         $revenue = (float) $recordingStats['revenue'];
         $transactions = max((int) $recordingStats['transactions'], $purchases);
@@ -567,7 +584,7 @@ class PageAnalyticsAggregator
             'keywords' => $keywordRows,
             'headlines' => $this->rankList($headlines, $total, 'headline'),
             'keyword_headlines' => $this->rankComboList($keywordHeadlines, $total),
-            ...$this->buildSiteKeywordHeadlineStats($domainIds, $from, $to, $filters),
+            ...$this->safeSiteKeywordHeadlineStats($domainIds, $from, $to, $filters),
             'geo' => $this->chartRows(collect($geoSource)->map(fn ($v, $k) => [
                 'key' => $k,
                 'code' => $k,
@@ -1057,54 +1074,64 @@ class PageAnalyticsAggregator
         $revenue = 0.0;
         $purchases = 0;
         $forms = 0;
+        $ctaFromEvents = 0;
+        $telFromEvents = 0;
         $carts = 0;
         $checkouts = 0;
         $trendBuckets = [];
         $highValue = [];
 
         foreach ($recordings as $rec) {
-            $events = json_decode((string) ($rec->events ?? '[]'), true);
-            if (! is_array($events)) {
-                continue;
-            }
-            $analysis = SessionBehaviorAnalyzer::analyze($events, (int) ($rec->duration_ms ?? 0));
-            $forms += (int) ($analysis['form_submits'] ?? 0);
-            $carts += (int) ($analysis['add_to_cart'] ?? 0);
-            $checkouts += (int) ($analysis['checkouts'] ?? 0);
-            $dayPurchases = (int) ($analysis['purchases'] ?? 0);
-            $purchases += $dayPurchases;
-
-            $dayRevenue = 0.0;
-            $product = null;
-            foreach ($events as $ev) {
-                if (! is_array($ev)) {
+            try {
+                $events = json_decode((string) ($rec->events ?? '[]'), true);
+                if (! is_array($events)) {
                     continue;
                 }
-                $type = strtolower((string) ($ev['type'] ?? ''));
-                if (in_array($type, ['purchase', 'sale', 'order', 'transaction'], true)) {
-                    $val = (float) ($ev['revenue'] ?? $ev['value'] ?? $ev['amount'] ?? 0);
-                    if ($val > 0) {
-                        $dayRevenue += $val;
-                        $revenue += $val;
+                $analysis = SessionBehaviorAnalyzer::analyze($events, (int) ($rec->duration_ms ?? 0));
+                $forms += (int) ($analysis['form_submits'] ?? 0);
+                // Match form handling: lift CTA/tel from recording JSON when columns / behavior rows under-count.
+                $ctaFromEvents += (int) ($analysis['cta_clicks'] ?? 0);
+                $telFromEvents += (int) ($analysis['tel_clicks'] ?? 0);
+                $carts += (int) ($analysis['add_to_cart'] ?? 0);
+                $checkouts += (int) ($analysis['checkouts'] ?? 0);
+                $dayPurchases = (int) ($analysis['purchases'] ?? 0);
+                $purchases += $dayPurchases;
+
+                $dayRevenue = 0.0;
+                $product = null;
+                foreach ($events as $ev) {
+                    if (! is_array($ev)) {
+                        continue;
                     }
-                    $product = $product ?: ($ev['product'] ?? $ev['name'] ?? $ev['item'] ?? null);
+                    $type = strtolower((string) ($ev['type'] ?? ''));
+                    if (in_array($type, ['purchase', 'sale', 'order', 'transaction'], true)) {
+                        $val = (float) ($ev['revenue'] ?? $ev['value'] ?? $ev['amount'] ?? 0);
+                        if ($val > 0) {
+                            $dayRevenue += $val;
+                            $revenue += $val;
+                        }
+                        $product = $product ?: ($ev['product'] ?? $ev['name'] ?? $ev['item'] ?? null);
+                    }
                 }
-            }
 
-            if ($dayRevenue > 0 || $dayPurchases > 0) {
-                $highValue[] = [
-                    'session_id' => $rec->session_id ?? null,
-                    'ip' => $rec->ip ?? null,
-                    'revenue' => round($dayRevenue, 2),
-                    'revenue_label' => '$'.number_format($dayRevenue, 2),
-                    'product' => $product ? (string) $product : 'Purchase',
-                    'device' => $rec->device ?? '—',
-                    'at' => (string) ($rec->created_at ?? ''),
-                ];
-            }
+                if ($dayRevenue > 0 || $dayPurchases > 0) {
+                    $highValue[] = [
+                        'session_id' => $rec->session_id ?? null,
+                        'ip' => $rec->ip ?? null,
+                        'revenue' => round($dayRevenue, 2),
+                        'revenue_label' => '$'.number_format($dayRevenue, 2),
+                        'product' => $product ? (string) $product : 'Purchase',
+                        'device' => $rec->device ?? '—',
+                        'at' => (string) ($rec->created_at ?? ''),
+                    ];
+                }
 
-            $day = Carbon::parse($rec->created_at)->toDateString();
-            $trendBuckets[$day] = ($trendBuckets[$day] ?? 0) + ($dayRevenue > 0 ? $dayRevenue : $dayPurchases);
+                $day = Carbon::parse($rec->created_at)->toDateString();
+                $trendBuckets[$day] = ($trendBuckets[$day] ?? 0) + ($dayRevenue > 0 ? $dayRevenue : $dayPurchases);
+            } catch (\Throwable) {
+                // Skip corrupt recording payloads so one bad session cannot blank the dashboard.
+                continue;
+            }
         }
 
         usort($highValue, fn ($a, $b) => ($b['revenue'] <=> $a['revenue']));
@@ -1112,6 +1139,8 @@ class PageAnalyticsAggregator
 
         ksort($trendBuckets);
         $defaults['forms'] = max($defaults['forms'], $forms);
+        $defaults['cta'] = max($defaults['cta'], $ctaFromEvents);
+        $defaults['tel'] = max($defaults['tel'], $telFromEvents);
         $defaults['carts'] = max($defaults['carts'], $carts);
         $defaults['checkouts'] = max($defaults['checkouts'], $checkouts);
         $defaults['purchases'] = max($defaults['purchases'], $purchases);
@@ -1461,6 +1490,26 @@ class PageAnalyticsAggregator
     /**
      * On-site titles (document.title) and meta keywords from behavior events.
      *
+     * @param  list<int>  $domainIds
+     * @param  array<string, string>  $filters
+     * @return array{site_keywords: list<array<string, mixed>>, site_headlines: list<array<string, mixed>>, site_keyword_headlines: list<array<string, mixed>>}
+     */
+    private function safeSiteKeywordHeadlineStats(array $domainIds, Carbon $from, Carbon $to, array $filters): array
+    {
+        try {
+            return $this->buildSiteKeywordHeadlineStats($domainIds, $from, $to, $filters);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [
+                'site_keywords' => [],
+                'site_headlines' => [],
+                'site_keyword_headlines' => [],
+            ];
+        }
+    }
+
+    /**
      * @param  list<int>  $domainIds
      * @param  array<string, string>  $filters
      * @return array{site_keywords: list<array<string, mixed>>, site_headlines: list<array<string, mixed>>, site_keyword_headlines: list<array<string, mixed>>}

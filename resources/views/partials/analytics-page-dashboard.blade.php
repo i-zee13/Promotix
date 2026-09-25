@@ -149,6 +149,32 @@
         }
         .pa-dash .pa-perf__metric.is-scheme-white .pa-perf__metric-value { color: #111; }
         .pa-dash .pa-perf__metric.is-scheme-white .pa-perf__metric-label { color: rgba(0,0,0,0.55); }
+        /* Light mode: pure white card vanishes on cream/white panels — use slate chip instead */
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-white,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-white.is-active {
+            background: #1f2937 !important;
+            color: #ffffff !important;
+            border-color: #1f2937 !important;
+        }
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-white .pa-perf__metric-value {
+            color: #ffffff !important;
+        }
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-white .pa-perf__metric-label {
+            color: rgba(255, 255, 255, 0.88) !important;
+        }
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-blue,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-red,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-orange {
+            color: #ffffff !important;
+        }
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-blue .pa-perf__metric-value,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-blue .pa-perf__metric-label,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-red .pa-perf__metric-value,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-red .pa-perf__metric-label,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-orange .pa-perf__metric-value,
+        html.light-mode .pa-dash .pa-perf__metric.is-scheme-orange .pa-perf__metric-label {
+            color: #ffffff !important;
+        }
         .pa-dash .pa-perf__metric-label {
             display: block;
             font-size: 11px;

@@ -518,16 +518,27 @@ class TagController extends Controller
       if (!el || !el.tagName) return false;
       var tag = String(el.tagName).toUpperCase();
       if (el.getAttribute && (el.getAttribute('data-cta') != null || el.getAttribute('data-action') === 'cta')) return true;
+      if (el.getAttribute && String(el.getAttribute('role') || '').toLowerCase() === 'button') return true;
       var cls = String(el.className || '').toLowerCase();
       var id = String(el.id || '').toLowerCase();
       var hay = cls + ' ' + id;
-      if (/\\b(cta|call-to-action|btn-primary|button-primary|btn-cta|convert|signup|sign-up|buy-now|get-started|btn\\b|button\\b|wp-block-button|elementor-button|submit)\\b/.test(hay)) {
+      if (/\\b(cta|call-to-action|btn-primary|button-primary|btn-cta|convert|signup|sign-up|buy-now|get-started|btn\\b|button\\b|wp-block-button|elementor-button|submit|hero-action|action-btn|primary-action)\\b/.test(hay)) {
         return true;
       }
       if (tag === 'BUTTON') return true;
       if (tag === 'INPUT') {
         var t = String(el.type || '').toLowerCase();
         if (t === 'submit' || t === 'button') return true;
+      }
+      var text = '';
+      try { text = String(el.innerText || el.textContent || el.value || '').replace(/\\s+/g, ' ').trim().slice(0, 80).toLowerCase(); } catch (errT) { text = ''; }
+      if (text && /\\b(get\\s*started|shop\\s*now|buy\\s*now|order\\s*now|order\\s*online|sign\\s*up|signup|subscribe|check\\s*availability|check\\s*avail|see\\s*(plans|pricing|offers)|view\\s*(plans|pricing|offers)|compare\\s*plans|request\\s*(a\\s*)?quote|get\\s*(a\\s*)?quote|apply\\s*now|learn\\s*more|contact\\s*us|call\\s*now|continue|next\\s*step|submit|send|book\\s*now|schedule|claim\\s*(offer|deal)|find\\s*(a\\s*)?plan|choose\\s*(a\\s*)?plan|zip\\s*check|enter\\s*(your\\s*)?zip)\\b/.test(text)) {
+        return true;
+      }
+      var href = '';
+      try { href = String(el.href || (el.getAttribute && el.getAttribute('href')) || '').toLowerCase(); } catch (errH) { href = ''; }
+      if (href && /(order|checkout|signup|sign-up|subscribe|quote|apply|contact|pricing|plans?|cart|buy|shop|get-started|availability|offer|promo|convert)/.test(href)) {
+        if (tag === 'A' || tag === 'BUTTON' || tag === 'INPUT') return true;
       }
       if (tag === 'A' && /\\b(btn|button|cta)\\b/.test(hay)) return true;
       return false;

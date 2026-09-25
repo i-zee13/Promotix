@@ -21,6 +21,13 @@ class SessionClickClassifierTest extends TestCase
         $this->assertFalse(SessionClickClassifier::isCtaElement('A', 'nav-link', 'menu-home'));
     }
 
+    public function test_classifies_cta_by_label_copy_without_btn_class(): void
+    {
+        $this->assertTrue(SessionClickClassifier::isCtaElement('A', 'hero-link', '', [], 'Check Availability'));
+        $this->assertTrue(SessionClickClassifier::isCtaElement('A', '', '', [], '', 'https://example.com/order-now'));
+        $this->assertFalse(SessionClickClassifier::isCtaElement('A', 'nav-link', '', [], 'Home'));
+    }
+
     public function test_classifies_click_event_without_explicit_flags_using_class(): void
     {
         $classified = SessionClickClassifier::classifyClickEvent([
@@ -32,5 +39,18 @@ class SessionClickClassifierTest extends TestCase
 
         $this->assertTrue($classified['cta']);
         $this->assertFalse($classified['tel']);
+    }
+
+    public function test_classifies_plain_click_with_cta_label_text(): void
+    {
+        $classified = SessionClickClassifier::classifyClickEvent([
+            'type' => 'click',
+            'tag' => 'A',
+            'class' => 'provider-card',
+            'text' => 'See Plans',
+            'href' => 'https://example.com/verizon',
+        ]);
+
+        $this->assertTrue($classified['cta']);
     }
 }

@@ -2211,8 +2211,14 @@ function botProtectionFigma(config = {}) {
             if (!this.filters.from || !this.filters.to) {
                 const today = new Date();
                 const start = new Date(today.getTime() - 6 * 86400000);
-                this.filters.from = start.toISOString().slice(0, 10);
-                this.filters.to = today.toISOString().slice(0, 10);
+                const isoLocal = (d) => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                };
+                this.filters.from = isoLocal(start);
+                this.filters.to = isoLocal(today);
             }
             await this.reload();
             window.addEventListener('promotix:date-range', () => {
@@ -2354,15 +2360,21 @@ function botProtectionFigma(config = {}) {
                 }
                 this.summary = summary;
 
-                const [traffic, trends, th, ib, c, ds, pageAnalytics] = await Promise.all([
-                    fetch(`/bot-protection/traffic-breakdown?${qs}`).then(r => this.parseJson(r)),
-                    fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(r => this.parseJson(r)),
-                    fetch(`/bot-protection/threat-groups?${qs}`).then(r => this.parseJson(r)),
-                    fetch(`/bot-protection/invalid-breakdown?${qs}`).then(r => this.parseJson(r)),
-                    fetch(`/bot-protection/countries?${qs}`).then(r => this.parseJson(r)),
-                    fetch(`/bot-protection/domains-summary?${qs}`).then(r => this.parseJson(r)),
-                    fetch(`/bot-protection/page-analytics?${qs}`).then(r => this.parseJson(r)),
+                const [traffic, trends, th, ib, c, ds, pageAnalyticsPack] = await Promise.all([
+                    fetch(`/bot-protection/traffic-breakdown?${qs}`).then(async (r) => ({ ok: r.ok, data: await this.parseJson(r) })),
+                    fetch(`/bot-protection/invalid-traffic-trends?${qs}`).then(async (r) => ({ ok: r.ok, data: await this.parseJson(r) })),
+                    fetch(`/bot-protection/threat-groups?${qs}`).then(async (r) => ({ ok: r.ok, data: await this.parseJson(r) })),
+                    fetch(`/bot-protection/invalid-breakdown?${qs}`).then(async (r) => ({ ok: r.ok, data: await this.parseJson(r) })),
+                    fetch(`/bot-protection/countries?${qs}`).then(async (r) => ({ ok: r.ok, data: await this.parseJson(r) })),
+                    fetch(`/bot-protection/domains-summary?${qs}`).then(async (r) => ({ ok: r.ok, data: await this.parseJson(r) })),
+                    fetch(`/bot-protection/page-analytics?${qs}`).then(async (r) => ({ ok: r.ok, status: r.status, data: await this.parseJson(r) })),
                 ]);
+                const pageAnalytics = pageAnalyticsPack?.data || {};
+                if (!pageAnalyticsPack?.ok) {
+                    this.loadError = pageAnalytics.error
+                        || pageAnalytics.message
+                        || `Page analytics failed to load (${pageAnalyticsPack?.status || 'error'}).`;
+                }
                 this.pageAnalytics = pageAnalytics?.kpis ? pageAnalytics : null;
                 const g = this.pageAnalytics?.performance?.granularity;
                 if (g === 'hourly' || g === 'daily') {
@@ -2371,16 +2383,16 @@ function botProtectionFigma(config = {}) {
                     this.perfGranularity = 'hourly';
                 }
                 this.paintGeoMap();
-            this.invalidTrends = trends;
-            this.countries = c;
-                this.domainsList = Array.isArray(ds) ? ds : [];
+            this.invalidTrends = trends?.data || trends;
+            this.countries = c?.data || c;
+                this.domainsList = Array.isArray(ds?.data) ? ds.data : (Array.isArray(ds) ? ds : []);
                 this.cache = {
-                    traffic,
-                    th,
-                    ib: ib?.invalid_bot ?? { labels: [], values: [] },
-                    mal: ib?.invalid_malicious ?? { labels: [], values: [] },
-                    reasons: ib?.reasons ?? { labels: [], values: [] },
-                    malicious_reasons: ib?.malicious_reasons ?? { labels: [], values: [] },
+                    traffic: traffic?.data || traffic,
+                    th: th?.data || th,
+                    ib: (ib?.data || ib)?.invalid_bot ?? { labels: [], values: [] },
+                    mal: (ib?.data || ib)?.invalid_malicious ?? { labels: [], values: [] },
+                    reasons: (ib?.data || ib)?.reasons ?? { labels: [], values: [] },
+                    malicious_reasons: (ib?.data || ib)?.malicious_reasons ?? { labels: [], values: [] },
                 };
                 if (this.useDemo && this.dataIsEmpty()) {
                     this.applyDemoPayload();

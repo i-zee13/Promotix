@@ -1474,15 +1474,11 @@ Invoices
 BA. THE EXACT EXAMPLE YOU GAVE
 FAQ 116 — “I want to upgrade my limits but I don't know how.”
 
-Bot should answer:
-
 No problem. Go to Settings → Billing and click Upgrade under your current plan.
 
 You can also open Site Management → Domains, where Clickronix shows your current domain usage and plan capacity.
 
 If the limit you need isn't available in the standard upgrade options, I can connect you with a Billing & Plans specialist to review a higher-capacity or Enterprise option.
-
-This should be a high-confidence direct answer.
 
 FAQ 117 — How many domains can I use?
 
@@ -1500,8 +1496,6 @@ Plan limit
 Use these live values rather than having the chatbot guess the user's current allowance.
 
 FAQ 118 — I reached my domain limit.
-
-Bot response:
 
 Open Settings → Domains to confirm your current plan limit and remaining domain slots. If no slots are available, go to Settings → Billing → Upgrade to review a higher plan.
 
@@ -1585,13 +1579,9 @@ Enable 2FA
 
 FAQ 126 — Someone may have accessed my account.
 
-Bot should answer:
-
 Please review Settings → Security & Login → Active sessions immediately and inspect any unfamiliar sessions. You should also change your password and enable Two-factor authentication if it isn't already enabled.
 
 If you believe access is unauthorized, I can escalate this directly to the Security Team.
-
-This should be treated as high priority.
 
 BH. API KEYS
 FAQ 127 — Where are my API keys?

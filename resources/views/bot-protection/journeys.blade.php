@@ -96,7 +96,7 @@
                 border-radius:8px; border:1px solid rgba(255,255,255,.14); background:transparent;
                 color:rgba(255,255,255,.55); font-size:12px; font-weight:600; padding:7px 12px;
             }
-            .vj-tab.is-active { background:#FF6600; border-color:#FF6600; color:#fff; }
+            .vj-tab.is-active { background:var(--brand-primary, #FF6600); border-color:var(--brand-primary, #FF6600); color:#fff; }
 
             /* Shared body for Page Paths / Event Timeline / Individual Sessions */
             .vj-tab-body {
@@ -158,7 +158,7 @@
                 color:rgba(255,255,255,.4); cursor:pointer;
             }
             .vj-flow__col-menu-btn:hover, .vj-flow__col-menu-btn.is-open {
-                background:rgba(255,102,0,.15); color:#FF6600;
+                background:rgba(255,102,0,.15); color:var(--brand-primary, #FF6600);
             }
             .vj-flow__col-menu-panel {
                 position:fixed; z-index:2147483000;
@@ -180,8 +180,8 @@
                 padding:7px 12px; font-size:11px; color:rgba(255,255,255,.45); cursor:pointer;
             }
             .vj-flow__col-menu-item:hover { background:rgba(255,255,255,.04); }
-            .vj-flow__col-menu-item.is-on { color:#FF6600; background:rgba(255,102,0,.08); }
-            .vj-flow__col-menu-item.is-on:hover { color:#FF6600; }
+            .vj-flow__col-menu-item.is-on { color:var(--brand-primary, #FF6600); background:rgba(255,102,0,.08); }
+            .vj-flow__col-menu-item.is-on:hover { color:var(--brand-primary, #FF6600); }
             .vj-flow__col-menu-item .vj-opt-check {
                 flex-shrink:0; width:14px; height:14px; border-radius:4px;
                 border:1px solid rgba(255,255,255,.25); display:inline-flex;
@@ -189,14 +189,14 @@
                 color:transparent; background:transparent;
             }
             .vj-flow__col-menu-item.is-on .vj-opt-check {
-                border-color:#FF6600; background:rgba(255,102,0,.2); color:#FF6600;
+                border-color:var(--brand-primary, #FF6600); background:rgba(255,102,0,.2); color:var(--brand-primary, #FF6600);
             }
             .vj-flow__col-menu-item .vj-opt-badge {
                 flex-shrink:0; font-size:9px; font-weight:650; color:rgba(255,255,255,.35);
                 border-radius:999px; padding:1px 6px; background:rgba(255,255,255,.06);
             }
             .vj-flow__col-menu-item.is-on .vj-opt-badge {
-                color:#FF6600; background:rgba(255,102,0,.18);
+                color:var(--brand-primary, #FF6600); background:rgba(255,102,0,.18);
             }
             .vj-node {
                 border-radius:8px; border:1px solid rgba(255,102,0,.45); background:#0f0f0f;
@@ -216,7 +216,7 @@
                 display:inline-flex; align-items:center; justify-content:center; margin-top:-2px;
             }
             .vj-node__dots:hover, .vj-node__dots.is-open {
-                background:rgba(255,102,0,.15); color:#FF6600;
+                background:rgba(255,102,0,.15); color:var(--brand-primary, #FF6600);
             }
             .vj-node.is-exit { border-color:rgba(239,68,68,.55); }
             .vj-node.is-lead { border-color:rgba(34,197,94,.55); }
@@ -232,7 +232,7 @@
                 display:inline-flex; align-items:center; gap:4px; max-width:100%;
                 font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
                 font-size: clamp(10px, 0.85vw, 12px); font-weight:600; line-height:1.3;
-                color:#FF6600; text-decoration:underline; text-underline-offset:2px;
+                color:var(--brand-primary, #FF6600); text-decoration:underline; text-underline-offset:2px;
                 text-decoration-color:rgba(255,102,0,.55);
                 word-break:break-all; cursor:default;
             }
@@ -247,13 +247,13 @@
             }
             .vj-path-link {
                 display:inline; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size:12px; font-weight:600; color:#FF6600;
+                font-size:12px; font-weight:600; color:var(--brand-primary, #FF6600);
                 text-decoration:underline; text-underline-offset:2px;
                 text-decoration-color:rgba(255,102,0,.5);
             }
             .vj-hbar__path {
                 font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size:12px; font-weight:600; color:#FF6600;
+                font-size:12px; font-weight:600; color:var(--brand-primary, #FF6600);
                 text-decoration:underline; text-underline-offset:2px;
                 text-decoration-color:rgba(255,102,0,.45);
                 overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -278,7 +278,7 @@
             .vj-tl-item { position:relative; padding:0 0 14px; }
             .vj-tl-item::before {
                 content:''; position:absolute; left:-16px; top:5px; width:9px; height:9px; border-radius:999px;
-                background:#FF6600; box-shadow:0 0 0 3px rgba(255,102,0,.15);
+                background:var(--brand-primary, #FF6600); box-shadow:0 0 0 3px rgba(255,102,0,.15);
             }
             .vj-tl-time { font-size:10px; color:rgba(255,255,255,.4); margin-bottom:2px; }
             .vj-tl-label { font-size:12px; color:#fff; font-weight:600; }
@@ -309,27 +309,27 @@
             }
             .vj-path-row { display:flex; gap:8px; align-items:flex-start; margin-bottom:10px; font-size:12px; }
             .vj-path-rank {
-                width:18px; height:18px; border-radius:999px; background:rgba(255,102,0,.18); color:#FF6600;
+                width:18px; height:18px; border-radius:999px; background:rgba(255,102,0,.18); color:var(--brand-primary, #FF6600);
                 display:grid; place-items:center; font-size:10px; font-weight:700; flex-shrink:0; margin-top:1px;
             }
             .vj-path-body { min-width:0; flex:1; word-break:break-word; }
             .vj-path-meta { color:rgba(255,255,255,.4); white-space:nowrap; font-size:11px; }
             .vj-path-link {
                 display:inline; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size:12px; font-weight:600; color:#FF6600;
+                font-size:12px; font-weight:600; color:var(--brand-primary, #FF6600);
                 text-decoration:underline; text-underline-offset:2px;
                 text-decoration-color:rgba(255,102,0,.5);
             }
             .vj-hbar__path {
                 font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size:12px; font-weight:600; color:#FF6600;
+                font-size:12px; font-weight:600; color:var(--brand-primary, #FF6600);
                 text-decoration:underline; text-underline-offset:2px;
                 text-decoration-color:rgba(255,102,0,.45);
                 overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
             }
             .vj-hbar { display:grid; grid-template-columns:78px 1fr 34px; gap:8px; align-items:center; margin-bottom:10px; font-size:11px; color:rgba(255,255,255,.65); }
             .vj-hbar__track { height:8px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; }
-            .vj-hbar__fill { height:100%; border-radius:999px; background:#FF6600; }
+            .vj-hbar__fill { height:100%; border-radius:999px; background:var(--brand-primary, #FF6600); }
             .vj-hbar__fill.is-exit { background:#ef4444; }
             .vj-hbar__val { color:rgba(255,255,255,.55); font-variant-numeric:tabular-nums; }
             .vj-donut-wrap { display:flex; align-items:center; gap:12px; }
@@ -359,7 +359,7 @@
                 padding:3px 8px; margin:0 2px; white-space:nowrap;
             }
             .vj-chip.is-page { background:rgba(255,255,255,.08); color:rgba(255,255,255,.75); border:1px solid rgba(255,255,255,.1); }
-            .vj-chip.is-action { background:rgba(255,102,0,.15); color:#FF6600; border:1px solid rgba(255,102,0,.45); }
+            .vj-chip.is-action { background:rgba(255,102,0,.15); color:var(--brand-primary, #FF6600); border:1px solid rgba(255,102,0,.45); }
             .vj-chip.is-form { background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.4); }
             .vj-chip.is-exit { background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.4); }
             .vj-chip.is-lead { background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.45); }
@@ -367,21 +367,35 @@
             .vj-chip.is-none { background:rgba(255,255,255,.06); color:rgba(255,255,255,.55); border:1px solid rgba(255,255,255,.12); }
             .vj-arrow { color:rgba(255,255,255,.3); margin:0 2px; font-size:11px; }
             .vj-empty { padding:28px 16px; text-align:center; color:rgba(255,255,255,.4); font-size:13px; }
-            .vj-link { font-size:12px; color:#FF6600; font-weight:600; }
+            .vj-link { font-size:12px; color:var(--brand-primary, #FF6600); font-weight:600; }
             .vj-card__top { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
             .vj-card__title-row { display:inline-flex; align-items:center; gap:8px; }
-            .vj-card__icon { color:#FF6600; display:inline-flex; }
+            .vj-card__icon { color:var(--brand-primary, #FF6600); display:inline-flex; }
             .vj-mini-filters { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
             .vj-mini-filters select {
                 height:32px; border-radius:8px; border:1px solid rgba(255,255,255,.14); background:#0f0f0f;
                 color:rgba(255,255,255,.75); font-size:11px; padding:0 28px 0 10px; appearance:none;
             }
             .vj-ev-legend {
-                display:flex; flex-wrap:wrap; gap:14px; align-items:center;
-                margin:0 0 12px; font-size:11px; color:rgba(255,255,255,.55);
+                display:flex; flex-wrap:wrap; gap:16px; align-items:center;
+                margin:0 0 10px; padding:0 2px; font-size:11px; color:rgba(255,255,255,.55);
             }
-            .vj-ev-legend__item { display:inline-flex; align-items:center; gap:6px; }
-            .vj-axis-label { font-size:10px; color:rgba(255,255,255,.35); margin-bottom:6px; }
+            .vj-ev-legend__item {
+                display:inline-flex; align-items:center; gap:8px; line-height:1;
+            }
+            .vj-ev-legend__item .vj-ev-icon {
+                flex:0 0 14px; width:14px; height:14px;
+                display:inline-flex; align-items:center; justify-content:center;
+                vertical-align:middle;
+            }
+            /* Align caption with the time track (same 168px sid column as rows). */
+            .vj-axis-label {
+                display:grid; grid-template-columns:168px 1fr; gap:0; min-width:720px;
+                margin:0 0 4px; font-size:10px; color:rgba(255,255,255,.35);
+            }
+            .vj-axis-label > span {
+                grid-column:2; padding:0 10px; line-height:1.3;
+            }
             .vj-et { overflow: visible; min-height: 0; }
             .vj-et__axis {
                 display:grid; grid-template-columns:168px 1fr; gap:0; margin-bottom:4px; min-width:720px;
@@ -424,7 +438,7 @@
                 width: 64px; pointer-events: auto;
             }
             .vj-et__marker.is-hover { z-index: 30; }
-            .vj-et__marker.is-selected .vj-ev-icon { outline:2px solid #FF6600; outline-offset:2px; }
+            .vj-et__marker.is-selected .vj-ev-icon { outline:2px solid var(--brand-primary, #FF6600); outline-offset:2px; }
             .vj-et__m-label {
                 font-size:9px; color:rgba(255,255,255,.72); white-space:nowrap; margin-bottom:5px;
                 max-width:64px; overflow:hidden; text-overflow:ellipsis; margin-left:auto; margin-right:auto;
@@ -441,19 +455,23 @@
             }
             .vj-ev-icon {
                 width:14px; height:14px; display:inline-block; vertical-align:middle;
+                box-sizing: border-box;
             }
-            .vj-ev-icon.is-page { width:10px; height:10px; border-radius:999px; background:#FF6600; }
+            .vj-ev-icon.is-page {
+                width:10px; height:10px; margin:2px; border-radius:999px; background:var(--brand-primary, #FF6600);
+            }
             .vj-ev-icon.is-scroll {
-                width:10px; height:10px; background:#FF6600; transform:rotate(45deg); border-radius:1px;
+                width:10px; height:10px; margin:2px; background:var(--brand-primary, #FF6600); transform:rotate(45deg); border-radius:1px;
             }
             .vj-ev-icon.is-cta {
-                width:10px; height:10px; background:#EAB308; transform:rotate(45deg); border-radius:1px;
+                width:10px; height:10px; margin:2px; background:#EAB308; transform:rotate(45deg); border-radius:1px;
             }
             .vj-ev-icon.is-form {
-                width:11px; height:11px; border-radius:999px; border:2px solid #22C55E; background:transparent;
+                width:11px; height:11px; margin:1.5px; border-radius:999px; border:2px solid #22C55E; background:transparent;
             }
             .vj-ev-icon.is-exit {
-                width:10px; height:10px; border-radius:2px; background:rgba(255,255,255,.55);
+                width:10px; height:10px; margin:2px; border-radius:2px;
+                background:transparent; border:2px solid var(--brand-primary, #FF6600); box-sizing:border-box;
             }
             .vj-tooltip {
                 position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
@@ -499,7 +517,9 @@
             .vj-is__pane::-webkit-scrollbar-thumb {
                 background: rgba(255,102,0,.45); border-radius: 999px;
             }
-            .vj-is__pane + .vj-is__pane { border-left:1px solid rgba(255,255,255,.08); }
+            .vj-is__pane + .vj-is__pane {
+                border-left:1px solid rgba(255,255,255,.10);
+            }
             .vj-is__head {
                 display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;
             }
@@ -523,7 +543,7 @@
                 width:100%; text-align:left; border-radius:10px; border:1px solid rgba(255,255,255,.1);
                 background:#0f0f0f; padding:10px; margin-bottom:8px; cursor:pointer; color:inherit;
             }
-            .vj-scard.is-active { border-color:#FF6600; background:rgba(255,102,0,.06); }
+            .vj-scard.is-active { border-color:var(--brand-primary, #FF6600); background:rgba(255,102,0,.06); }
             .vj-scard__top { display:flex; gap:8px; align-items:flex-start; }
             .vj-scard__icon {
                 width:28px; height:28px; border-radius:8px; background:rgba(255,255,255,.06);
@@ -553,7 +573,7 @@
                 min-width:26px; height:26px; border-radius:6px; border:1px solid rgba(255,255,255,.12);
                 background:transparent; color:rgba(255,255,255,.65); font-size:11px;
             }
-            .vj-pager button.is-on { background:#FF6600; border-color:#FF6600; color:#fff; }
+            .vj-pager button.is-on { background:var(--brand-primary, #FF6600); border-color:var(--brand-primary, #FF6600); color:#fff; }
 
             .vj-sj__head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
             .vj-sj__title { font-size:14px; font-weight:650; color:#fff; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -569,7 +589,7 @@
             }
             .vj-sj-item:last-child .vj-sj-rail::before { display:none; }
             .vj-sj-node {
-                width:14px; height:14px; border-radius:999px; background:#FF6600; border:2px solid #121212;
+                width:14px; height:14px; border-radius:999px; background:var(--brand-primary, #FF6600); border:2px solid #121212;
                 z-index:1; margin-top:3px; box-shadow:0 0 0 2px rgba(255,102,0,.25);
             }
             .vj-sj-node.is-exit { background:rgba(255,255,255,.55); box-shadow:none; border-radius:3px; }
@@ -602,8 +622,8 @@
             }
             .vj-export {
                 display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
-                height:40px; border-radius:9px; border:1.5px solid #FF6600; background:transparent;
-                color:#FF6600; font-size:12px; font-weight:650;
+                height:40px; border-radius:9px; border:1.5px solid var(--brand-primary, #FF6600); background:transparent;
+                color:var(--brand-primary, #FF6600); font-size:12px; font-weight:650;
             }
             .vj-export:hover { background:rgba(255,102,0,.12); }
 
@@ -656,8 +676,8 @@
             html.light-mode .figma-filter-bar--vj .figma-filter-calendar-btn--responsive {
                 background: #ffffff !important;
                 background-color: #ffffff !important;
-                border: 1.5px solid #FF6600 !important;
-                color: #FF6600 !important;
+                border: 1.5px solid var(--brand-primary, #FF6600) !important;
+                color: var(--brand-primary, #FF6600) !important;
             }
             html.light-mode .figma-filter-bar--vj .vj-f-actions,
             html.light-mode .figma-filter-bar--vj .figma-filter-calendar-host,
@@ -698,7 +718,7 @@
                 background: rgba(255, 102, 0, 0.12) !important;
             }
             html.light-mode .vj-hbar__fill {
-                background: #FF6600 !important;
+                background: var(--brand-primary, #FF6600) !important;
             }
             html.light-mode .vj-hbar__fill.is-exit {
                 background: #ef4444 !important;
@@ -707,7 +727,7 @@
                 color: #1a1a1a !important;
             }
             html.light-mode .vj-path-rank {
-                background: #FF6600 !important;
+                background: var(--brand-primary, #FF6600) !important;
                 color: #ffffff !important;
             }
             html.light-mode .vj-kpi__label,
@@ -732,8 +752,8 @@
                 background: #101010 !important;
             }
             html.light-mode .vj-tab.is-active {
-                background: #FF6600 !important;
-                border-color: #FF6600 !important;
+                background: var(--brand-primary, #FF6600) !important;
+                border-color: var(--brand-primary, #FF6600) !important;
                 color: #fff !important;
             }
 
@@ -743,32 +763,24 @@
                 color: #8a8299 !important;
                 border-bottom-color: rgba(255, 102, 0, 0.18) !important;
             }
+            html.light-mode .vj-axis-label > span { color: inherit !important; }
             html.light-mode .vj-et__row.is-active {
                 background: #fff4eb !important;
                 box-shadow: inset 0 0 0 1px rgba(255, 102, 0, 0.35);
             }
             html.light-mode .vj-et__row:hover { background: #fffaf5 !important; }
             html.light-mode .vj-et__row.is-active:hover { background: #ffedd5 !important; }
-            html.light-mode .vj-et__sid {
-                color: #121212 !important;
-            }
-            html.light-mode .vj-et__sid small {
-                color: #6b6578 !important;
-            }
-            html.light-mode .vj-et__sid .vj-et__id-line {
-                color: #5c5470 !important;
-            }
+            html.light-mode .vj-et__sid { color: #121212 !important; }
+            html.light-mode .vj-et__sid small { color: #6b6578 !important; }
+            html.light-mode .vj-et__sid .vj-et__id-line { color: #5c5470 !important; }
             html.light-mode .vj-et__track {
                 border-bottom-color: rgba(255, 102, 0, 0.28) !important;
             }
-            html.light-mode .vj-et__m-label {
-                color: #2d2d3a !important;
-            }
-            html.light-mode .vj-et__m-time {
-                color: #6b6578 !important;
-            }
+            html.light-mode .vj-et__m-label { color: #2d2d3a !important; }
+            html.light-mode .vj-et__m-time { color: #6b6578 !important; }
             html.light-mode .vj-ev-icon.is-exit {
-                background: #6b6578 !important;
+                background: transparent !important;
+                border-color: var(--brand-primary, #FF6600) !important;
             }
             html.light-mode .vj-mini-filters select {
                 background: #101010 !important;
@@ -781,7 +793,7 @@
                 box-shadow: none !important;
             }
 
-            /* Individual Sessions — black cards, selected readable */
+            /* Individual Sessions — dark cards; selected = orange border (readable, theme-matched) */
             html.light-mode .vj-scard {
                 background: #101010 !important;
                 border-color: #101010 !important;
@@ -789,35 +801,33 @@
                 box-shadow: none !important;
             }
             html.light-mode .vj-scard.is-active {
-                background: #fff4eb !important;
-                border-color: #FF6600 !important;
-                color: #121212 !important;
+                background: #1a120c !important;
+                border-color: var(--brand-primary, #FF6600) !important;
+                color: #ffffff !important;
+                box-shadow: inset 0 0 0 1px rgba(255, 102, 0, 0.35);
             }
-            html.light-mode .vj-scard .vj-scard__sid { color: #ffffff !important; }
+            html.light-mode .vj-scard .vj-scard__sid,
+            html.light-mode .vj-scard.is-active .vj-scard__sid { color: #ffffff !important; }
             html.light-mode .vj-scard .vj-scard__did,
             html.light-mode .vj-scard .vj-scard__src,
-            html.light-mode .vj-scard .vj-scard__meta { color: rgba(255, 255, 255, 0.65) !important; }
-            html.light-mode .vj-scard .vj-scard__icon {
-                background: rgba(255, 255, 255, 0.1) !important;
-                color: #ffffff !important;
-            }
-            html.light-mode .vj-scard.is-active .vj-scard__sid { color: #121212 !important; }
+            html.light-mode .vj-scard .vj-scard__meta,
             html.light-mode .vj-scard.is-active .vj-scard__did,
             html.light-mode .vj-scard.is-active .vj-scard__src,
-            html.light-mode .vj-scard.is-active .vj-scard__meta { color: #5c5470 !important; }
+            html.light-mode .vj-scard.is-active .vj-scard__meta,
+            html.light-mode .vj-scard.is-active .vj-scard__meta span,
+            html.light-mode .vj-scard.is-active .vj-scard__src span {
+                color: rgba(255, 255, 255, 0.68) !important;
+            }
+            html.light-mode .vj-scard .vj-scard__icon,
             html.light-mode .vj-scard.is-active .vj-scard__icon {
-                background: rgba(255, 102, 0, 0.12) !important;
-                color: #FF6600 !important;
+                background: rgba(255, 102, 0, 0.16) !important;
+                color: var(--brand-primary, #FF6600) !important;
             }
-            html.light-mode .vj-scard .vj-pill.is-none {
-                color: rgba(255, 255, 255, 0.75) !important;
-                background: rgba(255, 255, 255, 0.1) !important;
-                border-color: rgba(255, 255, 255, 0.2) !important;
-            }
+            html.light-mode .vj-scard .vj-pill.is-none,
             html.light-mode .vj-scard.is-active .vj-pill.is-none {
-                color: #5c5470 !important;
-                background: rgba(0, 0, 0, 0.06) !important;
-                border-color: rgba(0, 0, 0, 0.12) !important;
+                color: rgba(255, 255, 255, 0.78) !important;
+                background: rgba(255, 255, 255, 0.08) !important;
+                border-color: rgba(255, 255, 255, 0.18) !important;
             }
             html.light-mode .vj-is__search input,
             html.light-mode .vj-is__tools select {
@@ -834,8 +844,8 @@
                 color: #ffffff !important;
             }
             html.light-mode .vj-pager button.is-on {
-                background: #FF6600 !important;
-                border-color: #FF6600 !important;
+                background: var(--brand-primary, #FF6600) !important;
+                border-color: var(--brand-primary, #FF6600) !important;
                 color: #fff !important;
             }
             html.light-mode .vj-sj__title,
@@ -908,7 +918,7 @@
             html.light-mode .vj-node__link,
             html.light-mode .vj-path-link,
             html.light-mode .vj-hbar__path {
-                color: #FF6600 !important;
+                color: var(--brand-primary, #FF6600) !important;
                 text-decoration-color: rgba(255, 102, 0, 0.5) !important;
             }
             html.light-mode .vj-node__link:hover {
@@ -922,7 +932,7 @@
             html.light-mode .vj-flow__col-menu-btn:hover,
             html.light-mode .vj-flow__col-menu-btn.is-open {
                 background: rgba(255, 102, 0, 0.12) !important;
-                color: #FF6600 !important;
+                color: var(--brand-primary, #FF6600) !important;
             }
             html.light-mode .vj-flow__col-menu-panel {
                 background: #ffffff !important;
@@ -938,23 +948,23 @@
                 color: #121212 !important;
             }
             html.light-mode .vj-flow__col-menu-item.is-on {
-                color: #FF6600 !important;
+                color: var(--brand-primary, #FF6600) !important;
                 background: rgba(255, 102, 0, 0.08) !important;
             }
             html.light-mode .vj-flow__col-menu-item .vj-opt-check {
                 border-color: rgba(0, 0, 0, 0.2) !important;
             }
             html.light-mode .vj-flow__col-menu-item.is-on .vj-opt-check {
-                border-color: #FF6600 !important;
+                border-color: var(--brand-primary, #FF6600) !important;
                 background: rgba(255, 102, 0, 0.15) !important;
-                color: #FF6600 !important;
+                color: var(--brand-primary, #FF6600) !important;
             }
             html.light-mode .vj-flow__col-menu-item .vj-opt-badge {
                 color: #121212 !important;
                 background: rgba(0, 0, 0, 0.05) !important;
             }
             html.light-mode .vj-flow__col-menu-item.is-on .vj-opt-badge {
-                color: #FF6600 !important;
+                color: var(--brand-primary, #FF6600) !important;
                 background: rgba(255, 102, 0, 0.18) !important;
             }
             html.light-mode .vj-donut__hole {
@@ -1059,7 +1069,7 @@
                 border-color: rgba(255, 102, 0, 0.16) !important;
             }
             html.light-mode .vj-is__pane + .vj-is__pane {
-                border-color: rgba(255, 102, 0, 0.16) !important;
+                border-left: 1px solid rgba(255, 102, 0, 0.22) !important;
             }
             html.light-mode .vj-session-row,
             html.light-mode .vj-seq-item,
@@ -1098,13 +1108,17 @@
             html.light-mode .vj-scard:not(.is-active) .text-white {
                 color: rgba(255, 255, 255, 0.75) !important;
             }
+            html.light-mode .vj-scard.is-active [class*='text-white'],
+            html.light-mode .vj-scard.is-active .text-white {
+                color: rgba(255, 255, 255, 0.78) !important;
+            }
             html.light-mode .vj-page .font-semibold.text-white,
             html.light-mode .vj-page .font-bold.text-white,
             html.light-mode .vj-donut__hole .text-white,
             html.light-mode .vj-donut__hole [class*='text-white'] {
                 color: #121212 !important;
             }
-            html.light-mode .vj-page .hover\:text-white:hover { color: #FF6600 !important; }
+            html.light-mode .vj-page .hover\:text-white:hover { color: var(--brand-primary, #FF6600) !important; }
             html.light-mode .vj-seq-item,
             html.light-mode .vj-tl-item .vj-tl-label { color: #121212 !important; }
             html.light-mode .vj-tl-time,
@@ -1312,7 +1326,7 @@
                                 <span class="vj-ev-legend__item"><span class="vj-ev-icon is-form"></span> Form submit</span>
                                 <span class="vj-ev-legend__item"><span class="vj-ev-icon is-exit"></span> Exit</span>
                             </div>
-                            <div class="vj-axis-label">Elapsed time from session start</div>
+                            <div class="vj-axis-label"><span>Elapsed time from session start</span></div>
                             <div class="vj-et">
                                 <div class="vj-et__axis">
                                     <div></div>
@@ -1401,7 +1415,7 @@
                                                 </span>
                                             </div>
                                             <div class="vj-scard__src">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="#FF6600"><path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 16.8 5.7 21l2.3-7L2 9.2h7.6z"/></svg>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--brand-primary, #FF6600)"><path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 16.8 5.7 21l2.3-7L2 9.2h7.6z"/></svg>
                                                 <span x-text="row.campaign || row.source || 'Google Ads'"></span>
                                             </div>
                                             <div class="vj-scard__meta">
@@ -1620,7 +1634,7 @@
                 <aside class="vj-detail" x-show="flowTab === 'timeline'" x-cloak>
                     <div class="vj-detail__head">
                         <div class="vj-detail__title" style="display:inline-flex;align-items:center;gap:8px">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF6600"><circle cx="12" cy="12" r="8" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke-width="1.7"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary, #FF6600)"><circle cx="12" cy="12" r="8" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke-width="1.7"/></svg>
                             Selected Event
                         </div>
                     </div>
@@ -2668,11 +2682,11 @@ function visitorJourneyPage() {
             });
             const line = coords.map(([x, y]) => `${x},${y}`).join(' ');
             const area = `${pad},${h} ` + line + ` ${coords[coords.length - 1][0]},${h}`;
-            const dots = coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.6" fill="#FF6600" />`).join('');
+            const dots = coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.6" fill="var(--brand-primary, #FF6600)" />`).join('');
             return `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-                <defs><linearGradient id="vjSpark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6600" stop-opacity=".35"/><stop offset="100%" stop-color="#FF6600" stop-opacity="0"/></linearGradient></defs>
+                <defs><linearGradient id="vjSpark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--brand-primary, #FF6600)" stop-opacity=".35"/><stop offset="100%" stop-color="var(--brand-primary, #FF6600)" stop-opacity="0"/></linearGradient></defs>
                 <polygon fill="url(#vjSpark)" points="${area}" />
-                <polyline fill="none" stroke="#FF6600" stroke-width="1.7" points="${line}" />
+                <polyline fill="none" stroke="var(--brand-primary, #FF6600)" stroke-width="1.7" points="${line}" />
                 ${dots}
             </svg>`;
         },

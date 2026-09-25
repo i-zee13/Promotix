@@ -620,26 +620,37 @@
                 </div>
 
                 <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--tc ov-filter-bar flex min-h-[54px] max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                    <label class="tc-f-domain flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="tc-f-domain relative flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.domain = false">
                         <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Domain</span>
-                        <div class="figma-filter-select-wrap">
-                            <select x-model="filters.domain_id" @change="reload()" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0">
-                                <option value="">All Domains</option>
-                                @foreach ($domains as $d)
-                                    <option value="{{ $d->id }}">{{ $d->hostname }}</option>
-                                @endforeach
-                            </select>
+                        <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
+                            <span class="truncate" x-text="domainFilterLabel()"></span>
+                        </button>
+                        <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !min-w-[200px] !z-[80]">
+                            <button type="button" @click="pickDomainFilter('')" class="paid-advanced-campaign-option" :class="!filters.domain_id && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label">All Domains</span>
+                            </button>
+                            <template x-for="d in domainOptions" :key="'tc-dom-' + d.id">
+                                <button type="button" @click="pickDomainFilter(d.id)" class="paid-advanced-campaign-option" :class="String(filters.domain_id) === String(d.id) && 'is-active'">
+                                    <span class="paid-advanced-campaign-option__label" x-text="d.label"></span>
+                                </button>
+                            </template>
                         </div>
                     </label>
-                    <label class="tc-f-campaign flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="tc-f-campaign relative flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.campaign = false">
                         <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Campaign</span>
-                        <div class="figma-filter-select-wrap">
-                            <select x-model="filters.campaign" @change="reload()" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[26px] text-[10px] text-[#8c8787] focus:ring-0">
-                                <option value="">All Campaigns</option>
-                                <template x-for="c in campaignOptions" :key="'camp-' + c">
-                                    <option :value="c" x-text="c"></option>
-                                </template>
-                            </select>
+                        <button type="button" @click="toggleFilterMenu('campaign')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
+                            <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
+                        </button>
+                        <div x-show="filterMenus.campaign" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !min-w-[200px] !z-[80]">
+                            <button type="button" @click="pickCampaignFilter('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">
+                                <span class="paid-advanced-campaign-option__label">All Campaigns</span>
+                            </button>
+                            <template x-for="c in campaignOptions" :key="'tc-camp-' + c">
+                                <button type="button" @click="pickCampaignFilter(c)" class="paid-advanced-campaign-option" :class="filters.campaign === c && 'is-active'">
+                                    <span class="paid-advanced-campaign-option__label" x-text="c"></span>
+                                </button>
+                            </template>
+                            <p class="px-[10px] py-[8px] text-[10px] text-white/40" x-show="!campaignOptions.length">No campaigns in range.</p>
                         </div>
                     </label>
                     <label class="tc-f-path flex flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
@@ -965,7 +976,12 @@ function trafficControlIntel() {
         loading: false,
         searchTimer: null,
         pathTimer: null,
+        filterMenus: { domain: false, campaign: false },
         filters: { domain_id: '', campaign: '', path: '', q: '', from: '', to: '' },
+        domainOptions: @js(($domains ?? collect())->map(fn ($d) => [
+            'id' => (string) $d->id,
+            'label' => $d->hostname,
+        ])->values()->all()),
         tabs: [
             { key: 'devices', label: 'Repeated Devices' },
             { key: 'ip_changes', label: 'IP Changes' },
@@ -1036,6 +1052,26 @@ function trafficControlIntel() {
                 this.filters.from = fmt(from);
                 this.filters.to = fmt(to);
             }
+        },
+        toggleFilterMenu(key) {
+            const next = !this.filterMenus[key];
+            this.filterMenus = { domain: false, campaign: false };
+            this.filterMenus[key] = next;
+        },
+        domainFilterLabel() {
+            if (!this.filters.domain_id) return 'All Domains';
+            const hit = (this.domainOptions || []).find((d) => String(d.id) === String(this.filters.domain_id));
+            return hit ? hit.label : 'All Domains';
+        },
+        pickDomainFilter(id) {
+            this.filters.domain_id = String(id || '');
+            this.filterMenus.domain = false;
+            this.reload();
+        },
+        pickCampaignFilter(value) {
+            this.filters.campaign = String(value || '');
+            this.filterMenus.campaign = false;
+            this.reload();
         },
         onDateRange(event) {
             const from = event?.detail?.from;

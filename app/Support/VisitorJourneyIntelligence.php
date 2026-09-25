@@ -1083,6 +1083,8 @@ class VisitorJourneyIntelligence
 
         foreach ($recent as $s) {
             $hadMeaningful = false;
+            $countedCta = false;
+            $countedTel = false;
             foreach ($s['event_actions'] ?? [] as $ev) {
                 if (! is_array($ev)) {
                     continue;
@@ -1092,8 +1094,10 @@ class VisitorJourneyIntelligence
                 if (in_array($key, ['cta_click', 'tel_click', 'call_click'], true)) {
                     if (in_array($key, ['tel_click', 'call_click'], true)) {
                         $actionBuckets['Call button clicked']++;
+                        $countedTel = true;
                     } else {
                         $actionBuckets['CTA clicked']++;
+                        $countedCta = true;
                     }
                     $hadMeaningful = true;
                 } elseif (in_array($key, ['form_start', 'form_fills', 'form_view'], true)) {
@@ -1131,39 +1135,40 @@ class VisitorJourneyIntelligence
                     $hadMeaningful = true;
                 }
             }
-            // Fallback when event_actions was empty but session counters / timeline have CTAs.
-            if (! $hadMeaningful) {
-                $telOnly = (int) ($s['tel_clicks'] ?? 0);
-                $ctaCombined = (int) ($s['cta_clicks'] ?? 0);
-                // shapeSession stores cta_clicks as cta+tel; isolate pure CTA when possible.
-                $ctaOnly = max(0, $ctaCombined - $telOnly);
-                if ($ctaOnly > 0) {
-                    $actionBuckets['CTA clicked']++;
-                    $hadMeaningful = true;
-                }
-                if ($telOnly > 0) {
-                    $actionBuckets['Call button clicked']++;
-                    $hadMeaningful = true;
-                }
-                if (! $hadMeaningful) {
-                    foreach ($s['timeline'] ?? [] as $tev) {
-                        $tt = strtolower((string) ($tev['type'] ?? ''));
-                        if (in_array($tt, ['cta', 'cta_click'], true)) {
-                            $actionBuckets['CTA clicked']++;
-                            $hadMeaningful = true;
-                            break;
-                        }
-                        if (in_array($tt, ['tel', 'tel_click', 'phone', 'phone_click'], true)) {
-                            $actionBuckets['Call button clicked']++;
-                            $hadMeaningful = true;
-                            break;
-                        }
+            // Supplement CTA/tel from counters even when forms already marked the session meaningful
+            // (event_actions used to omit cta_click when the recording column stayed at 0).
+            $telOnly = (int) ($s['tel_clicks'] ?? 0);
+            $ctaCombined = (int) ($s['cta_clicks'] ?? 0);
+            // shapeSession stores cta_clicks as cta+tel; isolate pure CTA when possible.
+            $ctaOnly = max(0, $ctaCombined - $telOnly);
+            if (! $countedCta && $ctaOnly > 0) {
+                $actionBuckets['CTA clicked']++;
+                $hadMeaningful = true;
+                $countedCta = true;
+            }
+            if (! $countedTel && $telOnly > 0) {
+                $actionBuckets['Call button clicked']++;
+                $hadMeaningful = true;
+                $countedTel = true;
+            }
+            if (! $countedCta && ! $countedTel) {
+                foreach ($s['timeline'] ?? [] as $tev) {
+                    $tt = strtolower((string) ($tev['type'] ?? ''));
+                    if (in_array($tt, ['cta', 'cta_click'], true)) {
+                        $actionBuckets['CTA clicked']++;
+                        $hadMeaningful = true;
+                        break;
+                    }
+                    if (in_array($tt, ['tel', 'tel_click', 'phone', 'phone_click'], true)) {
+                        $actionBuckets['Call button clicked']++;
+                        $hadMeaningful = true;
+                        break;
                     }
                 }
-                if (! $hadMeaningful && (int) ($s['form_submits'] ?? 0) > 0) {
-                    $actionBuckets['Form submitted']++;
-                    $hadMeaningful = true;
-                }
+            }
+            if (! $hadMeaningful && (int) ($s['form_submits'] ?? 0) > 0) {
+                $actionBuckets['Form submitted']++;
+                $hadMeaningful = true;
             }
             if ((int) ($s['page_views'] ?? 0) > 0 || ! empty($s['path_chips'])) {
                 $actionBuckets['Page viewed']++;

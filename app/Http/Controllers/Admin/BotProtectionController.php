@@ -109,7 +109,17 @@ class BotProtectionController extends Controller
     {
         try {
             $domainIds = $this->scopedDomainIds($request);
-            [$from, $to] = $this->dateRange($request);
+            $reportingTz = UserTimezone::reportingTimezoneForRequest(
+                $request->user(),
+                (int) $request->query('domain_id', 0) ?: null,
+                $domainIds,
+            );
+            [$from, $to] = UserTimezone::dateRangeFromRequest(
+                $request,
+                $request->user(),
+                6,
+                $reportingTz,
+            );
             $filters = $this->pageAnalyticsFilters($request);
             $days = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
             $prevTo = $from->copy()->subSecond();
@@ -120,11 +130,6 @@ class BotProtectionController extends Controller
                 ->with('googleAdsAccount')
                 ->get();
             $currencyCode = AccountCurrency::resolveForRequest($request, $domains);
-            $reportingTz = UserTimezone::reportingTimezoneForRequest(
-                $request->user(),
-                (int) $request->query('domain_id', 0) ?: null,
-                $domainIds,
-            );
             [$reportFrom, $reportTo] = UserTimezone::calendarDateRangeFromRequest(
                 $request,
                 $request->user(),
@@ -137,85 +142,99 @@ class BotProtectionController extends Controller
 
             $adsTotals = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
             if ($domainIds !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
-                $adsTotals = app(GoogleAdsDomainMetricsSync::class)
-                    ->clickTotalsForDomainsReporting(
-                        $domainIds,
-                        $reportFrom,
-                        $reportTo,
-                        $reportingTz,
-                        $domains,
-                    );
+                try {
+                    $adsTotals = app(GoogleAdsDomainMetricsSync::class)
+                        ->clickTotalsForDomainsReporting(
+                            $domainIds,
+                            $reportFrom,
+                            $reportTo,
+                            $reportingTz,
+                            $domains,
+                        );
+                } catch (\Throwable $e) {
+                    report($e);
+                }
             }
 
             $aggregator = app(PageAnalyticsAggregator::class);
             $payload = $aggregator->build($domainIds, $from, $to, null, $filters, $currencyCode, $adsTotals);
 
             if ($domainIds !== [] && Schema::hasTable('visits')) {
-                $prevDays = max(1, Carbon::parse($reportFrom)->diffInDays(Carbon::parse($reportTo)) + 1);
-                $prevReportTo = Carbon::parse($reportFrom)->subDay()->toDateString();
-                $prevReportFrom = Carbon::parse($prevReportTo)->subDays($prevDays - 1)->toDateString();
-                $prevFilters = array_merge($filters, [
-                    'metric_from' => $prevReportFrom,
-                    'metric_to' => $prevReportTo,
-                ]);
-                $prevAds = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
-                if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
-                    $prevAds = app(GoogleAdsDomainMetricsSync::class)
-                        ->clickTotalsForDomainsReporting(
-                            $domainIds,
-                            $prevReportFrom,
-                            $prevReportTo,
-                            $reportingTz,
-                            $domains,
-                        );
-                }
-                $prevPayload = $aggregator->build($domainIds, $prevFrom, $prevTo, null, $prevFilters, $currencyCode, $prevAds);
-                $prevKpis = $prevPayload['kpis'] ?? [];
-                $prevCost = (float) (($prevPayload['cost']['cost_per_conversion'] ?? 0));
-                $payload['kpis']['deltas'] = [
-                    'live_visitors' => $this->pctDelta(
-                        (int) ($payload['kpis']['live_visitors'] ?? 0),
-                        (int) ($prevKpis['live_visitors'] ?? 0)
-                    ),
-                    'total_visitors' => $this->pctDelta(
-                        (int) ($payload['kpis']['total_visitors'] ?? 0),
-                        (int) ($prevKpis['total_visitors'] ?? 0)
-                    ),
-                    'valid_users' => $this->pctDelta(
-                        (int) ($payload['kpis']['valid_users'] ?? 0),
-                        (int) ($prevKpis['valid_users'] ?? 0)
-                    ),
-                    'total_conversions' => $this->pctDelta(
-                        (int) ($payload['kpis']['total_conversions'] ?? 0),
-                        (int) ($prevKpis['total_conversions'] ?? 0)
-                    ),
-                    'organic_traffic' => $this->pctDelta(
-                        (int) ($payload['kpis']['organic_traffic'] ?? 0),
-                        (int) ($prevKpis['organic_traffic'] ?? 0)
-                    ),
-                    'direct_traffic' => $this->pctDelta(
-                        (int) ($payload['kpis']['direct_traffic'] ?? 0),
-                        (int) ($prevKpis['direct_traffic'] ?? 0)
-                    ),
-                    'referral_traffic' => $this->pctDelta(
-                        (int) ($payload['kpis']['referral_traffic'] ?? 0),
-                        (int) ($prevKpis['referral_traffic'] ?? 0)
-                    ),
-                    'keyword_visits' => $this->pctDelta(
-                        (int) ($payload['kpis']['keyword_visits'] ?? 0),
-                        (int) ($prevKpis['keyword_visits'] ?? 0)
-                    ),
-                    'conversion_rate' => $this->pctDelta(
-                        (float) ($payload['kpis']['conversion_rate'] ?? 0),
-                        (float) ($prevKpis['conversion_rate'] ?? 0)
-                    ),
-                    'cost_per_conversion' => $this->pctDelta(
-                        (float) ($payload['cost']['cost_per_conversion'] ?? 0),
-                        $prevCost
-                    ),
-                ];
-                if (isset($payload['cost']) && is_array($payload['cost'])) {
-                    $payload['cost']['delta'] = (float) ($payload['kpis']['deltas']['cost_per_conversion'] ?? 0);
+                try {
+                    $prevDays = max(1, Carbon::parse($reportFrom)->diffInDays(Carbon::parse($reportTo)) + 1);
+                    $prevReportTo = Carbon::parse($reportFrom)->subDay()->toDateString();
+                    $prevReportFrom = Carbon::parse($prevReportTo)->subDays($prevDays - 1)->toDateString();
+                    $prevFilters = array_merge($filters, [
+                        'metric_from' => $prevReportFrom,
+                        'metric_to' => $prevReportTo,
+                    ]);
+                    $prevAds = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
+                    if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
+                        try {
+                            $prevAds = app(GoogleAdsDomainMetricsSync::class)
+                                ->clickTotalsForDomainsReporting(
+                                    $domainIds,
+                                    $prevReportFrom,
+                                    $prevReportTo,
+                                    $reportingTz,
+                                    $domains,
+                                );
+                        } catch (\Throwable $e) {
+                            report($e);
+                        }
+                    }
+                    $prevPayload = $aggregator->build($domainIds, $prevFrom, $prevTo, null, $prevFilters, $currencyCode, $prevAds);
+                    $prevKpis = $prevPayload['kpis'] ?? [];
+                    $prevCost = (float) (($prevPayload['cost']['cost_per_conversion'] ?? 0));
+                    $payload['kpis']['deltas'] = [
+                        'live_visitors' => $this->pctDelta(
+                            (int) ($payload['kpis']['live_visitors'] ?? 0),
+                            (int) ($prevKpis['live_visitors'] ?? 0)
+                        ),
+                        'total_visitors' => $this->pctDelta(
+                            (int) ($payload['kpis']['total_visitors'] ?? 0),
+                            (int) ($prevKpis['total_visitors'] ?? 0)
+                        ),
+                        'valid_users' => $this->pctDelta(
+                            (int) ($payload['kpis']['valid_users'] ?? 0),
+                            (int) ($prevKpis['valid_users'] ?? 0)
+                        ),
+                        'total_conversions' => $this->pctDelta(
+                            (int) ($payload['kpis']['total_conversions'] ?? 0),
+                            (int) ($prevKpis['total_conversions'] ?? 0)
+                        ),
+                        'organic_traffic' => $this->pctDelta(
+                            (int) ($payload['kpis']['organic_traffic'] ?? 0),
+                            (int) ($prevKpis['organic_traffic'] ?? 0)
+                        ),
+                        'direct_traffic' => $this->pctDelta(
+                            (int) ($payload['kpis']['direct_traffic'] ?? 0),
+                            (int) ($prevKpis['direct_traffic'] ?? 0)
+                        ),
+                        'referral_traffic' => $this->pctDelta(
+                            (int) ($payload['kpis']['referral_traffic'] ?? 0),
+                            (int) ($prevKpis['referral_traffic'] ?? 0)
+                        ),
+                        'keyword_visits' => $this->pctDelta(
+                            (int) ($payload['kpis']['keyword_visits'] ?? 0),
+                            (int) ($prevKpis['keyword_visits'] ?? 0)
+                        ),
+                        'conversion_rate' => $this->pctDelta(
+                            (float) ($payload['kpis']['conversion_rate'] ?? 0),
+                            (float) ($prevKpis['conversion_rate'] ?? 0)
+                        ),
+                        'cost_per_conversion' => $this->pctDelta(
+                            (float) ($payload['cost']['cost_per_conversion'] ?? 0),
+                            $prevCost
+                        ),
+                    ];
+                    if (isset($payload['cost']) && is_array($payload['cost'])) {
+                        $payload['cost']['delta'] = (float) ($payload['kpis']['deltas']['cost_per_conversion'] ?? 0);
+                    }
+                } catch (\Throwable $e) {
+                    // Prefer current-window metrics over failing the whole dashboard when
+                    // the previous-period comparison query blows up.
+                    report($e);
                 }
             }
 
@@ -223,7 +242,13 @@ class BotProtectionController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
-            return response()->json(app(PageAnalyticsAggregator::class)->build([], now(), now()), 500);
+            $empty = app(PageAnalyticsAggregator::class)->build([], now(), now());
+            $empty['error'] = 'Could not load page analytics.';
+            if (config('app.debug')) {
+                $empty['message'] = $e->getMessage();
+            }
+
+            return response()->json($empty, 500);
         }
     }
 

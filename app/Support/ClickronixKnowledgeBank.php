@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
  */
 class ClickronixKnowledgeBank
 {
-    private const CACHE_KEY = 'clickronix.kb.entries.v4';
+    private const CACHE_KEY = 'clickronix.kb.entries.v5';
 
     private const CACHE_TTL_SECONDS = 3600;
 
@@ -38,7 +38,11 @@ class ClickronixKnowledgeBank
 
     public static function flushCache(): void
     {
-        Cache::forget(self::CACHE_KEY);
+        try {
+            Cache::forget(self::CACHE_KEY);
+        } catch (\Throwable) {
+            // Cache store may be unavailable in local CLI — entries rebuild on next miss.
+        }
     }
 
     /**
@@ -55,7 +59,7 @@ class ClickronixKnowledgeBank
      *   source: string
      * }|null
      */
-    public static function answer(string $message): ?array
+    public static function answer(string $message, ?string $context = null): ?array
     {
         $message = trim($message);
         if ($message === '' || ! self::isAvailable()) {
@@ -66,7 +70,11 @@ class ClickronixKnowledgeBank
             return $agent;
         }
 
-        $tokens = self::contentTokens($message);
+        $context = trim((string) $context);
+        $msgTokens = self::contentTokens($message);
+        $contextTokens = $context !== '' ? self::contentTokens($context) : [];
+        // Rank mainly on the latest user ask; prior turns only supply topic hints.
+        $tokens = $msgTokens !== [] ? $msgTokens : $contextTokens;
         if ($tokens === []) {
             return [
                 'answer' => 'Tell me a bit more — for example domain tracking, Google Ads connection, invalid clicks, or billing — and I’ll point you to the right page.',
@@ -84,11 +92,12 @@ class ClickronixKnowledgeBank
         }
 
         $needle = Str::lower($message);
+        $topic = self::inferTopic($needle, Str::lower($context));
         $best = null;
         $bestScore = 0.0;
 
         foreach (self::entries() as $entry) {
-            $score = self::score($needle, $tokens, $entry);
+            $score = self::score($needle, $tokens, $entry, $msgTokens, $topic);
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $best = $entry;
@@ -101,8 +110,8 @@ class ClickronixKnowledgeBank
 
         $answer = self::sanitizeAnswer((string) $best['answer']);
         $related = $best['related_page'] ?? null;
-        if ($related && ! str_contains($answer, 'Go to:')) {
-            $answer .= "\n\nGo to:\n".$related;
+        if ($related && ! str_contains($answer, 'Go to:') && ! str_contains($answer, '→')) {
+            $answer .= "\n\nGo to: ".$related;
         }
 
         return [
@@ -125,21 +134,31 @@ class ClickronixKnowledgeBank
      */
     public static function entries(): array
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL_SECONDS, function (): array {
-            $entries = self::builtInEntries();
+        try {
+            return Cache::remember(self::CACHE_KEY, self::CACHE_TTL_SECONDS, fn (): array => self::buildEntries());
+        } catch (\Throwable) {
+            return self::buildEntries();
+        }
+    }
 
-            if ($path = self::assistantPath()) {
-                $entries = array_merge($entries, self::parseFaqFile(self::readUtf8($path)));
-            }
+    /**
+     * @return list<array{title: string, answer: string, keywords: string, related_page: ?string, department: ?string}>
+     */
+    private static function buildEntries(): array
+    {
+        $entries = self::builtInEntries();
 
-            if ($path = self::copilotPath()) {
-                $raw = self::readUtf8($path);
-                $entries = array_merge($entries, self::parseCopilotSections($raw));
-                $entries = array_merge($entries, self::parseIntentMap($raw));
-            }
+        if ($path = self::assistantPath()) {
+            $entries = array_merge($entries, self::parseFaqFile(self::readUtf8($path)));
+        }
 
-            return $entries;
-        });
+        if ($path = self::copilotPath()) {
+            $raw = self::readUtf8($path);
+            $entries = array_merge($entries, self::parseCopilotSections($raw));
+            $entries = array_merge($entries, self::parseIntentMap($raw));
+        }
+
+        return $entries;
     }
 
     /**
@@ -157,14 +176,31 @@ class ClickronixKnowledgeBank
             ],
             [
                 'title' => 'Website connection',
-                'answer' => "If the website is not connecting or tracking:\n\n1. Site Management → Domains → Setup — install the Tag Manager / website tag (GTM, WordPress, or Direct).\n2. Open the live site, then Verify installation. Status becomes Installed after the first pageview.\n3. Visits show on Analytics Dashboard. Paid Ads is separate and only counts Google Ads clicks with gclid.\n\nThis is the website tag, not the Google Ads tracking template.",
-                'keywords' => 'website connection site connection domain connection website not connecting tracking not connecting connect nahi ho raha tag install tag manager gtm tracking script',
-                'related_page' => 'Site Management → Domains → Setup · Analytics Dashboard',
+                'answer' => "No problem — here’s how to connect domain tracking:\n\n"
+                    ."1. Open Site Management → Domains → Setup.\n"
+                    ."2. Install the Tag Manager / website tag (GTM Custom HTML, WordPress plugin, or Direct script).\n"
+                    ."3. Load your live site once, then click Verify installation. Status becomes Installed after the first pageview.\n"
+                    ."4. Visits appear on Analytics Dashboard. Paid Ads only counts Google Ads clicks that include gclid.\n\n"
+                    ."This is the website tracking tag — not the Google Ads tracking template.",
+                'keywords' => 'website connection site connection domain connection website not connecting tracking not connecting connect nahi ho raha how to connect dont know how to connect i dont know how to connect tag install tag manager gtm tracking script domain tracking setup verify installation',
+                'related_page' => 'Site Management → Domains → Setup',
+                'department' => 'Technical Support',
+            ],
+            [
+                'title' => 'Domain tracking',
+                'answer' => "Domain tracking is managed under Site Management → Domains.\n\n"
+                    ."Open your domain → Setup, install the Clickronix tag, then verify. When Tag Management shows Installed, "
+                    ."pageviews flow into Analytics. If Paid Ads still looks empty, that’s expected until a Google Ads click arrives with gclid.",
+                'keywords' => 'domain tracking domains tracking tag management installed verify domain setup site management domains',
+                'related_page' => 'Site Management → Domains',
                 'department' => 'Technical Support',
             ],
             [
                 'title' => 'Tag Manager tracking',
-                'answer' => "Tag Manager is the website tracking tag — not Paid Advertising.\n\nInstall it from Domains → Setup (GTM Custom HTML, WordPress plugin, or Direct script). After a real pageview, Domains shows Installed and Analytics shows the visit.\n\nPaid Ads Dashboard stays empty until someone clicks a Google ad (URL has gclid / gbraid / wbraid).",
+                'answer' => "Tag Manager is the website tracking tag — not Paid Advertising.\n\n"
+                    ."Install it from Domains → Setup (GTM Custom HTML, WordPress plugin, or Direct script). "
+                    ."After a real pageview, Domains shows Installed and Analytics shows the visit.\n\n"
+                    ."Paid Ads Dashboard stays empty until someone clicks a Google ad (URL has gclid / gbraid / wbraid).",
                 'keywords' => 'tag manager gtm google tag manager tracking tag tracking script not tracking pm_tag not paid ads website tag',
                 'related_page' => 'Site Management → Domains → Setup',
                 'department' => 'Technical Support',
@@ -299,13 +335,13 @@ class ClickronixKnowledgeBank
             $body = trim($match[0]);
             // Strip the FAQ header line from answer body.
             $answer = preg_replace('/^FAQ\s+\d+\s*[—\-–]\s*.+\n?/u', '', $body) ?? $body;
-            $answer = trim($answer);
-            if ($answer === '') {
+            $answer = self::sanitizeAnswer(trim($answer));
+            if ($answer === '' || strlen($answer) < 20) {
                 continue;
             }
 
             $related = null;
-            if (preg_match('/Go to:\s*\n+(.+?)(?:\n\n|\z)/s', $answer, $go)) {
+            if (preg_match('/Go to:\s*\n*(.+?)(?:\n\n|\z)/s', $answer, $go)) {
                 $related = trim(preg_replace('/\s+/', ' ', $go[1]) ?? $go[1]);
             }
 
@@ -456,12 +492,15 @@ class ClickronixKnowledgeBank
 
     /**
      * @param  list<string>  $tokens
+     * @param  list<string>  $msgTokens
      * @param  array{title: string, answer: string, keywords: string, related_page: ?string, department: ?string}  $entry
      */
-    private static function score(string $needle, array $tokens, array $entry): float
+    private static function score(string $needle, array $tokens, array $entry, array $msgTokens = [], ?string $topic = null): float
     {
         $title = Str::lower($entry['title']);
         $keywords = Str::lower($entry['keywords']);
+        $answer = Str::lower((string) ($entry['answer'] ?? ''));
+        $hay = $title.' '.$keywords.' '.$answer;
         $n = count($tokens);
         if ($n === 0) {
             return 0.0;
@@ -489,7 +528,62 @@ class ClickronixKnowledgeBank
         $score += ($titleHits / $n) * 2.2;
         $score += ($keywordHits / $n) * 0.9;
 
-        return $score;
+        // Strong topical boosts for connect / domain follow-ups.
+        $msgJoin = implode(' ', $msgTokens !== [] ? $msgTokens : $tokens);
+        $wantsConnect = str_contains($msgJoin, 'connect')
+            || str_contains($needle, 'connect')
+            || str_contains($needle, 'install')
+            || str_contains($needle, 'setup')
+            || str_contains($needle, 'nahi ho');
+        $wantsBilling = (bool) preg_match('/\b(billing|invoice|upgrade|downgrade|plan limit|subscription|payment)\b/', $needle);
+        $isBillingEntry = (bool) preg_match('/\b(billing|invoice|upgrade|limits?|plan|subscription|payment|capacity)\b/', $hay);
+        $isDomainEntry = (bool) preg_match('/\b(domain|tag manager|website|tracking|install|setup|verify)\b/', $hay);
+        $isConnectHowTo = (bool) preg_match('/\b(website connection|domain tracking|tag manager tracking|how to connect)\b/', $title.' '.$keywords);
+
+        if ($wantsConnect && $isConnectHowTo) {
+            $score += 3.2;
+        } elseif ($wantsConnect && $isDomainEntry) {
+            $score += 1.6;
+        }
+        if ($wantsConnect && $isBillingEntry && ! $wantsBilling) {
+            $score -= 3.0;
+        }
+        if ($topic === 'domain' && $isConnectHowTo) {
+            $score += 1.6;
+        } elseif ($topic === 'domain' && $isDomainEntry) {
+            $score += 0.9;
+        }
+        if ($topic === 'domain' && $isBillingEntry && ! $wantsBilling) {
+            $score -= 2.5;
+        }
+        if ($topic === 'billing' && $isBillingEntry) {
+            $score += 1.2;
+        }
+
+        // Prefer built-in human how-to entries over raw FAQ dumps.
+        if (in_array($title, ['website connection', 'domain tracking', 'tag manager tracking'], true)) {
+            $score += 0.55;
+        }
+
+        return max(0.0, $score);
+    }
+
+    private static function inferTopic(string $message, string $context = ''): ?string
+    {
+        $blob = trim($context.' '.$message);
+        if (preg_match('/\b(domain|tracking|tag manager|gtm|website|connect|install|setup|verify)\b/', $blob)) {
+            if (! preg_match('/\b(billing|invoice|upgrade|subscription|payment)\b/', $message)) {
+                return 'domain';
+            }
+        }
+        if (preg_match('/\b(billing|invoice|upgrade|subscription|payment|plan limit)\b/', $blob)) {
+            return 'billing';
+        }
+        if (preg_match('/\b(google ads|oauth|platform integrate|gclid)\b/', $blob)) {
+            return 'ads';
+        }
+
+        return null;
     }
 
     /** @return list<string> */
@@ -500,6 +594,8 @@ class ClickronixKnowledgeBank
             'with', 'from', 'about', 'regarding', 'issue', 'issues', 'problem', 'problems',
             'help', 'please', 'what', 'how', 'can', 'want', 'need', 'hello', 'hey',
             'just', 'like', 'some', 'any', 'there', 'they', 'them', 'does', 'mean',
+            'dont', "don't", 'know', 'saw', 'but', 'also', 'really', 'very', 'still',
+            'already', 'where', 'when', 'which', 'into', 'over', 'than', 'then',
         ];
         $tokens = preg_split('/\W+/', Str::lower($message), -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $out = [];
@@ -523,6 +619,20 @@ class ClickronixKnowledgeBank
     private static function sanitizeAnswer(string $answer): string
     {
         $answer = trim($answer);
+
+        // Strip authoring / prompt meta that must never reach the user.
+        $answer = (string) preg_replace(
+            '/^(Bot should answer|Bot response|Assistant should answer|Recommended (bot )?answer|Exact example|The exact example you gave)\s*:?\s*/im',
+            '',
+            $answer
+        );
+        $answer = (string) preg_replace(
+            '/^(This should be[^\n]*|High-confidence[^\n]*|Treat(ed)? as high[^\n]*|Author note[^\n]*|Internal note[^\n]*)\s*$/im',
+            '',
+            $answer
+        );
+        $answer = (string) preg_replace('/\n(?:This should be|High-confidence|Treat(?:ed)? as high|Author note|Internal note)[^\n]*/i', "\n", $answer);
+
         $goTo = '';
         if (preg_match('/Go to:\s*\n*(.+?)(?:\n\n|\z)/s', $answer, $m)) {
             $goTo = 'Go to: '.trim((string) preg_replace('/\s+/', ' ', $m[1]));
@@ -537,6 +647,14 @@ class ClickronixKnowledgeBank
         $answer = (string) preg_replace('/\n{3,}/', "\n\n", $answer);
         $answer = trim($answer);
 
+        // Soften stiff FAQ openers into human copy.
+        if (preg_match('/^Check:\s*\n*/i', $answer)) {
+            $answer = (string) preg_replace('/^Check:\s*\n*/i', "Here’s what to check:\n\n", $answer);
+        }
+        $answer = rtrim($answer);
+        $answer = (string) preg_replace('/(?:\n|^)Check:\s*$/i', '', $answer);
+        $answer = trim($answer);
+
         $paragraphs = preg_split('/\n\s*\n/', $answer) ?: [$answer];
         $kept = [];
         $len = 0;
@@ -545,12 +663,12 @@ class ClickronixKnowledgeBank
             if ($paragraph === '' || str_starts_with($paragraph, 'Go to:')) {
                 continue;
             }
-            if (preg_match('/^(Example|That is (much|a very)|Recommended flow)/i', $paragraph)) {
+            if (preg_match('/^(Example|That is (much|a very)|Recommended flow|Bot should|Bot response|This should be)/i', $paragraph)) {
                 continue;
             }
             $kept[] = $paragraph;
             $len += strlen($paragraph);
-            if (count($kept) >= 3 || $len >= 520) {
+            if (count($kept) >= 4 || $len >= 650) {
                 break;
             }
         }

@@ -466,12 +466,14 @@ class TrafficControlSessionQuery
                 }
             }
 
+            // Prefer max(column, analysis): denormalized cta/tel columns often stay 0
+            // while recording events still contain typed/classified clicks (forms already use analysis).
             return [
                 'id' => (int) $rec->id,
                 'duration_ms' => (int) ($rec->duration_ms ?? 0),
-                'cta_clicks' => (int) ($rec->cta_clicks ?? $analysis['cta_clicks'] ?? 0),
-                'tel_clicks' => (int) ($rec->tel_clicks ?? $analysis['tel_clicks'] ?? 0),
-                'scroll_count' => (int) ($rec->scroll_count ?? $analysis['scroll_count'] ?? 0),
+                'cta_clicks' => max((int) ($rec->cta_clicks ?? 0), (int) ($analysis['cta_clicks'] ?? 0)),
+                'tel_clicks' => max((int) ($rec->tel_clicks ?? 0), (int) ($analysis['tel_clicks'] ?? 0)),
+                'scroll_count' => max((int) ($rec->scroll_count ?? 0), (int) ($analysis['scroll_count'] ?? 0)),
                 'form_starts' => (int) ($analysis['form_starts'] ?? 0),
                 'form_submits' => (int) ($analysis['form_submits'] ?? 0),
                 'add_to_cart' => (int) ($analysis['add_to_cart'] ?? 0),

@@ -153,6 +153,26 @@
     background-color: var(--brand-primary, #FF6600) !important;
 }
 
+/* Legacy hardcoded orange → same Super Admin branding token as sidebar */
+.figma-shell .bg-\[\#FF6600\],
+.figma-shell .bg-\[\#ff6600\],
+.figma-shell .hover\:bg-\[\#FF6600\]:hover,
+.figma-shell .hover\:bg-\[\#ff6600\]:hover {
+    background-color: var(--brand-primary, #FF6600) !important;
+}
+.figma-shell .border-\[\#FF6600\],
+.figma-shell .border-\[\#ff6600\],
+.figma-shell .border-\[\#FF6600\]\/40,
+.figma-shell .border-\[\#FF6600\]\/50,
+.figma-shell .border-\[\#FF6600\]\/60,
+.figma-shell .border-\[\#ea580c\] {
+    border-color: var(--brand-primary, #FF6600) !important;
+}
+.figma-shell .text-\[\#FF6600\],
+.figma-shell .text-\[\#ff6600\] {
+    color: var(--brand-primary, #FF6600) !important;
+}
+
 .figma-shell .bg-\[\#6400B2\]\/20,
 .figma-shell .hover\:bg-\[\#6400B2\]\/20:hover { background-color: color-mix(in srgb, var(--brand-primary, #FF6600) 20%, transparent) !important; }
 .figma-shell .bg-\[\#6400B2\]\/25,

@@ -11,7 +11,7 @@ class GuidanceService
     /**
      * @return array{answer: string, title: ?string, related_page: ?string, steps: ?string, image_url: ?string, confidence: float, article_id: ?int, offer_ticket: bool, department?: ?string, source?: string}
      */
-    public static function answer(string $message, ?string $department = null): array
+    public static function answer(string $message, ?string $department = null, ?string $context = null): array
     {
         $message = trim($message);
         if ($message === '') {
@@ -19,7 +19,7 @@ class GuidanceService
         }
 
         // Local knowledge bank (FAQ + intent map) — no OpenAI required.
-        $kb = ClickronixKnowledgeBank::answer($message);
+        $kb = ClickronixKnowledgeBank::answer($message, $context);
         if ($kb) {
             return self::localize($kb);
         }

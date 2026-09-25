@@ -57,7 +57,26 @@ class GuidanceChatController extends Controller
             ]);
         }
 
-        $result = GuidanceService::answer($data['message'], $data['department'] ?? null);
+        $context = null;
+        if ($session && is_array($session->transcript) && $session->transcript !== []) {
+            $recent = array_slice($session->transcript, -6);
+            $bits = [];
+            foreach ($recent as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $text = trim((string) ($row['text'] ?? ''));
+                if ($text === '') {
+                    continue;
+                }
+                $bits[] = $text;
+            }
+            if ($bits !== []) {
+                $context = implode("\n", $bits);
+            }
+        }
+
+        $result = GuidanceService::answer($data['message'], $data['department'] ?? null, $context);
         $result = $this->utf8SafeResult($result);
 
         if ($session) {
