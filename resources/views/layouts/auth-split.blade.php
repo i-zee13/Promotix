@@ -82,30 +82,6 @@
             color: #111;
         }
 
-        .auth-card-brand {
-            position: absolute;
-            top: 1.75rem;
-            left: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 0.55rem;
-            font-size: 1rem;
-            font-weight: 600;
-            letter-spacing: -0.02em;
-        }
-        .auth-card-brand img {
-            height: 44px;
-            width: auto;
-            max-width: 200px;
-            object-fit: contain;
-        }
-        .auth-brand-logo--on-light { display: none !important; }
-        html.light-mode .auth-brand-logo--on-dark { display: none !important; }
-        html.light-mode .auth-brand-logo--on-light { display: block !important; }
-        html.light-mode .auth-card-brand { color: #111; }
-        .auth-card-visual .auth-card-brand { color: #fff; }
-        html.light-mode .auth-card-visual .auth-card-brand { color: #111; }
-
         .auth-card-visual-copy {
             position: relative;
             z-index: 1;
@@ -202,9 +178,9 @@
 
         .auth-accent-mark {
             display: block;
-            height: 56px;
+            height: 72px;
             width: auto;
-            max-width: 240px;
+            max-width: 280px;
             margin: 0 auto 1.15rem;
             object-fit: contain;
         }
@@ -445,19 +421,8 @@
         <div class="auth-status-banner" role="status">{{ session('status') }}</div>
     @endif
 
-    @php
-        $brandName = \App\Support\PortalBrand::name();
-        // Panel: dark theme uses dark logo (white wordmark); light theme uses light logo.
-        $logoDarkPanel = \App\Support\Branding::logoAsset('dark');
-        $logoLightPanel = \App\Support\Branding::logoAsset('light');
-    @endphp
-
     <div class="auth-card">
         <aside class="auth-card-visual" aria-hidden="false">
-            <div class="auth-card-brand">
-                <img src="{{ $logoDarkPanel }}" alt="{{ $brandName }}" class="auth-brand-logo auth-brand-logo--on-dark">
-                <img src="{{ $logoLightPanel }}" alt="{{ $brandName }}" class="auth-brand-logo auth-brand-logo--on-light" hidden>
-            </div>
             <div class="auth-card-visual-copy">
                 <p class="auth-card-visual-eyebrow">You can easily</p>
                 <h2 class="auth-card-visual-title">

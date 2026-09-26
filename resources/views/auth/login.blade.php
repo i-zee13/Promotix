@@ -12,15 +12,15 @@
     src="{{ $accentLogoOnLight }}"
     alt="{{ \App\Support\PortalBrand::name() }}"
     class="auth-accent-mark auth-accent-mark--on-light"
-    width="220"
-    height="64"
+    width="280"
+    height="80"
 >
 <img
     src="{{ $accentLogoOnDark }}"
     alt="{{ \App\Support\PortalBrand::name() }}"
     class="auth-accent-mark auth-accent-mark--on-dark"
-    width="220"
-    height="64"
+    width="280"
+    height="80"
 >
     <h1 class="auth-login-title">Log in</h1>
     <p class="auth-login-sub">Enter your credentials to access your workspace.</p>
