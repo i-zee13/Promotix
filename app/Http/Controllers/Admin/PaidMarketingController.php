@@ -85,6 +85,13 @@ class PaidMarketingController extends Controller
 
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(100, max(10, (int) $request->query('per_page', 20)));
+        // Prefer explicit offset when the client sends it (page * per_page math on the wire).
+        if ($request->query->has('offset')) {
+            $offset = max(0, (int) $request->query('offset'));
+            $page = intdiv($offset, $perPage) + 1;
+        } else {
+            $offset = ($page - 1) * $perPage;
+        }
         $inventoryCap = 5000;
 
         // Inventory for totals + paging; only hydrate the requested page of IPs (fast path).
@@ -98,7 +105,7 @@ class PaidMarketingController extends Controller
         $inventoryField = match ($sortKey) {
             'visits', 'valid_clicks' => 'total',
             'invalid_clicks' => 'invalid',
-            'last_click_at', 'first_click_at' => 'last_seen',
+            'last_click_at', 'first_click_at', 'last_click_datetime_label', 'last_click_label' => 'last_seen',
             'campaign' => 'campaign',
             'country' => 'country',
             'threat_group' => 'top_threat',
@@ -114,7 +121,7 @@ class PaidMarketingController extends Controller
 
         $total = $inventory->count();
         $pageInventory = $inventory
-            ->slice(($page - 1) * $perPage, $perPage)
+            ->slice($offset, $perPage)
             ->values();
 
         $visits = $pageInventory->isEmpty()
@@ -228,7 +235,8 @@ class PaidMarketingController extends Controller
                 'total' => $total,
                 'page' => $page,
                 'per_page' => $perPage,
-                'has_more' => ($page * $perPage) < $total,
+                'offset' => $offset,
+                'has_more' => ($offset + $perPage) < $total,
             ],
             'sort' => ['key' => $sortKey !== '' ? $sortKey : 'visits', 'dir' => $sortKey !== '' ? $sortDir : 'desc'],
             'timezone_context' => UserTimezone::dashboardContext(
@@ -238,7 +246,7 @@ class PaidMarketingController extends Controller
                 $metricTo,
                 $selectedDomain,
             ),
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function detailedIpTimeline(Request $request): JsonResponse

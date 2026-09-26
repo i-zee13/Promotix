@@ -1902,6 +1902,7 @@
             fetchTimer: null,
             _fetchPageOnly: false,
             _lastFilterSig: '',
+            _visitsAbort: null,
             loading: false,
             filterMenuOpen: false,
             dataFilterMenuOpen: false,
@@ -2180,7 +2181,8 @@
                 const id = visit.id != null && visit.id !== '' ? String(visit.id) : 'syn';
                 const ip = String(visit.ip || '');
                 const domain = String(visit.domain || visit.domain_id || '');
-                return `${id}|${ip}|${domain}`;
+                // Include page so Alpine always remounts rows when paging (avoids stale DOM).
+                return `${this.page}|${id}|${ip}|${domain}`;
             },
             paginationLabel() {
                 const total = Number(this.totalRows || this.rows.length || 0);
@@ -2207,9 +2209,12 @@
             },
             goToPage(p) {
                 const next = Math.min(this.totalPages, Math.max(1, Number(p) || 1));
-                if (next === this.page) return;
+                if (next === Number(this.page)) return;
                 this.page = next;
-                this.scheduleFetch(true, { pageOnly: true });
+                // Page changes must hit detailed-visits immediately with page/offset — no debounce race.
+                clearTimeout(this.fetchTimer);
+                this._fetchPageOnly = true;
+                this.fetchNow();
             },
             changePerPage() {
                 this.page = 1;
@@ -2716,8 +2721,11 @@
                     p.set('sort', this.sortKey);
                     p.set('dir', this.sortDir || 'asc');
                 }
-                p.set('page', String(this.page || 1));
-                p.set('per_page', String(this.perPage || 20));
+                const page = Math.max(1, Number(this.page) || 1);
+                const perPage = Math.max(1, Number(this.perPage) || 20);
+                p.set('page', String(page));
+                p.set('per_page', String(perPage));
+                p.set('offset', String(Math.max(0, (page - 1) * perPage)));
                 if (includeExportColumns && this.activeColumnGroup) {
                     p.set('column_group', this.activeColumnGroup);
                     const keys = this.exportColumnKeys;
@@ -2741,8 +2749,13 @@
             },
             async fetchNow() {
                 const generation = ++this.fetchGeneration;
+                const requestedPage = Math.max(1, Number(this.page) || 1);
+                const requestedPerPage = Math.max(1, Number(this.perPage) || 20);
                 this.loading = true;
                 window.promotixPageLoader?.show('Loading Advanced View…');
+                // Always rebuild QS after capturing requestedPage so page/offset cannot go stale.
+                this.page = requestedPage;
+                this.perPage = requestedPerPage;
                 const qs = this.queryString();
                 const filterSig = this.filterSignature();
                 const pageOnly = Boolean(this._fetchPageOnly) && filterSig === this._lastFilterSig && this.kpiCards.length > 0;
@@ -2750,6 +2763,10 @@
                 if (! pageOnly) {
                     this._lastFilterSig = filterSig;
                 }
+                if (this._visitsAbort) {
+                    try { this._visitsAbort.abort(); } catch (e) {}
+                }
+                this._visitsAbort = typeof AbortController !== 'undefined' ? new AbortController() : null;
                 try {
                     // KPIs always come from /summary for the selected date range — never from page-scoped table stats.
                     // Skip summary on page-only navigation so the top 6 cards stay date-accurate and paging stays fast.
@@ -2758,6 +2775,7 @@
                         jobs.push((async () => {
                             const summary = await fetch(`/paid-marketing/summary?${qs}`, {
                                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                cache: 'no-store',
                             }).then((r) => r.json());
                             if (! this.isFetchCurrent(generation)) return;
                             this.kpiCards = this.kpiCardsFromSummary(summary || {});
@@ -2769,8 +2787,11 @@
                         })());
                     }
                     jobs.push((async () => {
-                        const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}${qs ? '?' + qs : ''}`, {
+                        const visitsUrl = `{{ route('paid-marketing.detailed-visits') }}?${qs}`;
+                        const res = await fetch(visitsUrl, {
                             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            cache: 'no-store',
+                            signal: this._visitsAbort?.signal,
                         });
                         if (! this.isFetchCurrent(generation)) return;
                         if (!res.ok) {
@@ -2783,8 +2804,10 @@
                         if (! this.isFetchCurrent(generation)) return;
                         this.rows = Array.isArray(data.rows) ? data.rows.slice() : [];
                         this.totalRows = Number(data.meta?.total ?? data.total ?? this.rows.length) || 0;
-                        if (data.meta?.page) this.page = Number(data.meta.page) || this.page;
-                        if (data.meta?.per_page) this.perPage = Number(data.meta.per_page) || this.perPage;
+                        const metaPage = Number(data.meta?.page);
+                        const metaPer = Number(data.meta?.per_page);
+                        if (Number.isFinite(metaPage) && metaPage > 0) this.page = metaPage;
+                        if (Number.isFinite(metaPer) && metaPer > 0) this.perPage = metaPer;
                         this.statCards = data.stats?.cards || this.statCards || [];
                         // Do NOT overwrite kpiCards from data.stats.kpis — those are page-scoped only.
                         // Keep chart widgets stable when paging — only refresh on first page / filter reset.
@@ -2831,6 +2854,7 @@
                     await Promise.all(jobs);
                     if (! this.isFetchCurrent(generation)) return;
                 } catch (e) {
+                    if (e?.name === 'AbortError') return;
                     console.error(e);
                     if (this.isFetchCurrent(generation)) {
                         this.rows = [];
@@ -2840,7 +2864,11 @@
                     if (this.isFetchCurrent(generation)) {
                         this.loading = false;
                         window.promotixPageLoader?.hide();
-                        this.loadCampaignsForDomain().catch(() => {});
+                        // Campaigns dropdown is filter metadata — not needed on every page turn
+                        // (and its request has no page/offset, which confuses Network debugging).
+                        if (! pageOnly) {
+                            this.loadCampaignsForDomain().catch(() => {});
+                        }
                     }
                 }
             },
