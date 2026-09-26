@@ -1903,6 +1903,12 @@
             _fetchPageOnly: false,
             _lastFilterSig: '',
             _visitsAbort: null,
+            _prefetchAbort: null,
+            _prefetchTimer: null,
+            _prefetchToken: 0,
+            pageCache: {},
+            prefetchDelayMs: 3000,
+            prefetchAhead: 2,
             loading: false,
             filterMenuOpen: false,
             dataFilterMenuOpen: false,
@@ -2211,14 +2217,162 @@
                 const next = Math.min(this.totalPages, Math.max(1, Number(p) || 1));
                 if (next === Number(this.page)) return;
                 this.page = next;
-                // Page changes must hit detailed-visits immediately with page/offset — no debounce race.
                 clearTimeout(this.fetchTimer);
+                const cached = this.pageCache[this.pageCacheKey(next)];
+                if (cached) {
+                    this.applyVisitsPayload(cached, { pageOnly: true, fromCache: true });
+                    this.schedulePrefetchFrom(next);
+                    return;
+                }
+                this.cancelPrefetch();
                 this._fetchPageOnly = true;
                 this.fetchNow();
             },
             changePerPage() {
                 this.page = 1;
+                this.clearPageCache();
                 this.scheduleFetch(true);
+            },
+            pageCacheKey(page, perPage = null) {
+                const n = Math.max(1, Number(perPage != null ? perPage : this.perPage) || 20);
+                const p = Math.max(1, Number(page) || 1);
+                return `${this.filterSignature()}|p=${p}|n=${n}`;
+            },
+            clearPageCache() {
+                this.pageCache = {};
+                this.cancelPrefetch();
+            },
+            cancelPrefetch() {
+                clearTimeout(this._prefetchTimer);
+                this._prefetchTimer = null;
+                this._prefetchToken += 1;
+                if (this._prefetchAbort) {
+                    try { this._prefetchAbort.abort(); } catch (e) {}
+                    this._prefetchAbort = null;
+                }
+            },
+            storePageCache(page, data) {
+                const p = Math.max(1, Number(page) || 1);
+                const key = this.pageCacheKey(p);
+                this.pageCache = {
+                    ...this.pageCache,
+                    [key]: {
+                        rows: Array.isArray(data.rows) ? data.rows.slice() : [],
+                        total: Number(data.meta?.total ?? data.total ?? 0) || 0,
+                        page: Number(data.meta?.page) || p,
+                        per_page: Number(data.meta?.per_page) || this.perPage,
+                        timezone_context: data.timezone_context || null,
+                        stats: data.stats || null,
+                    },
+                };
+            },
+            schedulePrefetchFrom(fromPage) {
+                const start = Math.max(1, Number(fromPage) || 1);
+                const token = ++this._prefetchToken;
+                clearTimeout(this._prefetchTimer);
+                this._prefetchTimer = null;
+                if (this._prefetchAbort) {
+                    try { this._prefetchAbort.abort(); } catch (e) {}
+                    this._prefetchAbort = null;
+                }
+
+                const runStep = (step) => {
+                    if (token !== this._prefetchToken) return;
+                    if (step >= this.prefetchAhead) return;
+                    const target = start + 1 + step;
+                    const maxPage = Math.max(1, Number(this.totalPages) || 1);
+                    if (target > maxPage) return;
+                    if (this.pageCache[this.pageCacheKey(target)]) {
+                        runStep(step + 1);
+                        return;
+                    }
+                    this._prefetchTimer = setTimeout(async () => {
+                        if (token !== this._prefetchToken) return;
+                        await this.prefetchPage(target, token);
+                        if (token !== this._prefetchToken) return;
+                        runStep(step + 1);
+                    }, this.prefetchDelayMs);
+                };
+                runStep(0);
+            },
+            async prefetchPage(page, token) {
+                if (token !== this._prefetchToken) return;
+                const sig = this.filterSignature();
+                const target = Math.max(1, Number(page) || 1);
+                if (this.pageCache[this.pageCacheKey(target)]) return;
+                if (target > Math.max(1, Number(this.totalPages) || 1)) return;
+
+                const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                this._prefetchAbort = ac;
+                try {
+                    const qs = this.queryString(false, target);
+                    const res = await fetch(`{{ route('paid-marketing.detailed-visits') }}?${qs}`, {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        cache: 'no-store',
+                        signal: ac?.signal,
+                    });
+                    if (token !== this._prefetchToken) return;
+                    if (this.filterSignature() !== sig) return;
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (token !== this._prefetchToken) return;
+                    if (this.filterSignature() !== sig) return;
+                    this.storePageCache(target, data);
+                    const total = Number(data.meta?.total ?? data.total ?? 0);
+                    if (total > 0) this.totalRows = total;
+                } catch (e) {
+                    if (e?.name === 'AbortError') return;
+                } finally {
+                    if (this._prefetchAbort === ac) this._prefetchAbort = null;
+                }
+            },
+            applyVisitsPayload(data, { pageOnly = false, fromCache = false } = {}) {
+                this.rows = Array.isArray(data.rows) ? data.rows.slice() : [];
+                this.totalRows = Number(data.total ?? data.meta?.total ?? this.rows.length) || 0;
+                const metaPage = Number(data.page ?? data.meta?.page);
+                const metaPer = Number(data.per_page ?? data.meta?.per_page);
+                if (Number.isFinite(metaPage) && metaPage > 0) this.page = metaPage;
+                if (Number.isFinite(metaPer) && metaPer > 0) this.perPage = metaPer;
+                this.statCards = data.stats?.cards || this.statCards || [];
+                if (! pageOnly && ! fromCache && (Number(data.meta?.page) || this.page) <= 1) {
+                    const charts = data.stats?.charts || {};
+                    this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
+                    this.chartRisk = charts.risk || { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' };
+                    this.chartCountries = charts.countries || [];
+                    this.highRiskIps = charts.high_risk_ips || [];
+                    this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
+                }
+                this.timezoneContext = data.timezone_context || this.timezoneContext;
+                if (this.timezoneContext?.reporting_timezone) {
+                    this.reportingTimezone = this.timezoneContext.reporting_timezone;
+                }
+                this.syncPaidTimezoneHeader();
+                const rank = (r) => {
+                    let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
+                    if (score > 0 && score < 1) score *= 100;
+                    if (!Number.isFinite(score)) score = 0;
+                    if (r.ip_is_blocked) score += 40;
+                    if (r.intel_vpn === 'Yes' || Number(r.vpn_hits) > 0) score += 15;
+                    if (r.intel_datacenter === 'Yes' || Number(r.data_center_hits) > 0) score += 15;
+                    if (Number(r.invalid_clicks) > 0) score += 10;
+                    if (r.threat_group) score += 8;
+                    return score;
+                };
+                let best = null;
+                let bestScore = -1;
+                for (const row of this.rows) {
+                    const s = rank(row);
+                    if (s > bestScore) {
+                        bestScore = s;
+                        best = row;
+                    }
+                }
+                if (best && bestScore > 0) {
+                    this.publishInvestigation(best);
+                } else if (this.highRiskIps[0]?.id) {
+                    const visit = this.rows.find((r) => String(r.id) === String(this.highRiskIps[0].id));
+                    if (visit) this.publishInvestigation(visit);
+                }
             },
             sortClass(key) {
                 const api = window.promotixSortable;
@@ -2508,6 +2662,7 @@
                     if (sig !== this._lastFilterSig && this.page !== 1) {
                         this.page = 1;
                     }
+                    this.clearPageCache();
                 }
                 this.fetchTimer = setTimeout(() => this.fetchNow(), fast ? 350 : this.debounceMs);
             },
@@ -2711,7 +2866,7 @@
                     : Number(raw || 0);
                 if (count > 0) this.openClicks(visit);
             },
-            queryString(includeExportColumns = false) {
+            queryString(includeExportColumns = false, pageOverride = null) {
                 const p = new URLSearchParams();
                 Object.entries(this.filters).forEach(([k, v]) => {
                     if (k === 'traffic_source') return; // UI-only until multi-source backend ships
@@ -2721,7 +2876,7 @@
                     p.set('sort', this.sortKey);
                     p.set('dir', this.sortDir || 'asc');
                 }
-                const page = Math.max(1, Number(this.page) || 1);
+                const page = Math.max(1, Number(pageOverride != null ? pageOverride : this.page) || 1);
                 const perPage = Math.max(1, Number(this.perPage) || 20);
                 p.set('page', String(page));
                 p.set('per_page', String(perPage));
@@ -2762,6 +2917,7 @@
                 this._fetchPageOnly = false;
                 if (! pageOnly) {
                     this._lastFilterSig = filterSig;
+                    this.clearPageCache();
                 }
                 if (this._visitsAbort) {
                     try { this._visitsAbort.abort(); } catch (e) {}
@@ -2787,6 +2943,12 @@
                         })());
                     }
                     jobs.push((async () => {
+                        const cached = this.pageCache[this.pageCacheKey(requestedPage)];
+                        if (cached && pageOnly) {
+                            if (! this.isFetchCurrent(generation)) return;
+                            this.applyVisitsPayload(cached, { pageOnly: true, fromCache: true });
+                            return;
+                        }
                         const visitsUrl = `{{ route('paid-marketing.detailed-visits') }}?${qs}`;
                         const res = await fetch(visitsUrl, {
                             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -2802,57 +2964,12 @@
                         }
                         const data = await res.json();
                         if (! this.isFetchCurrent(generation)) return;
-                        this.rows = Array.isArray(data.rows) ? data.rows.slice() : [];
-                        this.totalRows = Number(data.meta?.total ?? data.total ?? this.rows.length) || 0;
-                        const metaPage = Number(data.meta?.page);
-                        const metaPer = Number(data.meta?.per_page);
-                        if (Number.isFinite(metaPage) && metaPage > 0) this.page = metaPage;
-                        if (Number.isFinite(metaPer) && metaPer > 0) this.perPage = metaPer;
-                        this.statCards = data.stats?.cards || this.statCards || [];
-                        // Do NOT overwrite kpiCards from data.stats.kpis — those are page-scoped only.
-                        // Keep chart widgets stable when paging — only refresh on first page / filter reset.
-                        if (! pageOnly && (Number(data.meta?.page) || this.page) <= 1) {
-                            const charts = data.stats?.charts || {};
-                            this.chartThreat = charts.threat || { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' };
-                            this.chartRisk = charts.risk || { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' };
-                            this.chartCountries = charts.countries || [];
-                            this.highRiskIps = charts.high_risk_ips || [];
-                            this.chartsUpdatedAt = charts.updated_at || new Date().toISOString();
-                        }
-                        this.timezoneContext = data.timezone_context || this.timezoneContext;
-                        if (this.timezoneContext?.reporting_timezone) {
-                            this.reportingTimezone = this.timezoneContext.reporting_timezone;
-                        }
-                        this.syncPaidTimezoneHeader();
-                        const rank = (r) => {
-                            let score = Number(r.intel_risk_score ?? r.risk_summary?.score ?? 0);
-                            if (score > 0 && score < 1) score *= 100;
-                            if (!Number.isFinite(score)) score = 0;
-                            if (r.ip_is_blocked) score += 40;
-                            if (r.intel_vpn === 'Yes' || Number(r.vpn_hits) > 0) score += 15;
-                            if (r.intel_datacenter === 'Yes' || Number(r.data_center_hits) > 0) score += 15;
-                            if (Number(r.invalid_clicks) > 0) score += 10;
-                            if (r.threat_group) score += 8;
-                            return score;
-                        };
-                        let best = null;
-                        let bestScore = -1;
-                        for (const row of this.rows) {
-                            const s = rank(row);
-                            if (s > bestScore) {
-                                bestScore = s;
-                                best = row;
-                            }
-                        }
-                        if (best && bestScore > 0) {
-                            this.publishInvestigation(best);
-                        } else if (this.highRiskIps[0]?.id) {
-                            const visit = this.rows.find((r) => String(r.id) === String(this.highRiskIps[0].id));
-                            if (visit) this.publishInvestigation(visit);
-                        }
+                        this.applyVisitsPayload(data, { pageOnly });
+                        this.storePageCache(this.page, data);
                     })());
                     await Promise.all(jobs);
                     if (! this.isFetchCurrent(generation)) return;
+                    this.schedulePrefetchFrom(this.page);
                 } catch (e) {
                     if (e?.name === 'AbortError') return;
                     console.error(e);
