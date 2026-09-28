@@ -2546,8 +2546,8 @@ function platformIntegrations(config) {
             const meta = this.audienceRuleMeta(row.param);
             const ops = this.audienceRuleOpsFor(row.param);
             if (!ops.includes(row.op)) row.op = ops[0];
-            // Repeat clicks: prefer >= so choosing 3 includes members with exactly 3.
-            if (row.param === 'cr_repeat_click_count' && row.op === '>') row.op = '>=';
+            // Repeat clicks is always "above limit" (>).
+            if (row.param === 'cr_repeat_click_count') row.op = '>';
             const vals = meta?.values || [];
             const type = meta?.type || 'enum';
             if (type === 'number') {
