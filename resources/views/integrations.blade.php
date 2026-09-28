@@ -2546,12 +2546,14 @@ function platformIntegrations(config) {
             const meta = this.audienceRuleMeta(row.param);
             const ops = this.audienceRuleOpsFor(row.param);
             if (!ops.includes(row.op)) row.op = ops[0];
+            // Repeat clicks: prefer >= so choosing 3 includes members with exactly 3.
+            if (row.param === 'cr_repeat_click_count' && row.op === '>') row.op = '>=';
             const vals = meta?.values || [];
             const type = meta?.type || 'enum';
             if (type === 'number') {
                 // Never keep enum leftovers like "invalid" on Repeat clicks / Risk score.
                 if (row.value === '' || row.value == null || Number.isNaN(Number(row.value))) {
-                    row.value = row.op === '>' || row.op === '>=' ? 1 : 1;
+                    row.value = 1;
                 } else {
                     row.value = Number(row.value);
                 }

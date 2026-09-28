@@ -372,10 +372,10 @@
                                         <td>
                                             <div class="figma-sa-user-detail-row-actions">
                                                 <a href="{{ route('super-admin.users.show', $portal) }}#account-details" class="figma-sa-user-detail-link-btn">Edit role</a>
-                                                <form method="POST" action="{{ route('super-admin.users.portal-members.destroy', [$user, $portal]) }}" class="figma-sa-user-detail-inline-form" onsubmit="return confirm('Remove {{ $portal->email }}? This deletes their account.')">
+                                                <form method="POST" action="{{ route('super-admin.users.portal-members.destroy', [$user, $portal]) }}" class="figma-sa-user-detail-inline-form">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="figma-sa-user-detail-link-btn figma-sa-user-detail-link-btn--danger">Remove</button>
+                                                    <button type="submit" class="figma-sa-user-detail-link-btn figma-sa-user-detail-link-btn--danger" onclick="return confirm(@js('Remove '.$portal->email.'? This deletes their account.'))">Remove</button>
                                                 </form>
                                                 <x-super-admin.user-action-menu :user="$portal" />
                                             </div>

@@ -270,7 +270,8 @@ class UsersController extends Controller
     public function updatePortalMemberRole(Request $request, User $user, User $member): RedirectResponse
     {
         abort_unless(
-            Schema::hasColumn('users', 'team_owner_id') && $member->team_owner_id === $user->id,
+            Schema::hasColumn('users', 'team_owner_id')
+            && (int) $member->team_owner_id === (int) $user->id,
             404
         );
 
@@ -298,7 +299,8 @@ class UsersController extends Controller
     public function removePortalMember(Request $request, User $user, User $member): RedirectResponse
     {
         abort_unless(
-            Schema::hasColumn('users', 'team_owner_id') && $member->team_owner_id === $user->id,
+            Schema::hasColumn('users', 'team_owner_id')
+            && (int) $member->team_owner_id === (int) $user->id,
             404
         );
 
@@ -306,8 +308,24 @@ class UsersController extends Controller
             return back()->withErrors(['member' => 'Cannot remove a super admin from a workspace.']);
         }
 
+        if ((int) $member->id === (int) $request->user()->id) {
+            return back()->withErrors(['member' => 'You cannot remove yourself.']);
+        }
+
         $email = $member->email;
-        $member->delete();
+
+        try {
+            DB::transaction(function () use ($member): void {
+                $this->purgeUserDependencies($member);
+                $member->delete();
+            });
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors([
+                'member' => "Could not remove {$email}. ".$e->getMessage(),
+            ]);
+        }
 
         return back()->with('status', "Removed portal user {$email} from this workspace.");
     }
@@ -409,7 +427,7 @@ class UsersController extends Controller
             )
             ->with(['role:id,name,slug', 'teams' => fn ($q) => $q->where('is_active', true)->orderBy('name')])
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'role_id', 'status', 'created_at', 'last_login_at']);
+            ->get(['id', 'name', 'email', 'role_id', 'team_owner_id', 'status', 'created_at', 'last_login_at']);
 
         $userTeams = $user->teams;
         $assignedByIds = $userTeams->pluck('pivot.assigned_by')->filter()->unique()->values()->all();
@@ -738,9 +756,53 @@ class UsersController extends Controller
         if ($user->id === $request->user()->id) {
             return back()->withErrors(['user' => 'You cannot remove yourself.']);
         }
-        $user->delete();
+        if ($user->is_super_admin) {
+            return back()->withErrors(['user' => 'Cannot remove a super admin account.']);
+        }
 
-        return back()->with('status', 'User removed.');
+        $email = $user->email;
+
+        try {
+            DB::transaction(function () use ($user): void {
+                $this->purgeUserDependencies($user);
+                $user->delete();
+            });
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors([
+                'user' => "Could not remove {$email}. ".$e->getMessage(),
+            ]);
+        }
+
+        return back()->with('status', "User {$email} removed.");
+    }
+
+    /**
+     * Clear pivot / child rows that can block users.delete (non-cascading FKs).
+     */
+    private function purgeUserDependencies(User $user): void
+    {
+        if (Schema::hasTable('team_members')) {
+            DB::table('team_members')->where('user_id', $user->id)->delete();
+        }
+
+        if (Schema::hasTable('user_invites')) {
+            if (Schema::hasColumn('user_invites', 'invited_by_id')) {
+                DB::table('user_invites')->where('invited_by_id', $user->id)->update(['invited_by_id' => null]);
+            }
+            if (Schema::hasColumn('user_invites', 'team_owner_id')) {
+                DB::table('user_invites')->where('team_owner_id', $user->id)->update(['team_owner_id' => null]);
+            }
+        }
+
+        if (Schema::hasColumn('users', 'team_owner_id')) {
+            User::query()->where('team_owner_id', $user->id)->update(['team_owner_id' => null]);
+        }
+
+        if (Schema::hasTable('sessions') && Schema::hasColumn('sessions', 'user_id')) {
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+        }
     }
 
     public function impersonate(Request $request, User $user): RedirectResponse

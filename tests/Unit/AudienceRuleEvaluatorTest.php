@@ -89,6 +89,24 @@ class AudienceRuleEvaluatorTest extends TestCase
         ]));
     }
 
+    public function test_repeat_clicks_threshold_is_inclusive(): void
+    {
+        $rule = [
+            'match_mode' => 'any',
+            'conditions' => [
+                ['param' => 'cr_repeat_click_count', 'op' => '>', 'value' => 3],
+            ],
+        ];
+        $normalized = AudienceRuleSchema::normalize($rule);
+        $this->assertSame('>=', $normalized['rule']['conditions'][0]['op']);
+        $this->assertSame(3, $normalized['rule']['conditions'][0]['value']);
+
+        $this->assertTrue(AudienceRuleEvaluator::matches($rule, ['cr_repeat_click_count' => 3]));
+        $this->assertTrue(AudienceRuleEvaluator::matches($rule, ['cr_repeat_click_count' => 4]));
+        $this->assertFalse(AudienceRuleEvaluator::matches($rule, ['cr_repeat_click_count' => 2]));
+        $this->assertStringContainsString('Repeat clicks >= 3', AudienceRuleSchema::naturalLanguageSummary($rule));
+    }
+
     public function test_natural_language_summary(): void
     {
         $summary = AudienceRuleSchema::naturalLanguageSummary(AudienceRuleSchema::defaultPreset());
@@ -110,10 +128,11 @@ class AudienceRuleEvaluatorTest extends TestCase
         $normalized = AudienceRuleSchema::normalize($bad);
         $this->assertTrue($normalized['ok']);
         $this->assertSame(1, $normalized['rule']['conditions'][0]['value']);
-        $this->assertStringContainsString('Repeat clicks > 1', AudienceRuleSchema::naturalLanguageSummary($bad));
+        $this->assertSame('>=', $normalized['rule']['conditions'][0]['op']);
+        $this->assertStringContainsString('Repeat clicks >= 1', AudienceRuleSchema::naturalLanguageSummary($bad));
 
-        // Without coercion, ">" short-circuits on non-numeric expected and never matches.
         $this->assertTrue(AudienceRuleEvaluator::matches($bad, ['cr_repeat_click_count' => 3]));
-        $this->assertFalse(AudienceRuleEvaluator::matches($bad, ['cr_repeat_click_count' => 1]));
+        $this->assertTrue(AudienceRuleEvaluator::matches($bad, ['cr_repeat_click_count' => 1]));
+        $this->assertFalse(AudienceRuleEvaluator::matches($bad, ['cr_repeat_click_count' => 0]));
     }
 }
