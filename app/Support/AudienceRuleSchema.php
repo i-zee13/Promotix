@@ -92,7 +92,8 @@ final class AudienceRuleSchema
             ],
             'cr_repeat_click_count' => [
                 'label' => 'Repeat clicks',
-                'operators' => ['>', '>='],
+                // Threshold N means at least N (includes N). Prefer >= in UI.
+                'operators' => ['>=', '>'],
                 'type' => 'number',
             ],
             'cr_challenge_result' => [
@@ -160,6 +161,10 @@ final class AudienceRuleSchema
                 return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Unknown parameter: '.$param];
             }
             $op = (string) ($row['op'] ?? '=');
+            // Product meaning: threshold N = at least N (includes N). Map legacy ">" / "=" to >=.
+            if ($param === 'cr_repeat_click_count' && in_array($op, ['>', '=', '=>'], true)) {
+                $op = '>=';
+            }
             if (! in_array($op, $catalog[$param]['operators'], true)) {
                 return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Operator not allowed for '.$param];
             }

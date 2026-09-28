@@ -2548,12 +2548,15 @@ function platformIntegrations(config) {
             if (!ops.includes(row.op)) row.op = ops[0];
             const vals = meta?.values || [];
             const type = meta?.type || 'enum';
-            if (type === 'number') {
+            if ($type === 'number') {
                 // Never keep enum leftovers like "invalid" on Repeat clicks / Risk score.
                 if (row.value === '' || row.value == null || Number.isNaN(Number(row.value))) {
-                    row.value = row.op === '>' || row.op === '>=' ? 1 : 1;
+                    row.value = 1;
                 } else {
                     row.value = Number(row.value);
+                }
+                if (row.param === 'cr_repeat_click_count' && (row.op === '>' || row.op === '=' || row.op === '=>')) {
+                    row.op = '>=';
                 }
                 return;
             }
@@ -3475,7 +3478,7 @@ function platformIntegrations(config) {
                         m.url,
                     ].map(td).join('')}</tr>`).join('');
                 } else {
-                    memberRowsHtml = `<tr><td colspan="20" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No members matched this audience rule for ads traffic yet.${data.rule_was_sanitized ? ' Tip: Repeat clicks needs a number (e.g. &gt; 1), not “invalid”. Rule was auto-corrected and saved — new cr_invalid_traffic events will use Repeat clicks &gt; 1. Google Ads size stays 0 until those events arrive.' : ' Tip: use Traffic verdict = invalid, or Repeat clicks &gt; 1 (number). Google Ads size also stays 0 until the site fires cr_invalid_traffic.'}</td></tr>`;
+                    memberRowsHtml = `<tr><td colspan="20" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">${escHtml(data.empty_reason || 'No members matched this audience rule for ads traffic yet.')}${data.rule_was_sanitized ? ' Tip: Repeat clicks needs a number (e.g. > 1), not “invalid”.' : ''}</td></tr>`;
                 }
                 const xOpen = (n) => '<' + 'x:' + n + '>';
                 const xClose = (n) => '</' + 'x:' + n + '>';
