@@ -2067,14 +2067,14 @@
                             <div class="figma-gaem-quick">
                                 <label class="figma-gaem-campaign-wrap" style="min-width:min(100%,220px);flex:1 1 180px">
                                     <span class="figma-gaem-campaign-label">Search IP</span>
-                                    <input
+                                                <input
                                         type="search"
                                         class="w-full rounded-[6px] border border-white/25 bg-black/30 px-[10px] py-[7px] text-[12px] text-white placeholder:text-white/40 focus:border-[var(--brand-primary,#FF6600)] focus:outline-none"
                                         placeholder="Find IP in exclusion list…"
                                         x-model="ipSearch"
                                         autocomplete="off"
-                                    >
-                                </label>
+                                                >
+                                            </label>
                                 <div class="figma-gaem-campaign-wrap">
                                     <span class="figma-gaem-campaign-label">Campaigns</span>
                                     <div class="figma-gaem-campaign-multi" :class="{ 'is-disabled': loading || !adsConnected }">
@@ -2173,7 +2173,7 @@
                                                 @input="rebuildCrossDomainList()"
                                             >
                                             <button type="button" class="ml-auto text-[11px] font-semibold underline" @click="toggleCrossDomainIps()" x-show="crossDomainIps.length">Select all / none</button>
-                                        </div>
+                                    </div>
                                         <p class="text-[12px] font-semibold" x-text="crossDomainIps.length + ' IP(s) · ' + crossDomainSelected.length + ' selected'"></p>
                                         <div class="max-h-[260px] space-y-[6px] overflow-y-auto rounded-[8px] border border-white/15 bg-black/15 p-[8px]">
                                             <p class="px-[6px] py-[10px] text-[12px] text-white/75" x-show="!crossDomainIps.length">No cross-domain IPs match this scope yet.</p>

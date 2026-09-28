@@ -1516,18 +1516,18 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
 
     <template x-teleport="body">
-        <div
-            x-show="menuToast"
-            x-cloak
-            x-transition
+    <div
+        x-show="menuToast"
+        x-cloak
+        x-transition
             class="fixed top-[70px] right-[24px] z-[2147483646] max-w-[min(420px,calc(100vw-48px))] rounded-[8px] px-[14px] py-[10px] text-[12px] shadow-lg backdrop-blur-sm"
-            :class="{
-                'border border-red-400/45 bg-red-500/20 text-red-50': menuToastType === 'error',
-                'border border-emerald-400/35 bg-emerald-500/15 text-emerald-50': menuToastType === 'success',
+        :class="{
+            'border border-red-400/45 bg-red-500/20 text-red-50': menuToastType === 'error',
+            'border border-emerald-400/35 bg-emerald-500/15 text-emerald-50': menuToastType === 'success',
                 'border border-[var(--brand-primary)]/40 bg-[var(--brand-primary)]/30 text-white': menuToastType === 'info',
-            }"
-            x-text="menuToast"
-        ></div>
+        }"
+        x-text="menuToast"
+    ></div>
     </template>
 </div>
 
@@ -2545,9 +2545,10 @@ function platformIntegrations(config) {
             if (!row || typeof row !== 'object') return;
             const meta = this.audienceRuleMeta(row.param);
             const ops = this.audienceRuleOpsFor(row.param);
+            if (row.param === 'cr_repeat_click_count' && (row.op === '>' || row.op === '=' || row.op === '=>')) {
+                row.op = '>=';
+            }
             if (!ops.includes(row.op)) row.op = ops[0];
-            // Repeat clicks is always "at least N" (>=).
-            if (row.param === 'cr_repeat_click_count') row.op = '>=';
             const vals = meta?.values || [];
             const type = meta?.type || 'enum';
             if (type === 'number') {
@@ -3477,7 +3478,7 @@ function platformIntegrations(config) {
                         m.url,
                     ].map(td).join('')}</tr>`).join('');
                 } else {
-                    memberRowsHtml = `<tr><td colspan="20" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No members matched this audience rule for ads traffic yet.${data.rule_was_sanitized ? ' Tip: Repeat clicks needs a number (e.g. &gt;= 3). Rule was auto-corrected and saved.' : ' Tip: Repeat clicks &gt;= N means at least N (set 3 → 3, 4, 5…). Google Ads size also stays 0 until the site fires cr_invalid_traffic.'}</td></tr>`;
+                    memberRowsHtml = `<tr><td colspan="20" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No members matched this audience rule for ads traffic yet.${data.rule_was_sanitized ? ' Tip: Repeat clicks needs a number (e.g. &gt;= 3), not “invalid”. Rule was auto-corrected and saved — new events use Repeat clicks &gt;= N. Google Ads size stays 0 until those events arrive.' : ' Tip: use Traffic verdict = invalid, or Repeat clicks &gt;= 3 (includes 3). Google Ads size also stays 0 until the site fires cr_invalid_traffic.'}</td></tr>`;
                 }
                 const xOpen = (n) => '<' + 'x:' + n + '>';
                 const xClose = (n) => '</' + 'x:' + n + '>';

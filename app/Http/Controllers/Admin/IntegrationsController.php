@@ -740,7 +740,7 @@ class IntegrationsController extends Controller
                     'account_id' => $account->id,
                     'domain_id' => $domain->id,
                     'domain' => $domain->hostname,
-                    'label' => $account->displayLabel(),
+            'label' => $account->displayLabel(),
                     'customer_id' => $account->formattedCustomerId(),
                     'currency_code' => $currencyCode,
                     'currency_label' => AccountCurrency::label($currencyCode),

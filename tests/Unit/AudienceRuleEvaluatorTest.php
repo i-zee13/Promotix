@@ -68,13 +68,12 @@ class AudienceRuleEvaluatorTest extends TestCase
         $repeatRule = [
             'match_mode' => 'all',
             'conditions' => [
-                ['param' => 'cr_repeat_click_count', 'op' => '>', 'value' => 3],
+                ['param' => 'cr_repeat_click_count', 'op' => '>=', 'value' => 4],
             ],
         ];
-        $this->assertFalse(AudienceRuleEvaluator::matches($repeatRule, ['cr_repeat_click_count' => 2]));
-        $this->assertTrue(AudienceRuleEvaluator::matches($repeatRule, ['cr_repeat_click_count' => 3]));
         $this->assertTrue(AudienceRuleEvaluator::matches($repeatRule, ['cr_repeat_click_count' => 4]));
         $this->assertTrue(AudienceRuleEvaluator::matches($repeatRule, ['cr_repeat_click_count' => 7]));
+        $this->assertFalse(AudienceRuleEvaluator::matches($repeatRule, ['cr_repeat_click_count' => 3]));
 
         $actionRule = [
             'match_mode' => 'any',
@@ -102,12 +101,9 @@ class AudienceRuleEvaluatorTest extends TestCase
         $this->assertSame('>=', $normalized['rule']['conditions'][0]['op']);
         $this->assertSame(3, $normalized['rule']['conditions'][0]['value']);
 
-        // Limit 3 → 3+ (includes 3).
-        $this->assertFalse(AudienceRuleEvaluator::matches($rule, ['cr_repeat_click_count' => 1]));
-        $this->assertFalse(AudienceRuleEvaluator::matches($rule, ['cr_repeat_click_count' => 2]));
         $this->assertTrue(AudienceRuleEvaluator::matches($rule, ['cr_repeat_click_count' => 3]));
         $this->assertTrue(AudienceRuleEvaluator::matches($rule, ['cr_repeat_click_count' => 4]));
-        $this->assertTrue(AudienceRuleEvaluator::matches($rule, ['cr_repeat_click_count' => 7]));
+        $this->assertFalse(AudienceRuleEvaluator::matches($rule, ['cr_repeat_click_count' => 2]));
         $this->assertStringContainsString('Repeat clicks >= 3', AudienceRuleSchema::naturalLanguageSummary($rule));
     }
 

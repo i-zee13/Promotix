@@ -170,12 +170,12 @@ class PaidMarketingController extends Controller
                 $key = $this->detailedVisitMetaKey($visit);
 
                 return $this->formatDetailedVisit(
-                    $visit,
-                    $request->user(),
-                    $ipLogs->get($visit->ip),
-                    $recordings->get($visit->ip),
-                    $verificationLookup,
-                    $reportingTz,
+            $visit,
+            $request->user(),
+            $ipLogs->get($visit->ip),
+            $recordings->get($visit->ip),
+            $verificationLookup,
+            $reportingTz,
                     $behaviorCounts->get($visit->ip),
                     $preferDeviceId,
                     $sessionMetaByKey[$key] ?? null,

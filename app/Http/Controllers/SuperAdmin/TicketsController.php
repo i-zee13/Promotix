@@ -53,7 +53,7 @@ class TicketsController extends Controller
                             Schema::hasColumn('support_tickets', 'ticket_number'),
                             fn ($q2) => $q2->orWhere('ticket_number', 'like', "%{$term}%")
                         )
-                        ->orWhereHas('requester', fn ($u) => $u->where('email', 'like', "%{$term}%"));
+                       ->orWhereHas('requester', fn ($u) => $u->where('email', 'like', "%{$term}%"));
                 });
             })
             ->latest('id')

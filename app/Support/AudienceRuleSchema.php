@@ -92,7 +92,7 @@ final class AudienceRuleSchema
             ],
             'cr_repeat_click_count' => [
                 'label' => 'Repeat clicks',
-                // Inclusive threshold: set 3 → members with 3, 4, 5… (>= 3).
+                // Only >= — threshold N means at least N (includes N). Do not offer ">" (excludes N).
                 'operators' => ['>='],
                 'type' => 'number',
             ],
@@ -161,7 +161,7 @@ final class AudienceRuleSchema
                 return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Unknown parameter: '.$param];
             }
             $op = (string) ($row['op'] ?? '=');
-            // Repeat clicks = "at least N" (>=). Older > / = rules become >=.
+            // Product meaning: threshold N = at least N (includes N). Map legacy ops to >=.
             if ($param === 'cr_repeat_click_count' && in_array($op, ['>', '=', '=>'], true)) {
                 $op = '>=';
             }

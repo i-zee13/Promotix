@@ -255,8 +255,8 @@ class BotProtectionController extends Controller
     public function pageAnalyticsExport(Request $request)
     {
         try {
-            $domainIds = $this->scopedDomainIds($request);
-            [$from, $to] = $this->dateRange($request);
+        $domainIds = $this->scopedDomainIds($request);
+        [$from, $to] = $this->dateRange($request);
             $filters = $this->pageAnalyticsFilters($request);
             $payload = app(PageAnalyticsAggregator::class)->build($domainIds, $from, $to, null, $filters);
             $format = strtolower((string) $request->query('format', 'html'));
@@ -320,7 +320,7 @@ class BotProtectionController extends Controller
 
             $result = app(TrafficControlSessionQuery::class)->paginate($domainIds, $from, $to, $request, $page, $perPage);
 
-            return response()->json([
+        return response()->json([
                 'data' => $result['data'],
                 'meta' => [
                     'total' => $result['total'],
@@ -615,8 +615,8 @@ class BotProtectionController extends Controller
         [$from, $to] = $this->dateRange($request);
 
         $empty = [
-            'invalid_bot' => ['labels' => [], 'values' => []],
-            'invalid_malicious' => ['labels' => [], 'values' => []],
+                'invalid_bot' => ['labels' => [], 'values' => []],
+                'invalid_malicious' => ['labels' => [], 'values' => []],
             'reasons' => ['labels' => [], 'values' => []],
             'malicious_reasons' => ['labels' => [], 'values' => []],
         ];
@@ -629,23 +629,23 @@ class BotProtectionController extends Controller
         $malicious = collect();
 
         if (Schema::hasTable('detection_logs')) {
-            $base = DB::table('detection_logs')
-                ->whereIn('domain_id', $domainIds)
-                ->whereBetween('detected_at', [$from, $to]);
+        $base = DB::table('detection_logs')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('detected_at', [$from, $to]);
 
-            $bot = (clone $base)
+        $bot = (clone $base)
                 ->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit', 'proxy', 'automation'])
-                ->select('threat_group', DB::raw('COUNT(*) as total'))
-                ->groupBy('threat_group')
-                ->orderByDesc('total')
-                ->get();
+            ->select('threat_group', DB::raw('COUNT(*) as total'))
+            ->groupBy('threat_group')
+            ->orderByDesc('total')
+            ->get();
 
-            $malicious = (clone $base)
-                ->where('threat_group', 'malicious')
-                ->select('action_taken as label', DB::raw('COUNT(*) as total'))
-                ->groupBy('action_taken')
-                ->orderByDesc('total')
-                ->get();
+        $malicious = (clone $base)
+            ->where('threat_group', 'malicious')
+            ->select('action_taken as label', DB::raw('COUNT(*) as total'))
+            ->groupBy('action_taken')
+            ->orderByDesc('total')
+            ->get();
         }
 
         if ($bot->isEmpty() && Schema::hasTable('visits')) {
@@ -777,22 +777,22 @@ class BotProtectionController extends Controller
 
         $buildRows = function (Carbon $rangeFrom, Carbon $rangeTo) use ($request, $domainIds, $crawlerExpr, $botExpr, $selectDomainCols, $groupBy) {
             return Domain::query()
-                ->where('domains.user_id', $request->user()->id)
-                ->whereIn('domains.id', $domainIds)
+            ->where('domains.user_id', $request->user()->id)
+            ->whereIn('domains.id', $domainIds)
                 ->leftJoin('visits', function ($join) use ($rangeFrom, $rangeTo, $domainIds): void {
-                    $join->on('domains.id', '=', 'visits.domain_id')
+                $join->on('domains.id', '=', 'visits.domain_id')
                         ->whereBetween('visits.visited_at', [$rangeFrom, $rangeTo]);
                     $this->applyBotFunnelFilter($join, $domainIds, 'visits');
-                })
+            })
                 ->select(array_merge($selectDomainCols, [
-                    DB::raw('COUNT(visits.id) as total_visits'),
-                    DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid_visits'),
-                    DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 0 OR visits.is_invalid_traffic IS NULL THEN 1 ELSE 0 END) as valid_visits'),
+                DB::raw('COUNT(visits.id) as total_visits'),
+                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 1 THEN 1 ELSE 0 END) as invalid_visits'),
+                DB::raw('SUM(CASE WHEN visits.is_invalid_traffic = 0 OR visits.is_invalid_traffic IS NULL THEN 1 ELSE 0 END) as valid_visits'),
                     DB::raw("{$crawlerExpr} as known_crawlers"),
                     DB::raw("{$botExpr} as bots_detected"),
                 ]))
                 ->groupBy($groupBy)
-                ->get()
+            ->get()
                 ->keyBy('id');
         };
 
@@ -838,13 +838,13 @@ class BotProtectionController extends Controller
                 $trend = $pctDelta($total, $prevTotal);
 
                 return [
-                    'id' => (int) $d->id,
-                    'hostname' => $d->hostname,
-                    'status' => $d->status,
+                'id' => (int) $d->id,
+                'hostname' => $d->hostname,
+                'status' => $d->status,
                     'total_visits' => $total,
                     'human_traffic' => $human,
                     'bots' => $bots,
-                    'valid_visits' => (int) $d->valid_visits,
+                'valid_visits' => (int) $d->valid_visits,
                     'invalid_visits' => $invalid,
                     'invalid_pct' => $invalidPct,
                     'known_crawlers' => $crawlers,
@@ -880,8 +880,8 @@ class BotProtectionController extends Controller
     public function trafficControlIntelligence(Request $request): JsonResponse
     {
         try {
-            $domainIds = $this->scopedDomainIds($request);
-            [$from, $to] = $this->dateRange($request);
+        $domainIds = $this->scopedDomainIds($request);
+        [$from, $to] = $this->dateRange($request);
             $payload = app(TrafficControlIntelligence::class)->build($domainIds, $from, $to, [
                 'campaign' => trim((string) $request->query('campaign', '')),
                 'path' => trim((string) $request->query('path', '')),
@@ -964,12 +964,12 @@ class BotProtectionController extends Controller
     public function botStats(Request $request): JsonResponse
     {
         $empty = [
-            'blocked' => 0,
-            'invalid_traffic' => 0,
-            'paid_traffic' => 0,
-            'bot_detection' => 0,
-            'country' => 0,
-            'overall' => 0,
+                'blocked' => 0,
+                'invalid_traffic' => 0,
+                'paid_traffic' => 0,
+                'bot_detection' => 0,
+                'country' => 0,
+                'overall' => 0,
             'charts' => $this->emptyAdvancedCharts(),
         ];
 
@@ -979,16 +979,16 @@ class BotProtectionController extends Controller
 
             if (! Schema::hasTable('visits') || collect($domainIds)->isEmpty()) {
                 return response()->json($empty);
-            }
+        }
 
-            $base = $this->baseVisitsQuery($domainIds, $from, $to, $request);
+        $base = $this->baseVisitsQuery($domainIds, $from, $to, $request);
 
-            $total = max(1, (clone $base)->count());
-            $blocked = (clone $base)->where('action_taken', 'block')->count();
-            $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
-            $bot = (clone $base)->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit'])->count();
-            $withCountry = (clone $base)->whereNotNull('country')->where('country', '!=', '')->count();
-            $valid = max(0, (clone $base)->count() - $invalid);
+        $total = max(1, (clone $base)->count());
+        $blocked = (clone $base)->where('action_taken', 'block')->count();
+        $invalid = (clone $base)->where('is_invalid_traffic', true)->count();
+        $bot = (clone $base)->whereIn('threat_group', ['data_center', 'vpn', 'abnormal_rate_limit'])->count();
+        $withCountry = (clone $base)->whereNotNull('country')->where('country', '!=', '')->count();
+        $valid = max(0, (clone $base)->count() - $invalid);
 
             // Same IP-aggregate grain as Advanced table / Dashboard country IPs.
             $chartRows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
@@ -1001,15 +1001,15 @@ class BotProtectionController extends Controller
                 ->get(['ip', 'is_blocked', 'ipdetails_abuser_score', 'abuse_confidence_score'])
                 ->keyBy('ip');
 
-            return response()->json([
-                'blocked' => (int) round(($blocked / $total) * 100),
-                'invalid_traffic' => (int) round(($invalid / $total) * 100),
-                'paid_traffic' => 0,
-                'bot_detection' => (int) round(($bot / $total) * 100),
-                'country' => (int) round(($withCountry / $total) * 100),
-                'overall' => (int) round(($valid / $total) * 100),
+        return response()->json([
+            'blocked' => (int) round(($blocked / $total) * 100),
+            'invalid_traffic' => (int) round(($invalid / $total) * 100),
+            'paid_traffic' => 0,
+            'bot_detection' => (int) round(($bot / $total) * 100),
+            'country' => (int) round(($withCountry / $total) * 100),
+            'overall' => (int) round(($valid / $total) * 100),
                 'charts' => $this->computeAdvancedCharts($chartRows, $ipLogs),
-            ]);
+        ]);
         } catch (\Throwable $e) {
             report($e);
 
@@ -1037,8 +1037,8 @@ class BotProtectionController extends Controller
         };
 
         try {
-            $domainIds = $this->scopedDomainIds($request);
-            [$from, $to] = $this->dateRange($request);
+        $domainIds = $this->scopedDomainIds($request);
+        [$from, $to] = $this->dateRange($request);
             $domainCount = collect($domainIds)->count();
 
             if (! Schema::hasTable('visits') || $domainCount === 0) {
@@ -1049,26 +1049,26 @@ class BotProtectionController extends Controller
             $paidHidden = $total === 0 ? $this->countPaidHiddenIps($request, $domainIds, $from, $to) : 0;
             $rows = $this->buildAdvancedIpAggregateQuery($request, $domainIds, $from, $to)
                 ->orderByDesc('total')
-                ->orderByDesc('visited_at')
-                ->forPage($page, $perPage)
-                ->get();
+            ->orderByDesc('visited_at')
+            ->forPage($page, $perPage)
+            ->get();
 
-            $ipLogs = IpLog::query()
-                ->whereIn('ip', $rows->pluck('ip')->unique()->filter()->values())
-                ->get()
-                ->keyBy('ip');
+        $ipLogs = IpLog::query()
+            ->whereIn('ip', $rows->pluck('ip')->unique()->filter()->values())
+            ->get()
+            ->keyBy('ip');
 
-            $recordings = collect();
+        $recordings = collect();
             $behaviorCounts = collect();
-            if (Schema::hasTable('visit_session_recordings') && $rows->isNotEmpty()) {
+        if (Schema::hasTable('visit_session_recordings') && $rows->isNotEmpty()) {
                 $ips = $rows->pluck('ip')->unique()->filter()->values();
-                $recordings = DB::table('visit_session_recordings')
+            $recordings = DB::table('visit_session_recordings')
                     ->whereIn('ip', $ips)
-                    ->whereIn('domain_id', $domainIds)
-                    ->orderByDesc('id')
-                    ->get()
-                    ->groupBy('ip')
-                    ->map->first();
+                ->whereIn('domain_id', $domainIds)
+                ->orderByDesc('id')
+                ->get()
+                ->groupBy('ip')
+                ->map->first();
 
                 if (Schema::hasColumn('visit_session_recordings', 'cta_clicks')) {
                     $behaviorCounts = DB::table('visit_session_recordings')
@@ -1084,20 +1084,20 @@ class BotProtectionController extends Controller
                         ->get()
                         ->keyBy('ip');
                 }
-            }
+        }
 
-            $domainsById = Domain::query()
-                ->whereIn('id', $rows->pluck('domain_id')->unique()->filter()->values())
-                ->get(['id', 'user_id', 'hostname', 'monitoring_only_mode'])
-                ->keyBy('id');
+        $domainsById = Domain::query()
+            ->whereIn('id', $rows->pluck('domain_id')->unique()->filter()->values())
+            ->get(['id', 'user_id', 'hostname', 'monitoring_only_mode'])
+            ->keyBy('id');
 
             return $payload(
                 data: $rows->map(fn ($v) => $this->formatVisit(
-                    $v,
-                    $ipLogs->get($v->ip),
-                    $request->user(),
-                    $recordings->get($v->ip),
-                    $domainsById->get($v->domain_id),
+                $v,
+                $ipLogs->get($v->ip),
+                $request->user(),
+                $recordings->get($v->ip),
+                $domainsById->get($v->domain_id),
                     $behaviorCounts->get($v->ip),
                 ))->values()->all(),
                 total: $total,
@@ -1136,7 +1136,7 @@ class BotProtectionController extends Controller
                 $this->writeAdvancedCsv($handle, $request, $domainIds, $from, $to);
             }
 
-            fclose($handle);
+                fclose($handle);
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
@@ -1190,8 +1190,8 @@ class BotProtectionController extends Controller
 
         $ids = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values()->all();
         if ($ids === []) {
-            return;
-        }
+                return;
+            }
 
         $result = app(TrafficControlSessionQuery::class)->paginate($ids, $from, $to, $request, 1, 5000);
         foreach ($result['data'] as $row) {
@@ -1199,7 +1199,7 @@ class BotProtectionController extends Controller
                 ->map(fn ($ev) => trim((string) ($ev['key'] ?? '')).' ('.(int) ($ev['count'] ?? 0).')')
                 ->filter()
                 ->implode('; ');
-            fputcsv($handle, [
+                    fputcsv($handle, [
                 $row['ip'] ?? '',
                 $row['session_id'] ?? '',
                 $row['fingerprint_id'] ?? '',
@@ -1516,25 +1516,25 @@ class BotProtectionController extends Controller
         $this->applyAdvancedVisitFilters($query, $request);
 
         return $query->select(
-            'visits.id',
-            'visits.domain_id',
-            'domains.hostname',
-            'visits.ip',
-            'visits.country',
-            'visits.browser',
-            'visits.os',
-            'visits.url',
-            'visits.referrer',
-            'visits.utm_source',
-            'visits.utm_medium',
-            'visits.utm_campaign',
-            'visits.action_taken',
-            'visits.threat_group',
-            'visits.threat_score',
-            'visits.is_invalid_traffic',
-            'visits.is_paid_traffic',
-            'visits.visited_at'
-        );
+                'visits.id',
+                'visits.domain_id',
+                'domains.hostname',
+                'visits.ip',
+                'visits.country',
+                'visits.browser',
+                'visits.os',
+                'visits.url',
+                'visits.referrer',
+                'visits.utm_source',
+                'visits.utm_medium',
+                'visits.utm_campaign',
+                'visits.action_taken',
+                'visits.threat_group',
+                'visits.threat_score',
+                'visits.is_invalid_traffic',
+                'visits.is_paid_traffic',
+                'visits.visited_at'
+            );
     }
 
     private function formatVisit(object $v, ?IpLog $ipLog = null, ?\App\Models\User $user = null, ?object $recording = null, ?Domain $domain = null, ?object $behaviorCounts = null): array
