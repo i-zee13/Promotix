@@ -133,8 +133,9 @@ class GoogleAdsAudienceAssociationService
                 'rule' => is_array($row['rule'] ?? null)
                     ? \App\Support\AudienceRuleSchema::normalize($row['rule'])['rule']
                     : \App\Support\AudienceRuleSchema::defaultPreset(),
-                'rule_summary' => (string) ($row['rule_summary']
-                    ?? \App\Support\AudienceRuleSchema::naturalLanguageSummary($row['rule'] ?? [])),
+                'rule_summary' => \App\Support\AudienceRuleSchema::naturalLanguageSummary(
+                    is_array($row['rule'] ?? null) ? $row['rule'] : []
+                ),
                 'attached_campaign_ids' => array_values($row['attached_campaign_ids'] ?? []),
                 'verified_campaign_ids' => array_values($row['verified_campaign_ids'] ?? []),
                 'updated_at' => (string) ($row['updated_at'] ?? ''),
@@ -161,8 +162,9 @@ class GoogleAdsAudienceAssociationService
                 'rule' => is_array($row['rule'] ?? null)
                     ? \App\Support\AudienceRuleSchema::normalize($row['rule'])['rule']
                     : \App\Support\AudienceRuleSchema::defaultPreset(),
-                'rule_summary' => (string) ($row['rule_summary']
-                    ?? \App\Support\AudienceRuleSchema::naturalLanguageSummary($row['rule'] ?? [])),
+                'rule_summary' => \App\Support\AudienceRuleSchema::naturalLanguageSummary(
+                    is_array($row['rule'] ?? null) ? $row['rule'] : []
+                ),
                 'attached_campaign_ids' => array_values($row['attached_campaign_ids'] ?? []),
                 'verified_campaign_ids' => array_values($row['verified_campaign_ids'] ?? []),
                 'updated_at' => (string) ($row['updated_at'] ?? ''),
@@ -199,12 +201,38 @@ class GoogleAdsAudienceAssociationService
         }
 
         $stored = null;
+        $rawRule = null;
         foreach ($this->listStoredAudiences($domain) as $row) {
             if (($row['user_list_id'] ?? '') === $userListId) {
                 $stored = $row;
                 break;
             }
         }
+
+        // Read unsanitized rule from settings so we can detect / persist coercion.
+        $mapping = DomainGoogleAdsMapping::query()
+            ->where('domain_id', $domain->id)
+            ->orderByDesc('id')
+            ->first();
+        $settings = is_array($mapping?->settings) ? $mapping->settings : [];
+        $rawRow = is_array($settings['audience_lists'][$userListId] ?? null)
+            ? $settings['audience_lists'][$userListId]
+            : null;
+        if (! $rawRow) {
+            foreach (['ga4', 'website'] as $route) {
+                $candidate = is_array($settings['audience_associations'][$route] ?? null)
+                    ? $settings['audience_associations'][$route]
+                    : null;
+                $cid = preg_replace('/\D+/', '', (string) ($candidate['user_list_id'] ?? ''));
+                if ($cid === $userListId) {
+                    $rawRow = $candidate;
+                    break;
+                }
+            }
+        }
+        $rawRule = is_array($rawRow['rule'] ?? null) ? $rawRow['rule'] : null;
+        $ruleWasSanitized = is_array($rawRule)
+            && \App\Support\AudienceRuleSchema::needsNumericCoercion($rawRule);
 
         $campaignIds = array_values(array_unique(array_filter(array_map(
             static fn ($e) => preg_replace('/\D+/', '', (string) ($e['campaign_id'] ?? '')),
@@ -217,14 +245,35 @@ class GoogleAdsAudienceAssociationService
                 $campaignNames[$cid] = (string) ($e['campaign_name'] ?? '');
             }
         }
+        $normalizedRule = \App\Support\AudienceRuleSchema::normalize(
+            is_array($rawRule) ? $rawRule : (is_array($stored['rule'] ?? null) ? $stored['rule'] : [])
+        );
+        $ruleForExport = $normalizedRule['rule'];
+        $ruleSummaryLive = \App\Support\AudienceRuleSchema::naturalLanguageSummary($ruleForExport);
+
+        if ($ruleWasSanitized && $stored) {
+            // Persist coerced numeric defaults so tag evaluation + future exports stay consistent.
+            $this->persistAssociation($domain, array_merge($stored, [
+                'rule' => $ruleForExport,
+                'rule_summary' => $ruleSummaryLive,
+                'updated_at' => now()->toIso8601String(),
+            ]));
+        }
+
         $invalidMembers = $this->fetchInvalidMembersForExport(
             $domain,
             $campaignIds,
             $campaignNames,
-            is_array($stored['rule'] ?? null) ? $stored['rule'] : null,
+            $ruleForExport,
             (int) ($stored['membership_days'] ?? 90),
-            (string) ($stored['rule_summary'] ?? ''),
+            $ruleSummaryLive,
         );
+
+        $statusLabel = $stats['status_label'] ?? null;
+        if ($invalidMembers === [] && $statusLabel) {
+            // Clarify local preview emptiness vs Google Ads membership (browser events).
+            $statusLabel = rtrim((string) $statusLabel).' · Local preview: 0 ads visits matched this rule yet.';
+        }
 
         return [
             'ok' => true,
@@ -238,11 +287,13 @@ class GoogleAdsAudienceAssociationService
             'display_size_label' => $stats['display_size_label'] ?? '—',
             'size_for_search' => $stats['size_for_search'] ?? null,
             'size_for_display' => $stats['size_for_display'] ?? null,
-            'status_label' => $stats['status_label'] ?? null,
+            'status_label' => $statusLabel,
             'is_crm_shell' => (bool) ($stats['is_crm_shell'] ?? false),
             'attachment_status' => $stored['attachment_status'] ?? null,
-            'rule_summary' => (string) ($stored['rule_summary']
-                ?? \App\Support\AudienceRuleSchema::naturalLanguageSummary($stored['rule'] ?? [])),
+            'rule_summary' => $ruleSummaryLive !== ''
+                ? $ruleSummaryLive
+                : (string) ($stored['rule_summary'] ?? ''),
+            'rule_was_sanitized' => $ruleWasSanitized,
             'exclusions' => $exclusions,
             'exclusion_count' => count($exclusions),
             'invalid_members' => $invalidMembers,

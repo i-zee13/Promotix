@@ -96,4 +96,24 @@ class AudienceRuleEvaluatorTest extends TestCase
         $this->assertStringContainsString('Traffic verdict', $summary);
         $this->assertStringContainsString('Protection action', $summary);
     }
+
+    public function test_repeat_clicks_invalid_string_coerces_to_threshold_one(): void
+    {
+        $bad = [
+            'match_mode' => 'any',
+            'conditions' => [
+                ['param' => 'cr_repeat_click_count', 'op' => '>', 'value' => 'invalid'],
+            ],
+        ];
+        $this->assertTrue(AudienceRuleSchema::needsNumericCoercion($bad));
+
+        $normalized = AudienceRuleSchema::normalize($bad);
+        $this->assertTrue($normalized['ok']);
+        $this->assertSame(1, $normalized['rule']['conditions'][0]['value']);
+        $this->assertStringContainsString('Repeat clicks > 1', AudienceRuleSchema::naturalLanguageSummary($bad));
+
+        // Without coercion, ">" short-circuits on non-numeric expected and never matches.
+        $this->assertTrue(AudienceRuleEvaluator::matches($bad, ['cr_repeat_click_count' => 3]));
+        $this->assertFalse(AudienceRuleEvaluator::matches($bad, ['cr_repeat_click_count' => 1]));
+    }
 }

@@ -167,6 +167,40 @@ final class AudienceRuleSchema
             if ($value === null || $value === '') {
                 return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Value required for '.$param];
             }
+
+            $type = $catalog[$param]['type'] ?? 'enum';
+            if ($type === 'number') {
+                if ($op === 'between') {
+                    if (is_array($value)) {
+                        if (count($value) < 2 || ! is_numeric($value[0]) || ! is_numeric($value[1])) {
+                            return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Repeat / risk scores need numeric values (e.g. 2), not "'.$value.'".'];
+                        }
+                        $value = [(float) $value[0], (float) $value[1]];
+                    } else {
+                        $parts = preg_split('/\s*(?:,|-|to)\s*/i', (string) $value) ?: [];
+                        if (count($parts) < 2 || ! is_numeric($parts[0]) || ! is_numeric($parts[1])) {
+                            return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => $param.' needs a number (e.g. 2), not "'.(string) $value.'".'];
+                        }
+                        $value = [(float) $parts[0], (float) $parts[1]];
+                    }
+                } elseif (! is_numeric($value)) {
+                    // Common UI bug: switching from Traffic verdict (= invalid) to Repeat clicks
+                    // leaves value "invalid" — coerce to a safe default threshold.
+                    $value = 1;
+                } else {
+                    $value = (float) $value + 0;
+                    if ((float) $value == (int) $value) {
+                        $value = (int) $value;
+                    }
+                }
+            } elseif ($type === 'enum') {
+                $allowed = $catalog[$param]['values'] ?? [];
+                if ($allowed !== [] && $op !== 'in' && ! in_array((string) $value, $allowed, true)
+                    && ! in_array(strtolower((string) $value), array_map('strtolower', $allowed), true)) {
+                    return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Invalid value for '.$param];
+                }
+            }
+
             $conditions[] = [
                 'param' => $param,
                 'op' => $op,
@@ -186,6 +220,35 @@ final class AudienceRuleSchema
             ],
             'error' => null,
         ];
+    }
+
+    /**
+     * True when normalize() would change a number condition's value (e.g. "invalid" → 1).
+     *
+     * @param  array{match_mode?: string, conditions?: list<array{param?: string, op?: string, value?: mixed}>}  $rule
+     */
+    public static function needsNumericCoercion(array $rule): bool
+    {
+        $catalog = self::parameters();
+        foreach ($rule['conditions'] ?? [] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $param = (string) ($row['param'] ?? '');
+            if (! isset($catalog[$param]) || ($catalog[$param]['type'] ?? '') !== 'number') {
+                continue;
+            }
+            $value = $row['value'] ?? null;
+            $op = (string) ($row['op'] ?? '=');
+            if ($op === 'between') {
+                continue;
+            }
+            if ($value !== null && $value !== '' && ! is_numeric($value)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
