@@ -2065,6 +2065,16 @@
                             </div>
 
                             <div class="figma-gaem-quick">
+                                <label class="figma-gaem-campaign-wrap" style="min-width:min(100%,220px);flex:1 1 180px">
+                                    <span class="figma-gaem-campaign-label">Search IP</span>
+                                    <input
+                                        type="search"
+                                        class="w-full rounded-[6px] border border-white/25 bg-black/30 px-[10px] py-[7px] text-[12px] text-white placeholder:text-white/40 focus:border-[var(--brand-primary,#FF6600)] focus:outline-none"
+                                        placeholder="Find IP in exclusion list…"
+                                        x-model="ipSearch"
+                                        autocomplete="off"
+                                    >
+                                </label>
                                 <div class="figma-gaem-campaign-wrap">
                                     <span class="figma-gaem-campaign-label">Campaigns</span>
                                     <div class="figma-gaem-campaign-multi" :class="{ 'is-disabled': loading || !adsConnected }">
@@ -2100,10 +2110,10 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <template x-if="!rows.length">
-                                            <tr><td colspan="4" class="figma-bip-empty" x-text="adsConnected ? 'No detected blocks or cross-domain IPs queued yet. Turn Manager On or Push after blocks appear.' : 'Link Google Ads on this domain (Integrations), then Push pending IPs to campaign exclusions.'"></td></tr>
+                                                    <template x-if="!filteredExclusionRows.length">
+                                            <tr><td colspan="4" class="figma-bip-empty" x-text="ipSearch.trim() ? ('No IPs match “' + ipSearch.trim() + '”.') : (adsConnected ? 'No detected blocks or cross-domain IPs queued yet. Turn Manager On or Push after blocks appear.' : 'Link Google Ads on this domain (Integrations), then Push pending IPs to campaign exclusions.')"></td></tr>
                                                     </template>
-                                        <template x-for="row in rows.slice(0, showAllExclusions ? rows.length : 5)" :key="row.ip + row.updated_at">
+                                        <template x-for="row in filteredExclusionRows.slice(0, showAllExclusions ? filteredExclusionRows.length : 5)" :key="row.ip + row.updated_at">
                                             <tr>
                                                 <td class="font-mono" x-text="row.ip"></td>
                                                 <td x-text="row.reason_label || row.threat_group || 'Detected block'"></td>
@@ -2137,7 +2147,7 @@
                                                 </tbody>
                                             </table>
                                         </div>
-                            <button type="button" class="figma-bip-view-all" @click="showAllExclusions = !showAllExclusions" x-show="rows.length > 5" x-text="showAllExclusions ? 'Show less' : 'View All Exclusions →'"></button>
+                            <button type="button" class="figma-bip-view-all" @click="showAllExclusions = !showAllExclusions" x-show="filteredExclusionRows.length > 5" x-text="showAllExclusions ? 'Show less' : 'View All Exclusions →'"></button>
 
                             {{-- Cross-domain IP picker (Exclusion Manager) --}}
                             <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/70 p-[16px]" x-show="crossDomainOpen" x-cloak x-transition @click.self="closeCrossDomainModal()">
@@ -2155,8 +2165,15 @@
                                                 <option value="all">All cross-domain</option>
                                                 <option value="domain_similarity">Similarity only</option>
                                             </select>
+                                            <input
+                                                type="search"
+                                                class="min-w-[140px] flex-1 rounded-[6px] border border-white/25 bg-black/30 px-[10px] py-[6px] text-[12px] text-white placeholder:text-white/40"
+                                                placeholder="Search IP…"
+                                                x-model="crossDomainSearch"
+                                                @input="rebuildCrossDomainList()"
+                                            >
                                             <button type="button" class="ml-auto text-[11px] font-semibold underline" @click="toggleCrossDomainIps()" x-show="crossDomainIps.length">Select all / none</button>
-                                    </div>
+                                        </div>
                                         <p class="text-[12px] font-semibold" x-text="crossDomainIps.length + ' IP(s) · ' + crossDomainSelected.length + ' selected'"></p>
                                         <div class="max-h-[260px] space-y-[6px] overflow-y-auto rounded-[8px] border border-white/15 bg-black/15 p-[8px]">
                                             <p class="px-[6px] py-[10px] text-[12px] text-white/75" x-show="!crossDomainIps.length">No cross-domain IPs match this scope yet.</p>
@@ -2650,6 +2667,7 @@ function blockIpPanel(config) {
 function googleExclusionPanel(config) {
     return {
         ip: '',
+        ipSearch: '',
         bulkIps: '',
         bulkFile: null,
         bulkFileName: '',
@@ -2683,6 +2701,17 @@ function googleExclusionPanel(config) {
         crossDomainSelected: [],
         crossDomainCampaignScope: 'all',
         crossDomainCampaignIds: [],
+        crossDomainSearch: '',
+        get filteredExclusionRows() {
+            const q = String(this.ipSearch || '').trim().toLowerCase();
+            const list = Array.isArray(this.rows) ? this.rows : [];
+            if (!q) return list;
+            return list.filter((row) => {
+                const ip = String(row?.ip || '').toLowerCase();
+                const reason = String(row?.reason_label || row?.threat_group || '').toLowerCase();
+                return ip.includes(q) || reason.includes(q);
+            });
+        },
         statusLabel(row) {
             if (row.sync_status === 'disabled' || row.is_active === false) return 'Off';
             if (row.sync_status === 'pending') return 'Pending';
@@ -2715,10 +2744,16 @@ function googleExclusionPanel(config) {
         },
         filteredCrossDomainRows() {
             const mode = this.crossDomainMode || 'all';
+            const q = String(this.crossDomainSearch || '').trim().toLowerCase();
             return (this.crossDomainRows || []).filter((row) => {
                 if (!row || !row.ip) return false;
                 if (mode === 'domain_similarity') {
-                    return row.domain_similarity_label === 'High' || row.domain_similarity_label === 'Medium';
+                    if (!(row.domain_similarity_label === 'High' || row.domain_similarity_label === 'Medium')) {
+                        return false;
+                    }
+                }
+                if (q && !String(row.ip).toLowerCase().includes(q)) {
+                    return false;
                 }
                 return true;
             });

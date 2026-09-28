@@ -973,6 +973,11 @@ class PageAnalyticsAggregator
      */
     private function applyVisitFilters($query, array $filters): void
     {
+        $source = strtolower(trim((string) ($filters['traffic_source'] ?? '')));
+        if (in_array($source, ['paid', 'google_ads', 'ads'], true) && Schema::hasColumn('visits', 'is_paid_traffic')) {
+            $query->where('is_paid_traffic', true);
+        }
+
         $campaign = trim((string) ($filters['campaign'] ?? ''));
         if ($campaign !== '' && Schema::hasColumn('visits', 'utm_campaign')) {
             $query->where('utm_campaign', $campaign);

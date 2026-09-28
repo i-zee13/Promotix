@@ -13,4 +13,11 @@ _(none)_
 
 ## Done recently
 
-1. **Clickronix Copilot chat** — Local knowledge-bank chatbot (no OpenAI), shipped 2026-09-03 from support-assistant + copilot master files.
+1. **Favicons** — Orange/white SVG + PNG from brand media on all layouts (2026-09-28).
+2. **Visitor Journey charts** — Paid-only SQL filter + skip session recordings on intelligence payload (2026-09-28).
+3. **Audience exclusion events** — Repeat count in decisionId; add-only param merge in tag dataLayer (2026-09-28).
+4. **All Domains currency** — Dashboard timezone-based symbol when All Domains (2026-09-28).
+5. **Live agents from admin** — “Create live agent” on Super Admin Teams + modal guidance (2026-09-28).
+6. **Exclusions Manager IP search** — Search above Cross domain + modal filter (2026-09-28).
+7. **Advanced View pagination + prefetch** — Server page/offset, KPI date-scoped cards, next-2-page prefetch (2026-09-26).
+8. **Clickronix Copilot chat** — Local knowledge-bank chatbot (no OpenAI), shipped 2026-09-03.

@@ -9,6 +9,7 @@
         <meta name="user-timezone" content="{{ \App\Support\UserTimezone::forUser(auth()->user()) }}">
     @endauth
     <title>@yield('title', 'Dashboard') - {{ \App\Support\PortalBrand::name() }}</title>
+    {!! \App\Support\Branding::faviconTags() !!}
     <script>window.PROMOTIX_FILTER_DEBOUNCE_MS = 1500;</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @php $branding = \App\Support\Branding::cssVars(); @endphp

@@ -143,6 +143,25 @@
                     <button type="button" @click="createTeamModalOpen = true" class="figma-sa-users-create-team-btn">
                         Create Team
                     </button>
+                    <button
+                        type="button"
+                        class="figma-sa-users-create-team-btn"
+                        @click="
+                            createTeamOpen = true;
+                            inviteMode = 'create';
+                            $nextTick(() => {
+                                document.querySelectorAll('#invite-users-title ~ form[x-show], form[action*=\'users\'] select[name=team_id]').forEach(() => {});
+                                const picks = document.querySelectorAll('select[name=team_id]');
+                                picks.forEach((sel) => {
+                                    const chat = Array.from(sel.options).find((o) => /chat|support|live.?agent/i.test(o.textContent || ''));
+                                    if (chat) sel.value = chat.value;
+                                });
+                            });
+                        "
+                        title="Create a user and assign them to a Chat Support / live-agent team"
+                    >
+                        Create live agent
+                    </button>
                 @endif
 
                 <button

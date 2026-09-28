@@ -39,6 +39,7 @@
             @else
                 Create the account now with a password. Plan is optional and no subscription email is sent.
             @endif
+            <span class="block mt-1 text-[11px] text-[#a9a9a9]">For live chat agents: use Create, set a password, and assign them to a <strong>Chat Support</strong> (or similar) team so they appear in ticket routing.</span>
         </p>
 
         <div class="mt-4 flex gap-2">

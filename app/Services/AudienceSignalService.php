@@ -333,6 +333,8 @@ class AudienceSignalService
             (string) ($detection['threat_group'] ?? ''),
             (string) ($detection['action_taken'] ?? ''),
             (string) ($detection['threat_score'] ?? ''),
+            // Include repeat count so each new repeated-click detection fires a fresh membership push.
+            (string) ($detection['cr_repeat_click_count'] ?? $detection['paid_clicks_today'] ?? ''),
         ]);
 
         return 'DEC-'.strtoupper(substr(hash('sha256', $basis !== '|||||' ? $basis : uniqid('dec', true)), 0, 10));

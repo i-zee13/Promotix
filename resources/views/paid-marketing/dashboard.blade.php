@@ -1927,20 +1927,29 @@ function paidAdvertisingFigma(config = {}) {
         },
         activeCurrencySymbol() {
             if (this.summary?.currency_symbol) return this.summary.currency_symbol;
+            const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: 'Rs ', AED: 'د.إ' };
             const accountId = String(this.filters.google_ads_account_id || '');
             if (accountId) {
                 const account = (this.accountOptions || []).find((a) => String(a.id) === accountId);
                 if (account?.currency_code) {
-                    const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: 'Rs ', AED: 'د.إ' };
                     return map[account.currency_code] || `${account.currency_code} `;
                 }
             }
             const id = String(this.filters.domain_id || '');
-            const entry = id ? this.domainCatalog[id] : null;
-            if (entry?.currency_code) {
-                const map = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$', INR: '₹', PKR: 'Rs ', AED: 'د.إ' };
-                return map[entry.currency_code] || `${entry.currency_code} `;
+            if (id) {
+                const entry = this.domainCatalog[id];
+                if (entry?.currency_code) {
+                    return map[entry.currency_code] || `${entry.currency_code} `;
+                }
             }
+            // All Domains: follow account / reporting timezone (PKT → Rs), not first-domain currency.
+            const tz = String(this.userTimezone || this.profileTimezone || this.summary?.timezone_context?.reporting_timezone || '');
+            if (tz === 'Asia/Karachi' || /karachi/i.test(tz)) return 'Rs ';
+            if (tz.startsWith('Europe/London')) return '£';
+            if (tz.startsWith('Europe/')) return '€';
+            if (tz.startsWith('Asia/Kolkata') || tz.startsWith('Asia/Calcutta')) return '₹';
+            if (tz.startsWith('Australia/')) return 'A$';
+            if (tz.startsWith('America/Toronto') || tz.startsWith('America/Vancouver')) return 'C$';
             return '$';
         },
         syncPaidTimezoneHeader() {

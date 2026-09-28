@@ -78,6 +78,49 @@ class Branding
         return url('/images/'.$file).(is_file($path) ? '?v='.filemtime($path) : '');
     }
 
+    /**
+     * Favicon link tags — orange mark (dark UI tabs) + light-scheme variant from brand media.
+     */
+    public static function faviconTags(): string
+    {
+        $configured = self::nullableString(app_setting('branding.favicon_url'));
+        $svg = public_path('images/favicon.svg');
+        $svgLight = public_path('images/favicon-light.svg');
+        $png32 = public_path('images/favicon-orange-32.png');
+        $pngFallback = public_path('images/favicon-32.png');
+        $apple = public_path('images/apple-touch-icon.png');
+        $v = static function (string $path): string {
+            return is_file($path) ? '?v='.filemtime($path) : '';
+        };
+
+        if ($configured && ! str_starts_with($configured, '/images/favicon') && $configured !== '/favicon.ico') {
+            $href = e($configured);
+
+            return '<link rel="icon" href="'.$href.'">';
+        }
+
+        $lines = [];
+        if (is_file($svg)) {
+            $lines[] = '<link rel="icon" type="image/svg+xml" href="'.e(url('/images/favicon.svg'.$v($svg))).'" media="(prefers-color-scheme: dark)">';
+        }
+        if (is_file($svgLight)) {
+            $lines[] = '<link rel="icon" type="image/svg+xml" href="'.e(url('/images/favicon-light.svg'.$v($svgLight))).'" media="(prefers-color-scheme: light)">';
+        }
+        $png = is_file($png32) ? $png32 : $pngFallback;
+        if (is_file($png)) {
+            $name = basename($png);
+            $lines[] = '<link rel="icon" type="image/png" sizes="32x32" href="'.e(url('/images/'.$name.$v($png))).'">';
+        }
+        if (is_file($apple)) {
+            $lines[] = '<link rel="apple-touch-icon" href="'.e(url('/images/apple-touch-icon.png'.$v($apple))).'">';
+        }
+        if ($lines === []) {
+            $lines[] = '<link rel="icon" href="'.e(url('/favicon.png')).'">';
+        }
+
+        return implode("\n    ", $lines);
+    }
+
     private static function sanitizeColor(mixed $value, string $fallback): string
     {
         $color = trim((string) $value);

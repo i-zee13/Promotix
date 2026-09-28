@@ -335,6 +335,7 @@ class TagController extends Controller
 
       var decisionId = String(resp.audience_decision_id || '');
       var audienceId = String(resp.audience_id || 'default');
+      var mergeKey = 'cr_aud_params_' + audienceId;
       try {
         if (decisionId && window.sessionStorage) {
           var dedupeKey = 'cr_aud_sig_' + audienceId + ':' + decisionId;
@@ -351,6 +352,20 @@ class TagController extends Controller
         traffic_status: verdict || 'invalid',
         clickronix_source: 'protection_tag'
       };
+      // Add-only merge: keep previously pushed membership params for this audience (never drop keys).
+      try {
+        if (window.sessionStorage) {
+          var prevRaw = sessionStorage.getItem(mergeKey);
+          if (prevRaw) {
+            var prev = JSON.parse(prevRaw);
+            if (prev && typeof prev === 'object') {
+              Object.keys(prev).forEach(function(k){
+                if (payload[k] == null && prev[k] != null) payload[k] = prev[k];
+              });
+            }
+          }
+        }
+      } catch (eMerge) {}
       if (resp.audience_event_id) payload.cr_event_id = String(resp.audience_event_id);
       if (decisionId) payload.cr_decision_id = decisionId;
       if (protectionAction) payload.cr_protection_action = protectionAction;
@@ -372,6 +387,16 @@ class TagController extends Controller
       if (resp.audience_campaign_id) payload.cr_campaign_id = String(resp.audience_campaign_id);
       if (resp.audience_occurred_at) payload.cr_occurred_at = String(resp.audience_occurred_at);
       if (resp.threat_group) payload.threat_group = String(resp.threat_group);
+      try {
+        if (window.sessionStorage) {
+          var toStore = {};
+          Object.keys(payload).forEach(function(k){
+            if (k === 'event') return;
+            if (payload[k] != null && payload[k] !== '') toStore[k] = payload[k];
+          });
+          sessionStorage.setItem(mergeKey, JSON.stringify(toStore));
+        }
+      } catch (eStore) {}
 
       window.dataLayer = window.dataLayer || [];
       window.dataLayer.push(payload);

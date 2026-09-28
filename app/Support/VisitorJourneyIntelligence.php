@@ -24,7 +24,7 @@ class VisitorJourneyIntelligence
             return $this->emptyPayload();
         }
 
-        $cacheKey = 'vj:intel:v2:'.md5(json_encode([
+        $cacheKey = 'vj:intel:v3:'.md5(json_encode([
             'domains' => array_values($domainIds),
             'from' => $from->toIso8601String(),
             'to' => $to->toIso8601String(),
@@ -49,7 +49,7 @@ class VisitorJourneyIntelligence
     private function buildUncached(array $domainIds, Carbon $from, Carbon $to, Request $request, array $filters = []): array
     {
         $analyticsFilters = [
-            'traffic_source' => '',
+            'traffic_source' => 'paid',
             'campaign' => trim((string) ($filters['campaign'] ?? '')),
             'path' => trim((string) ($filters['path'] ?? '')),
             'device' => strtolower(trim((string) ($filters['device'] ?? ''))),
@@ -61,7 +61,7 @@ class VisitorJourneyIntelligence
         $prevTo = $from->copy()->subSecond();
         $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
 
-        // One lite aggregator pass (skip decoding up to 2k recording JSON blobs).
+        // One lite aggregator pass (paid-only SQL filter; skip decoding recording JSON blobs).
         $current = app(PageAnalyticsAggregator::class)->build(
             $domainIds,
             $from,
@@ -84,6 +84,7 @@ class VisitorJourneyIntelligence
             1,
             12,
             'paid',
+            false,
             false,
         );
 

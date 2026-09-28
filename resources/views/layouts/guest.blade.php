@@ -6,6 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ \App\Support\PortalBrand::name() }}</title>
+        {!! \App\Support\Branding::faviconTags() !!}
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

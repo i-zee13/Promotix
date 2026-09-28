@@ -28,6 +28,7 @@ class TrafficControlSessionQuery
         int $perPage,
         string $trafficMode = 'bot',
         bool $withTotal = true,
+        bool $withRecordings = true,
     ): array {
         if (! Schema::hasTable('visits') || $domainIds === []) {
             return ['data' => [], 'total' => 0];
@@ -115,7 +116,9 @@ class TrafficControlSessionQuery
             ->get();
 
         $sessionKeys = $rows->pluck('session_key')->filter()->values();
-        $recordings = $this->loadRecordings($domainIds, $sessionKeys, $from, $to);
+        $recordings = $withRecordings
+            ? $this->loadRecordings($domainIds, $sessionKeys, $from, $to)
+            : collect();
         $landingPages = $this->loadLandingPages($domainIds, $from, $to, $sessionExpr, $sessionKeys);
         $exitPages = $this->loadExitPages($domainIds, $from, $to, $sessionExpr, $sessionKeys);
 
