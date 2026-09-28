@@ -668,14 +668,8 @@ class GoogleAdsAudienceAssociationService
                 continue;
             }
             $label = $catalog[$param]['label'] ?? $param;
-            $actual = $params[$param] ?? null;
-            if ($param === 'cr_action' && isset($params['cr_actions']) && is_array($params['cr_actions'])) {
-                $actual = implode(', ', $params['cr_actions']);
-            }
-            if ($param === 'cr_repeat_click_count') {
-                $actual = $params['cr_repeat_click_count'] ?? null;
-            }
-            $val = is_array($actual) ? implode(', ', $actual) : (string) ($actual ?? $condition['value'] ?? '');
+            $expected = $condition['value'] ?? '';
+            $val = is_array($expected) ? implode(', ', $expected) : (string) $expected;
             $parts[] = $label.' '.$condition['op'].' '.$val;
         }
 
