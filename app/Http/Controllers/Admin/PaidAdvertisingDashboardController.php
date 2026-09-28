@@ -1691,7 +1691,7 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         $compact = trim(preg_replace('/\s+/', '', $term) ?? $term);
-        $isDeviceId = (bool) preg_match('/^DEV_[A-Za-z0-9]+$/i', $compact);
+        $isDeviceId = \App\Support\DeviceIdLabel::looksLikeDeviceId($compact);
         $isClickId = ! $isDeviceId
             && ! filter_var($compact, FILTER_VALIDATE_IP)
             && strlen($compact) >= 12
@@ -1701,10 +1701,16 @@ class PaidAdvertisingDashboardController extends Controller
         // and then the UI hydrates the latest (often different) device on each IP.
         if ($isDeviceId) {
             if ($source === 'paid_marketing') {
+                $needles = \App\Support\DeviceIdLabel::searchNeedles($compact);
+                if ($needles === []) {
+                    $needles = [$compact];
+                }
                 if (Schema::hasColumn('paid_marketing_clicks', 'device_id')) {
-                    $query->where(function ($match) use ($compact): void {
-                        $match->where('pc.device_id', $compact)
-                            ->orWhere('pc.device_id', 'like', $compact.'%');
+                    $query->where(function ($match) use ($needles): void {
+                        foreach ($needles as $needle) {
+                            $match->orWhere('pc.device_id', $needle)
+                                ->orWhere('pc.device_id', 'like', $needle.'%');
+                        }
                     });
                 } else {
                     $query->whereRaw('0 = 1');
@@ -1713,14 +1719,7 @@ class PaidAdvertisingDashboardController extends Controller
                 return;
             }
 
-            if (Schema::hasColumn('visits', 'device_id')) {
-                $query->where(function ($match) use ($compact): void {
-                    $match->where('device_id', $compact)
-                        ->orWhere('device_id', 'like', $compact.'%');
-                });
-            } else {
-                $query->whereRaw('0 = 1');
-            }
+            \App\Support\DeviceIdLabel::applyVisitIdentityFilter($query, $compact, '');
 
             return;
         }

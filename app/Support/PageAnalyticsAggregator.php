@@ -380,47 +380,34 @@ class PageAnalyticsAggregator
         $carts = (int) ($recordingStats['carts'] ?? 0);
         $checkouts = (int) ($recordingStats['checkouts'] ?? 0);
 
-        // Align funnel with journey: count sessions that hit CTA/form-like paths when
-        // session-recording events are missing (common when tag fires pageviews only).
-        $ctaFormSessions = 0;
-        $formPathSessions = 0;
-        $ctaPathSessions = 0;
-        foreach ($sessions as $session) {
-            $hitForm = false;
-            $hitCta = false;
-            foreach ($session['pages'] ?? [] as $pagePath) {
-                $path = (string) $pagePath;
-                if ($this->looksLikeCtaOrFormPath($path)) {
-                    if (preg_match('#(form|contact|enquiry|inquiry|register|signup|sign-up|subscribe|apply|quote)#i', $path)) {
-                        $hitForm = true;
-                    } else {
-                        $hitCta = true;
-                    }
-                }
-                if ($this->looksLikeConversionPath($path)) {
-                    $hitCta = true;
-                }
-            }
-            if ($hitForm || $hitCta) {
-                $ctaFormSessions++;
-            }
-            if ($hitForm) {
-                $formPathSessions++;
-            }
-            if ($hitCta) {
-                $ctaPathSessions++;
-            }
+        // Align funnel with journey: when tag only sends pageviews, infer steps from paths.
+        $pathHits = $this->countFunnelPathSessions($sessions);
+        if ($formFills === 0 && $pathHits['forms'] > 0) {
+            $formFills = $pathHits['forms'];
         }
-        if ($formFills === 0 && $formPathSessions > 0) {
-            $formFills = $formPathSessions;
+        if ($ctaClicks === 0 && $pathHits['cta'] > 0) {
+            $ctaClicks = $pathHits['cta'];
         }
-        if ($ctaClicks === 0 && $ctaPathSessions > 0) {
-            $ctaClicks = $ctaPathSessions;
+        if ($telClicks === 0 && $pathHits['tel'] > 0) {
+            $telClicks = $pathHits['tel'];
         }
-        if ($formFills === 0 && $ctaClicks === 0 && $ctaFormSessions > 0) {
-            // Split ambiguous CTA/form path hits evenly so funnel isn't empty while journey shows activity.
-            $formFills = (int) ceil($ctaFormSessions / 2);
-            $ctaClicks = (int) floor($ctaFormSessions / 2);
+        if ($carts === 0 && $pathHits['carts'] > 0) {
+            $carts = $pathHits['carts'];
+        }
+        if ($checkouts === 0 && $pathHits['checkouts'] > 0) {
+            $checkouts = $pathHits['checkouts'];
+        }
+        if ($purchases === 0 && $pathHits['purchases'] > 0) {
+            $purchases = $pathHits['purchases'];
+            $transactions = max($transactions, $purchases);
+            $conversionRate = round(($purchases / $sessionCount) * 100, 2);
+        }
+        // Ambiguous lead paths: journey "CTA / Form" — split so neither step stays empty.
+        if ($formFills === 0 && $ctaClicks === 0 && $pathHits['cta_or_form'] > 0) {
+            $formFills = (int) ceil($pathHits['cta_or_form'] / 2);
+            $ctaClicks = (int) floor($pathHits['cta_or_form'] / 2);
+        } elseif ($formFills > 0 && $ctaClicks === 0 && $pathHits['cta_or_form'] > $formFills) {
+            $ctaClicks = $pathHits['cta_or_form'] - $formFills;
         }
 
         // Total Conversions = every conversion-funnel action (call, CTA, form, cart, checkout, purchase).
@@ -441,27 +428,53 @@ class PageAnalyticsAggregator
             ? round($googleCost / $totalConversions, 4)
             : 0.0;
 
-        foreach ($convertingSessions as $sid => $_) {
-            $session = $sessions[$sid] ?? null;
-            if (! $session) {
-                continue;
+        // Chart "Conversions" must match Total Conversions (CTA/form/tel/commerce),
+        // not only thank-you/purchase path sessions ($convertingSessions).
+        $this->addConversionBucketsFromBehaviorEvents(
+            $performanceBuckets,
+            $domainIds,
+            $from,
+            $to,
+            $hourly,
+            $reportingTz,
+            $filters,
+        );
+        $chartConversionTotal = 0;
+        foreach ($performanceBuckets as $bucket) {
+            $chartConversionTotal += (int) ($bucket['conversions'] ?? 0);
+        }
+        if ($chartConversionTotal === 0 && $totalConversions > 0) {
+            foreach ($sessions as $sid => $session) {
+                $isConversionAction = isset($convertingSessions[$sid]);
+                if (! $isConversionAction) {
+                    foreach ($session['pages'] ?? [] as $pagePath) {
+                        $path = (string) $pagePath;
+                        if ($this->looksLikeCtaOrFormPath($path) || $this->looksLikeConversionPath($path)) {
+                            $isConversionAction = true;
+                            break;
+                        }
+                    }
+                }
+                if (! $isConversionAction) {
+                    continue;
+                }
+                $at = $this->parseInstant($session['last_at'] ?? null);
+                if (! $at) {
+                    continue;
+                }
+                $localAt = $at->copy()->timezone($reportingTz);
+                $bucketKey = $hourly ? $localAt->format('Y-m-d H:00:00') : $localAt->toDateString();
+                if (! isset($performanceBuckets[$bucketKey])) {
+                    $performanceBuckets[$bucketKey] = [
+                        'visitors' => 0,
+                        'clicks' => 0,
+                        'conversions' => 0,
+                        'valid' => 0,
+                        'paid' => 0,
+                    ];
+                }
+                $performanceBuckets[$bucketKey]['conversions']++;
             }
-            $at = $this->parseInstant($session['last_at'] ?? null);
-            if (! $at) {
-                continue;
-            }
-            $localAt = $at->copy()->timezone($reportingTz);
-            $bucketKey = $hourly ? $localAt->format('Y-m-d H:00:00') : $localAt->toDateString();
-            if (! isset($performanceBuckets[$bucketKey])) {
-                $performanceBuckets[$bucketKey] = [
-                    'visitors' => 0,
-                    'clicks' => 0,
-                    'conversions' => 0,
-                    'valid' => 0,
-                    'paid' => 0,
-                ];
-            }
-            $performanceBuckets[$bucketKey]['conversions']++;
         }
 
         $keywordRows = $this->rankKeywordPerformance($keywords, $keywordSessionMap, $convertingSessions, $total);
@@ -1008,6 +1021,64 @@ class PageAnalyticsAggregator
     }
 
     /**
+     * Bucket conversion-funnel behavior events into performance chart series.
+     *
+     * @param  array<string, array{visitors?:int,clicks?:int,conversions?:int,valid?:int,paid?:int}>  $performanceBuckets
+     * @param  list<int>  $domainIds
+     * @param  array<string, string>  $filters
+     */
+    private function addConversionBucketsFromBehaviorEvents(
+        array &$performanceBuckets,
+        array $domainIds,
+        Carbon $from,
+        Carbon $to,
+        bool $hourly,
+        string $reportingTz,
+        array $filters = [],
+    ): void {
+        if (! Schema::hasTable('visit_behavior_events') || $domainIds === []) {
+            return;
+        }
+
+        $query = DB::table('visit_behavior_events')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('occurred_at', [$from, $to])
+            ->whereIn('event_type', [
+                'form_submit', 'cta_click', 'phone_click',
+                'add_to_cart', 'checkout', 'purchase',
+                'form_fill', 'form_start', 'tel_click', 'begin_checkout', 'sale', 'order', 'transaction',
+            ]);
+
+        $path = trim((string) ($filters['path'] ?? ''));
+        if ($path !== '') {
+            $query->where(function ($inner) use ($path): void {
+                $inner->where('page_path', 'like', '%'.$path.'%')
+                    ->orWhere('page_url', 'like', '%'.$path.'%');
+            });
+        }
+
+        $rows = $query->select(['occurred_at'])->orderBy('occurred_at')->limit(20000)->get();
+        foreach ($rows as $row) {
+            $at = $this->parseInstant($row->occurred_at ?? null);
+            if (! $at) {
+                continue;
+            }
+            $localAt = $at->copy()->timezone($reportingTz);
+            $bucketKey = $hourly ? $localAt->format('Y-m-d H:00:00') : $localAt->toDateString();
+            if (! isset($performanceBuckets[$bucketKey])) {
+                $performanceBuckets[$bucketKey] = [
+                    'visitors' => 0,
+                    'clicks' => 0,
+                    'conversions' => 0,
+                    'valid' => 0,
+                    'paid' => 0,
+                ];
+            }
+            $performanceBuckets[$bucketKey]['conversions']++;
+        }
+    }
+
+    /**
      * @param  list<int>  $domainIds
      * @param  array<string, string>  $filters
      * @return array{purchases:int,revenue:float,transactions:int,trend:list<float|int>,cta:int,tel:int,forms:int,carts:int,checkouts:int,product_views:int}
@@ -1053,19 +1124,37 @@ class PageAnalyticsAggregator
                 ->whereIn('domain_id', $domainIds)
                 ->whereBetween('occurred_at', [$from, $to])
                 ->whereIn('event_type', [
-                    'form_submit', 'cta_click', 'phone_click',
-                    'add_to_cart', 'checkout', 'purchase',
+                    'form_submit', 'form_fill', 'form_start',
+                    'cta_click', 'phone_click', 'tel_click',
+                    'add_to_cart', 'checkout', 'begin_checkout',
+                    'purchase', 'sale', 'order', 'transaction',
                 ])
                 ->selectRaw('event_type, COUNT(*) as total')
                 ->groupBy('event_type')
                 ->pluck('total', 'event_type');
 
-            $defaults['forms'] = max($defaults['forms'], (int) ($eventCounts['form_submit'] ?? 0));
+            $defaults['forms'] = max(
+                $defaults['forms'],
+                (int) ($eventCounts['form_submit'] ?? 0) + (int) ($eventCounts['form_fill'] ?? 0)
+            );
+            if ($defaults['forms'] === 0) {
+                $defaults['forms'] = (int) ($eventCounts['form_start'] ?? 0);
+            }
             $defaults['cta'] = max($defaults['cta'], (int) ($eventCounts['cta_click'] ?? 0));
-            $defaults['tel'] = max($defaults['tel'], (int) ($eventCounts['phone_click'] ?? 0));
+            $defaults['tel'] = max(
+                $defaults['tel'],
+                (int) ($eventCounts['phone_click'] ?? 0) + (int) ($eventCounts['tel_click'] ?? 0)
+            );
             $defaults['carts'] = max($defaults['carts'], (int) ($eventCounts['add_to_cart'] ?? 0));
-            $defaults['checkouts'] = max($defaults['checkouts'], (int) ($eventCounts['checkout'] ?? 0));
-            $defaults['purchases'] = max($defaults['purchases'], (int) ($eventCounts['purchase'] ?? 0));
+            $defaults['checkouts'] = max(
+                $defaults['checkouts'],
+                (int) ($eventCounts['checkout'] ?? 0) + (int) ($eventCounts['begin_checkout'] ?? 0)
+            );
+            $purchaseEvents = (int) ($eventCounts['purchase'] ?? 0)
+                + (int) ($eventCounts['sale'] ?? 0)
+                + (int) ($eventCounts['order'] ?? 0)
+                + (int) ($eventCounts['transaction'] ?? 0);
+            $defaults['purchases'] = max($defaults['purchases'], $purchaseEvents);
             $defaults['transactions'] = max($defaults['transactions'], $defaults['purchases']);
         }
 
@@ -1742,11 +1831,76 @@ class PageAnalyticsAggregator
     {
         $p = strtolower($path);
 
-        return (bool) preg_match('#(thank|thanks|success|order|purchase|checkout/complete|confirmation|receipt)#', $p);
+        return (bool) preg_match('#(thank|thanks|success|order-complete|order/complete|purchase|checkout/complete|confirmation|receipt)#', $p);
     }
 
     /** Paths that imply a form / CTA / lead step (used by journey + funnel). */
     private function looksLikeCtaOrFormPath(string $path): bool
+    {
+        return $this->looksLikeFormPath($path) || $this->looksLikeCtaPath($path);
+    }
+
+    /**
+     * Session counts for funnel path fallbacks when typed events are missing.
+     *
+     * @param  array<string, array{pages?: list<string>}>  $sessions
+     * @return array{forms:int,cta:int,tel:int,carts:int,checkouts:int,purchases:int,cta_or_form:int}
+     */
+    private function countFunnelPathSessions(array $sessions): array
+    {
+        $out = [
+            'forms' => 0,
+            'cta' => 0,
+            'tel' => 0,
+            'carts' => 0,
+            'checkouts' => 0,
+            'purchases' => 0,
+            'cta_or_form' => 0,
+        ];
+
+        foreach ($sessions as $session) {
+            $hit = [
+                'forms' => false,
+                'cta' => false,
+                'tel' => false,
+                'carts' => false,
+                'checkouts' => false,
+                'purchases' => false,
+            ];
+            foreach ($session['pages'] ?? [] as $pagePath) {
+                $path = (string) $pagePath;
+                if ($this->looksLikeCartPath($path)) {
+                    $hit['carts'] = true;
+                }
+                if ($this->looksLikeCheckoutPath($path)) {
+                    $hit['checkouts'] = true;
+                }
+                if ($this->looksLikeConversionPath($path)) {
+                    $hit['purchases'] = true;
+                }
+                if ($this->looksLikeTelPath($path)) {
+                    $hit['tel'] = true;
+                }
+                if ($this->looksLikeFormPath($path)) {
+                    $hit['forms'] = true;
+                } elseif ($this->looksLikeCtaPath($path)) {
+                    $hit['cta'] = true;
+                }
+            }
+            foreach ($hit as $key => $on) {
+                if ($on) {
+                    $out[$key]++;
+                }
+            }
+            if ($hit['forms'] || $hit['cta']) {
+                $out['cta_or_form']++;
+            }
+        }
+
+        return $out;
+    }
+
+    private function looksLikeFormPath(string $path): bool
     {
         $p = strtolower(trim($path));
         if ($p === '' || $p === '/') {
@@ -1754,9 +1908,50 @@ class PageAnalyticsAggregator
         }
 
         return (bool) preg_match(
-            '#(contact|form|quote|demo|signup|sign-up|register|apply|book|booking|call|lead|enquiry|inquiry|cta|get-started|get_started|request|subscribe|trial|checkout|cart|insurance-quote|auto-insurance)#',
+            '#(form|contact|enquiry|inquiry|register|subscribe|lead-form|get-in-touch|getintouch)#',
             $p
         );
+    }
+
+    private function looksLikeCtaPath(string $path): bool
+    {
+        $p = strtolower(trim($path));
+        if ($p === '' || $p === '/') {
+            return false;
+        }
+        // Quote / apply / signup are CTA destinations (not form-submit paths).
+        return (bool) preg_match(
+            '#(cta|demo|signup|sign-up|apply|quote|book|booking|get-started|get_started|'
+            .'request|trial|pricing|plans?|offer|promo|convert|insurance-quote|auto-insurance|'
+            .'check-availability|availability)#',
+            $p
+        );
+    }
+
+    private function looksLikeCartPath(string $path): bool
+    {
+        $p = strtolower(trim($path));
+
+        return (bool) preg_match('#(^|/)(cart|basket|bag|addtocart|add-to-cart)(/|$)#', $p);
+    }
+
+    private function looksLikeCheckoutPath(string $path): bool
+    {
+        $p = strtolower(trim($path));
+        if ($this->looksLikeConversionPath($p)) {
+            return false;
+        }
+
+        return (bool) preg_match('#(^|/)(checkout|payment|billing|place-order|place_order)(/|$)#', $p)
+            || (bool) preg_match('#begin[_-]?checkout|initiate[_-]?checkout#', $p);
+    }
+
+    private function looksLikeTelPath(string $path): bool
+    {
+        $p = strtolower(trim($path));
+
+        return (bool) preg_match('#(^|/)(call|phone|tel|contact-phone|click-to-call|clicktocall)(/|$)#', $p)
+            || str_contains($p, 'tel:');
     }
 
     private function parseInstant(mixed $value): ?Carbon

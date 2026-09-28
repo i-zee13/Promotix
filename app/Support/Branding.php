@@ -111,6 +111,14 @@ class Branding
             $name = basename($png);
             $lines[] = '<link rel="icon" type="image/png" sizes="32x32" href="'.e(url('/images/'.$name.$v($png))).'">';
         }
+        $png192 = public_path('images/favicon-192.png');
+        if (is_file($png192)) {
+            $lines[] = '<link rel="icon" type="image/png" sizes="192x192" href="'.e(url('/images/favicon-192.png'.$v($png192))).'">';
+        }
+        $ico = public_path('favicon.ico');
+        if (is_file($ico) && filesize($ico) > 0) {
+            $lines[] = '<link rel="shortcut icon" href="'.e(url('/favicon.ico'.$v($ico))).'">';
+        }
         if (is_file($apple)) {
             $lines[] = '<link rel="apple-touch-icon" href="'.e(url('/images/apple-touch-icon.png'.$v($apple))).'">';
         }

@@ -502,10 +502,34 @@
                 margin-top: 10px; background: none; border: 0; color: var(--brand-primary);
                 font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
             }
-            .figma-gaem-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: flex-end; }
+            .figma-gaem-quick {
+                display: grid;
+                grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr);
+                gap: 8px;
+                margin-bottom: 12px;
+                align-items: stretch;
+            }
+            .figma-gaem-quick-left {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                min-width: 0;
+            }
+            .figma-gaem-quick-left .figma-gaem-search-field {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .figma-gaem-quick-left-actions {
+                margin-top: auto;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: center;
+            }
             .figma-gaem-quick .figma-gaem-ghost-btn,
-            .figma-gaem-quick .figma-gaem-push-btn { align-self: flex-end; }
-            .figma-gaem-campaign-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 220px; flex: 1 1 260px; }
+            .figma-gaem-quick .figma-gaem-push-btn { align-self: auto; }
+            .figma-gaem-campaign-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
             .figma-gaem-campaign-label { font-size: 10px; font-weight: 600; color: #6b6578; text-transform: uppercase; letter-spacing: 0.02em; }
             .figma-gaem-campaign-select {
                 height: 34px;
@@ -521,8 +545,13 @@
                 border-radius: 6px;
                 background: #fff;
                 padding: 8px 10px;
+                flex: 1;
+                min-height: 88px;
                 max-height: 140px;
                 overflow: auto;
+            }
+            @media (max-width: 640px) {
+                .figma-gaem-quick { grid-template-columns: 1fr; }
             }
             .figma-gaem-campaign-multi.is-disabled { opacity: 0.55; pointer-events: none; }
             .figma-gaem-campaign-all,
@@ -2065,23 +2094,29 @@
                             </div>
 
                             <div class="figma-gaem-quick">
-                                <label class="figma-gaem-campaign-wrap" style="min-width:min(100%,220px);flex:1 1 180px">
-                                    <span class="figma-gaem-campaign-label">Search IP</span>
-                                    <input
-                                        type="search"
-                                        class="w-full rounded-[6px] border border-white/25 bg-black/30 px-[10px] py-[7px] text-[12px] text-white placeholder:text-white/40 focus:border-[var(--brand-primary,#FF6600)] focus:outline-none"
-                                        placeholder="Find IP in exclusion list…"
-                                        x-model="ipSearch"
-                                        autocomplete="off"
-                                    >
-                                </label>
+                                <div class="figma-gaem-quick-left">
+                                    <label class="figma-gaem-search-field">
+                                        <span class="figma-gaem-campaign-label">Search IP</span>
+                                        <input
+                                            type="search"
+                                            class="w-full rounded-[6px] border border-white/25 bg-black/30 px-[10px] py-[7px] text-[12px] text-white placeholder:text-white/40 focus:border-[var(--brand-primary,#FF6600)] focus:outline-none"
+                                            placeholder="Find IP in exclusion list…"
+                                            x-model="ipSearch"
+                                            autocomplete="off"
+                                        >
+                                    </label>
+                                    <div class="figma-gaem-quick-left-actions">
+                                        <button type="button" class="figma-gaem-ghost-btn" x-show="crossDomainEnabled" x-cloak :disabled="loading" @click="openCrossDomainModal()">Cross domain</button>
+                                        <button type="button" class="figma-gaem-push-btn" :disabled="loading || !adsConnected" @click="syncPending()">Push all pending</button>
+                                    </div>
+                                </div>
                                 <div class="figma-gaem-campaign-wrap">
                                     <span class="figma-gaem-campaign-label">Campaigns</span>
                                     <div class="figma-gaem-campaign-multi" :class="{ 'is-disabled': loading || !adsConnected }">
                                         <label class="figma-gaem-campaign-all">
                                             <input type="checkbox" :checked="selectedCampaignIds.length === 0" @change="toggleAllCampaigns($event.target.checked)" :disabled="loading || !adsConnected">
                                             <span>All eligible campaigns</span>
-                                                </label>
+                                        </label>
                                         <div class="figma-gaem-campaign-list" x-show="campaignOptions.length">
                                             <template x-for="c in campaignOptions" :key="c.id">
                                                 <label class="figma-gaem-campaign-item">
@@ -2089,13 +2124,11 @@
                                                     <span x-text="c.name"></span>
                                                 </label>
                                             </template>
-                                            </div>
-                                        <p class="figma-gaem-campaign-empty" x-show="adsConnected && !campaignOptions.length">No eligible Search/Display campaigns found.</p>
                                         </div>
-                                </div>
-                                <button type="button" class="figma-gaem-ghost-btn" x-show="crossDomainEnabled" x-cloak :disabled="loading" @click="openCrossDomainModal()">Cross domain</button>
-                                <button type="button" class="figma-gaem-push-btn" :disabled="loading || !adsConnected" @click="syncPending()">Push all pending</button>
+                                        <p class="figma-gaem-campaign-empty" x-show="adsConnected && !campaignOptions.length">No eligible Search/Display campaigns found.</p>
                                     </div>
+                                </div>
+                            </div>
 
                             <p x-show="message" x-text="message" class="text-[11px] mt-[8px]" :class="ok ? 'text-emerald-300' : 'text-rose-300'"></p>
 

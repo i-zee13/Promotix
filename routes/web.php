@@ -54,6 +54,9 @@ Route::get('/click', [TrackingController::class, 'googleAdsClick'])->middleware(
 Route::match(['post', 'options'], '/api/v1/conversion', [\App\Http\Controllers\ConversionController::class, 'store'])
     ->middleware('throttle:120,1')
     ->name('api.v1.conversion');
+Route::match(['post', 'options'], '/api/v1/ticket', [\App\Http\Controllers\PublicTicketController::class, 'store'])
+    ->middleware('throttle:60,1')
+    ->name('api.v1.ticket');
 Route::get('/docs/click-tracker', function () {
     return response()->view('docs.transparent-click-tracker', [
         'trackerHost' => \App\Support\TransparentClickTracker::baseUrl(),
@@ -117,7 +120,7 @@ Route::middleware(['auth', 'super-admin'])
             ->whereNumber('user')
             ->whereNumber('member')
             ->name('users.portal-members.update-role');
-        Route::delete('/users/{user}/portal-members/{member}', [SuperAdminUsersController::class, 'removePortalMember'])
+        Route::match(['delete', 'post'], '/users/{user}/portal-members/{member}', [SuperAdminUsersController::class, 'removePortalMember'])
             ->whereNumber('user')
             ->whereNumber('member')
             ->name('users.portal-members.destroy');

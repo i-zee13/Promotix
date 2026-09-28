@@ -24,7 +24,7 @@ class VisitorJourneyIntelligence
             return $this->emptyPayload();
         }
 
-        $cacheKey = 'vj:intel:v3:'.md5(json_encode([
+        $cacheKey = 'vj:intel:v5:'.md5(json_encode([
             'domains' => array_values($domainIds),
             'from' => $from->toIso8601String(),
             'to' => $to->toIso8601String(),
@@ -76,19 +76,26 @@ class VisitorJourneyIntelligence
         // Cheap previous-period counts for KPI deltas (avoid a second full aggregator build).
         $prevTracked = $this->cheapSessionCount($domainIds, $prevFrom, $prevTo);
 
+        // Fetch enough recent paid sessions WITH recordings so Event Timeline has
+        // scroll / CTA / form markers (withRecordings=false left only page+exit stubs).
         $sessionPage = app(TrafficControlSessionQuery::class)->paginate(
             $domainIds,
             $from,
             $to,
             $request,
             1,
-            12,
+            48,
             'paid',
             false,
-            false,
+            true,
         );
 
-        $sessions = $sessionPage['data'] ?? [];
+        $sessions = $this->enrichSessionsWithBehaviorEvents(
+            $sessionPage['data'] ?? [],
+            $domainIds,
+            $from,
+            $to,
+        );
         $sessionTotal = max(
             (int) ($current['journey_summary']['sessions'] ?? 0),
             count($sessions),
@@ -249,6 +256,191 @@ class VisitorJourneyIntelligence
                 'days' => $days,
             ],
         ];
+    }
+
+    /**
+     * Merge visit_behavior_events into session rows when recording timelines are thin.
+     *
+     * @param  list<array<string, mixed>>  $sessions
+     * @param  list<int>  $domainIds
+     * @return list<array<string, mixed>>
+     */
+    private function enrichSessionsWithBehaviorEvents(array $sessions, array $domainIds, Carbon $from, Carbon $to): array
+    {
+        if ($sessions === [] || $domainIds === [] || ! Schema::hasTable('visit_behavior_events')) {
+            return $sessions;
+        }
+
+        $sessionIds = [];
+        $ips = [];
+        foreach ($sessions as $row) {
+            $sid = trim((string) ($row['session_id'] ?? $row['session_key'] ?? ''));
+            if ($sid !== '' && ! str_starts_with($sid, 'ip:')) {
+                $sessionIds[] = $sid;
+            }
+            $ip = trim((string) ($row['ip'] ?? ''));
+            if ($ip !== '') {
+                $ips[] = $ip;
+            }
+        }
+        $sessionIds = array_values(array_unique($sessionIds));
+        $ips = array_values(array_unique($ips));
+        if ($sessionIds === [] && $ips === []) {
+            return $sessions;
+        }
+
+        $query = DB::table('visit_behavior_events')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('occurred_at', [$from->copy()->subDay(), $to->copy()->addDay()])
+            ->whereIn('event_type', [
+                'page_view', 'page_change', 'scroll',
+                'cta_click', 'phone_click', 'tel_click',
+                'form_start', 'form_submit', 'form_fill',
+                'add_to_cart', 'checkout', 'begin_checkout', 'purchase', 'sale',
+            ])
+            ->orderBy('occurred_at')
+            ->limit(8000);
+
+        $query->where(function ($q) use ($sessionIds, $ips): void {
+            $added = false;
+            if ($sessionIds !== [] && Schema::hasColumn('visit_behavior_events', 'session_id')) {
+                $q->whereIn('session_id', $sessionIds);
+                $added = true;
+            }
+            // Behavior table may not have ip — fall back via visit_id join is too heavy; skip.
+            if (! $added) {
+                $q->whereRaw('0 = 1');
+            }
+        });
+
+        $events = $query->get([
+            'session_id', 'event_type', 'page_path', 'page_url', 'occurred_at',
+            'relative_ms', 'element_text', 'href', 'title',
+        ]);
+        if ($events->isEmpty()) {
+            return $sessions;
+        }
+
+        $bySession = $events->groupBy(fn ($e) => (string) ($e->session_id ?? ''));
+
+        foreach ($sessions as $i => $row) {
+            $sid = trim((string) ($row['session_id'] ?? $row['session_key'] ?? ''));
+            $bucket = $bySession->get($sid);
+            if (! $bucket || $bucket->isEmpty()) {
+                continue;
+            }
+
+            $detail = is_array($row['event_detail'] ?? null) ? $row['event_detail'] : [];
+            $timeline = is_array($detail['timeline'] ?? null) ? $detail['timeline'] : [];
+            $existingTypes = collect($timeline)->pluck('type')->map(fn ($t) => strtolower((string) $t))->all();
+            $hasRich = count(array_filter($existingTypes, fn ($t) => ! in_array($t, ['page', 'page_view', 'exit', ''], true))) > 0;
+            if ($hasRich && count($timeline) >= 4) {
+                continue;
+            }
+
+            $start = null;
+            try {
+                $start = ! empty($row['first_seen_at'])
+                    ? Carbon::parse((string) $row['first_seen_at'])
+                    : (! empty($row['first_seen']) ? Carbon::parse((string) $row['first_seen']) : null);
+            } catch (\Throwable) {
+                $start = null;
+            }
+
+            $cta = (int) ($row['cta_clicks'] ?? 0);
+            $tel = (int) ($row['tel_clicks'] ?? 0);
+            $forms = (int) ($row['form_submits'] ?? $row['form_fills'] ?? 0);
+            $scrolls = (int) ($row['scroll_events'] ?? 0);
+            $pages = is_array($row['pages'] ?? null) ? $row['pages'] : [];
+            $added = [];
+
+            foreach ($bucket as $ev) {
+                $type = strtolower((string) ($ev->event_type ?? ''));
+                $path = trim((string) ($ev->page_path ?? ''));
+                if ($path === '' && ! empty($ev->page_url)) {
+                    $path = TrafficSourceClassifier::pathFromUrl((string) $ev->page_url);
+                }
+                $elapsed = (int) max(0, (int) round(((int) ($ev->relative_ms ?? 0)) / 1000));
+                if ($elapsed === 0 && $start && ! empty($ev->occurred_at)) {
+                    try {
+                        $elapsed = max(0, (int) $start->diffInSeconds(Carbon::parse((string) $ev->occurred_at), true));
+                    } catch (\Throwable) {
+                        $elapsed = 0;
+                    }
+                }
+                $label = match ($type) {
+                    'scroll' => 'Scroll',
+                    'cta_click' => trim((string) ($ev->element_text ?? '')) ?: 'CTA click',
+                    'phone_click', 'tel_click' => 'Call click',
+                    'form_start' => 'Form start',
+                    'form_submit', 'form_fill' => 'Form submit',
+                    'add_to_cart' => 'Add to cart',
+                    'checkout', 'begin_checkout' => 'Checkout',
+                    'purchase', 'sale' => 'Purchase',
+                    default => ($path !== '' ? $path : 'Page view'),
+                };
+                $kind = match ($type) {
+                    'scroll' => 'scroll',
+                    'cta_click' => 'cta',
+                    'phone_click', 'tel_click' => 'phone',
+                    'form_start', 'form_submit', 'form_fill' => 'form',
+                    'add_to_cart', 'checkout', 'begin_checkout', 'purchase', 'sale' => 'commerce',
+                    default => 'page',
+                };
+                $normType = match ($type) {
+                    'page_view', 'page_change' => 'page',
+                    'phone_click', 'tel_click' => 'cta',
+                    'form_start', 'form_submit', 'form_fill' => 'form',
+                    'cta_click' => 'cta',
+                    'scroll' => 'scroll',
+                    default => $kind === 'commerce' ? 'cta' : 'page',
+                };
+
+                $added[] = [
+                    'type' => $normType,
+                    'kind' => $kind,
+                    'label' => $label,
+                    'detail' => $label,
+                    'page' => $path !== '' ? $path : '/',
+                    'path' => $path !== '' ? $path : '/',
+                    't' => (int) ($ev->relative_ms ?? ($elapsed * 1000)),
+                    'elapsed_sec' => $elapsed,
+                    'at' => (string) ($ev->occurred_at ?? ''),
+                ];
+
+                if ($type === 'cta_click') {
+                    $cta++;
+                } elseif (in_array($type, ['phone_click', 'tel_click'], true)) {
+                    $tel++;
+                } elseif (in_array($type, ['form_submit', 'form_fill', 'form_start'], true)) {
+                    $forms++;
+                } elseif ($type === 'scroll') {
+                    $scrolls++;
+                }
+                if ($path !== '' && ! in_array($path, $pages, true)) {
+                    $pages[] = $path;
+                }
+            }
+
+            if ($added === []) {
+                continue;
+            }
+
+            $mergedTimeline = array_values(array_merge($timeline, $added));
+            usort($mergedTimeline, static fn ($a, $b) => ((int) ($a['elapsed_sec'] ?? $a['t'] ?? 0)) <=> ((int) ($b['elapsed_sec'] ?? $b['t'] ?? 0)));
+            $detail['timeline'] = array_slice($mergedTimeline, 0, 80);
+            $sessions[$i]['event_detail'] = $detail;
+            $sessions[$i]['cta_clicks'] = max((int) ($row['cta_clicks'] ?? 0), $cta);
+            $sessions[$i]['tel_clicks'] = max((int) ($row['tel_clicks'] ?? 0), $tel);
+            $sessions[$i]['form_submits'] = max((int) ($row['form_submits'] ?? 0), $forms);
+            $sessions[$i]['form_fills'] = max((int) ($row['form_fills'] ?? 0), $forms);
+            $sessions[$i]['scroll_events'] = max((int) ($row['scroll_events'] ?? 0), $scrolls);
+            if ($pages !== []) {
+                $sessions[$i]['pages'] = array_values(array_slice($pages, 0, 20));
+            }
+        }
+
+        return $sessions;
     }
 
     /**
@@ -1460,13 +1652,52 @@ class VisitorJourneyIntelligence
             if ($left === [] || $right === []) {
                 continue;
             }
-            foreach ($left as $li => $src) {
-                $remaining = (int) ($src['value'] ?? 0);
-                foreach ($right as $ri => $tgt) {
+            $rightTotal = max(1, (int) array_sum(array_column($right, 'value')));
+            // Prefer Exit→Exit / same-label pairs so lines read as box→box, not a mesh.
+            $rightByLabel = [];
+            foreach ($right as $tgt) {
+                $rightByLabel[strtolower(trim((string) ($tgt['label'] ?? '')))] = $tgt;
+            }
+            foreach ($left as $src) {
+                $srcVal = max(0, (int) ($src['value'] ?? 0));
+                if ($srcVal <= 0) {
+                    continue;
+                }
+                $srcLabel = strtolower(trim((string) ($src['label'] ?? '')));
+                $picked = [];
+                if (isset($rightByLabel[$srcLabel])) {
+                    $picked[] = $rightByLabel[$srcLabel];
+                }
+                // One proportional primary target (largest share) if no label match.
+                if ($picked === []) {
+                    $best = null;
+                    $bestShare = -1;
+                    foreach ($right as $tgt) {
+                        $share = (int) ($tgt['value'] ?? 0);
+                        if ($share > $bestShare) {
+                            $bestShare = $share;
+                            $best = $tgt;
+                        }
+                    }
+                    if ($best) {
+                        $picked[] = $best;
+                    }
+                }
+                // Optional second hop: Exit sink when source is not Exit and Exit exists.
+                if ($srcLabel !== 'exit' && isset($rightByLabel['exit']) && count($picked) < 2) {
+                    $exit = $rightByLabel['exit'];
+                    if (($picked[0]['id'] ?? '') !== ($exit['id'] ?? '')) {
+                        $picked[] = $exit;
+                    }
+                }
+                $remaining = $srcVal;
+                foreach ($picked as $ti => $tgt) {
                     if ($remaining <= 0) {
                         break;
                     }
-                    $share = (int) max(1, round(($src['value'] ?? 0) * (($tgt['value'] ?? 1) / max(1, array_sum(array_column($right, 'value'))))));
+                    $share = $ti === count($picked) - 1
+                        ? $remaining
+                        : (int) max(1, round($srcVal * (($tgt['value'] ?? 1) / $rightTotal)));
                     $share = min($share, $remaining);
                     $links[] = [
                         'source' => $src['id'],

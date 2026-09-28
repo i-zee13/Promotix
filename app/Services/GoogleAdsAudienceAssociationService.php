@@ -673,117 +673,130 @@ class GoogleAdsAudienceAssociationService
     }
 
     /**
+     * CTA / tel / commerce counts per IP (same sources as Advanced View).
+     *
      * @param  array<string, array{visits: list<object>, first: string, last: string, count: int}>  $groups
      * @return array<string, array<string, mixed>>
      */
     private function behaviorCountsForExportGroups(int $domainId, array $groups, $since): array
     {
-        $empty = [
-            'cta_click' => 0,
-            'tel_click' => 0,
-            'add_to_cart' => 0,
-            'checkout' => 0,
-            'purchase' => 0,
-            'form_link' => 0,
-            'form_submitted' => 0,
-            'actions' => [],
-        ];
         $out = [];
         foreach (array_keys($groups) as $key) {
-            $out[$key] = $empty;
+            $out[$key] = [
+                'cta_click' => 0,
+                'tel_click' => 0,
+                'add_to_cart' => 0,
+                'checkout' => 0,
+                'purchase' => 0,
+                'form_link' => 0,
+                'form_submitted' => 0,
+                'actions' => [],
+            ];
         }
 
-        if (! Schema::hasTable('visit_behavior_events') || $groups === []) {
+        $ips = array_values(array_filter(array_map(
+            static fn ($k) => trim((string) $k),
+            array_keys($groups)
+        )));
+        if ($ips === []) {
             return $out;
-        }
-
-        $visitIds = [];
-        foreach ($groups as $group) {
-            foreach ($group['visits'] as $visit) {
-                $visitIds[] = (int) ($visit->id ?? 0);
-            }
-        }
-        $visitIds = array_values(array_filter(array_unique($visitIds)));
-        if ($visitIds === []) {
-            return $out;
-        }
-
-        $events = DB::table('visit_behavior_events')
-            ->where('domain_id', $domainId)
-            ->whereIn('visit_id', array_slice($visitIds, 0, 4000))
-            ->whereIn('event_type', [
-                'cta_click', 'phone_click', 'tel_click', 'form_start', 'form_submit', 'form_fill',
-                'add_to_cart', 'checkout', 'purchase', 'sale',
-            ])
-            ->get(['visit_id', 'event_type']);
-
-        $visitToKey = [];
-        foreach ($groups as $key => $group) {
-            foreach ($group['visits'] as $visit) {
-                $visitToKey[(int) $visit->id] = $key;
-            }
         }
 
         $signalService = app(AudienceSignalService::class);
-        foreach ($events as $event) {
-            $key = $visitToKey[(int) ($event->visit_id ?? 0)] ?? null;
-            if ($key === null) {
-                continue;
+        $markAction = static function (string $ip, string $action) use (&$out): void {
+            if ($ip === '' || $action === '' || ! isset($out[$ip])) {
+                return;
             }
-            $action = $signalService->normalizeJourneyAction((string) ($event->event_type ?? ''));
-            if ($action === null) {
-                continue;
+            if (! in_array($action, $out[$ip]['actions'], true)) {
+                $out[$ip]['actions'][] = $action;
             }
-            $bucket = match ($action) {
-                'cta_click' => 'cta_click',
-                'tel_click' => 'tel_click',
-                'add_to_cart' => 'add_to_cart',
-                'checkout' => 'checkout',
-                'purchase' => 'purchase',
-                'form_link' => 'form_link',
-                'form_submitted' => 'form_submitted',
-                default => null,
-            };
-            if ($bucket !== null) {
-                $out[$key][$bucket] = (int) ($out[$key][$bucket] ?? 0) + 1;
+        };
+
+        // Primary: session recording sums by IP (how Advanced View gets CTA/tel).
+        if (
+            Schema::hasTable('visit_session_recordings')
+            && Schema::hasColumn('visit_session_recordings', 'ip')
+            && Schema::hasColumn('visit_session_recordings', 'cta_clicks')
+        ) {
+            $recQuery = DB::table('visit_session_recordings')
+                ->select([
+                    'ip',
+                    DB::raw('COALESCE(SUM(cta_clicks), 0) as cta_clicks'),
+                    DB::raw(Schema::hasColumn('visit_session_recordings', 'tel_clicks')
+                        ? 'COALESCE(SUM(tel_clicks), 0) as tel_clicks'
+                        : '0 as tel_clicks'),
+                ])
+                ->where('domain_id', $domainId)
+                ->whereIn('ip', $ips);
+            if (Schema::hasColumn('visit_session_recordings', 'created_at') && $since) {
+                $recQuery->where('created_at', '>=', $since);
             }
-            if (! in_array($action, $out[$key]['actions'], true)) {
-                $out[$key]['actions'][] = $action;
+            foreach ($recQuery->groupBy('ip')->get() as $row) {
+                $ip = trim((string) ($row->ip ?? ''));
+                if ($ip === '' || ! isset($out[$ip])) {
+                    continue;
+                }
+                $cta = (int) ($row->cta_clicks ?? 0);
+                $tel = (int) ($row->tel_clicks ?? 0);
+                $out[$ip]['cta_click'] = max($out[$ip]['cta_click'], $cta);
+                $out[$ip]['tel_click'] = max($out[$ip]['tel_click'], $tel);
+                if ($cta > 0) {
+                    $markAction($ip, 'cta_click');
+                }
+                if ($tel > 0) {
+                    $markAction($ip, 'tel_click');
+                }
             }
         }
 
-        // Fallback: session recording aggregates when typed events are missing.
-        if (Schema::hasTable('visit_session_recordings')) {
-            $recSelect = ['visit_id'];
-            foreach (['cta_clicks', 'tel_clicks'] as $col) {
-                if (Schema::hasColumn('visit_session_recordings', $col)) {
-                    $recSelect[] = $col;
-                }
+        // Typed behavior events via visits.ip (covers commerce + CTA when recordings lag).
+        if (Schema::hasTable('visit_behavior_events') && Schema::hasTable('visits')) {
+            $eventQuery = DB::table('visit_behavior_events as e')
+                ->join('visits as v', 'v.id', '=', 'e.visit_id')
+                ->where('e.domain_id', $domainId)
+                ->where('v.domain_id', $domainId)
+                ->whereIn('v.ip', $ips)
+                ->whereIn('e.event_type', [
+                    'cta_click', 'cta', 'phone_click', 'tel_click', 'call_click',
+                    'form_start', 'form_submit', 'form_fill',
+                    'add_to_cart', 'checkout', 'purchase', 'sale',
+                ])
+                ->select(['v.ip', 'e.event_type', DB::raw('COUNT(*) as event_count')])
+                ->groupBy('v.ip', 'e.event_type');
+            if ($since) {
+                $eventQuery->where(function ($q) use ($since): void {
+                    $q->where('v.visited_at', '>=', $since);
+                    if (Schema::hasColumn('visit_behavior_events', 'occurred_at')) {
+                        $q->orWhere('e.occurred_at', '>=', $since);
+                    }
+                });
             }
-            if (count($recSelect) > 1) {
-                $recs = DB::table('visit_session_recordings')
-                    ->whereIn('visit_id', array_slice($visitIds, 0, 4000))
-                    ->get($recSelect);
-                foreach ($recs as $rec) {
-                    $key = $visitToKey[(int) ($rec->visit_id ?? 0)] ?? null;
-                    if ($key === null) {
-                        continue;
-                    }
-                    $cta = (int) ($rec->cta_clicks ?? 0);
-                    $tel = (int) ($rec->tel_clicks ?? 0);
-                    if ($cta > 0 && (int) $out[$key]['cta_click'] === 0) {
-                        $out[$key]['cta_click'] = $cta;
-                        if (! in_array('cta_click', $out[$key]['actions'], true)) {
-                            $out[$key]['actions'][] = 'cta_click';
-                        }
-                    }
-                    if ($tel > 0 && (int) $out[$key]['tel_click'] === 0) {
-                        $out[$key]['tel_click'] = $tel;
-                        if (! in_array('tel_click', $out[$key]['actions'], true)) {
-                            $out[$key]['actions'][] = 'tel_click';
-                        }
-                    }
+            foreach ($eventQuery->get() as $event) {
+                $ip = trim((string) ($event->ip ?? ''));
+                if ($ip === '' || ! isset($out[$ip])) {
+                    continue;
                 }
+                $action = $signalService->normalizeJourneyAction((string) ($event->event_type ?? ''));
+                if ($action === null) {
+                    continue;
+                }
+                $count = (int) ($event->event_count ?? 0);
+                $bucket = match ($action) {
+                    'cta_click' => 'cta_click',
+                    'tel_click' => 'tel_click',
+                    'add_to_cart' => 'add_to_cart',
+                    'checkout' => 'checkout',
+                    'purchase' => 'purchase',
+                    'form_link' => 'form_link',
+                    'form_submitted' => 'form_submitted',
+                    default => null,
+                };
+                if ($bucket === null || $count <= 0) {
+                    continue;
+                }
+                // Prefer the higher of recording sums vs event counts (same as Advanced View).
+                $out[$ip][$bucket] = max((int) ($out[$ip][$bucket] ?? 0), $count);
+                $markAction($ip, $action);
             }
         }
 

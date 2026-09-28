@@ -886,6 +886,9 @@ class BotProtectionController extends Controller
                 'campaign' => trim((string) $request->query('campaign', '')),
                 'path' => trim((string) $request->query('path', '')),
                 'q' => trim((string) $request->query('q', '')),
+                'tab' => trim((string) $request->query('tab', 'devices')),
+                'page' => (int) $request->query('page', 1),
+                'per_page' => (int) $request->query('per_page', 20),
             ]);
 
             return response()->json($payload);
@@ -903,15 +906,17 @@ class BotProtectionController extends Controller
     {
         $domainIds = $this->scopedDomainIds($request);
         [$from, $to] = $this->dateRange($request);
-        $payload = app(TrafficControlIntelligence::class)->build($domainIds, $from, $to, [
-            'campaign' => trim((string) $request->query('campaign', '')),
-            'path' => trim((string) $request->query('path', '')),
-            'q' => trim((string) $request->query('q', '')),
-        ]);
         $tab = strtolower(trim((string) $request->query('tab', 'devices')));
         if (! in_array($tab, ['devices', 'ip_changes', 'reputation', 'ranges'], true)) {
             $tab = 'devices';
         }
+        $payload = app(TrafficControlIntelligence::class)->build($domainIds, $from, $to, [
+            'campaign' => trim((string) $request->query('campaign', '')),
+            'path' => trim((string) $request->query('path', '')),
+            'q' => trim((string) $request->query('q', '')),
+            'tab' => $tab,
+            'paginate' => false,
+        ]);
         $filename = 'traffic-control-'.$tab.'-'.$from->toDateString().'-'.$to->toDateString().'.csv';
 
         return response()->streamDownload(function () use ($payload, $tab): void {
@@ -1457,24 +1462,7 @@ class BotProtectionController extends Controller
                 || preg_match('/^ses_/i', $term)
                 || (! filter_var($term, FILTER_VALIDATE_IP) && ! preg_match('/^\d{1,3}(\.\d{1,3}){0,3}$/', $term) && strlen($term) >= 6)
             ) {
-                $needles = \App\Support\DeviceIdLabel::searchNeedles($term);
-                if ($needles === []) {
-                    $needles = [$term];
-                }
-                $query->where(function ($match) use ($term, $needles): void {
-                    $match->where('visits.ip', 'like', '%'.$term.'%');
-                    foreach ($needles as $needle) {
-                        if (Schema::hasColumn('visits', 'device_id')) {
-                            $match->orWhere('visits.device_id', 'like', '%'.$needle.'%');
-                        }
-                        if (Schema::hasColumn('visits', 'fingerprint_id')) {
-                            $match->orWhere('visits.fingerprint_id', 'like', '%'.$needle.'%');
-                        }
-                        if (Schema::hasColumn('visits', 'session_id')) {
-                            $match->orWhere('visits.session_id', 'like', '%'.$needle.'%');
-                        }
-                    }
-                });
+                \App\Support\DeviceIdLabel::applyVisitIdentityFilter($query, $term, 'visits');
             } else {
                 $query->where('visits.ip', 'like', '%'.$term.'%');
             }

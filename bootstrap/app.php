@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             '/ingest/session-recording',
             '/click',
             '/api/v1/conversion',
+            '/api/v1/ticket',
             '/api/admin/*',
             '/stripe/webhook',
         ]);

@@ -270,7 +270,7 @@ class UsersController extends Controller
     public function updatePortalMemberRole(Request $request, User $user, User $member): RedirectResponse
     {
         abort_unless(
-            Schema::hasColumn('users', 'team_owner_id') && $member->team_owner_id === $user->id,
+            Schema::hasColumn('users', 'team_owner_id') && (int) $member->team_owner_id === (int) $user->id,
             404
         );
 
@@ -298,7 +298,7 @@ class UsersController extends Controller
     public function removePortalMember(Request $request, User $user, User $member): RedirectResponse
     {
         abort_unless(
-            Schema::hasColumn('users', 'team_owner_id') && $member->team_owner_id === $user->id,
+            Schema::hasColumn('users', 'team_owner_id') && (int) $member->team_owner_id === (int) $user->id,
             404
         );
 
@@ -306,8 +306,33 @@ class UsersController extends Controller
             return back()->withErrors(['member' => 'Cannot remove a super admin from a workspace.']);
         }
 
+        if ((int) $member->id === (int) $request->user()->id) {
+            return back()->withErrors(['member' => 'You cannot remove yourself.']);
+        }
+
         $email = $member->email;
-        $member->delete();
+
+        try {
+            DB::transaction(function () use ($member): void {
+                if (Schema::hasTable('team_members')) {
+                    DB::table('team_members')->where('user_id', $member->id)->delete();
+                }
+                if (Schema::hasTable('user_invites') && Schema::hasColumn('user_invites', 'team_owner_id')) {
+                    DB::table('user_invites')->where('team_owner_id', $member->id)->update(['team_owner_id' => null]);
+                }
+                // Detach workspace link first so FK edge-cases cannot block the delete.
+                if (Schema::hasColumn('users', 'team_owner_id')) {
+                    $member->forceFill(['team_owner_id' => null])->save();
+                }
+                $member->delete();
+            });
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors([
+                'member' => "Could not remove {$email}: ".$e->getMessage(),
+            ]);
+        }
 
         return back()->with('status', "Removed portal user {$email} from this workspace.");
     }
@@ -409,7 +434,7 @@ class UsersController extends Controller
             )
             ->with(['role:id,name,slug', 'teams' => fn ($q) => $q->where('is_active', true)->orderBy('name')])
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'role_id', 'status', 'created_at', 'last_login_at']);
+            ->get(['id', 'name', 'email', 'role_id', 'status', 'created_at', 'last_login_at', 'team_owner_id']);
 
         $userTeams = $user->teams;
         $assignedByIds = $userTeams->pluck('pivot.assigned_by')->filter()->unique()->values()->all();

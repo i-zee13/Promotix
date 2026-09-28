@@ -104,9 +104,9 @@
 
             <div class="relative mb-[10px] shrink-0">
                 <span class="figma-sidebar-search-icon absolute left-[11px] top-1/2 -translate-y-1/2 text-white/70">
-                    <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.12a7.5 7.5 0 0115 0"/></svg>
+                    <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5.2-5.2m1.4-4.3a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
                 </span>
-                <input id="figma-sidebar-search" type="search" placeholder="Search gclid, IP, domain…" class="figma-sidebar-search h-[32px] w-full max-w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[var(--brand-primary)] focus:ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)]">
+                <input id="figma-sidebar-search" type="search" placeholder="Search IP, GCLID, device, fingerprint, campaign, domain…" class="figma-sidebar-search h-[32px] w-full max-w-full rounded-[8px] border pl-[36px] pr-[10px] text-[13px] leading-none focus:border-[var(--brand-primary)] focus:ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)]" autocomplete="off">
                 <div id="figma-sidebar-search-hint" class="mt-1 hidden text-[10px] text-white/50"></div>
             </div>
 
@@ -466,19 +466,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.location.href = `{{ route('dashboard') }}?domain_id=${encodeURIComponent(match.domain_id)}`;
                 return;
             }
-            if (match.type === 'campaign') {
-                window.location.href = `{{ route('dashboard') }}?campaign=${encodeURIComponent(match.campaign)}`;
+            if (match.type === 'campaign' || match.type === 'campaign_id') {
+                const params = new URLSearchParams();
+                if (match.campaign) params.set('campaign', match.campaign);
+                if (match.campaign_id) params.set('campaign_id', match.campaign_id);
+                if (match.domain_id) params.set('domain_id', match.domain_id);
+                window.location.href = match.href || (`{{ route('dashboard') }}?` + params.toString());
                 return;
             }
-            if (['ip', 'gclid', 'visitor', 'event'].includes(match.type) && match.ip) {
-                setHint(`Opening ${match.type.toUpperCase()} details…`);
+            if (['ip', 'gclid', 'visitor', 'event', 'device', 'fingerprint'].includes(match.type) && match.ip) {
+                const labels = {
+                    gclid: 'GCLID investigation',
+                    device: 'Device investigation',
+                    fingerprint: 'Fingerprint investigation',
+                    visitor: 'Visitor investigation',
+                    event: 'Event investigation',
+                    ip: 'IP investigation',
+                };
+                setHint(`Opening ${labels[match.type] || match.type}…`);
                 window.dispatchEvent(new CustomEvent('promotix-open-ip-modal', {
                     detail: {
                         ip: match.ip,
                         type: match.type,
-                        label: match.type === 'gclid' ? 'GCLID investigation' : `${match.type.toUpperCase()} investigation`,
+                        label: match.label || labels[match.type] || `${String(match.type).toUpperCase()} investigation`,
+                        device_id: match.device_id || null,
+                        fingerprint_id: match.fingerprint_id || null,
+                        href: match.href || null,
                     },
                 }));
+                return;
+            }
+            if (match.href) {
+                window.location.href = match.href;
                 return;
             }
             setHint('No actionable match', true);

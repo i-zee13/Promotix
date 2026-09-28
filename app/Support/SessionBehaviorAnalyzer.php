@@ -129,13 +129,13 @@ class SessionBehaviorAnalyzer
             if (in_array($type, ['form_submit', 'form_fill'], true)) {
                 $formSubmits++;
             }
-            if ($type === 'add_to_cart') {
+            if (in_array($type, ['add_to_cart', 'addtocart'], true)) {
                 $addToCart++;
             }
-            if ($type === 'checkout') {
+            if (in_array($type, ['checkout', 'begin_checkout', 'initiate_checkout'], true)) {
                 $checkouts++;
             }
-            if (in_array($type, ['purchase', 'sale'], true)) {
+            if (in_array($type, ['purchase', 'sale', 'order', 'transaction'], true)) {
                 $purchases++;
             }
         }

@@ -38,10 +38,24 @@ class TrafficControlSessionQuery
             ? "COALESCE(NULLIF(visits.session_id, ''), CONCAT('ip:', visits.ip))"
             : "CONCAT('ip:', visits.ip)";
 
+        $searchTerm = trim((string) $request->query('ip', ''));
+        $isDeviceSearch = $searchTerm !== '' && DeviceIdLabel::looksLikeDeviceId($searchTerm);
+
         $base = DB::table('visits')
             ->leftJoin('domains', 'domains.id', '=', 'visits.domain_id')
-            ->whereIn('visits.domain_id', $domainIds)
-            ->whereBetween('visits.visited_at', [$from, $to]);
+            ->whereIn('visits.domain_id', $domainIds);
+
+        // Device ID pasted from Journey: widen date so a narrow chip doesn't hide the row.
+        if ($isDeviceSearch) {
+            $base->where('visits.visited_at', '>=', now()->subYear());
+        } else {
+            $base->whereBetween('visits.visited_at', [$from, $to]);
+        }
+
+        // Identity search must include paid click-ID sessions (same rows Journey shows).
+        if ($isDeviceSearch) {
+            $trafficMode = 'all';
+        }
 
         if ($trafficMode === 'paid') {
             GoogleClickAttribution::applyHasClickIdFilter($base, 'visits');
@@ -125,12 +139,21 @@ class TrafficControlSessionQuery
         $data = $rows->map(function ($row) use ($recordings, $landingPages, $exitPages, $request, $trafficMode) {
             $key = (string) $row->session_key;
             $rec = $recordings->get($key);
+            if (! is_array($rec)) {
+                $ip = trim((string) ($row->ip ?? ''));
+                if ($ip !== '') {
+                    $rec = $recordings->get('ip:'.$ip) ?? $recordings->get($ip);
+                }
+            }
+            if (! is_array($rec)) {
+                $rec = [];
+            }
             $landing = $landingPages->get($key);
             $exit = $exitPages->get($key);
 
             $first = Carbon::parse($row->first_seen);
             $last = Carbon::parse($row->last_seen);
-            $durationSec = $this->resolveEngagedDurationSec($first, $last, is_array($rec) ? $rec : null);
+            $durationSec = $this->resolveEngagedDurationSec($first, $last, $rec !== [] ? $rec : null);
 
             $isPaid = (bool) ($row->is_paid_traffic ?? false) || $trafficMode === 'paid';
             $platform = TrafficSourceClassifier::platformLabel(
@@ -364,24 +387,7 @@ class TrafficControlSessionQuery
                 || preg_match('/^ses_/i', $ip)
                 || (! filter_var($ip, FILTER_VALIDATE_IP) && ! preg_match('/^\d{1,3}(\.\d{1,3}){0,3}$/', $ip) && strlen($ip) >= 6)
             ) {
-                $needles = DeviceIdLabel::searchNeedles($ip);
-                if ($needles === []) {
-                    $needles = [$ip];
-                }
-                $query->where(function ($match) use ($ip, $needles): void {
-                    $match->where('visits.ip', 'like', '%'.$ip.'%');
-                    foreach ($needles as $needle) {
-                        if (Schema::hasColumn('visits', 'device_id')) {
-                            $match->orWhere('visits.device_id', 'like', '%'.$needle.'%');
-                        }
-                        if (Schema::hasColumn('visits', 'fingerprint_id')) {
-                            $match->orWhere('visits.fingerprint_id', 'like', '%'.$needle.'%');
-                        }
-                        if (Schema::hasColumn('visits', 'session_id')) {
-                            $match->orWhere('visits.session_id', 'like', '%'.$needle.'%');
-                        }
-                    }
-                });
+                DeviceIdLabel::applyVisitIdentityFilter($query, $ip, 'visits');
             } else {
                 $query->where('visits.ip', 'like', '%'.$ip.'%');
             }
@@ -401,16 +407,56 @@ class TrafficControlSessionQuery
             return collect();
         }
 
+        $ids = [];
+        $ips = [];
+        foreach ($sessionKeys as $key) {
+            $key = (string) $key;
+            if ($key === '') {
+                continue;
+            }
+            if (str_starts_with($key, 'ip:')) {
+                $ips[] = substr($key, 3);
+            } else {
+                $ids[] = $key;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        $ips = array_values(array_unique(array_filter($ips)));
+
         $rows = DB::table('visit_session_recordings')
             ->whereIn('domain_id', $domainIds)
-            ->whereBetween('created_at', [$from, $to])
-            ->when(Schema::hasColumn('visit_session_recordings', 'session_id'), function ($q) use ($sessionKeys): void {
-                $q->whereIn('session_id', $sessionKeys);
+            ->whereBetween('created_at', [$from->copy()->subDay(), $to->copy()->addDay()])
+            ->where(function ($q) use ($ids, $ips): void {
+                $added = false;
+                if ($ids !== [] && Schema::hasColumn('visit_session_recordings', 'session_id')) {
+                    $q->whereIn('session_id', $ids);
+                    $added = true;
+                }
+                if ($ips !== [] && Schema::hasColumn('visit_session_recordings', 'ip')) {
+                    if ($added) {
+                        $q->orWhereIn('ip', $ips);
+                    } else {
+                        $q->whereIn('ip', $ips);
+                        $added = true;
+                    }
+                }
+                if (! $added) {
+                    $q->whereRaw('0 = 1');
+                }
             })
             ->orderByDesc('id')
+            ->limit(500)
             ->get();
 
-        return $rows->groupBy(fn ($r) => (string) ($r->session_id ?: $r->ip))->map(function ($group) {
+        $processed = $rows->groupBy(function ($r) {
+            $sid = trim((string) ($r->session_id ?? ''));
+            if ($sid !== '') {
+                return $sid;
+            }
+            $ip = trim((string) ($r->ip ?? ''));
+
+            return $ip !== '' ? 'ip:'.$ip : 'unknown';
+        })->map(function ($group) {
             $rec = $group->first();
             $events = json_decode((string) ($rec->events ?? '[]'), true);
             $analysis = is_array($events)
@@ -419,7 +465,7 @@ class TrafficControlSessionQuery
 
             $pages = [];
             $pageEvents = [];
-            foreach ($events as $ev) {
+            foreach (is_array($events) ? $events : [] as $ev) {
                 if (! is_array($ev)) {
                     continue;
                 }
@@ -445,7 +491,7 @@ class TrafficControlSessionQuery
                 }
             }
             $revenue = 0.0;
-            foreach ($events as $ev) {
+            foreach (is_array($events) ? $events : [] as $ev) {
                 if (is_array($ev) && in_array(strtolower((string) ($ev['type'] ?? '')), ['purchase', 'sale'], true)) {
                     $revenue += (float) ($ev['revenue'] ?? $ev['value'] ?? 0);
                 }
@@ -478,8 +524,6 @@ class TrafficControlSessionQuery
                 }
             }
 
-            // Prefer max(column, analysis): denormalized cta/tel columns often stay 0
-            // while recording events still contain typed/classified clicks (forms already use analysis).
             return [
                 'id' => (int) $rec->id,
                 'duration_ms' => (int) ($rec->duration_ms ?? 0),
@@ -495,6 +539,8 @@ class TrafficControlSessionQuery
                 'revenue' => '$'.number_format($revenue, 2),
                 'page_flow' => $pageFlow,
                 'pages' => $uniquePages,
+                'ip' => trim((string) ($rec->ip ?? '')),
+                'session_id' => trim((string) ($rec->session_id ?? '')),
                 'event_detail' => [
                     'cta' => $byKind['cta'],
                     'tel' => $byKind['phone'],
@@ -507,6 +553,23 @@ class TrafficControlSessionQuery
                 ],
             ];
         });
+
+        // Index under session_id, bare IP, and ip:{ip} so visit session_key always resolves.
+        $indexed = collect();
+        foreach ($processed as $groupKey => $rec) {
+            $indexed->put((string) $groupKey, $rec);
+            $sid = (string) ($rec['session_id'] ?? '');
+            $ip = (string) ($rec['ip'] ?? '');
+            if ($sid !== '') {
+                $indexed->put($sid, $rec);
+            }
+            if ($ip !== '') {
+                $indexed->put($ip, $rec);
+                $indexed->put('ip:'.$ip, $rec);
+            }
+        }
+
+        return $indexed;
     }
 
     /** @param  \Illuminate\Support\Collection<int, string>  $sessionKeys */

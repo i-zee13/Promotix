@@ -14,7 +14,7 @@ class TrafficControlIntelligence
 {
     /**
      * @param  list<int>  $domainIds
-     * @param  array{campaign?:string,path?:string,q?:string}  $filters
+     * @param  array{campaign?:string,path?:string,q?:string,tab?:string,page?:int,per_page?:int}  $filters
      * @return array<string, mixed>
      */
     public function build(array $domainIds, Carbon $from, Carbon $to, array $filters = []): array
@@ -406,11 +406,42 @@ class TrafficControlIntelligence
 
         $reputationTotal = array_sum($reputation);
 
+        $allDevices = $deviceRows;
+        $allIpChanges = $this->ipChangeRows($deviceRows);
+        $allReputation = $this->reputationRows($deviceRows, $ipLogs);
+
+        $tab = strtolower(trim((string) ($filters['tab'] ?? 'devices')));
+        if (! in_array($tab, ['devices', 'ip_changes', 'reputation', 'ranges'], true)) {
+            $tab = 'devices';
+        }
+        $paginate = ($filters['paginate'] ?? true) !== false;
+        $perPage = $paginate ? max(10, min(100, (int) ($filters['per_page'] ?? 20))) : PHP_INT_MAX;
+        $page = $paginate ? max(1, (int) ($filters['page'] ?? 1)) : 1;
+        $offset = ($page - 1) * $perPage;
+
+        $pageTotal = match ($tab) {
+            'ip_changes' => count($allIpChanges),
+            'reputation' => count($allReputation),
+            default => count($allDevices),
+        };
+        $maxPage = max(1, (int) ceil($pageTotal / max(1, min($perPage, max($pageTotal, 1)))));
+        if ($paginate && $page > $maxPage) {
+            $page = $maxPage;
+            $offset = ($page - 1) * $perPage;
+        }
+
+        $sliceActive = static function (array $rows) use ($paginate, $offset, $perPage): array {
+            return $paginate ? array_slice($rows, $offset, $perPage) : $rows;
+        };
+        $slicePreview = static function (array $rows) use ($paginate): array {
+            return $paginate ? array_slice($rows, 0, 20) : $rows;
+        };
+
         return [
             'kpis' => $kpis,
-            'devices' => array_slice($deviceRows, 0, 100),
-            'ip_changes' => $this->ipChangeRows($deviceRows),
-            'reputation_rows' => $this->reputationRows($deviceRows, $ipLogs),
+            'devices' => $tab === 'devices' ? $sliceActive($allDevices) : $slicePreview($allDevices),
+            'ip_changes' => $tab === 'ip_changes' ? $sliceActive($allIpChanges) : $slicePreview($allIpChanges),
+            'reputation_rows' => $tab === 'reputation' ? $sliceActive($allReputation) : $slicePreview($allReputation),
             'charts' => [
                 'ip_changes_per_device' => $ipChangesChart,
                 'reputation' => [
@@ -427,10 +458,16 @@ class TrafficControlIntelligence
             ],
             'meta' => [
                 'days' => $prevDays,
-                'device_count' => count($deviceRows),
+                'device_count' => count($allDevices),
+                'ip_changes_count' => count($allIpChanges),
+                'reputation_count' => count($allReputation),
                 'visit_count' => $visits->count(),
                 'campaigns' => $this->campaignOptions($visits),
                 'paths' => $this->pathOptions($visits),
+                'tab' => $tab,
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $pageTotal,
             ],
         ];
     }
@@ -504,7 +541,19 @@ class TrafficControlIntelligence
                 'suspicious_ranges' => [],
                 'repeat_activity' => [],
             ],
-            'meta' => ['days' => 0, 'device_count' => 0, 'visit_count' => 0, 'campaigns' => [], 'paths' => []],
+            'meta' => [
+                'days' => 0,
+                'device_count' => 0,
+                'ip_changes_count' => 0,
+                'reputation_count' => 0,
+                'visit_count' => 0,
+                'campaigns' => [],
+                'paths' => [],
+                'tab' => 'devices',
+                'page' => 1,
+                'per_page' => 20,
+                'total' => 0,
+            ],
         ];
     }
 
@@ -774,7 +823,7 @@ class TrafficControlIntelligence
         }
         usort($rows, static fn ($a, $b) => ($b['ip_changes'] <=> $a['ip_changes']) ?: ($b['risk_score'] <=> $a['risk_score']));
 
-        return array_slice($rows, 0, 100);
+        return $rows;
     }
 
     /**
@@ -808,7 +857,7 @@ class TrafficControlIntelligence
         }
         usort($rows, static fn ($a, $b) => $b['risk_score'] <=> $a['risk_score']);
 
-        return array_slice($rows, 0, 100);
+        return $rows;
     }
 
     /** @param  list<array{label:string,value:int}>  $series */

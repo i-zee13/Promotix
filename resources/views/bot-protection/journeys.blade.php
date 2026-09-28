@@ -282,6 +282,12 @@
                 position:absolute; inset:22px 0 0 0; width:100%; height:calc(100% - 22px);
                 min-height: calc(100% - 22px);
                 pointer-events:none; z-index:0; min-width:680px;
+                overflow:visible;
+            }
+            .vj-flow__svg path.vj-flow-link {
+                fill:none;
+                stroke-linecap:round;
+                stroke-linejoin:round;
             }
 
             .vj-detail { border-radius:12px; border:1px solid rgba(255,102,0,.22); background:#121212; padding:14px; position:sticky; top:72px; max-height: calc(380px + 120px); overflow:auto; }
@@ -507,25 +513,17 @@
                 white-space:nowrap; line-height:1.15; height:12px;
             }
             .vj-ev-icon {
-                width:14px; height:14px; display:inline-block; vertical-align:middle;
-                box-sizing: border-box;
+                width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center;
+                vertical-align:middle; box-sizing:border-box; flex-shrink:0;
             }
-            .vj-ev-icon.is-page {
-                width:10px; height:10px; margin:2px; border-radius:999px; background:#38BDF8;
+            .vj-ev-icon svg {
+                width:14px; height:14px; display:block;
             }
-            .vj-ev-icon.is-scroll {
-                width:10px; height:10px; margin:2px; background:#A78BFA; transform:rotate(45deg); border-radius:1px;
-            }
-            .vj-ev-icon.is-cta {
-                width:10px; height:10px; margin:2px; background:#F59E0B; transform:rotate(45deg); border-radius:1px;
-            }
-            .vj-ev-icon.is-form {
-                width:11px; height:11px; margin:1.5px; border-radius:999px; border:2px solid #22C55E; background:transparent;
-            }
-            .vj-ev-icon.is-exit {
-                width:10px; height:10px; margin:2px; border-radius:2px;
-                background:transparent; border:2px solid #F43F5E; box-sizing:border-box;
-            }
+            .vj-ev-icon.is-page { color:#38BDF8; }
+            .vj-ev-icon.is-scroll { color:#A78BFA; }
+            .vj-ev-icon.is-cta { color:#F59E0B; }
+            .vj-ev-icon.is-form { color:#22C55E; }
+            .vj-ev-icon.is-exit { color:#F43F5E; }
             .vj-tooltip {
                 position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
                 white-space:nowrap; max-width:min(280px, 60vw);
@@ -836,10 +834,11 @@
             }
             html.light-mode .vj-et__m-label { color: #2d2d3a !important; }
             html.light-mode .vj-et__m-time { color: #6b6578 !important; }
-            html.light-mode .vj-ev-icon.is-exit {
-                background: transparent !important;
-                border-color: var(--brand-primary, #FF6600) !important;
-            }
+            html.light-mode .vj-ev-icon.is-page { color:#0284C7 !important; }
+            html.light-mode .vj-ev-icon.is-scroll { color:#7C3AED !important; }
+            html.light-mode .vj-ev-icon.is-cta { color:#D97706 !important; }
+            html.light-mode .vj-ev-icon.is-form { color:#16A34A !important; }
+            html.light-mode .vj-ev-icon.is-exit { color:#E11D48 !important; }
             html.light-mode .vj-mini-filters select {
                 background: #ffffff !important;
                 border-color: rgba(255, 102, 0, 0.32) !important;
@@ -1328,7 +1327,7 @@
 
                         <div class="vj-tab-body vj-tab-body--paths" x-show="flowTab === 'paths'" @scroll.passive="if (pathMenu) pathMenu = null">
                         <div class="vj-flow" x-ref="flowBox">
-                            <svg class="vj-flow__svg" x-html="flowSvg()"></svg>
+                            <svg class="vj-flow__svg" :viewBox="flowSvgViewBox" preserveAspectRatio="none" x-html="flowSvg()"></svg>
                             <div class="vj-flow__cols">
                                 <template x-for="col in displayFlowColumns" :key="col.key">
                                     <div class="vj-flow__col">
@@ -1382,7 +1381,7 @@
                             <div class="vj-ev-legend">
                                 <template x-for="item in eventLegendItems" :key="'leg-'+item.key">
                                     <div class="vj-ev-legend__item" :class="{ 'is-off': !isEventTypeEnabled(item.key) }" @click.outside="legendMenu = null">
-                                        <span class="vj-ev-icon" :class="'is-' + item.key"></span>
+                                        <span class="vj-ev-icon" :class="'is-' + item.key" x-html="eventTypeIconSvg(item.key)"></span>
                                         <span x-text="item.label"></span>
                                         <button type="button" class="vj-ev-legend__menu-btn" @click.stop="legendMenu = legendMenu === item.key ? null : item.key" :aria-label="'Options for ' + item.label">
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -1435,7 +1434,7 @@
                                                         x-text="eventHoverLabel(ev)"
                                                     ></div>
                                                     <div class="vj-et__m-label" :class="{ 'is-hidden': !ev.showLabel }" x-text="ev.label"></div>
-                                                    <span class="vj-ev-icon" :class="'is-' + (ev.type || 'page')"></span>
+                                                    <span class="vj-ev-icon" :class="'is-' + (ev.type || 'page')" x-html="eventTypeIconSvg(ev.type || 'page')"></span>
                                                     <div class="vj-et__m-time" :class="{ 'is-hidden': !ev.showTime }" x-text="ev.timeText"></div>
                                                 </div>
                                             </template>
@@ -1781,7 +1780,7 @@
                                 <template x-for="item in eventSequence" :key="'seq-'+item.id">
                                     <div class="vj-seq-item">
                                         <div class="text-[11px] text-white/40" x-text="item.elapsed || item.elapsed_short"></div>
-                                        <span class="vj-ev-icon" :class="'is-' + (item.type || 'page')" style="margin-top:3px"></span>
+                                        <span class="vj-ev-icon" :class="'is-' + (item.type || 'page')" style="margin-top:3px" x-html="eventTypeIconSvg(item.type || 'page')"></span>
                                         <div>
                                             <div class="text-white font-semibold" x-text="item.label"></div>
                                             <div class="text-[11px] text-white/40" x-text="item.kind || item.status"></div>
@@ -1976,6 +1975,7 @@ function visitorJourneyPage() {
             { value: 'tablet', label: 'Tablet' },
         ],
         flowTab: 'paths',
+        flowDrawTick: 0,
         pathMenu: null,
         pathMenuRect: null,
         pathEnabled: {
@@ -2254,6 +2254,10 @@ function visitorJourneyPage() {
             this.hydrateDates();
             try { localStorage.removeItem('promotix-vj-sample'); } catch (e) {}
             this.reload();
+            window.addEventListener('resize', () => {
+                clearTimeout(this._flowResizeTimer);
+                this._flowResizeTimer = setTimeout(() => { this.flowDrawTick++; }, 120);
+            });
         },
         hydrateDates() {
             try {
@@ -2321,7 +2325,10 @@ function visitorJourneyPage() {
                 this.timelinePage = 1;
                 this.sessionPage = 1;
                 this.ensureSelectedEvent();
-                this.$nextTick(() => { /* allow flow svg recompute */ });
+                this.$nextTick(() => {
+                    this.flowDrawTick++;
+                    requestAnimationFrame(() => { this.flowDrawTick++; });
+                });
             } catch (e) {
                 console.error(e);
             } finally {
@@ -2521,6 +2528,24 @@ function visitorJourneyPage() {
         },
         isEventTypeEnabled(key) {
             return (this.enabledEventTypes || []).includes(key);
+        },
+        eventTypeIconSvg(key) {
+            const k = String(key || 'page').toLowerCase();
+            const common = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"';
+            if (k === 'scroll') {
+                return `<svg ${common}><rect x="8" y="3" width="8" height="14" rx="4"/><path d="M12 7v4"/><path d="M9 20l3 2 3-2"/></svg>`;
+            }
+            if (k === 'cta') {
+                return `<svg ${common}><path d="M9 11l3 8 1.5-4.5L18 13z"/><path d="M4 4l5.5 5.5"/></svg>`;
+            }
+            if (k === 'form') {
+                return `<svg ${common}><path d="M8 4h8a2 2 0 012 2v14l-4-2-4 2V6a2 2 0 012-2z"/><path d="M10 9h4M10 13h4"/></svg>`;
+            }
+            if (k === 'exit' || k === 'session_exit' || k === 'session_end') {
+                return `<svg ${common}><path d="M10 17l5-5-5-5"/><path d="M15 12H4"/><path d="M20 4v16"/></svg>`;
+            }
+            // page view (default)
+            return `<svg ${common}><path d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>`;
         },
         toggleEventType(key) {
             const list = Array.isArray(this.enabledEventTypes) ? [...this.enabledEventTypes] : [];
@@ -2771,6 +2796,7 @@ function visitorJourneyPage() {
                 cur.push(option);
             }
             this.pathEnabled = Object.assign({}, this.pathEnabled, { [colKey]: cur });
+            this.$nextTick(() => { this.flowDrawTick++; });
         },
         pathCatalog(colKey) {
             if (colKey === 'outcome') return this.outcomeOptions;
@@ -2854,36 +2880,71 @@ function visitorJourneyPage() {
                 ${dots}
             </svg>`;
         },
+        get flowSvgViewBox() {
+            void this.flowDrawTick;
+            const box = this.$refs.flowBox;
+            if (!box) return '0 0 900 400';
+            const w = Math.max(box.scrollWidth || 900, 680);
+            const h = Math.max((box.scrollHeight || 400) - 22, 120);
+            return `0 0 ${w} ${h}`;
+        },
         flowSvg() {
+            void this.flowDrawTick;
+            const box = this.$refs.flowBox;
             const cols = this.displayFlowColumns || [];
-            const links = this.flow.links || [];
-            if (!cols.length || !links.length) return '';
-            // 4 equal columns — tighter vertical rhythm for compact nodes.
-            const colX = [125, 375, 625, 875];
-            const half = 72;
+            const rawLinks = this.flow.links || [];
+            if (!box || !cols.length || !rawLinks.length) return '';
+
+            const boxRect = box.getBoundingClientRect();
+            const svgTop = 22; // matches .vj-flow__svg inset-top
             const light = document.documentElement.classList.contains('light-mode');
-            const stroke = light ? 'rgba(255,102,0,0.4)' : 'rgba(255,102,0,0.28)';
+            const strokeBase = light ? 'rgba(255,102,0,0.55)' : 'rgba(255,102,0,0.42)';
+            const strokeMuted = light ? 'rgba(255,102,0,0.22)' : 'rgba(255,102,0,0.18)';
+
             const positions = {};
-            const visibleIds = new Set();
-            cols.forEach((col, ci) => {
-                const nodes = col.nodes || [];
-                nodes.forEach((node, ni) => {
-                    visibleIds.add(node.id);
-                    const y = 34 + ni * 62 + 20;
-                    positions[node.id] = { x: colX[ci] ?? 125, y };
-                });
+            box.querySelectorAll('[data-node-id]').forEach((el) => {
+                const id = el.getAttribute('data-node-id');
+                if (!id) return;
+                const r = el.getBoundingClientRect();
+                positions[id] = {
+                    x1: r.left - boxRect.left,
+                    x2: r.right - boxRect.left,
+                    y: (r.top - boxRect.top - svgTop) + r.height / 2,
+                };
             });
+            if (!Object.keys(positions).length) return '';
+
+            // Keep at most 1 primary link per source (strongest) so lines stay readable.
+            const bySource = {};
+            rawLinks.forEach((link) => {
+                if (!positions[link.source] || !positions[link.target]) return;
+                const v = Number(link.value || 0);
+                const prev = bySource[link.source];
+                if (!prev || v > Number(prev.value || 0)) {
+                    bySource[link.source] = link;
+                }
+            });
+            const links = Object.values(bySource);
+            if (!links.length) return '';
+
             const maxLink = Math.max(1, ...links.map((l) => Number(l.value || 0)));
             return links.map((link) => {
-                if (!visibleIds.has(link.source) || !visibleIds.has(link.target)) return '';
                 const a = positions[link.source];
                 const b = positions[link.target];
                 if (!a || !b) return '';
-                const mid = (a.x + b.x) / 2;
-                const w = Math.max(2, (Number(link.value || 0) / maxLink) * 16);
-                const d = `M ${a.x + half} ${a.y} C ${mid} ${a.y}, ${mid} ${b.y}, ${b.x - half} ${b.y}`;
-                return `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${w}" />`;
-            }).join('');
+                const x1 = a.x2;
+                const y1 = a.y;
+                const x2 = b.x1;
+                const y2 = b.y;
+                if (x2 <= x1 + 8) return '';
+                const mid = x1 + (x2 - x1) * 0.5;
+                // Orthogonal elbow: right edge → mid → target y → left edge (true box→box).
+                const d = `M ${x1.toFixed(1)} ${y1.toFixed(1)} H ${mid.toFixed(1)} V ${y2.toFixed(1)} H ${x2.toFixed(1)}`;
+                const ratio = Number(link.value || 0) / maxLink;
+                const sw = Math.max(1.25, Math.min(3.25, 1.25 + ratio * 2));
+                const stroke = ratio >= 0.35 ? strokeBase : strokeMuted;
+                return `<path class="vj-flow-link" d="${d}" fill="none" stroke="${stroke}" stroke-width="${sw.toFixed(2)}" />`;
+            }).filter(Boolean).join('');
         },
     };
 }

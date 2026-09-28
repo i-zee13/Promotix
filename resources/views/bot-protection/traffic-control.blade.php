@@ -246,7 +246,42 @@
             }
             .tc-investigate:hover { background: rgba(255,102,0,.12); }
             .tc-foot {
-                padding: 4px 14px 14px; font-size: 12px; color: rgba(255,255,255,.42);
+                display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+                padding: 8px 14px 14px; font-size: 12px; color: rgba(255,255,255,.42);
+            }
+            .tc-pager { display: flex; align-items: center; gap: 6px; }
+            .tc-pager__btn {
+                display: inline-flex; align-items: center; justify-content: center;
+                min-width: 28px; height: 28px; padding: 0 8px; border-radius: 6px;
+                border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.04);
+                color: rgba(255,255,255,.78); font-size: 12px; font-weight: 600;
+            }
+            .tc-pager__btn:hover:not(:disabled) { border-color: #FF6600; color: #FF6600; }
+            .tc-pager__btn:disabled { opacity: .35; cursor: not-allowed; }
+            .tc-pager__meta { font-size: 11px; color: rgba(255,255,255,.45); min-width: 72px; text-align: center; }
+            .tc-ranges-scroll {
+                max-height: min(420px, 52vh);
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding: 14px;
+                scrollbar-width: thin;
+                scrollbar-color: var(--brand-primary, #FF6600) transparent;
+            }
+            .tc-ranges-scroll::-webkit-scrollbar { width: 5px; }
+            .tc-ranges-scroll::-webkit-scrollbar-thumb {
+                background: var(--brand-primary, #FF6600);
+                border-radius: 4px;
+            }
+            .tc-chart-ranges-scroll {
+                max-height: 220px;
+                overflow-y: auto;
+                scrollbar-width: thin;
+                scrollbar-color: var(--brand-primary, #FF6600) transparent;
+            }
+            .tc-chart-ranges-scroll::-webkit-scrollbar { width: 5px; }
+            .tc-chart-ranges-scroll::-webkit-scrollbar-thumb {
+                background: var(--brand-primary, #FF6600);
+                border-radius: 4px;
             }
 
             .tc-investigate-modal {
@@ -719,7 +754,7 @@
                     </div>
                     <div class="tc-tabs">
                         <template x-for="tab in tabs" :key="tab.key">
-                            <button type="button" class="tc-tab" :class="{ 'is-active': activeTab === tab.key }" @click="activeTab = tab.key" x-text="tab.label"></button>
+                            <button type="button" class="tc-tab" :class="{ 'is-active': activeTab === tab.key }" @click="setTab(tab.key)" x-text="tab.label"></button>
                         </template>
                         <div class="tc-tabs-actions">
                             <div class="tc-search">
@@ -796,7 +831,7 @@
                         <div class="tc-empty" x-show="loading">Loading intelligence…</div>
                     </div>
 
-                    <div class="p-[14px]" x-show="activeTab === 'ranges'">
+                    <div class="tc-ranges-scroll" x-show="activeTab === 'ranges'">
                         <template x-for="item in (charts.suspicious_ranges || [])" :key="'tab-' + item.label">
                             <div class="tc-hbar">
                                 <div class="truncate font-mono text-[10px]" x-text="item.label"></div>
@@ -807,7 +842,14 @@
                         <div class="tc-empty" x-show="!(charts.suspicious_ranges || []).length">No suspicious ranges detected.</div>
                     </div>
 
-                    <div class="tc-foot" x-show="activeTab !== 'ranges' && tableRows.length" x-text="footerLabel()"></div>
+                    <div class="tc-foot" x-show="activeTab !== 'ranges' && (tableRows.length || metaTotal > 0)">
+                        <span x-text="footerLabel()"></span>
+                        <div class="tc-pager" x-show="totalPages > 1">
+                            <button type="button" class="tc-pager__btn" :disabled="loading || tablePage <= 1" @click="changePage(tablePage - 1)" aria-label="Previous page">‹</button>
+                            <span class="tc-pager__meta" x-text="tablePage + ' / ' + totalPages"></span>
+                            <button type="button" class="tc-pager__btn" :disabled="loading || tablePage >= totalPages" @click="changePage(tablePage + 1)" aria-label="Next page">›</button>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -944,13 +986,15 @@
 
                 <div class="tc-chart">
                     <div class="tc-chart__title">Suspicious IP Ranges</div>
-                    <template x-for="item in (charts.suspicious_ranges || []).slice(0, 6)" :key="'c-' + item.label">
-                        <div class="tc-hbar">
-                            <div class="truncate font-mono text-[10px]" x-text="item.label"></div>
-                            <div class="tc-hbar__track"><div class="tc-hbar__fill bg-[#ef4444]" :style="'width:' + barPct(item.value, maxRange) + '%'"></div></div>
-                            <div class="text-right text-white/55" x-text="item.value"></div>
-                        </div>
-                    </template>
+                    <div class="tc-chart-ranges-scroll">
+                        <template x-for="item in (charts.suspicious_ranges || [])" :key="'c-' + item.label">
+                            <div class="tc-hbar">
+                                <div class="truncate font-mono text-[10px]" x-text="item.label"></div>
+                                <div class="tc-hbar__track"><div class="tc-hbar__fill bg-[#ef4444]" :style="'width:' + barPct(item.value, maxRange) + '%'"></div></div>
+                                <div class="text-right text-white/55" x-text="item.value"></div>
+                            </div>
+                        </template>
+                    </div>
                     <div class="tc-axis" x-show="(charts.suspicious_ranges || []).length">
                         <span>0</span><span x-text="Math.round(maxRange/2)"></span><span x-text="maxRange"></span>
                     </div>
@@ -994,6 +1038,8 @@ function trafficControlIntel() {
             { key: 'ranges', label: 'Suspicious Ranges' },
         ],
         activeTab: 'devices',
+        tablePage: 1,
+        perPage: 20,
         kpis: [],
         devices: [],
         ipChanges: [],
@@ -1008,11 +1054,21 @@ function trafficControlIntel() {
         pathOptions: [],
         selected: null,
         metaTotal: 0,
+        metaIpChangesTotal: 0,
+        metaReputationTotal: 0,
 
         get tableRows() {
             if (this.activeTab === 'ip_changes') return this.ipChanges;
             if (this.activeTab === 'reputation') return this.reputationRows;
             return this.devices;
+        },
+        get totalPages() {
+            return Math.max(1, Math.ceil(this.activeTotal / Math.max(1, this.perPage)));
+        },
+        get activeTotal() {
+            if (this.activeTab === 'ip_changes') return this.metaIpChangesTotal || this.ipChanges.length;
+            if (this.activeTab === 'reputation') return this.metaReputationTotal || this.reputationRows.length;
+            return this.metaTotal || this.devices.length;
         },
         get maxIpChanges() {
             return Math.max(1, ...(this.charts.ip_changes_per_device || []).map((i) => Number(i.value || 0)), 1);
@@ -1038,6 +1094,10 @@ function trafficControlIntel() {
 
         init() {
             this.hydrateDates();
+            try {
+                const q = new URLSearchParams(window.location.search).get('q');
+                if (q) this.filters.q = q;
+            } catch (e) {}
             this.$watch('selected', (val) => {
                 document.body.style.overflow = val ? 'hidden' : '';
             });
@@ -1095,10 +1155,27 @@ function trafficControlIntel() {
             if (this.filters.q) p.set('q', this.filters.q);
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);
+            p.set('tab', this.activeTab || 'devices');
+            p.set('page', String(this.tablePage || 1));
+            p.set('per_page', String(this.perPage || 20));
             return p;
+        },
+        setTab(key) {
+            if (this.activeTab === key) return;
+            this.activeTab = key;
+            this.tablePage = 1;
+            if (key !== 'ranges') this.reload();
+        },
+        changePage(page) {
+            const next = Math.max(1, Math.min(this.totalPages, Number(page) || 1));
+            if (next === this.tablePage) return;
+            this.tablePage = next;
+            this.reload();
         },
         exportReport() {
             const p = this.queryParams();
+            p.delete('page');
+            p.delete('per_page');
             p.set('tab', this.activeTab || 'devices');
             window.location.href = '/bot-protection/traffic-control/export.csv?' + p.toString();
         },
@@ -1118,6 +1195,10 @@ function trafficControlIntel() {
                 this.campaignOptions = data.meta?.campaigns || [];
                 this.pathOptions = data.meta?.paths || [];
                 this.metaTotal = Number(data.meta?.device_count || this.devices.length || 0);
+                this.metaIpChangesTotal = Number(data.meta?.ip_changes_count || this.ipChanges.length || 0);
+                this.metaReputationTotal = Number(data.meta?.reputation_count || this.reputationRows.length || 0);
+                if (data.meta?.page) this.tablePage = Number(data.meta.page) || this.tablePage;
+                if (data.meta?.per_page) this.perPage = Number(data.meta.per_page) || this.perPage;
                 if (this.selected) {
                     const match = this.devices.find((d) => d.device_key === this.selected.device_key)
                         || this.ipChanges.find((d) => d.device_key === this.selected.device_key)
@@ -1133,11 +1214,17 @@ function trafficControlIntel() {
         },
         scheduleSearch() {
             clearTimeout(this.searchTimer);
-            this.searchTimer = setTimeout(() => this.reload(), 350);
+            this.searchTimer = setTimeout(() => {
+                this.tablePage = 1;
+                this.reload();
+            }, 350);
         },
         schedulePathFilter() {
             clearTimeout(this.pathTimer);
-            this.pathTimer = setTimeout(() => this.reload(), 350);
+            this.pathTimer = setTimeout(() => {
+                this.tablePage = 1;
+                this.reload();
+            }, 350);
         },
         selectRow(row) {
             if (!row || typeof row !== 'object') {
@@ -1162,12 +1249,13 @@ function trafficControlIntel() {
             return this.selected.device_key === row.device_key;
         },
         footerLabel() {
-            const n = this.tableRows.length;
-            const total = this.activeTab === 'devices' ? Math.max(this.metaTotal, n) : n;
+            const total = this.activeTotal;
+            const start = total === 0 ? 0 : ((this.tablePage - 1) * this.perPage) + 1;
+            const end = Math.min(total, this.tablePage * this.perPage);
             const noun = (this.activeTab === 'reputation' || this.activeTab === 'ip_changes')
                 ? 'IPs'
                 : 'suspicious devices';
-            return `Showing ${n} of ${total} ${noun}`;
+            return `Showing ${start}–${end} of ${total} ${noun}`;
         },
         copyId(id) {
             if (!id || !navigator.clipboard) return;

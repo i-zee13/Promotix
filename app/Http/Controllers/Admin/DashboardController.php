@@ -8,6 +8,7 @@ use App\Models\GoogleConnection;
 use App\Models\PaidMarketingClick;
 use App\Models\PaidMarketingVisit;
 use App\Support\DashboardNotifications;
+use App\Support\DeviceIdLabel;
 use App\Support\GoogleClickAttribution;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
@@ -170,7 +171,12 @@ class DashboardController extends Controller
             ->first(['id', 'hostname']);
 
         if ($domainMatch && (strcasecmp((string) $domainMatch->hostname, $q) === 0 || ! $this->looksLikeIpOrClickId($q))) {
-            if (filter_var($q, FILTER_VALIDATE_IP) === false && ! $this->looksLikeClickId($q) && ! ctype_digit($q)) {
+            if (
+                filter_var($q, FILTER_VALIDATE_IP) === false
+                && ! $this->looksLikeClickId($q)
+                && ! ctype_digit($q)
+                && ! DeviceIdLabel::looksLikeDeviceId($q)
+            ) {
                 return response()->json([
                     'match' => [
                         'type' => 'domain',
@@ -183,6 +189,9 @@ class DashboardController extends Controller
 
         if (Schema::hasTable('visits')) {
             $visitBase = DB::table('visits')->whereIn('domain_id', $domainIds);
+            $hasDevice = Schema::hasColumn('visits', 'device_id');
+            $hasFingerprint = Schema::hasColumn('visits', 'fingerprint_id');
+            $hasGoogleCampaignId = Schema::hasColumn('visits', 'google_campaign_id');
 
             if (filter_var($q, FILTER_VALIDATE_IP)) {
                 $ipHit = (clone $visitBase)->where('ip', $q)->orderByDesc('visited_at')->first(['ip', 'domain_id']);
@@ -192,6 +201,84 @@ class DashboardController extends Controller
                             'type' => 'ip',
                             'ip' => $ipHit->ip,
                             'domain_id' => $ipHit->domain_id,
+                        ],
+                    ]);
+                }
+            }
+
+            // Device ID / fingerprint (DEV_*, FP_*, or partial token).
+            if ($hasDevice || $hasFingerprint) {
+                $needles = DeviceIdLabel::searchNeedles($q);
+                if ($needles === [] && strlen($q) >= 6) {
+                    $needles = [$q];
+                }
+                if ($needles !== []) {
+                    $deviceHit = (clone $visitBase)
+                        ->where(function ($match) use ($needles, $hasDevice, $hasFingerprint): void {
+                            foreach ($needles as $needle) {
+                                if ($hasDevice) {
+                                    $match->orWhere('device_id', $needle)
+                                        ->orWhere('device_id', 'like', '%'.$needle.'%');
+                                }
+                                if ($hasFingerprint) {
+                                    $match->orWhere('fingerprint_id', $needle)
+                                        ->orWhere('fingerprint_id', 'like', '%'.$needle.'%');
+                                }
+                            }
+                        })
+                        ->orderByDesc('visited_at')
+                        ->first(['ip', 'domain_id', 'device_id', 'fingerprint_id']);
+                    if ($deviceHit && $deviceHit->ip) {
+                        $isFp = $hasFingerprint && filled($deviceHit->fingerprint_id)
+                            && collect($needles)->contains(function ($needle) use ($deviceHit) {
+                                $fp = (string) $deviceHit->fingerprint_id;
+
+                                return strcasecmp($fp, (string) $needle) === 0
+                                    || str_contains(strtolower($fp), strtolower((string) $needle));
+                            });
+
+                        return response()->json([
+                            'match' => [
+                                'type' => $isFp && ! DeviceIdLabel::looksLikeDeviceId($q) ? 'fingerprint' : 'device',
+                                'ip' => $deviceHit->ip,
+                                'domain_id' => $deviceHit->domain_id,
+                                'device_id' => $deviceHit->device_id ?: null,
+                                'fingerprint_id' => $deviceHit->fingerprint_id ?: null,
+                                'label' => DeviceIdLabel::format(
+                                    $deviceHit->device_id ?? null,
+                                    $deviceHit->fingerprint_id ?? null,
+                                    $deviceHit->ip ?? null
+                                ),
+                                'href' => route('analytics.traffic-control', ['q' => $q]),
+                            ],
+                        ]);
+                    }
+                }
+            }
+
+            // Google Ads campaign ID (numeric).
+            if ($hasGoogleCampaignId && preg_match('/^\d{6,}$/', $q)) {
+                $campaignIdHit = (clone $visitBase)
+                    ->where(function ($query) use ($q): void {
+                        $query->where('google_campaign_id', $q)
+                            ->orWhere('google_campaign_id', 'like', '%'.$q.'%');
+                    })
+                    ->orderByDesc('visited_at')
+                    ->first(['ip', 'domain_id', 'google_campaign_id', 'campaign_name', 'utm_campaign']);
+                if ($campaignIdHit) {
+                    $campaignLabel = trim((string) ($campaignIdHit->campaign_name ?: $campaignIdHit->utm_campaign ?: $campaignIdHit->google_campaign_id));
+
+                    return response()->json([
+                        'match' => [
+                            'type' => 'campaign_id',
+                            'campaign_id' => preg_replace('/\D+/', '', (string) ($campaignIdHit->google_campaign_id ?? $q)),
+                            'campaign' => $campaignLabel !== '' ? $campaignLabel : $q,
+                            'label' => $campaignLabel !== '' ? $campaignLabel : ('Campaign '.$q),
+                            'domain_id' => $campaignIdHit->domain_id,
+                            'ip' => $campaignIdHit->ip,
+                            'href' => route('dashboard', [
+                                'campaign' => $campaignLabel !== '' ? $campaignLabel : $q,
+                            ]),
                         ],
                     ]);
                 }
@@ -301,6 +388,48 @@ class DashboardController extends Controller
             }
         }
 
+        // Fallback: paid_marketing_visits device/fingerprint when visits table missed.
+        if (Schema::hasTable('paid_marketing_visits')) {
+            $pmHasDevice = Schema::hasColumn('paid_marketing_visits', 'device_id');
+            $pmHasFp = Schema::hasColumn('paid_marketing_visits', 'fingerprint_id');
+            if ($pmHasDevice || $pmHasFp) {
+                $needles = DeviceIdLabel::searchNeedles($q);
+                if ($needles !== []) {
+                    $pmHit = DB::table('paid_marketing_visits')
+                        ->whereIn('domain_id', $domainIds)
+                        ->where(function ($match) use ($needles, $pmHasDevice, $pmHasFp): void {
+                            foreach ($needles as $needle) {
+                                if ($pmHasDevice) {
+                                    $match->orWhere('device_id', 'like', '%'.$needle.'%');
+                                }
+                                if ($pmHasFp) {
+                                    $match->orWhere('fingerprint_id', 'like', '%'.$needle.'%');
+                                }
+                            }
+                        })
+                        ->orderByDesc('id')
+                        ->first(['ip', 'domain_id', 'device_id', 'fingerprint_id']);
+                    if ($pmHit && $pmHit->ip) {
+                        return response()->json([
+                            'match' => [
+                                'type' => 'device',
+                                'ip' => $pmHit->ip,
+                                'domain_id' => $pmHit->domain_id,
+                                'device_id' => $pmHit->device_id ?: null,
+                                'fingerprint_id' => $pmHit->fingerprint_id ?: null,
+                                'label' => DeviceIdLabel::format(
+                                    $pmHit->device_id ?? null,
+                                    $pmHit->fingerprint_id ?? null,
+                                    $pmHit->ip ?? null
+                                ),
+                                'href' => route('analytics.traffic-control', ['q' => $q]),
+                            ],
+                        ]);
+                    }
+                }
+            }
+        }
+
         if ($domainMatch) {
             return response()->json([
                 'match' => [
@@ -311,7 +440,10 @@ class DashboardController extends Controller
             ]);
         }
 
-        return response()->json(['match' => null, 'message' => 'No matching click, IP, domain, or campaign']);
+        return response()->json([
+            'match' => null,
+            'message' => 'No matching IP, GCLID, device, fingerprint, domain, or campaign',
+        ]);
     }
 
     public function trends(Request $request): JsonResponse

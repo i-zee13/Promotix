@@ -31,4 +31,13 @@ class DeviceIdLabelTest extends TestCase
         $this->assertContains('FP_AbC123', $needles);
         $this->assertContains('AbC123', $needles);
     }
+
+    public function test_format_fingerprint_hash_is_reversible_via_sql_token(): void
+    {
+        $fp = 'fp-raw-token-xyz';
+        $label = DeviceIdLabel::format(null, $fp, null);
+        $this->assertMatchesRegularExpression('/^DEV_[A-F0-9]{12}$/', $label);
+        $token = substr($label, 4);
+        $this->assertSame($token, strtoupper(substr(hash('sha256', $fp), 0, 12)));
+    }
 }

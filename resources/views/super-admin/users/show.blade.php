@@ -301,6 +301,9 @@
                         <button type="button" @click="inviteOpen = true; inviteMode = 'invite'" class="figma-sa-user-detail-primary-btn figma-sa-user-detail-primary-btn--sm">Add member</button>
                     </div>
                 </header>
+                @error('member')
+                    <p class="mt-2 text-sm text-rose-400">{{ $message }}</p>
+                @enderror
 
                 <div class="figma-sa-user-detail-portal-shell">
                     <div class="figma-sa-table-scroll">
@@ -372,9 +375,10 @@
                                         <td>
                                             <div class="figma-sa-user-detail-row-actions">
                                                 <a href="{{ route('super-admin.users.show', $portal) }}#account-details" class="figma-sa-user-detail-link-btn">Edit role</a>
-                                                <form method="POST" action="{{ route('super-admin.users.portal-members.destroy', [$user, $portal]) }}" class="figma-sa-user-detail-inline-form" onsubmit="return confirm('Remove {{ $portal->email }}? This deletes their account.')">
+                                                <form method="POST" action="{{ route('super-admin.users.portal-members.destroy', [$user, $portal]) }}" class="figma-sa-user-detail-inline-form" onsubmit="return confirm(@js('Remove '.$portal->email.'? This deletes their account.'))">
                                                     @csrf
                                                     @method('DELETE')
+                                                    <input type="hidden" name="member_id" value="{{ $portal->id }}">
                                                     <button type="submit" class="figma-sa-user-detail-link-btn figma-sa-user-detail-link-btn--danger">Remove</button>
                                                 </form>
                                                 <x-super-admin.user-action-menu :user="$portal" />

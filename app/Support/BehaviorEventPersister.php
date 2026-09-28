@@ -119,8 +119,8 @@ class BehaviorEventPersister
             'session_exit', 'exit' => 'session_exit',
             'scroll' => isset($raw['depth']) ? 'scroll' : null,
             'add_to_cart' => 'add_to_cart',
-            'checkout' => 'checkout',
-            'purchase', 'sale' => 'purchase',
+            'checkout', 'begin_checkout', 'initiate_checkout' => 'checkout',
+            'purchase', 'sale', 'order', 'transaction' => 'purchase',
             'click' => self::mapLegacyClick($raw),
             default => null,
         };
