@@ -92,8 +92,8 @@ final class AudienceRuleSchema
             ],
             'cr_repeat_click_count' => [
                 'label' => 'Repeat clicks',
-                // Strictly above the user limit: set 3 → members with 4+ (not 1–3, not "max 3").
-                'operators' => ['>'],
+                // Inclusive threshold: set 3 → members with 3, 4, 5… (>= 3).
+                'operators' => ['>='],
                 'type' => 'number',
             ],
             'cr_challenge_result' => [
@@ -161,9 +161,9 @@ final class AudienceRuleSchema
                 return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Unknown parameter: '.$param];
             }
             $op = (string) ($row['op'] ?? '=');
-            // Repeat clicks = "above the limit" only. Older >= / = rules become >.
-            if ($param === 'cr_repeat_click_count' && in_array($op, ['>=', '=', '=>'], true)) {
-                $op = '>';
+            // Repeat clicks = "at least N" (>=). Older > / = rules become >=.
+            if ($param === 'cr_repeat_click_count' && in_array($op, ['>', '=', '=>'], true)) {
+                $op = '>=';
             }
             if (! in_array($op, $catalog[$param]['operators'], true)) {
                 return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Operator not allowed for '.$param];
@@ -245,7 +245,7 @@ final class AudienceRuleSchema
             }
             $value = $row['value'] ?? null;
             $op = (string) ($row['op'] ?? '=');
-            if ($param === 'cr_repeat_click_count' && in_array($op, ['>=', '=', '=>'], true)) {
+            if ($param === 'cr_repeat_click_count' && in_array($op, ['>', '=', '=>'], true)) {
                 return true;
             }
             if ($op === 'between') {

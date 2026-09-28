@@ -331,90 +331,95 @@ class GoogleAdsAudienceAssociationService
 
         $days = max(1, min(540, $membershipDays > 0 ? $membershipDays : 90));
         $since = now()->subDays($days);
+        $hasDevice = Schema::hasColumn('visits', 'device_id');
 
-        $select = ['id', 'visited_at', 'ip'];
-        foreach ([
-            'device_id', 'gclid', 'gbraid', 'wbraid', 'google_campaign_id', 'campaign_name',
-            'utm_campaign', 'utm_medium', 'threat_group', 'action_taken', 'country', 'url',
-            'is_paid_traffic', 'is_invalid_traffic', 'threat_score', 'paid_risk_score',
-        ] as $col) {
-            if (Schema::hasColumn('visits', $col)) {
-                $select[] = $col;
-            }
-        }
-
-        $query = DB::table('visits')
+        // Full-window SQL aggregates (all paid ads for the domain). Do NOT scope to
+        // exclusion campaigns — that undercounted repeat clicks and emptied the sheet.
+        $base = DB::table('visits')
             ->where('domain_id', $domain->id)
             ->where('visited_at', '>=', $since)
             ->whereNotNull('ip')
-            ->where('ip', '!=', '')
-            ->orderByDesc('visited_at')
-            ->limit(5000);
+            ->where('ip', '!=', '');
+        $this->scopeQueryToPaidAdsTraffic($base);
 
-        // Ads-only — never include organic visits in exclusion audience export.
-        $this->scopeQueryToPaidAdsTraffic($query);
-
-        $campaignIds = array_values(array_filter($campaignIds));
-        if ($campaignIds !== [] && Schema::hasColumn('visits', 'google_campaign_id')) {
-            $scoped = (clone $query)->where(function ($q) use ($campaignIds) {
-                $q->whereIn('google_campaign_id', $campaignIds);
-                foreach ($campaignIds as $cid) {
-                    $q->orWhere('google_campaign_id', 'like', '%'.$cid.'%');
-                }
-            });
-            $rows = $scoped->get($select);
-            if ($rows->isEmpty()) {
-                $rows = $query->get($select);
-            }
+        if ($hasDevice) {
+            $aggregates = (clone $base)
+                ->selectRaw("ip, COALESCE(NULLIF(TRIM(device_id), ''), '') as device_key, COUNT(*) as click_count, MIN(visited_at) as first_click, MAX(visited_at) as last_click, MAX(id) as latest_id")
+                ->groupByRaw("ip, COALESCE(NULLIF(TRIM(device_id), ''), '')")
+                ->orderByDesc('click_count')
+                ->limit(2000)
+                ->get();
         } else {
-            $rows = $query->get($select);
+            $aggregates = (clone $base)
+                ->selectRaw("ip, '' as device_key, COUNT(*) as click_count, MIN(visited_at) as first_click, MAX(visited_at) as last_click, MAX(id) as latest_id")
+                ->groupBy('ip')
+                ->orderByDesc('click_count')
+                ->limit(2000)
+                ->get();
         }
 
-        if ($rows->isEmpty()) {
+        if ($aggregates->isEmpty()) {
             return [];
         }
 
-        /** @var array<string, array{visits: list<object>, first: string, last: string, count: int}> $groups */
-        $groups = [];
-        foreach ($rows as $row) {
-            $ip = trim((string) ($row->ip ?? ''));
-            if ($ip === '') {
-                continue;
+        $latestIds = $aggregates->pluck('latest_id')->map(fn ($id) => (int) $id)->filter()->values()->all();
+        $latestById = [];
+        if ($latestIds !== []) {
+            $select = ['id', 'visited_at', 'ip'];
+            foreach ([
+                'device_id', 'gclid', 'gbraid', 'wbraid', 'google_campaign_id', 'campaign_name',
+                'utm_campaign', 'utm_medium', 'threat_group', 'action_taken', 'country', 'url',
+                'is_paid_traffic', 'is_invalid_traffic', 'threat_score', 'paid_risk_score',
+            ] as $col) {
+                if (Schema::hasColumn('visits', $col)) {
+                    $select[] = $col;
+                }
             }
-            $device = trim((string) ($row->device_id ?? ''));
-            $key = $ip.'|'.$device;
-            if (! isset($groups[$key])) {
-                $groups[$key] = [
-                    'visits' => [],
-                    'first' => (string) ($row->visited_at ?? ''),
-                    'last' => (string) ($row->visited_at ?? ''),
-                    'count' => 0,
-                ];
-            }
-            $groups[$key]['visits'][] = $row;
-            $groups[$key]['count']++;
-            $at = (string) ($row->visited_at ?? '');
-            if ($at !== '' && ($groups[$key]['first'] === '' || $at < $groups[$key]['first'])) {
-                $groups[$key]['first'] = $at;
-            }
-            if ($at !== '' && ($groups[$key]['last'] === '' || $at > $groups[$key]['last'])) {
-                $groups[$key]['last'] = $at;
+            foreach (DB::table('visits')->whereIn('id', $latestIds)->get($select) as $row) {
+                $latestById[(int) $row->id] = $row;
             }
         }
 
-        $behaviorByKey = $this->behaviorCountsForExportGroups($domain->id, $groups, $since);
+        // One batched pull of recent paid visits for behavior (avoid N+1 per IP).
+        $ips = $aggregates->pluck('ip')->map(fn ($ip) => trim((string) $ip))->filter()->unique()->values()->all();
+        $groupsForBehavior = [];
+        foreach ($aggregates as $agg) {
+            $key = trim((string) $agg->ip).'|'.(string) $agg->device_key;
+            $groupsForBehavior[$key] = ['visits' => [], 'first' => '', 'last' => '', 'count' => (int) $agg->click_count];
+        }
+        if ($ips !== []) {
+            $behaviorRowsQ = DB::table('visits')
+                ->where('domain_id', $domain->id)
+                ->where('visited_at', '>=', $since)
+                ->whereIn('ip', $ips)
+                ->orderByDesc('visited_at')
+                ->limit(15000);
+            $this->scopeQueryToPaidAdsTraffic($behaviorRowsQ);
+            foreach ($behaviorRowsQ->get(['id', 'ip', 'device_id']) as $row) {
+                $deviceKey = $hasDevice ? trim((string) ($row->device_id ?? '')) : '';
+                $key = trim((string) $row->ip).'|'.$deviceKey;
+                if (! isset($groupsForBehavior[$key])) {
+                    continue;
+                }
+                if (count($groupsForBehavior[$key]['visits']) >= 40) {
+                    continue;
+                }
+                $groupsForBehavior[$key]['visits'][] = $row;
+            }
+        }
+        $behaviorByKey = $this->behaviorCountsForExportGroups($domain->id, $groupsForBehavior, $since);
         $signalService = app(AudienceSignalService::class);
         $out = [];
 
-        foreach ($groups as $key => $group) {
-            $latest = $group['visits'][0];
-            foreach ($group['visits'] as $candidate) {
-                if ((string) ($candidate->visited_at ?? '') === $group['last']) {
-                    $latest = $candidate;
-                    break;
-                }
+        foreach ($aggregates as $agg) {
+            $count = (int) $agg->click_count;
+            $latestId = (int) $agg->latest_id;
+            $latest = $latestById[$latestId] ?? null;
+            if (! $latest) {
+                continue;
             }
 
+            $key = trim((string) $agg->ip).'|'.(string) $agg->device_key;
             $behavior = $behaviorByKey[$key] ?? [
                 'cta_click' => 0,
                 'tel_click' => 0,
@@ -439,8 +444,8 @@ class GoogleAdsAudienceAssociationService
                 'action_taken' => $actionTaken,
                 'threat_group' => (string) ($latest->threat_group ?? ''),
                 'threat_score' => $latest->threat_score ?? $latest->paid_risk_score ?? null,
-                'paid_clicks_today' => $group['count'],
-                'cr_repeat_click_count' => $group['count'],
+                'paid_clicks_today' => $count,
+                'cr_repeat_click_count' => $count,
                 'gclid' => (string) ($latest->gclid ?? ''),
                 'cr_actions' => $behavior['actions'],
                 'cr_action' => $behavior['actions'][0] ?? null,
@@ -462,11 +467,11 @@ class GoogleAdsAudienceAssociationService
             }
 
             $out[] = [
-                'first_click_at' => $group['first'],
-                'last_click_at' => $group['last'],
-                'visited_at' => $group['last'],
-                'ip' => (string) ($latest->ip ?? ''),
-                'device_id' => (string) ($latest->device_id ?? ''),
+                'first_click_at' => (string) $agg->first_click,
+                'last_click_at' => (string) $agg->last_click,
+                'visited_at' => (string) $agg->last_click,
+                'ip' => (string) ($latest->ip ?? $agg->ip ?? ''),
+                'device_id' => (string) ($latest->device_id ?? $agg->device_key ?? ''),
                 'gclid' => (string) ($latest->gclid ?? ''),
                 'campaign_id' => $campaignId,
                 'campaign_name' => $name,
@@ -474,7 +479,7 @@ class GoogleAdsAudienceAssociationService
                 'action_taken' => (string) ($latest->action_taken ?? ''),
                 'country' => (string) ($latest->country ?? ''),
                 'url' => (string) ($latest->url ?? ''),
-                'repeat_click_count' => $group['count'],
+                'repeat_click_count' => $count,
                 'rule_summary' => $ruleSummary,
                 'matched_params' => $this->formatMatchedParamsForExport($rule, $params),
                 'cta_clicks' => (int) ($behavior['cta_click'] ?? 0),
