@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Domain;
 use App\Models\DomainGoogleAdsMapping;
 use App\Models\GoogleAdsAccount;
+use App\Support\GoogleClickAttribution;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -383,7 +384,40 @@ class GoogleAdsAudienceAssociationService
         $emptyStats['threshold'] = $this->repeatClickThresholdFromRule($rule);
 
         $since = now()->subDays($days);
+        $threshold = $emptyStats['threshold'];
+        $onlyRepeatRule = $this->ruleIsOnlyRepeatClicks($rule);
 
+        // Aggregate paid ads clicks per IP (same basis as live cr_repeat_click_count).
+        // Group by IP only — IP|device was splitting one repeater into many count=1 rows.
+        $agg = DB::table('visits')
+            ->select([
+                'ip',
+                DB::raw('COUNT(*) as visit_count'),
+                DB::raw('MIN(visited_at) as first_click'),
+                DB::raw('MAX(visited_at) as last_click'),
+                DB::raw('MAX(id) as latest_id'),
+            ])
+            ->where('domain_id', $domain->id)
+            ->where('visited_at', '>=', $since)
+            ->whereNotNull('ip')
+            ->where('ip', '!=', '');
+        GoogleClickAttribution::applyHasClickIdFilter($agg);
+
+        if ($onlyRepeatRule && $threshold !== null && $threshold > 0) {
+            $agg->havingRaw('COUNT(*) >= ?', [$threshold]);
+        }
+
+        $aggregates = $agg
+            ->groupBy('ip')
+            ->orderByDesc(DB::raw('COUNT(*)'))
+            ->limit(2000)
+            ->get();
+
+        if ($aggregates->isEmpty()) {
+            return ['members' => [], 'stats' => $emptyStats];
+        }
+
+        $latestIds = $aggregates->pluck('latest_id')->map(fn ($id) => (int) $id)->filter()->values()->all();
         $select = ['id', 'visited_at', 'ip'];
         foreach ([
             'device_id', 'gclid', 'gbraid', 'wbraid', 'google_campaign_id', 'campaign_name',
@@ -394,60 +428,70 @@ class GoogleAdsAudienceAssociationService
                 $select[] = $col;
             }
         }
+        $latestById = $latestIds === []
+            ? collect()
+            : DB::table('visits')->whereIn('id', $latestIds)->get($select)->keyBy('id');
 
-        $query = DB::table('visits')
+        $ips = $aggregates->pluck('ip')->map(fn ($ip) => trim((string) $ip))->filter()->values()->all();
+        $visitQuery = DB::table('visits')
             ->where('domain_id', $domain->id)
             ->where('visited_at', '>=', $since)
-            ->whereNotNull('ip')
-            ->where('ip', '!=', '')
+            ->whereIn('ip', $ips)
             ->orderByDesc('visited_at')
-            ->limit(5000);
+            ->limit(8000);
+        GoogleClickAttribution::applyHasClickIdFilter($visitQuery);
+        $visitRows = $visitQuery->get($select);
 
-        // Ads-only — never include organic visits in exclusion audience export.
-        $this->scopeQueryToPaidAdsTraffic($query);
-
-        // Domain-wide paid traffic for membership. Do not scope to exclusion campaign IDs —
-        // that undercounts repeat clicks and empties the sheet after exclusions are attached.
-        $rows = $query->get($select);
-
-        if ($rows->isEmpty()) {
-            return ['members' => [], 'stats' => $emptyStats];
-        }
-
-        /** @var array<string, array{visits: list<object>, first: string, last: string, count: int}> $groups */
+        /** @var array<string, array{visits: list<object>, first: string, last: string, count: int, latest_id?: int}> $groups */
         $groups = [];
-        foreach ($rows as $row) {
-            $ip = trim((string) ($row->ip ?? ''));
+        foreach ($aggregates as $aggRow) {
+            $ip = trim((string) ($aggRow->ip ?? ''));
             if ($ip === '') {
                 continue;
             }
-            $device = trim((string) ($row->device_id ?? ''));
-            $key = $ip.'|'.$device;
-            if (! isset($groups[$key])) {
-                $groups[$key] = [
-                    'visits' => [],
-                    'first' => (string) ($row->visited_at ?? ''),
-                    'last' => (string) ($row->visited_at ?? ''),
-                    'count' => 0,
-                ];
+            $groups[$ip] = [
+                'visits' => [],
+                'first' => (string) ($aggRow->first_click ?? ''),
+                'last' => (string) ($aggRow->last_click ?? ''),
+                'count' => (int) ($aggRow->visit_count ?? 0),
+                'latest_id' => (int) ($aggRow->latest_id ?? 0),
+            ];
+        }
+        foreach ($visitRows as $row) {
+            $ip = trim((string) ($row->ip ?? ''));
+            if ($ip === '' || ! isset($groups[$ip])) {
+                continue;
             }
-            $groups[$key]['visits'][] = $row;
-            $groups[$key]['count']++;
-            $at = (string) ($row->visited_at ?? '');
-            if ($at !== '' && ($groups[$key]['first'] === '' || $at < $groups[$key]['first'])) {
-                $groups[$key]['first'] = $at;
+            $groups[$ip]['visits'][] = $row;
+        }
+        foreach ($groups as $ip => &$group) {
+            $latest = $latestById->get($group['latest_id'] ?? 0);
+            if (! $latest) {
+                continue;
             }
-            if ($at !== '' && ($groups[$key]['last'] === '' || $at > $groups[$key]['last'])) {
-                $groups[$key]['last'] = $at;
+            $found = false;
+            foreach ($group['visits'] as $v) {
+                if ((int) ($v->id ?? 0) === (int) $latest->id) {
+                    $found = true;
+                    break;
+                }
+            }
+            if (! $found) {
+                array_unshift($group['visits'], $latest);
             }
         }
+        unset($group);
 
+        $paidVisitsTotal = (int) $aggregates->sum(fn ($r) => (int) ($r->visit_count ?? 0));
         $behaviorByKey = $this->behaviorCountsForExportGroups($domain->id, $groups, $since);
         $signalService = app(AudienceSignalService::class);
         $out = [];
 
-        foreach ($groups as $key => $group) {
-            $latest = $group['visits'][0];
+        foreach ($groups as $ip => $group) {
+            if ($group['visits'] === []) {
+                continue;
+            }
+            $latest = $latestById->get($group['latest_id'] ?? 0) ?: $group['visits'][0];
             foreach ($group['visits'] as $candidate) {
                 if ((string) ($candidate->visited_at ?? '') === $group['last']) {
                     $latest = $candidate;
@@ -455,7 +499,7 @@ class GoogleAdsAudienceAssociationService
                 }
             }
 
-            $behavior = $behaviorByKey[$key] ?? [
+            $behavior = $behaviorByKey[$ip] ?? [
                 'cta_click' => 0,
                 'tel_click' => 0,
                 'add_to_cart' => 0,
@@ -505,7 +549,7 @@ class GoogleAdsAudienceAssociationService
                 'first_click_at' => $group['first'],
                 'last_click_at' => $group['last'],
                 'visited_at' => $group['last'],
-                'ip' => (string) ($latest->ip ?? ''),
+                'ip' => $ip,
                 'device_id' => (string) ($latest->device_id ?? ''),
                 'gclid' => (string) ($latest->gclid ?? ''),
                 'campaign_id' => $campaignId,
@@ -528,6 +572,11 @@ class GoogleAdsAudienceAssociationService
         }
 
         usort($out, static function (array $a, array $b): int {
+            $cmp = ((int) ($b['repeat_click_count'] ?? 0)) <=> ((int) ($a['repeat_click_count'] ?? 0));
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
             return strcmp((string) ($b['last_click_at'] ?? ''), (string) ($a['last_click_at'] ?? ''));
         });
 
@@ -540,14 +589,35 @@ class GoogleAdsAudienceAssociationService
         return [
             'members' => $members,
             'stats' => [
-                'paid_visits' => $rows->count(),
+                'paid_visits' => $paidVisitsTotal,
                 'groups' => count($groups),
                 'max_repeat' => $maxRepeat,
                 'matched' => count($members),
                 'membership_days' => $days,
-                'threshold' => $emptyStats['threshold'],
+                'threshold' => $threshold,
             ],
         ];
+    }
+
+    /**
+     * @param  array{match_mode?: string, conditions?: list<array{param?: string, op?: string, value?: mixed}>}|null  $rule
+     */
+    private function ruleIsOnlyRepeatClicks(?array $rule): bool
+    {
+        $conditions = $rule['conditions'] ?? null;
+        if (! is_array($conditions) || $conditions === []) {
+            return false;
+        }
+        foreach ($conditions as $condition) {
+            if (! is_array($condition)) {
+                return false;
+            }
+            if (($condition['param'] ?? '') !== 'cr_repeat_click_count') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -599,33 +669,7 @@ class GoogleAdsAudienceAssociationService
      */
     private function scopeQueryToPaidAdsTraffic($query): void
     {
-        $query->where(function ($q): void {
-            $hasPaid = Schema::hasColumn('visits', 'is_paid_traffic');
-            if ($hasPaid) {
-                $q->where('is_paid_traffic', 1);
-            }
-            $clickCols = [];
-            foreach (['gclid', 'gbraid', 'wbraid'] as $col) {
-                if (Schema::hasColumn('visits', $col)) {
-                    $clickCols[] = $col;
-                }
-            }
-            if ($clickCols !== []) {
-                $q->orWhere(function ($inner) use ($clickCols): void {
-                    foreach ($clickCols as $i => $col) {
-                        if ($i === 0) {
-                            $inner->whereNotNull($col)->where($col, '!=', '');
-                        } else {
-                            $inner->orWhere(function ($c) use ($col): void {
-                                $c->whereNotNull($col)->where($col, '!=', '');
-                            });
-                        }
-                    }
-                });
-            } elseif (! $hasPaid && Schema::hasColumn('visits', 'utm_medium')) {
-                $q->orWhereIn(DB::raw('LOWER(utm_medium)'), ['cpc', 'ppc', 'paid', 'paidsearch', 'paidsocial']);
-            }
-        });
+        GoogleClickAttribution::applyHasClickIdFilter($query);
     }
 
     /**
