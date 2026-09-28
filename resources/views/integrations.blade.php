@@ -1516,18 +1516,18 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
 
     <template x-teleport="body">
-    <div
-        x-show="menuToast"
-        x-cloak
-        x-transition
+        <div
+            x-show="menuToast"
+            x-cloak
+            x-transition
             class="fixed top-[70px] right-[24px] z-[2147483646] max-w-[min(420px,calc(100vw-48px))] rounded-[8px] px-[14px] py-[10px] text-[12px] shadow-lg backdrop-blur-sm"
-        :class="{
-            'border border-red-400/45 bg-red-500/20 text-red-50': menuToastType === 'error',
-            'border border-emerald-400/35 bg-emerald-500/15 text-emerald-50': menuToastType === 'success',
+            :class="{
+                'border border-red-400/45 bg-red-500/20 text-red-50': menuToastType === 'error',
+                'border border-emerald-400/35 bg-emerald-500/15 text-emerald-50': menuToastType === 'success',
                 'border border-[var(--brand-primary)]/40 bg-[var(--brand-primary)]/30 text-white': menuToastType === 'info',
-        }"
-        x-text="menuToast"
-    ></div>
+            }"
+            x-text="menuToast"
+        ></div>
     </template>
 </div>
 
@@ -2545,16 +2545,13 @@ function platformIntegrations(config) {
             if (!row || typeof row !== 'object') return;
             const meta = this.audienceRuleMeta(row.param);
             const ops = this.audienceRuleOpsFor(row.param);
-            if (row.param === 'cr_repeat_click_count' && (row.op === '>' || row.op === '=' || row.op === '=>')) {
-                row.op = '>=';
-            }
             if (!ops.includes(row.op)) row.op = ops[0];
             const vals = meta?.values || [];
             const type = meta?.type || 'enum';
             if (type === 'number') {
                 // Never keep enum leftovers like "invalid" on Repeat clicks / Risk score.
                 if (row.value === '' || row.value == null || Number.isNaN(Number(row.value))) {
-                    row.value = 1;
+                    row.value = row.op === '>' || row.op === '>=' ? 1 : 1;
                 } else {
                     row.value = Number(row.value);
                 }
@@ -3478,14 +3475,7 @@ function platformIntegrations(config) {
                         m.url,
                     ].map(td).join('')}</tr>`).join('');
                 } else {
-                    const emptyTip = data.empty_reason
-                        ? ` ${escHtml(data.empty_reason)}`
-                        : '';
-                    const sanitizeTip = (data.rule_sanitize_notes && data.rule_sanitize_notes.length)
-                        ? ` Rule auto-fix: ${escHtml(data.rule_sanitize_notes.join('; '))}.`
-                        : '';
-                    const googleTip = ' Google Ads size stays 0 until the site fires new cr_invalid_traffic events under this rule.';
-                    memberRowsHtml = `<tr><td colspan="20" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No members matched this audience rule for ads traffic yet.${emptyTip}${sanitizeTip}${googleTip}</td></tr>`;
+                    memberRowsHtml = `<tr><td colspan="20" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No members matched this audience rule for ads traffic yet.${data.rule_was_sanitized ? ' Tip: Repeat clicks needs a number (e.g. &gt; 1), not “invalid”. Rule was auto-corrected and saved — new cr_invalid_traffic events will use Repeat clicks &gt; 1. Google Ads size stays 0 until those events arrive.' : ' Tip: use Traffic verdict = invalid, or Repeat clicks &gt; 1 (number). Google Ads size also stays 0 until the site fires cr_invalid_traffic.'}</td></tr>`;
                 }
                 const xOpen = (n) => '<' + 'x:' + n + '>';
                 const xClose = (n) => '</' + 'x:' + n + '>';
@@ -3496,11 +3486,8 @@ function platformIntegrations(config) {
                     + xOpen('WorksheetOptions') + xEmpty('DisplayGridlines') + xClose('WorksheetOptions')
                     + xClose('ExcelWorksheet') + xClose('ExcelWorksheets') + xClose('ExcelWorkbook')
                     + '</xml><![endif]-->';
-                const sanitizeNote = (data.rule_sanitize_notes && data.rule_sanitize_notes.length)
-                    ? ` <span style="color:#b45309;">(auto-fixed: ${escHtml(data.rule_sanitize_notes.join('; '))})</span>`
-                    : '';
                 const ruleNote = data.rule_summary
-                    ? `<p style="font-family:Arial,sans-serif;font-size:11px;color:#6b7280;margin:0 0 12px;">Rule: ${escHtml(data.rule_summary)}${sanitizeNote}</p>`
+                    ? `<p style="font-family:Arial,sans-serif;font-size:11px;color:#6b7280;margin:0 0 12px;">Rule: ${escHtml(data.rule_summary)}${data.rule_was_sanitized ? ' <span style="color:#b45309;">(auto-fixed: numeric threshold was missing)</span>' : ''}</p>`
                     : '';
                 const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8">${msoExcelXml}</head><body>
 <h3 style="font-family:Arial,sans-serif;margin:0 0 10px;">Audience basics</h3>

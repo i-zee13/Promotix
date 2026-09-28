@@ -92,8 +92,7 @@ final class AudienceRuleSchema
             ],
             'cr_repeat_click_count' => [
                 'label' => 'Repeat clicks',
-                // Only >= — threshold N means at least N (includes N). Do not offer ">" (excludes N).
-                'operators' => ['>='],
+                'operators' => ['>', '>='],
                 'type' => 'number',
             ],
             'cr_challenge_result' => [
@@ -161,10 +160,6 @@ final class AudienceRuleSchema
                 return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Unknown parameter: '.$param];
             }
             $op = (string) ($row['op'] ?? '=');
-            // Product meaning: threshold N = at least N (includes N). Map legacy ops to >=.
-            if ($param === 'cr_repeat_click_count' && in_array($op, ['>', '=', '=>'], true)) {
-                $op = '>=';
-            }
             if (! in_array($op, $catalog[$param]['operators'], true)) {
                 return ['ok' => false, 'rule' => self::defaultPreset(), 'error' => 'Operator not allowed for '.$param];
             }
@@ -228,26 +223,13 @@ final class AudienceRuleSchema
     }
 
     /**
-     * True when normalize() would change a number condition's value (e.g. "invalid" → 1)
-     * or upgrade Repeat clicks ">" / "=" to ">=".
+     * True when normalize() would change a number condition's value (e.g. "invalid" → 1).
      *
      * @param  array{match_mode?: string, conditions?: list<array{param?: string, op?: string, value?: mixed}>}  $rule
      */
     public static function needsNumericCoercion(array $rule): bool
     {
-        return self::sanitizationNotes($rule) !== [];
-    }
-
-    /**
-     * Human notes for what normalize() would fix on a stored rule.
-     *
-     * @param  array{match_mode?: string, conditions?: list<array{param?: string, op?: string, value?: mixed}>}  $rule
-     * @return list<string>
-     */
-    public static function sanitizationNotes(array $rule): array
-    {
         $catalog = self::parameters();
-        $notes = [];
         foreach ($rule['conditions'] ?? [] as $row) {
             if (! is_array($row)) {
                 continue;
@@ -258,18 +240,15 @@ final class AudienceRuleSchema
             }
             $value = $row['value'] ?? null;
             $op = (string) ($row['op'] ?? '=');
-            if ($param === 'cr_repeat_click_count' && in_array($op, ['>', '=', '=>'], true)) {
-                $notes[] = 'operator upgraded from '.$op.' to >= (includes the threshold)';
-            }
             if ($op === 'between') {
                 continue;
             }
             if ($value !== null && $value !== '' && ! is_numeric($value)) {
-                $notes[] = 'non-numeric value "'.(string) $value.'" replaced with 1';
+                return true;
             }
         }
 
-        return array_values(array_unique($notes));
+        return false;
     }
 
     /**

@@ -308,7 +308,7 @@
                             </button>
                         </template>
                         <p class="px-[10px] py-[8px] text-[10px] text-white/40" x-show="!accountOptions.length">No connected Ads accounts.</p>
-            </div>
+                    </div>
                 </label>
                 <label class="bp-dash-f-domain relative flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]" @click.outside="filterMenus.domain = false">
                     <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Domain</span>
@@ -324,7 +324,7 @@
                                 <span class="paid-advanced-campaign-option__label" x-text="d.label"></span>
                             </button>
                         </template>
-        </div>
+                    </div>
                 </label>
                 <label class="bp-dash-f-campaign relative flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]" @click.outside="filterMenus.campaign = false">
                     <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Campaign</span>
@@ -338,29 +338,29 @@
                         <template x-for="c in campaignOptions" :key="'bp-c-' + c">
                             <button type="button" @click="pickCampaignFilter(c)" class="paid-advanced-campaign-option" :class="filters.campaign === c && 'is-active'">
                                 <span class="paid-advanced-campaign-option__label" x-text="c"></span>
-                                    </button>
-                                </template>
-                            </div>
+                            </button>
+                        </template>
+                    </div>
                 </label>
                 <label class="bp-dash-f-device relative flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]" @click.outside="filterMenus.device = false">
                     <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Device</span>
                     <button type="button" @click="toggleFilterMenu('device')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
                         <span class="truncate" x-text="deviceFilterLabel()"></span>
-                                </button>
+                    </button>
                     <div x-show="filterMenus.device" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !z-[80]">
                         <template x-for="opt in deviceOptions" :key="'bp-dev-' + opt.value">
                             <button type="button" @click="pickDeviceFilter(opt.value)" class="paid-advanced-campaign-option" :class="filters.device === opt.value && 'is-active'">
                                 <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>
                             </button>
                         </template>
-                                </div>
+                    </div>
                 </label>
                 <label class="bp-dash-f-path flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
                     <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Landing Page</span>
                     <div class="figma-filter-path-wrap">
                         <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input x-model="filters.path" @input="scheduleReload()" placeholder="All Pages" class="figma-filter-control h-[22px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
-                            </div>
+                    </div>
                 </label>
                 <div class="bp-dash-f-actions">
                 @include('partials.figma-filter-date-fields')
@@ -377,9 +377,9 @@
                                 <path d="M5 21h14"/>
                             </svg>
                         </a>
-                        </div>
-                    </div>
-                        </div>
+                            </div>
+                                </div>
+                            </div>
                         </div>
 
         <div class="figma-bp-dashboard">
@@ -922,14 +922,14 @@
                         <div class="bpv2-kpi__top">
                             <span class="bpv2-kpi__icon" x-html="card.icon"></span>
                             <p class="bpv2-kpi__title" x-text="card.title"></p>
-                        </div>
+                    </div>
                         <p class="bpv2-kpi__value" x-text="card.value"></p>
                         <p class="bpv2-kpi__sub" x-text="card.sub"></p>
                         <p class="bpv2-kpi__trend" :class="card.delta >= 0 ? 'is-up' : 'is-down'" x-text="card.deltaLabel"></p>
                         <div class="bpv2-kpi__spark" aria-hidden="true" x-html="sparkSvg(card.spark, card.color)"></div>
                     </article>
                 </template>
-            </div>
+                        </div>
 
             {{-- Row 2: Classification / Threats / Detection --}}
             <div class="bpv2-grid">

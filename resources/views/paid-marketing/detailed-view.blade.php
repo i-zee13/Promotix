@@ -2911,7 +2911,7 @@
                 // Always rebuild QS after capturing requestedPage so page/offset cannot go stale.
                 this.page = requestedPage;
                 this.perPage = requestedPerPage;
-                    const qs = this.queryString();
+                const qs = this.queryString();
                 const filterSig = this.filterSignature();
                 const pageOnly = Boolean(this._fetchPageOnly) && filterSig === this._lastFilterSig && this.kpiCards.length > 0;
                 this._fetchPageOnly = false;
@@ -2930,7 +2930,7 @@
                     if (! pageOnly) {
                         jobs.push((async () => {
                             const summary = await fetch(`/paid-marketing/summary?${qs}`, {
-                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                                 cache: 'no-store',
                             }).then((r) => r.json());
                             if (! this.isFetchCurrent(generation)) return;
@@ -2979,8 +2979,8 @@
                     }
                 } finally {
                     if (this.isFetchCurrent(generation)) {
-                    this.loading = false;
-                    window.promotixPageLoader?.hide();
+                        this.loading = false;
+                        window.promotixPageLoader?.hide();
                         // Campaigns dropdown is filter metadata — not needed on every page turn
                         // (and its request has no page/offset, which confuses Network debugging).
                         if (! pageOnly) {
