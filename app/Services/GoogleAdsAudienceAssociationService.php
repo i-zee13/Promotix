@@ -231,8 +231,10 @@ class GoogleAdsAudienceAssociationService
             }
         }
         $rawRule = is_array($rawRow['rule'] ?? null) ? $rawRow['rule'] : null;
-        $ruleWasSanitized = is_array($rawRule)
-            && \App\Support\AudienceRuleSchema::needsNumericCoercion($rawRule);
+        $sanitizeNotes = is_array($rawRule)
+            ? \App\Support\AudienceRuleSchema::sanitizationNotes($rawRule)
+            : [];
+        $ruleWasSanitized = $sanitizeNotes !== [];
 
         $campaignIds = array_values(array_unique(array_filter(array_map(
             static fn ($e) => preg_replace('/\D+/', '', (string) ($e['campaign_id'] ?? '')),
@@ -260,19 +262,25 @@ class GoogleAdsAudienceAssociationService
             ]));
         }
 
-        $invalidMembers = $this->fetchInvalidMembersForExport(
+        $membershipDays = (int) ($stored['membership_days'] ?? 90);
+        $preview = $this->fetchInvalidMembersForExportWithStats(
             $domain,
             $campaignIds,
             $campaignNames,
             $ruleForExport,
-            (int) ($stored['membership_days'] ?? 90),
+            $membershipDays,
             $ruleSummaryLive,
         );
+        $invalidMembers = $preview['members'];
+        $previewStats = $preview['stats'];
 
         $statusLabel = $stats['status_label'] ?? null;
-        if ($invalidMembers === [] && $statusLabel) {
-            // Clarify local preview emptiness vs Google Ads membership (browser events).
-            $statusLabel = rtrim((string) $statusLabel).' · Local preview: 0 ads visits matched this rule yet.';
+        $emptyReason = null;
+        if ($invalidMembers === []) {
+            $emptyReason = $this->explainEmptyAudiencePreview($ruleForExport, $previewStats);
+            if ($statusLabel) {
+                $statusLabel = rtrim((string) $statusLabel).' · '.$emptyReason;
+            }
         }
 
         return [
@@ -294,6 +302,9 @@ class GoogleAdsAudienceAssociationService
                 ? $ruleSummaryLive
                 : (string) ($stored['rule_summary'] ?? ''),
             'rule_was_sanitized' => $ruleWasSanitized,
+            'rule_sanitize_notes' => $sanitizeNotes,
+            'empty_reason' => $emptyReason,
+            'preview_stats' => $previewStats,
             'exclusions' => $exclusions,
             'exclusion_count' => count($exclusions),
             'invalid_members' => $invalidMembers,
@@ -318,8 +329,42 @@ class GoogleAdsAudienceAssociationService
         int $membershipDays = 90,
         string $ruleSummary = '',
     ): array {
+        return $this->fetchInvalidMembersForExportWithStats(
+            $domain,
+            $campaignIds,
+            $campaignNames,
+            $rule,
+            $membershipDays,
+            $ruleSummary,
+        )['members'];
+    }
+
+    /**
+     * @param  list<string>  $campaignIds
+     * @param  array<string, string>  $campaignNames
+     * @param  array{match_mode?: string, conditions?: list<array{param: string, op: string, value: mixed}>}|null  $rule
+     * @return array{members: list<array<string, mixed>>, stats: array{paid_visits: int, groups: int, max_repeat: int, matched: int, membership_days: int, threshold: int|null}}
+     */
+    private function fetchInvalidMembersForExportWithStats(
+        Domain $domain,
+        array $campaignIds,
+        array $campaignNames = [],
+        ?array $rule = null,
+        int $membershipDays = 90,
+        string $ruleSummary = '',
+    ): array {
+        $days = max(1, min(540, $membershipDays > 0 ? $membershipDays : 90));
+        $emptyStats = [
+            'paid_visits' => 0,
+            'groups' => 0,
+            'max_repeat' => 0,
+            'matched' => 0,
+            'membership_days' => $days,
+            'threshold' => $this->repeatClickThresholdFromRule($rule),
+        ];
+
         if (! Schema::hasTable('visits')) {
-            return [];
+            return ['members' => [], 'stats' => $emptyStats];
         }
 
         $rule = is_array($rule) && ($rule['conditions'] ?? null)
@@ -329,8 +374,8 @@ class GoogleAdsAudienceAssociationService
             $ruleSummary = \App\Support\AudienceRuleSchema::naturalLanguageSummary($rule);
         }
 
-        $days = max(1, min(540, $membershipDays > 0 ? $membershipDays : 90));
         $since = now()->subDays($days);
+        $emptyStats['threshold'] = $this->repeatClickThresholdFromRule($rule);
 
         $select = ['id', 'visited_at', 'ip'];
         foreach ([
@@ -371,7 +416,7 @@ class GoogleAdsAudienceAssociationService
         }
 
         if ($rows->isEmpty()) {
-            return [];
+            return ['members' => [], 'stats' => $emptyStats];
         }
 
         /** @var array<string, array{visits: list<object>, first: string, last: string, count: int}> $groups */
@@ -491,7 +536,65 @@ class GoogleAdsAudienceAssociationService
             return strcmp((string) ($b['last_click_at'] ?? ''), (string) ($a['last_click_at'] ?? ''));
         });
 
-        return array_slice($out, 0, 1000);
+        $members = array_slice($out, 0, 1000);
+        $maxRepeat = 0;
+        foreach ($groups as $group) {
+            $maxRepeat = max($maxRepeat, (int) $group['count']);
+        }
+
+        return [
+            'members' => $members,
+            'stats' => [
+                'paid_visits' => $rows->count(),
+                'groups' => count($groups),
+                'max_repeat' => $maxRepeat,
+                'matched' => count($members),
+                'membership_days' => $days,
+                'threshold' => $emptyStats['threshold'],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array{match_mode?: string, conditions?: list<array{param?: string, op?: string, value?: mixed}>}|null  $rule
+     */
+    private function repeatClickThresholdFromRule(?array $rule): ?int
+    {
+        foreach ($rule['conditions'] ?? [] as $condition) {
+            if (! is_array($condition)) {
+                continue;
+            }
+            if (($condition['param'] ?? '') !== 'cr_repeat_click_count') {
+                continue;
+            }
+            if (is_numeric($condition['value'] ?? null)) {
+                return (int) $condition['value'];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array{match_mode?: string, conditions?: list<array{param: string, op: string, value: mixed}>}  $rule
+     * @param  array{paid_visits: int, groups: int, max_repeat: int, matched: int, membership_days: int, threshold: int|null}  $stats
+     */
+    private function explainEmptyAudiencePreview(array $rule, array $stats): string
+    {
+        $days = (int) ($stats['membership_days'] ?? 90);
+        $paid = (int) ($stats['paid_visits'] ?? 0);
+        $maxRepeat = (int) ($stats['max_repeat'] ?? 0);
+        $threshold = $stats['threshold'] ?? $this->repeatClickThresholdFromRule($rule);
+
+        if ($paid === 0) {
+            return "Local preview: no paid ads visits on this domain in the last {$days} days.";
+        }
+
+        if ($threshold !== null && $maxRepeat < $threshold) {
+            return "Local preview: {$paid} paid ads visits found, but highest repeat count is {$maxRepeat} (rule needs >= {$threshold}).";
+        }
+
+        return "Local preview: {$paid} paid ads visits found, but none matched this rule yet.";
     }
 
     /**

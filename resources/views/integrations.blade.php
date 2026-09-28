@@ -3478,7 +3478,14 @@ function platformIntegrations(config) {
                         m.url,
                     ].map(td).join('')}</tr>`).join('');
                 } else {
-                    memberRowsHtml = `<tr><td colspan="20" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No members matched this audience rule for ads traffic yet.${data.rule_was_sanitized ? ' Tip: Repeat clicks needs a number (e.g. &gt;= 3), not “invalid”. Rule was auto-corrected and saved — new events use Repeat clicks &gt;= N. Google Ads size stays 0 until those events arrive.' : ' Tip: use Traffic verdict = invalid, or Repeat clicks &gt;= 3 (includes 3). Google Ads size also stays 0 until the site fires cr_invalid_traffic.'}</td></tr>`;
+                    const emptyTip = data.empty_reason
+                        ? ` ${escHtml(data.empty_reason)}`
+                        : '';
+                    const sanitizeTip = (data.rule_sanitize_notes && data.rule_sanitize_notes.length)
+                        ? ` Rule auto-fix: ${escHtml(data.rule_sanitize_notes.join('; '))}.`
+                        : '';
+                    const googleTip = ' Google Ads size stays 0 until the site fires new cr_invalid_traffic events under this rule.';
+                    memberRowsHtml = `<tr><td colspan="20" style="text-align:center;padding:12px;border:1px solid #e5e7eb;color:#6b7280;">No members matched this audience rule for ads traffic yet.${emptyTip}${sanitizeTip}${googleTip}</td></tr>`;
                 }
                 const xOpen = (n) => '<' + 'x:' + n + '>';
                 const xClose = (n) => '</' + 'x:' + n + '>';
@@ -3489,8 +3496,11 @@ function platformIntegrations(config) {
                     + xOpen('WorksheetOptions') + xEmpty('DisplayGridlines') + xClose('WorksheetOptions')
                     + xClose('ExcelWorksheet') + xClose('ExcelWorksheets') + xClose('ExcelWorkbook')
                     + '</xml><![endif]-->';
+                const sanitizeNote = (data.rule_sanitize_notes && data.rule_sanitize_notes.length)
+                    ? ` <span style="color:#b45309;">(auto-fixed: ${escHtml(data.rule_sanitize_notes.join('; '))})</span>`
+                    : '';
                 const ruleNote = data.rule_summary
-                    ? `<p style="font-family:Arial,sans-serif;font-size:11px;color:#6b7280;margin:0 0 12px;">Rule: ${escHtml(data.rule_summary)}${data.rule_was_sanitized ? ' <span style="color:#b45309;">(auto-fixed: numeric threshold was missing)</span>' : ''}</p>`
+                    ? `<p style="font-family:Arial,sans-serif;font-size:11px;color:#6b7280;margin:0 0 12px;">Rule: ${escHtml(data.rule_summary)}${sanitizeNote}</p>`
                     : '';
                 const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8">${msoExcelXml}</head><body>
 <h3 style="font-family:Arial,sans-serif;margin:0 0 10px;">Audience basics</h3>
