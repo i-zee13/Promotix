@@ -244,7 +244,12 @@
                                         </select>
                                     </template>
                                     <template x-if="!(audienceRuleMeta(row.param)?.values || []).length">
-                                        <input class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.value" placeholder="Value">
+                                        <input class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]"
+                                               :type="(audienceRuleMeta(row.param)?.type === 'number') ? 'number' : 'text'"
+                                               min="1"
+                                               step="1"
+                                               x-model="row.value"
+                                               placeholder="Value">
                                     </template>
                                     <button type="button"
                                             class="col-span-1 inline-flex h-[28px] w-full items-center justify-center rounded-[5px] text-[#f87171] hover:bg-rose-500/15 hover:text-[#ef4444]"
@@ -342,7 +347,12 @@
                                         </select>
                                     </template>
                                     <template x-if="!(audienceRuleMeta(row.param)?.values || []).length">
-                                        <input class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]" x-model="row.value" placeholder="Value">
+                                        <input class="ae-field col-span-4 rounded-[6px] border border-white/20 bg-[#0d0d0d] px-[8px] py-[7px] text-[11px]"
+                                               :type="(audienceRuleMeta(row.param)?.type === 'number') ? 'number' : 'text'"
+                                               min="1"
+                                               step="1"
+                                               x-model="row.value"
+                                               placeholder="Value">
                                     </template>
                                     <button type="button"
                                             class="col-span-1 inline-flex h-[28px] w-full items-center justify-center rounded-[5px] text-[#f87171] hover:bg-rose-500/15 hover:text-[#ef4444]"

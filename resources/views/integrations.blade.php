@@ -2504,10 +2504,10 @@ function platformIntegrations(config) {
                 return this.audienceWizard.source === 'website' ? 'Configure Ads route →' : 'Configure GA4 route →';
             }
             if (this.audienceWizard.step === 1) {
-                return this.audienceWizard.ga4ListId ? 'Continue to Verify →' : 'Create GA4 list & verify →';
+                return this.audienceWizard.ga4ListId ? 'Save rule & verify →' : 'Create GA4 list & verify →';
             }
             if (this.audienceWizard.step === 2) {
-                return this.audienceWizard.websiteListId ? 'Continue to Verify →' : 'Create Ads list & verify →';
+                return this.audienceWizard.websiteListId ? 'Save rule & verify →' : 'Create Ads list & verify →';
             }
             return 'Done';
         },
@@ -2548,7 +2548,7 @@ function platformIntegrations(config) {
             if (!ops.includes(row.op)) row.op = ops[0];
             const vals = meta?.values || [];
             const type = meta?.type || 'enum';
-            if ($type === 'number') {
+            if (type === 'number') {
                 // Never keep enum leftovers like "invalid" on Repeat clicks / Risk score.
                 if (row.value === '' || row.value == null || Number.isNaN(Number(row.value))) {
                     row.value = 1;
@@ -2560,7 +2560,7 @@ function platformIntegrations(config) {
                 }
                 return;
             }
-            if (vals.length && !vals.includes(row.value)) row.value = vals[0];
+            if (vals.length && !vals.includes(String(row.value))) row.value = vals[0];
         },
         addAudienceRuleCondition() {
             const first = (this.audienceWizard.ruleCatalog?.parameters || [])[0];
@@ -2659,7 +2659,9 @@ function platformIntegrations(config) {
                         op: c.op || '=',
                         value: Array.isArray(c.value) ? c.value.join(', ') : c.value,
                     };
-                    this.syncAudienceRuleOps(row);
+                    try {
+                        this.syncAudienceRuleOps(row);
+                    } catch (_) { /* keep loaded values */ }
                     return row;
                 });
             }
@@ -2791,22 +2793,18 @@ function platformIntegrations(config) {
                 return;
             }
             if (this.audienceWizard.step === 1) {
-                // GA4 route → create GA4 Ads list (if needed), then Verify. Skip Ads route.
+                // GA4 route → create/reuse list and always persist current rule (e.g. Repeat clicks >= 3).
                 this.audienceWizard.source = 'ga4';
-                if (!this.audienceWizard.ga4ListId) {
-                    const ok = await this.wizardCreateAudience('ga4', { stayOnStep: true });
-                    if (!ok) return;
-                }
+                const ok = await this.wizardCreateAudience('ga4', { stayOnStep: true });
+                if (!ok) return;
                 this.wizardGoToStep(3);
                 return;
             }
             if (this.audienceWizard.step === 2) {
-                // Ads / website segment route → create website list, then Verify.
+                // Ads / website segment → create/reuse list and always persist current rule.
                 this.audienceWizard.source = 'website';
-                if (!this.audienceWizard.websiteListId) {
-                    const ok = await this.wizardCreateAudience('website', { stayOnStep: true });
-                    if (!ok) return;
-                }
+                const ok = await this.wizardCreateAudience('website', { stayOnStep: true });
+                if (!ok) return;
                 this.wizardGoToStep(3);
             }
         },
@@ -2845,11 +2843,19 @@ function platformIntegrations(config) {
                 const adsId = this.createAudienceModal.ads_account;
                 let conditions = (this.audienceWizard.ruleConditions || [])
                     .filter((c) => c && c.param)
-                    .map((c) => ({
-                        param: c.param,
-                        op: c.op || '=',
-                        value: c.value,
-                    }));
+                    .map((c) => {
+                        this.syncAudienceRuleOps(c);
+                        const meta = this.audienceRuleMeta(c.param);
+                        let value = c.value;
+                        if ((meta?.type || '') === 'number' && value !== '' && value != null) {
+                            value = Number(value);
+                        }
+                        return {
+                            param: c.param,
+                            op: c.op || '=',
+                            value,
+                        };
+                    });
                 // Keep guide default when UI somehow dropped conditions.
                 if (!conditions.length) {
                     conditions = [
