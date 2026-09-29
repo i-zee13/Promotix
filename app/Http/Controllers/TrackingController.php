@@ -359,9 +359,9 @@ class TrackingController extends Controller
             $device = (string) $fpSignals['device_type'];
         }
         $isCrawler = $this->isCrawlerUa($ua);
-        // Paid attribution only when Paid Marketing / Google Ads is linked on this domain.
+        // Paid attribution only when Google Ads is linked on this domain.
         // Bot-protection tag alone must not treat gclid visits as Google Ads paid traffic.
-        $paidEnabled = (bool) ($domain->paid_marketing_connected ?? false) || $domain->hasGoogleAdsConnection();
+        $paidEnabled = $domain->hasGoogleAdsConnection();
         $hasPaidClickId = GoogleClickAttribution::isPaidTraffic($data, (int) $domain->id);
         $isPaidTraffic = $paidEnabled && $hasPaidClickId;
         $googleClick = $hasPaidClickId ? GoogleClickAttribution::resolve($data) : null;

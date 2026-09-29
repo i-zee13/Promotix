@@ -194,10 +194,41 @@ class PaidAdvertisingDashboardController extends Controller
 
         $googleAds = null;
         $googleClicks = 0;
-        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
+        $adsLinkedDomainIds = Domain::query()
+            ->whereIn('id', $domainIds)
+            ->forPaidMarketing()
+            ->pluck('id')
+            ->values();
+        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $adsLinkedDomainIds->isNotEmpty()) {
             $googleAds = app(GoogleAdsDomainMetricsSync::class)
-                ->clickTotalsForDomainsReporting($domainIds, $metricFrom, $metricTo, $reportingTz, $domains);
+                ->clickTotalsForDomainsReporting($adsLinkedDomainIds, $metricFrom, $metricTo, $reportingTz, $domains);
             $googleClicks = (int) ($googleAds['clicks'] ?? 0);
+        }
+
+        // No Google Ads link on selected domain(s) → never show tag/gclid leftovers as paid stats.
+        if ($adsLinkedDomainIds->isEmpty()) {
+            $tagPaid = 0;
+            $verifiedPaid = 0;
+            $verifiedValidPaid = 0;
+            $unverifiedPaid = 0;
+            $invalid = 0;
+            $blocked = 0;
+            $blockAttempts = 0;
+            $blockEnforced = 0;
+            $flagged = 0;
+            $uniqueIps = 0;
+            $uniqueInvalidPaidClicks = 0;
+            $uniquePaidClicks = 0;
+            $uniqueValidPaidClicks = 0;
+            $googleClicks = 0;
+            $googleAds = null;
+            $invalidReconciliation = [
+                'platform_only' => 0,
+                'google_only' => 0,
+                'overlap' => 0,
+                'platform_invalid_total' => 0,
+                'google_gap_total' => 0,
+            ];
         }
 
         $paid = $this->displayPaidTrafficCount($verifiedValidPaid, $uniqueValidPaidClicks, $googleClicks);
@@ -1640,14 +1671,10 @@ class PaidAdvertisingDashboardController extends Controller
 
     private function scopedVisitsQuery(Request $request, $domainIds, string $fromDate, string $toDate)
     {
-        // Only domains with Paid Marketing / Google Ads active — bot-protection-only tags must not inflate paid stats.
+        // Only domains with a linked Google Ads account — ignore historical gclid on bot-only domains.
         $paidDomainIds = Domain::query()
             ->whereIn('id', $domainIds)
-            ->where(function ($q): void {
-                $q->where('paid_marketing_connected', true)
-                    ->orWhereNotNull('google_ads_account_id')
-                    ->orWhereHas('googleAdsMappings');
-            })
+            ->forPaidMarketing()
             ->pluck('id')
             ->values();
 
