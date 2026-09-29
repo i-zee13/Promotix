@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Domain;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -24,7 +25,7 @@ class VisitorJourneyIntelligence
             return $this->emptyPayload();
         }
 
-        $cacheKey = 'vj:intel:v5:'.md5(json_encode([
+        $cacheKey = 'vj:intel:v7:'.md5(json_encode([
             'domains' => array_values($domainIds),
             'from' => $from->toIso8601String(),
             'to' => $to->toIso8601String(),
@@ -48,6 +49,20 @@ class VisitorJourneyIntelligence
      */
     private function buildUncached(array $domainIds, Carbon $from, Carbon $to, Request $request, array $filters = []): array
     {
+        $adsLinkedDomainIds = Domain::query()
+            ->whereIn('id', $domainIds)
+            ->forPaidMarketing()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        // Visitor Journey is Google Ads / paid only — empty until Ads is linked.
+        if ($adsLinkedDomainIds === []) {
+            return $this->emptyPayload();
+        }
+        $domainIds = $adsLinkedDomainIds;
+
         $analyticsFilters = [
             'traffic_source' => 'paid',
             'campaign' => trim((string) ($filters['campaign'] ?? '')),
@@ -55,6 +70,7 @@ class VisitorJourneyIntelligence
             'device' => strtolower(trim((string) ($filters['device'] ?? ''))),
             'q' => trim((string) ($filters['q'] ?? '')),
             'granularity' => '',
+            'ads_linked_domain_ids' => $adsLinkedDomainIds,
         ];
 
         $days = max(1, $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1);
@@ -461,6 +477,16 @@ class VisitorJourneyIntelligence
         return (int) DB::table('visits')
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('visited_at', [$from, $to])
+            ->where(function ($group): void {
+                if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+                    $group->where('is_paid_traffic', true)
+                        ->orWhere(function ($inner): void {
+                            GoogleClickAttribution::applyHasClickIdFilter($inner);
+                        });
+                } else {
+                    GoogleClickAttribution::applyHasClickIdFilter($group);
+                }
+            })
             ->selectRaw("COUNT(DISTINCT CONCAT(domain_id, '|', {$sessionExpr})) as c")
             ->value('c');
     }
@@ -1507,6 +1533,7 @@ class VisitorJourneyIntelligence
         }
         // Sample can miss CTAs that exist in recordings / behavior events — lift from Page Analytics KPIs.
         $colAction = $this->liftActionNodesFromKpis($colAction, $current, $tracked);
+        $colAction = $this->onlyPositiveFlowNodes($colAction);
 
         $outcomeTones = [
             'Lead confirmed' => 'lead',
@@ -1544,10 +1571,11 @@ class VisitorJourneyIntelligence
             $colOutcome[count($colOutcome) - 1]['value'] = $tracked;
             $colOutcome[count($colOutcome) - 1]['pct'] = 100.0;
         }
+        $colOutcome = $this->onlyPositiveFlowNodes($colOutcome);
 
         $columns = [
-            ['key' => 'landing', 'label' => 'Landing Page', 'nodes' => $colLanding],
-            ['key' => 'next', 'label' => 'Next Page', 'nodes' => $colNext],
+            ['key' => 'landing', 'label' => 'Landing Page', 'nodes' => $this->onlyPositiveFlowNodes($colLanding)],
+            ['key' => 'next', 'label' => 'Next Page', 'nodes' => $this->onlyPositiveFlowNodes($colNext)],
             ['key' => 'action', 'label' => 'Action', 'nodes' => $colAction],
             ['key' => 'outcome', 'label' => 'Outcome', 'nodes' => $colOutcome],
         ];
@@ -1555,6 +1583,35 @@ class VisitorJourneyIntelligence
         $links = $this->syntheticLinks($columns);
 
         return ['columns' => $columns, 'links' => $links];
+    }
+
+    /**
+     * Drop zero-count flow nodes so ecommerce / lead actions only appear when the site has data.
+     * Exit / Exited stay last when they have counts.
+     *
+     * @param  list<array{id?:string,label?:string,value?:int,pct?:float,tone?:string}>  $nodes
+     * @return list<array{id?:string,label?:string,value?:int,pct?:float,tone?:string}>
+     */
+    private function onlyPositiveFlowNodes(array $nodes): array
+    {
+        $rest = [];
+        $exits = [];
+        foreach ($nodes as $node) {
+            $value = (int) ($node['value'] ?? 0);
+            if ($value <= 0) {
+                continue;
+            }
+            $label = strtolower(trim((string) ($node['label'] ?? '')));
+            if (in_array($label, ['exit', 'exited'], true)) {
+                $exits[] = $node;
+            } else {
+                $rest[] = $node;
+            }
+        }
+        usort($rest, static fn (array $a, array $b): int => (int) ($b['value'] ?? 0) <=> (int) ($a['value'] ?? 0));
+        usort($exits, static fn (array $a, array $b): int => (int) ($b['value'] ?? 0) <=> (int) ($a['value'] ?? 0));
+
+        return array_values(array_merge($rest, $exits));
     }
 
     /**

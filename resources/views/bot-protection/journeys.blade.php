@@ -2314,6 +2314,8 @@ function visitorJourneyPage() {
                 const data = await res.json();
                 this.kpis = data.kpis || [];
                 this.flow = data.flow || { columns: [], links: [] };
+                // Rebuild column picks from fresh data (no stale zero ecommerce/lead options).
+                this.pathEnabled = { landing: null, next: null, action: null, outcome: null };
                 this.commonPaths = data.common_paths || [];
                 this.landingPages = data.landing_pages || [];
                 this.exitPages = data.exit_pages || [];
@@ -2710,26 +2712,29 @@ function visitorJourneyPage() {
                 const enabled = Array.isArray(this.pathEnabled[col.key])
                     ? this.pathEnabled[col.key]
                     : this.pathCatalog(col.key);
-                const sourceNodes = col.nodes || [];
-                // Keep enabled order; synthesize 0-count cards for catalog picks
-                // that the API has not returned yet (e.g. Purchase completed).
+                const sourceNodes = (col.nodes || []).filter((n) => Number(n.value || 0) > 0);
+                // Only real counts — never synthesize zero ecommerce/lead cards.
                 let nodes = enabled.map((opt) => {
-                    const hit = sourceNodes.find((n) => this.pathOptionMatches(n.label, opt));
-                    if (hit) return hit;
-                    return {
-                        id: `${col.key}:opt:${String(opt).toLowerCase().replace(/\s+/g, '-')}`,
-                        label: opt,
-                        value: 0,
-                        pct: 0,
-                        tone: this.pathOptionTone(col.key, opt),
-                        synthetic: true,
-                    };
+                    return sourceNodes.find((n) => this.pathOptionMatches(n.label, opt));
                 }).filter(Boolean);
-                if (nodes.length > this.flowMaxVisible) {
-                    nodes = nodes.slice(0, this.flowMaxVisible);
-                }
+                // Pin Exit/Exited at bottom without slicing them off.
+                const exits = nodes.filter((n) => this.isExitFlowLabel(n.label));
+                const others = nodes.filter((n) => !this.isExitFlowLabel(n.label))
+                    .sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
+                const maxOthers = Math.max(0, this.flowMaxVisible - (exits.length ? 1 : 0));
+                nodes = others.slice(0, maxOthers).concat(exits.slice(0, 1));
                 return Object.assign({}, col, { nodes });
             });
+        },
+        isExitFlowLabel(label) {
+            const s = String(label || '').trim().toLowerCase();
+            return s === 'exit' || s === 'exited';
+        },
+        flowNodeSort(a, b) {
+            const aExit = this.isExitFlowLabel(a?.label);
+            const bExit = this.isExitFlowLabel(b?.label);
+            if (aExit !== bExit) return aExit ? 1 : -1;
+            return Number(b?.value || 0) - Number(a?.value || 0);
         },
         pathOptionTone(colKey, option) {
             const label = String(option || '').toLowerCase();
@@ -2766,15 +2771,19 @@ function visitorJourneyPage() {
         ensurePathEnabled(colKey) {
             if (!['landing', 'next', 'action', 'outcome'].includes(colKey)) return;
             if (Array.isArray(this.pathEnabled[colKey]) && this.pathEnabled[colKey].length) return;
-            const catalog = this.pathCatalog(colKey);
-            // Default: top N by value so the chart fills; rest stay in ⋮ menu.
-            const ranked = (this.flowColumn(colKey).nodes || []).slice().sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
-            const labels = ranked.map((n) => n.label).filter(Boolean);
-            if (labels.length) {
-                this.pathEnabled[colKey] = labels.slice(0, this.flowMaxVisible);
-                return;
+            // Default: only nodes with real counts (Exit/Exited last). No static ecommerce catalog.
+            const nodes = (this.flowColumn(colKey).nodes || [])
+                .filter((n) => Number(n.value || 0) > 0);
+            const exits = nodes.filter((n) => this.isExitFlowLabel(n.label))
+                .sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
+            const others = nodes.filter((n) => !this.isExitFlowLabel(n.label))
+                .sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
+            const maxOthers = Math.max(0, this.flowMaxVisible - (exits.length ? 1 : 0));
+            const labels = others.slice(0, maxOthers).map((n) => n.label).filter(Boolean);
+            if (exits.length && exits[0].label) {
+                labels.push(exits[0].label);
             }
-            this.pathEnabled[colKey] = catalog.slice(0, this.flowMaxVisible);
+            this.pathEnabled[colKey] = labels;
         },
         pathOptionEnabled(colKey, option) {
             this.ensurePathEnabled(colKey);
@@ -2782,28 +2791,46 @@ function visitorJourneyPage() {
             return enabled.includes(option);
         },
         togglePathOption(colKey, option) {
+            // Never enable zero-count ecommerce / lead options for this site.
+            const node = (this.flowColumn(colKey).nodes || []).find((n) => this.pathOptionMatches(n.label, option));
+            if (!node || Number(node.value || 0) <= 0) return;
             this.ensurePathEnabled(colKey);
             const cur = (this.pathEnabled[colKey] || []).slice();
-            const idx = cur.indexOf(option);
+            const idx = cur.findIndex((l) => this.pathOptionMatches(l, option) || l === option);
             if (idx >= 0) {
                 if (cur.length <= 1) return; // keep at least one
                 cur.splice(idx, 1);
             } else {
                 // Cap visible selections so chart stays within height (no forced overflow scroll).
                 if (cur.length >= this.flowMaxVisible) {
-                    cur.shift();
+                    const dropIdx = cur.findIndex((l) => !this.isExitFlowLabel(l));
+                    if (dropIdx >= 0) cur.splice(dropIdx, 1);
+                    else cur.shift();
                 }
-                cur.push(option);
+                if (this.isExitFlowLabel(option)) {
+                    cur.push(option);
+                } else {
+                    const exitIdx = cur.findIndex((l) => this.isExitFlowLabel(l));
+                    if (exitIdx >= 0) cur.splice(exitIdx, 0, option);
+                    else cur.push(option);
+                }
             }
+            cur.sort((a, b) => {
+                const aExit = this.isExitFlowLabel(a);
+                const bExit = this.isExitFlowLabel(b);
+                if (aExit !== bExit) return aExit ? 1 : -1;
+                return 0;
+            });
             this.pathEnabled = Object.assign({}, this.pathEnabled, { [colKey]: cur });
             this.$nextTick(() => { this.flowDrawTick++; });
         },
         pathCatalog(colKey) {
-            if (colKey === 'outcome') return this.outcomeOptions;
-            if (colKey === 'action') return this.actionOptions;
-            // Landing / next: all pages returned for this column.
-            const labels = (this.flowColumn(colKey).nodes || []).map((n) => n.label).filter(Boolean);
-            return labels.length ? labels : [];
+            // Menu = only labels that have real data for this domain/range.
+            const nodes = (this.flowColumn(colKey).nodes || [])
+                .filter((n) => Number(n.value || 0) > 0)
+                .slice()
+                .sort((a, b) => this.flowNodeSort(a, b));
+            return nodes.map((n) => n.label).filter(Boolean);
         },
         pathOptionMatches(label, option) {
             const a = String(label || '').trim().toLowerCase();

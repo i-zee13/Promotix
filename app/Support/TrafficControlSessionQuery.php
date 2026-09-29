@@ -57,17 +57,23 @@ class TrafficControlSessionQuery
             $trafficMode = 'all';
         }
 
+        $paidMarketingIds = $this->paidMarketingDomainIds($domainIds);
+
         if ($trafficMode === 'paid') {
+            if ($paidMarketingIds === []) {
+                return ['data' => [], 'total' => 0];
+            }
+            $base->whereIn('visits.domain_id', $paidMarketingIds);
             GoogleClickAttribution::applyHasClickIdFilter($base, 'visits');
         } elseif ($trafficMode !== 'all') {
             GoogleClickAttribution::excludeClickIdsForPaidDomains(
                 $base,
-                $this->paidMarketingDomainIds($domainIds),
+                $paidMarketingIds,
                 'visits',
             );
         }
 
-        $this->applyFilters($base, $request);
+        $this->applyFilters($base, $request, $paidMarketingIds);
 
         $total = 0;
         if ($withTotal) {
@@ -136,7 +142,7 @@ class TrafficControlSessionQuery
         $landingPages = $this->loadLandingPages($domainIds, $from, $to, $sessionExpr, $sessionKeys);
         $exitPages = $this->loadExitPages($domainIds, $from, $to, $sessionExpr, $sessionKeys);
 
-        $data = $rows->map(function ($row) use ($recordings, $landingPages, $exitPages, $request, $trafficMode) {
+        $data = $rows->map(function ($row) use ($recordings, $landingPages, $exitPages, $request, $trafficMode, $paidMarketingIds) {
             $key = (string) $row->session_key;
             $rec = $recordings->get($key);
             if (! is_array($rec)) {
@@ -155,14 +161,22 @@ class TrafficControlSessionQuery
             $last = Carbon::parse($row->last_seen);
             $durationSec = $this->resolveEngagedDurationSec($first, $last, $rec !== [] ? $rec : null);
 
-            $isPaid = (bool) ($row->is_paid_traffic ?? false) || $trafficMode === 'paid';
+            $adsLinked = in_array((int) $row->domain_id, $paidMarketingIds, true);
+            $isPaid = $adsLinked && ((bool) ($row->is_paid_traffic ?? false) || $trafficMode === 'paid');
+            $utmMedium = $row->utm_medium;
+            if (! $adsLinked) {
+                $medium = strtolower(trim((string) $utmMedium));
+                if (in_array($medium, ['cpc', 'ppc', 'paid', 'paidsearch', 'cpm'], true)) {
+                    $utmMedium = null;
+                }
+            }
             $platform = TrafficSourceClassifier::platformLabel(
                 $isPaid,
-                $row->utm_medium,
+                $utmMedium,
                 $row->utm_source,
                 $row->referrer,
             );
-            if ($trafficMode === 'paid') {
+            if ($trafficMode === 'paid' && $adsLinked) {
                 $platform = 'Google Ads';
             } elseif ($platform === 'Google' && ! $isPaid) {
                 $platform = 'Google Organic';
@@ -245,7 +259,7 @@ class TrafficControlSessionQuery
                 'device_id' => $deviceLabel,
                 'device_id_raw' => $deviceRaw,
                 'fingerprint_id' => $fpRaw,
-                'is_paid' => $isPaid || ($trafficMode === 'paid'),
+                'is_paid' => $isPaid,
                 'gclid' => trim((string) ($row->gclid ?? '')) ?: null,
                 'source_platform' => $platform,
                 'campaign' => $row->utm_campaign,
@@ -341,24 +355,38 @@ class TrafficControlSessionQuery
     /** @param  list<int>  $domainIds */
     private function paidMarketingDomainIds(array $domainIds): array
     {
+        $ids = array_values(array_filter(array_map('intval', $domainIds)));
+        if ($ids === []) {
+            return [];
+        }
+
         return Domain::query()
-            ->whereIn('id', $domainIds)
-            ->where('monitoring_only_mode', false)
+            ->whereIn('id', $ids)
+            ->forPaidMarketing()
             ->pluck('id')
+            ->map(fn ($id) => (int) $id)
             ->all();
     }
 
-    private function applyFilters($query, Request $request): void
+    /**
+     * @param  list<int>  $paidMarketingIds
+     */
+    private function applyFilters($query, Request $request, array $paidMarketingIds = []): void
     {
         if ($domainId = (int) $request->query('domain_id', 0)) {
             $query->where('visits.domain_id', $domainId);
         }
         if ($source = trim((string) ($request->query('source', $request->query('traffic_source', ''))))) {
             $needle = strtolower($source);
-            $query->where(function ($q) use ($source, $needle): void {
+            $query->where(function ($q) use ($source, $needle, $paidMarketingIds): void {
                 if (in_array($needle, ['organic', 'direct', 'social', 'referral', 'paid'], true)) {
                     if ($needle === 'paid') {
-                        $q->where('visits.is_paid_traffic', 1);
+                        if ($paidMarketingIds === []) {
+                            $q->whereRaw('1 = 0');
+                        } else {
+                            $q->whereIn('visits.domain_id', $paidMarketingIds)
+                                ->where('visits.is_paid_traffic', 1);
+                        }
                     } elseif ($needle === 'direct') {
                         $q->where(function ($inner): void {
                             $inner->whereNull('visits.referrer')->orWhere('visits.referrer', '');

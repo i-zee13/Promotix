@@ -1491,7 +1491,18 @@ class BotProtectionController extends Controller
             $query->where('visits.is_invalid_traffic', true);
         }
         if ($request->boolean('only_paid')) {
-            $query->where('visits.is_paid_traffic', true);
+            $paidIds = Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->forPaidMarketing()
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            if ($paidIds === []) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('visits.domain_id', $paidIds)
+                    ->where('visits.is_paid_traffic', true);
+            }
         }
         if ($path = trim((string) $request->query('path', ''))) {
             $query->where('visits.url', 'like', '%'.$path.'%');
@@ -1586,7 +1597,9 @@ class BotProtectionController extends Controller
             'threat_type_label' => $this->threatTypeLabel($v->threat_group),
             'threat_score' => (int) ($v->threat_score ?? 0),
             'is_invalid_traffic' => $isInvalid,
-            'is_paid_traffic' => (bool) $v->is_paid_traffic,
+            'is_paid_traffic' => $domain !== null
+                && $domain->hasGoogleAdsConnection()
+                && (bool) ($v->is_paid_traffic ?? false),
             'invalid_visits' => $invalid,
             'valid_visits' => max(0, $total - $invalid),
             'cta_clicks' => (int) ($behaviorCounts->cta_clicks ?? 0),
@@ -1793,8 +1806,13 @@ class BotProtectionController extends Controller
      */
     private function paidVisitsQuery($domainIds, Carbon $from, Carbon $to, Request $request)
     {
+        $paidIds = $this->paidMarketingDomainIds($domainIds);
+        if ($paidIds === []) {
+            return DB::table('visits')->whereRaw('1 = 0');
+        }
+
         $query = DB::table('visits')
-            ->whereIn('domain_id', $domainIds)
+            ->whereIn('domain_id', $paidIds)
             ->whereBetween('visited_at', [$from, $to]);
 
         if (Schema::hasColumn('visits', 'is_paid_traffic')) {

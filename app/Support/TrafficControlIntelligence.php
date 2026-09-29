@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Domain;
 use App\Models\IpLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,15 @@ class TrafficControlIntelligence
         $hasInvalid = Schema::hasColumn('visits', 'is_invalid_traffic');
         $hasThreat = Schema::hasColumn('visits', 'threat_group');
         $hasGclid = Schema::hasColumn('visits', 'gclid');
+
+        $adsLinkedSet = array_flip(
+            Domain::query()
+                ->whereIn('id', $domainIds)
+                ->forPaidMarketing()
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all()
+        );
 
         $select = ['id', 'ip', 'visited_at', 'domain_id'];
         if ($hasDevice) {
@@ -140,8 +150,12 @@ class TrafficControlIntelligence
             $deviceKey = $deviceRaw !== '' ? $deviceRaw : ($fpRaw !== '' ? $fpRaw : 'ip:'.$ip);
             $deviceLabel = $this->formatDeviceLabel($deviceRaw, $fpRaw, $ip);
 
-            $isPaid = $hasPaid && (bool) ($visit->is_paid_traffic ?? false);
-            $hasClick = $hasGclid && filled($visit->gclid ?? null);
+            $isPaid = isset($adsLinkedSet[(int) ($visit->domain_id ?? 0)])
+                && $hasPaid
+                && (bool) ($visit->is_paid_traffic ?? false);
+            $hasClick = isset($adsLinkedSet[(int) ($visit->domain_id ?? 0)])
+                && $hasGclid
+                && filled($visit->gclid ?? null);
             if ($isPaid || $hasClick) {
                 $googleClicks++;
             }
