@@ -1315,8 +1315,8 @@
                 <div class="adv-pager__controls">
                     <div class="adv-pager__pages">
                         <button type="button" class="adv-pager__btn" :disabled="meta.page <= 1" @click="changePage(meta.page - 1)">‹</button>
-                        <template x-for="item in pageItems" :key="'p-'+item">
-                            <button type="button" class="adv-pager__btn" :class="item === meta.page && 'is-active'" :disabled="item === '…'" @click="item !== '…' && changePage(item)" x-text="item"></button>
+                        <template x-for="(item, idx) in pageItems" :key="'p-'+idx+'-'+item">
+                            <button type="button" class="adv-pager__btn" :class="Number(item) === Number(meta.page) && 'is-active'" :disabled="item === '…'" @click="item !== '…' && changePage(item)" x-text="item"></button>
                         </template>
                         <button type="button" class="adv-pager__btn" :disabled="meta.page * meta.per_page >= meta.total" @click="changePage(meta.page + 1)">›</button>
                     </div>

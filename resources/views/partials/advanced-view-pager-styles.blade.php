@@ -10,6 +10,7 @@
         padding: 10px 14px;
         font-size: 11px;
         color: #a9a9a9;
+        direction: ltr !important;
     }
     .adv-pager__label {
         flex: 1 1 auto;
@@ -26,12 +27,15 @@
         flex: 0 0 auto;
         width: auto !important;
         max-width: 100%;
+        direction: ltr !important;
     }
     .adv-pager__pages {
         display: flex !important;
+        flex-direction: row !important;
         flex-wrap: nowrap;
         align-items: center;
         gap: 4px;
+        direction: ltr !important;
     }
     .adv-pager__btn {
         display: inline-flex !important;

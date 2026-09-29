@@ -2038,6 +2038,7 @@ class PaidMarketingController extends Controller
                     $deviceLabel,
                     $clickIds,
                     $intel,
+                    $sessionMeta['device_id'] ?? null,
                 )
                 : [],
             ...$intel,

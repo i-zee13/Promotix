@@ -2128,10 +2128,20 @@ function visitorJourneyPage() {
         pagerPages(page, totalPages) {
             const last = Math.max(1, Number(totalPages) || 1);
             const current = Math.min(last, Math.max(1, Number(page) || 1));
+            if (last <= 7) {
+                return Array.from({ length: last }, (_, i) => i + 1);
+            }
+            const wanted = new Set([1, last, current - 1, current, current + 1]);
+            const nums = [...wanted]
+                .map((n) => Number(n))
+                .filter((n) => Number.isFinite(n) && n >= 1 && n <= last)
+                .sort((a, b) => a - b);
             const items = [];
-            for (let i = 1; i <= last; i++) {
-                if (i === 1 || i === last || Math.abs(i - current) <= 1) items.push(i);
-                else if (items[items.length - 1] !== '…') items.push('…');
+            for (let i = 0; i < nums.length; i++) {
+                if (i > 0 && nums[i] - nums[i - 1] > 1) {
+                    items.push('…');
+                }
+                items.push(nums[i]);
             }
             return items;
         },

@@ -25,21 +25,24 @@ class TrafficControlIntelligence
             return $empty;
         }
 
+        // Traffic Control is Google Ads intelligence — empty until Ads is linked on selected domain(s).
+        $adsLinkedDomainIds = Domain::query()
+            ->whereIn('id', $domainIds)
+            ->forPaidMarketing()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        if ($adsLinkedDomainIds === []) {
+            return $empty;
+        }
+        $domainIds = $adsLinkedDomainIds;
+
         $hasDevice = Schema::hasColumn('visits', 'device_id');
         $hasFingerprint = Schema::hasColumn('visits', 'fingerprint_id');
         $hasPaid = Schema::hasColumn('visits', 'is_paid_traffic');
         $hasInvalid = Schema::hasColumn('visits', 'is_invalid_traffic');
         $hasThreat = Schema::hasColumn('visits', 'threat_group');
         $hasGclid = Schema::hasColumn('visits', 'gclid');
-
-        $adsLinkedSet = array_flip(
-            Domain::query()
-                ->whereIn('id', $domainIds)
-                ->forPaidMarketing()
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->all()
-        );
 
         $select = ['id', 'ip', 'visited_at', 'domain_id'];
         if ($hasDevice) {
@@ -74,6 +77,20 @@ class TrafficControlIntelligence
             ->whereIn('domain_id', $domainIds)
             ->whereNotNull('ip')
             ->where('ip', '!=', '');
+
+        // Paid / click-ID sessions only (no organic leftovers).
+        if ($hasPaid) {
+            $query->where(function ($group) use ($hasGclid): void {
+                $group->where('is_paid_traffic', true);
+                if ($hasGclid || Schema::hasColumn('visits', 'gbraid') || Schema::hasColumn('visits', 'wbraid')) {
+                    $group->orWhere(function ($inner): void {
+                        GoogleClickAttribution::applyHasClickIdFilter($inner);
+                    });
+                }
+            });
+        } else {
+            GoogleClickAttribution::applyHasClickIdFilter($query);
+        }
 
         $q = trim((string) ($filters['q'] ?? ''));
         $isDeviceSearch = $q !== '' && DeviceIdLabel::looksLikeDeviceId($q);
@@ -150,15 +167,9 @@ class TrafficControlIntelligence
             $deviceKey = $deviceRaw !== '' ? $deviceRaw : ($fpRaw !== '' ? $fpRaw : 'ip:'.$ip);
             $deviceLabel = $this->formatDeviceLabel($deviceRaw, $fpRaw, $ip);
 
-            $isPaid = isset($adsLinkedSet[(int) ($visit->domain_id ?? 0)])
-                && $hasPaid
-                && (bool) ($visit->is_paid_traffic ?? false);
-            $hasClick = isset($adsLinkedSet[(int) ($visit->domain_id ?? 0)])
-                && $hasGclid
-                && filled($visit->gclid ?? null);
-            if ($isPaid || $hasClick) {
-                $googleClicks++;
-            }
+            // Query already scoped to Ads-linked paid / click-ID traffic.
+            $googleClicks++;
+            $isPaidVisit = true;
 
             $day = Carbon::parse((string) $visit->visited_at)->toDateString();
             $activityByDay[$day] = ($activityByDay[$day] ?? 0) + 1;
@@ -185,7 +196,7 @@ class TrafficControlIntelligence
                 'ip' => $ip,
                 'at' => (string) $visit->visited_at,
             ];
-            if ($isPaid || $hasClick) {
+            if ($isPaidVisit) {
                 $devices[$deviceKey]['clicks']++;
             }
             if ($hasInvalid && (bool) ($visit->is_invalid_traffic ?? false)) {
