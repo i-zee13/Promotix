@@ -359,8 +359,12 @@ class TrackingController extends Controller
             $device = (string) $fpSignals['device_type'];
         }
         $isCrawler = $this->isCrawlerUa($ua);
-        $isPaidTraffic = GoogleClickAttribution::isPaidTraffic($data, (int) $domain->id);
-        $googleClick = GoogleClickAttribution::resolve($data);
+        // Paid attribution only when Paid Marketing / Google Ads is linked on this domain.
+        // Bot-protection tag alone must not treat gclid visits as Google Ads paid traffic.
+        $paidEnabled = (bool) ($domain->paid_marketing_connected ?? false) || $domain->hasGoogleAdsConnection();
+        $hasPaidClickId = GoogleClickAttribution::isPaidTraffic($data, (int) $domain->id);
+        $isPaidTraffic = $paidEnabled && $hasPaidClickId;
+        $googleClick = $hasPaidClickId ? GoogleClickAttribution::resolve($data) : null;
         $visitedAt = isset($data['ts']) && is_numeric($data['ts'])
             ? UserTimezone::parseInstant($data['ts'])
             : UserTimezone::nowUtc();
@@ -371,7 +375,6 @@ class TrackingController extends Controller
         $protection = app(VisitProtectionService::class);
         $ipLog = $protection->touchIpLog($ip, $ua, $data['path'] ?? null, $data['referrer'] ?? null);
         $botEnabled = (bool) ($domain->bot_mitigation_connected ?? false);
-        $paidEnabled = (bool) ($domain->paid_marketing_connected ?? false) || $domain->hasGoogleAdsConnection();
         $assessment = $protection->assess($domain, $ipLog, $country, $sessionId, $isCrawler, $isPaidTraffic, $visitedAt);
         $ipLog = $assessment['ipLog'];
         $detection = $assessment['detection'];

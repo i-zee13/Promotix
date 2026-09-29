@@ -28,12 +28,14 @@
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPixelGuardModal()">
         Open Pixel Guard
     </button>
-    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openAudienceMethodModal()">
-        Open Audience Exclusion / Connect platforms
-    </button>
-    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openApplyAudienceModal()">
-        Apply audience exclusion
-    </button>
+    @if (\App\Support\AdminIntegrationCatalog::audienceExclusionAvailableForUser(auth()->user()))
+        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openAudienceMethodModal()">
+            Open Audience Exclusion / Connect platforms
+        </button>
+        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openApplyAudienceModal()">
+            Apply audience exclusion
+        </button>
+    @endif
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openIpExclusionsModal()">
         IP exclusions
     </button>

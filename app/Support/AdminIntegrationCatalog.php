@@ -210,9 +210,13 @@ class AdminIntegrationCatalog
             return false;
         }
 
-        return self::platformOperatorIntegrationQuery($name)
-            ->where('enabled', true)
-            ->exists();
+        // Latest Super Admin toggle wins (not “any row still enabled”).
+        $row = self::platformOperatorIntegrationQuery($name)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first();
+
+        return $row ? (bool) $row->enabled : false;
     }
 
     public static function platformIntegrationSetting(string $name, bool $enabledOnly = true): ?AdminIntegrationSetting

@@ -1640,8 +1640,19 @@ class PaidAdvertisingDashboardController extends Controller
 
     private function scopedVisitsQuery(Request $request, $domainIds, string $fromDate, string $toDate)
     {
+        // Only domains with Paid Marketing / Google Ads active — bot-protection-only tags must not inflate paid stats.
+        $paidDomainIds = Domain::query()
+            ->whereIn('id', $domainIds)
+            ->where(function ($q): void {
+                $q->where('paid_marketing_connected', true)
+                    ->orWhereNotNull('google_ads_account_id')
+                    ->orWhereHas('googleAdsMappings');
+            })
+            ->pluck('id')
+            ->values();
+
         $query = DB::table('visits')
-            ->whereIn('domain_id', $domainIds);
+            ->whereIn('domain_id', $paidDomainIds->isNotEmpty() ? $paidDomainIds : [-1]);
 
         $search = trim((string) $request->query('ip', ''));
         // IP / GCLID / Device ID search: do not hide rows just because the date chip is narrow.
@@ -1656,7 +1667,11 @@ class PaidAdvertisingDashboardController extends Controller
         );
         }
 
-        GoogleClickAttribution::applyHasClickIdFilter($query);
+        if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+            $query->where('is_paid_traffic', true);
+        } else {
+            GoogleClickAttribution::applyHasClickIdFilter($query);
+        }
 
         $path = trim((string) $request->query('path', ''));
         if ($path !== '') {
