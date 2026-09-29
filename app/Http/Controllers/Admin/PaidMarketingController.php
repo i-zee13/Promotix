@@ -32,6 +32,7 @@ use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\IpListParser;
 use App\Support\PaidAdvertising\IpRowRiskScorer;
 use App\Support\RiskLabels;
+use App\Support\SessionBehaviorAnalyzer;
 use App\Support\SessionBehaviorTimeline;
 use App\Support\SessionRecordingNormalizer;
 use App\Support\TrafficSourceClassifier;
@@ -1922,6 +1923,8 @@ class PaidMarketingController extends Controller
             }
         }
 
+        $invalidTimeline = $this->invalidClickTimeline($visit, $clicks, $user);
+
         return [
             'id' => $visit->id ?? ('ip:'.(int) $visit->domain_id.':'.(string) $visit->ip),
             'click_id' => 'CK-' . str_pad((string) ($visit->id ?: substr(md5((string) $visit->ip), 0, 6)), 6, '0', STR_PAD_LEFT),
@@ -1936,10 +1939,13 @@ class PaidMarketingController extends Controller
             'ads_primary_rule' => $sessionMeta['primary_detection'],
             'block_status' => ((bool) ($visit->ip_is_blocked ?? $ipLog?->is_blocked)) ? 'Blocked' : 'Allowed',
             'last_click_at' => UserTimezone::isoForUser($lastClickAt, $user),
-            'last_click_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y') ?? '-',
+            'last_click_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y H:i:s') ?? '-',
             'first_click_at' => UserTimezone::isoForUser($firstClickAt, $user),
-            'first_click_label' => UserTimezone::formatForUser($firstClickAt, $user, 'm/d/y H:i') ?? '',
-            'last_click_datetime_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y H:i') ?? '',
+            'first_click_label' => UserTimezone::formatForUser($firstClickAt, $user, 'm/d/y H:i:s') ?? '',
+            'last_click_datetime_label' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y H:i:s') ?? '',
+            'invalid_entry_times' => $invalidTimeline['entries'],
+            'invalid_exit_times' => $invalidTimeline['exits'],
+            'invalid_click_timeline' => $invalidTimeline['timeline'],
             'threat_group' => $visit->threat_group ?: $visit->getAttribute('range_threat_group'),
             'threat_type' => $visit->threat_type,
             'manual_decision' => $visit->manual_decision,
@@ -2087,7 +2093,12 @@ class PaidMarketingController extends Controller
             $ctaClicks = max((int) ($behaviorCounts?->cta_clicks ?? 0), (int) ($recording->cta_clicks ?? 0));
             $telClicks = max((int) ($behaviorCounts?->tel_clicks ?? 0), (int) ($recording->tel_clicks ?? 0));
             $pageChanges = max((int) ($behaviorCounts?->page_changes ?? 0), (int) ($recording->page_changes ?? 0));
-            $scrollEvents = (int) ($recording->scroll_count ?? 0);
+            $scrollEvents = max((int) ($behaviorCounts?->scroll_events ?? 0), (int) ($recording->scroll_count ?? 0));
+            $formStarts = (int) ($behaviorCounts?->form_starts ?? 0);
+            $formFills = (int) ($behaviorCounts?->form_fills ?? 0);
+            $formSubmits = (int) ($behaviorCounts?->form_submits ?? 0);
+            $addToCart = (int) ($behaviorCounts?->add_to_cart ?? 0);
+            $checkout = (int) ($behaviorCounts?->checkout ?? 0);
 
             $durationSec = $durationMs > 0
                 ? (int) floor($durationMs / 1000)
@@ -2153,25 +2164,25 @@ class PaidMarketingController extends Controller
                 'landing_page' => $landingPage ?: '—',
                 'page_flow' => $pageFlow ?: '—',
                 'pages' => $pages,
-                'entry_time' => UserTimezone::formatForUser($firstClickAt, $user, 'm/d/y') ?? '',
-                'entry_clock' => UserTimezone::formatForUser($firstClickAt, $user, 'H:i') ?? '',
-                'exit_time' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y') ?? '',
-                'exit_clock' => UserTimezone::formatForUser($lastClickAt, $user, 'H:i') ?? '',
+                'entry_time' => UserTimezone::formatForUser($firstClickAt, $user, 'm/d/y H:i:s') ?? '',
+                'entry_clock' => UserTimezone::formatForUser($firstClickAt, $user, 'H:i:s') ?? '',
+                'exit_time' => UserTimezone::formatForUser($lastClickAt, $user, 'm/d/y H:i:s') ?? '',
+                'exit_clock' => UserTimezone::formatForUser($lastClickAt, $user, 'H:i:s') ?? '',
                 'time_on_site' => sprintf('%02d:%02d:%02d', $hours, $mins, $secs),
                 'event_actions' => $eventActions,
                 'event_detail' => [],
-                'add_to_cart' => 0,
-                'checkout' => 0,
-                'purchase' => 'No',
+                'add_to_cart' => $addToCart,
+                'checkout' => $checkout,
+                'purchase' => $checkout > 0 || $addToCart > 0 ? 'Yes' : 'No',
                 'revenue' => '$0.00',
                 'crawler_score' => $crawlerScore,
                 'automation_score' => $automationScore,
                 'malicious_score' => $maliciousScore,
                 'headline' => $headline !== '' ? $headline : null,
                 'scroll_events' => $scrollEvents,
-                'form_starts' => 0,
-                'form_fills' => 0,
-                'form_submits' => 0,
+                'form_starts' => $formStarts,
+                'form_fills' => $formFills,
+                'form_submits' => $formSubmits,
                 'referrer' => $referrer,
                 'exit_page' => $exitPage ?: '—',
                 'page_views' => $pageChanges,
@@ -2208,6 +2219,107 @@ class PaidMarketingController extends Controller
     }
 
     /**
+     * Per-invalid-click entry/exit timestamps for Advanced export / sheet columns.
+     *
+     * @param  \Illuminate\Support\Collection<int, mixed>  $clicks
+     * @return array{entries: string, exits: string, timeline: string}
+     */
+    private function invalidClickTimeline(PaidMarketingVisit $visit, $clicks, ?\App\Models\User $user): array
+    {
+        $empty = ['entries' => '', 'exits' => '', 'timeline' => ''];
+        $pairs = [];
+
+        $invalidClicks = collect($clicks)
+            ->filter(fn ($c) => filled($c->threat_group ?? null))
+            ->sortBy(fn ($c) => (string) ($c->getRawOriginal('clicked_at') ?? $c->clicked_at ?? ''))
+            ->values();
+
+        foreach ($invalidClicks as $index => $c) {
+            $entryAt = UserTimezone::parseUtcInstant($c->getRawOriginal('clicked_at') ?? $c->clicked_at);
+            $exitAt = UserTimezone::parseUtcInstant($c->getRawOriginal('last_click_at') ?? $c->last_click_at)
+                ?: $entryAt;
+            $entry = UserTimezone::formatForUser($entryAt, $user, 'm/d/y H:i:s') ?? '';
+            $exit = UserTimezone::formatForUser($exitAt, $user, 'm/d/y H:i:s') ?? '';
+            if ($entry === '' && $exit === '') {
+                continue;
+            }
+            $pairs[] = [
+                'n' => $index + 1,
+                'entry' => $entry !== '' ? $entry : '—',
+                'exit' => $exit !== '' ? $exit : '—',
+            ];
+        }
+
+        if ($pairs === [] && Schema::hasTable('visits')) {
+            $select = ['visited_at'];
+            foreach (['threat_group', 'is_invalid_traffic'] as $col) {
+                if (Schema::hasColumn('visits', $col)) {
+                    $select[] = $col;
+                }
+            }
+
+            $query = DB::table('visits')
+                ->where('domain_id', (int) $visit->domain_id)
+                ->where('ip', (string) $visit->ip)
+                ->orderBy('visited_at')
+                ->limit(50);
+
+            if (Schema::hasColumn('visits', 'is_invalid_traffic') || Schema::hasColumn('visits', 'threat_group')) {
+                $query->where(function ($group): void {
+                    if (Schema::hasColumn('visits', 'is_invalid_traffic')) {
+                        $group->where('is_invalid_traffic', true);
+                    }
+                    if (Schema::hasColumn('visits', 'threat_group')) {
+                        $group->orWhere(function ($inner): void {
+                            $inner->whereNotNull('threat_group')->where('threat_group', '!=', '');
+                        });
+                    }
+                });
+            } else {
+                return $empty;
+            }
+
+            if (Schema::hasColumn('visits', 'gclid')
+                || Schema::hasColumn('visits', 'gbraid')
+                || Schema::hasColumn('visits', 'wbraid')) {
+                GoogleClickAttribution::applyHasClickIdFilter($query);
+            }
+
+            foreach ($query->get($select)->values() as $index => $row) {
+                $at = UserTimezone::parseUtcInstant($row->visited_at ?? null);
+                $label = UserTimezone::formatForUser($at, $user, 'm/d/y H:i:s') ?? '';
+                if ($label === '') {
+                    continue;
+                }
+                $pairs[] = [
+                    'n' => $index + 1,
+                    'entry' => $label,
+                    'exit' => $label,
+                ];
+            }
+        }
+
+        if ($pairs === []) {
+            return $empty;
+        }
+
+        return [
+            'entries' => implode(' | ', array_map(
+                static fn (array $p): string => '#'.$p['n'].' '.$p['entry'],
+                $pairs
+            )),
+            'exits' => implode(' | ', array_map(
+                static fn (array $p): string => '#'.$p['n'].' '.$p['exit'],
+                $pairs
+            )),
+            'timeline' => implode(' | ', array_map(
+                static fn (array $p): string => '#'.$p['n'].' '.$p['entry'].' → '.$p['exit'],
+                $pairs
+            )),
+        ];
+    }
+
+    /**
      * Build modal click rows from paid_marketing_clicks, or fall back to live `visits`
      * rows (Dashboard source) when the click ledger is empty for this IP.
      *
@@ -2224,11 +2336,13 @@ class PaidMarketingController extends Controller
         string $deviceLabel,
         array $clickIds,
         array $intel,
+        ?string $deviceId = null,
     ): array {
         if ($clicks->isNotEmpty()) {
-            return $clicks->map(function ($c) use ($user, $visit, $ipLog, $deviceLabel, $clickIds, $intel) {
+            return $clicks->map(function ($c) use ($user, $visit, $ipLog, $deviceLabel, $clickIds, $intel, $deviceId) {
                 $clickedAt = UserTimezone::parseUtcInstant($c->getRawOriginal('clicked_at') ?? $c->clicked_at);
-                $lastClick = UserTimezone::parseUtcInstant($c->getRawOriginal('last_click_at') ?? $c->last_click_at);
+                $lastClick = UserTimezone::parseUtcInstant($c->getRawOriginal('last_click_at') ?? $c->last_click_at)
+                    ?: $clickedAt;
                 $risk = RiskLabels::fromContext([
                     'is_allowlisted' => $intel['is_allowlisted'] ?? false,
                     'is_blocked' => (bool) ($ipLog?->is_blocked),
@@ -2249,33 +2363,36 @@ class PaidMarketingController extends Controller
                 }
 
                 return [
-                'id' => $c->id,
+                    'id' => $c->id,
                     'source' => 'paid_click',
-                'clicked_at' => UserTimezone::isoForUser($clickedAt, $user),
-                'last_click_at' => UserTimezone::isoForUser($lastClick, $user),
-                'ip' => $c->ip,
-                'country' => $c->country,
+                    'clicked_at' => UserTimezone::isoForUser($clickedAt, $user),
+                    'last_click_at' => UserTimezone::isoForUser($lastClick, $user),
+                    'entry_time' => UserTimezone::formatForUser($clickedAt, $user, 'm/d/y H:i:s') ?? '',
+                    'exit_time' => UserTimezone::formatForUser($lastClick, $user, 'm/d/y H:i:s') ?? '',
+                    'ip' => $c->ip,
+                    'country' => $c->country,
                     'threat_group' => $c->threat_group ?: $visit->threat_group,
                     'threat_type' => $visit->threat_type,
                     'campaign' => $campaign !== '' ? $campaign : null,
-                'paid_id' => $c->paid_id,
-                'gclid' => $typed['gclid'] ?: ($clickIds['gclid'] ?? null),
-                'gbraid' => $typed['gbraid'] ?: ($clickIds['gbraid'] ?? null),
-                'wbraid' => $typed['wbraid'] ?: ($clickIds['wbraid'] ?? null),
-                'path' => $c->path,
+                    'paid_id' => $c->paid_id,
+                    'gclid' => $typed['gclid'] ?: ($clickIds['gclid'] ?? null),
+                    'gbraid' => $typed['gbraid'] ?: ($clickIds['gbraid'] ?? null),
+                    'wbraid' => $typed['wbraid'] ?: ($clickIds['wbraid'] ?? null),
+                    'path' => $c->path,
                     'keyword' => $keyword !== '' ? $keyword : null,
-                'browser_name' => $c->browser_name,
-                'browser_version' => $c->browser_version,
-                'os' => $c->os,
-                'device' => $deviceLabel,
+                    'browser_name' => $c->browser_name,
+                    'browser_version' => $c->browser_version,
+                    'os' => $c->os,
+                    'device' => $deviceLabel,
+                    'device_id' => $deviceId,
                     'asn' => $intel['intel_asn'] ?? null,
-                'risk_decision' => $risk,
-                'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
-            ];
+                    'risk_decision' => $risk,
+                    'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $c->threat_group),
+                ];
             })->values()->all();
         }
 
-        return $this->syntheticClicksFromVisitsTable($visit, $user, $ipLog, $deviceLabel, $intel);
+        return $this->syntheticClicksFromVisitsTable($visit, $user, $ipLog, $deviceLabel, $intel, $deviceId);
     }
 
     /**
@@ -2291,13 +2408,14 @@ class PaidMarketingController extends Controller
         ?IpLog $ipLog,
         string $deviceLabel,
         array $intel,
+        ?string $deviceId = null,
     ): array {
         if (! Schema::hasTable('visits') || ! Schema::hasColumn('visits', 'gclid')) {
             return [];
         }
 
         $select = ['id', 'visited_at', 'ip', 'country', 'url', 'gclid'];
-        foreach (['gbraid', 'wbraid', 'threat_group', 'threat_score', 'action_taken', 'campaign_name', 'utm_campaign', 'utm_term', 'browser', 'browser_version', 'os', 'device', 'google_click_type'] as $col) {
+        foreach (['gbraid', 'wbraid', 'threat_group', 'threat_score', 'action_taken', 'campaign_name', 'utm_campaign', 'utm_term', 'browser', 'browser_version', 'os', 'device', 'google_click_type', 'device_id', 'fingerprint_id'] as $col) {
             if (Schema::hasColumn('visits', $col)) {
                 $select[] = $col;
             }
@@ -2324,7 +2442,7 @@ class PaidMarketingController extends Controller
             'action_taken' => $visit->threat_type,
         ]);
 
-        return $rows->map(function ($row) use ($user, $visit, $ipLog, $deviceLabel, $intel, $risk) {
+        return $rows->map(function ($row) use ($user, $visit, $ipLog, $deviceLabel, $intel, $risk, $deviceId) {
             $visitedAt = UserTimezone::parseUtcInstant($row->visited_at ?? null);
             $path = (string) ($row->url ?? $visit->last_path ?? '');
             $campaign = trim((string) ($row->campaign_name ?? $row->utm_campaign ?? ''));
@@ -2347,12 +2465,22 @@ class PaidMarketingController extends Controller
                 'threat_type' => $visit->threat_type,
                 'action_taken' => $row->action_taken ?? $visit->threat_type,
             ]);
+            $rowDeviceId = \App\Support\DeviceIdLabel::format(
+                filled($row->device_id ?? null) ? (string) $row->device_id : null,
+                filled($row->fingerprint_id ?? null) ? (string) $row->fingerprint_id : null,
+                filled($row->ip ?? null) ? (string) $row->ip : null,
+            );
+            if ($rowDeviceId === 'DEV_UNKNOWN') {
+                $rowDeviceId = $deviceId;
+            }
 
             return [
                 'id' => 'visit-'.$row->id,
                 'source' => 'visit',
                 'clicked_at' => UserTimezone::isoForUser($visitedAt, $user),
                 'last_click_at' => UserTimezone::isoForUser($visitedAt, $user),
+                'entry_time' => UserTimezone::formatForUser($visitedAt, $user, 'm/d/y H:i:s') ?? '',
+                'exit_time' => UserTimezone::formatForUser($visitedAt, $user, 'm/d/y H:i:s') ?? '',
                 'ip' => $row->ip ?: $visit->ip,
                 'country' => $row->country ?? $visit->country,
                 'threat_group' => $threat,
@@ -2368,6 +2496,7 @@ class PaidMarketingController extends Controller
                 'browser_version' => $row->browser_version ?? null,
                 'os' => $row->os ?? null,
                 'device' => $this->normalizeDeviceLabel($row->device ?? $deviceLabel),
+                'device_id' => $rowDeviceId ?: $deviceId,
                 'asn' => $intel['intel_asn'] ?? null,
                 'risk_decision' => $rowRisk ?: $risk,
                 'action' => $this->timelineActionLabel($visit, $ipLog, $intel, $threat),
@@ -3351,66 +3480,257 @@ class PaidMarketingController extends Controller
     }
 
     /**
-     * Aggregate CTA / tel / page-change / session counts from session recordings for Advanced View + Clickronix export.
+     * Aggregate CTA / tel / page-change / session counts for Advanced View + Clickronix export.
+     * Prefer denormalized recording columns, then lift from visit_behavior_events when columns under-count.
      *
      * @param  Collection<int, string>  $ips
      * @return Collection<string, object>
      */
     private function behaviorClickCountsForIps(Request $request, Collection $ips): Collection
     {
-        if (
-            ! Schema::hasTable('visit_session_recordings')
-            || ! Schema::hasColumn('visit_session_recordings', 'cta_clicks')
-            || $ips->isEmpty()
-        ) {
+        $ips = $ips->map(fn ($ip) => trim((string) $ip))->filter()->unique()->values();
+        if ($ips->isEmpty()) {
             return collect();
         }
 
-        $domainIds = null;
         $domainId = (int) $request->query('domain_id', 0);
         if ($domainId > 0) {
             $domainIds = collect([$domainId]);
         } else {
             $domainIds = Domain::query()
                 ->where('user_id', $request->user()->id)
+                ->forPaidMarketing()
                 ->pluck('id');
+            if ($domainIds->isEmpty()) {
+                $domainIds = Domain::query()
+                    ->where('user_id', $request->user()->id)
+                    ->pluck('id');
+            }
+        }
+        if ($domainIds->isEmpty()) {
+            return collect();
         }
 
-        $select = [
-            'ip',
-            DB::raw('COALESCE(SUM(cta_clicks), 0) as cta_clicks'),
-            DB::raw('COALESCE(SUM(tel_clicks), 0) as tel_clicks'),
-            DB::raw('COALESCE(SUM(page_changes), 0) as page_changes'),
-            DB::raw('COUNT(DISTINCT NULLIF(session_id, "")) as session_count'),
-        ];
+        [$metricFrom, $metricTo, , $reportingTz] = $this->reportingWindow($request);
+        $user = $request->user();
 
-        $query = DB::table('visit_session_recordings')
-            ->select($select)
-            ->whereIn('ip', $ips)
-            ->whereIn('domain_id', $domainIds)
-            ->groupBy('ip');
+        $bag = [];
+        foreach ($ips as $ip) {
+            $bag[$ip] = (object) [
+                'ip' => $ip,
+                'cta_clicks' => 0,
+                'tel_clicks' => 0,
+                'page_changes' => 0,
+                'session_count' => 0,
+                'scroll_events' => 0,
+                'form_starts' => 0,
+                'form_fills' => 0,
+                'form_submits' => 0,
+                'add_to_cart' => 0,
+                'checkout' => 0,
+                'last_cta_href' => '',
+            ];
+        }
 
-        $totals = $query->get()->keyBy('ip');
+        $bump = static function (object $row, string $field, int $value): void {
+            if ($value > (int) ($row->{$field} ?? 0)) {
+                $row->{$field} = $value;
+            }
+        };
 
-        $lastCtaByIp = collect();
-        if (Schema::hasColumn('visit_session_recordings', 'last_cta_href')) {
-            $lastCtaByIp = DB::table('visit_session_recordings')
-                ->select(['ip', 'last_cta_href'])
-                ->whereIn('ip', $ips)
-                ->whereIn('domain_id', $domainIds)
-                ->whereNotNull('last_cta_href')
-                ->where('last_cta_href', '!=', '')
+        if (
+            Schema::hasTable('visit_session_recordings')
+            && Schema::hasColumn('visit_session_recordings', 'cta_clicks')
+        ) {
+            $select = [
+                'ip',
+                DB::raw('COALESCE(SUM(cta_clicks), 0) as cta_clicks'),
+                DB::raw(Schema::hasColumn('visit_session_recordings', 'tel_clicks')
+                    ? 'COALESCE(SUM(tel_clicks), 0) as tel_clicks'
+                    : '0 as tel_clicks'),
+                DB::raw(Schema::hasColumn('visit_session_recordings', 'page_changes')
+                    ? 'COALESCE(SUM(page_changes), 0) as page_changes'
+                    : '0 as page_changes'),
+                DB::raw(Schema::hasColumn('visit_session_recordings', 'scroll_count')
+                    ? 'COALESCE(SUM(scroll_count), 0) as scroll_events'
+                    : '0 as scroll_events'),
+                DB::raw(Schema::hasColumn('visit_session_recordings', 'session_id')
+                    ? 'COUNT(DISTINCT NULLIF(session_id, "")) as session_count'
+                    : 'COUNT(*) as session_count'),
+            ];
+
+            $query = DB::table('visit_session_recordings')
+                ->select($select)
+                ->whereIn('ip', $ips->all())
+                ->whereIn('domain_id', $domainIds->all())
+                ->groupBy('ip');
+            UserTimezone::applyCalendarDateRangeFilter($query, 'created_at', $metricFrom, $metricTo, $user, $reportingTz);
+
+            foreach ($query->get() as $row) {
+                $ip = trim((string) ($row->ip ?? ''));
+                if ($ip === '' || ! isset($bag[$ip])) {
+                    continue;
+                }
+                $bump($bag[$ip], 'cta_clicks', (int) ($row->cta_clicks ?? 0));
+                $bump($bag[$ip], 'tel_clicks', (int) ($row->tel_clicks ?? 0));
+                $bump($bag[$ip], 'page_changes', (int) ($row->page_changes ?? 0));
+                $bump($bag[$ip], 'scroll_events', (int) ($row->scroll_events ?? 0));
+                $bump($bag[$ip], 'session_count', (int) ($row->session_count ?? 0));
+            }
+
+            if (Schema::hasColumn('visit_session_recordings', 'last_cta_href')) {
+                $lastCtaQuery = DB::table('visit_session_recordings')
+                    ->select(['ip', 'last_cta_href'])
+                    ->whereIn('ip', $ips->all())
+                    ->whereIn('domain_id', $domainIds->all())
+                    ->whereNotNull('last_cta_href')
+                    ->where('last_cta_href', '!=', '')
+                    ->orderByDesc('id');
+                UserTimezone::applyCalendarDateRangeFilter($lastCtaQuery, 'created_at', $metricFrom, $metricTo, $user, $reportingTz);
+                foreach ($lastCtaQuery->get()->groupBy('ip') as $ip => $rows) {
+                    $ip = trim((string) $ip);
+                    if ($ip === '' || ! isset($bag[$ip])) {
+                        continue;
+                    }
+                    $bag[$ip]->last_cta_href = (string) ($rows->first()->last_cta_href ?? '');
+                }
+            }
+        }
+
+        if (Schema::hasTable('visit_behavior_events')) {
+            $eventTypes = [
+                'cta_click', 'phone_click', 'tel_click',
+                'page_view', 'page_change',
+                'scroll',
+                'form_start', 'form_submit', 'form_fill',
+                'add_to_cart', 'checkout', 'begin_checkout',
+            ];
+
+            $eventBag = [];
+            $addEvents = static function ($rows) use (&$eventBag): void {
+                foreach ($rows as $row) {
+                    $ip = trim((string) ($row->ip ?? ''));
+                    if ($ip === '') {
+                        continue;
+                    }
+                    $type = strtolower((string) ($row->event_type ?? ''));
+                    $count = (int) ($row->event_count ?? 0);
+                    if ($count <= 0) {
+                        continue;
+                    }
+                    $eventBag[$ip][$type] = ($eventBag[$ip][$type] ?? 0) + $count;
+                }
+            };
+
+            if (Schema::hasTable('visits')) {
+                $viaVisit = DB::table('visit_behavior_events as e')
+                    ->join('visits as v', 'v.id', '=', 'e.visit_id')
+                    ->whereIn('e.domain_id', $domainIds->all())
+                    ->whereIn('v.domain_id', $domainIds->all())
+                    ->whereIn('v.ip', $ips->all())
+                    ->whereIn('e.event_type', $eventTypes)
+                    ->whereNotNull('e.visit_id')
+                    ->select(['v.ip', 'e.event_type', DB::raw('COUNT(*) as event_count')])
+                    ->groupBy('v.ip', 'e.event_type');
+                UserTimezone::applyCalendarDateRangeFilter($viaVisit, 'e.occurred_at', $metricFrom, $metricTo, $user, $reportingTz);
+                $addEvents($viaVisit->get());
+            }
+
+            if (Schema::hasTable('visit_session_recordings') && Schema::hasColumn('visit_behavior_events', 'recording_id')) {
+                $viaRec = DB::table('visit_behavior_events as e')
+                    ->join('visit_session_recordings as r', 'r.id', '=', 'e.recording_id')
+                    ->whereIn('e.domain_id', $domainIds->all())
+                    ->whereIn('r.domain_id', $domainIds->all())
+                    ->whereIn('r.ip', $ips->all())
+                    ->whereIn('e.event_type', $eventTypes)
+                    ->whereNotNull('e.recording_id')
+                    ->whereNull('e.visit_id')
+                    ->select(['r.ip', 'e.event_type', DB::raw('COUNT(*) as event_count')])
+                    ->groupBy('r.ip', 'e.event_type');
+                UserTimezone::applyCalendarDateRangeFilter($viaRec, 'e.occurred_at', $metricFrom, $metricTo, $user, $reportingTz);
+                $addEvents($viaRec->get());
+            }
+
+            foreach ($eventBag as $ip => $types) {
+                if (! isset($bag[$ip])) {
+                    continue;
+                }
+                $cta = (int) ($types['cta_click'] ?? 0);
+                $tel = (int) ($types['phone_click'] ?? 0) + (int) ($types['tel_click'] ?? 0);
+                $pages = (int) ($types['page_view'] ?? 0) + (int) ($types['page_change'] ?? 0);
+                $scroll = (int) ($types['scroll'] ?? 0);
+                $formStarts = (int) ($types['form_start'] ?? 0);
+                $formFills = (int) ($types['form_submit'] ?? 0) + (int) ($types['form_fill'] ?? 0);
+                $cart = (int) ($types['add_to_cart'] ?? 0);
+                $checkout = (int) ($types['checkout'] ?? 0) + (int) ($types['begin_checkout'] ?? 0);
+                $bump($bag[$ip], 'cta_clicks', $cta);
+                $bump($bag[$ip], 'tel_clicks', $tel);
+                $bump($bag[$ip], 'page_changes', $pages);
+                $bump($bag[$ip], 'scroll_events', $scroll);
+                $bump($bag[$ip], 'form_starts', $formStarts);
+                $bump($bag[$ip], 'form_fills', $formFills);
+                $bump($bag[$ip], 'form_submits', $formFills);
+                $bump($bag[$ip], 'add_to_cart', $cart);
+                $bump($bag[$ip], 'checkout', $checkout);
+            }
+        }
+
+        // Last resort: decode recording JSON for IPs still at zero (legacy rows before typed events).
+        $stillEmpty = collect($bag)->filter(static function ($row): bool {
+            return (int) $row->cta_clicks === 0
+                && (int) $row->tel_clicks === 0
+                && (int) $row->page_changes === 0;
+        })->keys()->values();
+
+        if (
+            $stillEmpty->isNotEmpty()
+            && Schema::hasTable('visit_session_recordings')
+            && Schema::hasColumn('visit_session_recordings', 'events')
+        ) {
+            $jsonQuery = DB::table('visit_session_recordings')
+                ->select(['ip', 'events', 'duration_ms'])
+                ->whereIn('ip', $stillEmpty->all())
+                ->whereIn('domain_id', $domainIds->all())
+                ->whereNotNull('events')
+                ->where('events', '!=', '')
+                ->where('events', '!=', '[]')
                 ->orderByDesc('id')
-                ->get()
-                ->groupBy('ip')
-                ->map(fn ($rows) => (string) ($rows->first()->last_cta_href ?? ''));
+                ->limit(min(400, max(50, $stillEmpty->count() * 3)));
+            UserTimezone::applyCalendarDateRangeFilter($jsonQuery, 'created_at', $metricFrom, $metricTo, $user, $reportingTz);
+
+            $seen = [];
+            foreach ($jsonQuery->get() as $rec) {
+                $ip = trim((string) ($rec->ip ?? ''));
+                if ($ip === '' || ! isset($bag[$ip]) || isset($seen[$ip])) {
+                    continue;
+                }
+                // Only analyze the latest recording per empty IP.
+                $seen[$ip] = true;
+                try {
+                    $events = json_decode((string) ($rec->events ?? '[]'), true);
+                    if (! is_array($events) || $events === []) {
+                        continue;
+                    }
+                    $analysis = SessionBehaviorAnalyzer::analyze($events, (int) ($rec->duration_ms ?? 0));
+                    $bump($bag[$ip], 'cta_clicks', (int) ($analysis['cta_clicks'] ?? 0));
+                    $bump($bag[$ip], 'tel_clicks', (int) ($analysis['tel_clicks'] ?? 0));
+                    $bump($bag[$ip], 'page_changes', (int) ($analysis['page_changes'] ?? 0));
+                    $bump($bag[$ip], 'scroll_events', (int) ($analysis['scroll_count'] ?? 0));
+                    $bump($bag[$ip], 'form_starts', (int) ($analysis['form_starts'] ?? 0));
+                    $bump($bag[$ip], 'form_fills', (int) ($analysis['form_submits'] ?? 0));
+                    $bump($bag[$ip], 'form_submits', (int) ($analysis['form_submits'] ?? 0));
+                    $bump($bag[$ip], 'add_to_cart', (int) ($analysis['add_to_cart'] ?? 0));
+                    $bump($bag[$ip], 'checkout', (int) ($analysis['checkouts'] ?? 0));
+                    if (($bag[$ip]->last_cta_href ?? '') === '' && ! empty($analysis['last_cta_href'])) {
+                        $bag[$ip]->last_cta_href = (string) $analysis['last_cta_href'];
+                    }
+                } catch (\Throwable) {
+                    continue;
+                }
+            }
         }
 
-        return $totals->map(function ($row) use ($lastCtaByIp) {
-            $row->last_cta_href = $lastCtaByIp->get($row->ip, '');
-
-            return $row;
-        });
+        return collect($bag);
     }
 
     /**

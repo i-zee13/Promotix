@@ -1520,6 +1520,21 @@
                                         </div>
                                         <p class="figma-modal-value figma-modal-value--mono" x-text="modal.visit?.ip || activeClick.ip || '—'"></p>
                                     </div>
+                                    <div class="figma-modal-field figma-modal-field--full">
+                                        <div class="figma-modal-field__head">
+                                            <p class="figma-modal-label">Device ID</p>
+                                            <button type="button" class="figma-modal-copy-btn" x-show="activeClick.device_id || modal.visit?.device_id" @click="copyText(activeClick.device_id || modal.visit?.device_id)">Copy</button>
+                                        </div>
+                                        <p class="figma-modal-value figma-modal-value--mono figma-modal-value--mono-sm" :title="activeClick.device_id || modal.visit?.device_id || ''" x-text="activeClick.device_id || modal.visit?.device_id || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Entry Time</p>
+                                        <p class="figma-modal-value" x-text="activeClick.entry_time || formatDateTime(activeClick.clicked_at) || modal.visit?.first_click_label || modal.visit?.entry_time || '—'"></p>
+                                    </div>
+                                    <div class="figma-modal-field">
+                                        <p class="figma-modal-label">Exit Time</p>
+                                        <p class="figma-modal-value" x-text="activeClick.exit_time || formatDateTime(activeClick.last_click_at || activeClick.clicked_at) || modal.visit?.last_click_datetime_label || modal.visit?.exit_time || '—'"></p>
+                                    </div>
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">VPN Hits</p>
                                         <p class="figma-modal-value" x-text="modal.visit?.vpn_hits > 0 ? modal.visit.vpn_hits : '—'"></p>
@@ -1554,10 +1569,6 @@
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">Browser version</p>
                                         <p class="figma-modal-value" x-text="activeClick.browser_version || '—'"></p>
-                                    </div>
-                                    <div class="figma-modal-field">
-                                        <p class="figma-modal-label">Last Click</p>
-                                        <p class="figma-modal-value" x-text="formatDateTime(activeClick.last_click_at || modal.visit?.last_click_at)"></p>
                                     </div>
                                     <div class="figma-modal-field">
                                         <p class="figma-modal-label">OS</p>
@@ -1785,8 +1796,10 @@
             // Traffic Control fields (unique keys — no overlap with columns above)
             { key: 'landing_page', label: 'Landing Page', primary: false, min: 140 },
             { key: 'page_flow', label: 'Page Flow / Pages Visited', primary: false, min: 220 },
-            { key: 'entry_time', label: 'Entry Time', primary: false, min: 88 },
-            { key: 'exit_time', label: 'Exit Time', primary: false, min: 88 },
+            { key: 'entry_time', label: 'Entry Time', primary: false, min: 120 },
+            { key: 'exit_time', label: 'Exit Time', primary: false, min: 120 },
+            { key: 'invalid_entry_times', label: 'Invalid Entry Times', primary: false, min: 180 },
+            { key: 'invalid_exit_times', label: 'Invalid Exit Times', primary: false, min: 180 },
             { key: 'time_on_site', label: 'Time on Site', primary: false, min: 88 },
             { key: 'event_actions', label: 'Events / Actions', primary: false, min: 120 },
             { key: 'add_to_cart', label: 'Add to Cart', primary: false, min: 80 },
@@ -1839,7 +1852,7 @@
             {
                 id: 'click_windows',
                 label: 'Click Windows',
-                keys: ['ip', 'visits', 'last_click_label', 'invalid_clicks', 'valid_clicks', 'cta_clicks', 'tel_clicks', 'page_changes'],
+                keys: ['ip', 'visits', 'last_click_label', 'invalid_clicks', 'valid_clicks', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'cta_clicks', 'tel_clicks', 'page_changes'],
             },
             {
                 id: 'ip_intelligence',
@@ -1854,7 +1867,7 @@
             {
                 id: 'session_behavior',
                 label: 'Session / Behavior',
-                keys: ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
+                keys: ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
             },
             {
                 id: 'conversion_lead',

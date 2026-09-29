@@ -11,11 +11,16 @@ class ClickronixTrafficReportTest extends TestCase
     {
         $headers = ClickronixTrafficReport::headers();
 
-        $this->assertCount(42, $headers);
+        $this->assertCount(45, $headers);
         $this->assertSame('IP Address', $headers[0]);
-        $this->assertSame('Total CTA Clicks', $headers[27]);
-        $this->assertSame('Total Tel Clicks', $headers[28]);
-        $this->assertSame('Checked At', $headers[41]);
+        $this->assertSame('Device ID', $headers[10]);
+        $this->assertSame('Entry Time', $headers[26]);
+        $this->assertSame('Exit Time', $headers[27]);
+        $this->assertSame('Invalid Entry Times', $headers[28]);
+        $this->assertSame('Invalid Exit Times', $headers[29]);
+        $this->assertSame('Total CTA Clicks', $headers[30]);
+        $this->assertSame('Total Tel Clicks', $headers[31]);
+        $this->assertSame('Checked At', $headers[44]);
     }
 
     public function test_values_align_with_headers(): void
@@ -31,11 +36,16 @@ class ClickronixTrafficReportTest extends TestCase
             'status' => 'Blocked',
             'intel_block_reason' => 'vpn',
             'device_fingerprint' => 'abc',
+            'device_id' => 'DEV_abc',
             'session_count' => 2,
             'session_id' => 's1',
             'device' => 'Mobile',
             'browser' => 'Chrome',
             'os' => 'iOS',
+            'entry_time' => '09/29/26 14:41:47',
+            'exit_time' => '09/29/26 14:42:36',
+            'invalid_entry_times' => '#1 09/29/26 14:41:47',
+            'invalid_exit_times' => '#1 09/29/26 14:41:51',
             'cta_clicks' => 4,
             'tel_clicks' => 1,
             'page_changes' => 2,
@@ -49,9 +59,12 @@ class ClickronixTrafficReportTest extends TestCase
 
         $this->assertCount(count(ClickronixTrafficReport::headers()), $row);
         $this->assertSame('1.2.3.4', $row[0]);
-        $this->assertSame(4, $row[27]);
-        $this->assertSame(1, $row[28]);
-        $this->assertSame('tel:+15551212', $row[40]);
+        $this->assertSame('DEV_abc', $row[10]);
+        $this->assertSame('09/29/26 14:41:47', $row[26]);
+        $this->assertSame('#1 09/29/26 14:41:47', $row[28]);
+        $this->assertSame(4, $row[30]);
+        $this->assertSame(1, $row[31]);
+        $this->assertSame('tel:+15551212', $row[43]);
     }
 
     public function test_group_export_matches_sheet_keys(): void

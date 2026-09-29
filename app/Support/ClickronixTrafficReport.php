@@ -3,10 +3,10 @@
 namespace App\Support;
 
 /**
- * Clickronix client Traffic Report template (42 columns).
+ * Clickronix client Traffic Report template (45 columns).
  * Used by Paid Marketing Advanced CSV / XLSX exports.
  * When a column group (or explicit columns list) is selected in Advanced View,
- * export uses that sheet subset instead of the full 42-column template.
+ * export uses that sheet subset instead of the full 45-column template.
  */
 class ClickronixTrafficReport
 {
@@ -48,6 +48,9 @@ class ClickronixTrafficReport
         'page_flow' => 'Page Flow / Pages Visited',
         'entry_time' => 'Entry Time',
         'exit_time' => 'Exit Time',
+        'invalid_entry_times' => 'Invalid Entry Times',
+        'invalid_exit_times' => 'Invalid Exit Times',
+        'invalid_click_timeline' => 'Invalid Click Timeline',
         'time_on_site' => 'Time on Site',
         'event_actions' => 'Events / Actions',
         'add_to_cart' => 'Add to Cart',
@@ -141,7 +144,7 @@ class ClickronixTrafficReport
         ],
         'click_windows' => [
             'label' => 'Click Windows',
-            'keys' => ['ip', 'visits', 'last_click_label', 'invalid_clicks', 'valid_clicks', 'cta_clicks', 'tel_clicks', 'page_changes'],
+            'keys' => ['ip', 'visits', 'last_click_label', 'invalid_clicks', 'valid_clicks', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'cta_clicks', 'tel_clicks', 'page_changes'],
         ],
         'ip_intelligence' => [
             'label' => 'IP Intelligence',
@@ -153,7 +156,7 @@ class ClickronixTrafficReport
         ],
         'session_behavior' => [
             'label' => 'Session / Behavior',
-            'keys' => ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
+            'keys' => ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
         ],
         'conversion_lead' => [
             'label' => 'Conversion / Lead',
@@ -199,6 +202,7 @@ class ClickronixTrafficReport
             'Block Status',
             'Block Reason',
             'Fingerprint ID',
+            'Device ID',
             'Session Count',
             'Latest Session ID',
             'Device Type',
@@ -214,8 +218,10 @@ class ClickronixTrafficReport
             'Datacenter',
             'Evidence',
             'Confidence',
-            'First Click Time',
-            'Last Click Time',
+            'Entry Time',
+            'Exit Time',
+            'Invalid Entry Times',
+            'Invalid Exit Times',
             'Total CTA Clicks',
             'Total Tel Clicks',
             'Total Page Changes',
@@ -339,7 +345,8 @@ class ClickronixTrafficReport
             $row['intel_risk_score'] ?? ($row['risk_summary']['score'] ?? ''),
             $blockStatus,
             $blockReason,
-            $row['device_fingerprint'] ?? '',
+            $row['device_fingerprint'] ?? ($row['fingerprint_id'] ?? ''),
+            $row['device_id'] ?? '',
             (int) ($row['session_count'] ?? 0),
             $row['session_id'] ?? '',
             $row['device'] ?? '',
@@ -355,8 +362,10 @@ class ClickronixTrafficReport
             $row['intel_datacenter'] ?? 'No',
             $row['intel_evidence'] ?? '',
             $row['intel_confidence'] ?? '',
-            $row['first_click_label'] ?? '',
-            $row['last_click_datetime_label'] ?? ($row['last_click_label'] ?? ''),
+            $row['entry_time'] ?? ($row['first_click_label'] ?? ''),
+            $row['exit_time'] ?? ($row['last_click_datetime_label'] ?? ($row['last_click_label'] ?? '')),
+            $row['invalid_entry_times'] ?? '',
+            $row['invalid_exit_times'] ?? '',
             (int) ($row['cta_clicks'] ?? 0),
             (int) ($row['tel_clicks'] ?? 0),
             (int) ($row['page_changes'] ?? 0),
