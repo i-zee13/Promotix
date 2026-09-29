@@ -2793,18 +2793,20 @@ function platformIntegrations(config) {
                 return;
             }
             if (this.audienceWizard.step === 1) {
-                // GA4 route → create/reuse list and always persist current rule (e.g. Repeat clicks >= 3).
+                // GA4 route → create/reuse list and persist current rule.
                 this.audienceWizard.source = 'ga4';
+                const hadList = Boolean(this.audienceWizard.ga4ListId);
                 const ok = await this.wizardCreateAudience('ga4', { stayOnStep: true });
-                if (!ok) return;
+                if (!ok && !hadList && !this.audienceWizard.ga4ListId) return;
                 this.wizardGoToStep(3);
                 return;
             }
             if (this.audienceWizard.step === 2) {
-                // Ads / website segment → create/reuse list and always persist current rule.
+                // Ads route → create/reuse list and persist current rule (GTM not required).
                 this.audienceWizard.source = 'website';
+                const hadList = Boolean(this.audienceWizard.websiteListId);
                 const ok = await this.wizardCreateAudience('website', { stayOnStep: true });
-                if (!ok) return;
+                if (!ok && !hadList && !this.audienceWizard.websiteListId) return;
                 this.wizardGoToStep(3);
             }
         },

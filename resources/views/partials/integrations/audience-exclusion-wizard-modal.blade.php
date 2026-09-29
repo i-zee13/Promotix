@@ -380,11 +380,15 @@
                             @click="wizardCreateAudience('website')">
                         <span x-text="audienceWizard.creating ? 'Creating…' : 'Create website audience →'"></span>
                     </button>
+                    <div x-show="audienceWizard.createError" x-cloak
+                         class="rounded-[8px] border border-red-400/40 bg-red-500/15 px-[12px] py-[10px] text-[12px] text-red-100"
+                         x-text="audienceWizard.createError"></div>
                 </div>
                 <aside class="space-y-[10px] rounded-[10px] border border-white/12 bg-[#0d0d0d] p-[14px] text-[12px]">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-white/45">Verification</p>
                     <div class="flex justify-between gap-[8px]"><span>Google Ads access</span><span :class="wizardAdsConnected ? 'text-emerald-300' : 'text-white/45'" x-text="wizardAdsConnected ? 'Connected' : 'Pending'"></span></div>
                     <div class="flex justify-between gap-[8px]"><span>Website audience</span><span :class="audienceWizard.websiteListId ? 'text-emerald-300' : 'text-amber-300'" x-text="audienceWizard.websiteListId ? 'Created' : 'Ready to create'"></span></div>
+                    <p x-show="audienceWizard.createError" x-cloak class="rounded-[8px] border border-red-400/40 bg-red-500/15 px-[10px] py-[8px] text-[11px] text-red-100" x-text="audienceWizard.createError"></p>
                     <p class="rounded-[8px] border border-white/15 bg-[#0a0a0a] px-[10px] py-[8px] text-[11px] text-white/65">This route creates a <strong class="text-white">separate</strong> Google Ads list. It does not override the GA4 list or older exclusions.</p>
                 </aside>
             </div>

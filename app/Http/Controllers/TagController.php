@@ -46,6 +46,12 @@ class TagController extends Controller
         $collectUrlJson = $this->json($collectUrl);
         $sessionRecordingUrlJson = $this->json($sessionRecordingUrl);
         $ipCheckUrlJson = $this->json($ipCheckUrl);
+        $brandNameJson = $this->json(\App\Support\PortalBrand::name());
+        $portalLogos = \App\Support\PortalBrand::logoUrls();
+        // Dark overlay → light (white) logo mark
+        $brandLogoUrlJson = $this->json(
+            ($portalLogos['light'] ?? null) ?: \App\Support\Branding::logoAsset('light')
+        );
 
         $js = <<<JS
 (function(){
@@ -53,6 +59,8 @@ class TagController extends Controller
   var collectUrl = {$collectUrlJson};
   var sessionRecordingUrl = {$sessionRecordingUrlJson};
   var ipCheckUrl = {$ipCheckUrlJson};
+  var brandName = {$brandNameJson};
+  var brandLogoUrl = {$brandLogoUrlJson};
   var consentRequired = {$consentRequiredJs};
   var maskPasswords = {$maskPasswordsJs};
   var consentRegions = {$consentRegionsJson};
@@ -162,7 +170,11 @@ class TagController extends Controller
       var overlay = document.createElement('div');
       overlay.id = 'pm-block-overlay';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#0d0d0d;color:#fff;display:flex;align-items:center;justify-content:center;font:16px/1.4 system-ui,sans-serif;text-align:center;padding:24px;';
-      overlay.innerHTML = '<div><p style="font-size:20px;font-weight:600;margin:0 0 8px;">Access restricted</p><p style="opacity:.75;margin:0;">This visit was blocked by PromoTix protection.</p></div>';
+      var name = brandName || 'Clickronix';
+      var logo = brandLogoUrl
+        ? '<img src="'+String(brandLogoUrl).replace(/"/g,'&quot;')+'" alt="'+String(name).replace(/"/g,'&quot;')+'" width="180" height="48" style="display:block;margin:0 auto 20px;max-width:min(220px,70vw);height:auto;">'
+        : '';
+      overlay.innerHTML = '<div>'+logo+'<p style="font-size:20px;font-weight:600;margin:0 0 8px;">Access restricted</p><p style="opacity:.75;margin:0;">This visit was blocked by '+String(name).replace(/</g,'&lt;')+' protection.</p></div>';
       (document.body || document.documentElement).appendChild(overlay);
       document.documentElement.style.overflow = 'hidden';
     } catch (e) {}

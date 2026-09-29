@@ -2087,6 +2087,77 @@ class IntegrationsController extends Controller
     }
 
     /**
+     * Client-facing DB vs sheet diagnostic (paid IPs grouped, threshold filter explained).
+     */
+    public function audienceExclusionDbCheck(Request $request): View
+    {
+        $user = $request->user();
+        $data = $request->validate([
+            'domain_id' => ['nullable', 'integer'],
+            'hostname' => ['nullable', 'string', 'max:255'],
+            'threshold' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'days' => ['nullable', 'integer', 'min:1', 'max:540'],
+        ]);
+
+        $domains = Domain::query()
+            ->where('user_id', $user->id)
+            ->orderBy('hostname')
+            ->get(['id', 'hostname']);
+
+        $domain = null;
+        $domainId = (int) ($data['domain_id'] ?? 0);
+        if ($domainId > 0) {
+            $domain = $domains->firstWhere('id', $domainId);
+        }
+        $hostnameQ = trim((string) ($data['hostname'] ?? ''));
+        if (! $domain && $hostnameQ !== '') {
+            $domain = Domain::query()
+                ->where('user_id', $user->id)
+                ->where('hostname', 'like', '%'.$hostnameQ.'%')
+                ->orderBy('hostname')
+                ->first(['id', 'hostname']);
+        }
+        if (! $domain) {
+            $domain = $domains->first();
+        }
+
+        $threshold = (int) ($data['threshold'] ?? 2);
+        $days = (int) ($data['days'] ?? 90);
+        $since = now()->subDays($days);
+
+        $rows = collect();
+        $paidVisits = 0;
+        if ($domain && Schema::hasTable('visits')) {
+            $q = DB::table('visits')
+                ->select([
+                    'ip',
+                    DB::raw('COUNT(*) as cnt'),
+                    DB::raw('MIN(visited_at) as first_click'),
+                    DB::raw('MAX(visited_at) as last_click'),
+                ])
+                ->where('domain_id', $domain->id)
+                ->where('visited_at', '>=', $since)
+                ->whereNotNull('ip')
+                ->where('ip', '!=', '');
+            \App\Support\GoogleClickAttribution::applyHasClickIdFilter($q);
+            $rows = $q->groupBy('ip')->orderByDesc(DB::raw('COUNT(*)'))->limit(2000)->get();
+            $paidVisits = (int) $rows->sum(fn ($r) => (int) $r->cnt);
+        }
+
+        return view('integrations.audience-db-check', [
+            'domains' => $domains,
+            'domainId' => $domain?->id,
+            'hostname' => $domain?->hostname ?? '—',
+            'threshold' => $threshold,
+            'days' => $days,
+            'rows' => $rows,
+            'paidVisits' => $paidVisits,
+            'allIps' => $rows->count(),
+            'matchingIps' => $rows->filter(fn ($r) => (int) $r->cnt >= $threshold)->count(),
+        ]);
+    }
+
+    /**
      * Create Ads-side audience (user list) for exclusion. Real Google Ads API call — not demo.
      * Requires GA4/GTM detected on the domain website (or linked measurement ID / GTM in portal).
      */
